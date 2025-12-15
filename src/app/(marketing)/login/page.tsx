@@ -1,22 +1,61 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function LoginPage() {
+    const router = useRouter();
+    const [credentials, setCredentials] = useState({ email: "", password: "" });
+    const [loading, setLoading] = useState(false);
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+
+        try {
+            const result = await signIn("credentials", {
+                redirect: false,
+                email: credentials.email,
+                password: credentials.password,
+            });
+
+            if (result?.error) {
+                toast.error("Invalid credentials");
+            } else {
+                toast.success("Welcome back!");
+                router.push("/dashboard");
+                router.refresh();
+            }
+        } catch (error) {
+            toast.error("Something went wrong");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGoogleLogin = () => {
+        signIn("google", { callbackUrl: "/dashboard" });
+    };
+
     return (
         <main className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <SectionHeader title="Welcome Back" subtitle="Sign in to your account" />
 
                 <GlassCard>
-                    <form className="space-y-6">
+                    <form onSubmit={handleLogin} className="space-y-6">
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
                             <input
                                 type="email"
+                                required
+                                value={credentials.email}
+                                onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition"
                                 placeholder="you@example.com"
                             />
@@ -29,13 +68,20 @@ export default function LoginPage() {
                             </div>
                             <input
                                 type="password"
+                                required
+                                value={credentials.password}
+                                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition"
                                 placeholder="••••••••"
                             />
                         </div>
 
-                        <Button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-0">
-                            Sign In
+                        <Button
+                            disabled={loading}
+                            type="submit"
+                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-0"
+                        >
+                            {loading ? "Signing in..." : "Sign In"}
                         </Button>
 
                         <div className="relative my-6">
@@ -47,7 +93,12 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <button type="button" className="w-full glass py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-white/10 transition">
+                        <button
+                            type="button"
+                            onClick={handleGoogleLogin}
+                            className="w-full glass py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-white/10 transition"
+                        >
+                            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
                             <span className="text-white font-medium">Google</span>
                         </button>
                     </form>

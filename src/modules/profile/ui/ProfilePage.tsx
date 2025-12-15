@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function ProfilePage() {
@@ -118,9 +119,15 @@ export default function ProfilePage() {
                         ) : (
                             <div className="space-y-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden">
+                                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center overflow-hidden relative">
                                         {profile.image ? (
-                                            <img src={profile.image} alt={profile.name} className="w-full h-full object-cover" />
+                                            <Image
+                                                src={profile.image}
+                                                alt={profile.name}
+                                                width={80}
+                                                height={80}
+                                                className="object-cover w-full h-full"
+                                            />
                                         ) : (
                                             <span className="text-2xl font-bold text-white">{profile.name?.charAt(0) || "U"}</span>
                                         )}

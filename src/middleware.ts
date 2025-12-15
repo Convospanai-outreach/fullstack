@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-// Simple in-memory rate limiter for MVP (Use Redis/Upstash in production)
-const rateLimit = new Map();
+import { rateLimitService } from "@/modules/rate-limit/service/rateLimitService";
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
     const path = request.nextUrl.pathname;
 
@@ -20,24 +20,47 @@ export function middleware(request: NextRequest) {
         }
     }
 
-    // 2. Rate Limiting (Skip for static assets)
+    // 2. Authentication Check
+    // Define public paths that don't need auth
+    const publicPaths = ["/", "/login", "/signup", "/help", "/favicon.ico"];
+    const isPublic = publicPaths.some(p => path === p) ||
+        path.startsWith("/api/auth") ||
+        path.startsWith("/_next") ||
+        path.startsWith("/static") ||
+        path.startsWith("/api/webhooks");
+
+    // Check token if not public
+    if (!isPublic) {
+        const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+        if (!token) {
+            const url = request.nextUrl.clone();
+            url.pathname = "/api/auth/signin";
+            url.searchParams.set("callbackUrl", path);
+            return NextResponse.redirect(url);
+        }
+    }
+
+    // 3. Rate Limiting (Skip for static assets)
     if (!path.startsWith("/_next") && !path.startsWith("/static")) {
-        const windowMs = 60 * 1000; // 1 minute
-        const maxReqs = 100; // 100 requests per minute
+        // Dynamic limits based on path
+        let limit = 100;
+        let windowMs = 60 * 1000;
 
-        const current = rateLimit.get(ip) || { count: 0, startTime: Date.now() };
-
-        if (Date.now() - current.startTime > windowMs) {
-            current.count = 1;
-            current.startTime = Date.now();
-        } else {
-            current.count++;
+        if (path.startsWith("/api/ai")) {
+            limit = 50; // Stricter for AI
         }
 
-        rateLimit.set(ip, current);
+        const { success, reset } = rateLimitService.checkLimit(ip, limit, windowMs);
 
-        if (current.count > maxReqs) {
-            return new NextResponse("Too Many Requests", { status: 429 });
+        if (!success) {
+            return new NextResponse("Too Many Requests", {
+                status: 429,
+                headers: {
+                    "X-RateLimit-Limit": limit.toString(),
+                    "X-RateLimit-Reset": reset.toString(),
+                    "Retry-After": Math.ceil((reset - Date.now()) / 1000).toString()
+                }
+            });
         }
     }
 
@@ -46,12 +69,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         */
         '/((?!_next/static|_next/image|favicon.ico).*)',
     ],
 };

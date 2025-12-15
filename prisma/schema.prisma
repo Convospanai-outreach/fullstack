@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -213,6 +214,7 @@ model Team {
   subscription Subscription?
   members      TeamMember[]
   webhooks     Webhook[]
+  automations  Automation[]
   transactions CreditTransaction[]
 }
 
@@ -304,6 +306,7 @@ model TeamMember {
 model User {
   id            String       @id @default(uuid())
   email         String       @unique
+  password      String?      // <-- Add this line
   emailVerified DateTime?
   name          String?
   image         String?
@@ -313,11 +316,11 @@ model User {
   updatedAt     DateTime     @updatedAt
   settings      Settings?
   memberships   TeamMember[]
-  
   accounts      Account[]
   sessions      Session[]
   campaigns     Campaign[]   @relation("owner_campaigns")
 }
+
 
 model Account {
   id                String  @id @default(cuid())
@@ -365,4 +368,35 @@ model Message {
   createdAt DateTime @default(now())
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
   @@index([leadId])
+}
+
+model Automation {
+  id              String   @id @default(uuid())
+  name            String
+  trigger         String   // "lead.replied", "ai.suggestion"
+  action          String   // "campaign.stop", "email.reply", "webhook.call"
+  config          Json?    // { "templateId": "...", "model": "gemini-pro" }
+  isActive        Boolean  @default(true)
+  requiresApproval Boolean @default(false)
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id])
+  logs            AutomationLog[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([teamId])
+}
+
+model AutomationLog {
+  id           String   @id @default(uuid())
+  automationId String
+  status       String   // "pending_approval", "success", "failed", "rejected"
+  tokensUsed   Int      @default(0)
+  cost         Float    @default(0.0)
+  output       Json?    // AI response or Action result
+  createdAt    DateTime @default(now())
+  automation   Automation @relation(fields: [automationId], references: [id])
+
+  @@index([automationId])
+  @@index([status])
 }

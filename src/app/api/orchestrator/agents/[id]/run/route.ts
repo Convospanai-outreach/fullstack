@@ -1,5 +1,9 @@
+
+import { JobQueue } from "@/lib/queue";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request, { params }: any) {
     const { id } = params;
@@ -15,9 +19,9 @@ export async function POST(req: Request, { params }: any) {
     });
 
     // Hook: tell orchestrator to run
-    const session = await import("next-auth").then(m => m.getServerSession(require("@/app/api/auth/[...nextauth]/route").authOptions));
+    const session = await getServerSession(authOptions);
     const user = (session as any)?.user?.email ? await prisma.user.findUnique({ where: { email: (session as any).user.email } }) : null;
 
-    await import("@/lib/queue").then(m => m.JobQueue.enqueue("agent_run", { agentId: id, userId: user?.id }));
+    await JobQueue.enqueue("agent_run", { agentId: id, userId: user?.id });
     return NextResponse.json({ ok: true });
 }

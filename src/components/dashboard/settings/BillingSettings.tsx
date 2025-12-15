@@ -6,7 +6,7 @@ import { useEffect } from "react";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingSettings() {
-    const { data: team } = useSWR("/api/team?include=subscription,transactions", fetcher);
+    const { data: team, mutate } = useSWR("/api/team?include=subscription,transactions", fetcher);
 
     useEffect(() => {
         // Load Razorpay Script
@@ -47,8 +47,15 @@ export default function BillingSettings() {
                 description: `${credits} Credits Top-up`,
                 order_id: order.id,
                 handler: async function (response: any) {
-                    toast.success("Payment Successful! Credits adding...");
-                    // Webhook handles the actual credit addition, but we can verify here or optimistic update
+                    toast.success("Payment Successful! Updating balance...");
+                    // Webhook handles the actual credit addition, but we trigger a refresh
+                    try {
+                        // Optional: Call verify API if we implemented client-side verification
+                        // await verifyPayment(response); 
+                    } catch (err) { }
+
+                    // Revalidate team data
+                    mutate("/api/team?include=subscription,transactions");
                 },
                 prefill: {
                     name: "User Name", // Ideally retrieve from user session if available here

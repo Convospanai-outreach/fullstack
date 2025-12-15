@@ -4,9 +4,28 @@ import { prisma } from "@/lib/db";
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const signature = req.headers.get("x-razorpay-signature");
+        const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
-        // Validation logic here (signature check)
+        // Verify signature
+        if (!signature || !secret) {
+            return new NextResponse("Missing Signature or Secret", { status: 400 });
+        }
+
+        // Need the raw body for signature verification
+        // clone() is important if we consume body twice (json + text)
+        // or ensure we only read text and then parse
+        const rawBody = await req.text();
+        const expectedSignature = crypto
+            .createHmac("sha256", secret)
+            .update(rawBody)
+            .digest("hex");
+
+        if (signature !== expectedSignature) {
+            return new NextResponse("Invalid Signature", { status: 400 });
+        }
+
+        const body = JSON.parse(rawBody);
 
         const event = body.event;
         const payload = body.payload;

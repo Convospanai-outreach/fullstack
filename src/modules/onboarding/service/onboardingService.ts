@@ -1,47 +1,43 @@
-import { prisma as db } from "@/lib/db";
+import { prisma } from "@/lib/db";
+
+export type OnboardingStepId = "api_key" | "create_campaign" | "import_leads" | "enable_automation";
+
+export const ONBOARDING_STEPS: { id: OnboardingStepId, label: string, href: string }[] = [
+    { id: "api_key", label: "Connect AI Provider", href: "/settings/keys" },
+    { id: "import_leads", label: "Import your first Leads", href: "/leads" },
+    { id: "create_campaign", label: "Launch a Campaign", href: "/campaigns/new" },
+    { id: "enable_automation", label: "Setup Automation Rules", href: "/automations" },
+];
 
 class OnboardingService {
-    async getProgress(userId: string) {
-        // 1. Check if user has a team (or is part of one)
-        // Note: In this simple version, we check if they are a member of any team.
-        // If userId is "user_123" (mock), we might need to handle it gracefully or assume it's a real ID in production.
+    /**
+     * Checks which steps the user has completed by querying real data.
+     * We don't store "completed" state for everything, we just check existence.
+     */
+    async getOnboardingStatus(userId: string, teamId?: string) {
+        if (!teamId) return [];
 
-        let hasTeam = false;
-        let teamId: string | null = null;
+        const status = [];
 
-        if (userId) {
-            const teamMember = await db.teamMember.findFirst({
-                where: { userId: userId },
-                select: { teamId: true }
-            });
-            if (teamMember) {
-                hasTeam = true;
-                teamId = teamMember.teamId;
-            }
+        // 1. Check API Keys
+        const settings = await prisma.settings.findUnique({ where: { userId } });
+        if (settings?.apiKeyOpenAI || settings?.apiKeyGemini) {
+            status.push("api_key");
         }
 
-        // 2. Check for leads
-        const leadsCount = teamId ? await db.lead.count({ where: { teamId } }) : 0;
-        const hasLeads = leadsCount > 0;
+        // 2. Check Leads
+        const leadCount = await prisma.lead.count({ where: { teamId } });
+        if (leadCount > 0) status.push("import_leads");
 
-        // 3. Check for campaigns
-        const campaignsCount = teamId ? await db.campaign.count({ where: { teamId } }) : 0;
-        const hasCampaign = campaignsCount > 0;
+        // 3. Check Campaigns
+        const campaignCount = await prisma.campaign.count({ where: { teamId } });
+        if (campaignCount > 0) status.push("create_campaign");
 
-        const steps = [
-            { id: "create_account", label: "Create Account", completed: true }, // Always true if logged in
-            { id: "create_team", label: "Create Workspace", completed: hasTeam },
-            { id: "add_leads", label: "Add Leads", completed: hasLeads },
-            { id: "create_campaign", label: "Launch Campaign", completed: hasCampaign },
-        ];
+        // 4. Check Automations
+        const automationCount = await prisma.automation.count({ where: { teamId } });
+        if (automationCount > 0) status.push("enable_automation");
 
-        const completedSteps = steps.filter(s => s.completed).length;
-        const percentComplete = Math.round((completedSteps / steps.length) * 100);
-
-        return {
-            steps,
-            percentComplete
-        };
+        return status;
     }
 }
 

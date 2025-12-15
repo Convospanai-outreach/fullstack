@@ -7,6 +7,9 @@ import CampaignList from "@/components/dashboard/CampaignList";
 import AgentFeed from "@/components/dashboard/AgentFeed";
 import AgentControl from "@/components/dashboard/AgentControl";
 
+import GettingStartedWidget from "@/components/dashboard/GettingStartedWidget";
+import WelcomeTour from "@/components/onboarding/WelcomeTour";
+
 export default function DashboardPage() {
     const { data: session } = useSession();
 
@@ -37,6 +40,8 @@ export default function DashboardPage() {
 
     return (
         <div className="section pt-28">
+            <WelcomeTour />
+            <GettingStartedWidget />
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 <div className="lg:col-span-3">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

@@ -13,7 +13,7 @@ export async function GET() {
             );
         }
 
-        const progress = await onboardingService.getProgress(userId);
+        const progress = await onboardingService.getOnboardingStatus(userId);
         return NextResponse.json({ ok: true, progress });
     } catch (err: any) {
         return NextResponse.json(

@@ -27,6 +27,16 @@ export class CampaignService {
             where: { id: campaignId },
             data: { targetCount: count }
         });
+
+        // Log Activity
+        await prisma.activity.create({
+            data: {
+                type: "CAMPAIGN_UPDATE",
+                message: `Added ${leadIds.length} leads to campaign`,
+                campaignId,
+                meta: { count: leadIds.length }
+            }
+        });
     }
 
     static async startCampaign(campaignId: string) {
@@ -41,6 +51,16 @@ export class CampaignService {
         await prisma.campaign.update({
             where: { id: campaignId },
             data: { status: "active" }
+        });
+
+        // Log Activity
+        await prisma.activity.create({
+            data: {
+                type: "CAMPAIGN_STATUS",
+                message: "Campaign started",
+                campaignId,
+                meta: { status: "active" }
+            }
         });
 
         // Trigger sequence for all leads in campaign
@@ -72,6 +92,16 @@ export class CampaignService {
         await prisma.campaign.update({
             where: { id: campaignId },
             data: { status: "paused" }
+        });
+
+        // Log Activity
+        await prisma.activity.create({
+            data: {
+                type: "CAMPAIGN_STATUS",
+                message: "Campaign paused",
+                campaignId,
+                meta: { status: "paused" }
+            }
         });
         // Note: In a real system, we would also need to cancel pending jobs for this campaign
     }

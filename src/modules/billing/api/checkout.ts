@@ -13,8 +13,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Plan ID required" }, { status: 400 });
         }
 
-        const session = await billingService.createCheckoutSession(planId, userId);
-        return NextResponse.json({ ok: true, url: session.url });
+        const session = await billingService.createOrder(10, "INR", "receipt", { planId, userId });
+        return NextResponse.json({ ok: true, orderId: session.id, amount: session.amount, currency: session.currency });
     } catch (err: any) {
         return NextResponse.json(
             { ok: false, error: err.message },

@@ -1,14 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // Adjusted path to use lib/auth if available, or direct api path
-import { prisma } from "@/lib/db"; // Use lib/db or prisma
-import Razorpay from "razorpay";
-
-// Initialize Razorpay
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID!,
-    key_secret: process.env.RAZORPAY_KEY_SECRET!
-});
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { billingService } from "@/modules/billing/service/billingService";
 
 export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
@@ -16,7 +10,7 @@ export async function POST(req: Request) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const { amount, currency = "INR", receipt = "receipt#1" } = await req.json();
+    const { amount, currency = "INR", receipt = "receipt#1", type = "topup" } = await req.json();
 
     if (!amount) {
         return new NextResponse("Amount is required", { status: 400 });
@@ -34,18 +28,13 @@ export async function POST(req: Request) {
             select: { teamId: true }
         });
 
-        const options = {
-            amount: amount * 100, // amount in the smallest currency unit (paise)
-            currency,
-            receipt,
-            notes: {
-                userId: user.id,
-                teamId: membership?.teamId || "unknown",
-                paymentType: "topup" // or subscription
-            }
+        const notes = {
+            userId: user.id,
+            teamId: membership?.teamId || "unknown",
+            paymentType: type
         };
 
-        const order = await razorpay.orders.create(options);
+        const order = await billingService.createOrder(amount, currency, receipt, notes);
 
         return NextResponse.json({
             id: order.id,

@@ -8,7 +8,6 @@ export const checkSubscription = async (teamId: string) => {
         select: {
             status: true,
             currentPeriodEnd: true,
-            stripePriceId: true,
         },
     });
 

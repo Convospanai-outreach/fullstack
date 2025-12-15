@@ -1,5 +1,5 @@
 import { dequeueJob, updateJobStatus } from "./job-queue";
-import { handleCampaignExecution } from "./handlers/campaign-worker";
+import { executeCampaign } from "./handlers/campaign-worker";
 import { handleLeadEnrichment } from "./handlers/enrichment-worker";
 import { handleEmailSend } from "./handlers/email-worker";
 import { handleLinkedInScrape } from "./handlers/linkedin-worker";
@@ -52,7 +52,7 @@ export class WorkerManager {
 
             switch (job.type) {
                 case "campaign_execution":
-                    result = await handleCampaignExecution(job.payload);
+                    result = await executeCampaign(job.payload.campaignId);
                     break;
                 case "lead_enrichment":
                     result = await handleLeadEnrichment(job.payload);

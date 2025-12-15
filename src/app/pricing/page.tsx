@@ -4,24 +4,7 @@ import GlassCard from "../../components/GlassCard";
 import { toast } from "sonner";
 
 export default function PricingPage() {
-    const handleCheckout = async (priceId: string) => {
-        try {
-            const res = await fetch("/api/billing/checkout", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ priceId }),
-            });
-            const data = await res.json();
-            if (data.url) {
-                window.location.href = data.url;
-            } else {
-                toast.error("Failed to start checkout");
-            }
-        } catch (e) {
-            toast.error("Error connecting to billing");
-            console.error(e);
-        }
-    };
+
 
     return (
         <div>

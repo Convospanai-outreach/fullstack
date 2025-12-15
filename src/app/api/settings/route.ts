@@ -1,44 +1,38 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { settingsService } from "@/modules/settings/service/settingsService";
 
-const DEFAULT_USER_ID = "user-1"; // Mock user ID
+export async function POST(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.id) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
 
-export async function GET() {
+    const data = await req.json();
+
+    // Validate? (e.g. check if keys look valid)
+
     try {
-        let settings = await prisma.settings.findUnique({
-            where: { userId: DEFAULT_USER_ID }
-        });
-
-        if (!settings) {
-            settings = await prisma.settings.create({
-                data: {
-                    userId: DEFAULT_USER_ID,
-                    name: "Demo User",
-                    email: "demo@example.com",
-                    theme: "dark"
-                }
-            });
-        }
-
-        return NextResponse.json(settings);
+        await settingsService.updateSettings(session.user.id, data);
+        return NextResponse.json({ success: true });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return new NextResponse(error.message, { status: 500 });
     }
 }
 
-export async function PATCH(req: Request) {
-    try {
-        const body = await req.json();
-        const settings = await prisma.settings.upsert({
-            where: { userId: DEFAULT_USER_ID },
-            update: body,
-            create: {
-                userId: DEFAULT_USER_ID,
-                ...body
-            }
-        });
-        return NextResponse.json(settings);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+export async function GET(req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.id) {
+        return new NextResponse("Unauthorized", { status: 401 });
     }
+
+    const settings = await settingsService.getSettings(session.user.id);
+
+    // Mask keys for security?
+    const masked = { ...settings };
+    if (masked.apiKeyOpenAI) masked.apiKeyOpenAI = "sk-..." + masked.apiKeyOpenAI.slice(-4);
+    if (masked.apiKeyGemini) masked.apiKeyGemini = "AI..." + masked.apiKeyGemini.slice(-4);
+
+    return NextResponse.json(masked);
 }

@@ -3,8 +3,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { LeadSchema } from "@/lib/schemas";
+import { SearchService } from "@/modules/search/service/SearchService";
 
-// GET /api/leads - List all leads
+// GET /api/leads - List all leads with filtering
 export async function GET(req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
@@ -13,52 +14,28 @@ export async function GET(req: NextRequest) {
         }
 
         const { searchParams } = new URL(req.url);
-        const campaignId = searchParams.get("campaignId");
-        const status = searchParams.get("status");
-        const search = searchParams.get("search");
+        const campaignId = searchParams.get("campaignId") || undefined;
+        const status = searchParams.get("status") || undefined;
+        const search = searchParams.get("search") || undefined;
+        const tags = searchParams.get("tags")?.split(",") || undefined;
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
+        const page = Math.floor(offset / limit) + 1;
 
-        const where: any = { teamId }; // Enforce team isolation
-
-        if (campaignId) {
-            where.campaignId = campaignId;
-        }
-
-        if (status) {
-            where.status = status;
-        }
-
-        if (search) {
-            where.OR = [
-                { fullName: { contains: search, mode: "insensitive" } },
-                { email: { contains: search, mode: "insensitive" } },
-            ];
-        }
-
-        const [leads, total] = await Promise.all([
-            prisma.lead.findMany({
-                where,
-                include: {
-                    campaign: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                },
-                orderBy: { createdAt: "desc" },
-                take: limit,
-                skip: offset,
-            }),
-            prisma.lead.count({ where }),
-        ]);
+        const result = await SearchService.searchLeads({
+            teamId,
+            query: search,
+            status,
+            tags,
+            campaignId,
+        }, page, limit);
 
         return successResponse({
-            leads,
-            total,
+            leads: result.leads,
+            total: result.total,
             limit,
             offset,
+            totalPages: result.totalPages
         });
     } catch (error) {
         return handleAPIError(error);

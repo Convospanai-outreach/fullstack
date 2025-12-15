@@ -7,13 +7,21 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ExportButton from "@/modules/data-export/ui/ExportButton";
+import FilterBar from "@/components/shared/FilterBar";
 
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState("");
+    const [statusFilter, setStatusFilter] = useState("");
 
     useEffect(() => {
-        fetch("/api/campaigns")
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (search) params.set("search", search);
+        if (statusFilter) params.set("status", statusFilter);
+
+        fetch(`/api/campaigns?${params.toString()}`)
             .then((res) => res.json())
             .then((data) => {
                 if (Array.isArray(data)) {
@@ -29,7 +37,7 @@ export default function CampaignsPage() {
                 setCampaigns([]);
                 setLoading(false);
             });
-    }, []);
+    }, [search, statusFilter]);
 
     return (
         <div className="p-8 space-y-8">
@@ -45,6 +53,14 @@ export default function CampaignsPage() {
                     </Link>
                 </div>
             </div>
+
+            <FilterBar
+                onSearch={({ query, status }) => {
+                    setSearch(query);
+                    setStatusFilter(status || "");
+                }}
+                placeholder="Search campaigns..."
+            />
 
             {loading ? (
                 <div className="text-white/60">Loading campaigns...</div>

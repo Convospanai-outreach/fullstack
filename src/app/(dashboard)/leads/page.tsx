@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getLeads } from "@/lib/api/leads";
+import FilterBar from "@/components/shared/FilterBar";
+
+import { toast } from "sonner";
 
 export default function LeadsPage() {
     const [leads, setLeads] = useState<any[]>([]);
@@ -10,6 +13,7 @@ export default function LeadsPage() {
     const [error, setError] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [search, setSearch] = useState("");
+    const [enriching, setEnriching] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         loadLeads();
@@ -31,8 +35,18 @@ export default function LeadsPage() {
         }
     };
 
-    const handleSearch = () => {
-        loadLeads();
+    const handleEnrich = async (id: string) => {
+        setEnriching((prev) => ({ ...prev, [id]: true }));
+        try {
+            const res = await fetch(`/api/leads/${id}/enrich`, { method: "POST" });
+            if (!res.ok) throw new Error("Enrichment failed");
+            toast.success("Lead enriched successfully");
+            await loadLeads();
+        } catch (error) {
+            toast.error("Failed to enrich lead");
+        } finally {
+            setEnriching((prev) => ({ ...prev, [id]: false }));
+        }
     };
 
     return (
@@ -50,33 +64,14 @@ export default function LeadsPage() {
                     </div>
                 </div>
 
-                <div className="mb-6 flex gap-4">
-                    <div className="flex-1">
-                        <input
-                            type="text"
-                            placeholder="Search by name or email..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                    </div>
-                    <button
-                        onClick={handleSearch}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                    >
-                        Search
-                    </button>
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                        <option value="">All Statuses</option>
-                        <option value="new">New</option>
-                        <option value="enriched">Enriched</option>
-                        <option value="contacted">Contacted</option>
-                    </select>
+                <div className="mb-6">
+                    <FilterBar
+                        onSearch={({ query, status }) => {
+                            setSearch(query);
+                            setStatusFilter(status || "");
+                        }}
+                        placeholder="Search leads by name or email..."
+                    />
                 </div>
 
                 {error && (
@@ -118,7 +113,10 @@ export default function LeadsPage() {
                                         Campaign
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                                        Created
+                                        Company
+                                    </th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                                        Actions
                                     </th>
                                 </tr>
                             </thead>
@@ -132,15 +130,29 @@ export default function LeadsPage() {
                                             {lead.email}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${lead.status === 'enriched' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
+                                                }`}>
                                                 {lead.status}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                             {lead.campaign?.name || "—"}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {new Date(lead.createdAt).toLocaleDateString()}
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                                            {lead.company || "—"}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            {!lead.isEnriched ? (
+                                                <button
+                                                    onClick={() => handleEnrich(lead.id)}
+                                                    disabled={enriching[lead.id]}
+                                                    className="text-blue-600 hover:text-blue-900 disabled:opacity-50"
+                                                >
+                                                    {enriching[lead.id] ? "Enriching..." : "Enrich"}
+                                                </button>
+                                            ) : (
+                                                <span className="text-green-600 text-xs">✓ Enriched</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

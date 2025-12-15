@@ -1,16 +1,21 @@
 import { CampaignService } from "@/lib/campaignService";
+import { CampaignSchema } from "@/lib/schemas";
+import { SearchService } from "@/modules/search/service/SearchService";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
-import { CampaignSchema } from "@/lib/schemas";
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const campaigns = await CampaignService.listCampaigns(teamId);
+        const { searchParams } = new URL(req.url);
+        const query = searchParams.get("search") || undefined;
+        const status = searchParams.get("status") || undefined;
+
+        const campaigns = await SearchService.searchCampaigns(teamId, query, status);
         return successResponse(campaigns);
     } catch (error: any) {
         return handleAPIError(error);

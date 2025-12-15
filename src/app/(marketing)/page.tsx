@@ -1,18 +1,23 @@
 ﻿import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/ui/GlassCard";
+import HeroScene from "@/components/marketing/HeroScene";
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white overflow-hidden relative selection:bg-purple-500/30">
-      {/* Background Gradients */}
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
+      {/* 3D Background */}
+      <HeroScene />
+
+      {/* Background Gradients (Legacy/Fallback) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-50">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "2s" }} />
         <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[150px]" />
       </div>
 
-      {/* Navbar Placeholder (if not global) - Assuming global layout handles it, but adding spacer */}
+      {/* Navbar Placeholder */}
       <div className="h-20"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-32 pb-32">
@@ -45,7 +50,12 @@ export default function Home() {
 
           <div className="mt-16 p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md max-w-5xl mx-auto shadow-2xl">
             <div className="aspect-video rounded-xl bg-gradient-to-br from-gray-900 to-black overflow-hidden relative border border-white/5 shadow-2xl">
-              <img src="/images/dashboard-preview.png" alt="Dashboard Preview" className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity" />
+              <Image
+                src="/images/dashboard-preview.png"
+                alt="Dashboard Preview"
+                fill
+                className="object-cover opacity-90 hover:opacity-100 transition-opacity"
+              />
             </div>
           </div>
         </section>
@@ -104,8 +114,13 @@ export default function Home() {
               </div>
               <div className="w-12 h-12 rounded-full bg-purple-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">1</div>
               <div className="flex-1 md:pl-12">
-                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-br from-purple-900/40 to-black overflow-hidden">
-                  <img src="/images/dashboard-preview.png" alt="Targeting Engine" className="w-full h-full object-cover rounded-lg opacity-80" />
+                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-br from-purple-900/40 to-black overflow-hidden relative">
+                  <Image
+                    src="/images/dashboard-preview.png"
+                    alt="Targeting Engine"
+                    fill
+                    className="object-cover rounded-lg opacity-80"
+                  />
                 </GlassCard>
               </div>
             </div>
@@ -119,8 +134,13 @@ export default function Home() {
               </div>
               <div className="w-12 h-12 rounded-full bg-blue-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">2</div>
               <div className="flex-1 md:pr-12">
-                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-bl from-blue-900/40 to-black overflow-hidden">
-                  <img src="/images/workflow-preview.png" alt="Workflow Builder" className="w-full h-full object-cover rounded-lg opacity-80" />
+                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-bl from-blue-900/40 to-black overflow-hidden relative">
+                  <Image
+                    src="/images/workflow-preview.png"
+                    alt="Workflow Builder"
+                    fill
+                    className="object-cover rounded-lg opacity-80"
+                  />
                 </GlassCard>
               </div>
             </div>
@@ -134,8 +154,13 @@ export default function Home() {
               </div>
               <div className="w-12 h-12 rounded-full bg-pink-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">3</div>
               <div className="flex-1 md:pl-12">
-                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-br from-pink-900/40 to-black overflow-hidden">
-                  <img src="/images/analytics-preview.png" alt="Analytics Dashboard" className="w-full h-full object-cover rounded-lg opacity-80" />
+                <GlassCard className="p-2 aspect-video flex items-center justify-center bg-gradient-to-br from-pink-900/40 to-black overflow-hidden relative">
+                  <Image
+                    src="/images/analytics-preview.png"
+                    alt="Analytics Dashboard"
+                    fill
+                    className="object-cover rounded-lg opacity-80"
+                  />
                 </GlassCard>
               </div>
             </div>
