@@ -1,4 +1,4 @@
-import { dequeueJob, updateJobStatus } from "./job-queue";
+import { JobQueue } from "@/lib/queue";
 import { executeCampaign } from "./handlers/campaign-worker";
 import { handleLeadEnrichment } from "./handlers/enrichment-worker";
 import { handleEmailSend } from "./handlers/email-worker";
@@ -32,7 +32,7 @@ export class WorkerManager {
         if (!this.isRunning) return;
 
         try {
-            const job = await dequeueJob();
+            const job = await JobQueue.dequeue();
 
             if (job) {
                 console.log(`📋 Processing job ${job.id} (${job.type})`);
@@ -52,7 +52,7 @@ export class WorkerManager {
 
             switch (job.type) {
                 case "campaign_execution":
-                    result = await executeCampaign(job.payload.campaignId);
+                    result = await executeCampaign(job.payload.campaignId, job.payload.userId);
                     break;
                 case "lead_enrichment":
                     result = await handleLeadEnrichment(job.payload);
@@ -61,31 +61,32 @@ export class WorkerManager {
                     result = await handleEmailSend(job.payload);
                     break;
                 case "linkedin_scrape":
+                case "linkedin_scraping":
                     result = await handleLinkedInScrape(job.payload);
                     break;
                 case "csv_import":
                     result = await handleCsvImport(job.payload);
                     break;
+                case "WEBHOOK_DISPATCH":
+                    const { webhookService } = await import("@/modules/webhooks/service/webhookService");
+                    await webhookService.processDelivery(job.payload.webhookId, job.payload.event, job.payload.payload);
+                    result = { success: true };
+                    break;
                 default:
-                    throw new Error(`Unknown job type: ${job.type}`);
+                    console.warn(`Unknown job type: ${job.type}. Skipping.`);
+                    await JobQueue.complete(job.id, { skipped: true, reason: "unknown_type" });
+                    return;
             }
 
-            await updateJobStatus(job.id, "completed", result);
+            await JobQueue.complete(job.id, result);
             console.log(`✅ Job ${job.id} completed successfully`);
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : "Unknown error";
             console.error(`❌ Job ${job.id} failed:`, errorMessage);
 
-            // Check if we should retry
-            if (job.attempts < job.maxAttempts) {
-                console.log(
-                    `🔄 Job ${job.id} will be retried (attempt ${job.attempts}/${job.maxAttempts})`
-                );
-                await updateJobStatus(job.id, "pending", undefined, errorMessage);
-            } else {
-                await updateJobStatus(job.id, "failed", undefined, errorMessage);
-            }
+            // JobQueue.fail handles retries internally based on maxAttempts
+            await JobQueue.fail(job.id, errorMessage);
         }
     }
 }

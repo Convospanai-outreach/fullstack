@@ -3,13 +3,16 @@ import { CampaignSchema } from "@/lib/schemas";
 import { SearchService } from "@/modules/search/service/SearchService";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 export async function GET(req: Request) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+
+        await authorizeRole(userId, teamId, TeamRole.VIEWER);
 
         const { searchParams } = new URL(req.url);
         const query = searchParams.get("search") || undefined;
@@ -24,10 +27,12 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const body = await req.json();
 

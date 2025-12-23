@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auditService } from "@/modules/audit-logs/service/auditService";
+import { AuditService } from "@/modules/audit/auditService";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
@@ -18,7 +18,7 @@ export async function GET(req: Request) {
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
 
-        const logs = await auditService.getLogs(limit, offset);
+        const logs = await AuditService.getSystemLogs(limit);
 
         return NextResponse.json({ logs, ok: true });
     } catch (error: any) {

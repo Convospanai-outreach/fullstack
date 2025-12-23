@@ -1,6 +1,7 @@
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import OnboardingChecklist from "@/modules/onboarding/ui/OnboardingChecklist";
+import { Omnibox } from "@/components/dashboard/Omnibox";
 
 export default function DashboardLayout({
     children,
@@ -29,6 +30,7 @@ export default function DashboardLayout({
                 </main>
                 <OnboardingChecklist />
             </div>
+            <Omnibox />
         </div>
     );
 }

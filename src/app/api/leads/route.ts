@@ -4,51 +4,18 @@ import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { LeadSchema } from "@/lib/schemas";
 import { SearchService } from "@/modules/search/service/SearchService";
-
-// GET /api/leads - List all leads with filtering
-export async function GET(req: NextRequest) {
-    try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
-            throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-        }
-
-        const { searchParams } = new URL(req.url);
-        const campaignId = searchParams.get("campaignId") || undefined;
-        const status = searchParams.get("status") || undefined;
-        const search = searchParams.get("search") || undefined;
-        const tags = searchParams.get("tags")?.split(",") || undefined;
-        const limit = parseInt(searchParams.get("limit") || "50");
-        const offset = parseInt(searchParams.get("offset") || "0");
-        const page = Math.floor(offset / limit) + 1;
-
-        const result = await SearchService.searchLeads({
-            teamId,
-            query: search,
-            status,
-            tags,
-            campaignId,
-        }, page, limit);
-
-        return successResponse({
-            leads: result.leads,
-            total: result.total,
-            limit,
-            offset,
-            totalPages: result.totalPages
-        });
-    } catch (error) {
-        return handleAPIError(error);
-    }
-}
+import { AuditService } from "@/modules/audit/auditService";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 // POST /api/leads - Create single lead
 export async function POST(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { teamId, userId } = await getCurrentContext();
+        if (!teamId || !userId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const body = await req.json();
 
@@ -79,6 +46,9 @@ export async function POST(req: NextRequest) {
                 teamId, // Assign to current team
             },
         });
+
+        // Audit Log
+        await AuditService.log(teamId, userId, "LEAD_SYNCED", "Lead", lead.id, { email: lead.email });
 
         return successResponse(lead, 201);
     } catch (error) {

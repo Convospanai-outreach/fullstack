@@ -1,6 +1,5 @@
-
 import { NextResponse } from "next/server";
-import { activityFeedService } from "@/modules/audit-logs/service/ActivityFeedService";
+import { AuditService } from "@/modules/audit/auditService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -11,7 +10,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // Validate access to campaign (omitted for brevity, usually check teamId)
 
     try {
-        const activities = await activityFeedService.getCampaignActivity(params.id);
+        const activities = await AuditService.getResourceActivity("Campaign", params.id);
         return NextResponse.json({ success: true, activities });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

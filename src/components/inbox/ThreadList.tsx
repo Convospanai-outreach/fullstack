@@ -36,7 +36,7 @@ export function ThreadList({ threads, selectedThreadId, onSelectThread }: Thread
                         </div>
                         <p className="text-sm text-white/60 line-clamp-2">{thread.lastMessage}</p>
                         <div className="mt-2 text-xs text-white/40">
-                            {new Date(thread.lastMessageAt).toLocaleDateString()}
+                            {thread.lastMessageAt && new Date(thread.lastMessageAt).toLocaleDateString()}
                         </div>
                     </div>
                 ))}

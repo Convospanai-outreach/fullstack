@@ -1,14 +1,14 @@
 import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
+import useSWR from "swr";
+import { format } from "date-fns";
 
-const payments = [
-    { id: "INV-001", date: "Oct 24, 2023", amount: "$49.00", status: "Paid" },
-    { id: "INV-002", date: "Sep 24, 2023", amount: "$49.00", status: "Paid" },
-    { id: "INV-003", date: "Aug 24, 2023", amount: "$49.00", status: "Paid" },
-];
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function PaymentHistory() {
+    const { data: payments, error, isLoading } = useSWR("/api/billing/history", fetcher);
+
     return (
         <GlassCard>
             <h3 className="text-xl font-bold gradient-text mb-4">Payment History</h3>
@@ -16,25 +16,45 @@ export function PaymentHistory() {
                 <table className="w-full text-left text-sm text-gray-300">
                     <thead className="text-xs uppercase bg-white/5 text-gray-400">
                         <tr>
-                            <th className="px-4 py-3 rounded-tl-lg">Invoice</th>
+                            <th className="px-4 py-3 rounded-tl-lg">Transaction ID</th>
                             <th className="px-4 py-3">Date</th>
                             <th className="px-4 py-3">Amount</th>
+                            <th className="px-4 py-3">Description</th>
                             <th className="px-4 py-3 rounded-tr-lg">Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {payments.map((payment) => (
+                        {isLoading && (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">
+                                    Loading history...
+                                </td>
+                            </tr>
+                        )}
+                        {payments?.map((payment: any) => (
                             <tr key={payment.id} className="border-b border-white/5 hover:bg-white/5 transition">
-                                <td className="px-4 py-3 font-medium text-white">{payment.id}</td>
-                                <td className="px-4 py-3">{payment.date}</td>
-                                <td className="px-4 py-3">{payment.amount}</td>
+                                <td className="px-4 py-3 font-medium text-white text-xs">{payment.id}</td>
+                                <td className="px-4 py-3 text-xs">
+                                    {format(new Date(payment.createdAt), "MMM dd, yyyy")}
+                                </td>
+                                <td className={`px-4 py-3 font-bold ${payment.amount > 0 ? "text-green-400" : "text-red-400"}`}>
+                                    {payment.amount > 0 ? "+" : ""}{payment.amount} Credits
+                                </td>
+                                <td className="px-4 py-3 text-xs">{payment.description}</td>
                                 <td className="px-4 py-3">
-                                    <Badge variant={payment.status === "Paid" ? "success" : "warning"}>
-                                        {payment.status}
+                                    <Badge variant="success">
+                                        Confirmed
                                     </Badge>
                                 </td>
                             </tr>
                         ))}
+                        {!isLoading && (!payments || payments.length === 0) && (
+                            <tr>
+                                <td colSpan={5} className="px-4 py-8 text-center text-gray-500 italic">
+                                    No payment history found.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

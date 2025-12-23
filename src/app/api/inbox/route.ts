@@ -1,57 +1,24 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContext } from "@/lib/auth";
+import { InboxService } from "@/lib/inboxService";
 
-export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    const { teamId } = session.user as any;
-
+export async function GET(req: NextRequest) {
     try {
-        // Fetch leads that have messages or are in 'replied'/'contacted' status
-        // and belong to the user's team's campaigns
-        const leads = await prisma.lead.findMany({
-            where: {
-                campaign: {
-                    teamId: teamId
-                },
-                OR: [
-                    { status: "replied" },
-                    { status: "contacted" },
-                    { messages: { some: {} } }
-                ]
-            },
-            include: {
-                messages: {
-                    orderBy: { createdAt: "desc" },
-                    take: 1
-                },
-                campaign: {
-                    select: { name: true }
-                }
-            },
-            orderBy: {
-                updatedAt: "desc"
-            },
-            take: 50
-        });
+        const { teamId } = await getCurrentContext();
+        if (!teamId) {
+            return new NextResponse("Unauthorized", { status: 401 });
+        }
 
-        // Format for UI
-        const conversations = leads.map(lead => ({
-            id: lead.id,
-            name: lead.fullName || "Unknown Lead",
-            entity: lead.company,
-            platform: lead.linkedIn ? "LinkedIn" : "Email",
-            lastMessage: lead.messages[0]?.content || "No messages yet",
-            lastMessageDate: lead.messages[0]?.createdAt || lead.updatedAt,
-            isRead: lead.messages[0]?.isRead ?? true,
-            status: lead.status,
-            campaignName: lead.campaign?.name
-        }));
+        const url = new URL(req.url);
+        const status = url.searchParams.get("status") || undefined;
+        const platform = url.searchParams.get("platform") || undefined;
+        const search = url.searchParams.get("search") || undefined;
+
+        const conversations = await InboxService.getThreads(teamId, {
+            status,
+            platform,
+            search
+        });
 
         return NextResponse.json(conversations);
     } catch (error) {

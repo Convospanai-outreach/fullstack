@@ -14,11 +14,17 @@ class BillingService {
             const order = await razorpay.orders.create(options);
 
             // Log Order Creation
-            // We need a userId here. `notes` has it.
             try {
-                if (notes.userId) {
-                    const { auditService } = await import("@/modules/audit-logs/service/auditService");
-                    await auditService.logAction(notes.userId, "ORDER_CREATED", "Billing", { orderId: order.id, amount: order.amount });
+                if (notes.userId && notes.teamId) {
+                    const { AuditService } = await import("@/modules/audit/auditService");
+                    await AuditService.log(
+                        notes.teamId,
+                        notes.userId,
+                        "ORDER_CREATED",
+                        "Billing",
+                        order.id,
+                        { amount: order.amount }
+                    );
                 }
             } catch (e) { }
 
@@ -29,25 +35,57 @@ class BillingService {
         }
     }
 
+    async createTopUpOrder(teamId: string, amount: number, credits: number) {
+        return this.createOrder(amount, "INR", `topup_${teamId}_${Date.now()}`, {
+            type: "topup",
+            teamId,
+            credits
+        });
+    }
+
+
     async getSubscriptionStatus(teamId: string) {
-        // Fetch subscription status from DB
+        // Find owner of the team
+        const membership = await prisma.teamMember.findFirst({
+            where: { teamId, role: "owner" },
+            select: { userId: true }
+        });
+
+        if (!membership || !membership.userId) {
+            return { active: false, plan: "free", currentPeriodEnd: null };
+        }
+
         const subscription = await prisma.subscription.findUnique({
-            where: { teamId },
+            where: { userId: membership.userId },
+            include: { plan: true }
         });
 
         if (!subscription) {
-            return {
-                active: false,
-                plan: "free",
-                currentPeriodEnd: null,
-            };
+            return { active: false, plan: "free", currentPeriodEnd: null };
         }
 
         return {
             active: subscription.status === "active",
-            plan: subscription.razorpayPlanId || "pro", // Default to pro if plan ID not tracked specifically yet
+            plan: subscription.plan.name || "free",
             currentPeriodEnd: subscription.currentPeriodEnd,
+            credits: subscription.plan.creditsPerMonth
         };
+    }
+
+    async getTeamCredits(teamId: string) {
+        const team = await prisma.team.findUnique({
+            where: { id: teamId },
+            select: { credits: true }
+        });
+        return team?.credits || 0;
+    }
+
+    async getPaymentHistory(teamId: string) {
+        return await prisma.creditTransaction.findMany({
+            where: { teamId },
+            orderBy: { createdAt: "desc" },
+            take: 20
+        });
     }
 }
 

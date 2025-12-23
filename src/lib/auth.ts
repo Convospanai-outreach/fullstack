@@ -52,35 +52,13 @@ export const authOptions: NextAuthOptions = {
                             name: "Test Admin",
                             role: "admin",
                             emailVerified: new Date(),
-                            // Initialize default settings for the user
-                            settings: {
-                                create: {
-                                    theme: "dark"
-                                }
-                            }
                         }
                     });
-                    // Create a default team for the admin
-                    const team = await prisma.team.create({
-                        data: {
-                            name: "Admin Team",
-                            members: {
-                                create: {
-                                    userId: newUser.id,
-                                    email: newUser.email,
-                                    role: "owner",
-                                    status: "active"
-                                }
-                            },
-                            // Default subscription
-                            subscription: {
-                                create: {
-                                    status: "active",
-                                    currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
-                                    razorpayPlanId: "pro"
-                                }
-                            }
-                        }
+
+                    await setupUser({
+                        id: newUser.id,
+                        email: newUser.email,
+                        name: newUser.name
                     });
 
                     return newUser;
@@ -107,12 +85,35 @@ export const authOptions: NextAuthOptions = {
                 session.user.name = token.name;
                 session.user.email = token.email;
                 session.user.image = token.picture;
+                session.user.plan = token.plan;
             }
             return session;
         },
         jwt: async ({ token, user }) => {
             if (user) {
                 token.id = user.id;
+            }
+
+            // Fetch Plan on every token refresh (ensures upgrades are reflected relatively quickly)
+            if (token.id) {
+                try {
+                    // Fetch the user's subscription
+                    const user = await prisma.user.findUnique({
+                        where: { id: token.id as string },
+                        include: {
+                            subscription: {
+                                include: { plan: true }
+                            }
+                        }
+                    });
+
+                    // Extract plan name or default to 'FREE'
+                    const planName = user?.subscription?.plan?.name || "FREE";
+                    token.plan = planName;
+                } catch (error) {
+                    console.error("Error fetching user plan for JWT:", error);
+                    token.plan = "free"; // Fallback
+                }
             }
             return token;
         },
@@ -121,8 +122,23 @@ export const authOptions: NextAuthOptions = {
         signIn: async (message) => {
             if (message.user.id && message.user.email) {
                 try {
-                    const { auditService } = await import("@/modules/audit-logs/service/auditService");
-                    await auditService.logLogin(message.user.id, message.user.email);
+                    const { AuditService } = await import("@/modules/audit/auditService");
+
+                    // Fetch user's team for logging context
+                    const membership = await prisma.teamMember.findFirst({
+                        where: { userId: message.user.id }
+                    });
+
+                    if (membership) {
+                        await AuditService.log(
+                            membership.teamId,
+                            message.user.id,
+                            "USER_LOGIN",
+                            "Auth",
+                            message.user.id,
+                            { email: message.user.email }
+                        );
+                    }
                 } catch (e) { console.error("Failed to log login", e) }
             }
         },
@@ -134,6 +150,40 @@ export const authOptions: NextAuthOptions = {
         signIn: "/login",
     },
 };
+
+export async function setupUser(user: { id: string, email: string, name?: string | null }) {
+    // Initialize default settings for the user
+    await prisma.settings.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+            userId: user.id,
+            theme: "dark"
+        }
+    });
+
+    // Create a default team for the user if they don't have one
+    const existingMembership = await prisma.teamMember.findFirst({
+        where: { userId: user.id }
+    });
+
+    if (!existingMembership) {
+        const teamName = user.name ? `${user.name}'s Team` : "My Team";
+        await prisma.team.create({
+            data: {
+                name: teamName,
+                members: {
+                    create: {
+                        userId: user.id,
+                        email: user.email,
+                        role: "owner",
+                        status: "active"
+                    }
+                }
+            }
+        });
+    }
+}
 
 export async function getCurrentContext() {
     const session = await getServerSession(authOptions);
@@ -158,3 +208,5 @@ export async function getCurrentContext() {
 
     return { userId, teamId: membership.teamId };
 }
+
+export const auth = () => getServerSession(authOptions);

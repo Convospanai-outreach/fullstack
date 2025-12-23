@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
+import { aiService } from "@/modules/ai-content/service/aiService";
 
 /**
  * Email sending worker
@@ -30,10 +31,14 @@ export async function handleEmailSend(payload: {
         throw new Error(`Lead ${leadId} has no email address`);
     }
 
-    console.log(`📧 Sending email to: ${lead.email}`);
+    console.log(`📧 Generating AI email for: ${lead.email}`);
 
-    // Generate personalized email content
-    const emailContent = generateEmailContent(lead, campaign, enrichmentData);
+    // Generate personalized email content using the NEW AI Sales Agent logic
+    const emailContent = await aiService.generateEmailDraft(
+        lead,
+        null, // Could pass campaign.icpId if related
+        campaign.teamId || undefined
+    );
 
     // Send email via Email Service
     try {
@@ -57,9 +62,9 @@ export async function handleEmailSend(payload: {
         });
 
         // Log activity
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: "email_sent",
+                type: "email_sent",
                 meta: {
                     leadId,
                     campaignId,
@@ -80,38 +85,4 @@ export async function handleEmailSend(payload: {
         console.error("Failed to send email:", error);
         throw error;
     }
-}
-
-/**
- * Generate personalized email content
- */
-function generateEmailContent(
-    lead: any,
-    campaign: any,
-    enrichmentData?: any
-) {
-    const name = lead.fullName || "there";
-    const companyName =
-        enrichmentData?.companyInsights?.name || "your company";
-
-    return {
-        subject: `${campaign.name} - Opportunity for ${companyName}`,
-        body: `
-Hi ${name},
-
-I hope this email finds you well. I'm reaching out regarding ${campaign.name}.
-
-${campaign.description || "We have an exciting opportunity to discuss."}
-
-Based on my research about ${companyName}, I believe there's a strong alignment with what we offer.
-
-Would you be open to a brief conversation to explore this further?
-
-Best regards,
-ConvoSpan Team
-
----
-This email was sent as part of the "${campaign.name}" campaign.
-    `.trim(),
-    };
 }

@@ -16,3 +16,8 @@ export function useAgents() {
     const { data, error, mutate } = useSWR("/api/orchestrator/agents", fetcher);
     return { data, error, mutate };
 }
+
+export function useAnalytics() {
+    const { data, error, mutate } = useSWR("/api/dashboard/analytics", fetcher);
+    return { data, error, mutate };
+}

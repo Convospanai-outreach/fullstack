@@ -11,14 +11,19 @@ import {
     Settings,
     LogOut,
     CreditCard,
-    Workflow
+    Workflow,
+    Store,
+    Database
 } from "lucide-react";
 
 const sidebarLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/marketplace", label: "Marketplace", icon: Store },
     { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+    { href: "/pipeline", label: "Pipeline", icon: LayoutDashboard },
     { href: "/workflows", label: "Workflows", icon: Workflow },
     { href: "/templates", label: "Templates", icon: FileText },
+    { href: "/knowledge", label: "Knowledge Base", icon: Database },
     { href: "/inbox", label: "Inbox", icon: Inbox },
     { href: "/leads", label: "Leads", icon: Users },
     { href: "/billing", label: "Billing", icon: CreditCard },
@@ -49,8 +54,8 @@ export function DashboardSidebar() {
                             key={link.href}
                             href={link.href}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${isActive
-                                    ? "bg-blue-600/20 text-blue-400 shadow-inner border border-blue-500/20"
-                                    : "text-gray-400 hover:text-white hover:bg-white/5"
+                                ? "bg-blue-600/20 text-blue-400 shadow-inner border border-blue-500/20"
+                                : "text-gray-400 hover:text-white hover:bg-white/5"
                                 }`}
                         >
                             <Icon className={`w-5 h-5 ${isActive ? "text-blue-400" : "text-gray-500 group-hover:text-white"}`} />

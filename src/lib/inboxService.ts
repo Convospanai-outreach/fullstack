@@ -1,13 +1,16 @@
-import { runLinkedInAction } from "@/linkedin/puppeteerRunner";
+import { prisma } from "@/lib/prisma";
 
-// Mock data types
 export interface Thread {
-    id: string;
+    id: string; // This is the leadId
     leadId: string;
     leadName: string;
-    leadAvatar?: string;
-    lastMessage: string;
-    lastMessageAt: Date;
+    leadDetails: {
+        email: string | null;
+        company: string | null;
+        jobTitle: string | null;
+    };
+    lastMessage: string | null;
+    lastMessageAt: Date | null;
     unreadCount: number;
 }
 
@@ -20,70 +23,153 @@ export interface Message {
 }
 
 export class InboxService {
-    // Mock data store
-    private static threads: Thread[] = [
-        {
-            id: "1",
-            leadId: "lead-1",
-            leadName: "Alice Johnson",
-            lastMessage: "Thanks for connecting! I'd love to chat more.",
-            lastMessageAt: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
-            unreadCount: 1
-        },
-        {
-            id: "2",
-            leadId: "lead-2",
-            leadName: "Bob Smith",
-            lastMessage: "Sure, let's schedule a call next week.",
-            lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-            unreadCount: 0
+
+    // Fetch threads for a specific team (leads with messages)
+    static async getThreads(teamId: string, filters: { status?: string, platform?: string, search?: string } = {}): Promise<Thread[]> {
+        const where: any = {
+            teamId: teamId,
+            OR: [
+                { status: "replied" },
+                { status: "contacted" },
+                { messages: { some: {} } }
+            ]
+        };
+
+        if (filters.platform) {
+            if (filters.platform === "LINKEDIN") where.linkedIn = { not: null };
+            if (filters.platform === "EMAIL") where.linkedIn = null;
         }
-    ];
 
-    private static messages: Record<string, Message[]> = {
-        "1": [
-            { id: "m1", threadId: "1", sender: "me", content: "Hi Alice, thanks for accepting my request.", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-            { id: "m2", threadId: "1", sender: "them", content: "Thanks for connecting! I'd love to chat more.", createdAt: new Date(Date.now() - 1000 * 60 * 60) }
-        ],
-        "2": [
-            { id: "m3", threadId: "2", sender: "me", content: "Hi Bob, are you open to a quick call?", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 25) },
-            { id: "m4", threadId: "2", sender: "them", content: "Sure, let's schedule a call next week.", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24) }
-        ]
-    };
+        if (filters.status === "UNREAD") {
+            where.messages = { some: { isRead: false, direction: 'INBOUND' } };
+        }
 
-    static async getThreads(): Promise<Thread[]> {
-        // In a real app, this would fetch from DB or scrape LinkedIn
-        return this.threads;
-    }
+        if (filters.search) {
+            where.OR = [
+                { fullName: { contains: filters.search, mode: 'insensitive' } },
+                { company: { contains: filters.search, mode: 'insensitive' } }
+            ];
+        }
 
-    static async getMessages(threadId: string): Promise<Message[]> {
-        return this.messages[threadId] || [];
-    }
-
-    static async sendMessage(threadId: string, content: string) {
-        // 1. Find the thread to get the URL (in real app)
-        // For now, we assume we have the URL or just mock the action
-        const thread = this.threads.find(t => t.id === threadId);
-        if (!thread) throw new Error("Thread not found");
-
-        // 2. Add message to local mock store
-        if (!this.messages[threadId]) this.messages[threadId] = [];
-        this.messages[threadId].push({
-            id: Date.now().toString(),
-            threadId,
-            sender: "me",
-            content,
-            createdAt: new Date()
+        const leads = await prisma.lead.findMany({
+            where,
+            include: {
+                messages: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 1
+                },
+                _count: {
+                    select: {
+                        messages: { where: { isRead: false, direction: 'INBOUND' } }
+                    }
+                }
+            },
+            orderBy: {
+                updatedAt: 'desc'
+            }
         });
 
-        // 3. Trigger actual LinkedIn action (if we had the URL)
-        // const result = await runLinkedInAction({
-        //     type: "REPLY", // We need to implement this in puppeteerRunner
-        //     url: "https://www.linkedin.com/messaging/thread/...", 
-        //     message: content
-        // });
+        // Map to Thread interface
+        return leads.map(lead => {
+            const lastMsg = lead.messages[0];
+            return {
+                id: lead.id,
+                leadId: lead.id,
+                leadName: lead.fullName || "Unknown Lead",
+                leadDetails: {
+                    email: lead.email,
+                    company: lead.company,
+                    jobTitle: lead.jobTitle
+                },
+                lastMessage: lastMsg ? lastMsg.content : null,
+                lastMessageAt: lastMsg ? lastMsg.createdAt : null,
+                unreadCount: lead._count.messages
+            };
+        });
+    }
 
-        // For now, just return success
-        return { success: true };
+    static async markAsRead(leadId: string) {
+        return await prisma.message.updateMany({
+            where: {
+                leadId,
+                isRead: false,
+                direction: 'INBOUND'
+            },
+            data: { isRead: true }
+        });
+    }
+
+    static async getMessages(leadId: string): Promise<Message[]> {
+        const messages = await prisma.message.findMany({
+            where: { leadId },
+            orderBy: { createdAt: 'asc' }
+        });
+
+        return messages.map(msg => ({
+            id: msg.id,
+            threadId: leadId,
+            sender: msg.direction === 'OUTBOUND' ? 'me' : 'them',
+            content: msg.content,
+            createdAt: msg.createdAt
+        }));
+    }
+
+    // Save a draft message (upsert if draft already exists? simpler to just create new for now, or update last draft)
+    static async saveDraft(leadId: string, content: string, sender: string) {
+        // Check if there is an existing draft for this lead?
+        // For simplicity, we'll assume one draft per lead for now
+        const existingDraft = await prisma.message.findFirst({
+            where: {
+                leadId,
+                status: 'draft'
+            }
+        });
+
+        if (existingDraft) {
+            return await prisma.message.update({
+                where: { id: existingDraft.id },
+                data: {
+                    content
+                }
+            });
+        } else {
+            return await prisma.message.create({
+                data: {
+                    leadId,
+                    content,
+                    direction: 'OUTBOUND',
+                    platform: 'EMAIL', // default
+                    sender,
+                    status: 'draft',
+                    isRead: true
+                }
+            });
+        }
+    }
+
+    static async discardDraft(draftId: string) {
+        return await prisma.message.delete({
+            where: { id: draftId }
+        });
+    }
+
+    static async sendMessage(leadId: string, content: string, sender: string) {
+        // 1. Create the message record
+        const message = await prisma.message.create({
+            data: {
+                leadId,
+                content,
+                direction: 'OUTBOUND',
+                platform: 'EMAIL',
+                sender,
+                status: 'sent',
+                isRead: true
+            }
+        });
+
+        // 2. Here we would trigger the actual email/linkedin sending logic
+        // e.g., await EmailService.send(...)
+
+        return message;
     }
 }

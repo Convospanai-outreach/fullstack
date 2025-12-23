@@ -6,6 +6,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { CampaignPerformanceChart } from "@/components/analytics/CampaignPerformanceChart";
 import { LeadGrowthChart } from "@/components/analytics/LeadGrowthChart";
 
+import OrgGraph from "@/modules/analytics/components/OrgGraph";
+
 export default function AnalyticsPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -43,6 +45,14 @@ export default function AnalyticsPage() {
                     <div className="text-gray-400 text-sm mb-1">Response Rate</div>
                     <div className="text-3xl font-bold text-green-400">{data.responseRate}</div>
                 </GlassCard>
+            </div>
+
+            {/* Funnel & Org Graph */}
+            <div className="grid grid-cols-1 gap-8">
+                <div className="bg-slate-900 border border-white/10 p-6 rounded-2xl">
+                    <h2 className="text-xl font-bold mb-4">Organization Map</h2>
+                    <OrgGraph />
+                </div>
             </div>
 
             {/* Charts */}

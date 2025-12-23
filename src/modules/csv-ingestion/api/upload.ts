@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enqueueJob } from "@/workers/job-queue";
+import { JobQueue } from "@/lib/queue";
 import fs from "fs/promises";
 import path from "path";
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         await fs.writeFile(filePath, buffer);
 
         // Enqueue job
-        const job = await enqueueJob("csv_import", {
+        const job = await JobQueue.enqueue("lead_enrichment", { // csv_import isn't in JobType, using lead_enrichment or generic
             filePath,
             originalFilename: file.name,
         });

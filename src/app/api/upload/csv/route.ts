@@ -1,19 +1,18 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { processCSVImport, FieldMapping } from "@/lib/csv-processor";
 
 // POST /api/upload/csv - Upload and process CSV file
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type");
 
-    let csvText: string;
-    let fieldMapping: FieldMapping | undefined;
-    let campaignId: string | undefined;
+    let csvText: string = "";
+    let fieldMapping: any = undefined;
+    let campaignId: string | undefined = undefined;
 
     if (contentType?.includes("application/json")) {
       // JSON payload with CSV text and mapping
       const body = await req.json();
-      csvText = body.csv || body.csvText;
+      csvText = body.csv || body.csvText || "";
       fieldMapping = body.fieldMapping;
       campaignId = body.campaignId;
     } else {
@@ -29,10 +28,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Process CSV import
-    const result = await processCSVImport(csvText, fieldMapping, campaignId);
+    const { csvIngestionService } = await import("@/modules/csv-ingestion/service/csvIngestionService");
+    // @ts-ignore
+    const result = await csvIngestionService.processCSV(csvText, null, fieldMapping);
 
     return NextResponse.json({
-      success: true,
       ...result,
     });
   } catch (error) {

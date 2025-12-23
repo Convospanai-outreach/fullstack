@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getJobs, enqueueJob, JobType } from "@/workers/job-queue";
+import { prisma } from "@/lib/db";
+import { JobQueue, JobType } from "@/lib/queue";
 
 // GET /api/jobs - List all jobs
 export async function GET(req: NextRequest) {
@@ -10,7 +11,19 @@ export async function GET(req: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
 
-        const result = await getJobs({ type, status, limit, offset });
+        // const result = await JobQueue.dequeue(); 
+        // Actually, JobQueue doesn't have a generic list method yet. Let's use Prisma directly in the route if needed or add it.
+        // For now, let's keep it simple and use Prisma since it's just a GET route.
+        const jobs = await prisma.job.findMany({
+            where: {
+                type: type as any,
+                status: status
+            },
+            take: limit,
+            skip: offset,
+            orderBy: { createdAt: "desc" }
+        });
+        const result = jobs;
 
         return NextResponse.json(result);
     } catch (error) {
@@ -35,7 +48,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const job = await enqueueJob(type, payload, priority);
+        const job = await JobQueue.enqueue(type, payload, { priority });
 
         return NextResponse.json(job, { status: 201 });
     } catch (error) {

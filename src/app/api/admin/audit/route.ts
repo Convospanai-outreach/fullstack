@@ -1,6 +1,5 @@
-
 import { NextResponse } from "next/server";
-import { activityFeedService } from "@/modules/audit-logs/service/ActivityFeedService";
+import { AuditService } from "@/modules/audit/auditService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -19,7 +18,7 @@ export async function GET(req: Request) {
     }
 
     try {
-        const logs = await activityFeedService.getSystemLogs();
+        const logs = await AuditService.getSystemLogs();
         return NextResponse.json({ success: true, logs });
     } catch (error: any) {
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });

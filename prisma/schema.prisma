@@ -21,6 +21,9 @@ model Lead {
   isEnriched   Boolean   @default(false)
   enrichedData Json?
   embedding    Json?
+  value        Float?    @default(0.0) // Potential Deal Value
+  wonAt        DateTime? // When it was marked CLOSED_WON
+  lostAt       DateTime? // When it was marked CLOSED_LOST
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   campaignId   String?
@@ -30,8 +33,35 @@ model Lead {
   team         Team?     @relation(fields: [teamId], references: [id])
   meetings     Meeting[]
   messages     Message[]
+  tasks        Task[]
 
   @@index([teamId])
+  @@index([email])
+  @@index([company])
+  @@index([status])
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String   @default("TODO") // TODO, DONE
+  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH
+  leadId      String?
+  userId      String
+  teamId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  lead        Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user        User     @relation(fields: [userId], references: [id])
+  team        Team     @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([leadId])
+  @@index([status])
 }
 
 model Campaign {
@@ -54,6 +84,8 @@ model Campaign {
   variants       CampaignVariant[]
   emails         Email[]
   
+  scheduledStart DateTime?         // <-- Added field
+
   // Relations
   leadList       Lead[]            // Renamed relation to avoid conflict with 'leads' Int
 
@@ -61,6 +93,7 @@ model Campaign {
 
   @@index([status])
   @@index([teamId])
+  @@index([createdAt])
 }
 
 model CampaignVariant {
@@ -77,13 +110,6 @@ model CampaignVariant {
   campaign   Campaign @relation(fields: [campaignId], references: [id])
 
   @@index([campaignId])
-}
-
-model ActivityLog {
-  id        String   @id @default(uuid())
-  action    String
-  meta      Json?
-  createdAt DateTime @default(now())
 }
 
 model Activity {
@@ -106,6 +132,17 @@ model Agent {
   updatedAt   DateTime @updatedAt
 }
 
+model ICP {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  criteria    Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
 model Job {
   id          String    @id @default(uuid())
   type        String
@@ -126,18 +163,7 @@ model Job {
   @@index([status, priority])
   @@index([type])
   @@index([teamId])
-}
-
-model ICP {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  criteria    Json
-  status      String   @default("active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([status])
+  @@index([processAt])
 }
 
 model Email {
@@ -156,6 +182,10 @@ model Email {
 
   @@index([leadId])
   @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([openedAt])
+  @@index([clickedAt])
 }
 
 model Settings {
@@ -211,11 +241,22 @@ model Team {
   jobs         Job[]
   leads        Lead[]
   meetings     Meeting[]
-  subscription Subscription?
+  // subscription Subscription? // Moved to User
   members      TeamMember[]
   webhooks     Webhook[]
   automations  Automation[]
+  schedules    Schedule[]
+  workflows    Workflow[]
+  guardrailPolicy GuardrailPolicy?
   transactions CreditTransaction[]
+  auditLogs    AuditLog[]
+  memories     AgentMemory[]
+  apiKeys      ApiKey[]
+  tasks        Task[]
+  
+  branding     Json?       // { logoUrl, primaryColor, portalTitle }
+  domains      CustomDomain[]
+  knowledgeBases KnowledgeBase[]
 }
 
 model CreditTransaction {
@@ -233,15 +274,48 @@ model CreditTransaction {
 
 model Subscription {
   id                   String   @id @default(uuid())
-  teamId               String   @unique
-  razorpayCustomerId   String?
-  razorpaySubscriptionId String? @unique
-  razorpayPlanId       String?
-  status               String
+  userId               String   @unique
+  planId               String
+  status               String   // active, trialing, canceled
   currentPeriodEnd     DateTime
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  team                 Team     @relation(fields: [teamId], references: [id])
+  user                 User     @relation(fields: [userId], references: [id])
+  plan                 Plan     @relation(fields: [planId], references: [id])
+  invoices             Invoice[]
+}
+
+model Plan {
+  id              String         @id @default(uuid())
+  name            String         @unique // FREE, PRO, ENTERPRISE
+  monthlyPrice    Int
+  creditsPerMonth Int
+  maxAgents       Int
+  features        Json
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subscriptions   Subscription[]
+}
+
+model CreditLedger {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int      // Positive for added credits, negative for deducted
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  amount         Int
+  status         String
+  invoiceUrl     String?
+  createdAt      DateTime     @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
 }
 
 model Webhook {
@@ -254,8 +328,25 @@ model Webhook {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   team      Team     @relation(fields: [teamId], references: [id])
+  logs      WebhookLog[]
 
   @@index([teamId])
+}
+
+model WebhookLog {
+  id            String   @id @default(uuid())
+  webhookId     String
+  event         String
+  status        Int      // HTTP status code
+  payload       Json
+  response      Json?
+  error         String?
+  duration      Int      // Dispatch duration in ms
+  createdAt     DateTime @default(now())
+  webhook       Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([createdAt])
 }
 
 model Meeting {
@@ -319,6 +410,13 @@ model User {
   accounts      Account[]
   sessions      Session[]
   campaigns     Campaign[]   @relation("owner_campaigns")
+  
+  // Billing
+  credits      Int            @default(0)
+  subscription Subscription?
+  creditLedger CreditLedger[]
+  auditLogs    AuditLog[]
+  tasks        Task[]
 }
 
 
@@ -364,9 +462,11 @@ model Message {
   direction String   // INBOUND, OUTBOUND
   platform  String   // LINKEDIN, EMAIL
   sender    String?  // Name of sender
+  status    String   @default("received") // received, sent, draft
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
   lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  feedback  AgentFeedback[]
   @@index([leadId])
 }
 
@@ -399,4 +499,221 @@ model AutomationLog {
 
   @@index([automationId])
   @@index([status])
+}
+
+model Schedule {
+  id             String        @id @default(uuid())
+  name           String
+  cron           String        // e.g., "0 9 * * 1-5" (Weekdays at 9am)
+  timezone       String        @default("UTC")
+  isActive       Boolean       @default(true)
+  nextRunAt      DateTime?
+  lastRunAt      DateTime?
+  
+  // Configuration
+  batchSize      Int           @default(50)
+  groundingConfig Json?        // { useRag: true, collectionId: "..." }
+  
+  // Relations
+  teamId         String
+  campaignId     String?       // Optional: specific campaign to run
+  agentId        String?       // Optional: specific agent to run
+  team           Team          @relation(fields: [teamId], references: [id])
+  logs           ScheduleLog[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([teamId])
+  @@index([isActive, nextRunAt])
+}
+
+model ScheduleLog {
+  id          String   @id @default(uuid())
+  scheduleId  String
+  status      String   // "success", "failed"
+  message     String?
+  tokensUsed  Int      @default(0)
+  creditsUsed Int      @default(0)
+  itemsVariable Int    @default(0) // How many items processed
+  createdAt   DateTime @default(now())
+  
+  schedule    Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId])
+}
+
+model Workflow {
+  id          String        @id @default(uuid())
+  name        String
+  description String?
+  triggerType String        @default("MANUAL") // MANUAL, EVENT (e.g. lead.created)
+  triggerConfig Json?       // Configuration for the trigger
+  nodes       Json          // ReactFlow nodes
+  edges       Json          // ReactFlow edges
+  isActive    Boolean       @default(false)
+  teamId      String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  
+  team        Team          @relation(fields: [teamId], references: [id])
+  runs        WorkflowRun[]
+
+  @@index([teamId])
+}
+
+model WorkflowRun {
+  id            String    @id @default(uuid())
+  workflowId    String
+  status        String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  currentStepId String?   // ID of the current node in the graph
+  context       Json?     // Variables and state
+  entityId      String?   // ID of the Lead or object this is running for
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  error         String?
+
+  workflow      Workflow  @relation(fields: [workflowId], references: [id])
+
+  @@index([workflowId])
+  @@index([status])
+}
+
+model GuardrailPolicy {
+  id          String   @id @default(uuid())
+  teamId      String   @unique
+  blocklist   String[] // Blocked keywords
+  allowlist   String[] // Explicitly allowed domains/words
+  maxDailyMsgs Int     @default(100)
+  detectPII   Boolean  @default(true)
+  strictness  String   @default("medium") // low, medium, high
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  team        Team     @relation(fields: [teamId], references: [id])
+}
+
+model GuardrailLog {
+  id          String   @id @default(uuid())
+  teamId      String
+  userId      String?
+  action      String   // "blocked", "flagged"
+  reason      String   // "pii_detected", "keyword_blocked"
+  content     String?  // The blocked content (snippet)
+  createdAt   DateTime @default(now())
+
+  @@index([teamId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String?  // Nullable for system actions or external events
+  action    String   // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
+  resource  String   // e.g. "Campaign", "Workflow", "TeamMember"
+  resourceId String?
+  details   Json?    // Metadata
+  ipAddress String?
+  createdAt DateTime @default(now())
+  
+  team      Team     @relation(fields: [teamId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([teamId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+model MarketplaceTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String   // AGENT, WORKFLOW, PLAYBOOK, CAMPAIGN
+  category    String   // Sales, Support, Recruiting
+  icon        String?
+  config      Json     // The JSON config (Workflow structure or Campaign steps)
+  metrics     Json?    // e.g. { "avgOpenRate": 0.45, "users": 1000 }
+  isOfficial  Boolean  @default(true)
+  author      String   @default("ConvoSpan")
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([category])
+}
+
+model AgentFeedback {
+  id        String   @id @default(uuid())
+  messageId String   // The AI message being rated
+  userId    String   // Who rated it
+  rating    Int      // 1 (bad) or 5 (good), or binary -1/1
+  comment   String?  // Optional explanation
+  createdAt DateTime @default(now())
+  
+  message   Message  @relation(fields: [messageId], references: [id])
+}
+
+model AgentMemory {
+  id        String   @id @default(uuid())
+  teamId    String
+  key       String   // e.g. "tone_preference", "forbidden_phrase"
+  value     String   // e.g. "Always use emojis", "Never mention 'cheap'"
+  confidence Float   @default(1.0)
+  createdAt DateTime @default(now())
+  
+  team      Team     @relation(fields: [teamId], references: [id])
+  @@index([teamId])
+}
+
+model ApiKey {
+  id          String   @id @default(uuid())
+  name        String
+  key         String   @unique
+  scopes      String[] // e.g. ["leads:read", "campaigns:write"]
+  lastUsedAt  DateTime?
+  isActive    Boolean  @default(true)
+  teamId      String
+  createdAt   DateTime @default(now())
+  
+  team        Team     @relation(fields: [teamId], references: [id])
+  @@index([teamId])
+  @@index([key])
+}
+
+model KnowledgeBase {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  teamId      String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  
+  team        Team            @relation(fields: [teamId], references: [id])
+  items       KnowledgeItem[]
+  
+  @@index([teamId])
+}
+
+model KnowledgeItem {
+  id              String        @id @default(uuid())
+  content         String        @db.Text
+  embedding       Json?         // Stores the vector embedding
+  metadata        Json?         // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
+  knowledgeBaseId String
+  createdAt       DateTime      @default(now())
+  
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  
+  @@index([knowledgeBaseId])
+}
+
+model CustomDomain {
+  id        String   @id @default(uuid())
+  domain    String   @unique
+  teamId    String
+  status    String   @default("pending") // pending, active, invalid
+  createdAt DateTime @default(now())
+  
+  team      Team     @relation(fields: [teamId], references: [id])
+  @@index([teamId])
 }

@@ -21,9 +21,9 @@ export async function handleLinkedInScrape(payload: {
         });
 
         // Log activity
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: `linkedin_${action}`,
+                type: `linkedin_${action}`,
                 meta: {
                     profileUrl,
                     leadId,

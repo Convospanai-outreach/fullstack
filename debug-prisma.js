@@ -1,16 +1,12 @@
-const fs = require('fs');
-const path = require('path');
+const { PrismaClient } = require('@prisma/client');
 
-const mainPath = path.join(__dirname, 'node_modules/@prisma/client/index.d.ts');
-console.log('Checking Prisma client index:', mainPath);
-console.log('Exists:', fs.existsSync(mainPath));
-
-const indexJsPath = path.join(__dirname, 'node_modules/@prisma/client/index.js');
-console.log('index.js exists:', fs.existsSync(indexJsPath));
+console.log('PRISMA_CLIENT_ENGINE_TYPE:', process.env.PRISMA_CLIENT_ENGINE_TYPE);
+console.log('PRISMA_CLI_QUERY_ENGINE_TYPE:', process.env.PRISMA_CLI_QUERY_ENGINE_TYPE);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 try {
-  const pkg = require.cache[require.resolve('@prisma/client')];
-  console.log('module cache:', !!pkg);
+  const prisma = new PrismaClient();
+  console.log('Prisma initialized successfully');
 } catch (e) {
-  console.log('cache check error:', e.message);
+  console.error('Prisma initialization failed:', e.message);
 }

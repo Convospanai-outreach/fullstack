@@ -119,6 +119,35 @@ async function processNextJob() {
                     result = { status: "stopped" };
                     break;
 
+                case "workflow_step":
+                    if (!job.payload || typeof job.payload !== 'object') throw new Error("Invalid workflow_step payload");
+                    const { runId, nodeId } = job.payload as { runId: string, nodeId: string };
+                    const { WorkflowService } = require("@/lib/workflowService");
+                    result = await WorkflowService.processNode(runId, nodeId);
+                    break;
+
+                case "email_sending":
+                    if (!job.payload || typeof job.payload !== 'object') throw new Error("Invalid email_sending payload");
+                    const emailPayload = job.payload as any;
+                    const { EmailService } = require("@/lib/emailService");
+                    // Fetch lead email if only leadId provided
+                    let targetEmail = emailPayload.email;
+                    if (!targetEmail && emailPayload.leadId) {
+                        const targetLead = await prisma.lead.findUnique({ where: { id: emailPayload.leadId } });
+                        targetEmail = targetLead?.email;
+                    }
+                    if (targetEmail) {
+                        result = await EmailService.sendEmail(targetEmail, emailPayload.subject || "Follow up", emailPayload.body || "Hi there!", emailPayload.teamId);
+                    }
+                    break;
+
+                case "WEBHOOK_DISPATCH":
+                    if (!job.payload || typeof job.payload !== 'object') throw new Error("Invalid webhook_dispatch payload");
+                    const { webhookId: whId, event: whEvent, payload: whPayload } = job.payload as any;
+                    const { webhookService: whService } = require("@/modules/webhooks/service/webhookService");
+                    result = await whService.processDelivery(whId, whEvent, whPayload);
+                    break;
+
                 default:
                     console.warn(`Unknown job type: ${job.type}`);
                     result = { skipped: true };

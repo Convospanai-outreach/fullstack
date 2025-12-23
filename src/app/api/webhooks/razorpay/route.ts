@@ -36,23 +36,34 @@ export async function POST(req: Request) {
 
             // Add Credits
             if (notes.teamId) {
-                const amountInRupees = payment.amount / 100;
-                const credits = Math.floor(amountInRupees / 10);
+                let credits = 0;
 
-                await prisma.team.update({
-                    where: { id: notes.teamId },
-                    data: { credits: { increment: credits } }
-                });
+                if (notes.type === 'topup' && notes.credits) {
+                    credits = parseInt(notes.credits);
+                } else if (notes.planId) {
+                    // Subscription Payment? Handled elsewhere usually, or ignore here
+                } else {
+                    // Fallback logic
+                    const amountInRupees = payment.amount / 100;
+                    credits = Math.floor(amountInRupees / 10);
+                }
 
-                await prisma.creditTransaction.create({
-                    data: {
-                        teamId: notes.teamId,
-                        amount: credits,
-                        description: `Top-up via Razorpay (ID: ${payment.id})`,
-                        type: "topup",
-                        meta: { paymentId: payment.id, orderId: payment.order_id }
-                    }
-                });
+                if (credits > 0) {
+                    await prisma.team.update({
+                        where: { id: notes.teamId },
+                        data: { credits: { increment: credits } }
+                    });
+
+                    await prisma.creditTransaction.create({
+                        data: {
+                            teamId: notes.teamId,
+                            amount: credits,
+                            description: `Top-up via Razorpay (ID: ${payment.id})`,
+                            type: "topup",
+                            meta: { paymentId: payment.id, orderId: payment.order_id }
+                        }
+                    });
+                }
             }
         }
 

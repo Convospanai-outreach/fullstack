@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { retryJob } from "@/workers/job-queue";
+import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
 
 // POST /api/jobs/[id]/retry - Retry failed job
 export async function POST(
@@ -7,7 +8,14 @@ export async function POST(
     { params }: { params: { id: string } }
 ) {
     try {
-        const job = await retryJob(params.id);
+        const job = await prisma.job.update({
+            where: { id: params.id },
+            data: {
+                status: "pending",
+                attempts: 0,
+                processAt: new Date()
+            }
+        });
         return NextResponse.json(job);
     } catch (error) {
         const message =

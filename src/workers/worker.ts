@@ -1,4 +1,4 @@
-import { dequeueJob, updateJobStatus } from "./job-queue";
+import { JobQueue } from "@/lib/queue";
 import { handleLikePost, handleCommentPost, handleScrapeProfile } from "./handlers/linkedinHandlers";
 import { handleSmartComment, handleSmartConnect } from "./handlers/aiHandlers";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
@@ -37,14 +37,14 @@ async function processJob(job: any) {
         }
 
         if (result.ok) {
-            await updateJobStatus(job.id, "completed", result);
+            await JobQueue.complete(job.id, result);
             console.log(`Job ${job.id} completed.`);
         } else {
             throw new Error(result.error || "Unknown error");
         }
     } catch (error: any) {
         console.error(`Job ${job.id} failed:`, error.message);
-        await updateJobStatus(job.id, "failed", undefined, error.message);
+        await JobQueue.fail(job.id, error.message);
     }
 }
 
@@ -53,7 +53,7 @@ export async function startWorker() {
 
     while (true) {
         try {
-            const job = await dequeueJob();
+            const job = await JobQueue.dequeue();
             if (job) {
                 await processJob(job);
             } else {

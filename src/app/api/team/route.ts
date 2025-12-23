@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { prisma } from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 
 export async function GET() {
     try {
@@ -16,7 +16,7 @@ export async function GET() {
         // Find existing membership
         let teamMember = await prisma.teamMember.findFirst({
             where: { userId: user.id },
-            include: { team: { include: { members: true, subscription: true } } }
+            include: { team: { include: { members: true } } }
         });
 
         if (!teamMember) {
@@ -33,7 +33,7 @@ export async function GET() {
                         }
                     }
                 },
-                include: { members: true, subscription: true }
+                include: { members: true }
             });
             return NextResponse.json(team);
         }

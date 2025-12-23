@@ -2,7 +2,7 @@
 
 import React from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import AuditLogViewer from "@/modules/audit-logs/ui/AuditLogViewer";
+import { AuditLogTable } from "@/components/audit/AuditLogTable";
 
 export default function AuditPage() {
     return (
@@ -17,7 +17,7 @@ export default function AuditPage() {
                 <SectionHeader title="System Audit Logs" subtitle="Track user activity and security events" />
 
                 <div className="mt-8">
-                    <AuditLogViewer />
+                    <AuditLogTable apiUrl="/api/audit" />
                 </div>
             </div>
         </main>

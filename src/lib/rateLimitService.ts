@@ -16,9 +16,9 @@ export class RateLimitService {
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
 
-        const count = await prisma.activityLog.count({
+        const count = await prisma.activity.count({
             where: {
-                action: actionType,
+                type: actionType,
                 createdAt: {
                     gte: startOfDay
                 }
@@ -30,9 +30,9 @@ export class RateLimitService {
     }
 
     static async incrementUsage(actionType: string, meta?: any) {
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: actionType,
+                type: actionType,
                 meta: meta || {}
             }
         });

@@ -59,12 +59,12 @@ export class AIService {
 
         // 3. Credit Check (Gating)
         if (teamId) {
-            const { checkCredits, deductCredits } = require("./subscription");
+            const { checkCredits, deductCredits } = await import("./credits");
             const hasCredits = await checkCredits(teamId, 1);
             if (!hasCredits) {
                 throw new Error("Insufficient AI Credits. Please upgrade your plan.");
             }
-            await deductCredits(teamId, 1);
+            await deductCredits(teamId, 1, "AI Generation", { prompt: safePrompt.substring(0, 100) });
         }
 
         return this.retryOperation(async () => {
@@ -110,8 +110,13 @@ export class AIService {
         return await this.askAI(prompt);
     }
 
-    static async generateSmartReply(context: string): Promise<string[]> {
-        const prompt = `Based on the following conversation history, suggest 3 short, professional responses.\n\nContext: ${context}\n\nFormat: JSON array of strings.`;
+    static async generateSmartReply(context: string, tone: string = "professional", memories: string[] = []): Promise<string[]> {
+        let memoryContext = "";
+        if (memories.length > 0) {
+            memoryContext = `\nUser Preferences (Follow these strictly):\n${memories.map(m => `- ${m}`).join("\n")}\n`;
+        }
+
+        const prompt = `Based on the following conversation history, suggest 3 short, ${tone} responses.${memoryContext}\n\nContext: ${context}\n\nFormat: JSON array of strings.`;
         try {
             const result = await this.askAI(prompt);
             // Attempt to parse JSON

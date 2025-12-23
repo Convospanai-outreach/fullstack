@@ -3,7 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { importCSV } from "@/lib/api/leads";
-import { autoDetectFieldMapping } from "@/lib/csv-processor";
+// Basic auto-detection
+const autoDetectFieldMapping = (headers: string[]): Record<string, string> => {
+    const mapping: Record<string, string> = {};
+    headers.forEach(h => {
+        const nh = h.toLowerCase().replace(/[\s_]+/g, '');
+        if (nh.includes('email') || nh === 'mail') mapping[h] = 'email';
+        else if (nh.includes('name') || nh === 'fullname' || nh === 'contactname') mapping[h] = 'fullName';
+        else if (nh.includes('linkedin') || nh.includes('profile')) mapping[h] = 'linkedIn';
+    });
+    return mapping;
+};
 import Papa from "papaparse";
 
 export default function ImportLeadsPage() {

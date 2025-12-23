@@ -43,9 +43,9 @@ class HunterService {
         }
 
         // Log activity
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: "email_found",
+                type: "email_found",
                 meta: {
                     email: result.email,
                     score: result.score,
@@ -74,9 +74,9 @@ class HunterService {
         }
 
         // Log activity
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: "email_verified",
+                type: "email_verified",
                 meta: {
                     email: result.email,
                     status: result.status,

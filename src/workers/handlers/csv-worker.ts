@@ -27,9 +27,9 @@ export async function handleCsvImport(payload: {
         }
 
         // Log activity
-        await prisma.activityLog.create({
+        await prisma.activity.create({
             data: {
-                action: "csv_import_completed",
+                type: "csv_import_completed",
                 meta: {
                     filename: originalFilename,
                     parsed: result.totalParsed,

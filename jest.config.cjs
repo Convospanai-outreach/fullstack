@@ -13,5 +13,9 @@ module.exports = {
   extensionsToTreatAsEsm: [".ts"],
   moduleFileExtensions: ["js", "ts", "json"],
 
+  transformIgnorePatterns: [
+    "node_modules/(?!(uuid|@google)/)"
+  ],
+
   setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 };

@@ -5,25 +5,31 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
-interface ActivityLog {
+interface AuditLog {
     id: string;
     action: string;
-    meta: any;
+    resource: string;
+    resourceId: string | null;
+    details: any;
+    ipAddress: string | null;
     createdAt: string;
+    user?: {
+        name: string | null;
+    };
 }
 
-export function AuditLogTable() {
-    const [logs, setLogs] = useState<ActivityLog[]>([]);
+export function AuditLogTable({ apiUrl = "/api/settings/audit" }: { apiUrl?: string }) {
+    const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("ALL");
 
     const fetchLogs = () => {
         setLoading(true);
-        const url = filter === "ALL" ? "/api/audit-logs" : `/api/audit-logs?action=${filter}`;
-        fetch(url)
+        fetch(apiUrl)
             .then((res) => res.json())
             .then((data) => {
-                setLogs(data);
+                const logsData = data.logs || data.activities || (Array.isArray(data) ? data : []);
+                setLogs(logsData);
                 setLoading(false);
             })
             .catch((err) => {
@@ -64,19 +70,20 @@ export function AuditLogTable() {
                     <thead className="text-xs uppercase bg-white/5 text-gray-400">
                         <tr>
                             <th className="px-4 py-3 rounded-tl-lg">Time</th>
+                            <th className="px-4 py-3">User</th>
                             <th className="px-4 py-3">Action</th>
-                            <th className="px-4 py-3">Details</th>
-                            <th className="px-4 py-3 rounded-tr-lg">Status</th>
+                            <th className="px-4 py-3">Resource</th>
+                            <th className="px-4 py-3 rounded-tr-lg">Details</th>
                         </tr>
                     </thead>
                     <tbody>
                         {loading ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-8 text-center text-white/40">Loading logs...</td>
+                                <td colSpan={5} className="px-4 py-8 text-center text-white/40">Loading logs...</td>
                             </tr>
                         ) : logs.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-8 text-center text-white/40">No activity logs found.</td>
+                                <td colSpan={5} className="px-4 py-8 text-center text-white/40">No audit logs found.</td>
                             </tr>
                         ) : (
                             logs.map((log) => (
@@ -85,13 +92,16 @@ export function AuditLogTable() {
                                         {new Date(log.createdAt).toLocaleString()}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge variant="neutral">{log.action}</Badge>
-                                    </td>
-                                    <td className="px-4 py-3 font-mono text-xs text-white/60 truncate max-w-xs">
-                                        {JSON.stringify(log.meta)}
+                                        {log.user?.name || "System"}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge variant="success">Success</Badge>
+                                        <Badge variant="neutral">{log.action}</Badge>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        {log.resource}
+                                    </td>
+                                    <td className="px-4 py-3 font-mono text-xs text-white/60 truncate max-w-xs">
+                                        {JSON.stringify(log.details)}
                                     </td>
                                 </tr>
                             ))

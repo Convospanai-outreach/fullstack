@@ -2,7 +2,7 @@
 import { prisma } from "@/lib/db";
 import { Job, Prisma } from "@prisma/client";
 
-export type JobType = "campaign_execution" | "lead_enrichment" | "email_sending" | "linkedin_scraping" | "agent_run" | "agent_stop" | "data_export" | "LINKEDIN_ACTION" | "INBOX_SYNC" | "CRM_SYNC";
+export type JobType = "campaign_execution" | "lead_enrichment" | "email_sending" | "linkedin_scraping" | "agent_run" | "agent_stop" | "data_export" | "LINKEDIN_ACTION" | "INBOX_SYNC" | "CRM_SYNC" | "WEBHOOK_DISPATCH" | "workflow_step";
 
 export interface JobPayload {
     [key: string]: any;

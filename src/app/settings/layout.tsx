@@ -10,8 +10,14 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <NavLink href="/settings/general">General</NavLink>
                 <NavLink href="/settings/notifications">Notifications</NavLink>
                 <NavLink href="/settings/keys">API Keys</NavLink>
+                <NavLink href="/settings/agent">AI Agent</NavLink>
+                <NavLink href="/settings/webhooks">Webhooks</NavLink>
+                <NavLink href="/docs/api">Documentation</NavLink>
                 <NavLink href="/settings/billing">Billing</NavLink>
                 <NavLink href="/settings/team">Team Members</NavLink>
+                <NavLink href="/settings/guardrails">AI Guardrails</NavLink>
+                <NavLink href="/settings/audit">Audit Logs</NavLink>
+                <NavLink href="/settings/branding">Branding</NavLink>
             </aside>
 
             {/* Content Area */}

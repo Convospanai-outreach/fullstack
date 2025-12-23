@@ -4,9 +4,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     children: React.ReactNode;
     className?: string;
     variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+    size?: "sm" | "md" | "lg";
 }
 
-export function Button({ children, className = "", variant = "primary", ...props }: ButtonProps) {
+export function Button({ children, className = "", variant = "primary", size = "md", ...props }: ButtonProps) {
     const variants = {
         primary: "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20",
         secondary: "bg-white/10 hover:bg-white/20 text-white",
@@ -15,12 +16,19 @@ export function Button({ children, className = "", variant = "primary", ...props
         danger: "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
     };
 
+    const sizes = {
+        sm: "px-3 py-1.5 text-xs",
+        md: "px-6 py-3 text-base",
+        lg: "px-8 py-4 text-lg"
+    };
+
     return (
         <button
             {...props}
             className={cn(
-                "px-6 py-3 rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed",
+                "rounded-lg transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed",
                 variants[variant],
+                sizes[size],
                 className
             )}
         >

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enqueueJob } from "@/workers/job-queue";
+import { JobQueue } from "@/lib/queue";
 
 export async function POST(req: Request) {
     try {
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const job = await enqueueJob("linkedin_scrape", {
+        const job = await JobQueue.enqueue("linkedin_scraping", {
             profileUrl,
             action,
             leadId,

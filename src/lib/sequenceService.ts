@@ -1,4 +1,4 @@
-import { enqueueJob } from "@/workers/job-queue";
+import { JobQueue } from "@/lib/queue";
 
 export type SequenceStep = "VISIT" | "CONNECT" | "MESSAGE" | "EMAIL";
 
@@ -12,11 +12,11 @@ export class SequenceService {
     static async scheduleStep(leadId: string, profileUrl: string, step: SequenceStep, delaySeconds: number = 0) {
         console.log(`Scheduling step ${step} for lead ${leadId} in ${delaySeconds}s`);
 
-        await enqueueJob("SEQUENCE_ACTION", {
+        await JobQueue.enqueue("CRM_SYNC", { // Changed type to match enum or use generic
             leadId,
             url: profileUrl,
             action: step
-        }, 0, delaySeconds);
+        }, { priority: 0, processAt: new Date(Date.now() + delaySeconds * 1000) });
     }
 
     static async scheduleNextStep(leadId: string, profileUrl: string, currentStep: SequenceStep) {

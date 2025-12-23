@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 
 class AnalyticsService {
-    async getStats() {
+    async getStats(teamId?: string) {
+        // Base where clause for team scoping
+        const where = teamId ? { teamId } : {};
+
         const [
             totalLeads,
             totalCampaigns,
@@ -10,15 +13,16 @@ class AnalyticsService {
             emailsOpened,
             emailsClicked,
         ] = await Promise.all([
-            prisma.lead.count(),
-            prisma.campaign.count(),
-            prisma.email.count(),
-            prisma.email.count({ where: { status: "sent" } }),
-            prisma.email.count({ where: { status: "opened" } }),
-            prisma.email.count({ where: { status: "clicked" } }),
+            prisma.lead.count({ where }),
+            prisma.campaign.count({ where }),
+            prisma.email.count({ where: { campaign: where } }), // Approx scope
+            prisma.email.count({ where: { status: "sent", campaign: where } }),
+            prisma.email.count({ where: { status: "opened", campaign: where } }),
+            prisma.email.count({ where: { status: "clicked", campaign: where } }),
         ]);
 
         const campaignPerformance = await prisma.campaign.findMany({
+            where,
             take: 5,
             orderBy: { createdAt: "desc" },
             select: {
@@ -39,11 +43,48 @@ class AnalyticsService {
                     sent: emailsSent,
                     opened: emailsOpened,
                     clicked: emailsClicked,
-                    openRate: totalEmails > 0 ? (emailsOpened / totalEmails) * 100 : 0,
-                    clickRate: totalEmails > 0 ? (emailsClicked / totalEmails) * 100 : 0,
+                    openRate: emailsSent > 0 ? (emailsOpened / emailsSent) * 100 : 0,
+                    clickRate: emailsSent > 0 ? (emailsClicked / emailsSent) * 100 : 0,
                 },
             },
             campaignPerformance,
+        };
+    }
+
+    async getFunnelStats(teamId?: string) {
+        const where = teamId ? { teamId } : {};
+
+        // 1. Funnel Stages
+        const [
+            allLeads,
+            replied,
+            meetings,
+            closed
+        ] = await Promise.all([
+            prisma.lead.count({ where }),
+            prisma.lead.count({ where: { ...where, status: { in: ["REPLIED", "CONTACTED", "QUALIFIED"] } } }),
+            prisma.lead.count({ where: { ...where, status: { in: ["MEETING_BOOKED", "MEETING", "PROPOSAL"] } } }),
+            prisma.lead.count({ where: { ...where, status: { in: ["CLOSED_WON", "WON"] } } })
+        ]);
+
+        // Calculate Revenue
+        const revenueResult = await prisma.lead.aggregate({
+            where: { ...where, status: { in: ["CLOSED_WON", "WON"] } },
+            _sum: { value: true }
+        });
+        const totalRevenue = revenueResult._sum.value || 0;
+
+        return {
+            outreach: allLeads, // Proxy for now
+            replied,
+            meetings,
+            deals: closed,
+            revenue: totalRevenue,
+            conversionRates: {
+                replyRate: allLeads > 0 ? (replied / allLeads) * 100 : 0,
+                meetingRate: replied > 0 ? (meetings / replied) * 100 : 0,
+                closeRate: meetings > 0 ? (closed / meetings) * 100 : 0
+            }
         };
     }
 
@@ -123,7 +164,7 @@ class AnalyticsService {
 
         return {
             campaign: { id: campaign.id, name: campaign.name, status: campaign.status, createdAt: campaign.createdAt },
-            leadsByStatus, // Added this field
+            leadsByStatus,
             metrics: {
                 total: totalEmails,
                 sent,
@@ -138,6 +179,91 @@ class AnalyticsService {
                 cost: estimatedCost
             },
             timeline
+        };
+    }
+
+    async getVariantComparison(campaignId: string) {
+        const variants = await prisma.campaignVariant.findMany({
+            where: { campaignId },
+            orderBy: { createdAt: "desc" }
+        });
+
+        return variants.map(v => ({
+            id: v.id,
+            subject: v.subject,
+            sent: v.sentCount,
+            opened: v.openCount,
+            replied: v.replyCount,
+            openRate: v.sentCount > 0 ? (v.openCount / v.sentCount) * 100 : 0,
+            replyRate: v.sentCount > 0 ? (v.replyCount / v.sentCount) * 100 : 0,
+            efficiency: v.replyCount > 0 ? (v.replyCount / v.openCount) * 100 : 0
+        }));
+    }
+
+    async getCohortAnalysis(teamId: string) {
+        // ... (existing content)
+        const leads = await prisma.lead.findMany({
+            where: { teamId },
+            select: { createdAt: true, status: true, value: true }
+        });
+
+        const cohorts: Record<string, any> = {};
+
+        leads.forEach(lead => {
+            const date = new Date(lead.createdAt);
+            const week = `${date.getFullYear()}-W${Math.ceil(date.getDate() / 7)}`;
+
+            if (!cohorts[week]) {
+                cohorts[week] = { week, total: 0, engaged: 0, converted: 0, value: 0 };
+            }
+
+            const c = cohorts[week];
+            c.total++;
+            if (["REPLIED", "MEETING_BOOKED", "CLOSED_WON", "QUALIFIED", "CONTACTED", "MEETING", "PROPOSAL", "WON"].includes(lead.status)) c.engaged++;
+            if (lead.status === "CLOSED_WON" || lead.status === "WON") {
+                c.converted++;
+                c.value += lead.value || 0;
+            }
+        });
+
+        return Object.values(cohorts).sort((a, b) => b.week.localeCompare(a.week));
+    }
+
+    async getForecastingStats(teamId: string) {
+        const leads = await prisma.lead.findMany({
+            where: { teamId },
+            select: { status: true, value: true }
+        });
+
+        const probabilities: Record<string, number> = {
+            "NEW": 0.1,
+            "QUALIFIED": 0.3,
+            "CONTACTED": 0.4,
+            "MEETING": 0.6,
+            "PROPOSAL": 0.8,
+            "WON": 1.0,
+            "CLOSED_WON": 1.0
+        };
+
+        let currentRevenue = 0;
+        let weightedPipeline = 0;
+
+        leads.forEach(lead => {
+            const value = lead.value || 0;
+            const prob = probabilities[lead.status] || 0;
+
+            if (lead.status === "WON" || lead.status === "CLOSED_WON") {
+                currentRevenue += value;
+            } else {
+                weightedPipeline += value * prob;
+            }
+        });
+
+        return {
+            currentRevenue,
+            weightedPipeline,
+            forecastTotal: currentRevenue + weightedPipeline,
+            leadCount: leads.length
         };
     }
 }

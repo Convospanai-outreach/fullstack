@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { scraperService } from "@/modules/scraper-bridge";
 import { hunterService } from "@/modules/hunter-email-finder";
 import { JobQueue } from "@/lib/queue";
+import { deductCredits } from "@/lib/credits";
 
 /**
  * Lead enrichment worker
@@ -10,8 +11,24 @@ import { JobQueue } from "@/lib/queue";
 export async function handleLeadEnrichment(payload: {
     leadId: string;
     campaignId?: string;
+    userId?: string;
+    teamId?: string; // Add this
 }) {
-    const { leadId, campaignId } = payload;
+    const { leadId, campaignId, userId, teamId } = payload;
+
+    // Billing Enforcement
+    const ENRICHMENT_COST = 1; // Define cost per enrichment
+    if (teamId) {
+        const success = await deductCredits(teamId, ENRICHMENT_COST, `Enrichment for Lead ${leadId}`, { leadId, campaignId });
+        if (!success) {
+            console.warn(`⛔ Blocked enrichment for ${leadId}: Insufficient credits in team ${teamId}`);
+            throw new Error("Insufficient credits");
+        }
+    } else if (userId) {
+        // Fallback for older jobs or single user actions
+        // Ideally we should find the team for this user
+        console.warn(`⚠️ No teamId provided for enrichment of lead ${leadId}. Attempting to skip or find team...`);
+    }
 
     // Fetch lead
     const lead = await prisma.lead.findUnique({
@@ -87,7 +104,15 @@ export async function handleLeadEnrichment(payload: {
             leadId,
             campaignId,
             enrichmentData,
+            userId, // Propagate for billing checks in email worker if needed
         });
+    }
+
+    // Trigger Webhook
+    if (teamId) {
+        import("@/modules/webhooks/service/webhookService")
+            .then(({ webhookService }) => webhookService.dispatch(teamId, "lead.enriched", enrichmentData))
+            .catch(console.error);
     }
 
     return enrichmentData;

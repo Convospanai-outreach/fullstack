@@ -64,4 +64,51 @@ export class SearchService {
             include: { _count: { select: { leadList: true } } }
         });
     }
+
+    static async searchWorkflows(teamId: string, query?: string) {
+        return await prisma.workflow.findMany({
+            where: {
+                teamId,
+                ...(query && {
+                    OR: [
+                        { name: { contains: query, mode: "insensitive" } },
+                        { description: { contains: query, mode: "insensitive" } },
+                    ]
+                })
+            },
+            orderBy: { updatedAt: "desc" }
+        });
+    }
+
+    static async searchKnowledge(teamId: string, query?: string) {
+        return await prisma.knowledgeBase.findMany({
+            where: {
+                teamId,
+                ...(query && {
+                    OR: [
+                        { name: { contains: query, mode: "insensitive" } },
+                        { description: { contains: query, mode: "insensitive" } },
+                    ]
+                })
+            },
+            include: { _count: { select: { items: true } } },
+            orderBy: { updatedAt: "desc" }
+        });
+    }
+
+    static async globalSearch(teamId: string, query: string) {
+        const [leads, campaigns, workflows, knowledge] = await Promise.all([
+            this.searchLeads({ teamId, query }, 1, 5),
+            this.searchCampaigns(teamId, query),
+            this.searchWorkflows(teamId, query),
+            this.searchKnowledge(teamId, query)
+        ]);
+
+        return {
+            leads: leads.leads,
+            campaigns,
+            workflows,
+            knowledge
+        };
+    }
 }

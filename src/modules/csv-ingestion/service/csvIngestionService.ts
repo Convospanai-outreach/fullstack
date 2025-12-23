@@ -19,6 +19,23 @@ class CSVIngestionService {
         return dataMappingAgent.suggestMapping(headers);
     }
 
+    /**
+     * Simple client-side auto-detection fallback
+     */
+    autoDetectFieldMapping(headers: string[]): Record<string, string> {
+        const mapping: Record<string, string> = {};
+        headers.forEach(h => {
+            const nh = h.toLowerCase().replace(/[\s_]+/g, '');
+            if (nh.includes('email') || nh === 'mail') mapping[h] = 'email';
+            else if (nh.includes('name') || nh === 'fullname' || nh === 'contactname') mapping[h] = 'fullName';
+            else if (nh.includes('linkedin') || nh.includes('profile')) mapping[h] = 'linkedIn';
+            else if (nh.includes('company') || nh === 'org') mapping[h] = 'company';
+            else if (nh.includes('title') || nh.includes('role')) mapping[h] = 'jobTitle';
+            else if (nh.includes('location') || nh.includes('city')) mapping[h] = 'location';
+        });
+        return mapping;
+    }
+
     async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>) {
         if (!csvContent) throw new Error("No CSV content received");
 

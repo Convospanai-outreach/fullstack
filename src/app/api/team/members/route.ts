@@ -1,36 +1,56 @@
-
-import { NextResponse } from "next/server";
-import { TeamService } from "@/modules/teams/service/TeamService";
+import { NextRequest, NextResponse } from "next/server";
+import { teamService } from "@/modules/team/service/teamService";
+import { TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { getCurrentContext } from "@/lib/auth";
-import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
+import { AuditService } from "@/modules/audit/auditService";
+import { prisma } from "@/lib/db";
+import { Plan, isPlanEligible } from "@/lib/plans";
 
-export async function GET() {
-    try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) throw new APIError("Unauthorized", 401);
-
-        const members = await TeamService.getMembers(teamId);
-        return successResponse(members);
-    } catch (error: any) {
-        return handleAPIError(error);
+export async function GET(req: NextRequest) {
+    const ctx = await getCurrentContext();
+    if (!ctx.userId || !ctx.teamId) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+
+    const members = await teamService.getMembers(ctx.teamId);
+    return NextResponse.json({ success: true, data: members });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+    const ctx = await getCurrentContext();
+    if (!ctx.userId || !ctx.teamId) {
+        return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    // 1. Permission check
+    if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ success: false, error: "Insufficient permissions" }, { status: 403 });
+    }
+
+    // 2. Plan check (Only Enterprise can have multiple members)
+    const user = await prisma.user.findUnique({
+        where: { id: ctx.userId },
+        include: { subscription: { include: { plan: true } } }
+    });
+    const userPlan = user?.subscription?.plan?.name || "FREE";
+    if (!isPlanEligible(userPlan, Plan.ENTERPRISE)) {
+        return NextResponse.json({ success: false, error: "Team expansion requires an Enterprise plan upgrade" }, { status: 403 });
+    }
+
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) throw new APIError("Unauthorized", 401);
+        const body = await req.json();
+        const { email, role } = body;
 
-        // Simple authorization check - in real app, might check if userRole is admin
-        // For MVP, assuming any authenticated user can invite for now, or check generic context
+        if (!email) return NextResponse.json({ success: false, error: "Email required" }, { status: 400 });
 
-        const { email, role } = await req.json();
+        const member = await teamService.inviteMember(ctx.teamId, email, role || "member");
 
-        if (!email) throw new APIError("Email is required", 400);
+        // Audit
+        await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_INVITED", "TeamMember", member.id);
 
-        const member = await TeamService.inviteMember(teamId, email, role);
-        return successResponse(member);
+        return NextResponse.json({ success: true, data: member });
+
     } catch (error: any) {
-        return handleAPIError(error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

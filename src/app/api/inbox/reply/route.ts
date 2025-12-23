@@ -16,6 +16,15 @@ export async function POST(req: Request) {
             return new NextResponse("Missing fields", { status: 400 });
         }
 
+        // GUARDRAIL CHECK
+        const { guardrailService } = await import("@/modules/guardrails/service/guardrailService");
+        const validation = await guardrailService.validateMessage(teamId, userId, content);
+
+        if (!validation.valid) {
+            console.warn(`[Guardrail] Blocked message: ${validation.reason}`);
+            return NextResponse.json({ error: validation.reason, action: validation.action }, { status: 403 });
+        }
+
         // 1. Save Message to DB
         const message = await prisma.message.create({
             data: {

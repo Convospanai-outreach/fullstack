@@ -9,6 +9,9 @@ import AgentControl from "@/components/dashboard/AgentControl";
 
 import GettingStartedWidget from "@/components/dashboard/GettingStartedWidget";
 import WelcomeTour from "@/components/onboarding/WelcomeTour";
+import { TaskWidget } from "@/components/dashboard/TaskWidget";
+import { useAnalytics } from "@/components/dashboard/useDashboard";
+import { ForecastingWidget } from "@/components/dashboard/ForecastingWidget";
 
 export default function DashboardPage() {
     const { data: session } = useSession();
@@ -16,6 +19,7 @@ export default function DashboardPage() {
     const { data: campaigns } = useCampaigns();
     const { data: activities } = useActivities();
     const { data: agents } = useAgents();
+    const { data: analyticsRes } = useAnalytics();
 
     if (!session) {
         return (
@@ -31,11 +35,31 @@ export default function DashboardPage() {
         );
     }
 
-    // basic stat placeholders
+    const analytics = analyticsRes?.data;
+
+    // Real-time stats
     const stats = [
-        { id: "s1", title: "New Leads", value: campaigns ? campaigns.length : "—", change: 12, icon: "🔍" },
-        { id: "s2", title: "Recent Activities", value: activities ? activities.length : "—", change: 6, icon: "✅" },
-        { id: "s3", title: "Agents", value: agents ? agents.length : "—", change: 0, icon: "🤖" },
+        {
+            id: "s1",
+            title: "Total Leads",
+            value: analytics?.overview?.totalLeads || "—",
+            change: 12,
+            icon: "🔍"
+        },
+        {
+            id: "s2",
+            title: "Email Outreach",
+            value: analytics?.overview?.emailStats?.sent || "—",
+            change: 6,
+            icon: "✉️"
+        },
+        {
+            id: "s3",
+            title: "Agreed Meetings",
+            value: analytics?.funnel?.meetings || 0,
+            change: 2,
+            icon: "🤝"
+        },
     ];
 
     return (
@@ -49,24 +73,29 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <ChartCard title="Pipeline (sample)" series={[{ day: "D1", value: 100 }]} subtitle="Live" />
+                        <ForecastingWidget
+                            current={analytics?.forecast?.currentRevenue || 0}
+                            weighted={analytics?.forecast?.weightedPipeline || 0}
+                            total={analytics?.forecast?.forecastTotal || 0}
+                        />
                         <div className="glass p-4 rounded-2xl">
-                            <h3 className="text-lg font-semibold text-purple-300 mb-4">Campaigns</h3>
+                            <h3 className="text-lg font-semibold text-purple-300 mb-4">Active Campaigns</h3>
                             <CampaignList campaigns={campaigns || []} />
                         </div>
                     </div>
 
                     <div className="mt-6 glass p-4 rounded-2xl">
-                        <h3 className="text-lg font-semibold text-purple-300 mb-4">Agent Activity</h3>
+                        <h3 className="text-lg font-semibold text-purple-300 mb-4">Agent Activity Feed</h3>
                         <AgentFeed activities={activities || []} />
                     </div>
                 </div>
 
                 <aside className="lg:col-span-1 flex flex-col gap-6">
                     <div className="glass p-4 rounded-2xl">
-                        <h4 className="mb-3 text-lg font-semibold text-purple-300">Agent Control</h4>
+                        <h4 className="mb-3 text-lg font-semibold text-purple-300">Agent Command Center</h4>
                         <AgentControl agents={agents || []} />
                     </div>
+                    <TaskWidget />
                 </aside>
             </div>
         </div>

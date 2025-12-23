@@ -10,8 +10,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         console.log("[Extension Action] Received action result:", body);
 
-        // Log action to ActivityLog
-        // await prisma.activityLog.create(...)
+        // TODO: Log action to AuditLog if needed
 
         return NextResponse.json({ ok: true, message: "Action recorded" });
     } catch (error: any) {

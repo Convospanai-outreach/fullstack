@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
+    const { userId, teamId } = await getCurrentContext();
 
-    if (!session || !session.user) {
+    if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -18,10 +17,11 @@ export async function GET() {
             campaigns,
             activities
         ] = await Promise.all([
-            prisma.lead.count({ where: { status: "NEW" } }),
-            prisma.lead.count({ where: { status: { in: ["QUALIFIED", "INTERESTED"] } } }),
-            prisma.meeting.count(),
+            prisma.lead.count({ where: { teamId, status: "NEW" } }),
+            prisma.lead.count({ where: { teamId, status: { in: ["QUALIFIED", "INTERESTED"] } } }),
+            prisma.meeting.count({ where: { teamId } }),
             prisma.campaign.findMany({
+                where: { teamId },
                 take: 5,
                 orderBy: { createdAt: "desc" },
                 include: {
@@ -30,9 +30,11 @@ export async function GET() {
                     }
                 }
             }),
-            prisma.activityLog.findMany({
+            prisma.auditLog.findMany({
+                where: { teamId },
                 take: 10,
-                orderBy: { createdAt: "desc" }
+                orderBy: { createdAt: "desc" },
+                include: { user: { select: { name: true } } }
             })
         ]);
 
@@ -42,7 +44,7 @@ export async function GET() {
             { id: "s3", title: "Meetings", value: meetingsCount.toString(), change: 0, icon: "📅" },
         ];
 
-        // Mock revenue for now as it's not in schema
+        // Mock revenue series
         const revenueSeries = Array.from({ length: 30 }).map((_, i) => ({
             day: `D${i + 1}`,
             value: Math.round(200 + Math.sin(i / 3) * 80 + Math.random() * 50),
@@ -51,13 +53,13 @@ export async function GET() {
         const mappedCampaigns = campaigns.map((c) => ({
             id: c.id,
             name: c.name,
-            audience: "Target Audience", // Placeholder as schema doesn't have audience field directly
+            audience: "Target Audience",
             leads: c._count.leadList,
             status: c.status,
         }));
 
         const mappedActivities = activities.map((a) => ({
-            agent: "System", // Schema ActivityLog doesn't link to agent/user directly? `userId` isn't in ActivityLog in schema provided.
+            agent: a.user?.name || "System",
             action: a.action,
             time: new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         }));
@@ -67,10 +69,6 @@ export async function GET() {
             revenueSeries,
             campaigns: mappedCampaigns,
             activities: mappedActivities,
-            profile: {
-                name: session.user.name || "User",
-                email: session.user.email || ""
-            }
         });
 
     } catch (error) {

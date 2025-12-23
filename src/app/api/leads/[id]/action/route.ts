@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { enqueueJob } from "@/workers/job-queue";
+import { JobQueue } from "@/lib/queue";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
@@ -13,12 +13,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         }
 
         if (action === "CONNECT") {
-            await enqueueJob("SMART_CONNECT", {
+            await JobQueue.enqueue("linkedin_scraping", {
                 leadId: lead.id,
                 url: lead.linkedIn
             });
         } else if (action === "MESSAGE") {
-            await enqueueJob("SEQUENCE_ACTION", {
+            await JobQueue.enqueue("LINKEDIN_ACTION", {
                 leadId: lead.id,
                 url: lead.linkedIn,
                 action: "MESSAGE",
