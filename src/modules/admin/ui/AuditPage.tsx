@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { AuditLogTable } from "@/components/audit/AuditLogTable";
 

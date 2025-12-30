@@ -46,7 +46,7 @@ class CSVIngestionService {
         });
 
         if (parsed.errors.length) {
-            throw new Error(`CSV Parsing Error: ${parsed.errors[0].message}`);
+            throw new Error(`CSV Parsing Error: ${parsed.errors[0]?.message || 'Unknown error'}`);
         }
 
         const rows = parsed.data as any[];

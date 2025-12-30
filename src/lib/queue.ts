@@ -1,10 +1,18 @@
 
 import { prisma } from "@/lib/db";
-import { Job, Prisma } from "@prisma/client";
+import { Job } from "@prisma/client";
 
 export type JobType = "campaign_execution" | "lead_enrichment" | "email_sending" | "linkedin_scraping" | "agent_run" | "agent_stop" | "data_export" | "LINKEDIN_ACTION" | "INBOX_SYNC" | "CRM_SYNC" | "WEBHOOK_DISPATCH" | "workflow_step";
 
 export interface JobPayload {
+    leadId?: string | undefined;
+    url?: string | undefined;
+    action?: string | undefined;
+    templateId?: string | undefined;
+    teamId?: string | undefined;
+    userId?: string | undefined;
+    text?: string | undefined;
+    // Catch-all for dynamic payload data
     [key: string]: any;
 }
 
@@ -17,20 +25,33 @@ export class JobQueue {
         payload: JobPayload,
         options: {
             priority?: number;
-            processAt?: Date;
-            teamId?: string;
+            processAt?: Date | null;
+            teamId?: string | null;
+            idempotencyKey?: string;
         } = {}
     ): Promise<Job> {
-        return await prisma.job.create({
-            data: {
-                type,
-                payload,
-                priority: options.priority || 0,
-                processAt: options.processAt || new Date(),
-                teamId: options.teamId,
-                status: "pending",
-            },
-        });
+        // If idempotencyKey is provided, check for existing job
+        if (options.idempotencyKey) {
+            const existingJob = await prisma.job.findUnique({
+                where: { idempotencyKey: options.idempotencyKey }
+            });
+            if (existingJob) return existingJob;
+        }
+
+        const data: any = {
+            type,
+            payload,
+            priority: options.priority ?? 0,
+            processAt: options.processAt ?? new Date(),
+            teamId: options.teamId ?? null,
+            status: "pending",
+        };
+
+        if (options.idempotencyKey) {
+            data.idempotencyKey = options.idempotencyKey;
+        }
+
+        return await prisma.job.create({ data });
     }
 
     /**
@@ -41,17 +62,6 @@ export class JobQueue {
         const now = new Date();
 
         // Find next eligible job
-        // Note: In a high-concurrency environment, this simple findFirst + update
-        // might have race conditions. For higher scale, consider using raw SQL
-        // with SELECT ... FOR UPDATE SKIP LOCKED.
-        // For this MVP, a simple atomic update should suffice for moderate load.
-
-        // We do this in a transaction to try to ensure we only get one worker picking it up
-        // However, Prisma doesn't support SELECT FOR UPDATE easily without raw queries.
-        // We'll use a pragmatic approach: UPDATE ... WHERE status='pending' RETURNING *
-        // but Prisma doesn't support generic UPDATE with LIMIT 1 directly easily either.
-
-        // Strategy: Find candidates, then try to claim one.
         const candidates = await prisma.job.findMany({
             where: {
                 status: "pending",
@@ -61,7 +71,7 @@ export class JobQueue {
                 { priority: "desc" },
                 { processAt: "asc" },
             ],
-            take: 5, // Fetch a few to increase chance of successful claim collision-free
+            take: 5,
         });
 
         for (const candidate of candidates) {
@@ -125,11 +135,11 @@ export class JobQueue {
                 },
             });
         } else {
-            // Permanent failure
+            // Permanent failure -> Dead Letter
             return await prisma.job.update({
                 where: { id: jobId },
                 data: {
-                    status: "failed",
+                    status: "dead_letter",
                     completedAt: new Date(),
                     error: error,
                 },

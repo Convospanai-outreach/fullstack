@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 // Simple Memory-based rate limiter for development
 // In production, this should use Redis (Upstash) for distributed systems

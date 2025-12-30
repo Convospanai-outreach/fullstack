@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function HealthPage() {
@@ -29,10 +29,10 @@ export default function HealthPage() {
 
     const StatusBadge = ({ status }: { status: string }) => (
         <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${status === "healthy" || status === "ok"
-                ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                : status === "degraded"
-                    ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-                    : "bg-red-500/20 text-red-400 border border-red-500/30"
+            ? "bg-green-500/20 text-green-400 border border-green-500/30"
+            : status === "degraded"
+                ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+                : "bg-red-500/20 text-red-400 border border-red-500/30"
             }`}>
             {status}
         </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import { useCallback } from 'react';
 import ReactFlow, {
     addEdge,
     MiniMap,
@@ -9,9 +9,7 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     Connection,
-    Edge,
     Node,
-    ReactFlowProvider,
     Panel
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -19,8 +17,9 @@ import { toast } from 'sonner';
 import { Bot, Mail, Clock, Split } from 'lucide-react';
 
 import { AiNode, DelayNode, ConditionNode, ActionNode } from './nodes/CustomNodes';
+import { WorkflowNode, WorkflowEdge } from '../types';
+import { Edge } from 'reactflow';
 
-// Define custom node types
 const nodeTypes = {
     ai: AiNode,
     delay: DelayNode,
@@ -29,14 +28,14 @@ const nodeTypes = {
 };
 
 interface WorkflowEditorProps {
-    initialNodes?: any[];
-    initialEdges?: any[];
+    initialNodes?: WorkflowNode[];
+    initialEdges?: WorkflowEdge[];
     workflowId: string;
-    onSave?: (nodes: any[], edges: any[]) => void;
+    onSave?: (nodes: Node[], edges: Edge[]) => void;
 }
 
 export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }: WorkflowEditorProps) {
-    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+    const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes as unknown as Node[]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
     const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);

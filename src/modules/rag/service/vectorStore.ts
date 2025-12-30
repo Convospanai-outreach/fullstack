@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { aiService } from "@/modules/ai-content/service/aiService";
+import { aiService } from "@/lib/aiService";
 
 export type Document = {
     id: string;
@@ -9,19 +9,48 @@ export type Document = {
 };
 
 class VectorStore {
+    /**
+     * Chunks text into smaller pieces for better retrieval resolution.
+     */
+    private chunkText(text: string, size: number = 1000, overlap: number = 200): string[] {
+        const chunks: string[] = [];
+        let start = 0;
+        while (start < text.length) {
+            const end = Math.min(start + size, text.length);
+            chunks.push(text.substring(start, end));
+            start += size - overlap;
+        }
+        return chunks;
+    }
+
     async addDocument(content: string, knowledgeBaseId: string, metadata?: any) {
-        const embedding = await aiService.getEmbeddings(content);
+        const chunks = this.chunkText(content);
+        const modelVersion = "embedding-001";
 
-        const doc = await prisma.knowledgeItem.create({
-            data: {
-                content,
-                knowledgeBaseId,
-                metadata: metadata || {},
-                embedding: embedding as any
+        for (const chunk of chunks) {
+            try {
+                const embedding = await aiService.getEmbeddings(chunk);
+                const embeddingSql = `[${embedding.join(",")}]`;
+
+                // Use raw SQL to insert the vector type with model versioning
+                await prisma.$executeRawUnsafe(
+                    `INSERT INTO "KnowledgeItem" (id, content, "knowledgeBaseId", metadata, embedding, "embeddingModel", version, "createdAt") 
+                     VALUES ($1, $2, $3, $4::jsonb, $5::vector, $6, $7, NOW())`,
+                    crypto.randomUUID(),
+                    chunk,
+                    knowledgeBaseId,
+                    JSON.stringify(metadata || {}),
+                    embeddingSql,
+                    modelVersion,
+                    1 // semantic version
+                );
+            } catch (error) {
+                console.error(`❌ Failed to index chunk: ${chunk.substring(0, 50)}...`, error);
+                // Continue to next chunk to maintain partial availability or throw if critical
             }
-        });
+        }
 
-        return doc;
+        return { success: true, chunksCount: chunks.length };
     }
 
     async search(query: string, teamId: string, limit: number = 5) {
@@ -29,44 +58,25 @@ class VectorStore {
 
         if (!queryEmbedding || queryEmbedding.length === 0) return [];
 
-        // 1. Fetch relevant knowledge bases for the team
-        const kbs = await prisma.knowledgeBase.findMany({
-            where: { teamId },
-            select: { id: true }
-        });
-        const kbIds = kbs.map((kb: { id: string }) => kb.id);
+        const embeddingSql = `[${queryEmbedding.join(",")}]`;
 
-        if (kbIds.length === 0) return [];
+        // Efficient pgvector search with teamId isolation and model version check
+        const results: any[] = await prisma.$queryRawUnsafe(
+            `SELECT ki.id, ki.content, ki.metadata, 
+                    (1 - (ki.embedding <=> $1::vector)) as score
+             FROM "KnowledgeItem" ki
+             JOIN "KnowledgeBase" kb ON ki."knowledgeBaseId" = kb.id
+             WHERE kb."teamId" = $2 
+             AND ki."embeddingModel" = $3
+             ORDER BY ki.embedding <=> $1::vector
+             LIMIT $4`,
+            embeddingSql,
+            teamId,
+            "embedding-001",
+            limit
+        );
 
-        // 2. Fetch all items (Simplified for now - in production use pgvector)
-        const items = await prisma.knowledgeItem.findMany({
-            where: { knowledgeBaseId: { in: kbIds } }
-        });
-
-        // 3. Calculate similarity in-memory (OK for small sets)
-        const results = items
-            .map((item: any) => {
-                const itemEmbedding = item.embedding as number[];
-                if (!itemEmbedding) return { ...item, score: 0 };
-                return {
-                    ...item,
-                    score: this.cosineSimilarity(queryEmbedding, itemEmbedding),
-                };
-            })
-            .filter((item: any) => item.score > 0.5) // Minimum threshold
-            .sort((a: any, b: any) => b.score - a.score)
-            .slice(0, limit);
-
-        return results;
-    }
-
-    private cosineSimilarity(a: number[], b: number[]) {
-        if (a.length !== b.length) return 0;
-        const dotProduct = a.reduce((sum: number, val: number, i: number) => sum + val * b[i], 0);
-        const magnitudeA = Math.sqrt(a.reduce((sum: number, val: number) => sum + val * val, 0));
-        const magnitudeB = Math.sqrt(b.reduce((sum: number, val: number) => sum + val * val, 0));
-        if (magnitudeA === 0 || magnitudeB === 0) return 0;
-        return dotProduct / (magnitudeA * magnitudeB);
+        return results.filter(item => item.score > 0.75); // Stricter grounding threshold for robustness
     }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LeadDetail } from "@/components/crm/LeadDetail";
 
 export default function LeadPage({ params }: { params: { id: string } }) {

@@ -7,7 +7,7 @@ export enum TeamRole {
     VIEWER = "viewer"
 }
 
-const ROLE_HIERARCHY = {
+const ROLE_HIERARCHY: Record<TeamRole, number> = {
     [TeamRole.OWNER]: 4,
     [TeamRole.ADMIN]: 3,
     [TeamRole.MEMBER]: 2,
@@ -32,9 +32,53 @@ export async function checkTeamPermission(userId: string, teamId: string, requir
     return userLevel >= requiredLevel;
 }
 
+export enum Permission {
+    MANAGE_POLICY = "manage_policy",
+    RESOLVE_APPROVALS = "resolve_approvals",
+    VIEW_AUDIT = "view_audit",
+    INVITE_MEMBERS = "invite_members",
+    MANAGE_BILLING = "manage_billing",
+    MANAGE_PLAYBOOKS = "manage_playbooks",
+    MANAGE_SSO = "manage_sso"
+}
+
+const ROLE_PERMISSIONS: Record<TeamRole, Permission[]> = {
+    [TeamRole.OWNER]: Object.values(Permission),
+    [TeamRole.ADMIN]: [
+        Permission.MANAGE_POLICY,
+        Permission.RESOLVE_APPROVALS,
+        Permission.VIEW_AUDIT,
+        Permission.INVITE_MEMBERS,
+        Permission.MANAGE_PLAYBOOKS,
+        Permission.MANAGE_SSO
+    ],
+    [TeamRole.MEMBER]: [
+        Permission.VIEW_AUDIT,
+        Permission.MANAGE_PLAYBOOKS
+    ],
+    [TeamRole.VIEWER]: [
+        Permission.VIEW_AUDIT
+    ]
+};
+
+export async function hasPermission(userId: string, teamId: string, permission: Permission): Promise<boolean> {
+    const role = await getTeamRole(userId, teamId);
+    if (!role) return false;
+
+    return ROLE_PERMISSIONS[role].includes(permission);
+}
+
 /**
- * Throws an APIError if the user does not have the required role level
+ * Throws an APIError if the user does not have the required permission
  */
+export async function authorizePermission(userId: string, teamId: string, permission: Permission) {
+    const allowed = await hasPermission(userId, teamId, permission);
+    if (!allowed) {
+        const { APIError } = await import("@/lib/apiResponse");
+        throw new APIError(`Insufficient permissions: Requires ${permission}`, 403);
+    }
+}
+
 export async function authorizeRole(userId: string, teamId: string, requiredRole: TeamRole) {
     const hasPerm = await checkTeamPermission(userId, teamId, requiredRole);
     if (!hasPerm) {
@@ -45,9 +89,10 @@ export async function authorizeRole(userId: string, teamId: string, requiredRole
 
 export function canManageMembers(role: string): boolean {
     // @ts-ignore
-    return (ROLE_HIERARCHY[role] || 0) >= ROLE_HIERARCHY[TeamRole.ADMIN];
+    return ROLE_PERMISSIONS[role]?.includes(Permission.INVITE_MEMBERS) || false;
 }
 
 export function canManageBilling(role: string): boolean {
-    return role === TeamRole.OWNER;
+    // @ts-ignore
+    return ROLE_PERMISSIONS[role]?.includes(Permission.MANAGE_BILLING) || false;
 }

@@ -11,7 +11,7 @@ export async function PATCH(req: Request, { params }: any) {
     return NextResponse.json(updated);
 }
 
-export async function DELETE(req: Request, { params }: any) {
+export async function DELETE(_req: Request, { params }: any) {
     const { id } = params;
     await prisma.campaign.delete({ where: { id } });
     return NextResponse.json({ ok: true });

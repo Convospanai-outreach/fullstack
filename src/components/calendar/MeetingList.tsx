@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 
@@ -42,7 +41,7 @@ export default function MeetingList({ meetings = [] }: MeetingListProps) {
                             {meeting.lead && (
                                 <p className="text-sm text-blue-400 mb-1">with {meeting.lead.fullName}</p>
                             )}
-                            <Badge variant="neutral">Scheduled</Badge>
+                            <Badge variant="default">Scheduled</Badge>
                         </div>
                     </GlassCard>
                 ))

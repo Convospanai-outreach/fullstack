@@ -12,6 +12,7 @@ export interface Thread {
     lastMessage: string | null;
     lastMessageAt: Date | null;
     unreadCount: number;
+    platform?: string;
 }
 
 export interface Message {
@@ -69,6 +70,52 @@ export class InboxService {
             }
         });
 
+        // MOCK DATA INJECTION FOR DEMO
+        if (leads.length === 0) {
+            return [
+                {
+                    id: "mock-1",
+                    leadId: "mock-1",
+                    leadName: "Sarah Chen",
+                    leadDetails: { email: "sarah@techcorp.io", company: "TechCorp", jobTitle: "CTO" },
+                    lastMessage: "Assuming we can integrate this by Q3, what would the pricing look like for 50 seats?",
+                    lastMessageAt: new Date(Date.now() - 1000 * 60 * 15), // 15 mins ago
+                    unreadCount: 1,
+                    platform: "EMAIL"
+                },
+                {
+                    id: "mock-2",
+                    leadId: "mock-2",
+                    leadName: "David Miller",
+                    leadDetails: { email: "david.m@growth.co", company: "Growth Co", jobTitle: "VP Sales" },
+                    lastMessage: "Thanks for the demo earlier. I had a quick question about the API rate limits.",
+                    lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+                    unreadCount: 0,
+                    platform: "LINKEDIN"
+                },
+                {
+                    id: "mock-3",
+                    leadId: "mock-3",
+                    leadName: "Elena Rodriguez",
+                    leadDetails: { email: "elena@startups.net", company: "StartupsNet", jobTitle: "Founder" },
+                    lastMessage: "Let's schedule a follow-up for next Tuesday at 10 AM EST.",
+                    lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+                    unreadCount: 0,
+                    platform: "EMAIL"
+                },
+                {
+                    id: "mock-4",
+                    leadId: "mock-4",
+                    leadName: "James Wilson",
+                    leadDetails: { email: "j.wilson@enterprise.org", company: "Enterprise Org", jobTitle: "Director of Ops" },
+                    lastMessage: "Can you send over the security compliance documentation? Our IT team needs to review it.",
+                    lastMessageAt: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
+                    unreadCount: 2,
+                    platform: "EMAIL"
+                }
+            ];
+        }
+
         // Map to Thread interface
         return leads.map(lead => {
             const lastMsg = lead.messages[0];
@@ -83,7 +130,8 @@ export class InboxService {
                 },
                 lastMessage: lastMsg ? lastMsg.content : null,
                 lastMessageAt: lastMsg ? lastMsg.createdAt : null,
-                unreadCount: lead._count.messages
+                unreadCount: lead._count.messages,
+                platform: "EMAIL" // Default to email as schema doesn't strictly enforce per-thread platform yet
             };
         });
     }

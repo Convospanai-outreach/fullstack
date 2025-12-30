@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -103,7 +103,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
                                         <td className="px-4 py-3">{lead.email || "—"}</td>
                                         <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
                                         <td className="px-4 py-3">
-                                            <Badge variant={lead.status === "CONNECTED" ? "success" : "neutral"}>
+                                            <Badge variant={lead.status === "CONNECTED" ? "success" : "default"}>
                                                 {lead.status || "New"}
                                             </Badge>
                                         </td>

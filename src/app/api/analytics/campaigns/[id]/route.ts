@@ -6,7 +6,7 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.email) {
         return new NextResponse("Unauthorized", { status: 401 });

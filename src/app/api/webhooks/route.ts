@@ -9,7 +9,7 @@ const WebhookSchema = z.object({
     events: z.array(z.string()).min(1, "Select at least one event"),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {

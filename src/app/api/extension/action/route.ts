@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
+import { AuditService } from "@/modules/audit/auditService";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
     try {
-        const token = req.headers.get("Authorization");
-        if (!token) {
-            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
-        }
+        const { userId, teamId } = await getCurrentContext();
 
         const body = await req.json();
-        console.log("[Extension Action] Received action result:", body);
+        logger.info("[Extension Action] Received action result:", { teamId, userId, ...body });
 
-        // TODO: Log action to AuditLog if needed
+        if (teamId && userId) {
+            await AuditService.log(
+                teamId,
+                userId,
+                "EXTENSION_ACTION",
+                "Lead",
+                body.leadId || body.profileUrl || null,
+                body
+            );
+        }
 
         return NextResponse.json({ ok: true, message: "Action recorded" });
-    } catch (error: any) {
-        console.error("[Extension Action] Error:", error);
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Internal error";
+        logger.error("[Extension Action] Error processing result:", { error: errorMessage });
+        return NextResponse.json({ ok: false, error: errorMessage }, { status: 500 });
     }
 }

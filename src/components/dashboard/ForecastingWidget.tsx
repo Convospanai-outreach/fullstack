@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, DollarSign, Target, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Target, ArrowUpRight } from "lucide-react";
 
 interface ForecastingProps {
     current: number;

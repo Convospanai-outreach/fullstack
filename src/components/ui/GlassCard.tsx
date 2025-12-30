@@ -1,13 +1,19 @@
-import React from "react";
+import React from 'react';
+import { cn } from "@/lib/utils";
 
 interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
     children: React.ReactNode;
-    className?: string;
 }
 
-export function GlassCard({ children, className = "", ...props }: GlassCardProps) {
+export function GlassCard({ children, className, ...props }: GlassCardProps) {
     return (
-        <div className={`glass-card p-6 rounded-xl ${className}`} {...props}>
+        <div
+            className={cn(
+                "glass",
+                className
+            )}
+            {...props}
+        >
             {children}
         </div>
     );

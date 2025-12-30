@@ -1,33 +1,31 @@
 import { prisma } from "@/lib/db";
 import { scraperService } from "@/modules/scraper-bridge";
 import { hunterService } from "@/modules/hunter-email-finder";
-import { JobQueue } from "@/lib/queue";
+import { JobQueue, JobPayload } from "@/lib/queue";
 import { deductCredits } from "@/lib/credits";
+import { logger, logWorker } from "@/lib/logger";
 
 /**
  * Lead enrichment worker
  * Enriches a single lead with company data, LinkedIn profile, and email
  */
-export async function handleLeadEnrichment(payload: {
-    leadId: string;
-    campaignId?: string;
-    userId?: string;
-    teamId?: string; // Add this
-}) {
+export async function handleLeadEnrichment(payload: JobPayload) {
     const { leadId, campaignId, userId, teamId } = payload;
+
+    if (!leadId) {
+        throw new Error("Lead identifier (leadId) is missing in payload");
+    }
 
     // Billing Enforcement
     const ENRICHMENT_COST = 1; // Define cost per enrichment
     if (teamId) {
         const success = await deductCredits(teamId, ENRICHMENT_COST, `Enrichment for Lead ${leadId}`, { leadId, campaignId });
         if (!success) {
-            console.warn(`⛔ Blocked enrichment for ${leadId}: Insufficient credits in team ${teamId}`);
+            logger.warn(`⛔ [Worker] Blocked enrichment for ${leadId}: Insufficient credits in team ${teamId}`, { teamId, leadId });
             throw new Error("Insufficient credits");
         }
     } else if (userId) {
-        // Fallback for older jobs or single user actions
-        // Ideally we should find the team for this user
-        console.warn(`⚠️ No teamId provided for enrichment of lead ${leadId}. Attempting to skip or find team...`);
+        logger.warn(`⚠️ [Worker] No teamId provided for enrichment of lead ${leadId}.`, { userId, leadId });
     }
 
     // Fetch lead
@@ -39,7 +37,7 @@ export async function handleLeadEnrichment(payload: {
         throw new Error(`Lead ${leadId} not found`);
     }
 
-    console.log(`🔍 Enriching lead: ${lead.fullName || lead.email || leadId}`);
+    logWorker(leadId, "ENRICHING", { fullName: lead.fullName, teamId });
 
     const enrichmentData: any = {
         leadId,
@@ -58,28 +56,25 @@ export async function handleLeadEnrichment(payload: {
                 enrichmentData.linkedInProfile = result.data;
             }
         } catch (error) {
-            console.warn("Failed to scrape LinkedIn:", error);
+            logger.warn("Failed to scrape LinkedIn:", { leadId, error: error instanceof Error ? error.message : error });
         }
     }
 
     // Find email if we don't have one
     if (!lead.email && lead.fullName) {
         try {
-            // We need a domain to find email. 
-            // If we scraped LinkedIn, we might have company info, but for now let's assume we need a domain.
-            // This is a simplification. In a real app, we'd extract domain from LinkedIn company or website.
-            const domain = "gmail.com"; // Placeholder or extract from lead data if available
+            // Placeholder: domain extraction would happen here
+            const domain = "gmail.com";
 
-            // Only try if we have a real domain (not generic)
             if (domain && domain !== "gmail.com") {
                 const nameParts = lead.fullName.split(" ");
                 const firstName = nameParts[0];
                 const lastName = nameParts.slice(1).join(" ");
 
                 const result = await hunterService.findAndStoreEmail({
-                    firstName,
-                    lastName,
-                    domain,
+                    firstName: firstName || "",
+                    lastName: lastName || "",
+                    domain: domain || "",
                     leadId,
                 });
 
@@ -88,7 +83,7 @@ export async function handleLeadEnrichment(payload: {
                 }
             }
         } catch (error) {
-            console.warn("Failed to find email:", error);
+            logger.warn("Failed to find email with Hunter.io:", { leadId, error: error instanceof Error ? error.message : error });
         }
     }
 
@@ -100,11 +95,12 @@ export async function handleLeadEnrichment(payload: {
 
     // If part of a campaign, enqueue email job
     if (campaignId && (lead.email || enrichmentData.email)) {
-        await JobQueue.enqueue("email_sending", { // Renamed from email_send to match types
+        await JobQueue.enqueue("email_sending", {
             leadId,
             campaignId,
             enrichmentData,
-            userId, // Propagate for billing checks in email worker if needed
+            userId,
+            teamId
         });
     }
 
@@ -112,7 +108,7 @@ export async function handleLeadEnrichment(payload: {
     if (teamId) {
         import("@/modules/webhooks/service/webhookService")
             .then(({ webhookService }) => webhookService.dispatch(teamId, "lead.enriched", enrichmentData))
-            .catch(console.error);
+            .catch(err => logger.error(`[Worker] Failed to dispatch enrichment webhook`, { error: err.message }));
     }
 
     return enrichmentData;

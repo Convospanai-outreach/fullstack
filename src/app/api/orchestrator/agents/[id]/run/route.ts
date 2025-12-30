@@ -1,12 +1,28 @@
 
 import { JobQueue } from "@/lib/queue";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getCurrentContext } from "@/lib/auth";
+import { enforcePolicy } from "@/lib/governance/guard";
+import { audit } from "@/lib/governance/audit";
+import { checkLimits } from "@/lib/governance/limits";
 
-export async function POST(req: Request, { params }: any) {
-    const { id } = params;
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const { userId, teamId } = await getCurrentContext();
+
+    if (!userId || !teamId) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    // GOVERNANCE CHECKS
+    try {
+        await checkLimits(teamId, "AGENT_RUN");
+        await enforcePolicy({ orgId: teamId, userId, action: "AGENT_RUN" });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     // update agent status
     await prisma.agent.update({ where: { id }, data: { status: "running" } });
     // add activity
@@ -18,10 +34,16 @@ export async function POST(req: Request, { params }: any) {
         },
     });
 
-    // Hook: tell orchestrator to run
-    const session = await getServerSession(authOptions);
-    const user = (session as any)?.user?.email ? await prisma.user.findUnique({ where: { email: (session as any).user.email } }) : null;
+    await JobQueue.enqueue("agent_run", { agentId: id, userId });
 
-    await JobQueue.enqueue("agent_run", { agentId: id, userId: user?.id });
+    // MANDATORY AUDIT LOG
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "AGENT_RUN",
+        entity: "Agent",
+        entityId: id,
+    });
+
     return NextResponse.json({ ok: true });
 }

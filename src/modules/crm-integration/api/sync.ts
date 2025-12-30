@@ -10,7 +10,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: false, error: "Lead data required" }, { status: 400 });
         }
 
-        const result = await crmService.syncLead(lead);
+        const result = await crmService.syncLead(lead.id, lead.teamId);
         return NextResponse.json({ ok: true, result });
     } catch (err: any) {
         return NextResponse.json(

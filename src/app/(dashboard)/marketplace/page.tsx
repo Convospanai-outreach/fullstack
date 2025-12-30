@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Download, Star, ExternalLink, Bot, Zap, BookOpen } from 'lucide-react';
+import { Download, Star, Bot, Zap, BookOpen } from 'lucide-react';
 
 export default function MarketplacePage() {
     const [templates, setTemplates] = useState<any[]>([]);

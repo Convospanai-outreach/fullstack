@@ -8,7 +8,7 @@ import Papa from "papaparse";
 
 export default function ImportWizard({ onClose }: { onClose: () => void }) {
     const [step, setStep] = useState(1);
-    const [file, setFile] = useState<File | null>(null);
+    const [_, setFile] = useState<File | null>(null);
     const [headers, setHeaders] = useState<string[]>([]);
     const [csvContent, setCsvContent] = useState<string>("");
     const [mapping, setMapping] = useState<Record<string, string>>({});

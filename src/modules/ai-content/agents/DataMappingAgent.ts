@@ -1,7 +1,7 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+const genAI = new GoogleGenerativeAI(process.env['GEMINI_API_KEY'] || "");
 const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
 export class DataMappingAgent {
@@ -10,7 +10,7 @@ export class DataMappingAgent {
      * Schema fields: firstName, lastName, email, company, role, linkedin, website, location
      */
     async suggestMapping(headers: string[]): Promise<Record<string, string>> {
-        if (!process.env.GEMINI_API_KEY) {
+        if (!process.env['GEMINI_API_KEY']) {
             console.warn("GEMINI_API_KEY is missing, returning empty mapping");
             return {};
         }

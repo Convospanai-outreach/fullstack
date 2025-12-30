@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Palette, Globe, Upload } from 'lucide-react';
+import { Palette, Globe } from 'lucide-react';
 
 export default function BrandingSettingsPage() {
     const [logoUrl, setLogoUrl] = useState("");

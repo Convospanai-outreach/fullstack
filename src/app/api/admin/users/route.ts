@@ -41,7 +41,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { email, name, role, password } = body; // Password would be handled by auth provider usually, but for manual creation we might just set up the user record
+        const { email, name, role } = body; // Password would be handled by auth provider usually, but for manual creation we might just set up the user record
 
         if (!email) throw new APIError("Email is required", 400, "BAD_REQUEST");
 

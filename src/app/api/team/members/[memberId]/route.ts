@@ -6,8 +6,9 @@ import { AuditService } from "@/modules/audit/auditService";
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { memberId: string } }
+    { params }: { params: Promise<{ memberId: string }> }
 ) {
+    const { memberId } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) {
         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -30,10 +31,10 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: "Only owners can promote to Admin/Owner" }, { status: 403 });
         }
 
-        const member = await teamService.updateRole(ctx.teamId, params.memberId, role);
+        const member = await teamService.updateRole(ctx.teamId, memberId, role);
 
         // Audit
-        await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_ROLE_UPDATED", "TeamMember", params.memberId, { newRole: role });
+        await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_ROLE_UPDATED", "TeamMember", memberId, { newRole: role });
 
         return NextResponse.json({ success: true, data: member });
 
@@ -43,9 +44,10 @@ export async function PATCH(
 }
 
 export async function DELETE(
-    req: NextRequest,
-    { params }: { params: { memberId: string } }
+    _req: NextRequest,
+    { params }: { params: Promise<{ memberId: string }> }
 ) {
+    const { memberId } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) {
         return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
@@ -57,10 +59,10 @@ export async function DELETE(
     }
 
     try {
-        await teamService.removeMember(ctx.teamId, params.memberId);
+        await teamService.removeMember(ctx.teamId, memberId);
 
         // Audit
-        await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_REMOVED", "TeamMember", params.memberId);
+        await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_REMOVED", "TeamMember", memberId);
 
         return NextResponse.json({ success: true });
 

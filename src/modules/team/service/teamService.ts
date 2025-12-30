@@ -57,7 +57,7 @@ class TeamService {
         });
     }
 
-    async updateRole(teamId: string, memberId: string, newRole: string) {
+    async updateRole(_teamId: string, memberId: string, newRole: string) {
         return await prisma.teamMember.update({
             where: { id: memberId },
             data: { role: newRole }

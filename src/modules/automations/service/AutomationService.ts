@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { notificationService } from "@/modules/notifications/service/notificationService";
+import { Automation } from "@prisma/client";
 
 export type TriggerType = "lead.replied" | "email.opened" | "ai.suggestion";
 export type ActionType = "campaign.stop" | "email.reply" | "lead.tag" | "webhook.call";
@@ -10,7 +13,7 @@ class AutomationService {
      * @param trigger Trigger Name
      * @param context Data contextual to the event (e.g. Lead ID, Campaign ID)
      */
-    async evaluate(teamId: string, trigger: TriggerType, context: any) {
+    async evaluate(teamId: string, trigger: TriggerType, context: Record<string, any>) {
         // 1. Fetch active automations for this team & trigger
         const activeAutomations = await prisma.automation.findMany({
             where: { teamId, trigger, isActive: true }
@@ -18,24 +21,28 @@ class AutomationService {
 
         if (activeAutomations.length === 0) return;
 
+        logger.info(`[AutomationService] Checking ${activeAutomations.length} automations for trigger ${trigger} in team ${teamId}`);
+
         for (const automation of activeAutomations) {
             await this.processAutomation(automation, context);
         }
     }
 
-    private async processAutomation(automation: any, context: any) {
+    private async processAutomation(automation: Automation, context: Record<string, any>) {
         // 2. Check for Manual Intervention (Human-in-the-Loop)
         if (automation.requiresApproval) {
             await prisma.automationLog.create({
                 data: {
                     automationId: automation.id,
                     status: "pending_approval",
-                    output: context, // Store context so user can review what triggered this
+                    output: context,
                     tokensUsed: 0,
                     cost: 0
                 }
             });
-            // TODO: Notify user 
+
+            logger.info(`[AutomationService] Automation ${automation.id} requires approval. Paused.`, { automationId: automation.id });
+            await notificationService.sendAlert("warning", `Automation "${automation.name}" requires your approval.`);
             return;
         }
 
@@ -43,37 +50,37 @@ class AutomationService {
         await this.executeAction(automation, context);
     }
 
-    private async executeAction(automation: any, context: any) {
+    private async executeAction(automation: Automation, context: Record<string, any>) {
         let status = "success";
-        let output = {};
+        let output: Record<string, any> = {};
         let tokens = 0;
 
         try {
+            logger.info(`[AutomationService] Executing action ${automation.action} for automation ${automation.id}`);
             switch (automation.action as ActionType) {
                 case "campaign.stop":
-                    if (context.campaignId && context.email) {
-                        // Stop logic here (e.g. remove from queue or update status)
-                        // For MVP: Just log it as we don't have a "Leads in Campaign" table explicitly other than Lead.campaignId
-                        // We might set Lead status?
+                    if (context['campaignId'] && context['email']) {
                         await prisma.lead.updateMany({
-                            where: { id: context.leadId },
-                            data: { status: "STOPPED" } // Simplify
+                            where: { id: context['leadId'] as string },
+                            data: { status: "STOPPED" }
                         });
                         output = { message: "Campaign stopped for lead" };
                     }
                     break;
 
                 case "email.reply":
-                    // AI Generation Logic would go here
-                    // e.g. generate reply using context.message
-                    // For now, simulate:
-                    output = { draft: "Simulated AI Reply based on " + context.message };
-                    tokens = 150;
+                    const { generateWithGemini } = await import("@/ai/gemini");
+                    const messageContext = context['message'] || "No message content";
+                    const reply = await generateWithGemini(`Write a helpful and professional reply to this message: "${messageContext}". Keep it concise.`);
+
+                    output = { draft: reply };
+                    tokens = Math.ceil(reply.length / 4);
                     break;
 
                 case "webhook.call":
-                    if (automation.config?.url) {
-                        await fetch(automation.config.url, {
+                    const config = automation.config as any;
+                    if (config?.url) {
+                        await fetch(config.url, {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify(context)
@@ -86,10 +93,11 @@ class AutomationService {
                     status = "failed";
                     output = { error: "Unknown action type" };
             }
-        } catch (error: any) {
+        } catch (error) {
             status = "failed";
-            output = { error: error.message };
-            console.error(`Automation ${automation.id} failed:`, error);
+            const errorMessage = error instanceof Error ? error.message : "Unknown error";
+            output = { error: errorMessage };
+            logger.error(`[AutomationService] Automation ${automation.id} action execution failed:`, { error: errorMessage });
         }
 
         // 4. Log Execution
@@ -118,15 +126,15 @@ class AutomationService {
         }
 
         // Execute
-        await this.executeAction(log.automation, log.output); // Use stored context
+        await this.executeAction(log.automation, log.output as Record<string, any>);
 
-        // Update old log status? Or just leave it as 'pending_approval' (historical)?
-        // Better to update it to "approved" or delete it?
-        // Let's update it to "approved" so it disappears from queue
+        // Update log status to "approved" so it disappears from queue
         await prisma.automationLog.update({
             where: { id: logId },
             data: { status: "approved" }
         });
+
+        logger.info(`[AutomationService] Manually approved and executed automation log ${logId}`);
     }
 }
 

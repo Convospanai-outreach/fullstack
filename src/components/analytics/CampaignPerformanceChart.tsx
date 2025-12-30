@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 interface CampaignData {
@@ -15,7 +14,6 @@ interface CampaignPerformanceChartProps {
 }
 
 export function CampaignPerformanceChart({ data }: CampaignPerformanceChartProps) {
-    const maxVal = Math.max(...data.map(d => d.sent));
 
     return (
         <GlassCard className="h-full">

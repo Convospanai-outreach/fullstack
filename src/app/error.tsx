@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button } from "@/components/ui/Button"; // Assuming we have a Button ui component, otherwise standard button
 import { AlertTriangle } from "lucide-react";
 
 export default function Error({

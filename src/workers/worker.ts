@@ -6,8 +6,10 @@ import { handleEmailSend } from "./handlers/emailHandlers";
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
+import { logger, logWorker } from "@/lib/logger";
+
 async function processJob(job: any) {
-    console.log(`Processing job ${job.id} (${job.type})...`);
+    logWorker(job.id, "Processing started", { type: job.type });
     try {
         let result;
         switch (job.type) {
@@ -38,18 +40,18 @@ async function processJob(job: any) {
 
         if (result.ok) {
             await JobQueue.complete(job.id, result);
-            console.log(`Job ${job.id} completed.`);
+            logWorker(job.id, "Completed successfully");
         } else {
             throw new Error(result.error || "Unknown error");
         }
     } catch (error: any) {
-        console.error(`Job ${job.id} failed:`, error.message);
+        logWorker(job.id, "Failed", { error: error.message });
         await JobQueue.fail(job.id, error.message);
     }
 }
 
 export async function startWorker() {
-    console.log("Worker started. Polling for jobs...");
+    logger.info("Worker started. Polling for jobs...", { category: 'system' });
 
     while (true) {
         try {
@@ -61,7 +63,7 @@ export async function startWorker() {
                 await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
             }
         } catch (error) {
-            console.error("Worker error:", error);
+            logger.error("Worker error loop", { error });
             await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
         }
     }

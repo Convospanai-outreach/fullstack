@@ -3,14 +3,17 @@ import { SequenceService } from "@/lib/sequenceService";
 
 export class CampaignService {
     static async createCampaign(data: { name: string; description?: string; targetCount?: number; teamId: string }) {
+        const createData: any = {
+            name: data.name,
+            targetCount: data.targetCount || 0,
+            status: "draft",
+            teamId: data.teamId
+        };
+        if (data.description !== undefined) {
+            createData.description = data.description;
+        }
         return await prisma.campaign.create({
-            data: {
-                name: data.name,
-                description: data.description,
-                targetCount: data.targetCount || 0,
-                status: "draft",
-                teamId: data.teamId
-            }
+            data: createData
         });
     }
 

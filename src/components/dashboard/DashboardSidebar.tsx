@@ -13,8 +13,11 @@ import {
     CreditCard,
     Workflow,
     Store,
-    Database
+    Database,
+    BookOpen,
+    CheckSquare
 } from "lucide-react";
+import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 
 const sidebarLinks = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -22,12 +25,14 @@ const sidebarLinks = [
     { href: "/campaigns", label: "Campaigns", icon: Megaphone },
     { href: "/pipeline", label: "Pipeline", icon: LayoutDashboard },
     { href: "/workflows", label: "Workflows", icon: Workflow },
+    { href: "/playbooks", label: "Playbooks", icon: BookOpen },
     { href: "/templates", label: "Templates", icon: FileText },
     { href: "/knowledge", label: "Knowledge Base", icon: Database },
     { href: "/inbox", label: "Inbox", icon: Inbox },
     { href: "/leads", label: "Leads", icon: Users },
     { href: "/billing", label: "Billing", icon: CreditCard },
     { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/approvals", label: "Approvals", icon: CheckSquare },
 ];
 
 export function DashboardSidebar() {
@@ -35,13 +40,8 @@ export function DashboardSidebar() {
 
     return (
         <aside className="w-64 fixed left-0 top-0 bottom-0 glass-panel border-r border-white/10 z-50 flex flex-col">
-            <div className="p-6 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                    C
-                </div>
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                    ConvoSpan
-                </span>
+            <div className="p-4">
+                <WorkspaceSwitcher />
             </div>
 
             <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">

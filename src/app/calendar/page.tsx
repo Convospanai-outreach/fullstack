@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import MeetingList from "@/components/calendar/MeetingList";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/Button";
 
 export default function CalendarPage() {
     const [meetings, setMeetings] = useState([]);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchMeetings();
@@ -22,7 +21,7 @@ export default function CalendarPage() {
         } catch (error) {
             console.error("Failed to fetch meetings", error);
         } finally {
-            setLoading(false);
+            // No loading state needed
         }
     };
 

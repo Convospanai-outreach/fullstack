@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
-import { useSWRConfig } from "swr";
+import { useState } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());

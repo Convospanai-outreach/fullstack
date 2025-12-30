@@ -17,13 +17,13 @@ export class AuditService {
         try {
             await prisma.auditLog.create({
                 data: {
-                    teamId,
-                    userId,
+                    orgId: teamId,
+                    actorId: userId || "SYSTEM", // actorId is required in unchecked but mapped to userId which was nullable. Added system fallback.
                     action,
-                    resource,
-                    resourceId,
-                    details,
-                    ipAddress
+                    entity: resource,
+                    entityId: resourceId || null,
+                    metadata: details || null,
+                    ipAddress: ipAddress || null
                 }
             });
         } catch (error) {
@@ -37,7 +37,7 @@ export class AuditService {
      */
     static async getLogs(teamId: string, limit = 50) {
         return await prisma.auditLog.findMany({
-            where: { teamId },
+            where: { orgId: teamId },
             include: { user: { select: { name: true, email: true } } },
             orderBy: { createdAt: 'desc' },
             take: limit
@@ -49,7 +49,7 @@ export class AuditService {
      */
     static async getResourceActivity(resource: string, resourceId: string, limit = 50) {
         return await prisma.auditLog.findMany({
-            where: { resource, resourceId },
+            where: { entity: resource, entityId: resourceId },
             include: { user: { select: { name: true } } },
             orderBy: { createdAt: 'desc' },
             take: limit

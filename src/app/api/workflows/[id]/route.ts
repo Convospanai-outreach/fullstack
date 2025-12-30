@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const workflow = await prisma.workflow.findUnique({
-        where: { id: params.id, teamId: ctx.teamId }
+        where: { id, teamId: ctx.teamId }
     });
 
     if (!workflow) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -15,7 +16,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json(workflow);
 }
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -23,7 +25,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const { name, description, nodes, edges, isActive } = body;
 
     const workflow = await prisma.workflow.update({
-        where: { id: params.id, teamId: ctx.teamId },
+        where: { id, teamId: ctx.teamId },
         data: {
             name,
             description,
@@ -36,12 +38,13 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json(workflow);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await prisma.workflow.delete({
-        where: { id: params.id, teamId: ctx.teamId }
+        where: { id, teamId: ctx.teamId }
     });
 
     return NextResponse.json({ success: true });

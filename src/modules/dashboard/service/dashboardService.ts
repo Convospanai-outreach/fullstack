@@ -65,14 +65,14 @@ export async function getDashboardStats(): Promise<Stats> {
         campaignsCount,
         recentLeads: recentLeads.map((r) => ({
             id: r.id,
-            name: r.fullName || undefined,
-            email: r.email || undefined,
+            ...(r.fullName ? { name: r.fullName } : {}),
+            ...(r.email ? { email: r.email } : {}),
             createdAt: r.createdAt.toISOString()
         })),
         recentCampaigns: recentCampaigns.map((c) => ({
             id: c.id,
-            name: c.name,
-            status: c.status,
+            ...(c.name ? { name: c.name } : {}),
+            ...(c.status ? { status: c.status } : {}),
             createdAt: c.createdAt.toISOString()
         })),
         dailyActivity,

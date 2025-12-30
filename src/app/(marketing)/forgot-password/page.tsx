@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { SectionHeader } from "@/components/ui/SectionHeader";

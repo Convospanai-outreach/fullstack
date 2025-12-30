@@ -1,10 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import useSWR from "swr"; // Assuming global fetcher or use local
 import Link from "next/link";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function AutomationsPage() {
     return (

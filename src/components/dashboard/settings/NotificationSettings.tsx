@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import useSWR, { mutate } from "swr";
 import { toast } from "sonner";
 
@@ -7,7 +6,6 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function NotificationSettings() {
     const { data: prefs, error } = useSWR("/api/settings/notifications", fetcher);
-    const [saving, setSaving] = useState(false);
 
     const handleToggle = async (key: string, value: boolean) => {
         // Optimistic update would be nice, but simple setState is okay for now
@@ -20,7 +18,6 @@ export default function NotificationSettings() {
         // Mutate local cache immediately
         mutate("/api/settings/notifications", newPrefs, false);
 
-        setSaving(true);
         try {
             await fetch("/api/settings/notifications", {
                 method: "PUT",
@@ -32,7 +29,7 @@ export default function NotificationSettings() {
             toast.error("Failed to save settings");
             mutate("/api/settings/notifications"); // Revert
         } finally {
-            setSaving(false);
+            // No saving state needed
         }
     };
 

@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/Button";
 import {
     Users,
     UserPlus,
-    Search,
     Zap,
     Globe,
     MoreHorizontal,
@@ -36,10 +35,11 @@ export default function LeadsPage() {
         setLoading(true);
         setError("");
         try {
-            const data = await getLeads({
-                status: statusFilter || undefined,
-                search: search || undefined,
-            });
+            const filters: any = {};
+            if (statusFilter) filters.status = statusFilter;
+            if (search) filters.search = search;
+
+            const data = await getLeads(filters);
             setLeads(data.leads);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load leads");
@@ -123,7 +123,7 @@ export default function LeadsPage() {
                                     {lead.fullName?.[0] || lead.email[0].toUpperCase()}
                                 </div>
                                 <div className="flex gap-2">
-                                    <Badge variant={lead.status === 'enriched' ? 'success' : 'neutral'}>
+                                    <Badge variant={lead.status === 'enriched' ? 'success' : 'default'}>
                                         {lead.status}
                                     </Badge>
                                 </div>
@@ -156,8 +156,8 @@ export default function LeadsPage() {
                                     onClick={() => handleEnrich(lead.id)}
                                     disabled={enriching[lead.id]}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${lead.isEnriched
-                                            ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                            : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20"
+                                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                                        : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20"
                                         } disabled:opacity-50`}
                                 >
                                     {enriching[lead.id] ? <Zap className="w-3 h-3 animate-pulse" /> : <Zap className="w-3 h-3" />}

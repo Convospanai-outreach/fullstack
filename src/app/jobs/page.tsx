@@ -20,8 +20,8 @@ export default function JobsPage() {
         setError("");
         try {
             const data = await getJobs({
-                type: typeFilter || undefined,
-                status: statusFilter || undefined,
+                type: (typeFilter || undefined) as any,
+                status: (statusFilter || undefined) as any,
             });
             setJobs(data.jobs);
         } catch (err) {

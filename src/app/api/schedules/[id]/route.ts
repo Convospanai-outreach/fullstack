@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json(updated);
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
 

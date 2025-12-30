@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AIService } from "@/lib/aiService";
+import { aiService } from "@/lib/aiService";
 import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
         const { text } = await req.json();
         if (!text) return NextResponse.json({ error: "Text required" }, { status: 400 });
 
-        const improved = await AIService.improveEmail(text);
+        const improved = await aiService.improveEmail(text);
         return NextResponse.json({ improved });
     } catch (error) {
         return NextResponse.json({ error: "AI Error" }, { status: 500 });

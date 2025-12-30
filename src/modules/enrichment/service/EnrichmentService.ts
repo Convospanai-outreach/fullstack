@@ -9,28 +9,25 @@ export class EnrichmentService {
 
         if (!lead) throw new Error("Lead not found");
 
-        // Simulate external API delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // Use AI to research the company if name exists
+        let companyData: any = {};
+        if (lead.company) {
+            const { aiService } = await import("@/modules/ai-content/service/aiService");
+            companyData = await aiService.researchCompany(lead.company);
+        }
 
-        // Mock data enhancement
-        const mockData = {
-            company: lead.company || "Tech Innovators Inc.",
-            jobTitle: lead.jobTitle || "Senior Developer",
-            location: lead.location || "San Francisco, CA",
-            linkedin: lead.linkedIn || `https://linkedin.com/in/${lead.fullName?.replace(/\s+/g, '').toLowerCase() || 'unknown'}`,
+        const enrichedData = {
+            industry: companyData.industry || "Unknown",
+            employees: companyData.employees || "Unknown",
+            revenue: companyData.revenue || "Unknown",
+            summary: companyData.summary || "No summary available"
         };
 
         return await prisma.lead.update({
             where: { id: leadId },
             data: {
-                ...mockData,
                 isEnriched: true,
-                enrichedData: {
-                    industry: "Software",
-                    employees: "50-200",
-                    revenue: "$10M-$50M",
-                    lastFunding: "Series B"
-                },
+                enrichedData,
                 status: lead.status === "NEW" ? "enriched" : lead.status
             }
         });

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import WorkflowEditor from '@/modules/workflow/components/WorkflowEditor';
 import { ReactFlowProvider } from 'reactflow';

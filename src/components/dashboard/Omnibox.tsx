@@ -10,8 +10,7 @@ import {
     Database,
     ArrowRight,
     Command,
-    Loader2,
-    X
+    Loader2
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";

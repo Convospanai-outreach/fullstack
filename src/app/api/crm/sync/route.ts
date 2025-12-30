@@ -6,8 +6,8 @@ import { APIError, handleAPIError } from "@/lib/apiResponse";
 
 export async function POST(req: Request) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
 
         const body = await req.json();
         const { leadId } = body;
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
         const lead = await prisma.lead.findUnique({ where: { id: leadId } });
         if (!lead) throw new APIError("Lead not found", 404, "NOT_FOUND");
 
-        const result = await crmService.syncLead(lead);
+        const result = await crmService.syncLead(leadId, teamId);
 
         return NextResponse.json(result);
     } catch (error: any) {

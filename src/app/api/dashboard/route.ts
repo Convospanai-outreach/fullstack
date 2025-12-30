@@ -31,7 +31,7 @@ export async function GET() {
                 }
             }),
             prisma.auditLog.findMany({
-                where: { teamId },
+                where: { orgId: teamId },
                 take: 10,
                 orderBy: { createdAt: "desc" },
                 include: { user: { select: { name: true } } }

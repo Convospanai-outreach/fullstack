@@ -1,4 +1,3 @@
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import useSWR from "swr";
@@ -7,7 +6,7 @@ import { format } from "date-fns";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function PaymentHistory() {
-    const { data: payments, error, isLoading } = useSWR("/api/billing/history", fetcher);
+    const { data: payments, isLoading } = useSWR("/api/billing/history", fetcher);
 
     return (
         <GlassCard>

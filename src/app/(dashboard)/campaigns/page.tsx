@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -88,7 +88,7 @@ export default function CampaignsPage() {
                                     <h3 className="text-lg font-semibold text-white">{campaign.name}</h3>
                                     <p className="text-sm text-white/60 line-clamp-2">{campaign.description || "No description"}</p>
                                 </div>
-                                <Badge variant={campaign.status === "active" ? "success" : "neutral"}>
+                                <Badge variant={campaign.status === "active" ? "success" : "default"}>
                                     {campaign.status}
                                 </Badge>
                             </div>

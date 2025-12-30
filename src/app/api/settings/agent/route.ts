@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) return new NextResponse("Unauthorized", { status: 401 });

@@ -1,11 +1,13 @@
 generator client {
   provider = "prisma-client-js"
   engineType = "library"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [vector]
 }
 
 model Lead {
@@ -28,6 +30,11 @@ model Lead {
   updatedAt    DateTime  @updatedAt
   campaignId   String?
   teamId       String?
+  
+  // CRM Sync
+  crmId        String?   // External ID in HubSpot/Salesforce
+  crmSyncedAt  DateTime?
+
   emails       Email[]
   campaign     Campaign? @relation(fields: [campaignId], references: [id])
   team         Team?     @relation(fields: [teamId], references: [id])
@@ -75,6 +82,7 @@ model Campaign {
   targetCount    Int               @default(0)
   completedCount Int               @default(0)
   leads          Int               @default(0) // User requested Int field for count
+  consecutiveFailures Int          @default(0) // Track sequential job failures
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   teamId         String?
@@ -159,6 +167,7 @@ model Job {
   completedAt DateTime?
   teamId      String?
   team        Team?     @relation(fields: [teamId], references: [id])
+  idempotencyKey String? @unique
 
   @@index([status, priority])
   @@index([type])
@@ -257,6 +266,60 @@ model Team {
   branding     Json?       // { logoUrl, primaryColor, portalTitle }
   domains      CustomDomain[]
   knowledgeBases KnowledgeBase[]
+  playbooks    Playbook[]
+  organizationPolicy OrganizationPolicy?
+  ssoConfiguration SsoConfiguration?
+  userQuotas       UserQuota[]
+  crmIntegrations  CrmIntegration[]
+  approvalRequests ApprovalRequest[]
+}
+
+model CrmIntegration {
+  id              String   @id @default(cuid())
+  teamId          String
+  provider        String   // HUBSPOT, SALESFORCE
+  
+  // Auth
+  accessToken     String?  @db.Text
+  refreshToken    String?  @db.Text
+  expiresAt       DateTime?
+  
+  // Config
+  isActive        Boolean  @default(true)
+  fieldMapping    Json?    // { "fullName": "firstname", "email": "email", ... }
+  syncSettings    Json?    // { "autoSync": true, "syncOnWon": true }
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  team            Team     @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, provider])
+}
+
+model SsoConfiguration {
+  id              String   @id @default(cuid())
+  teamId          String   @unique
+  providerType    String   @default("SAML") // SAML, OIDC
+  
+  // SAML Specifics
+  metadataUrl     String?  // URL to IdP metadata
+  issuer          String?  // Entity ID / Issuer
+  entryPoint      String?  // SSO URL
+  certificate     String?  @db.Text // Public Cert
+  
+  // OIDC Specifics
+  clientId        String?
+  clientSecret    String?
+  wellKnownUrl    String?
+
+  enforced        Boolean  @default(false) // If true, password login is disabled for domain
+  allowedDomains  String[] @default([]) // ["enterprise.com", "sub.enterprise.com"]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  team            Team     @relation(fields: [teamId], references: [id])
 }
 
 model CreditTransaction {
@@ -417,6 +480,9 @@ model User {
   creditLedger CreditLedger[]
   auditLogs    AuditLog[]
   tasks        Task[]
+  userQuotas   UserQuota[]
+  requestedApprovals ApprovalRequest[] @relation("requester")
+  reviewedApprovals  ApprovalRequest[] @relation("reviewer")
 }
 
 
@@ -493,7 +559,10 @@ model AutomationLog {
   status       String   // "pending_approval", "success", "failed", "rejected"
   tokensUsed   Int      @default(0)
   cost         Float    @default(0.0)
+  input        Json?    // Added for human review context
   output       Json?    // AI response or Action result
+  reasoning    String?  @db.Text // CoT explanation
+  metadata     Json?    // Added for implementation details
   createdAt    DateTime @default(now())
   automation   Automation @relation(fields: [automationId], references: [id])
 
@@ -572,6 +641,11 @@ model WorkflowRun {
   startedAt     DateTime  @default(now())
   completedAt   DateTime?
   error         String?
+  
+  // AI Audit
+  tokensUsed    Int       @default(0)
+  reasoning     String?   @db.Text
+  traces        AiTrace[]
 
   workflow      Workflow  @relation(fields: [workflowId], references: [id])
 
@@ -579,11 +653,30 @@ model WorkflowRun {
   @@index([status])
 }
 
+model AiTrace {
+  id          String   @id @default(uuid())
+  runId       String?
+  stepName    String
+  input       String?  @db.Text
+  output      String?  @db.Text
+  reasoning   String?  @db.Text // CoT thought process
+  model       String?
+  latency     Int
+  tokens      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  workflowRun WorkflowRun? @relation(fields: [runId], references: [id])
+  
+  @@index([runId])
+}
+
 model GuardrailPolicy {
   id          String   @id @default(uuid())
   teamId      String   @unique
   blocklist   String[] // Blocked keywords
   allowlist   String[] // Explicitly allowed domains/words
+  regexRules  String[] // Custom regex patterns to block
+  competitorMentions String[] // Competitor names to flag
   maxDailyMsgs Int     @default(100)
   detectPII   Boolean  @default(true)
   strictness  String   @default("medium") // low, medium, high
@@ -598,8 +691,10 @@ model GuardrailLog {
   teamId      String
   userId      String?
   action      String   // "blocked", "flagged"
-  reason      String   // "pii_detected", "keyword_blocked"
-  content     String?  // The blocked content (snippet)
+  violationType String // "pii", "toxic", "competitor", "custom_regex"
+  reason      String   // Specific rule triggered
+  content     String?  @db.Text // The blocked content (snippet)
+  metadata    Json?    // Context about the violation
   createdAt   DateTime @default(now())
 
   @@index([teamId])
@@ -607,21 +702,21 @@ model GuardrailLog {
 
 model AuditLog {
   id        String   @id @default(uuid())
-  teamId    String
-  userId    String?  // Nullable for system actions or external events
+  actorId   String   @map("userId")
+  orgId     String   @map("teamId")
   action    String   // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
-  resource  String   // e.g. "Campaign", "Workflow", "TeamMember"
-  resourceId String?
-  details   Json?    // Metadata
+  entity    String   @map("resource") // e.g. "Campaign", "Workflow", "TeamMember"
+  entityId  String?  @map("resourceId")
+  metadata  Json?    @map("details") // Metadata
   ipAddress String?
   createdAt DateTime @default(now())
   
-  team      Team     @relation(fields: [teamId], references: [id])
-  user      User?    @relation(fields: [userId], references: [id])
+  team      Team     @relation(fields: [orgId], references: [id])
+  user      User?    @relation(fields: [actorId], references: [id])
 
-  @@index([teamId])
+  @@index([orgId])
   @@index([action])
-  @@index([resource])
+  @@index([entity])
   @@index([createdAt])
 }
 
@@ -697,7 +792,9 @@ model KnowledgeBase {
 model KnowledgeItem {
   id              String        @id @default(uuid())
   content         String        @db.Text
-  embedding       Json?         // Stores the vector embedding
+  embedding       Json?         // Stores vector embedding array
+  embeddingModel  String?       @default("gemini-1.5-flash")
+  version         Int?          @default(1)
   metadata        Json?         // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
   knowledgeBaseId String
   createdAt       DateTime      @default(now())
@@ -707,6 +804,8 @@ model KnowledgeItem {
   @@index([knowledgeBaseId])
 }
 
+
+
 model CustomDomain {
   id        String   @id @default(uuid())
   domain    String   @unique
@@ -715,5 +814,92 @@ model CustomDomain {
   createdAt DateTime @default(now())
   
   team      Team     @relation(fields: [teamId], references: [id])
+  @@index([teamId])
+}
+
+model OrganizationPolicy {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+
+  maxDailyActions Int      @default(200)
+  maxCampaigns    Int      @default(10)
+  maxAgents       Int      @default(5)
+
+  allowInMail     Boolean  @default(false)
+  allowScraping   Boolean  @default(false)
+  allowUploads    Boolean  @default(true)
+
+  requiresApprovalForCampaign Boolean @default(false)
+
+  // Compliance Settings
+  blockedKeywords String[] @default([])
+  detectPII       Boolean  @default(false)
+  restrictedTone  String?  // aggregated tone constraint
+
+  // Budgeting & Quotas
+  maxCreditsPerUser Int      @default(50)
+  requiresApprovalForOverage Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team      Team     @relation(fields: [organizationId], references: [id])
+}
+
+model UserQuota {
+  id              String   @id @default(cuid())
+  userId          String
+  teamId          String
+  monthlyLimit    Int
+  currentSpend    Int      @default(0)
+  lastReset       DateTime @default(now())
+  
+  user            User     @relation(fields: [userId], references: [id])
+  team            Team     @relation(fields: [teamId], references: [id])
+
+  @@unique([userId, teamId])
+}
+
+model ApprovalRequest {
+  id          String   @id @default(uuid())
+  teamId      String
+  requesterId String
+  actionType  String   // "CAMPAIGN_START", "LIMIT_INCREASE"
+  entityType  String   // "Campaign"
+  entityId    String
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  reason      String?  // Why is this requested?
+  payload     Json?    // Data needed to execute the action
+  
+  reviewerId  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team     @relation(fields: [teamId], references: [id])
+  requester   User     @relation("requester", fields: [requesterId], references: [id])
+  reviewer    User?    @relation("reviewer", fields: [reviewerId], references: [id])
+
+  @@index([teamId])
+  @@index([status])
+}
+
+model Playbook {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  teamId      String
+  config      Json     // The campaign template (messages, steps)
+  parameters  Json?    // e.g. ["companyName", "offer"]
+  isLocked    Boolean  @default(false)
+  visibility  String   @default("INTERNAL") // INTERNAL, PUBLIC
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team        Team     @relation(fields: [teamId], references: [id])
+  
   @@index([teamId])
 }

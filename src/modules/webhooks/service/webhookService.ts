@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
 import { JobQueue } from "@/lib/queue";
+import { logger } from "@/lib/logger";
 
 class WebhookService {
     /**
      * Entry point to trigger webhooks for a team
      */
-    async dispatch(teamId: string, event: string, payload: any) {
+    async dispatch(teamId: string, event: string, payload: Record<string, any>) {
         try {
             const webhooks = await prisma.webhook.findMany({
                 where: {
@@ -25,14 +26,14 @@ class WebhookService {
                 }, { teamId });
             }
         } catch (error) {
-            console.error("[WebhookService] Dispatch failed", error);
+            logger.error(`[WebhookService] Dispatch failed for team ${teamId}`, { error, event });
         }
     }
 
     /**
      * Actual delivery logic (called by worker)
      */
-    async processDelivery(webhookId: string, event: string, payload: any) {
+    async processDelivery(webhookId: string, event: string, payload: Record<string, any>) {
         const webhook = await prisma.webhook.findUnique({
             where: { id: webhookId }
         });
@@ -65,6 +66,7 @@ class WebhookService {
         let errorMessage = null;
 
         try {
+            logger.info(`[WebhookService] Delivering webhook ${webhookId} to ${webhook.url}`, { event });
             const response = await fetch(webhook.url, {
                 method: "POST",
                 headers,
@@ -79,8 +81,10 @@ class WebhookService {
             if (!response.ok) {
                 throw new Error(`Target returned ${status}`);
             }
-        } catch (error: any) {
-            errorMessage = error.message;
+            logger.info(`[WebhookService] Successfully delivered webhook ${webhookId}`, { status, duration: Date.now() - startTime });
+        } catch (error) {
+            errorMessage = error instanceof Error ? error.message : "Unknown error";
+            logger.error(`[WebhookService] Delivery failed for webhook ${webhookId}`, { error: errorMessage, url: webhook.url });
             throw error; // Re-throw for JobQueue to handle retries
         } finally {
             const duration = Date.now() - startTime;
@@ -92,7 +96,7 @@ class WebhookService {
                     event,
                     status,
                     payload,
-                    response: responseContent ? { content: responseContent.substring(0, 1000) } : undefined,
+                    ...(responseContent ? { response: { content: responseContent.substring(0, 1000) } } : {}),
                     error: errorMessage,
                     duration
                 }

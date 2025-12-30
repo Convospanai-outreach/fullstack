@@ -3,7 +3,6 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { LeadSchema } from "@/lib/schemas";
-import { SearchService } from "@/modules/search/service/SearchService";
 import { AuditService } from "@/modules/audit/auditService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 

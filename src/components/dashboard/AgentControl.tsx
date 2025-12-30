@@ -1,5 +1,4 @@
 "use client";
-import React from "react";
 import { fetcher } from "@/lib/fetcher";
 import useSWR from "swr";
 

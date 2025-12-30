@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db";
 export async function POST(req: Request) {
     try {
         const signature = req.headers.get("x-razorpay-signature");
-        const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+        const secret = process.env['RAZORPAY_WEBHOOK_SECRET'];
 
         // Verify signature
         if (!signature || !secret) {

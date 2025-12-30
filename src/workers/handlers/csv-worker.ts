@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { csvIngestionService } from "@/modules/csv-ingestion/service/csvIngestionService";
 import fs from "fs/promises";
+import { logger, logWorker } from "@/lib/logger";
 
 /**
  * CSV Import Worker
@@ -9,10 +10,11 @@ import fs from "fs/promises";
 export async function handleCsvImport(payload: {
     filePath: string;
     originalFilename: string;
+    teamId?: string;
 }) {
-    const { filePath, originalFilename } = payload;
+    const { filePath, originalFilename, teamId } = payload;
 
-    console.log(`📂 Processing CSV import: ${originalFilename}`);
+    logWorker(originalFilename, "CSV_IMPORT_START", { filePath, teamId });
 
     try {
         // Read file content
@@ -20,7 +22,7 @@ export async function handleCsvImport(payload: {
         const csvContent = fileBuffer.toString("utf-8");
 
         // Use existing service to process
-        const result = await csvIngestionService.processCSV(csvContent, null);
+        const result = await csvIngestionService.processCSV(csvContent, teamId || null);
 
         if (!result.success) {
             throw new Error(result.message || "CSV processing failed");
@@ -42,15 +44,18 @@ export async function handleCsvImport(payload: {
         try {
             await fs.unlink(filePath);
         } catch (e) {
-            console.warn(`Failed to delete temp file ${filePath}:`, e);
+            logger.warn(`[Worker] Failed to delete temp file ${filePath}:`, { error: e instanceof Error ? e.message : e });
         }
+
+        logger.info(`[Worker] CSV import successful: ${originalFilename}`, { inserted: result.inserted });
 
         return {
             filename: originalFilename,
             ...result,
         };
     } catch (error) {
-        console.error("CSV import failed:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error(`[Worker] CSV import failed: ${originalFilename}`, { error: errorMessage });
         throw error;
     }
 }

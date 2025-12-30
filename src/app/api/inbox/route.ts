@@ -10,15 +10,16 @@ export async function GET(req: NextRequest) {
         }
 
         const url = new URL(req.url);
-        const status = url.searchParams.get("status") || undefined;
-        const platform = url.searchParams.get("platform") || undefined;
-        const search = url.searchParams.get("search") || undefined;
+        const status = url.searchParams.get("status");
+        const platform = url.searchParams.get("platform");
+        const search = url.searchParams.get("search");
 
-        const conversations = await InboxService.getThreads(teamId, {
-            status,
-            platform,
-            search
-        });
+        const filter: { status?: string; platform?: string; search?: string } = {};
+        if (status) filter.status = status;
+        if (platform) filter.platform = platform;
+        if (search) filter.search = search;
+
+        const conversations = await InboxService.getThreads(teamId, filter);
 
         return NextResponse.json(conversations);
     } catch (error) {

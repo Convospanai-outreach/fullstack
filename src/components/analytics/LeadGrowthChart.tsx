@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 interface LeadData {

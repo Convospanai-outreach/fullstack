@@ -10,7 +10,7 @@ export async function GET() {
             status: "ok",
             timestamp: new Date().toISOString(),
             database: "connected",
-            version: process.env.npm_package_version || "1.0.0"
+            version: process.env['npm_package_version'] || "1.0.0"
         });
     } catch (error) {
         return NextResponse.json({

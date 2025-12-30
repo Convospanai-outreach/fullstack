@@ -1,7 +1,8 @@
 ﻿import sendpulse from 'sendpulse-api';
+import { logger } from '@/lib/logger';
 
-const API_USER_ID = process.env.SENDPULSE_ID || "";
-const API_SECRET = process.env.SENDPULSE_SECRET || "";
+const API_USER_ID = process.env['SENDPULSE_ID'] || "";
+const API_SECRET = process.env['SENDPULSE_SECRET'] || "";
 const TOKEN_STORAGE = "/tmp/";
 
 let isInitialized = false;
@@ -11,9 +12,9 @@ async function init() {
   return new Promise<void>((resolve) => {
     sendpulse.init(API_USER_ID, API_SECRET, TOKEN_STORAGE, (token: any) => {
       if (token && token.is_error) {
-        console.error("SendPulse Init Error:", token.message);
+        logger.error("[SendPulse] Initialization failed", { message: token.message });
       } else {
-        console.log("SendPulse Initialized");
+        logger.info("[SendPulse] Initialized successfully");
         isInitialized = true;
       }
       resolve();
@@ -49,10 +50,10 @@ export async function sendEmailViaSendPulse(
   return new Promise((resolve, reject) => {
     sendpulse.smtpSendMail((data: any) => {
       if (data && data.is_error) {
-        console.error("SendPulse Send Error:", data);
+        logger.error("[SendPulse] SMTP send failed", { data });
         reject(data);
       } else {
-        console.log("Email Sent:", data);
+        logger.info(`[SendPulse] Email sent to ${to}`);
         resolve(data);
       }
     }, email);

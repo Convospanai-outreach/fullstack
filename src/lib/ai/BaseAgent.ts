@@ -5,7 +5,7 @@ export abstract class BaseAgent {
     protected apiKey: string;
 
     constructor() {
-        this.apiKey = process.env.GEMINI_API_KEY || "";
+        this.apiKey = process.env['GEMINI_API_KEY'] || "";
         if (!this.apiKey) {
             console.warn("GEMINI_API_KEY is missing. AI Agents will return mock data or fail.");
         }

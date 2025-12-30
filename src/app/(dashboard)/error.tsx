@@ -31,7 +31,7 @@ export default function DashboardError({
                     <RefreshCw className="w-4 h-4" />
                     Try Again
                 </Button>
-                <Button variant="secondary" onClick={() => window.location.reload()}>
+                <Button variant="outline" onClick={() => window.location.reload()}>
                     Full Refresh
                 </Button>
             </div>

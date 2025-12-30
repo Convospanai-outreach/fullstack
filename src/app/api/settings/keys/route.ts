@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

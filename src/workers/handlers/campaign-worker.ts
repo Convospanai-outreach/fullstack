@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
+import { logger, logWorker } from "@/lib/logger";
 
 /**
  * Campaign execution worker
@@ -19,9 +20,11 @@ export async function executeCampaign(campaignId: string, userId?: string) {
     // Fallback: If userId not passed (e.g. older jobs), use campaign owner
     const effectiveUserId = userId || campaign.ownerId;
 
-    console.log(
-        `🎯 Executing campaign: ${campaign.name} with ${campaign.leadList.length} leads`
-    );
+    logWorker(campaignId, "CAMPAIGN_EXECUTION_START", {
+        name: campaign.name,
+        leadCount: campaign.leadList.length,
+        teamId: campaign.teamId
+    });
 
     // Enqueue enrichment jobs for each lead
     const enrichmentJobs = [];
@@ -31,10 +34,14 @@ export async function executeCampaign(campaignId: string, userId?: string) {
             {
                 leadId: lead.id,
                 campaignId: campaign.id,
-                userId: effectiveUserId,
-                teamId: campaign.teamId, // Add this
+                userId: effectiveUserId ?? undefined,
+                teamId: campaign.teamId ?? undefined,
             },
-            { priority: 1, teamId: campaign.teamId as string } // Pass in options too
+            {
+                priority: 1,
+                teamId: (campaign.teamId as string) ?? undefined,
+                idempotencyKey: `enrich_${campaign.id}_${lead.id}` // Idempotency Key
+            }
         );
         enrichmentJobs.push(job.id);
     }
@@ -49,7 +56,7 @@ export async function executeCampaign(campaignId: string, userId?: string) {
     if (campaign.teamId) {
         import("@/modules/webhooks/service/webhookService")
             .then(({ webhookService }) => webhookService.dispatch(campaign.teamId as string, "campaign.started", { campaignId, userId: effectiveUserId }))
-            .catch(console.error);
+            .catch(err => logger.error(`[Worker] Failed to dispatch campaign.started webhook`, { error: err.message }));
     }
 
     return {

@@ -45,9 +45,50 @@ export async function handleLinkedInAction(payload: LinkedInPayload) {
                 break;
 
             case "CONNECT":
-                // Logic to click Connect -> Add Note -> Send
-                // For safety in this demo, we'll just log
-                console.log(`Simulating connection to ${payload.profileUrl}`);
+                if (!payload.profileUrl) throw new Error("Profile URL required");
+                await page.goto(payload.profileUrl, { waitUntil: "domcontentloaded" });
+
+                // Attempt to find and click "Connect"
+                const connected = await page.evaluate(() => {
+                    const buttons = Array.from(document.querySelectorAll('button'));
+                    const connectBtn = buttons.find(b => b.innerText && b.innerText.trim() === 'Connect');
+                    if (connectBtn) {
+                        connectBtn.click();
+                        return true;
+                    }
+                    return false;
+                });
+
+                if (!connected) {
+                    // Ideally check "More" dropdown, but for now reporting fail is better than silent log
+                    throw new Error("Connect button not found (might be already connected or behind 'More' menu)");
+                }
+
+                // Handle "Add a note" modal
+                if (payload.message) {
+                    try {
+                        await page.waitForSelector("button[aria-label='Add a note']", { timeout: 3000 });
+                        await page.click("button[aria-label='Add a note']");
+                        await page.type("textarea[name='message']", payload.message);
+                        await page.click("button[aria-label='Send now']");
+                    } catch (e) {
+                        console.warn("Could not add note, sending without if possible", e);
+                        // If 'Send now' is available directly?
+                        const sendBtn = await page.$("button[aria-label='Send now']");
+                        if (sendBtn) await sendBtn.click();
+                    }
+                } else {
+                    // Click "Send now" or "Send" if it appears immediately
+                    try {
+                        await page.waitForSelector("button[aria-label='Send now']", { timeout: 3000 });
+                        await page.click("button[aria-label='Send now']");
+                    } catch (e) {
+                        // Might be "Send without note"
+                        const sendWithoutNote = await page.$("button[aria-label='Send without note']");
+                        if (sendWithoutNote) await sendWithoutNote.click();
+                    }
+                }
+
                 result = { status: "sent", message: payload.message };
                 break;
 

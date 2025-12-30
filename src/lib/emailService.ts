@@ -11,8 +11,8 @@ export class EmailService {
         console.log(`[EmailService] Sending email to ${to}`);
 
         // Use provided sender, or env vars, or fallback
-        const senderName = fromName || process.env.SMTP_FROM_NAME || "ConvoSpan User";
-        const senderEmail = fromEmail || process.env.SMTP_FROM_EMAIL || "noreply@convospan.com";
+        const senderName = fromName || process.env['SMTP_FROM_NAME'] || "ConvoSpan User";
+        const senderEmail = fromEmail || process.env['SMTP_FROM_EMAIL'] || "noreply@convospan.com";
 
         try {
             const result = await sendEmailViaSendPulse(to, subject, body, senderName, senderEmail);

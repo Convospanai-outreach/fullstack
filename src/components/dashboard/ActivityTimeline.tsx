@@ -1,4 +1,3 @@
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 
@@ -10,7 +9,7 @@ interface Activity {
 }
 
 interface ActivityTimelineProps {
-    activities: Activity[];
+    activities?: Activity[];
 }
 
 export function ActivityTimeline({ activities = [] }: ActivityTimelineProps) {
@@ -27,7 +26,7 @@ export function ActivityTimeline({ activities = [] }: ActivityTimelineProps) {
                                 <p className="font-medium text-gray-200">{activity.title}</p>
                                 <p className="text-xs text-gray-400">{activity.time}</p>
                             </div>
-                            <Badge variant={activity.status === "completed" ? "success" : "neutral"}>
+                            <Badge variant={activity.status === "completed" ? "success" : "default"}>
                                 {activity.status}
                             </Badge>
                         </div>

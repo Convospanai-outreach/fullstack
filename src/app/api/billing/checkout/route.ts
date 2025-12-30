@@ -2,7 +2,17 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
-import { prisma } from "@/lib/db";
+
+
+const PRICING_TIERS: Record<string, number> = {
+    // Pro Plan
+    "price_1Q": 29,
+    "price_pro_monthly": 29,
+    "price_pro_yearly": 290,
+    // Enterprise / Growth
+    "price_growth": 99,
+    "price_enterprise": 299
+};
 
 export async function POST(req: Request) {
     try {
@@ -14,21 +24,29 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const { priceId, amount } = body;
-        // Map Price ID to Amount (Simple hardcoded map for now based on BillingPage)
 
         let orderAmount = 0;
-        if (priceId && priceId.includes("price_")) {
-            // Simplified mapping
-            if (priceId.includes("price_1Q")) orderAmount = 29; // Pro
-            // Logic needed.
-            // Better: Pass amount from FE or look up Plan.
+
+        // 1. Determine Amount from Price ID (Subscription)
+        if (priceId) {
+            // Check known tiers
+            const tierPrice = Object.entries(PRICING_TIERS).find(([key]) => priceId.includes(key))?.[1];
+            if (tierPrice) {
+                orderAmount = tierPrice;
+            } else {
+                console.warn(`[Checkout] Unknown priceId: ${priceId}`);
+            }
         }
 
-        // Fallback: If amount passed directly (credits topup)
+        // 2. Fallback: credits topup (explicit amount)
         if (amount) orderAmount = amount;
 
-        // Hardcode for MVP if priceId matches Pro
-        if (priceId) orderAmount = 29; // Placeholder
+        // Default to PRO if still 0 (Safety net or error?)
+        if (orderAmount === 0 && priceId) {
+            // If priceId exists but unknown, maybe default to 29? Or error?
+            // Error is safer.
+            return new NextResponse("Invalid Price Configuration", { status: 400 });
+        }
 
         if (orderAmount <= 0) {
             return new NextResponse("Invalid Amount", { status: 400 });
@@ -41,7 +59,7 @@ export async function POST(req: Request) {
             { userId: session.user.id, priceId }
         );
 
-        return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency, key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID });
+        return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency, key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'] });
     } catch (error) {
         console.error("[RAZORPAY_CHECKOUT]", error);
         return new NextResponse("Internal Error", { status: 500 });

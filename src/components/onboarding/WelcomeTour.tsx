@@ -28,7 +28,7 @@ export default function WelcomeTour() {
 
     useEffect(() => {
         if (!visible) return;
-        const step = TOUR_STEPS[stepIndex];
+        const step = TOUR_STEPS[stepIndex]!;
         const el = document.querySelector(step.target);
         if (el) {
             setTargetRect(el.getBoundingClientRect());
@@ -61,7 +61,7 @@ export default function WelcomeTour() {
     let left = targetRect.left;
 
     // Adjust based on position preference (very basic)
-    if (step.position === "right") {
+    if (step && step.position === "right") {
         top = targetRect.top;
         left = targetRect.right + 10;
     }
@@ -75,7 +75,7 @@ export default function WelcomeTour() {
                 className="absolute bg-white text-gray-900 p-4 rounded-xl shadow-2xl w-64 pointer-events-auto border-2 border-indigo-500 animate-in fade-in zoom-in duration-300"
                 style={{ top: top + window.scrollY, left: left + window.scrollX }}
             >
-                <div className="text-sm font-medium mb-2">{step.content}</div>
+                <div className="text-sm font-medium mb-2">{step?.content}</div>
                 <div className="flex justify-between items-center mt-3">
                     <button onClick={handleClose} className="text-xs text-gray-500 hover:text-gray-800">Skip</button>
                     <button onClick={handleNext} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700">

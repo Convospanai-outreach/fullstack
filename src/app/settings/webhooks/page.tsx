@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
@@ -115,7 +115,7 @@ export default function WebhooksPage() {
                 body: JSON.stringify({ webhookId })
             });
             if (res.ok) {
-                const data = await res.json();
+                await res.json();
                 toast.success("Secret rotated");
                 loadWebhooks(); // Refresh to show new secret if hidden/visible
             }

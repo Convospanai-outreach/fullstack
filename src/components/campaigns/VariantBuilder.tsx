@@ -1,6 +1,5 @@
 "use client";
 
-import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { GlassCard } from "@/components/ui/GlassCard";
 
@@ -42,7 +41,7 @@ export default function VariantBuilder({ variants, onChange }: VariantBuilderPro
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-white">A/B Test Variants</h3>
-                <Button onClick={addVariant} variant="secondary" className="px-3 py-1 text-sm">
+                <Button onClick={addVariant} variant="outline" className="px-3 py-1 text-sm">
                     + Add Variant
                 </Button>
             </div>

@@ -93,14 +93,26 @@ export default function LoginPage() {
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={handleGoogleLogin}
-                            className="w-full glass py-3 rounded-lg flex items-center justify-center gap-3 hover:bg-white/10 transition"
-                        >
-                            <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
-                            <span className="text-white font-medium">Google</span>
-                        </button>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button
+                                type="button"
+                                onClick={handleGoogleLogin}
+                                className="glass py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition"
+                            >
+                                <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
+                                <span className="text-white text-sm font-medium">Google</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => router.push("/login/sso")}
+                                className="glass py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition"
+                            >
+                                <div className="w-4 h-4 bg-orange-500 rounded-sm flex items-center justify-center">
+                                    <div className="w-2 h-2 border-t border-l border-white"></div>
+                                </div>
+                                <span className="text-white text-sm font-medium">Enterprise SSO</span>
+                            </button>
+                        </div>
                     </form>
 
                     <p className="mt-6 text-center text-gray-400">

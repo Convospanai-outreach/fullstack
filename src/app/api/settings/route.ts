@@ -16,12 +16,12 @@ export async function POST(req: Request) {
     try {
         await settingsService.updateSettings(session.user.id, data);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return new NextResponse(error.message, { status: 500 });
+    } catch (error: unknown) {
+        return new NextResponse((error as Error).message, { status: 500 });
     }
 }
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user?.id) {
         return new NextResponse("Unauthorized", { status: 401 });

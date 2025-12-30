@@ -17,12 +17,13 @@ export async function POST(req: Request) {
         }
 
         // GUARDRAIL CHECK
-        const { guardrailService } = await import("@/modules/guardrails/service/guardrailService");
-        const validation = await guardrailService.validateMessage(teamId, userId, content);
+        const { guardrailService } = await import("@/modules/governance/service/guardrailService");
+        const validation = await guardrailService.evaluate(teamId, content);
 
-        if (!validation.valid) {
-            console.warn(`[Guardrail] Blocked message: ${validation.reason}`);
-            return NextResponse.json({ error: validation.reason, action: validation.action }, { status: 403 });
+        if (!validation.isSafe) {
+            const reason = validation.violations[0]?.reason || "Content blocked by guardrails";
+            console.warn(`[Guardrail] Blocked message: ${reason}`);
+            return NextResponse.json({ error: reason, action: "block" }, { status: 403 });
         }
 
         // 1. Save Message to DB

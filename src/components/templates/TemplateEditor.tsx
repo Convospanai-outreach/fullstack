@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 
 interface Template {
-    id?: string;
+    id?: string | undefined;
     name: string;
     subject: string;
     body: string;
@@ -78,7 +78,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
             </div>
 
             <div className="flex justify-end">
-                <Button type="button" variant="secondary" className="text-xs py-1 px-2 border border-purple-500/50 text-purple-300 hover:bg-purple-500/10" onClick={async () => {
+                <Button type="button" variant="outline" className="text-xs py-1 px-2 border border-purple-500/50 text-purple-300 hover:bg-purple-500/10" onClick={async () => {
                     // Quick inline implementation for MVP, ideally move to a handler
                     if (!body) return;
                     // We need to call an API endpoint that calls AIService.improveEmail
@@ -100,7 +100,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="secondary" onClick={onCancel} className="px-4 py-2">
+                <Button type="button" variant="outline" onClick={onCancel} className="px-4 py-2">
                     Cancel
                 </Button>
                 <Button type="submit" variant="primary" className="px-4 py-2">

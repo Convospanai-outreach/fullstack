@@ -1,8 +1,6 @@
 "use client";
 
-import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function ApprovalsPage() {
     // Mock data for now, would fetch /api/automations/logs?status=pending_approval

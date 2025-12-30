@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { ActionButton } from '../auth/ActionButton';
-import { Coins, Zap, Activity } from 'lucide-react';
+import { Coins } from 'lucide-react';
 
 const TOPUP_PACKS = [
     { credits: 500, price: 10, priceId: "price_500_credits" },

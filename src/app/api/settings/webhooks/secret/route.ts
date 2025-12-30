@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     const newSecret = crypto.randomBytes(32).toString("hex");
 
     try {
-        const webhook = await prisma.webhook.update({
+        await prisma.webhook.update({
             where: { id: webhookId, teamId },
             data: { secret: newSecret }
         });

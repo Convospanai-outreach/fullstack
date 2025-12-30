@@ -19,36 +19,50 @@ export class LearningService {
                 messageId,
                 userId,
                 rating,
-                comment
+                comment: comment ?? null
             }
         });
 
-        // 2. Learning Logic (Simplified)
-        // If rating is 5/5 and has a comment, store it as a preference.
-        // In a real system, an LLM would analyze the "Diff" or the comment to extract the rule.
-        if (rating === 5 && comment && comment.startsWith("Remember:")) {
-            const rule = comment.replace("Remember:", "").trim();
+        // 2. Learning Logic (Advanced)
+        // Extract rules from high-rating comments or negative rating feedback.
+        if (rating === 5 && comment) {
             await prisma.agentMemory.create({
                 data: {
                     teamId,
-                    key: "user_preference",
-                    value: rule,
+                    key: "positive_preference",
+                    value: comment,
                     confidence: 1.0
+                }
+            });
+        } else if (rating === 1 && comment) {
+            await prisma.agentMemory.create({
+                data: {
+                    teamId,
+                    key: "negative_preference",
+                    value: `Avoid: ${comment}`,
+                    confidence: 0.9
                 }
             });
         }
     }
 
     /**
-     * Retrieves relevant memories to inject into the AI context.
-     * Currently returns all high-confidence memories for the team.
+     * Retrieves relevant memories with weighted decay for recency.
      */
     static async getMemories(teamId: string) {
         const memories = await prisma.agentMemory.findMany({
-            where: { teamId, confidence: { gt: 0.5 } },
+            where: { teamId },
             orderBy: { createdAt: 'desc' },
-            take: 5 // Limit context window usage
+            take: 10
         });
-        return memories.map(m => m.value);
+
+        // Decay logic: older memories have lower confidence over time (simulated here)
+        return memories
+            .filter(m => {
+                const ageInDays = (Date.now() - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+                const decay = Math.pow(0.9, ageInDays); // 10% decay per day
+                return m.confidence * decay > 0.3;
+            })
+            .map(m => m.value);
     }
 }

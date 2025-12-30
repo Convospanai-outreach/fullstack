@@ -5,7 +5,7 @@ import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params: _params }: { params: Promise<{ id: string }> }
 ) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

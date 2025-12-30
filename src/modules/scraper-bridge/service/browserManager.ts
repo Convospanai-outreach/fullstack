@@ -61,7 +61,7 @@ class BrowserManager {
     }
 
     async close() {
-        for (const [id, page] of this.pages) {
+        for (const [_id, page] of this.pages) {
             await page.close();
         }
         this.pages.clear();

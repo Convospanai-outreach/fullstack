@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 
-export async function DELETE(req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");

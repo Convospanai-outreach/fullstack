@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Message } from "@/lib/inboxService";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";

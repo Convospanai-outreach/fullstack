@@ -3,7 +3,7 @@ import { getCurrentContext } from "@/lib/auth"; // Assuming this helper exists
 import { schedulerService } from "@/modules/scheduler/schedulerService";
 import { prisma } from "@/lib/db";
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
 
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json(schedule);
-    } catch (error: any) {
-        return new NextResponse(error.message || "Internal Server Error", { status: 500 });
+    } catch (error: unknown) {
+        return new NextResponse((error as Error).message || "Internal Server Error", { status: 500 });
     }
 }

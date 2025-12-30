@@ -1,4 +1,4 @@
-import { AIService } from "./aiService";
+
 
 export interface ModerationResult {
     safe: boolean;
@@ -15,24 +15,8 @@ export class AIModerationService {
             // In a real production app, we would use the Gemini Safety API or OpenAI Moderation API directly.
             // Here, we will use a prompt-based approach with the existing AIService for flexibility.
 
-            const prompt = `
-            You are a Content Safety Moderator for a B2B sales platform. 
-            Analyze the following text for:
-            1. Hate speech, harassment, or explicit content (Strictly Forbidden)
-            2. Aggressive or unprofessional tone (Warning)
-            3. Spam-like patterns (Warning)
-
-            Text: "${text}"
-
-            Respond ONLY with a JSON object in this format:
-            {
-                "safe": boolean,
-                "flagged": boolean,
-                "categories": string[],
-                "reason": string (optional),
-                "suggestion": string (optional, rewrite suggestion if unsafe/unprofessional)
-            }
-            `;
+            // Using keyword-based moderation for now
+            // In production, this would use Gemini Safety API or OpenAI Moderation API
 
             // We need a method in AIService that returns raw text, which we parse.
             // Re-using generateContent for this.

@@ -3,7 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { analyticsService } from "@/modules/analytics/service/analyticsService";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import TemplateList from "@/components/templates/TemplateList";
 import TemplateEditor from "@/components/templates/TemplateEditor";
@@ -9,7 +9,6 @@ export default function TemplatesPage() {
     const [templates, setTemplates] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentTemplate, setCurrentTemplate] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetchTemplates();
@@ -23,7 +22,7 @@ export default function TemplatesPage() {
         } catch (error) {
             console.error("Failed to fetch templates", error);
         } finally {
-            setLoading(false);
+
         }
     };
 

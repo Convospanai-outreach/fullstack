@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { Coins, ArrowUpRight, History, Zap, ShieldCheck, CreditCard } from 'lucide-react';
+import { Coins, ArrowUpRight, History, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -63,7 +63,7 @@ export default function CreditsPage() {
                 name: "ConvoSpan",
                 description: `Top-up: ${bundle.credits.toLocaleString()} Credits`,
                 order_id: order.id,
-                handler: function (response: any) {
+                handler: function (_response: any) {
                     toast.success("Payment successful! Credits will be added shortly.");
                     // In a perfect world, we'd poll or wait for webhook, but let's refresh after 3s
                     setTimeout(loadData, 3000);
@@ -129,8 +129,8 @@ export default function CreditsPage() {
                                     disabled={purchasing !== null}
                                     onClick={() => handleTopUp(bundle)}
                                     className={`w-full py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${bundle.popular
-                                            ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
-                                            : 'bg-white/10 hover:bg-white/20 text-white'
+                                        ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
+                                        : 'bg-white/10 hover:bg-white/20 text-white'
                                         }`}
                                 >
                                     {purchasing === bundle.id ? "Processing..." : `Buy for ₹${bundle.price}`}

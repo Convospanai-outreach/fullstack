@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 const DAILY_LIMITS: Record<string, number> = {
     "LIKE": 50,
@@ -25,7 +26,7 @@ export class RateLimitService {
             }
         });
 
-        console.log(`Rate Limit Check: ${actionType} - ${count}/${limit}`);
+        logger.debug(`Rate Limit Check: ${actionType} - ${count}/${limit}`, { actionType, count, limit });
         return count < limit;
     }
 

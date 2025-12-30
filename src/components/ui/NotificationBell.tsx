@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Button } from "@/components/ui/Button";
+import { useState, useEffect } from "react";
+
 import Link from "next/link";
 
 export function NotificationBell() {

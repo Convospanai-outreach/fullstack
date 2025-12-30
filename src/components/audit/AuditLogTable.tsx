@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -95,7 +95,7 @@ export function AuditLogTable({ apiUrl = "/api/settings/audit" }: { apiUrl?: str
                                         {log.user?.name || "System"}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Badge variant="neutral">{log.action}</Badge>
+                                        <Badge variant="default">{log.action}</Badge>
                                     </td>
                                     <td className="px-4 py-3">
                                         {log.resource}

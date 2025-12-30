@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { ActionButton } from '../auth/ActionButton';
-import { GlassInput } from '../auth/GlassInput';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 
 interface Props {
     isOpen: boolean;

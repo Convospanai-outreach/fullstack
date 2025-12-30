@@ -8,8 +8,8 @@ interface CampaignFormProps {
     };
     onSubmit: (data: {
         name: string;
-        description?: string;
-        targetCount?: number;
+        description: string | undefined;
+        targetCount: number | undefined;
     }) => Promise<void>;
     submitLabel?: string;
 }

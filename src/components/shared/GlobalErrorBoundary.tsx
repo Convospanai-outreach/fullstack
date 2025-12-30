@@ -24,12 +24,12 @@ export class GlobalErrorBoundary extends React.Component<Props, State> {
         return { hasError: true, error };
     }
 
-    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    override componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("GlobalErrorBoundary caught:", error, errorInfo);
         // Here you would send to Sentry/LogRocket
     }
 
-    render() {
+    override render() {
         if (this.state.hasError) {
             if (this.props.fallback) {
                 return this.props.fallback;

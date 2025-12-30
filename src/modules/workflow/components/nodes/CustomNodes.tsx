@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { Bot, Clock, Split, Mail, Linkedin } from 'lucide-react';
 

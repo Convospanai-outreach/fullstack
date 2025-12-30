@@ -11,11 +11,11 @@ export const prisma = (() => {
     } catch (e) {
         console.error("Failed to initialize Prisma Client", e);
         console.error("Environment:", {
-            NODE_ENV: process.env.NODE_ENV,
-            PRISMA_CLIENT_ENGINE_TYPE: process.env.PRISMA_CLIENT_ENGINE_TYPE,
+            NODE_ENV: process.env['NODE_ENV'],
+            PRISMA_CLIENT_ENGINE_TYPE: process.env['PRISMA_CLIENT_ENGINE_TYPE'],
         });
         throw e;
     }
 })();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+if (process.env['NODE_ENV'] !== "production") globalForPrisma.prisma = prisma;

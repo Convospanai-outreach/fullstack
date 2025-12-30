@@ -10,14 +10,18 @@ import {
     deleteCampaign,
     getCampaignAnalytics,
 } from "@/lib/api/campaigns";
-import CampaignCharts from "@/components/campaigns/CampaignCharts";
-import dynamic from "next/dynamic";
+// import CampaignCharts from "@/components/campaigns/CampaignCharts"; // Replaced by AnalyticsTab
+import AnalyticsTab from "@/components/campaigns/AnalyticsTab";
+import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
+import { PolicyGuard } from "@/components/governance/PolicyGuard";
+import { checkCampaignPolicy } from "@/lib/policyUtils";
+
 // Removed unused Switch import
 
-const ThreeAnalytics = dynamic(() => import("@/components/campaigns/ThreeAnalytics"), {
-    ssr: false,
-    loading: () => <div className="h-[400px] w-full bg-gray-50 animate-pulse rounded-lg" />
-});
+// const ThreeAnalytics = dynamic(() => import("@/components/campaigns/ThreeAnalytics"), {
+//     ssr: false,
+//     loading: () => <div className="h-[400px] w-full bg-gray-50 animate-pulse rounded-lg" />
+// });
 
 export default function CampaignDetailPage({
     params,
@@ -219,7 +223,7 @@ export default function CampaignDetailPage({
                 {/* Tabs */}
                 <div className="border-b border-gray-200 mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        {["overview", "leads", "activity", "analytics"].map((tab) => (
+                        {["overview", "leads", "activity", "timeline", "analytics"].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -254,12 +258,21 @@ export default function CampaignDetailPage({
                                             </button>
                                         )}
                                         {campaign.status === "draft" && (
-                                            <button
-                                                onClick={() => handleStatusChange("active")}
-                                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                            <PolicyGuard
+                                                restriction={checkCampaignPolicy(campaign) ? "blocked" : "none"}
+                                                reason={checkCampaignPolicy(campaign)}
+                                                enabled={true}
                                             >
-                                                Activate
-                                            </button>
+                                                <button
+                                                    onClick={() => handleStatusChange("active")}
+                                                    className={`px-4 py-2 rounded text-white ${checkCampaignPolicy(campaign)
+                                                        ? "bg-gray-400 cursor-not-allowed"
+                                                        : "bg-green-600 hover:bg-green-700"
+                                                        }`}
+                                                >
+                                                    Activate
+                                                </button>
+                                            </PolicyGuard>
                                         )}
                                         {campaign.status === "active" && (
                                             <button
@@ -270,12 +283,14 @@ export default function CampaignDetailPage({
                                             </button>
                                         )}
                                         {campaign.status === "paused" && (
-                                            <button
-                                                onClick={() => handleStatusChange("active")}
-                                                className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
-                                            >
-                                                Resume
-                                            </button>
+                                            <PolicyGuard restriction="none">
+                                                <button
+                                                    onClick={() => handleStatusChange("active")}
+                                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                                >
+                                                    Resume
+                                                </button>
+                                            </PolicyGuard>
                                         )}
                                         {campaign.status !== "completed" && (
                                             <button
@@ -395,6 +410,14 @@ export default function CampaignDetailPage({
                         </div>
                     )}
 
+                    {/* TIMELINE TAB */}
+                    {activeTab === "timeline" && (
+                        <div className="lg:col-span-3 bg-white rounded-lg shadow p-6">
+                            <h2 className="text-xl font-semibold mb-6">Execution Timeline</h2>
+                            <ExecutionTimeline campaignId={params.id} />
+                        </div>
+                    )}
+
                     {/* ANALYTICS TAB */}
                     {activeTab === "analytics" && (
                         <div className="lg:col-span-3">
@@ -410,19 +433,8 @@ export default function CampaignDetailPage({
                             </div>
 
                             {analytics ? (
-                                <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-h-[450px]">
-                                    {is3DMode ? (
-                                        <div className="h-[450px] w-full bg-gradient-to-br from-gray-900 to-black p-4">
-                                            <ThreeAnalytics data={analytics.timeline || []} />
-                                        </div>
-                                    ) : (
-                                        <div className="p-6">
-                                            <CampaignCharts
-                                                timeline={analytics.timeline || []}
-                                                leadsByStatus={analytics.leadsByStatus || {}}
-                                            />
-                                        </div>
-                                    )}
+                                <div>
+                                    <AnalyticsTab data={analytics} />
                                 </div>
                             ) : (
                                 <div className="flex h-[400px] items-center justify-center">
@@ -433,6 +445,6 @@ export default function CampaignDetailPage({
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

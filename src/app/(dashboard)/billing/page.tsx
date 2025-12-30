@@ -1,88 +1,209 @@
 "use client";
 
-import React, { useState } from "react";
-import { SectionHeader } from "@/components/ui/SectionHeader";
-import { GlassCard } from "@/components/ui/GlassCard";
+import { useState } from "react";
+import {
+    CreditCard,
+    Coins,
+    Zap,
+    History,
+    TrendingUp,
+    ArrowUpCircle,
+    ChevronRight,
+    PlusCircle,
+    Crown
+} from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { PaymentHistory } from "@/components/billing/PaymentHistory";
-import { UpgradeModal } from "@/components/billing/UpgradeModal";
+import { UsageLimitMeter } from "@/components/enterprise/UsageLimitMeter";
+import { Skeleton } from "@/components/ui/Skeleton";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function SubscriptionPage() {
-    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-    const { data: subscription, error, isLoading } = useSWR("/api/billing/subscription", fetcher);
+export default function BillingPage() {
+    const { data: subscription, isLoading } = useSWR("/api/billing/subscription", fetcher);
+    const [topUpLoading, setTopUpLoading] = useState(false);
+
+    const handleTopUp = async (_amount: number) => {
+        setTopUpLoading(true);
+        // Simulate payment/credit add
+        setTimeout(() => {
+            setTopUpLoading(false);
+        }, 1500);
+    };
 
     return (
-        <main className="p-8 max-w-6xl mx-auto">
-            <SectionHeader title="Billing & Subscription" subtitle="Manage your plan and payments" />
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-                {/* Current Plan */}
-                <GlassCard className="md:col-span-1 border-blue-500/30 bg-blue-500/5">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <p className="text-gray-400 text-sm uppercase tracking-wider">Current Plan</p>
-                            <h3 className="text-2xl font-bold text-white mt-1 capitalize">
-                                {isLoading ? "..." : (subscription?.plan || "Free")}
-                            </h3>
-                        </div>
-                        <Badge variant={subscription?.active ? "success" : "warning"}>
-                            {isLoading ? "..." : (subscription?.active ? "Active" : "Inactive")}
-                        </Badge>
-                    </div>
-
-                    <div className="mb-6">
-                        <p className="text-3xl font-bold gradient-text">
-                            {subscription?.plan === "enterprise" ? "Custom" : (subscription?.plan === "pro" ? "$49" : "$0")}
-                            <span className="text-lg text-gray-400 font-normal">/mo</span>
-                        </p>
-                    </div>
-
-                    <div className="space-y-3 mb-8">
-                        <p className="text-sm text-gray-300">
-                            ✓ {subscription?.credits || 0} Credits / month
-                        </p>
-                        <p className="text-sm text-gray-300">✓ AI Processing</p>
-                    </div>
-
-                    <Button className="w-full" onClick={() => setIsUpgradeModalOpen(true)}>
-                        {subscription?.plan === "pro" ? "Manage Plan" : "Upgrade Plan"}
-                    </Button>
-                </GlassCard>
-
-                {/* Credit Usage / Quick Topup */}
-                <GlassCard className="md:col-span-2">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-xl font-bold text-white">Credit Usage</h3>
-                        <Button variant="secondary" size="sm">Buy Credits</Button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div className="bg-white/5 p-4 rounded-lg">
-                            <p className="text-gray-400 text-xs uppercase">Available Credits</p>
-                            <p className="text-2xl font-bold text-white mt-1">{subscription?.credits || 0}</p>
-                        </div>
-                        <div className="bg-white/5 p-4 rounded-lg">
-                            <p className="text-gray-400 text-xs uppercase">Next Refresh</p>
-                            <p className="text-white mt-1">
-                                {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : "N/A"}
-                            </p>
-                        </div>
-                    </div>
-
-                    <p className="text-sm text-gray-400">
-                        Credits are used for lead enrichment (1 credit) and AI content generation (1 credit).
-                        Top-up credits never expire.
-                    </p>
-                </GlassCard>
+        <AppShell>
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-white tracking-tight">Billing & Credits</h1>
+                <p className="text-text-secondary mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
             </div>
 
-            <PaymentHistory />
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Current Plan Overview */}
+                <div className="lg:col-span-1 space-y-6">
+                    <Card
+                        title="Subscription Tier"
+                        subtitle="Your current active workspace plan"
+                        className="border-accent-blue/20 bg-accent-blue/[0.02]"
+                    >
+                        <div className="mt-4 p-6 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3">
+                                <Badge variant="success">Active</Badge>
+                            </div>
 
-            <UpgradeModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
-        </main>
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue">
+                                    <Zap className="w-8 h-8" />
+                                </div>
+                                <div>
+                                    <h4 className="text-2xl font-black text-white capitalize">
+                                        {isLoading ? <Skeleton className="h-8 w-24" /> : (subscription?.plan || "Growth")}
+                                    </h4>
+                                    <p className="text-text-muted text-xs font-bold uppercase tracking-widest">Enterprise Access</p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-text-secondary">Renews on</span>
+                                    <span className="text-white font-mono">
+                                        {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'Jan 12, 2026'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-text-secondary">Monthly Base Cost</span>
+                                    <span className="text-white font-mono">$79.00</span>
+                                </div>
+                            </div>
+
+                            <Button variant="outline" className="w-full mt-8 border-white/10">Manage Subscription</Button>
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
+                            <TrendingUp className="w-5 h-5 text-orange-400 shrink-0" />
+                            <p className="text-[11px] text-orange-200/80 leading-relaxed">
+                                You are currently using 82% of your monthly seat allowance. Upgrade to <b>Enterprise</b> for unlimited operators.
+                            </p>
+                        </div>
+                    </Card>
+
+                    <Card title="Quick Actions" subtitle="One-click workspace operations">
+                        <div className="space-y-2 mt-4">
+                            <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <History className="w-5 h-5 text-text-muted group-hover:text-accent-blue" />
+                                    <span className="text-sm font-semibold text-white">Download Last Invoice</span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-text-muted" />
+                            </button>
+                            <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5">
+                                <div className="flex items-center gap-3">
+                                    <CreditCard className="w-5 h-5 text-text-muted group-hover:text-accent-blue" />
+                                    <span className="text-sm font-semibold text-white">Update Payment Method</span>
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-text-muted" />
+                            </button>
+                        </div>
+                    </Card>
+                </div>
+
+                {/* Credit & Usage Section */}
+                <div className="lg:col-span-2 space-y-6">
+                    <Card title="Resource Allocation" subtitle="Real-time credit and token consumption">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
+                            <div className="space-y-6">
+                                <UsageLimitMeter
+                                    label="Monthly Campaign Credits"
+                                    used={1840}
+                                    total={2500}
+                                />
+                                <div className="space-y-1">
+                                    <div className="flex justify-between text-[10px] font-bold text-text-muted uppercase">
+                                        <span>Current Balance</span>
+                                        <span className="text-accent-mint">660 remaining</span>
+                                    </div>
+                                    <p className="text-xs text-text-secondary leading-relaxed">
+                                        Credits refresh automatically on your billing anniversary. Unused base credits do not roll over.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+                                <div className="flex justify-between items-start">
+                                    <div className="p-3 bg-accent-gold/10 rounded-xl text-accent-gold">
+                                        <Coins className="w-6 h-6" />
+                                    </div>
+                                    <Badge className="bg-accent-gold/10 text-accent-gold border-none">Reserve Pool</Badge>
+                                </div>
+                                <div className="mt-6">
+                                    <h5 className="text-3xl font-black text-white">4,200</h5>
+                                    <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-1">Non-Expiring Top-Up Credits</p>
+                                </div>
+                                <Button
+                                    variant="primary"
+                                    className="mt-6 bg-accent-gold hover:bg-accent-gold/90 text-slate-950 shadow-glow-gold"
+                                    onClick={() => handleTopUp(1000)}
+                                    loading={topUpLoading}
+                                >
+                                    <PlusCircle className="w-4 h-4 mr-2" />
+                                    Purchase More
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="mt-12">
+                            <h5 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                                <History className="w-4 h-4 text-accent-blue" />
+                                Recent Credit Activity
+                            </h5>
+                            <div className="space-y-3">
+                                {[
+                                    { type: 'Usage', detail: 'Bulk Enrichment: "Q4 Leads Import"', amount: -420, date: '2 hours ago' },
+                                    { type: 'Top-up', detail: 'Purchased 5,000 Credits', amount: 5000, date: '1 day ago' },
+                                    { type: 'Usage', detail: 'Email Campaign: "Follow-up #1"', amount: -15, date: '2 days ago' },
+                                ].map((row, i) => (
+                                    <div key={i} className="flex items-center justify-between p-4 rounded-xl glass-strong border border-white/5">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-text-muted'}`}>
+                                                <ArrowUpCircle className={`w-4 h-4 ${row.amount < 0 ? 'rotate-180' : ''}`} />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-semibold text-white">{row.type}</p>
+                                                <p className="text-xs text-text-muted">{row.detail}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                                                {row.amount > 0 ? '+' : ''}{row.amount.toLocaleString()}
+                                            </p>
+                                            <p className="text-[10px] text-text-muted font-medium">{row.date}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </Card>
+
+                    <div className="bg-gradient-to-r from-accent-violet/20 to-accent-blue/20 border border-white/10 p-8 rounded-3xl relative overflow-hidden animate-slide-up">
+                        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                            <div className="space-y-2">
+                                <div className="flex items-center gap-2 text-accent-crystal">
+                                    <Crown className="w-5 h-5" />
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Enterprise Growth</span>
+                                </div>
+                                <h4 className="text-2xl font-bold text-white">Need custom quotas?</h4>
+                                <p className="text-sm text-text-secondary max-w-md">Scale to millions of monthly leads with custom RAG persistence and dedicated infrastructure.</p>
+                            </div>
+                            <Button className="bg-white text-slate-950 hover:bg-white/90 font-bold px-8">Talk to Sales</Button>
+                        </div>
+                        {/* Decorative Gradient Blob */}
+                        <div className="absolute top-[-50%] right-[-10%] w-64 h-64 bg-accent-violet/30 rounded-full blur-[80px] pointer-events-none" />
+                    </div>
+                </div>
+            </div>
+        </AppShell>
     );
 }

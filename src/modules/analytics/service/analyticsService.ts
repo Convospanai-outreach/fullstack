@@ -114,7 +114,6 @@ class AnalyticsService {
         const clicked = campaign.emails.filter((e: any) => e.status === "clicked").length;
 
         // 2. Calculate Costs (Real-time)
-        // Gemini Pro Output Pricing: ~$0.0000003 per token (approx $0.30/1M) - simplified
         const GEMINI_COST_PER_TOKEN = 0.0000003;
 
         let totalChars = 0;
@@ -142,13 +141,10 @@ class AnalyticsService {
             }
         });
 
-        // Convert map to sorted array
         const timeline = Array.from(timelineMap.entries())
             .map(([date, stats]) => ({ date, ...stats }))
             .sort((a, b) => a.date.localeCompare(b.date));
 
-        // 4. Leads by Status
-        // @ts-ignore
         const leadStatusCounts = await prisma.lead.groupBy({
             by: ['status'],
             where: { campaignId },
@@ -174,7 +170,7 @@ class AnalyticsService {
                 clickRate: sent > 0 ? (clicked / sent) * 100 : 0,
             },
             usage: {
-                credits: sent, // 1 Credit per sent email
+                credits: sent,
                 tokens: totalTokens,
                 cost: estimatedCost
             },
@@ -201,7 +197,6 @@ class AnalyticsService {
     }
 
     async getCohortAnalysis(teamId: string) {
-        // ... (existing content)
         const leads = await prisma.lead.findMany({
             where: { teamId },
             select: { createdAt: true, status: true, value: true }
@@ -264,6 +259,37 @@ class AnalyticsService {
             weightedPipeline,
             forecastTotal: currentRevenue + weightedPipeline,
             leadCount: leads.length
+        };
+    }
+
+    async getGovernanceStats(teamId: string) {
+        const [
+            totalLogs,
+            blockedActions,
+            approvals,
+            policy
+        ] = await Promise.all([
+            prisma.auditLog.count({ where: { orgId: teamId } }),
+            prisma.auditLog.count({ where: { orgId: teamId, action: { contains: "BLOCK" } } }),
+            prisma.approvalRequest.findMany({
+                orderBy: { createdAt: "desc" },
+                take: 100
+            }),
+            prisma.organizationPolicy.findUnique({ where: { organizationId: teamId } })
+        ]);
+
+        const pendingApprovals = approvals.filter((a: any) => a.status === "PENDING").length;
+        const approvalRate = approvals.length > 0 ? (approvals.filter((a: any) => a.status === "APPROVED").length / approvals.length) * 100 : 0;
+
+        const complianceSavings = blockedActions * 50;
+
+        return {
+            totalLogs,
+            blockedActions,
+            pendingApprovals,
+            approvalRate,
+            complianceSavings,
+            policyRiskLevel: policy?.maxDailyActions && policy.maxDailyActions > 500 ? "HIGH" : "LOW"
         };
     }
 }

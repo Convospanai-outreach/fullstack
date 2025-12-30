@@ -1,3 +1,3 @@
-﻿export async function receiveExtensionPayload(payload:any){
-  return { ok:true };
+﻿export async function receiveExtensionPayload(_payload: any) {
+  return { ok: true };
 }

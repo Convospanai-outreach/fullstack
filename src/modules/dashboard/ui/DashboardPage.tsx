@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { ActivityTimeline } from "@/components/dashboard/ActivityTimeline";
 import { LeadTable } from "@/components/dashboard/LeadTable";

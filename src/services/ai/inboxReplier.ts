@@ -15,7 +15,7 @@ export class InboxReplier {
 
         // 2. Fallback to Env Var
         if (!apiKey) {
-            apiKey = process.env.GEMINI_API_KEY;
+            apiKey = process.env['GEMINI_API_KEY'];
         }
 
         if (!apiKey) {
@@ -25,7 +25,7 @@ export class InboxReplier {
         this.genAI = new GoogleGenerativeAI(apiKey);
     }
 
-    async generateDraft(leadId: string, history: any[], userContext: string): Promise<string> {
+    async generateDraft(_leadId: string, history: any[], userContext: string): Promise<string> {
         if (!this.genAI) throw new Error("InboxReplier not initialized");
 
         const model = this.genAI.getGenerativeModel({ model: "gemini-pro" });

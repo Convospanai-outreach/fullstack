@@ -42,7 +42,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link href="/dashboard">
-              <Button variant="secondary" className="px-10 py-5 text-xl w-full sm:w-auto">
+              <Button variant="outline" className="px-10 py-5 text-xl w-full sm:w-auto">
                 View Demo Dashboard
               </Button>
             </Link>

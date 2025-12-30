@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 
 // GET /api/campaigns/[id]/analytics - Campaign analytics
 export async function GET(
-    req: NextRequest,
+    _req: NextRequest,
     { params }: { params: { id: string } }
 ) {
     try {
@@ -44,9 +44,11 @@ export async function GET(
 
         const timelineData = campaign.leadList
             .filter((lead) => lead.createdAt >= thirtyDaysAgo)
-            .reduce((acc: any, lead) => {
+            .reduce((acc: Record<string, number>, lead) => {
                 const date = lead.createdAt.toISOString().split("T")[0];
-                acc[date] = (acc[date] || 0) + 1;
+                if (date) {
+                    acc[date] = (acc[date] || 0) + 1;
+                }
                 return acc;
             }, {});
 

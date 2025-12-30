@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import {
     CheckCircle2,
     Circle,
-    Clock,
-    AlertCircle,
     Plus,
     Calendar,
     User
@@ -72,8 +70,8 @@ export function TaskWidget() {
                         <div
                             key={task.id}
                             className={`group flex items-start gap-4 p-4 rounded-xl border transition-all ${task.status === 'DONE'
-                                    ? 'bg-white/[0.02] border-transparent opacity-60'
-                                    : 'bg-white/5 border-white/5 hover:border-white/20'
+                                ? 'bg-white/[0.02] border-transparent opacity-60'
+                                : 'bg-white/5 border-white/5 hover:border-white/20'
                                 }`}
                         >
                             <button
@@ -105,7 +103,7 @@ export function TaskWidget() {
                                 </div>
                             </div>
                             <div className={`w-1 h-8 rounded-full ${task.priority === 'HIGH' ? 'bg-red-500' :
-                                    task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
+                                task.priority === 'MEDIUM' ? 'bg-amber-500' : 'bg-blue-500'
                                 }`} />
                         </div>
                     ))

@@ -1,4 +1,3 @@
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
 
@@ -36,7 +35,7 @@ export function LinkedInRunMonitor({ job }: LinkedInRunMonitorProps) {
                     <p className="text-sm text-gray-400">Current Job</p>
                     <p className="font-medium text-white truncate max-w-[150px]">{job.type}</p>
                 </div>
-                <Badge variant={job.status === "completed" ? "success" : job.status === "failed" ? "error" : "neutral"}>
+                <Badge variant={job.status === "completed" ? "success" : job.status === "failed" ? "danger" : "default"}>
                     {job.status}
                 </Badge>
             </div>

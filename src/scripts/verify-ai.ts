@@ -1,5 +1,5 @@
 
-import { AIService } from "../lib/aiService";
+import { aiService } from "../lib/aiService";
 import { config } from "dotenv";
 
 // Load env vars
@@ -9,19 +9,20 @@ async function verifyAI() {
     console.log("🤖 Verifying AI Service...");
 
     // Check key
-    if (!process.env.GEMINI_API_KEY) {
+    const key = process.env['GEMINI_API_KEY'];
+    if (!key) {
         console.error("❌ GEMINI_API_KEY is missing!");
         process.exit(1);
     }
-    console.log("✅ GEMINI_API_KEY found (length: " + process.env.GEMINI_API_KEY.length + ")");
+    console.log("✅ GEMINI_API_KEY found (length: " + key.length + ")");
 
     try {
         console.log("Testing text generation with gemini-2.0-flash...");
-        const response = await AIService.askAI("Explain how AI works in one sentence.");
+        const response = await aiService.askAI("Explain how AI works in one sentence.");
         console.log("✅ AI Response:", response);
 
         console.log("\nTesting smart comment generation...");
-        const comment = await AIService.generateComment(
+        const comment = await aiService.generateComment(
             "Just launched our new product! Super excited to share it with the world. #launch #startup",
             "I am a software engineer interested in AI."
         );

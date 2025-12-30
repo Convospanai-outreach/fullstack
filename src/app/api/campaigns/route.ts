@@ -42,7 +42,7 @@ export async function POST(req: Request) {
             throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
         }
 
-        const campaign = await CampaignService.createCampaign({ ...validation.data, teamId });
+        const campaign = await CampaignService.createCampaign({ ...validation.data, teamId } as any);
         return successResponse(campaign);
     } catch (error: any) {
         return handleAPIError(error);

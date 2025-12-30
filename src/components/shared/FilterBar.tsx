@@ -2,11 +2,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useDebounce } from "@/hooks/use-debounce";
-import { Search, Filter, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 interface FilterBarProps {
-    onSearch: (filters: { query: string; status?: string; tags?: string[] }) => void;
+    onSearch: (filters: { query: string; status: string | undefined; tags?: string[] }) => void;
     placeholder?: string;
     showStatusFilter?: boolean;
 }

@@ -56,9 +56,39 @@ Body: [Email Body]
         const bodyMatch = rawResponse.match(/Body:\s*([\s\S]*)/i);
 
         return {
-            subject: subjectMatch ? subjectMatch[1].trim() : `Re: Opportunity at ${lead.company}`,
-            body: bodyMatch ? bodyMatch[1].trim() : rawResponse,
+            subject: subjectMatch && subjectMatch[1] ? subjectMatch[1].trim() : `Re: Opportunity at ${lead.company}`,
+            body: bodyMatch && bodyMatch[1] ? bodyMatch[1].trim() : rawResponse,
         };
+    }
+    async researchCompany(companyName: string) {
+        const prompt = `
+            Act as a market researcher. Analyze the company "${companyName}".
+            Provide:
+            1. A 2-sentence summary of what they do.
+            2. Estimated typical employee count for this type of company.
+            3. Their primary industry.
+            
+            Return strictly valid JSON in this format:
+            {
+                "summary": "...",
+                "industry": "...",
+                "employees": "...",
+                "revenue": "..."
+            }
+        `;
+
+        try {
+            const result = await generateWithGemini(prompt);
+            // Extract JSON from potential markdown blocks e.g. ```json ... ```
+            const jsonMatch = result.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[0]);
+            }
+            return { summary: result, industry: "Unknown" };
+        } catch (e) {
+            console.error("AI Research failed", e);
+            return { summary: `Could not research ${companyName}`, industry: "Unknown" };
+        }
     }
 }
 

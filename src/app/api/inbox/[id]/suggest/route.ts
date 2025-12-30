@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { InboxService } from "@/lib/inboxService";
-import { AIService } from "@/lib/aiService";
+import { aiService } from "@/lib/aiService";
 
 export async function GET(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -21,7 +21,7 @@ export async function GET(
             `${m.sender === "me" ? "Me" : "Lead"}: ${m.content}`
         ).join("\n");
 
-        const suggestions = await AIService.generateSmartReply(context);
+        const suggestions = await aiService.generateSmartReply(context);
 
         return NextResponse.json({ suggestions });
     } catch (error: any) {

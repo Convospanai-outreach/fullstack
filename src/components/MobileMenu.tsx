@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -23,6 +23,7 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
             document.body.style.overflow = "unset";
             return () => clearTimeout(timer);
         }
+        return () => { };
     }, [isOpen]);
 
     if (!isVisible && !isOpen) return null;
@@ -76,8 +77,8 @@ export function MobileMenu({ isOpen, onClose, links }: MobileMenuProps) {
                                 href={link.href}
                                 onClick={onClose}
                                 className={`block px-4 py-3 rounded-xl text-base font-medium transition-all ${isActive
-                                        ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
-                                        : "text-gray-400 hover:text-white hover:bg-white/5"
+                                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30"
+                                    : "text-gray-400 hover:text-white hover:bg-white/5"
                                     }`}
                             >
                                 {link.label}

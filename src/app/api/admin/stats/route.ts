@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
+import { logger } from "@/lib/logger";
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
     const isAdmin = await checkAdmin();
     if (!isAdmin) {
         return new NextResponse("Unauthorized", { status: 403 });
@@ -44,7 +45,8 @@ export async function GET(req: Request) {
             creditsUsed: Math.abs(creditTransactions._sum.amount || 0)
         });
     } catch (error) {
-        console.error("Admin Stats Error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error("[Admin API] Stats fetch failed:", { error: errorMessage });
         return new NextResponse("Internal Server Error", { status: 500 });
     }
 }

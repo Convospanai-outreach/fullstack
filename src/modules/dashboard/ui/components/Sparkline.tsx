@@ -1,4 +1,4 @@
-import React from "react";
+
 
 type Point = number;
 type Props = { values: Point[]; width?: number; height?: number };

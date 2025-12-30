@@ -6,7 +6,7 @@ export async function handleLikePost(payload: JobPayload) {
 
     return await runLinkedInAction({
         type: "LIKE",
-        url: payload.url
+        url: payload['url'] || ""
     });
 }
 
@@ -16,8 +16,8 @@ export async function handleCommentPost(payload: JobPayload) {
 
     return await runLinkedInAction({
         type: "COMMENT",
-        url: payload.url,
-        message: payload.text
+        url: payload['url'] || "",
+        message: payload['text'] || ""
     });
 }
 
@@ -26,6 +26,6 @@ export async function handleScrapeProfile(payload: JobPayload) {
 
     return await runLinkedInAction({
         type: "SCRAPE",
-        url: payload.url
+        url: payload['url'] || ""
     });
 }

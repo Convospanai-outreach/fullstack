@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
-import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function OnboardingPage() {
     const router = useRouter();
@@ -61,8 +60,8 @@ export default function OnboardingPage() {
                                     key={role}
                                     onClick={() => setFormData({ ...formData, role })}
                                     className={`p-4 rounded-xl border transition text-left ${formData.role === role
-                                            ? "border-blue-500 bg-blue-500/10 text-white"
-                                            : "border-white/10 hover:border-white/30 text-gray-400"
+                                        ? "border-blue-500 bg-blue-500/10 text-white"
+                                        : "border-white/10 hover:border-white/30 text-gray-400"
                                         }`}
                                 >
                                     {role}
@@ -118,8 +117,8 @@ export default function OnboardingPage() {
                                     key={goal}
                                     onClick={() => toggleGoal(goal)}
                                     className={`p-4 rounded-xl border cursor-pointer flex items-center justify-between transition ${formData.goals.includes(goal)
-                                            ? "border-blue-500 bg-blue-500/10 text-white"
-                                            : "border-white/10 hover:border-white/30 text-gray-400"
+                                        ? "border-blue-500 bg-blue-500/10 text-white"
+                                        : "border-white/10 hover:border-white/30 text-gray-400"
                                         }`}
                                 >
                                     <span>{goal}</span>

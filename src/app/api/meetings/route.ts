@@ -12,7 +12,7 @@ const MeetingSchema = z.object({
     notes: z.string().optional(),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
@@ -31,14 +31,14 @@ export async function GET(req: NextRequest) {
     }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(_req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const body = await req.json();
+        const body = await _req.json();
         const validation = MeetingSchema.safeParse(body);
 
         if (!validation.success) {
@@ -52,8 +52,8 @@ export async function POST(req: NextRequest) {
                 title,
                 startTime: new Date(startTime),
                 endTime: new Date(endTime),
-                leadId,
-                notes,
+                leadId: leadId ?? null,
+                notes: notes ?? null,
                 teamId
             }
         });

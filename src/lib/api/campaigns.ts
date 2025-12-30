@@ -99,7 +99,8 @@ export async function removeLeads(campaignId: string, leadIds: string[]) {
 }
 
 export async function getCampaignAnalytics(id: string) {
-    const res = await fetch(`${API_BASE}/${id}/analytics`);
+    const res = await fetch(`${API_BASE}/${id}/analytics/v2`); // Updated to V2
     if (!res.ok) throw new Error("Failed to fetch analytics");
-    return res.json();
+    const json = await res.json();
+    return json.success ? json.data : json;
 }

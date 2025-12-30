@@ -2,7 +2,7 @@ import { Page } from "puppeteer";
 import { ScraperAdapter } from "../../types/scraper.types";
 
 class GenericAdapter implements ScraperAdapter {
-    validate(url: string): boolean {
+    validate(_url: string): boolean {
         return true; // Accepts any URL
     }
 

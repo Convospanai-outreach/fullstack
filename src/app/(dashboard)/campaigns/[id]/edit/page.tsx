@@ -25,7 +25,7 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
                 setStatus(data.status);
                 setLoading(false);
             })
-            .catch(err => {
+            .catch(_err => {
                 toast.error("Could not load campaign");
                 router.push("/dashboard/campaigns");
             });
@@ -67,7 +67,7 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
             mutate("/api/dashboard/campaigns");
             toast.success("Campaign deleted");
             router.push("/dashboard/campaigns");
-        } catch (e) {
+        } catch {
             toast.error("Failed to delete campaign");
         }
     };

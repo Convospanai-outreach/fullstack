@@ -38,6 +38,6 @@ export const PLAN_LEVELS: Record<string, number> = {
 export function isPlanEligible(userPlan: string, requiredPlan: Plan): boolean {
     const normalizedUserPlan = userPlan?.toUpperCase() || "FREE";
     const userLevel = PLAN_LEVELS[normalizedUserPlan] ?? 0;
-    const requiredLevel = PLAN_LEVELS[requiredPlan];
+    const requiredLevel = PLAN_LEVELS[requiredPlan] ?? 0;
     return userLevel >= requiredLevel;
 }

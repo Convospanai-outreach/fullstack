@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { cookies } from "next/headers";
 
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -6,11 +7,11 @@ import GoogleProvider from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 
 import CredentialsProvider from "next-auth/providers/credentials";
-import { compare, hash } from "bcryptjs";
+import { compare } from "bcryptjs";
 
 // Conditional Google Provider
-const googleClientId = process.env.GOOGLE_CLIENT_ID;
-const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const googleClientId = process.env['GOOGLE_CLIENT_ID'];
+const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
 
 const providers = [];
 
@@ -42,28 +43,6 @@ export const authOptions: NextAuthOptions = {
                     where: { email: credentials.email }
                 });
 
-                // Auto-seed Admin User Logic
-                if (!user && credentials.email === "test@test.com" && credentials.password === "passwordadmin") {
-                    const hashedPassword = await hash("passwordadmin", 12);
-                    const newUser = await prisma.user.create({
-                        data: {
-                            email: "test@test.com",
-                            password: hashedPassword,
-                            name: "Test Admin",
-                            role: "admin",
-                            emailVerified: new Date(),
-                        }
-                    });
-
-                    await setupUser({
-                        id: newUser.id,
-                        email: newUser.email,
-                        name: newUser.name
-                    });
-
-                    return newUser;
-                }
-
                 if (!user || !user.password) {
                     throw new Error("User not found or password not set");
                 }
@@ -82,9 +61,9 @@ export const authOptions: NextAuthOptions = {
         session: async ({ session, token }) => {
             if (token && session.user) {
                 session.user.id = token.id as string;
-                session.user.name = token.name;
-                session.user.email = token.email;
-                session.user.image = token.picture;
+                session.user.name = token.name ?? null;
+                session.user.email = token.email ?? null;
+                session.user.image = token.picture ?? null;
                 session.user.plan = token.plan;
             }
             return session;
@@ -94,21 +73,33 @@ export const authOptions: NextAuthOptions = {
                 token.id = user.id;
             }
 
-            // Fetch Plan on every token refresh (ensures upgrades are reflected relatively quickly)
+            // Fetch Plan with Redis caching
             if (token.id) {
                 try {
-                    // Fetch the user's subscription
-                    const user = await prisma.user.findUnique({
-                        where: { id: token.id as string },
-                        include: {
-                            subscription: {
-                                include: { plan: true }
-                            }
-                        }
-                    });
+                    const { getRedisClient } = await import("@/lib/redis");
+                    const redis = await getRedisClient();
+                    const cacheKey = `user:plan:${token.id}`;
 
-                    // Extract plan name or default to 'FREE'
-                    const planName = user?.subscription?.plan?.name || "FREE";
+                    // Try cache first
+                    let planName = await redis.get(cacheKey);
+
+                    if (!planName) {
+                        // Cache miss - query DB
+                        const user = await prisma.user.findUnique({
+                            where: { id: token.id as string },
+                            include: {
+                                subscription: {
+                                    include: { plan: true }
+                                }
+                            }
+                        });
+
+                        planName = user?.subscription?.plan?.name || "FREE";
+
+                        // Cache for 5 minutes
+                        await redis.setEx(cacheKey, 300, planName);
+                    }
+
                     token.plan = planName;
                 } catch (error) {
                     console.error("Error fetching user plan for JWT:", error);
@@ -195,7 +186,25 @@ export async function getCurrentContext() {
     // @ts-ignore
     const userId = session.user.id;
 
-    // Get user's active team (for now, just the first one)
+    // Check for workspace cookie
+    const cookieStore = await cookies();
+    const workspaceId = cookieStore.get("convo-workspace-id")?.value;
+
+    if (workspaceId) {
+        // Verify membership
+        const membership = await prisma.teamMember.findFirst({
+            where: {
+                userId,
+                teamId: workspaceId
+            }
+        });
+
+        if (membership) {
+            return { userId, teamId: workspaceId };
+        }
+    }
+
+    // Fallback: Get user's first active team
     const membership = await prisma.teamMember.findFirst({
         where: { userId },
         select: { teamId: true }

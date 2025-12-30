@@ -49,7 +49,7 @@ export default function ImportLeadsPage() {
         });
 
         if (parsed.errors.length > 0) {
-            setError("Error parsing CSV: " + parsed.errors[0].message);
+            setError("Error parsing CSV: " + parsed.errors[0]?.message || "Unknown error");
             return;
         }
 

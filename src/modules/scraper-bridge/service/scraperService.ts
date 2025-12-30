@@ -46,7 +46,7 @@ class ScraperService {
             return {
                 success: true,
                 data,
-                screenshot,
+                ...(screenshot !== undefined ? { screenshot } : {}),
                 metadata: {
                     url: request.url,
                     scrapedAt: new Date().toISOString(),

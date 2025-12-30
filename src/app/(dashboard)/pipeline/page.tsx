@@ -7,11 +7,7 @@ import {
     Sparkles,
     ArrowRight,
     Clock,
-    CheckCircle2,
-    AlertCircle,
-    TrendingUp,
     DollarSign,
-    Target,
     Zap
 } from "lucide-react";
 import { toast } from "sonner";
@@ -45,22 +41,6 @@ export default function PipelinePage() {
             toast.error("Failed to load pipeline data");
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleMove = async (leadId: string, newStatus: string) => {
-        try {
-            const res = await fetch(`/api/pipeline/leads/${leadId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: newStatus })
-            });
-            if (res.ok) {
-                toast.success(`Lead moved to ${newStatus}`);
-                loadData();
-            }
-        } catch (error) {
-            toast.error("Move failed");
         }
     };
 

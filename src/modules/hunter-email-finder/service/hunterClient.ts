@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const HUNTER_API_BASE = "https://api.hunter.io/v2";
-const API_KEY = process.env.HUNTER_IO_API_KEY;
+const API_KEY = process.env['HUNTER_IO_API_KEY'];
 
 export type EmailFinderResult = {
     email: string | null;

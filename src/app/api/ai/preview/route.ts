@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AIService } from "@/lib/aiService";
+import { aiService } from "@/lib/aiService";
 
 export async function POST(req: Request) {
     try {
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         
         Keep it concise and professional.`;
 
-        const result = await AIService.askAI(fullPrompt);
+        const result = await aiService.askAI(fullPrompt);
         return NextResponse.json({ result });
     } catch (error: any) {
         console.error("AI Preview Error:", error);

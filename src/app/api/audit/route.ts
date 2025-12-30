@@ -16,7 +16,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const limit = parseInt(searchParams.get("limit") || "50");
-        const offset = parseInt(searchParams.get("offset") || "0");
+
 
         const logs = await AuditService.getSystemLogs(limit);
 

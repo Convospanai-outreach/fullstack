@@ -1,26 +1,20 @@
 import { NextResponse } from "next/server";
 import { AuditService } from "@/modules/audit/auditService";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { checkAdmin } from "@/lib/admin";
+import { logger } from "@/lib/logger";
 
-export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+export async function GET(_req: Request) {
+    const isAdmin = await checkAdmin();
+    if (!isAdmin) {
         return new NextResponse("Unauthorized", { status: 401 });
-    }
-
-    // Basic admin check (Assuming hardcoded for now or based on role)
-    // In real app, check user.role === 'admin'
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (user?.role !== "admin") {
-        return new NextResponse("Forbidden", { status: 403 });
     }
 
     try {
         const logs = await AuditService.getSystemLogs();
         return NextResponse.json({ success: true, logs });
-    } catch (error: any) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error(`[Admin API] Failed to fetch audit logs`, { error: errorMessage });
+        return NextResponse.json({ success: false, error: errorMessage }, { status: 500 });
     }
 }

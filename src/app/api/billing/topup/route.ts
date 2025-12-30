@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
             id: order.id,
             amount: order.amount,
             currency: order.currency,
-            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID
+            key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID']
         });
     } catch (error: any) {
         console.error("Top-up error:", error);

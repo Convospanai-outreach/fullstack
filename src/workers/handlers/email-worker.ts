@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
-import { aiService } from "@/modules/ai-content/service/aiService";
+import { aiService } from "@/lib/aiService";
+import { logger, logWorker } from "@/lib/logger";
+import { JobPayload } from "@/lib/queue";
 
 /**
  * Email sending worker
  * Sends personalized email to a lead
  */
-export async function handleEmailSend(payload: {
-    leadId: string;
-    campaignId: string;
-    enrichmentData?: any;
-}) {
-    const { leadId, campaignId, enrichmentData } = payload;
+export async function handleEmailSend(payload: JobPayload) {
+    const { leadId, campaignId, teamId } = payload;
+
+    if (!leadId || !campaignId) {
+        throw new Error("Missing leadId or campaignId in email job payload");
+    }
 
     // Fetch lead and campaign
     const [lead, campaign] = await Promise.all([
@@ -28,10 +30,11 @@ export async function handleEmailSend(payload: {
     }
 
     if (!lead.email) {
-        throw new Error(`Lead ${leadId} has no email address`);
+        logger.warn(`[Worker] Skipping email: Lead ${leadId} has no email address.`, { leadId, campaignId });
+        return;
     }
 
-    console.log(`📧 Generating AI email for: ${lead.email}`);
+    logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
 
     // Generate personalized email content using the NEW AI Sales Agent logic
     const emailContent = await aiService.generateEmailDraft(
@@ -75,6 +78,8 @@ export async function handleEmailSend(payload: {
             },
         });
 
+        logger.info(`[Worker] Successfully sent email to ${lead.email}`, { leadId, campaignId });
+
         return {
             leadId,
             email: lead.email,
@@ -82,7 +87,8 @@ export async function handleEmailSend(payload: {
             result,
         };
     } catch (error) {
-        console.error("Failed to send email:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error(`[Worker] Failed to send email to ${lead.email}`, { leadId, campaignId, error: errorMessage });
         throw error;
     }
 }

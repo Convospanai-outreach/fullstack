@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { WorkflowNode } from "./WorkflowNode";
 
 export function WorkflowCanvas() {

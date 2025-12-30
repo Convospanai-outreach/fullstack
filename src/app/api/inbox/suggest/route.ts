@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { InboxService } from "@/lib/inboxService";
-import { AIService } from "@/lib/aiService";
+import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { LearningService } from "@/modules/learning/learningService";
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Generate Suggestions
-        const suggestions = await AIService.generateSmartReply(context, tone || "professional", memories);
+        const suggestions = await aiService.generateSmartReply(context, tone || "professional", memories);
 
         return NextResponse.json({ suggestions });
 

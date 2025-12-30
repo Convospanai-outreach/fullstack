@@ -10,7 +10,7 @@ const TemplateSchema = z.object({
     body: z.string().min(1, "Body is required"),
 });
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {

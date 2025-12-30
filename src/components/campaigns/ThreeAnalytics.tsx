@@ -2,7 +2,6 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text, Float } from "@react-three/drei";
-import { useMemo } from "react";
 
 export interface ThreeAnalyticsProps {
     data: Array<{ date: string; sent: number; opened: number }>;

@@ -3,19 +3,16 @@
 import { useEffect, useState } from "react";
 import {
     UserPlus,
-    Shield,
     Trash2,
     Loader2,
     Mail,
     ShieldCheck,
     ShieldAlert,
     UserCheck,
-    MoreVertical,
     CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTeamRole, TeamRole } from "@/hooks/useTeamRole";
-import { formatDistanceToNow } from "date-fns";
 
 interface TeamMember {
     id: string;
@@ -30,7 +27,7 @@ interface TeamMember {
 }
 
 export default function TeamSettingsPage() {
-    const { role: myRole, loading: roleLoading, hasPermission } = useTeamRole();
+    const { loading: roleLoading, hasPermission } = useTeamRole();
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -167,7 +164,7 @@ export default function TeamSettingsPage() {
                                     <div className="flex items-center gap-4">
                                         <div className="relative">
                                             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white font-bold shadow-lg">
-                                                {(member.user?.name || member.email)[0].toUpperCase()}
+                                                {(member.user?.name || member.email || "?")[0]?.toUpperCase()}
                                             </div>
                                             {member.status === 'active' && (
                                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0f172a] flex items-center justify-center">
@@ -263,8 +260,8 @@ export default function TeamSettingsPage() {
                                             type="button"
                                             onClick={() => setInviteRole(r)}
                                             className={`px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all ${inviteRole === r
-                                                    ? "bg-blue-600 border-blue-500 text-white"
-                                                    : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
+                                                ? "bg-blue-600 border-blue-500 text-white"
+                                                : "bg-white/5 border-white/10 text-gray-400 hover:bg-white/10"
                                                 }`}
                                         >
                                             {r.charAt(0).toUpperCase() + r.slice(1)}

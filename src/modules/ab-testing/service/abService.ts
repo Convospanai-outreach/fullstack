@@ -1,5 +1,5 @@
 class ABService {
-    assignVariant(leadId: string): "A" | "B" {
+    assignVariant(_leadId: string): "A" | "B" {
         // Simple deterministic assignment based on ID hash or random
         // For now, let's just use random for simplicity in this mock
         return Math.random() > 0.5 ? "A" : "B";

@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {

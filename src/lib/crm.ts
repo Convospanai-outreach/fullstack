@@ -7,14 +7,19 @@ export class HubSpotService {
     }
 
     private async request(endpoint: string, method: "GET" | "POST" | "PATCH", body?: any) {
-        const res = await fetch(`${this.baseUrl}${endpoint}`, {
+        const fetchOptions: RequestInit = {
             method,
             headers: {
                 "Authorization": `Bearer ${this.apiKey}`,
                 "Content-Type": "application/json"
-            },
-            body: body ? JSON.stringify(body) : undefined
-        });
+            }
+        };
+
+        if (body) {
+            fetchOptions.body = JSON.stringify(body);
+        }
+
+        const res = await fetch(`${this.baseUrl}${endpoint}`, fetchOptions);
 
         if (!res.ok) {
             const error = await res.text();

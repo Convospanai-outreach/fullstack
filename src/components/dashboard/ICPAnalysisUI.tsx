@@ -1,4 +1,3 @@
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { StatBlock } from "@/components/ui/StatBlock";
 

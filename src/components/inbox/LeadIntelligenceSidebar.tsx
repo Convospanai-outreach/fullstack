@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
-import { User, Users, Building, DollarSign, Calendar, Smile, Meh, Frown, Sparkles } from "lucide-react";
+import { Users, Building, DollarSign, Smile, Meh, Frown, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface LeadIntelligenceSidebarProps {

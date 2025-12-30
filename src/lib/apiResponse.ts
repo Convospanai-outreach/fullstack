@@ -7,7 +7,9 @@ export class APIError extends Error {
     constructor(message: string, statusCode: number = 500, code?: string) {
         super(message);
         this.statusCode = statusCode;
-        this.code = code;
+        if (code !== undefined) {
+            this.code = code;
+        }
     }
 }
 

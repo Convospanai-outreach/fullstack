@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+
 import useSWR from "swr";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
+
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function AdminMonitoringPage() {
-    const { data: health, error } = useSWR("/api/monitoring/health", fetcher, { refreshInterval: 10000 });
+    const { data: health, error: _error } = useSWR("/api/monitoring/health", fetcher, { refreshInterval: 10000 });
 
     const statusColor = health?.status === "healthy" ? "text-green-400" : "text-red-400";
     const bgStatusColor = health?.status === "healthy" ? "bg-green-500/10" : "bg-red-500/10";

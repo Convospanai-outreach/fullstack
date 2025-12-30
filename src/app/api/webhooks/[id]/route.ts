@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
@@ -12,7 +13,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
         // Verify ownership
         const existing = await prisma.webhook.findUnique({
-            where: { id: params.id, teamId }
+            where: { id, teamId }
         });
 
         if (!existing) {
@@ -20,7 +21,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         }
 
         await prisma.webhook.delete({
-            where: { id: params.id }
+            where: { id }
         });
 
         return successResponse({ success: true });

@@ -10,6 +10,86 @@ html {
 
 @theme {
   --color-primary: #8b5cf6;
+  --color-accent-blue: var(--color-accent-blue);
+  --color-accent-violet: var(--color-accent-violet);
+  --color-accent-mint: var(--color-accent-mint);
+  --color-accent-gold: var(--color-accent-gold);
+  --color-accent-silver: var(--color-accent-silver);
+  --color-accent-crystal: var(--color-accent-crystal);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-bg-glass: var(--color-bg-glass);
+  --color-border-subtle: var(--color-border-subtle);
+  --shadow-glow: var(--neo-glow);
+  --shadow-glow-gold: var(--neo-glow-gold);
+
+  /* Custom Animations */
+  --animate-glow: glow 2s ease-in-out infinite alternate;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-shimmer: shimmer 2.5s linear infinite;
+  --animate-slide-up: slide-up 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-reveal: reveal 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px -2px var(--color-accent-blue);
+    }
+
+    to {
+      box-shadow: 0 0 20px 2px var(--color-accent-blue);
+    }
+  }
+
+  @keyframes float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes shimmer {
+    from {
+      background-position: -200% 0;
+    }
+
+    to {
+      background-position: 200% 0;
+    }
+  }
+
+  @keyframes slide-up {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes reveal {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
 }
 
 body {
@@ -18,10 +98,17 @@ body {
 }
 
 .glass {
-  backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 40px rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-width: 1px;
+  @apply backdrop-blur-xl shadow-lg;
+}
+
+.glass-strong {
+  background-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.12);
+  border-width: 1px;
+  @apply backdrop-blur-2xl;
 }
 
 .glow {

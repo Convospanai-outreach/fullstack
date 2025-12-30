@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-import { Sparkles, Target, ArrowRight, Check, Loader2, Save } from "lucide-react";
+import { useState } from "react";
+import { Sparkles, Target, Loader2, Save } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { toast } from "sonner";
 
 export default function ICPBuilderPage() {
-    const [step, setStep] = useState(1);
+    const [_step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [generated, setGenerated] = useState(false);
     const [result, setResult] = useState<{ keywords: string[], booleanString: string, personaHook: string } | null>(null);
@@ -144,7 +144,7 @@ export default function ICPBuilderPage() {
 
                 {/* Right: Results Preview */}
                 <div className="space-y-6">
-                    <div className={`transition-all duration-500 ${generated && result ? 'opacity-100 translate-y-0' : 'opacity-50 translate-y-4'}`}>
+                    <div className={`transition - all duration - 500 ${generated && result ? 'opacity-100 translate-y-0' : 'opacity-50 translate-y-4'} `}>
                         <h3 className="text-lg font-medium text-white mb-4">AI Analysis Results</h3>
 
                         {generated && result ? (
@@ -172,7 +172,7 @@ export default function ICPBuilderPage() {
                                     </p>
                                 </GlassCard>
 
-                                <Button className="w-full mt-4" variant="secondary">
+                                <Button className="w-full mt-4" variant="outline">
                                     <Save className="w-4 h-4 mr-2" />
                                     Save Profile
                                 </Button>

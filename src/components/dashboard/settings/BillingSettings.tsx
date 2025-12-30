@@ -46,7 +46,7 @@ export default function BillingSettings() {
                 name: "ConvoSpan",
                 description: `${credits} Credits Top-up`,
                 order_id: order.id,
-                handler: async function (response: any) {
+                handler: async function (_response: any) {
                     toast.success("Payment Successful! Updating balance...");
                     // Webhook handles the actual credit addition, but we trigger a refresh
                     try {

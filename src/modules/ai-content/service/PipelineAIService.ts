@@ -5,7 +5,7 @@ export class PipelineAIService {
     /**
      * Analyze recent messages and suggest follow-up tasks
      */
-    static async suggestTasks(teamId: string, leadId: string) {
+    static async suggestTasks(_teamId: string, leadId: string) {
         const messages = await prisma.message.findMany({
             where: { leadId },
             take: 10,

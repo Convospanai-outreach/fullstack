@@ -1,20 +1,33 @@
 
 import { JobQueue } from "@/lib/queue";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getCurrentContext } from "@/lib/auth";
+import { audit } from "@/lib/governance/audit";
 
-export async function POST(req: Request, { params }: any) {
-    const { id } = params;
+export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const { userId, teamId } = await getCurrentContext();
+
+    if (!userId || !teamId) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     await prisma.agent.update({ where: { id }, data: { status: "idle" } });
     await prisma.activity.create({
         data: { type: "agent-stop", message: `Agent ${id} stopped`, agentId: id },
     });
-    // Hook: tell orchestrator to stop
-    const session = await getServerSession(authOptions);
-    const user = session?.user?.email ? await prisma.user.findUnique({ where: { email: session.user.email } }) : null;
 
-    await JobQueue.enqueue("agent_stop", { agentId: id, userId: user?.id });
+    await JobQueue.enqueue("agent_stop", { agentId: id, userId });
+
+    // MANDATORY AUDIT LOG
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "AGENT_STOP",
+        entity: "Agent",
+        entityId: id,
+    });
+
     return NextResponse.json({ ok: true });
 }

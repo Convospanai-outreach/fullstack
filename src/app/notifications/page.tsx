@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/Badge";
@@ -53,7 +53,7 @@ export default function NotificationsPage() {
                     notifications.map(n => (
                         <GlassCard key={n.id} className="flex justify-between items-center p-4">
                             <div className="flex items-center gap-4">
-                                <Badge variant={n.type === "SUCCESS" ? "success" : n.type === "WARNING" ? "warning" : "neutral"}>
+                                <Badge variant={n.type === "SUCCESS" ? "success" : n.type === "WARNING" ? "warning" : "default"}>
                                     {n.type}
                                 </Badge>
                                 <div>

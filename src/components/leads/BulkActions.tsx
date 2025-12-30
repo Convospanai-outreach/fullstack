@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 
@@ -24,7 +23,7 @@ export default function BulkActions({ selectedCount, onDelete, onExport, onClear
                 <div className="h-6 w-px bg-white/20" />
 
                 <div className="flex gap-2">
-                    <Button onClick={onExport} variant="secondary" className="px-3 py-1 text-sm">
+                    <Button onClick={onExport} variant="outline" className="px-3 py-1 text-sm">
                         Export
                     </Button>
                     <Button onClick={onDelete} variant="danger" className="px-3 py-1 text-sm">

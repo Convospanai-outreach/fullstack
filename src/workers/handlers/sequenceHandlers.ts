@@ -2,10 +2,12 @@ import { runLinkedInAction } from "@/linkedin/puppeteerRunner";
 import { JobPayload } from "@/lib/queue";
 import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
-import { AIService } from "@/lib/aiService";
+import { aiService } from "@/lib/aiService";
 
 export async function handleSequenceAction(payload: JobPayload) {
-    const { leadId, url, action } = payload;
+    const leadId = payload['leadId'];
+    const url = payload['url'];
+    const action = payload['action'];
 
     if (!leadId || !url || !action) {
         throw new Error("Missing required payload for SEQUENCE_ACTION");
@@ -27,7 +29,7 @@ export async function handleSequenceAction(payload: JobPayload) {
         case "CONNECT":
             // Generate smart message
             const profileContext = "Context for " + url; // Mock
-            const message = await AIService.generateConnectionMessage(profileContext);
+            const message = await aiService.generateConnectionMessage(profileContext);
 
             // Connect with note (using INMAIL/CONNECT logic)
             result = await runLinkedInAction({
@@ -86,11 +88,11 @@ export async function handleSequenceAction(payload: JobPayload) {
                     
                     Keep it under 100 words. Return ONLY the email body.`;
 
-                    emailBody = await AIService.askAI(prompt);
+                    emailBody = await aiService.askAI(prompt);
 
                     // Generate subject line too
                     const subjectPrompt = `Generate a short, catchy subject line for this email body: "${emailBody}". Return ONLY the subject line.`;
-                    emailSubject = await AIService.askAI(subjectPrompt);
+                    emailSubject = await aiService.askAI(subjectPrompt);
 
                 } catch (error) {
                     console.warn("AI Email generation failed, falling back to template", error);

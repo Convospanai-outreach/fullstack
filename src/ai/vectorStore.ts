@@ -1,3 +1,3 @@
-﻿export async function searchSimilar(query: string) {
+﻿export async function searchSimilar(_query: string) {
   return [];
 }

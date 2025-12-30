@@ -14,7 +14,7 @@ export const linkedinClient = {
         return page;
     },
 
-    async sendConnectionRequest(page: Page) {
+    async sendConnectionRequest(_page: Page) {
         // placeholder logic – user can replace with scraper-bridge
         return { message: "Connection request simulated" };
     },

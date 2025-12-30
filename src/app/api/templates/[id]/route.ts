@@ -10,8 +10,9 @@ const TemplateSchema = z.object({
     body: z.string().min(1, "Body is required"),
 });
 
-export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
@@ -25,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
         // Verify ownership
         const existing = await prisma.emailTemplate.findUnique({
-            where: { id: params.id, teamId }
+            where: { id, teamId }
         });
 
         if (!existing) {
@@ -33,7 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         }
 
         const template = await prisma.emailTemplate.update({
-            where: { id: params.id },
+            where: { id },
             data: validation.data
         });
 
@@ -43,8 +44,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
@@ -52,7 +54,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
         // Verify ownership
         const existing = await prisma.emailTemplate.findUnique({
-            where: { id: params.id, teamId }
+            where: { id, teamId }
         });
 
         if (!existing) {
@@ -60,7 +62,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         }
 
         await prisma.emailTemplate.delete({
-            where: { id: params.id }
+            where: { id }
         });
 
         return successResponse({ success: true });

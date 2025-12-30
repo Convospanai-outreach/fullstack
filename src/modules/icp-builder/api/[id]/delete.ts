@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { icpService } from "../../service/icpService";
 
 export async function DELETE(
-    req: Request,
+    _req: Request,
     { params }: { params: { id: string } }
 ) {
     try {

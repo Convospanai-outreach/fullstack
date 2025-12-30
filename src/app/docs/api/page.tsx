@@ -1,19 +1,14 @@
 "use client";
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { GlassCard } from '@/components/ui/GlassCard';
 import {
     Copy,
     Terminal,
     Database,
     Shield,
     Zap,
-    Book,
-    Workflow,
-    CheckSquare,
-    Users,
-    Search
+    Book
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -78,7 +73,8 @@ const ENDPOINTS = [
 ];
 
 export default function ApiDocsPage() {
-    const [selectedEndpoint, setSelectedEndpoint] = useState(ENDPOINTS[0]);
+    const defaultEndpoint = ENDPOINTS[0]!;
+    const [selectedEndpoint, setSelectedEndpoint] = useState(defaultEndpoint);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -122,8 +118,8 @@ export default function ApiDocsPage() {
                                             key={ep.path + ep.method}
                                             onClick={() => setSelectedEndpoint(ep)}
                                             className={`w-full text-left px-3 py-2 rounded-lg transition-all flex items-center gap-2 ${selectedEndpoint.path === ep.path && selectedEndpoint.method === ep.method
-                                                    ? "bg-white/10 text-white border border-white/10"
-                                                    : "text-gray-500 hover:text-gray-300"
+                                                ? "bg-white/10 text-white border border-white/10"
+                                                : "text-gray-500 hover:text-gray-300"
                                                 }`}
                                         >
                                             <span className={`text-[8px] font-bold px-1 py-0.5 rounded ${ep.method === 'GET' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'

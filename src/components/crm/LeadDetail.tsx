@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -73,13 +73,13 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
                         View on LinkedIn
                     </Button>
-                    <Button variant="secondary" onClick={handleEnrich} disabled={loading || lead.isEnriched}>
+                    <Button variant="outline" onClick={handleEnrich} disabled={loading || lead.isEnriched}>
                         {lead.isEnriched ? "Enriched" : "Enrich Data"}
                     </Button>
                     <Button variant="primary" onClick={() => handleAction("CONNECT")} disabled={loading}>
                         Connect Now
                     </Button>
-                    <Button variant="secondary" onClick={() => handleAction("MESSAGE")} disabled={loading}>
+                    <Button variant="outline" onClick={() => handleAction("MESSAGE")} disabled={loading}>
                         Send Message
                     </Button>
                 </div>
@@ -100,7 +100,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                             </div>
                             <div>
                                 <p className="text-white/60">Status</p>
-                                <Badge variant={lead.status === "CONNECTED" ? "success" : "neutral"}>
+                                <Badge variant={lead.status === "CONNECTED" ? "success" : "default"}>
                                     {lead.status}
                                 </Badge>
                             </div>

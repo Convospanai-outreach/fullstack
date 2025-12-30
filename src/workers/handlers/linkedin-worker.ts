@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { linkedinRunnerService } from "@/modules/linkedin-runner/service/linkedinRunnerService";
+import { logger, logWorker } from "@/lib/logger";
 
 /**
  * LinkedIn Automation Worker
@@ -9,10 +10,11 @@ export async function handleLinkedInScrape(payload: {
     profileUrl: string;
     action?: string;
     leadId?: string;
+    teamId?: string;
 }) {
-    const { profileUrl, action = "scrape", leadId } = payload;
+    const { profileUrl, action = "scrape", leadId, teamId } = payload;
 
-    console.log(`🤖 Processing LinkedIn action: ${action} for ${profileUrl}`);
+    logWorker(leadId || profileUrl, `LINKEDIN_${action.toUpperCase()}`, { profileUrl, teamId });
 
     try {
         const result = await linkedinRunnerService.runAutomation({
@@ -40,9 +42,12 @@ export async function handleLinkedInScrape(payload: {
             });
         }
 
+        logger.info(`[Worker] LinkedIn ${action} successful for ${profileUrl}`, { leadId, teamId });
+
         return result;
     } catch (error) {
-        console.error("LinkedIn automation failed:", error);
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        logger.error(`[Worker] LinkedIn automation failed for ${profileUrl}`, { action, error: errorMessage });
         throw error;
     }
 }

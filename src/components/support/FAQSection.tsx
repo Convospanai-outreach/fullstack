@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 
 interface FAQItem {
