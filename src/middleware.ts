@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server';
 // import { Plan, isPlanEligible } from "@/lib/plans";
 
 export async function middleware(req: NextRequest) {
-    const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
+    // const ip = req.headers.get("x-forwarded-for") || "127.0.0.1";
     const path = req.nextUrl.pathname;
 
     // 1. CORS for API routes
