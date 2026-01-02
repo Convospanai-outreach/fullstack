@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { toast } from "sonner";
 import {
     Search,
@@ -22,6 +22,7 @@ import { formatDistanceToNow } from "date-fns";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import type { Thread } from "@/types/common";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -45,14 +46,14 @@ export default function InboxPage() {
         return `/api/inbox?${params.toString()}`;
     }, [activeFolder, debouncedSearch]);
 
-    const { data: threads, isLoading } = useSWR(queryUrl, fetcher, {
+    const { data: threads, isLoading } = useSWR<Thread[]>(queryUrl, fetcher, {
         refreshInterval: 10000,
         revalidateOnFocus: true
     });
 
     // Auto-select first thread on load if none selected
     useEffect(() => {
-        if (!isLoading && threads?.length > 0 && !selectedThreadId) {
+        if (!isLoading && threads?.length && !selectedThreadId && threads[0]) {
             setSelectedThreadId(threads[0].id);
         }
     }, [isLoading, threads, selectedThreadId]);
@@ -245,12 +246,8 @@ function ConversationView({ threadId }: { threadId: string }) {
     const [sending, setSending] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Mock Messages if API fails or returns empty (for robust demo)
-    const messages = data?.messages?.length ? data.messages : [
-        { id: 1, content: "Hi there, I saw your recent post about AI agents. We're looking to implement something similar.", sender: 'them', createdAt: new Date(Date.now() - 3600000).toISOString() },
-        { id: 2, content: "Thanks for reaching out! I'd be happy to share more details. Are you free for a quick call this week?", sender: 'me', createdAt: new Date(Date.now() - 1800000).toISOString() },
-        { id: 3, content: "Yes, Thursday afternoon works for me. Can you send an invite?", sender: 'them', createdAt: new Date(Date.now() - 900000).toISOString() }
-    ];
+    // Get messages from API response
+    const messages = data?.messages || [];
 
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -259,12 +256,29 @@ function ConversationView({ threadId }: { threadId: string }) {
     const handleSend = async () => {
         if (!reply.trim()) return;
         setSending(true);
-        // Simulate network delay
-        await new Promise(r => setTimeout(r, 1000));
-        setReply("");
-        setSending(false);
-        toast.success("Reply sent successfully");
-        // In real app, mutate SWR here
+
+        try {
+            const response = await fetch(`/api/inbox/${threadId}/send`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: reply })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to send message');
+            }
+
+            setReply("");
+            toast.success("Reply sent successfully");
+
+            // Refresh the thread data to show new message
+            mutate(`/api/inbox/${threadId}`);
+        } catch (error: any) {
+            toast.error(error.message || "Failed to send reply");
+        } finally {
+            setSending(false);
+        }
     };
 
     if (isLoading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent-blue" /></div>;

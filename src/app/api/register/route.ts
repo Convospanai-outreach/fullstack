@@ -47,12 +47,23 @@ export async function POST(req: Request) {
             await AuditService.log(membership.teamId, user.id, "USER_CREATED", "Auth", user.id, { email: user.email });
         }
 
+        // Send verification email
+        try {
+            const { EmailService } = await import('@/lib/emailService');
+            const token = await EmailService.createVerificationToken(user.email);
+            await EmailService.sendVerificationEmail(user.email, user.name || 'User', token);
+        } catch (emailError) {
+            console.error('Failed to send verification email:', emailError);
+            // Don't fail registration if email fails
+        }
+
         return NextResponse.json({
             user: {
                 id: user.id,
                 email: user.email,
                 name: user.name
-            }
+            },
+            message: 'Account created! Please check your email to verify your account.'
         });
     } catch (error: any) {
         console.error("Registration error:", error);

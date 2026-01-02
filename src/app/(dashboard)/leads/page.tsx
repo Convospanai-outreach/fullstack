@@ -18,9 +18,10 @@ import {
     Linkedin
 } from "lucide-react";
 import { toast } from "sonner";
+import type { Lead } from "@/types/common";
 
 export default function LeadsPage() {
-    const [leads, setLeads] = useState<any[]>([]);
+    const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
@@ -120,7 +121,7 @@ export default function LeadsPage() {
                         <GlassCard key={lead.id} className="p-6 hover:translate-y-[-4px] transition-all group">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-white font-bold text-lg">
-                                    {lead.fullName?.[0] || lead.email[0].toUpperCase()}
+                                    {lead.fullName?.[0] || lead.email[0]?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex gap-2">
                                     <Badge variant={lead.status === 'enriched' ? 'success' : 'default'}>

@@ -24,15 +24,24 @@ export default function DashboardPage() {
         creditsUsed: 0,
         roi: 0
     });
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Mock data fetch - replace with real API call later
-        setStats({
-            activeCampaigns: 4,
-            totalLeads: 1250,
-            creditsUsed: 4500,
-            roi: 320
-        });
+        // Fetch real stats from API
+        fetch('/api/dashboard/stats')
+            .then(res => res.json())
+            .then(data => {
+                if (data.ok && data.stats) {
+                    setStats({
+                        activeCampaigns: data.stats.campaignsCount || 0,
+                        totalLeads: data.stats.leadsCount || 0,
+                        creditsUsed: 0, // Will be fetched from billing API
+                        roi: 0 // Calculate based on activity
+                    });
+                }
+            })
+            .catch(err => console.error('Failed to fetch dashboard stats:', err))
+            .finally(() => setLoading(false));
     }, []);
 
     return (
@@ -108,33 +117,77 @@ export default function DashboardPage() {
                 </Link>
             </div>
 
+            {/* Email Verification Banner */}
+            {showVerificationBanner && (
+                <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3">
+                    <Mail className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                        <h3 className="text-yellow-200 font-semibold mb-1">
+                            Please verify your email address
+                        </h3>
+                        <p className="text-yellow-200/80 text-sm mb-3">
+                            We sent a verification link to <strong>{session?.user?.email}</strong>.
+                            Check your inbox to verify your account.
+                        </p>
+                        <Button
+                            onClick={handleResendVerification}
+                            disabled={resendingEmail}
+                            variant="outline"
+                            size="sm"
+                            className="border-yellow-500/30 hover:bg-yellow-500/10"
+                        >
+                            {resendingEmail ? 'Sending...' : 'Resend verification email'}
+                        </Button>
+                    </div>
+                    <button
+                        onClick={() => setShowVerificationBanner(false)}
+                        className="text-yellow-400/60 hover:text-yellow-400"
+                    >
+                        ×
+                    </button>
+                </div>
+            )}
+
             {/* Main Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard
-                    label="Active Campaigns"
-                    value={stats.activeCampaigns}
-                    icon={Megaphone}
-                    trend={{ value: 12, isUp: true }}
-                />
-                <StatCard
-                    label="Total Leads"
-                    value={stats.totalLeads.toLocaleString()}
-                    icon={Users}
-                    description="+150 this week"
-                />
-                <StatCard
-                    label="Credits Used"
-                    value={stats.creditsUsed.toLocaleString()}
-                    icon={Activity}
-                    description="75% of monthly plan"
-                />
-                <StatCard
-                    label="Est. ROI"
-                    value={`${stats.roi}%`}
-                    icon={ArrowUpRight}
-                    trend={{ value: 5.2, isUp: true }}
-                    description="vs. last month"
-                />
+                {loading ? (
+                    <>
+                        {[1, 2, 3, 4].map(i => (
+                            <div key={i} className="glass p-6 rounded-2xl border border-white/5 animate-pulse">
+                                <div className="h-16 bg-white/5 rounded mb-2"></div>
+                                <div className="h-8 bg-white/5 rounded"></div>
+                            </div>
+                        ))}
+                    </>
+                ) : (
+                    <>
+                        <StatCard
+                            label="Active Campaigns"
+                            value={stats.activeCampaigns}
+                            icon={Megaphone}
+                            trend={{ value: 12, isUp: true }}
+                        />
+                        <StatCard
+                            label="Total Leads"
+                            value={stats.totalLeads.toLocaleString()}
+                            icon={Users}
+                            description="+150 this week"
+                        />
+                        <StatCard
+                            label="Credits Used"
+                            value={stats.creditsUsed.toLocaleString()}
+                            icon={Activity}
+                            description="75% of monthly plan"
+                        />
+                        <StatCard
+                            label="Est. ROI"
+                            value={`${stats.roi}%`}
+                            icon={ArrowUpRight}
+                            trend={{ value: 5.2, isUp: true }}
+                            description="vs. last month"
+                        />
+                    </>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

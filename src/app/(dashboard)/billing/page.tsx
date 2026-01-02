@@ -6,7 +6,6 @@ import {
     Coins,
     Zap,
     History,
-    TrendingUp,
     ArrowUpCircle,
     ChevronRight,
     PlusCircle,
@@ -23,15 +22,54 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingPage() {
-    const { data: subscription, isLoading } = useSWR("/api/billing/subscription", fetcher);
+    const { data: subscription, isLoading, error } = useSWR("/api/billing/subscription", fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
 
-    const handleTopUp = async (_amount: number) => {
+    const handleTopUp = async (amount: number) => {
         setTopUpLoading(true);
-        // Simulate payment/credit add
-        setTimeout(() => {
+        try {
+            // Create Razorpay order
+            const response = await fetch('/api/billing/topup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ amount, credits: amount / 10 }) // Example: ₹10 = 1 credit
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to create order');
+            }
+
+            // Open Razorpay checkout
+            const options = {
+                key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'],
+                amount: data.order.amount,
+                currency: data.order.currency,
+                name: 'ConvoSpan',
+                description: 'Credit Top-up',
+                order_id: data.order.id,
+                handler: function (_response: any) {
+                    // Payment successful
+                    window.location.reload(); // Refresh to show updated credits
+                },
+                prefill: {
+                    email: subscription?.email || ''
+                },
+                theme: {
+                    color: '#3b82f6'
+                }
+            };
+
+            // @ts-ignore - Razorpay is loaded via script
+            const rzp = new window.Razorpay(options);
+            rzp.open();
+        } catch (error: any) {
+            console.error('Top-up failed:', error);
+            alert(error.message || 'Failed to process top-up');
+        } finally {
             setTopUpLoading(false);
-        }, 1500);
+        }
     };
 
     return (
@@ -49,45 +87,54 @@ export default function BillingPage() {
                         subtitle="Your current active workspace plan"
                         className="border-accent-blue/20 bg-accent-blue/[0.02]"
                     >
-                        <div className="mt-4 p-6 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-3">
-                                <Badge variant="success">Active</Badge>
+                        {isLoading ? (
+                            <Skeleton className="h-48 w-full" />
+                        ) : error ? (
+                            <div className="text-red-400 p-4">Failed to load subscription</div>
+                        ) : (
+                            <div className="mt-4 p-6 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-3">
+                                    <Badge variant={subscription?.active ? "success" : "default"}>
+                                        {subscription?.active ? "Active" : "Inactive"}
+                                    </Badge>
+                                </div>
+
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue">
+                                        <Zap className="w-8 h-8" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-2xl font-black text-white capitalize">
+                                            {subscription?.plan || "Free"}
+                                        </h4>
+                                        <p className="text-text-muted text-xs font-bold uppercase tracking-widest">
+                                            {subscription?.plan === "ENTERPRISE" ? "Enterprise Access" : "Standard Access"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-text-secondary">Renews on</span>
+                                        <span className="text-white font-mono">
+                                            {subscription?.currentPeriodEnd
+                                                ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
+                                                : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-text-secondary">Monthly Credits</span>
+                                        <span className="text-white font-mono">
+                                            {subscription?.credits || 0}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <Button variant="outline" className="w-full mt-8 border-white/10">
+                                    Manage Subscription
+                                </Button>
                             </div>
-
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue">
-                                    <Zap className="w-8 h-8" />
-                                </div>
-                                <div>
-                                    <h4 className="text-2xl font-black text-white capitalize">
-                                        {isLoading ? <Skeleton className="h-8 w-24" /> : (subscription?.plan || "Growth")}
-                                    </h4>
-                                    <p className="text-text-muted text-xs font-bold uppercase tracking-widest">Enterprise Access</p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-text-secondary">Renews on</span>
-                                    <span className="text-white font-mono">
-                                        {subscription?.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'Jan 12, 2026'}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-text-secondary">Monthly Base Cost</span>
-                                    <span className="text-white font-mono">$79.00</span>
-                                </div>
-                            </div>
-
-                            <Button variant="outline" className="w-full mt-8 border-white/10">Manage Subscription</Button>
-                        </div>
-
-                        <div className="mt-4 flex items-center gap-3 p-4 rounded-xl bg-orange-500/5 border border-orange-500/20">
-                            <TrendingUp className="w-5 h-5 text-orange-400 shrink-0" />
-                            <p className="text-[11px] text-orange-200/80 leading-relaxed">
-                                You are currently using 82% of your monthly seat allowance. Upgrade to <b>Enterprise</b> for unlimited operators.
-                            </p>
-                        </div>
+                        )}
                     </Card>
 
                     <Card title="Quick Actions" subtitle="One-click workspace operations">

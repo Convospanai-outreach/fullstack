@@ -8,9 +8,10 @@ import { Badge } from "@/components/ui/Badge";
 import Link from "next/link";
 import ExportButton from "@/modules/data-export/ui/ExportButton";
 import FilterBar from "@/components/shared/FilterBar";
+import type { Campaign } from "@/types/common";
 
 export default function CampaignsPage() {
-    const [campaigns, setCampaigns] = useState<any[]>([]);
+    const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
@@ -63,7 +64,22 @@ export default function CampaignsPage() {
             />
 
             {loading ? (
-                <div className="text-white/60">Loading campaigns...</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[1, 2, 3, 4, 5, 6].map(i => (
+                        <GlassCard key={i} className="p-6 animate-pulse">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="h-6 bg-white/10 rounded w-1/2"></div>
+                                <div className="h-6 bg-white/10 rounded w-16"></div>
+                            </div>
+                            <div className="h-4 bg-white/10 rounded w-3/4 mb-2"></div>
+                            <div className="h-4 bg-white/10 rounded w-1/2 mb-4"></div>
+                            <div className="flex gap-2">
+                                <div className="h-8 bg-white/10 rounded w-20"></div>
+                                <div className="h-8 bg-white/10 rounded w-20"></div>
+                            </div>
+                        </GlassCard>
+                    ))}
+                </div>
             ) : campaigns.length === 0 ? (
                 <GlassCard className="text-center py-24 flex flex-col items-center justify-center border-dashed border-2 border-white/10 bg-white/5">
                     <div className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center mb-6 animate-pulse">
