@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 
 import Link from "next/link";
@@ -32,7 +31,6 @@ import {
 import { QuickActions } from "./QuickActions";
 
 export function DashboardHeader() {
-    const pathname = usePathname();
 
     return (
         <header className="fixed top-0 left-0 right-0 h-16 glass-panel border-b border-white/10 z-40 flex items-center justify-between px-8">

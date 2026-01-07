@@ -35,6 +35,21 @@ model Lead {
   crmId        String?   // External ID in HubSpot/Salesforce
   crmSyncedAt  DateTime?
 
+  // Lead Intent Scoring (Weighted Algorithm)
+  intentScore       Float?    @default(0.0) // 0.0 - 1.0 weighted intent score
+  dwellTimeMinutes  Float?    @default(0.0) // Website dwell time in minutes
+  emailClicks       Int?      @default(0)   // Email click count
+  socialMentions    Int?      @default(0)   // Social media mention count
+  lastScoredAt      DateTime? // When intent was last calculated
+  
+  // Predictive Analytics
+  clusterLabel      String?   // HIGH_VALUE, AT_RISK, NEW, DORMANT (from K-means)
+  churnRisk         Float?    // 0.0 - 1.0 churn probability
+  optimalSendHour   Int?      // 0-23 optimal email send hour
+  
+  // DPDP Act 2023 Compliance
+  consentObtained   Boolean   @default(false)
+
   emails       Email[]
   campaign     Campaign? @relation(fields: [campaignId], references: [id])
   team         Team?     @relation(fields: [teamId], references: [id])
@@ -46,6 +61,7 @@ model Lead {
   @@index([email])
   @@index([company])
   @@index([status])
+  @@index([intentScore])
 }
 
 model Task {
@@ -272,6 +288,7 @@ model Team {
   userQuotas       UserQuota[]
   crmIntegrations  CrmIntegration[]
   approvalRequests ApprovalRequest[]
+  caseStudies      CaseStudy[]         // Industry case studies for RAG
 }
 
 model CrmIntegration {
@@ -902,4 +919,42 @@ model Playbook {
   team        Team     @relation(fields: [teamId], references: [id])
   
   @@index([teamId])
+}
+
+// Industry Case Studies for RAG-Enhanced Marketing Copy
+model CaseStudy {
+  id              String   @id @default(uuid())
+  title           String
+  industry        String   // e.g., "SaaS", "Healthcare", "Finance"
+  summary         String   @db.Text
+  content         String   @db.Text
+  metrics         Json?    // { conversionRate: 0.42, roi: 3.5, timeToClose: 14 }
+  embedding       Json?    // Vector embedding for RAG retrieval
+  embeddingModel  String?  @default("embedding-001")
+  teamId          String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  team            Team     @relation(fields: [teamId], references: [id])
+  
+  @@index([teamId])
+  @@index([industry])
+}
+
+// Verification Agent Audit Log
+model VerificationLog {
+  id              String   @id @default(uuid())
+  leadId          String
+  teamId          String
+  passed          Boolean
+  score           Float
+  threshold       Float
+  recommendation  String   // PROCESS, REVIEW, REJECT
+  violations      Json?    // Array of violations
+  explanation     Json?    // Full score explanation
+  createdAt       DateTime @default(now())
+  
+  @@index([leadId])
+  @@index([teamId])
+  @@index([createdAt])
 }

@@ -35,22 +35,30 @@ export async function runLLM({
 
             case 'gpt4':
             case 'gpt-4o':
-                // Placeholder for OpenAI integration
-                logger.warn("[LLM Router] GPT-4 requested but not fully implemented. Falling back to Gemini.");
-                response = await generateWithGemini(`[GPT-4 Fallback] ${prompt}`);
+                // OpenAI integration requires 'openai' package installation
+                // Install with: npm install openai
+                // Add OPENAI_API_KEY to your .env file
+                logger.warn("[LLM Router] ⚠️  GPT-4 requested but OpenAI SDK not configured. Falling back to Gemini.");
+                console.warn("⚠️  To use GPT-4: npm install openai && add OPENAI_API_KEY to .env");
+                response = await generateWithGemini(prompt);
                 break;
 
             case 'claude':
             case 'claude-3-opus':
-                // Placeholder for Anthropic integration
-                logger.warn("[LLM Router] Claude requested but not fully implemented. Falling back to Gemini.");
-                response = await generateWithGemini(`[Claude Fallback] ${prompt}`);
+                // Anthropic integration requires '@anthropic-ai/sdk' package installation
+                // Install with: npm install @anthropic-ai/sdk
+                // Add ANTHROPIC_API_KEY to your .env file
+                logger.warn("[LLM Router] ⚠️  Claude requested but Anthropic SDK not configured. Falling back to Gemini.");
+                console.warn("⚠️  To use Claude: npm install @anthropic-ai/sdk && add ANTHROPIC_API_KEY to .env");
+                response = await generateWithGemini(prompt);
                 break;
 
             case 'local':
-                // Placeholder for local inference (e.g. Ollama)
-                logger.warn("[LLM Router] Local LLM requested but not available. Falling back to Gemini.");
-                response = await generateWithGemini(`[Local Fallback] ${prompt}`);
+                // Local inference requires Ollama or similar local LLM server
+                // Setup: https://ollama.ai/
+                logger.warn("[LLM Router] ⚠️  Local LLM requested but no local server configured. Falling back to Gemini.");
+                console.warn("⚠️  To use local LLMs: Install Ollama from https://ollama.ai/");
+                response = await generateWithGemini(prompt);
                 break;
 
             default:

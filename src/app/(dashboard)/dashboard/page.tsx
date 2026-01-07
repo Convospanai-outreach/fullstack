@@ -117,36 +117,6 @@ export default function DashboardPage() {
                 </Link>
             </div>
 
-            {/* Email Verification Banner */}
-            {showVerificationBanner && (
-                <div className="mb-6 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30 flex items-start gap-3">
-                    <Mail className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                        <h3 className="text-yellow-200 font-semibold mb-1">
-                            Please verify your email address
-                        </h3>
-                        <p className="text-yellow-200/80 text-sm mb-3">
-                            We sent a verification link to <strong>{session?.user?.email}</strong>.
-                            Check your inbox to verify your account.
-                        </p>
-                        <Button
-                            onClick={handleResendVerification}
-                            disabled={resendingEmail}
-                            variant="outline"
-                            size="sm"
-                            className="border-yellow-500/30 hover:bg-yellow-500/10"
-                        >
-                            {resendingEmail ? 'Sending...' : 'Resend verification email'}
-                        </Button>
-                    </div>
-                    <button
-                        onClick={() => setShowVerificationBanner(false)}
-                        className="text-yellow-400/60 hover:text-yellow-400"
-                    >
-                        ×
-                    </button>
-                </div>
-            )}
 
             {/* Main Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

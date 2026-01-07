@@ -36,11 +36,16 @@ export function TaskWidget() {
     const toggleTask = async (taskId: string, currentStatus: string) => {
         const newStatus = currentStatus === "TODO" ? "DONE" : "TODO";
         try {
-            await fetch(`/api/pipeline/tasks`, { // Note: for simplicity using POST with ID or we'd need dynamic route
-                method: "POST", // Simplified placeholder for update
+            const res = await fetch(`/api/pipeline/tasks/${taskId}`, {
+                method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: taskId, status: newStatus })
+                body: JSON.stringify({ status: newStatus })
             });
+
+            if (!res.ok) {
+                throw new Error('Update failed');
+            }
+
             loadTasks();
         } catch (e) {
             toast.error("Update failed");
