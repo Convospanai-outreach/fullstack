@@ -5,6 +5,23 @@ import { MobileMenu } from "./MobileMenu";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NotificationBell } from "./ui/NotificationBell";
+import { NavDropdown, NavItem } from "./NavDropdown";
+import {
+    LayoutDashboard,
+    Megaphone,
+    FileText,
+    Workflow,
+    MessageSquare,
+    Database,
+    Upload,
+    Link2,
+    UserCircle,
+    Users,
+    ShieldCheck,
+    Activity,
+    Gauge,
+    Heart,
+} from "lucide-react";
 
 export function NavBar() {
     const [open, setOpen] = useState(false);
@@ -19,21 +36,52 @@ export function NavBar() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, []);
 
+    // Flat links for mobile menu
     const navLinks = [
         { href: "/dashboard", label: "Dashboard" },
         { href: "/campaigns", label: "Campaigns" },
         { href: "/templates", label: "Templates" },
+        { href: "/workflows", label: "Workflows" },
         { href: "/inbox", label: "Inbox" },
-        { href: "/team", label: "Team" },
+        { href: "/csv-ingestion", label: "Import" },
         { href: "/integrations", label: "Integrations" },
         { href: "/profile", label: "Profile" },
+        { href: "/team", label: "Team" },
         { href: "/admin/users", label: "Users" },
         { href: "/admin/audit", label: "Audit" },
-        { href: "/admin/rate-limits", label: "Limits" },
+        { href: "/admin/rate-limits", label: "Rate Limits" },
         { href: "/admin/health", label: "Health" },
-        { href: "/csv-ingestion", label: "Import" },
-        { href: "/workflows", label: "Workflows" },
     ];
+
+    // Dropdown groups
+    const outreachItems: NavItem[] = [
+        { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+        { href: "/templates", label: "Templates", icon: FileText },
+        { href: "/workflows", label: "Workflows", icon: Workflow },
+    ];
+
+    const conversationsItems: NavItem[] = [
+        { href: "/inbox", label: "Inbox", icon: MessageSquare },
+    ];
+
+    const dataItems: NavItem[] = [
+        { href: "/csv-ingestion", label: "Import", icon: Upload },
+        { href: "/integrations", label: "Integrations", icon: Link2 },
+    ];
+
+    const accountItems: NavItem[] = [
+        { href: "/profile", label: "Profile", icon: UserCircle },
+        { href: "/team", label: "Team", icon: Users },
+    ];
+
+    const adminItems: NavItem[] = [
+        { href: "/admin/users", label: "Users", icon: Users },
+        { href: "/admin/audit", label: "Audit", icon: Activity },
+        { href: "/admin/rate-limits", label: "Rate Limits", icon: Gauge },
+        { href: "/admin/health", label: "Health", icon: Heart },
+    ];
+
+    const isDashboardActive = pathname === "/dashboard";
 
     return (
         <nav
@@ -52,22 +100,26 @@ export function NavBar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center space-x-1">
-                    {navLinks.map((link) => {
-                        const isActive = pathname === link.href;
-                        return (
-                            <Link
-                                key={link.href}
-                                href={link.href}
-                                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${isActive
-                                    ? "bg-white/10 text-white shadow-inner"
-                                    : "text-gray-400 hover:text-white hover:bg-white/5"
-                                    }`}
-                            >
-                                {link.label}
-                            </Link>
-                        );
-                    })}
+                    {/* Dashboard - Direct Link */}
+                    <Link
+                        href="/dashboard"
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${isDashboardActive
+                            ? "bg-white/10 text-white shadow-inner"
+                            : "text-gray-400 hover:text-white hover:bg-white/5"
+                            }`}
+                    >
+                        <LayoutDashboard className="w-4 h-4" />
+                        <span>Dashboard</span>
+                    </Link>
+
+                    {/* Dropdowns */}
+                    <NavDropdown label="Outreach" icon={Megaphone} items={outreachItems} />
+                    <NavDropdown label="Conversations" icon={MessageSquare} items={conversationsItems} />
+                    <NavDropdown label="Data" icon={Database} items={dataItems} />
+                    <NavDropdown label="Account" icon={UserCircle} items={accountItems} />
+                    <NavDropdown label="Admin" icon={ShieldCheck} items={adminItems} />
                 </div>
+
 
                 {/* Right Side Actions */}
                 <div className="hidden md:flex items-center gap-4">
