@@ -2,7 +2,7 @@
 import puppeteer, { Browser, Page } from "puppeteer";
 
 type ExecutionMode = 'CLOUD' | 'LOCAL';
-const EXECUTION_MODE: ExecutionMode = (process.env.LINKEDIN_EXECUTION_MODE as ExecutionMode) || 'LOCAL'; // Default to LOCAL for safety
+const EXECUTION_MODE: ExecutionMode = (process.env['LINKEDIN_EXECUTION_MODE'] as ExecutionMode) || 'LOCAL'; // Default to LOCAL for safety
 
 export const linkedinClient = {
     async launch() {

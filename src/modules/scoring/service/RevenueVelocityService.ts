@@ -8,7 +8,6 @@
 
 // Configurable constants - can be tuned per tenant
 const DECAY_FACTOR_PER_HOUR = 0.98; // Score decays by 2% every hour of inactivity
-const BASE_PRIOR = 0.1; // Initial probability of conversion
 
 export class RevenueVelocityService {
 

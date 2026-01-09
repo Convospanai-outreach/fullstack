@@ -86,7 +86,7 @@ export class AgentExecutor {
             if (restoredResponse.includes("PLAN:")) {
                 // Naive parse: extract plan
                 const parts = restoredResponse.split("PLAN:");
-                const plan = parts.length > 1 ? parts[1].trim() : "No plan found";
+                const plan = parts[1]?.trim() ?? "No plan found";
                 await db.agentTask.update({
                     where: { id: taskId },
                     data: {

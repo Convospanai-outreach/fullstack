@@ -1,5 +1,4 @@
 
-import { z } from "zod";
 
 export enum TaskComplexity {
     ROUTINE = "ROUTINE",    // Extraction, Classification, Simple Drafting
@@ -40,7 +39,7 @@ export class ModelGateway {
         return TaskComplexity.ROUTINE;
     }
 
-    private async callFrontierModel(prompt: string): Promise<string> {
+    private async callFrontierModel(_prompt: string): Promise<string> {
         // Adapter for OpenAI / Claude 3.5 Sonnet
         // Using process.env.OPENAI_API_KEY
         console.log("[Gateway] Routing to Frontier Model (Cost: High)");
@@ -48,7 +47,7 @@ export class ModelGateway {
         return "This is a strategic response from GPT-4o.";
     }
 
-    private async callHostedSLM(prompt: string): Promise<string> {
+    private async callHostedSLM(_prompt: string): Promise<string> {
         // Adapter for local/hosted Llama-3-8b / Phi-3
         // Could also be a very cheap provider like Groq
         console.log("[Gateway] Routing to SLM (Cost: Low)");

@@ -101,7 +101,7 @@ export class FeedbackLoopService {
 
         const sumX = x.reduce((a, b) => a + b, 0);
         const sumY = y.reduce((a, b) => a + b, 0);
-        const sumXY = x.reduce((acc, curr, i) => acc + curr * y[i], 0);
+        const sumXY = x.reduce((acc, curr, i) => acc + curr * (y[i] ?? 0), 0);
         const sumXX = x.reduce((acc, curr) => acc + curr * curr, 0);
 
         return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);

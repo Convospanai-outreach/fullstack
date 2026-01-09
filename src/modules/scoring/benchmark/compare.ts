@@ -2,16 +2,7 @@
 import { ScoringSimulator } from "./simulator";
 import { RevenueVelocityService } from "../service/RevenueVelocityService";
 
-// Mock Legacy Scorer (Weighted Sum)
-class LegacyScorer {
-    score = 0;
-    handleEvent(type: string) {
-        if (type === "PAGE_VIEW") this.score += 5;
-        if (type === "CLICK") this.score += 10;
-    }
-}
-
-async function runBenchmark() {
+export async function runBenchmark() {
     const sim = new ScoringSimulator();
     const velocityService = new RevenueVelocityService();
 
@@ -26,7 +17,7 @@ async function runBenchmark() {
     console.log("\nScenario 1: High Intent Burst");
     console.log("Time Offset | Event | Legacy Score | Velocity Score");
 
-    const startTime = highIntentEvents[0].timestamp.getTime();
+    const startTime = highIntentEvents[0]?.timestamp.getTime() ?? Date.now();
 
     for (const event of highIntentEvents) {
         // Legacy Update
