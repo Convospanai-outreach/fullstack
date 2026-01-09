@@ -124,6 +124,7 @@ export class WorkflowEngine {
             // 3. Execute Action based on Node Type
             logger.info(`[Workflow] Executing step ${currentNode.id} (${currentNode.type}) for run ${runId}`, { runId, nodeId: currentNode.id, type: currentNode.type });
 
+
             // EXECUTE ACTION LOGIC
             if (currentNode.type === 'action') {
                 const actionType = nodeData.actionType;
@@ -152,10 +153,34 @@ export class WorkflowEngine {
                     await new Promise(resolve => setTimeout(resolve, delayMs));
                 }
             }
+            else if (currentNode.type === 'agent_task') {
+                // --- AGENTIC WORKFLOW STEP ---
+                const { agentExecutor } = await import("@/modules/agent/core/AgentExecutor");
+                const goal = nodeData.goal || `Process entity ${run.entityId}`;
+
+                logger.info(`[Workflow] Starting Agent Task for run ${runId}: ${goal}`);
+
+                const taskId = await agentExecutor.startTask(teamId, goal, {
+                    ...run.context as object,
+                    leadId: run.entityId,
+                    workflowRunId: run.id
+                });
+
+                // Run synchronously for now (in production, this would be queue-based)
+                const result = await agentExecutor.runToCompletion(taskId);
+
+                if (result !== 'COMPLETED') {
+                    await this.failRun(runId, `Agent Task failed or timed out. Status: ${result}`);
+                    return;
+                }
+
+                logger.info(`[Workflow] Agent Task ${taskId} completed successfully.`);
+            }
             else if (currentNode.type === 'delay') {
                 const delayMs = nodeData.duration || 1000;
                 await new Promise(resolve => setTimeout(resolve, delayMs));
             }
+
 
             // 4. Determine Next Step
             const outboundEdges = edges.filter((e: any) => e.source === currentNode.id);

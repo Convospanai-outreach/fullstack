@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
+import { v4 as uuidv4 } from 'uuid';
 
 export type Document = {
     id: string;
@@ -36,7 +37,7 @@ class VectorStore {
                 await prisma.$executeRawUnsafe(
                     `INSERT INTO "KnowledgeItem" (id, content, "knowledgeBaseId", metadata, embedding, "embeddingModel", version, "createdAt") 
                      VALUES ($1, $2, $3, $4::jsonb, $5::vector, $6, $7, NOW())`,
-                    crypto.randomUUID(),
+                    uuidv4(),
                     chunk,
                     knowledgeBaseId,
                     JSON.stringify(metadata || {}),

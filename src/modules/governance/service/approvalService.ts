@@ -66,6 +66,25 @@ export class ApprovalService {
             });
         }
 
+        // HITL Logic: Resume Agent
+        if (request.actionType === "AGENT_ACTION" && request.entityType === "AgentTask") {
+            // 1. Update Task status back to EXECUTING
+            await prisma.agentTask.update({
+                where: { id: request.entityId },
+                data: { status: "EXECUTING" } // AgentExecutor will pick this up next cycle
+            });
+
+            // 2. Log system event
+            await prisma.agentLog.create({
+                data: {
+                    taskId: request.entityId,
+                    type: "SYSTEM",
+                    content: "Action Approved by Human Reviewer. Resuming execution.",
+                    stepNumber: 0 // Out of band
+                }
+            });
+        }
+
         return await prisma.approvalRequest.update({
             where: { id: requestId },
             data: {
@@ -87,6 +106,28 @@ export class ApprovalService {
         };
         if (reason) {
             data.reviewNote = reason;
+        }
+
+        // HITL Logic: Halt/Replan Agent
+        // First fetch the request to check its type (if we don't already have it, but here we only have ID)
+        const request = await prisma.approvalRequest.findUnique({ where: { id: requestId } });
+
+        if (request && request.actionType === "AGENT_ACTION" && request.entityType === "AgentTask") {
+            // 1. Update Task status back to PLANNING (force re-think)
+            await prisma.agentTask.update({
+                where: { id: request.entityId },
+                data: { status: "PLANNING" }
+            });
+
+            // 2. Log system event
+            await prisma.agentLog.create({
+                data: {
+                    taskId: request.entityId,
+                    type: "SYSTEM",
+                    content: `Action Rejected by Human Reviewer: ${reason || "No reason given"}. Please refine plan.`,
+                    stepNumber: 0
+                }
+            });
         }
 
         return await prisma.approvalRequest.update({

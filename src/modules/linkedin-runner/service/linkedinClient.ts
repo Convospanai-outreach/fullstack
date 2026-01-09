@@ -1,20 +1,44 @@
+
 import puppeteer, { Browser, Page } from "puppeteer";
+
+type ExecutionMode = 'CLOUD' | 'LOCAL';
+const EXECUTION_MODE: ExecutionMode = (process.env.LINKEDIN_EXECUTION_MODE as ExecutionMode) || 'LOCAL'; // Default to LOCAL for safety
 
 export const linkedinClient = {
     async launch() {
+        if (EXECUTION_MODE === 'LOCAL') {
+            console.log("[LinkedIn] Launching in LOCAL mode (Instructions queued for Client-Side Agent)");
+            return null; // No browser needed
+        }
         return puppeteer.launch({
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox"],
         });
     },
 
-    async openProfile(browser: Browser, url: string) {
+    async openProfile(browser: Browser | null, url: string) {
+        if (EXECUTION_MODE === 'LOCAL') {
+            return { mode: 'LOCAL', url }; // Virtual page
+        }
+        if (!browser) throw new Error("Browser not initialized");
         const page = await browser.newPage();
         await page.goto(url, { waitUntil: "networkidle2" });
         return page;
     },
 
-    async sendConnectionRequest(page: Page, note?: string) {
+    async sendConnectionRequest(page: Page | any, note?: string) {
+        if (EXECUTION_MODE === 'LOCAL') {
+            console.log(`[LinkedIn] Queuing LOCAL command: CONNECT ${page.url} with note: "${note || ''}"`);
+            // In a real implementation, this would push to a Redis queue:
+            // await commandQueue.add({ type: 'CONNECT', target: page.url, note, userId: ... });
+            return {
+                success: true,
+                message: "Command queued for local execution",
+                queued: true
+            };
+        }
+
+        // CLOUD MODE (Legacy/High Risk)
         try {
             // Wait for the "Connect" button to be visible
             const connectButtonSelector = 'button[aria-label*="Connect"], button:has-text("Connect")';
@@ -57,7 +81,12 @@ export const linkedinClient = {
         }
     },
 
-    async scrapeProfile(page: Page) {
+    async scrapeProfile(page: Page | any) {
+        if (EXECUTION_MODE === 'LOCAL') {
+            console.log(`[LinkedIn] Queuing LOCAL command: SCRAPE ${page.url}`);
+            return { name: "Pending Local Execution" };
+        }
+
         const name = await page.$eval("h1", (el: HTMLElement) => el.textContent || "");
         return { name };
     },

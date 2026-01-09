@@ -4,7 +4,8 @@ export type WorkflowNodeType =
     | 'action'
     | 'condition'
     | 'delay'
-    | 'wait';
+    | 'wait'
+    | 'agent_task';
 
 export interface WorkflowNode {
     id: string;
@@ -19,6 +20,7 @@ export interface WorkflowNode {
         requiresApproval?: boolean;
         subject?: string;
         body?: string;
+        goal?: string;
         [key: string]: any;
     };
     position?: { x: number; y: number };

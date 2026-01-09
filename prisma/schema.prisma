@@ -62,6 +62,10 @@ model Lead {
   @@index([company])
   @@index([status])
   @@index([intentScore])
+
+  // Optimization for dashboard filters
+  @@index([teamId, status])
+  @@index([teamId, email]) // For faster duplicate checks
 }
 
 model Task {
@@ -118,6 +122,9 @@ model Campaign {
   @@index([status])
   @@index([teamId])
   @@index([createdAt])
+  
+  // Optimization for multi-tenant campaign lists
+  @@index([teamId, status])
 }
 
 model CampaignVariant {
@@ -288,7 +295,9 @@ model Team {
   userQuotas       UserQuota[]
   crmIntegrations  CrmIntegration[]
   approvalRequests ApprovalRequest[]
-  caseStudies      CaseStudy[]         // Industry case studies for RAG
+  caseStudies      CaseStudy[]
+  agentTasks       AgentTask[]
+  agentFeedbackLoops AgentFeedbackLoop[]
 }
 
 model CrmIntegration {
@@ -500,6 +509,7 @@ model User {
   userQuotas   UserQuota[]
   requestedApprovals ApprovalRequest[] @relation("requester")
   reviewedApprovals  ApprovalRequest[] @relation("reviewer")
+  agentTasks         AgentTask[]
 }
 
 
@@ -735,6 +745,9 @@ model AuditLog {
   @@index([action])
   @@index([entity])
   @@index([createdAt])
+
+  // Optimization for recent activity feeds
+  @@index([orgId, createdAt])
 }
 
 model MarketplaceTemplate {
@@ -957,4 +970,55 @@ model VerificationLog {
   @@index([leadId])
   @@index([teamId])
   @@index([createdAt])
+}
+
+// --- Agent System (ReAct Architecture) ---
+
+model AgentTask {
+  id          String   @id @default(uuid())
+  teamId      String
+  userId      String?
+  goal        String   @db.Text // The high-level objective
+  plan        Json?    // The current state of the plan
+  status      String   @default("PENDING") // PENDING, RUNNING, PAUSED, COMPLETED, FAILED
+  context     Json?    // External context (e.g. leadId, campaignId)
+  
+  logs        AgentLog[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  team        Team     @relation(fields: [teamId], references: [id])
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@index([teamId])
+  @@index([status])
+}
+
+model AgentLog {
+  id          String   @id @default(uuid())
+  taskId      String
+  stepNumber  Int      // Sequence number
+  type        String   // THOUGHT, ACTION, OBSERVATION, SYSTEM
+  content     String   @db.Text
+  metadata    Json?    // Tool name, duration, cost
+  createdAt   DateTime @default(now())
+
+  task        AgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([type])
+}
+
+// Proprietary Data Flywheel
+model AgentFeedbackLoop {
+  id            String   @id @default(uuid())
+  teamId        String
+  originalText  String   @db.Text
+  editedText    String   @db.Text
+  diff          Json?    // Structured diff
+  context       Json?    // Prompt, model used, temperature
+  createdAt     DateTime @default(now())
+
+  team          Team     @relation(fields: [teamId], references: [id])
+  @@index([teamId])
 }

@@ -30,7 +30,15 @@ export class CaseStudyService {
     async ingestCaseStudy(data: CaseStudyInput, teamId: string): Promise<any> {
         // Generate embedding from content
         const textForEmbedding = `${data.title}. ${data.industry}. ${data.summary}. ${data.content}`;
-        const embedding = await aiService.getEmbeddings(textForEmbedding);
+        let embedding: number[] | null = null;
+        try {
+            embedding = await aiService.getEmbeddings(textForEmbedding);
+        } catch (error) {
+            console.error(`[CaseStudy] Embedding generation failed for "${data.title}":`, error);
+            // Fallback: Proceed without embedding (keyword search only or re-process later)
+            // But since this service relies heavily on vector search, we might want to throw or flag it.
+            // For now, allow creation but log error.
+        }
 
         // Store in YOUR Postgres with team isolation
         const caseStudy = await prisma.caseStudy.create({
@@ -40,7 +48,7 @@ export class CaseStudyService {
                 summary: data.summary,
                 content: data.content,
                 metrics: data.metrics || {},
-                embedding: embedding,
+                embedding: embedding || [], // Prisma JSON can take empty array, though search will fail gracefully
                 teamId
             }
         });
@@ -60,7 +68,13 @@ export class CaseStudyService {
         limit: number = 3
     ): Promise<CaseStudyResult[]> {
         // Generate query embedding
-        const queryEmbedding = await aiService.getEmbeddings(query);
+        let queryEmbedding: number[] = [];
+        try {
+            queryEmbedding = await aiService.getEmbeddings(query);
+        } catch (error) {
+            console.error('[CaseStudy] Query embedding generation failed:', error);
+            return []; // Fail safe: return no context rather than crashing
+        }
 
         if (!queryEmbedding || queryEmbedding.length === 0) {
             console.log('[CaseStudy] No embedding generated for query');
