@@ -15,17 +15,35 @@ export const createCampaignSchema = z.object({
     name: z.string().min(1, "Name is required").max(200),
     description: z.string().max(1000).optional(),
     audience: z.string().max(500).optional(),
-    status: z.enum(["draft", "active", "paused", "completed"]).default("draft")
+    status: z.enum(["draft", "active", "paused", "completed"]).default("draft"),
+    // Advanced fields
+    scheduledStart: z.string().datetime().optional().nullable(),
+    aiConfig: z.object({
+        tone: z.string().optional(),
+        goal: z.string().optional(),
+        context: z.string().optional()
+    }).optional().nullable(),
+    targetCount: z.number().int().nonnegative().optional().default(0)
 });
 
 // Lead validation
 export const createLeadSchema = z.object({
-    fullName: z.string().min(1, "Full name is required").max(200),
-    email: emailSchema,
-    company: z.string().max(200).optional(),
-    title: z.string().max(200).optional(),
-    linkedinUrl: z.string().url().optional(),
-    phone: z.string().max(50).optional()
+    fullName: z.string().min(1, "Full name is required").max(200).optional().nullable(),
+    email: emailSchema.optional().nullable(),
+    phone: z.string().max(50).optional().nullable(), // Added phone
+    company: z.string().max(200).optional().nullable(),
+    jobTitle: z.string().max(200).optional().nullable(), // Changed from title to jobTitle to match Prisma
+    linkedinUrl: z.string().url().optional().nullable().or(z.literal("")), // Renamed to match but Prisma has linkedIn. We map in service usually or should match here.
+    location: z.string().max(200).optional().nullable(),
+
+    // Status & Tags
+    status: z.enum(["NEW", "CONTACTED", "REPLIED", "CONVERTED", "LOST"]).optional().default("NEW"),
+    tags: z.array(z.string()).optional(),
+
+    // Advanced / Analytics
+    intentScore: z.number().min(0).max(1).optional(),
+    campaignId: z.string().uuid().optional().nullable(),
+    teamId: z.string().uuid().optional()
 });
 
 // Team member validation

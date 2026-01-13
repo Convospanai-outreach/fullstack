@@ -1,5 +1,7 @@
 
 import puppeteer, { Browser, Page } from "puppeteer";
+import { Humanizer } from "./Humanizer";
+import { LinkedInConstants } from "./LinkedInConstants";
 
 type ExecutionMode = 'CLOUD' | 'LOCAL';
 const EXECUTION_MODE: ExecutionMode = (process.env['LINKEDIN_EXECUTION_MODE'] as ExecutionMode) || 'LOCAL'; // Default to LOCAL for safety
@@ -41,28 +43,44 @@ export const linkedinClient = {
         // CLOUD MODE (Legacy/High Risk)
         try {
             // Wait for the "Connect" button to be visible
-            const connectButtonSelector = 'button[aria-label*="Connect"], button:has-text("Connect")';
-            await page.waitForSelector(connectButtonSelector, { timeout: 5000 });
+            // Wait for the "Connect" button to be visible
+            // Try multiple selectors for robustness
+            const connectSelector = LinkedInConstants.SELECTORS.CONNECT_BTN.join(', ');
+            await page.waitForSelector(connectSelector, { timeout: 10000 });
 
-            // Click the Connect button
-            await page.click(connectButtonSelector);
+            // Click the Connect button with human delay
+            await Humanizer.randomDelay(1, 3);
+            const connectBtn = await page.$(connectSelector);
+            if (connectBtn) await connectBtn.click();
+            else throw new Error("Connect button unexpectedly missing after wait");
+
+            await Humanizer.randomDelay(1, 2);
 
             // If a note is provided, add it
             if (note) {
-                const addNoteSelector = 'button[aria-label*="Add a note"]';
+                // Check if "Add a note" button exists
+                const addNoteSelector = LinkedInConstants.SELECTORS.ADD_NOTE_BTN;
                 const noteExists = await page.$(addNoteSelector);
 
                 if (noteExists) {
-                    await page.click(addNoteSelector);
-                    await page.waitForSelector('textarea[name="message"]', { timeout: 3000 });
-                    await page.type('textarea[name="message"]', note);
+                    await noteExists.click();
+                    await Humanizer.randomDelay(0.5, 1.5);
+
+                    const noteSelector = LinkedInConstants.SELECTORS.NOTE_TEXTAREA;
+                    await page.waitForSelector(noteSelector, { timeout: 3000 });
+
+                    // Human-like typing
+                    await Humanizer.typeHuman(page, noteSelector, note);
+                    await Humanizer.randomDelay(0.8, 1.5);
                 }
             }
 
             // Click the final "Send" button
-            const sendButtonSelector = 'button[aria-label*="Send"], button:has-text("Send")';
-            await page.waitForSelector(sendButtonSelector, { timeout: 3000 });
-            await page.click(sendButtonSelector);
+            const sendSelector = LinkedInConstants.SELECTORS.SEND_BTN.join(', ');
+            await page.waitForSelector(sendSelector, { timeout: 5000 });
+
+            const sendBtn = await page.$(sendSelector);
+            if (sendBtn) await sendBtn.click();
 
             // Wait for confirmation
             await new Promise(resolve => setTimeout(resolve, 2000));

@@ -13,7 +13,8 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
     const pathname = usePathname();
 
     const tabs = [
-        { name: "Compliance Overview", href: "/governance", icon: Shield },
+        { name: "Sovereign Firewall", href: "/governance/firewall", icon: Shield },
+        { name: "Compliance Overview", href: "/governance", icon: ClipboardList },
         { name: "Audit Logs", href: "/governance/audit", icon: ClipboardList },
         { name: "Guardrail Policy", href: "/governance/guardrails", icon: Lock },
         { name: "Access Control", href: "/governance/access", icon: Users },
@@ -38,8 +39,8 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
                                 key={tab.href}
                                 href={tab.href}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive
-                                        ? "bg-accent-blue text-white shadow-glow"
-                                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                                    ? "bg-accent-blue text-white shadow-glow"
+                                    : "text-text-secondary hover:text-white hover:bg-white/5"
                                     }`}
                             >
                                 <Icon className="w-4 h-4" />

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { PIIScrubber } from "@/lib/governance/PIIScrubber";
 
 export class AuditService {
 
@@ -14,6 +15,21 @@ export class AuditService {
         details: any = {},
         ipAddress: string | null = null
     ) {
+        // Safe metadata handling
+        let safeDetails = details;
+        try {
+            if (details) {
+                const asString = JSON.stringify(details);
+                if (PIIScrubber.containsPII(asString)) {
+                    const scrubbed = PIIScrubber.scrub(asString);
+                    safeDetails = JSON.parse(scrubbed);
+                }
+            }
+        } catch (e) {
+            // If stringify/parse fails, keep original or fallback
+            console.warn("[AuditService] Failed to scrub PII from details", e);
+        }
+
         try {
             await prisma.auditLog.create({
                 data: {
@@ -22,7 +38,7 @@ export class AuditService {
                     action,
                     entity: resource,
                     entityId: resourceId || null,
-                    metadata: details || null,
+                    metadata: safeDetails || null,
                     ipAddress: ipAddress || null
                 }
             });

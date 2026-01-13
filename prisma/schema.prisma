@@ -14,6 +14,7 @@ model Lead {
   id           String    @id @default(uuid())
   fullName     String?
   email        String?
+  phone        String?   // <-- Added field for Audit Remediation
   linkedIn     String?
   company      String?
   jobTitle     String?
@@ -1022,3 +1023,24 @@ model AgentFeedbackLoop {
   team          Team     @relation(fields: [teamId], references: [id])
   @@index([teamId])
 }
+
+// LLM Usage Tracking for Cost Analytics and Provider Monitoring
+model LLMUsageLog {
+  id          String   @id @default(uuid())
+  teamId      String
+  provider    String   // "openai", "groq", "gemini", "anthropic"
+  model       String   // "gpt-4o", "llama-3.1-70b", "gemini-1.5-flash"
+  taskType    String   // "ROUTINE", "STRATEGIC"
+  tokensIn    Int
+  tokensOut   Int
+  cost        Float
+  latency     Int      // milliseconds
+  success     Boolean
+  error       String?
+  createdAt   DateTime @default(now())
+  
+  @@index([teamId, createdAt])
+  @@index([provider, createdAt])
+  @@index([taskType])
+}
+

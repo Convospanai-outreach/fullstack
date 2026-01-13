@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from 'react';
 import { Button } from './ui/Button';
 import { GlassCard } from './ui/GlassCard';
 import { AlertTriangle } from 'lucide-react';
+import { AuditService } from '@/modules/audit/auditService';
 
 interface Props {
     children: ReactNode;
@@ -26,13 +27,27 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-        // Log error to console (can integrate with Sentry/monitoring service)
+        // Log error to console for development
         console.error('ErrorBoundary caught an error:', error, errorInfo);
 
-        // TODO: Send to error tracking service
-        // if (process.env.NODE_ENV === 'production') {
-        //     Sentry.captureException(error, { extra: errorInfo });
-        // }
+        // Log to database for tracking and debugging
+        AuditService.log(
+            'SYSTEM', // teamId - system-wide error
+            null, // userId - system error, no user context
+            'ERROR_CAPTURED',
+            'ErrorBoundary',
+            null, // no specific resource ID
+            {
+                message: error.message,
+                stack: error.stack,
+                componentStack: errorInfo.componentStack,
+                timestamp: new Date().toISOString(),
+                userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'unknown'
+            }
+        ).catch(err => {
+            // Fail silently to avoid error loop
+            console.error('Failed to log error to audit service:', err);
+        });
     }
 
     handleReset = () => {

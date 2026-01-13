@@ -76,21 +76,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
     const handleImport = async () => {
         setIsImporting(true);
         try {
-            // TODO: Actually we need to send the file content + mapping to ingestion service
-            // Currently csvIngestionService.processCSV takes csv string + mapping
-            // But we don't have an API for 'processCSV' directly exposed yet? 
-            // Wait, we need an API route for the actual import!
-            // I'll assume /api/import exists or I'll use a server action if this was RSC.
-            // Let's assume /api/leads/import or similar.
-            // Wait, IngestionService is used where? Ah, check plan.
-            // I'll use /api/leads/import (which might need to be updated to accept mapping)
-
-            // Wait, I haven't modified the IMPORT API route yet!
-            // I modified the SERVICE. I need to find the route that uses `csvIngestionService`.
-
-            // For now, let's assume I create a new one or use existing.
-            // I'll fetch to /api/leads/import
-
+            // Send CSV content and mapping to the import API
             const res = await fetch("/api/leads/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
