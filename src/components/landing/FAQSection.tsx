@@ -9,44 +9,36 @@ export default function FAQSection() {
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="space-y-4">
                     <FAQItem
-                        question="How does ConvoSpan ensure my emails don't go to spam?"
-                        answer="We use advanced warm-up algorithms, Spintax content rotation, and domain health monitoring to maintain high deliverability rates."
+                        question="How does the 'Sovereign Firewall' protect my data?"
+                        answer="Your PII never leaves your physical premises. Our Edge Node sanitizes all data locally before any cloud AI process begins, ensuring total privacy."
                     />
                     <FAQItem
-                        question="Is LinkedIn automation safe?"
-                        answer="Yes. Our AI mimics human behavior with randomized delays and daily limits, keeping your account secure and compliant."
+                        question="Do I need special hardware?"
+                        answer="Yes. ConvoSpan Edge requires a small physical node (NVIDIA Jetson or approved mini-PC) to run the local Cortex Engine."
+                    />
+                    <FAQItem
+                        question="Is this compliant with India's DPDP Act?"
+                        answer="Absolutely. Toggle our 'Region Lock' to INDIA mode, and we enforce strict data residency and Aadhaar redaction protocols automatically."
+                    />
+                    <FAQItem
+                        question="What happens if my internet connection fails?"
+                        answer="Our Offline Mode queues your work locally. The Edge Node continues to process and verify drafts, syncing them when you're back online."
+                    />
+                    <FAQItem
+                        question="Can I customize the compliance rules?"
+                        answer="Yes. You can configure sensitive entity types and confidence thresholds directly from the dashboard."
+                    />
+                    <FAQItem
+                        question="Is ConvoSpan SafeRun™ safe?"
+                        answer="Yes, with ConvoSpan SafeRun™. We use a local extension that mimics human behavior and requires your approval, ensuring you never risk your account with unauthorized cloud scripts."
                     />
                     <FAQItem
                         question="Can I integrate with my CRM?"
                         answer="Absolutely. One-click integrations are available for HubSpot, Salesforce, Pipedrive, and Slack."
                     />
                     <FAQItem
-                        question="What is an AI Agent?"
-                        answer="AI Agents are autonomous workers that can perform tasks like researching leads, drafting personalized emails, and scheduling meetings."
-                    />
-                    <FAQItem
-                        question="Do you provide lead data?"
-                        answer="Yes, our proprietary B2B database gives you access to over 200M verified contacts with direct dials and emails."
-                    />
-                    <FAQItem
-                        question="How does the credit system work?"
-                        answer="Credits are used for premium actions like enriching data or running complex AI workflows. Unused credits roll over."
-                    />
-                    <FAQItem
-                        question="Can I bring my own email domains?"
-                        answer="Yes, you can connect unlimited email accounts and we will handle the rotation and warming."
-                    />
-                    <FAQItem
-                        question="Is there a free trial?"
-                        answer="We offer a 14-day full-access free trial. No credit card required to start."
-                    />
-                    <FAQItem
                         question="How tailored is the AI writing?"
-                        answer="Our AI analyzes the prospect's LinkedIn profile, company news, and website to write highly personalized 1-on-1 messages."
-                    />
-                    <FAQItem
-                        question="Can I collaborate with my team?"
-                        answer="Yes, our Enterprise plan supports unlimited team seats with shared workspaces and unified reporting."
+                        answer="Our AI uses your local 'Golden Records' to ensure every message sounds exactly like you and adheres to your specific company policies."
                     />
                 </div>
             </div>

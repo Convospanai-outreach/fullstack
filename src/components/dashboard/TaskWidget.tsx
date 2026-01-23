@@ -14,10 +14,36 @@ import { toast } from "sonner";
 export function TaskWidget() {
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isCreating, setIsCreating] = useState(false);
+    const [newTaskTitle, setNewTaskTitle] = useState("");
 
     useEffect(() => {
         loadTasks();
     }, []);
+
+    const handleCreateTask = async () => {
+        if (!newTaskTitle.trim()) return;
+
+        try {
+            const res = await fetch("/api/pipeline/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: newTaskTitle,
+                    priority: "MEDIUM"
+                })
+            });
+
+            if (!res.ok) throw new Error("Failed to create task");
+
+            setNewTaskTitle("");
+            setIsCreating(false);
+            loadTasks();
+            toast.success("Task created");
+        } catch (e) {
+            toast.error("Failed to create task");
+        }
+    };
 
     const loadTasks = async () => {
         try {
@@ -58,12 +84,42 @@ export function TaskWidget() {
         <div className="glass-panel p-6 rounded-2xl border border-white/5 space-y-6">
             <div className="flex items-center justify-between">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    Pending Tasks <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full">{tasks.filter(t => t.status === 'TODO').length}</span>
+                    Pending Verification <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full">{tasks.filter(t => t.status === 'TODO').length}</span>
                 </h3>
-                <button className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
+                <button
+                    onClick={() => setIsCreating(true)}
+                    className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
                     <Plus className="w-5 h-5" />
                 </button>
             </div>
+
+            {/* Creation Form */}
+            {isCreating && (
+                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3 animate-in fade-in slide-in-from-top-2">
+                    <input
+                        autoFocus
+                        type="text"
+                        placeholder="What needs to be done?"
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        value={newTaskTitle}
+                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button
+                            onClick={() => setIsCreating(false)}
+                            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleCreateTask}
+                            disabled={!newTaskTitle.trim()}
+                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded-lg transition-colors disabled:opacity-50">
+                            Add Task
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-3">
                 {tasks.length === 0 ? (

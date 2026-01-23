@@ -35,9 +35,9 @@ export class ComplianceMetricService {
 
         return {
             piiProtected: mockMaskedCount,
-            optOutsEnforced: mockOptOuts,
+            humanVerifications: mockOptOuts, // Renamed from optOuts
             estimatedLiabilitySavedUSD: savedLiability,
-            complianceStatus: "GDPR_READY"
+            complianceStatus: "ASSISTED_MODE_ACTIVE"
         };
     }
 }

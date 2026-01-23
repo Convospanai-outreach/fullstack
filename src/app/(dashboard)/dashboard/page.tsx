@@ -14,6 +14,7 @@ import {
     ArrowRightLeft,
     Bot
 } from "lucide-react";
+import { MorningBriefing } from "@/components/dashboard/MorningBriefing";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 
@@ -68,6 +69,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Quick Actions Grid for New Modules */}
+            <MorningBriefing />
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
                 <Link href="/inbox" className="group">
                     <div className="glass p-4 rounded-xl border border-white/5 hover:border-accent-blue/50 transition-all flex items-center justify-between">

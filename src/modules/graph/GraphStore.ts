@@ -4,6 +4,7 @@
  * 
  * Capability: Hybrid Search (Graph + Vector) with Freshness Re-ranking.
  */
+import { HardwareService } from "../../services/HardwareService";
 
 export interface Entity {
     id: string;
@@ -77,21 +78,20 @@ export class GraphStore {
         return docs;
     }
 
-    private async mockVectorSearch(_query: string) {
-        // In retrieval, we would embed 'query' and search PGVector
-        // Returning mock hits
-        return [
-            {
-                content: "Recent news: Acme Corp raised Series B last week.",
-                score: 0.9,
-                timestamp: new Date()
-            },
-            {
-                content: "Old news: Acme Corp founded in 2020.",
-                score: 0.4,
-                timestamp: new Date(Date.now() - 86400000 * 365)
-            }
-        ];
+    private async mockVectorSearch(query: string) {
+        // REAL IMPLEMENTATION: Gateway to Physical Edge Node
+        // Queries the local 'GoldenRecords' via pgvector on the device.
+        try {
+            const results = await HardwareService.search(query);
+            return results.map(r => ({
+                content: r.content,
+                score: r.score,
+                timestamp: new Date() // Edge doesn't return TS yet, default to now
+            }));
+        } catch (e) {
+            console.warn("Edge Search Failed, returning fallback");
+            return [];
+        }
     }
 }
 

@@ -3,6 +3,7 @@
 import { NotificationBell } from "@/components/ui/NotificationBell";
 
 import Link from "next/link";
+import OfflineIndicator from "@/components/layout/OfflineIndicator";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -76,7 +77,7 @@ export function DashboardHeader() {
                     {/* Automate Dropdown */}
                     <DropdownMenu>
                         <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors outline-none">
-                            <span>Automate</span>
+                            <span>Assist</span>
                             <ChevronDown className="w-4 h-4" />
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-48 bg-[#020617] border-white/10 text-gray-300">
@@ -171,6 +172,7 @@ export function DashboardHeader() {
                 </button>
 
 
+                <OfflineIndicator />
                 <QuickActions />
 
                 <div className="h-6 w-px bg-white/10" />

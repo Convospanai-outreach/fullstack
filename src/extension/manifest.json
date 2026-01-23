@@ -1,7 +1,7 @@
 ﻿{
   "manifest_version": 3,
   "name": "ConvoSpan LinkedIn Agent",
-  "description": "AI Agent Army automation for LinkedIn actions & scraping.",
+  "description": "SafeRun™ AI Assistant for LinkedIn compliance & drafting.",
   "version": "1.0.0",
   "permissions": [
     "activeTab",
@@ -12,7 +12,7 @@
   "host_permissions": [
     "https://www.linkedin.com/*",
     "http://localhost:3000/*",
-    "https://api.covospan.com/*"
+    "https://api.convospan.com/*"
   ],
   "background": {
     "service_worker": "background.js"

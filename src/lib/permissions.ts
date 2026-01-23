@@ -92,7 +92,28 @@ export function canManageMembers(role: string): boolean {
     return ROLE_PERMISSIONS[role]?.includes(Permission.INVITE_MEMBERS) || false;
 }
 
-export function canManageBilling(role: string): boolean {
-    // @ts-ignore
-    return ROLE_PERMISSIONS[role]?.includes(Permission.MANAGE_BILLING) || false;
+// @ts-ignore
+return ROLE_PERMISSIONS[role]?.includes(Permission.MANAGE_BILLING) || false;
+}
+
+// --- ENTERPRISE RBAC HELPERS ---
+
+import { UserRole } from "@prisma/client";
+
+export function isCaller(role: UserRole): boolean {
+    return role === UserRole.CALLER;
+}
+
+export function isComplianceOfficer(role: UserRole): boolean {
+    return role === UserRole.COMPLIANCE_OFFICER;
+}
+
+export function canExportData(role: UserRole): boolean {
+    // Callers cannot export data
+    if (role === UserRole.CALLER) return false;
+    return true;
+}
+
+export function canManageSystem(role: UserRole): boolean {
+    return role === UserRole.SYSTEM_ADMIN || role === UserRole.ORG_ADMIN;
 }

@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  convospan-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - EDGE_NODE_URL=http://edge-node-sim:8000
+      - BROWSER_NODE_URL=ws://browser-node:3000
+    depends_on:
+      - edge-node-sim
+      - browser-node
+
+  edge-node-sim:
+    build:
+      context: ./services/edge-node
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - HARDWARE_SIGNATURE=uuid-550e8400-e29b-41d4-a716-446655440000
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-edge:5432/edge_db
+    depends_on:
+      - postgres-edge
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  postgres-edge:
+    image: ankane/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: edge_db
+    volumes:
+      - edge_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # Exposed on 5433 to avoid conflict with main app DB
+
+  browser-node:
+    image: browserless/chrome:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - MAX_CONCURRENT_SESSIONS=10
+
+  # OPERATIONAL FIX: Reverse Tunnel to bypass ISP NATs
+  tunnel-service:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    # Placeholder for real tunneling logic (frp / ngrok / cloudflare)
+    # This solves the "Router Roulette" failure mode by punching out.
+    restart: unless-stopped
+
+volumes:
+  edge_pgdata:
+
+

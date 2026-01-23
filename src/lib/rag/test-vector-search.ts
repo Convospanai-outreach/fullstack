@@ -70,11 +70,12 @@ async function testVectorSearch() {
         const results = await vectorStore.search("Who is the CEO of ConvoSpan?", team.id);
 
         console.log(`📊 Found ${results.length} results.`);
-        results.forEach((r, i) => {
-            console.log(`[${i + 1}] Score: ${r.score.toFixed(4)} | Content: ${r.content.substring(0, 50)}...`);
+        results.forEach((r: any, i) => {
+            const score = r.similarity !== undefined ? r.similarity : (r as any).score;
+            console.log(`[${i + 1}] Score: ${score?.toFixed(4)} | Content: ${(r.content || "").substring(0, 50)}...`);
         });
 
-        if (results.length > 0 && results[0].content.includes("Jane Doe")) {
+        if (results.length > 0 && results[0]?.content?.includes("Jane Doe")) {
             console.log("🌟 TEST PASSED: Accurate grounding detected!");
         } else {
             console.log("❌ TEST FAILED: Grounding accuracy below threshold.");

@@ -1,6 +1,8 @@
 
 import { LLMProvider, TaskComplexity, ModelRequest, ModelResponse, LLMError } from "./types";
 import { providerRegistry } from "./LLMProviderRegistry";
+import { semanticCache } from "@/modules/optimization/SemanticCache";
+import { tokenUsageGuard } from "@/modules/optimization/TokenUsageGuard";
 import { prisma } from "@/lib/db";
 import { Redis } from "ioredis";
 
@@ -28,12 +30,20 @@ export class ModelGateway {
     async generate(request: ModelRequest): Promise<string> {
         const complexity = request.complexity || this.analyzeComplexity(request.prompt);
 
-        // Check cache first
-        const cached = await this.checkCache(request.prompt, complexity);
-        if (cached) {
-            console.log("[Gateway] Cache hit, returning cached response");
-            return cached;
+        // 0. Token Guard (Budget Check & Optimization)
+        request = await tokenUsageGuard.guard(request);
+
+        // 1. Semantic Cache Check (Skip expensive calls)
+        const cachedContent = await semanticCache.get(request.prompt);
+        if (cachedContent) {
+            // Return cached response structure
+            return cachedContent;
         }
+
+
+        /** Original Cache Logic Replaced/Augmented by Semantic Cache **/
+        // const cached = await this.checkCache(request.prompt, complexity);
+        // if (cached) { ... }
 
         // Determine preferred provider based on complexity
         const preferredProvider = this.selectPreferredProvider(complexity);
@@ -61,7 +71,15 @@ export class ModelGateway {
                 // Log usage for analytics
                 await this.logUsage(request, response);
 
-                // Cache the response
+                // Deduct Credits
+                if (request.teamId) {
+                    await tokenUsageGuard.deduct(request.teamId, response.tokensIn, response.tokensOut);
+                }
+
+                // Semantic Cache Store
+                await semanticCache.set(request.prompt, response.content, response.tokensIn, response.tokensOut);
+
+                // Legacy Cache (Redis) - keeping for redundancy if needed, or remove
                 await this.cacheResponse(request.prompt, complexity, response.content);
 
                 console.log(
@@ -99,19 +117,20 @@ export class ModelGateway {
     private selectPreferredProvider(complexity: TaskComplexity): LLMProvider {
         if (complexity === TaskComplexity.STRATEGIC) {
             // For strategic tasks, prefer quality over cost
-            // Priority: Claude > GPT-4o > Gemini Pro
+            // Priority: Claude > GPT-4o > Gemini Pro > Ollama (if Llama3-70b)
             const preferred = [LLMProvider.ANTHROPIC, LLMProvider.OPENAI, LLMProvider.GEMINI];
             return preferred.find(p => providerRegistry.getProvider(p)) || LLMProvider.GROQ;
         } else {
             // For routine tasks, prefer speed and cost
-            // Priority: Groq > Gemini Flash > GPT-4o-mini
-            return LLMProvider.GROQ;
+            // Priority: Groq > Ollama (Local/Free) > Gemini Flash > GPT-4o-mini
+            const preferred = [LLMProvider.GROQ, LLMProvider.OLLAMA, LLMProvider.GEMINI];
+            return preferred.find(p => providerRegistry.getProvider(p)) || LLMProvider.OPENAI;
         }
     }
 
     /**
      * Enhanced complexity analysis
-     * TODO: Replace with a lightweight classifier or RouteLLM
+     * Heuristic-based classification (Lightweight & Fast)
      */
     private analyzeComplexity(prompt: string): TaskComplexity {
         const p = prompt.toLowerCase();
@@ -148,6 +167,7 @@ export class ModelGateway {
     /**
      * Check cache for existing response
      */
+    /*
     private async checkCache(prompt: string, complexity: TaskComplexity): Promise<string | null> {
         if (!this.redis) return null;
 
@@ -160,6 +180,7 @@ export class ModelGateway {
             return null;
         }
     }
+    */
 
     /**
      * Cache response for future use
@@ -248,15 +269,15 @@ export class ModelGateway {
             if (!stats.byProvider[log.provider]) {
                 stats.byProvider[log.provider] = { requests: 0, cost: 0 };
             }
-            stats.byProvider[log.provider].requests++;
-            stats.byProvider[log.provider].cost += log.cost;
+            stats.byProvider[log.provider]!.requests++;
+            stats.byProvider[log.provider]!.cost += log.cost;
 
             // By task type
             if (!stats.byTaskType[log.taskType]) {
                 stats.byTaskType[log.taskType] = { requests: 0, cost: 0 };
             }
-            stats.byTaskType[log.taskType].requests++;
-            stats.byTaskType[log.taskType].cost += log.cost;
+            stats.byTaskType[log.taskType]!.requests++;
+            stats.byTaskType[log.taskType]!.cost += log.cost;
         });
 
         return stats;
@@ -267,8 +288,7 @@ export class ModelGateway {
      */
     getProviderHealth() {
         const healthMap = providerRegistry.getHealthStatus();
-        return Array.from(healthMap.entries()).map(([provider, health]) => ({
-            provider,
+        return Array.from(healthMap.entries()).map(([_provider, health]) => ({
             ...health
         }));
     }

@@ -227,6 +227,337 @@ ConvoSpan is organized into **41 feature modules**, each encapsulating specific 
 | **profile** | User profile management |
 | **search** | Global search |
 
+### 9. Enterprise Governance Modules (NEW)
+| Module | Purpose | Key Components |
+|--------|---------|----------------|
+| **conversation** | Conversation state machine | `ConversationService.ts`, `ConversationState` enum |
+| **caller** | Caller queue system | `CallerService.ts`, focus UI |
+| **whatsapp** | WhatsApp consent & compliance | `ConsentService.ts`, `TemplateGuard.ts` |
+| **monitoring** | Production health checks | `MonitoringService.ts`, alert thresholds |
+| **flags** | Feature flag system | `service.ts`, `config.ts` (4-layer capability system) |
+
+---
+
+## Enterprise Governance Framework
+
+**Added**: January 2026 (Phases 0-8)  
+**Purpose**: Transform platform from startup MVP to enterprise-ready SaaS with full governance, compliance, and audit capabilities.
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   ENTERPRISE CONTROL LAYER                   │
+│  Capability Containment │ RBAC │ Audit │ Compliance Guards  │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    FEATURE FLAG ROUTING                      │
+│   ProductMode Check → Layer Validation → DB Override        │
+│   ENTERPRISE_CORE  │  GROWTH  │  ALL_FEATURES              │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  CONVERSATION STATE MACHINE                  │
+│  INITIATED → ENGAGED → QUALIFIED → HANDOFF → COORDINATING  │
+│                    → MEETING_CONFIRMED → CLOSED              │
+└─────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────┐
+│                      HYBRID AI ROUTER                        │
+│  PII Detection → Cloud (safe) vs On-Prem (sensitive)       │
+│  DPDP Act Compliance │ Data Sovereignty Enforcement         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 1. Capability Containment (Phase 1)
+
+**Purpose**: Policy-driven feature access control with 4-layer capability system.
+
+**Components**:
+- **`CapabilityLayer` enum**: CORE → GOVERNED_AI → ADVANCED_OPS → EXPERIMENTAL
+- **`ProductMode` enum**: ENTERPRISE_CORE, GROWTH, ALL_FEATURES
+- **`FeatureFlag` model**: Dynamic feature toggles with layer restrictions
+- **`OrganizationPolicy` model**: Team-level product mode (default: ENTERPRISE_CORE)
+
+**Service**: `src/lib/flags/service.ts`
+```typescript
+FeatureFlagService.isEnabled(featureKey, teamId)
+// Returns: boolean (based on productMode + layer + DB override)
+```
+
+**Key Rules**:
+- ENTERPRISE_CORE: Only CORE + GOVERNED_AI layers allowed
+- GROWTH: CORE + GOVERNED_AI + ADVANCED_OPS
+- ALL_FEATURES: All layers (including EXPERIMENTAL)
+
+**Default**: New organizations start in ENTERPRISE_CORE (maximum governance)
+
+---
+
+### 2. Enterprise RBAC (Phase 2)
+
+**Purpose**: Role-based access control with 6 distinct enterprise roles.
+
+**`UserRole` Enum**:
+1. **SYSTEM_ADMIN** - Platform administrators (full access)
+2. **ORG_ADMIN** - Organization admins (org-level config)
+3. **SALES_MANAGER** - Team leads (approve campaigns, manage team)
+4. **SALES_USER** - Sales reps (create campaigns, manage leads)
+5. **CALLER** - Call center staff (access caller queue only, read-only history)
+6. **COMPLIANCE_OFFICER** - Compliance team (audit logs, consent records)
+
+**Enforcement**:
+- **Middleware**: `src/middleware.ts` - Route-level RBAC protection
+- **JWT Integration**: `enterpriseRole` in NextAuth token
+- **Permission Helpers**: `src/lib/permissions.ts`
+
+**Example Restriction**:
+```typescript
+// Only CALLER, SALES_MANAGER, or ADMIN can access /caller route
+if (path.startsWith("/caller")) {
+  const allowed = ["CALLER", "SALES_MANAGER", "ORG_ADMIN", "SYSTEM_ADMIN"];
+  if (!allowed.includes(role)) {
+    return redirect("/dashboard");
+  }
+}
+```
+
+---
+
+### 3. Conversation State Machine (Phase 3)
+
+**Purpose**: Enforce immutable conversation history with strict state transitions.
+
+**`ConversationState` Enum** (7 states):
+1. **INITIATED** - Conversation started
+2. **ENGAGED** - Lead responded
+3. **QUALIFIED** - Lead shows interest
+4. **HANDOFF_REQUIRED** - AI can't proceed, human needed
+5. **COORDINATING** - Caller is working on scheduling
+6. **MEETING_CONFIRMED** - Meeting booked
+7. **CLOSED** - Conversation ended
+
+**Service**: `src/modules/conversation/ConversationService.ts`
+
+**State Transition Rules**:
+```
+INITIATED → ENGAGED (or CLOSED)
+ENGAGED → QUALIFIED (or CLOSED)
+QUALIFIED → HANDOFF_REQUIRED (or CLOSED)
+HANDOFF_REQUIRED → COORDINATING (or CLOSED)
+COORDINATING → MEETING_CONFIRMED (or CLOSED)
+MEETING_CONFIRMED → CLOSED
+
+CLOSED is terminal (no further transitions)
+```
+
+**Key Methods**:
+- `startThread(leadId, channel)` - Create new conversation
+- `transitionState(threadId, newState, reason)` - Enforce state machine
+- `addEntry(threadId, leadId, role, content)` - Append-only history
+- `isValidTransition(current, next)` - Private validation logic
+
+**Immutability**: ConversationEntry is append-only (no updates/deletes)
+
+---
+
+### 4. Caller Queue System (Phase 4)
+
+**Purpose**: Dedicated interface for human callers to handle HANDOFF_REQUIRED leads.
+
+**Components**:
+- **Service**: `src/modules/caller/CallerService.ts`
+- **API**: `src/app/api/caller/queue/route.ts` (GET/POST)
+- **UI**: `src/app/(dashboard)/caller/page.tsx` (Focus Mode)
+- **Model**: `MeetingCoordinationQueue` (lead assignment tracking)
+
+**Workflow**:
+1. AI conversation reaches `HANDOFF_REQUIRED` state
+2. Lead appears in caller queue (unassigned pool)
+3. Caller claims lead → state transitions to `COORDINATING`
+4. Caller makes call and records outcome
+5. State transitions to `MEETING_CONFIRMED` or `CLOSED`
+
+**Key Methods**:
+- `getQueue(userId)` - Fetch assigned + unassigned leads
+- `claimLead(leadId, userId)` - Assign lead to caller
+- `completeTask(leadId, userId, outcome, notes)` - Record call outcome
+
+**Access Control**: Only `CALLER`, `SALES_MANAGER`, or `ADMIN` roles
+
+---
+
+### 5. Hybrid AI Routing (Phase 5)
+
+**Purpose**: Route AI tasks to Cloud (safe) or On-Prem (sensitive) based on data classification.
+
+**Service**: `src/lib/ai/HybridRouter.ts`
+
+**Decision Matrix**:
+| Task Type | Cloud | On-Prem | Reason |
+|-----------|-------|---------|--------|
+| Email Draft | ✓ | | No PII required |
+| LinkedIn Message | | ✓ | Automation risk, residential IP |
+| Lead Enrichment (with PII) | | ✓ | DPDP Act compliance |
+| RAG Query (public docs) | ✓ | | Safe knowledge retrieval |
+| Summary Generation | ✓ | | Non-sensitive |
+| Web Scraping | | ✓ | IP rotation needed |
+
+**Key Components**:
+- **HybridRouter.route()** - Returns `CLOUD` or `ON_PREM`
+- **HybridRouter.validateCloudSafety()** - PII detection (regex-based)
+- **OnPremAIProxy** - `src/lib/ai/OnPremAIProxy.ts` (edge node communication)
+
+**PII Detection Patterns**:
+- Email addresses
+- Phone numbers (10-digit)
+- SSN format
+- Credit card numbers
+
+**Compliance**: No PII crosses cloud boundary (DPDP Act 2023 enforcement)
+
+**Integration**: `aiService.ts` calls `HybridRouter` before ModelGateway
+
+---
+
+### 6. WhatsApp Consent & Template Compliance (Phase 6)
+
+**Purpose**: DPDP Act 2023 + WhatsApp Business API compliance.
+
+**Components**:
+- **ConsentService**: `src/modules/whatsapp/ConsentService.ts`
+- **TemplateGuard**: `src/modules/whatsapp/TemplateGuard.ts`
+- **API**: `src/app/api/whatsapp/send/route.ts`
+
+**Consent Management**:
+```typescript
+// Record explicit consent
+ConsentService.recordConsent(leadId, userId, method, notes)
+
+// Validate before messaging
+ConsentService.validateConsent(leadId)
+// Returns: { hasConsent: boolean, reason?: string }
+
+// Handle opt-out
+ConsentService.revokeConsent(leadId, userId, reason)
+```
+
+**Consent Methods Enum**:
+- IN_PERSON_MEETING
+- EMAIL_REPLY
+- PHONE_CALL
+- WEB_FORM
+- VERBAL_CONFIRMATION
+
+**Template Compliance**:
+- First message MUST use pre-approved template
+- Free-form messaging only within 24h of user reply
+- Promotional content requires pre-approval
+
+**Audit Trail**: All consent actions logged with `whatsappConsentBy`, `whatsappConsentAt`
+
+---
+
+### 7. Monitoring & Observability (Phase 8+)
+
+**Purpose**: Production health monitoring and alerting.
+
+**Service**: `src/modules/monitoring/MonitoringService.ts`
+
+**Health Checks**:
+- Database connectivity (query execution time)
+- Audit log activity (last 24h)
+- Feature flag configuration
+- Edge node reachability (if configured)
+
+**Metrics**:
+- Active users (sessions in last 24h)
+- Daily audit logs
+- Pending approvals
+- Guardrail violations (last 24h)
+
+**API Endpoints**:
+- `GET /api/health` - Public health check (200/503)
+- `GET /api/metrics` - Admin metrics dashboard (RBAC protected)
+
+**Alert Thresholds**:
+- **Critical**: Approval queue > 50, Guardrail violations > 100/hour
+- **Warning**: Approval queue > 20
+
+---
+
+### 8. Immutable Audit Trail
+
+**Purpose**: Complete activity logging for compliance and forensics.
+
+**Models**:
+- **`AuditLog`** - All user/system actions
+- **`ImmutableAudit`** - Hash-chained audit log (tamper-proof)
+
+**Service**: `src/modules/audit/auditService.ts`
+
+**Key Features**:
+- Nullable `actorId` for system events
+- Automatic timestamp tracking
+- JSON metadata for context
+- Hash chaining for immutability (optional)
+
+**Common Events**:
+- CONSENT_GRANTED, CONSENT_REVOKED
+- CONVERSATION_STATE_CHANGE
+- CAMPAIGN_APPROVED, CAMPAIGN_REJECTED
+- FEATURE_FLAG_TOGGLED
+
+---
+
+### Compliance Summary
+
+**DPDP Act 2023 (India)**:
+- ✅ Explicit consent tracking
+- ✅ Opt-out support
+- ✅ Audit trail (7-year retention ready)
+- ✅ WhatsApp Business API compliance
+- ✅ PII protection (hybrid routing)
+
+**SOC 2 Type II**:
+- ✅ All 8 Trust Services Criteria mapped
+- ✅ Access controls (RBAC)
+- ✅ Audit logging
+- ✅ Change management (approval workflows)
+- ✅ Monitoring
+
+**Documentation**:
+- `docs/compliance/SOC2_CONTROLS.md`
+- `docs/compliance/DPDP_COMPLIANCE.md`
+- `docs/SCALE_READINESS.md`
+
+---
+
+### Production Readiness
+
+**Pilot Setup**:
+```bash
+npx tsx src/scripts/setup-enterprise-pilot.ts \
+  "Organization Name" \
+  "admin@org.com" \
+  "Admin Name" \
+  false \
+  200
+```
+
+**Validation**:
+```bash
+npx tsx src/scripts/validate-production-readiness.ts
+# Expected: 70-90/100 (production environment)
+```
+
+**Verification Scripts**:
+- `test-conversation-flow.ts` - State machine validation
+- `test-caller-flow.ts` - Queue claim/complete flow
+- `test-hybrid-ai.ts` - Routing logic (11 scenarios)
+- `test-whatsapp-consent.ts` - Consent + template compliance
+
 ---
 
 ## AI Framework
@@ -260,13 +591,20 @@ ConvoSpan is organized into **41 feature modules**, each encapsulating specific 
 
 #### 1. AgentExecutor
 - **File**: `src/modules/agent/core/AgentExecutor.ts`
-- **Purpose**: Autonomous agent state machine
-- **States**: PLANNING → EXECUTING → REVIEWING → COMPLETED
+- **Purpose**: Autonomous Cyber-Physical Agent State Machine (DFA)
+- **States**:
+  1. **HARDWARE_HANDSHAKE**: Verifies physical node identity
+  2. **DATA_INGESTION**: Fetches live data (Hunter.io, LinkedIn)
+  3. **SANITIZATION**: Edge-based PII masking before LLM
+  4. **LLM_GENERATION**: Secure content generation via ModelGateway
+  5. **ADVERSARIAL_CHECK**: Sovereign Critic Policy verification
+  6. **EXECUTION**: Physical browser actuation or API call
+  7. **REVIEWING/COMPLETED**: HITL review or finalization
 - **Features**:
-  - Confidence-based HITL (Human-in-the-Loop)
-  - Tool execution
-  - Context management
-  - Error recovery
+  - Sovereign Hardware Gating
+  - Reversible PII Tokenization
+  - Dead Letter Queue (DLQ) for retries
+  - Confidence-based HITL
 
 #### 2. ModelGateway
 - **File**: `src/ai/ModelGateway.ts`
@@ -397,6 +735,7 @@ ConvoSpan provides **200+ API endpoints** organized by domain:
 ├── /auth                # Authentication
 ├── /billing             # Payments & subscriptions
 ├── /bulk                # Bulk operations
+├── /caller              # Caller queue (NEW - Phase 4)
 ├── /campaigns           # Campaign CRUD
 ├── /crm                 # CRM sync
 ├── /csv-ingestion       # CSV import
@@ -404,6 +743,7 @@ ConvoSpan provides **200+ API endpoints** organized by domain:
 ├── /data-export         # Export operations
 ├── /extension           # Browser extension API
 ├── /governance          # Governance controls
+├── /health              # Health checks (NEW - Phase 8)
 ├── /help                # Help search
 ├── /hunter-email-finder # Email discovery
 ├── /icp-builder         # ICP management
@@ -415,6 +755,7 @@ ConvoSpan provides **200+ API endpoints** organized by domain:
 ├── /linkedin-runner     # LinkedIn automation
 ├── /marketplace         # Template marketplace
 ├── /meetings            # Meeting scheduling
+├── /metrics             # System metrics (NEW - Phase 8)
 ├── /monitoring          # System health
 ├── /notifications       # Notifications
 ├── /onboarding          # Onboarding flows
@@ -439,6 +780,7 @@ ConvoSpan provides **200+ API endpoints** organized by domain:
 ├── /user                # User profile
 ├── /v1                  # Public API v1
 ├── /webhooks            # Webhook management
+├── /whatsapp            # WhatsApp messaging (NEW - Phase 6)
 └── /workflows           # Workflow CRUD
 ```
 
@@ -564,6 +906,9 @@ SMTP_FROM_EMAIL=...
 # Optional
 REDIS_URL=...
 SENTRY_DSN=...
+
+# Integrations
+HUNTER_API_KEY=... # Enable real email discovery
 ```
 
 ### Scaling Strategy
@@ -673,6 +1018,16 @@ npm run test:coverage    # Coverage report
 
 ---
 
-**Last Updated**: January 12, 2026  
-**Version**: 1.0.0  
+**Last Updated**: January 23, 2026  
+**Version**: 2.0.0 (Enterprise-Ready)  
 **Maintainer**: ConvoSpan Engineering Team
+
+**Recent Updates**:
+- ✅ Enterprise Governance Framework (Phases 0-8)
+- ✅ Capability Containment (4-layer system)
+- ✅ RBAC (6 enterprise roles)
+- ✅ Conversation State Machine
+- ✅ Caller Queue System
+- ✅ Hybrid AI Routing (Cloud/On-Prem)
+- ✅ WhatsApp Consent & Template Compliance
+- ✅ SOC 2 & DPDP Act 2023 Compliance

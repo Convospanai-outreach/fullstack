@@ -4,22 +4,22 @@ import { Bot, Search, PenTool, Calendar } from 'lucide-react';
 export default function AgentsSection() {
     const agents = [
         {
-            name: "Research Agent",
+            name: "Sovereign Research Agent",
             role: "Analyst",
             icon: <Search className="w-10 h-10 text-cyan-400 mb-4" />,
-            desc: "Scours the web for recent news, funding rounds, and hiring trends to find valid reasons to reach out."
+            desc: "Scours the web for hiring trends and funding news. PII is redacted locally before any cloud analysis."
         },
         {
-            name: "Copywriter Agent",
+            name: "Compliance Copywriter",
             role: "Creative",
             icon: <PenTool className="w-10 h-10 text-pink-400 mb-4" />,
-            desc: "Crafts hyper-personalized messages using NLP models tuned for high conversion and low spam rates."
+            desc: "Crafts personalized messages. Uses local 'Golden Records' to ensure no compliance policies are violated."
         },
         {
-            name: "SDR Agent",
+            name: "SDR Agent (Edge)",
             role: "Outreach",
             icon: <Bot className="w-10 h-10 text-blue-400 mb-4" />,
-            desc: "Manages the entire conversation flow, handles objections, and ensures no lead is left behind."
+            desc: "Drafts outreach messages for your review. Runs on local hardware to ensure data sovereignty."
         },
         {
             name: "Scheduler Agent",

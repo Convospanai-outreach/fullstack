@@ -10,6 +10,8 @@ declare module "next-auth" {
             /** The user's postal address. */
             id: string
             plan: string
+            productMode: string
+            enterpriseRole: string
         } & DefaultSession["user"]
     }
 }
@@ -18,5 +20,7 @@ declare module "next-auth/jwt" {
     interface JWT {
         id: string
         plan: string
+        productMode: string
+        enterpriseRole: string
     }
 }

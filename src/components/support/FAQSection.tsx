@@ -11,7 +11,7 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
     {
         question: "How do I connect my LinkedIn account?",
-        answer: "Go to Settings > API Configuration and enter your LinkedIn 'li_at' cookie. This allows our system to automate actions on your behalf."
+        answer: "Install the ConvoSpan Chrome Extension. This secure companion handles the connection locally on your device, so your credentials never leave your browser."
     },
     {
         question: "What is the daily limit for connection requests?",

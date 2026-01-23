@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { UsageStats } from '@/components/dashboard/settings/UsageStats';
 import { toast } from 'sonner';
 import {
     Wallet,
@@ -95,6 +96,9 @@ export default function BudgetingPage() {
                 title="Budgeting & Credit Quotas"
                 subtitle="Manage financial guardrails and allocate credits across your organization."
             />
+
+            {/* Global Usage Overview */}
+            <UsageStats />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <MetricCard

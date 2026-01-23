@@ -9,7 +9,7 @@ export function HeaderBanner() {
             <p className="text-xl text-gray-300 max-w-3xl mx-auto mt-6 leading-relaxed">
                 The AI Agent Army that spans the conventions
                 from digital to real.
-                Automate. Orchestrate. Scale without gravity.
+                Assist. Orchestrate. Scale without gravity.
             </p>
         </header>
     );

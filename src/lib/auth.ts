@@ -65,6 +65,8 @@ export const authOptions: NextAuthOptions = {
                 session.user.email = token.email ?? null;
                 session.user.image = token.picture ?? null;
                 session.user.plan = token.plan;
+                session.user.productMode = token.productMode;
+                session.user.enterpriseRole = token.enterpriseRole;
             }
             return session;
         },
@@ -101,9 +103,32 @@ export const authOptions: NextAuthOptions = {
                     }
 
                     token.plan = planName;
+
+                    // Fetch Product Mode and Enterprise Role
+                    const membership = await prisma.teamMember.findFirst({
+                        where: { userId: token.id as string },
+                        include: {
+                            team: {
+                                include: { organizationPolicy: true }
+                            },
+                        }
+                    });
+
+                    // Fetch User's enterprise role directly
+                    const fullUser = await prisma.user.findUnique({
+                        where: { id: token.id as string },
+                        select: { enterpriseRole: true }
+                    });
+
+                    // Default to ENTERPRISE_CORE if no policy set
+                    token.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
+                    token.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
+
                 } catch (error) {
-                    console.error("Error fetching user plan for JWT:", error);
-                    token.plan = "free"; // Fallback
+                    console.error("Error fetching user plan/mode for JWT:", error);
+                    token.plan = "free";
+                    token.productMode = "ENTERPRISE_CORE";
+                    token.enterpriseRole = "SALES_USER";
                 }
             }
             return token;

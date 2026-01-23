@@ -30,7 +30,10 @@ class AutomationService {
 
     private async processAutomation(automation: Automation, context: Record<string, any>) {
         // 2. Check for Manual Intervention (Human-in-the-Loop)
-        if (automation.requiresApproval) {
+        // We now check dynamic rules (Campaign Mode) in addition to the static flag
+        const requiresApproval = await this.shouldRequireApproval(automation, context);
+
+        if (requiresApproval) {
             await prisma.automationLog.create({
                 data: {
                     automationId: automation.id,
@@ -50,7 +53,73 @@ class AutomationService {
         await this.executeAction(automation, context);
     }
 
+    /**
+     * Determines if an automation requires human approval based on:
+     * 1. Global "requiresApproval" flag on the automation definition.
+     * 2. Campaign AI Configuration (SafeRun vs Autonomous).
+     * 3. AI Confidence Score (for Hybrid mode).
+     */
+    private async shouldRequireApproval(automation: Automation, context: Record<string, any>): Promise<boolean> {
+        // 1. Global / Admin Override
+        if (automation.requiresApproval) return true;
+
+        // 2. Campaign Context Override
+        // 2. Campaign Context Override
+        if (context['campaignId']) {
+            try {
+                const campaign = await prisma.campaign.findUnique({
+                    where: { id: context['campaignId'] },
+                    select: { aiConfig: true }
+                });
+
+                if (campaign?.aiConfig) {
+                    const config = campaign.aiConfig as any;
+                    const mode = config.executionMode || 'saferun';
+
+                    // SafeRun: Always require approval for external actions
+                    // We assume all automations under a campaign are relevant to that campaign's safety
+                    if (mode === 'saferun') return true;
+
+                    // Autonomous: Trust the AI completely
+                    if (mode === 'autonomous') return false;
+
+                    // Hybrid: Check Confidence
+                    if (mode === 'hybrid') {
+                        // If confidence is missing, assume it needs approval to be safe
+                        const confidence = typeof context['confidence'] === 'number' ? context['confidence'] : 0;
+                        // Threshold 0.9 (90%)
+                        return confidence < 0.9;
+                    }
+                }
+            } catch (error) {
+                logger.error("Failed to fetch campaign config for automation check", error);
+                return true; // Fail safe
+            }
+        }
+
+        return false;
+    }
+
     private async executeAction(automation: Automation, context: Record<string, any>) {
+        const result = await this.runActionCore(automation, context);
+
+        // 4. Log Execution
+        await prisma.automationLog.create({
+            data: {
+                automationId: automation.id,
+                status: result.status,
+                output: result.output,
+                tokensUsed: result.tokens,
+                cost: result.cost
+            }
+        });
+    }
+
+    /**
+     * Core logic to run the action and return result stats.
+     * Does NOT log to DB.
+     */
+    private async runActionCore(automation: Automation, context: Record<string, any>) {
         let status = "success";
         let output: Record<string, any> = {};
         let tokens = 0;
@@ -70,10 +139,30 @@ class AutomationService {
 
                 case "email.reply":
                     const { generateWithGemini } = await import("@/ai/gemini");
+                    const { emailService } = await import("@/modules/email-campaigner/service/emailService");
+
                     const messageContext = context['message'] || "No message content";
                     const reply = await generateWithGemini(`Write a helpful and professional reply to this message: "${messageContext}". Keep it concise.`);
 
-                    output = { draft: reply };
+                    // Actually send the email if we have a recipient
+                    // We assume context has 'leadEmail' or 'email'
+                    const recipient = context['leadEmail'] || context['email'];
+
+                    if (recipient) {
+                        await emailService.sendEmail(
+                            recipient,
+                            "Re: " + (context['subject'] || "Response"),
+                            reply,
+                            {
+                                leadId: context['leadId'],
+                                campaignId: context['campaignId']
+                            }
+                        );
+                        output = { draft: reply, sent: true, recipient };
+                    } else {
+                        output = { draft: reply, sent: false, error: "No recipient email in context" };
+                    }
+
                     tokens = Math.ceil(reply.length / 4);
                     break;
 
@@ -100,16 +189,7 @@ class AutomationService {
             logger.error(`[AutomationService] Automation ${automation.id} action execution failed:`, { error: errorMessage });
         }
 
-        // 4. Log Execution
-        await prisma.automationLog.create({
-            data: {
-                automationId: automation.id,
-                status,
-                output: output,
-                tokensUsed: tokens,
-                cost: tokens * 0.0000003 // Gemini rate
-            }
-        });
+        return { status, output, tokens, cost: tokens * 0.0000003 };
     }
 
     /**
@@ -125,16 +205,25 @@ class AutomationService {
             throw new Error("Log not found or not pending");
         }
 
-        // Execute
-        await this.executeAction(log.automation, log.output as Record<string, any>);
+        // Execute core logic to get headers/drafts
+        const result = await this.runActionCore(log.automation, log.output as Record<string, any>);
 
         // Update log status to "approved" so it disappears from queue
+        // AND update output with the result (e.g. the draft)
         await prisma.automationLog.update({
             where: { id: logId },
-            data: { status: "approved" }
+            data: {
+                status: "approved",
+                output: {
+                    ...(log.output as object),
+                    ...result.output
+                },
+                tokensUsed: result.tokens,
+                cost: result.cost
+            }
         });
 
-        logger.info(`[AutomationService] Manually approved and executed automation log ${logId}`);
+        logger.info(`[AutomationService] Manually approved and prepared automation log ${logId}`);
     }
 }
 

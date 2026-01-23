@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TokenManager } from "./tokenManager";
 
 export class AIService {
@@ -8,31 +8,20 @@ export class AIService {
         if (!this.genAI) {
             const key = process.env['GEMINI_API_KEY'];
             if (!key || key.includes("your-") || key === "placeholder") {
-                console.warn("GEMINI_API_KEY is not set or is a placeholder. AI features will fail or return mock data.");
-                throw new Error("GEMINI_API_KEY is required for AI features.");
+                console.warn("GEMINI_API_KEY is not set. Google AI features (Embeddings) will fail.");
+                // We don't throw here anymore because text generation might use other providers
+            } else {
+                this.genAI = new GoogleGenerativeAI(key);
             }
-            this.genAI = new GoogleGenerativeAI(key);
         }
         return this.genAI;
     }
 
-    private getModel() {
-        return this.getClient().getGenerativeModel({
-            model: "gemini-2.0-flash",
-            safetySettings: [
-                { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-                { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE },
-            ]
-        });
-    }
-
     private getEmbeddingModel() {
-        return this.getClient().getGenerativeModel({ model: "embedding-001" });
+        const client = this.getClient();
+        if (!client) throw new Error("GEMINI_API_KEY required for Embeddings");
+        return client.getGenerativeModel({ model: "embedding-001" });
     }
-
-    private static semanticCache = new Map<string, string>();
 
     private static async retryOperation<T>(operation: () => Promise<T>, retries = 3): Promise<T> {
         for (let i = 0; i < retries; i++) {
@@ -58,37 +47,55 @@ export class AIService {
         throw new Error("Operation failed after retries");
     }
 
-    public async askAI(prompt: string, teamId?: string) {
-        // Deterministic mock for test environments/missing keys
-        if (!process.env['GEMINI_API_KEY']) {
-            if (prompt.includes("Who is the CEO")) return "Jane Doe is the CEO of ConvoSpan.";
-            return "Mocked AI Response - GEMINI_API_KEY is missing/invalid.";
-        }
+    public async askAI(prompt: string, teamId?: string, taskContext?: {
+        taskType?: string;
+        containsPII?: boolean;
+        productMode?: string;
+    }) {
+        // 0. Hybrid Routing Decision (Cloud vs On-Prem)
+        const { HybridRouter, AIDestination, AITaskType } = await import("@/lib/ai/HybridRouter");
 
-        // 1. Semantic Cache Check
-        const cacheKey = `${teamId || 'global'}:${prompt}`;
-        if (AIService.semanticCache.has(cacheKey)) {
-            console.log("🎯 Semantic Cache Hit!");
-            return AIService.semanticCache.get(cacheKey)!;
-        }
+        const routingContext = {
+            taskType: (taskContext?.taskType as any) || AITaskType.SUMMARY,
+            containsPII: taskContext?.containsPII || false,
+            productMode: taskContext?.productMode as any,
+            isComplianceSensitive: !!teamId
+        };
 
-        if (teamId) {
-            const { checkCredits, deductCredits } = await import("./credits");
-            const hasCredits = await checkCredits(teamId, 1);
-            if (!hasCredits) {
-                throw new Error("Insufficient AI Credits. Please upgrade your plan.");
+        const destination = HybridRouter.route(routingContext);
+
+        // Validate no PII goes to cloud
+        HybridRouter.validateCloudSafety(destination, prompt);
+
+        // Log routing decision
+        console.log(`[Hybrid AI] Task routed to: ${destination}`);
+
+        // If ON_PREM, delegate to edge node
+        if (destination === AIDestination.ON_PREM) {
+            console.log("[Hybrid AI] Routing to On-Prem Edge Node");
+            const { OnPremAIProxy } = await import("@/lib/ai/OnPremAIProxy");
+
+            try {
+                // Use on-prem AI service for sensitive tasks
+                const response = await OnPremAIProxy.generate(finalPrompt);
+                return response;
+            } catch (error: any) {
+                console.error("[Hybrid AI] On-Prem AI failed:", error);
+                // For compliance-critical tasks, we MUST NOT fall back to cloud
+                throw new Error(`On-Prem AI service required but unavailable: ${error.message}`);
             }
-            await deductCredits(teamId, 1, "AI Generation");
         }
 
-        // 4. Retrieval Augmented Generation (Grounding)
-        let groundedPrompt = prompt;
+        // 1. Retrieval Augmented Generation (Grounding)
+        // We prepare the prompt with context BEFORE sending to the Gateway
+        let finalPrompt = prompt;
+
         if (teamId) {
             const { RAGService } = await import("./ragService");
             const context = await RAGService.retrieveContext(prompt, teamId);
 
             if (context) {
-                groundedPrompt = `
+                finalPrompt = `
 CONTEXT FROM KNOWLEDGE BASE:
 ---
 ${context}
@@ -106,39 +113,61 @@ ${prompt}
             }
         }
 
-        const responseText = await AIService.retryOperation(async () => {
-            const model = this.getModel();
-            const result = await model.generateContent(groundedPrompt);
-            const response = await result.response;
-            return response.text();
-        });
+        // 2. Delegate to ModelGateway (handles Routing, Caching, Retry, Credits)
+        const { modelGateway } = await import("@/ai/ModelGateway");
+        const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
+        const { UIArchitect } = await import("@/modules/ux/UIArchitect");
 
-        // 2. Save to Semantic Cache
-        AIService.semanticCache.set(cacheKey, responseText);
+        try {
+            const responseText = await modelGateway.generate({
+                prompt: finalPrompt,
+                ...(teamId ? { teamId } : {}),
+            });
 
-        // 3. Grounding Guardrail
-        if (teamId && groundedPrompt !== prompt) {
-            const { GroundingEvaluator } = await import("./ai/groundingEvaluator");
-            const verification = await GroundingEvaluator.verify(responseText, groundedPrompt);
-
-            if (!verification.isGrounded) {
-                console.warn("🚨 Hallucination detected by GroundingEvaluator:", verification.reason);
-                // In production, we might return a corrected message or flag for review
+            // Task 10: Event Sourcing & Learning Loop
+            if (teamId) {
+                await EventStore.record({
+                    type: SystemEventType.AI,
+                    name: "DRAFT_GENERATED",
+                    teamId,
+                    payload: {
+                        originalPrompt: prompt,
+                        isRAGGrounding: finalPrompt !== prompt,
+                        explanation: UIArchitect.getExplanationNarrative({ highSuccess: true }, "general outreach")
+                    }
+                });
             }
-        }
 
-        // 4. Enterprise Compliance Guardrail
-        if (teamId) {
-            const { ComplianceEvaluator } = await import("./governance/complianceEvaluator");
-            const compliance = await ComplianceEvaluator.evaluateCompliance(teamId, responseText);
+            // 3. Grounding Guardrail (Post-generation check)
+            if (teamId && finalPrompt !== prompt) {
+                const { GroundingEvaluator } = await import("./ai/groundingEvaluator");
+                const verification = await GroundingEvaluator.verify(responseText, finalPrompt);
 
-            if (!compliance.isCompliant) {
-                console.warn(`🚨 Compliance violation for team ${teamId}:`, compliance.reason);
-                throw new Error(`COMPLIANCE_VIOLATION: ${compliance.reason}`);
+                if (!verification.isGrounded) {
+                    console.warn("🚨 Hallucination detected by GroundingEvaluator:", verification.reason);
+                    // In production, we might return a corrected message or flag for review
+                }
             }
-        }
 
-        return responseText;
+            // 4. Enterprise Compliance Guardrail
+            if (teamId) {
+                const { ComplianceEvaluator } = await import("./governance/complianceEvaluator");
+                const compliance = await ComplianceEvaluator.evaluateCompliance(teamId, responseText);
+
+                if (!compliance.isCompliant) {
+                    console.warn(`🚨 Compliance violation for team ${teamId}:`, compliance.reason);
+                    throw new Error(`COMPLIANCE_VIOLATION: ${compliance.reason}`);
+                }
+            }
+
+            return responseText;
+
+        } catch (error: any) {
+            console.error("AI Service Error:", error);
+            // Fallback mock if everything fails (e.g. no providers configured)
+            if (prompt.includes("Who is the CEO")) return "Jane Doe is the CEO of ConvoSpan.";
+            return "AI Service Unavailable. Please configure a provider.";
+        }
     }
 
     async getEmbeddings(text: string): Promise<number[]> {

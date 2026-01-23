@@ -1,5 +1,5 @@
 import { CampaignService } from "@/lib/campaignService";
-import { CampaignSchema } from "@/lib/schemas";
+import { createCampaignSchema } from "@/lib/validation/schemas";
 import { SearchService } from "@/modules/search/service/SearchService";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
@@ -37,12 +37,18 @@ export async function POST(req: Request) {
         const body = await req.json();
 
         // Validate input
-        const validation = CampaignSchema.safeParse(body);
+        const validation = createCampaignSchema.safeParse(body);
         if (!validation.success) {
             throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
         }
 
-        const campaign = await CampaignService.createCampaign({ ...validation.data, teamId } as any);
+        const campaign = await CampaignService.createCampaign({
+            ...validation.data,
+            teamId,
+            // Ensure scheduledStart is passed if it exists (Zod returns string if datetime(), Service handles conversion)
+            scheduledStart: validation.data.scheduledStart,
+            type: validation.data.type
+        } as any);
         return successResponse(campaign);
     } catch (error: any) {
         return handleAPIError(error);

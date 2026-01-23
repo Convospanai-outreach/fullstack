@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import ReactFlow, {
     addEdge,
     MiniMap,
@@ -40,7 +40,47 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
 
     const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 
+    const [suggesting, setSuggesting] = useState(false);
+
+    // Resilience: Detect Cyclic Dependencies (DFS)
+    const detectCycles = (nodes: Node[], edges: Edge[]) => {
+        const adjacency = new Map<string, string[]>();
+        edges.forEach(edge => {
+            const current = adjacency.get(edge.source) || [];
+            current.push(edge.target);
+            adjacency.set(edge.source, current);
+        });
+
+        const visited = new Set<string>();
+        const recursionStack = new Set<string>();
+
+        const hasCycle = (nodeId: string): boolean => {
+            if (!visited.has(nodeId)) {
+                visited.add(nodeId);
+                recursionStack.add(nodeId);
+
+                const neighbors = adjacency.get(nodeId) || [];
+                for (const neighbor of neighbors) {
+                    if (!visited.has(neighbor) && hasCycle(neighbor)) return true;
+                    if (recursionStack.has(neighbor)) return true;
+                }
+            }
+            recursionStack.delete(nodeId);
+            return false;
+        };
+
+        for (const node of nodes) {
+            if (hasCycle(node.id)) return true;
+        }
+        return false;
+    };
+
     const handleSave = async () => {
+        if (detectCycles(nodes, edges)) {
+            toast.error("Infinite loop detected! Please fix cyclic dependencies.");
+            return;
+        }
+
         if (onSave) {
             onSave(nodes, edges);
         } else {
@@ -63,14 +103,45 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
         const newNode: Node = {
             id,
             type,
-            position: { x: 250, y: nodes.length * 100 + 50 },
+            position: { x: Math.random() * 400 + 50, y: Math.random() * 400 + 50 }, // Randomize slightly for visibility
             data: { label, ...extraData },
         };
         setNodes((nds) => nds.concat(newNode));
+        return newNode;
+    };
+
+    const handleAiSuggest = () => {
+        setSuggesting(true);
+        setTimeout(() => {
+            // Mock AI logic: Suggest a Wait node if last was Action, or Condition if last was Wait
+            const lastNode = nodes[nodes.length - 1];
+            let suggestion: any = { type: 'delay', label: 'Wait 2 Days', data: { delay: '2d' } };
+
+            if (lastNode?.type === 'action') {
+                suggestion = { type: 'condition', label: 'Opened Email?', data: { type: 'OPENED' } };
+            } else if (lastNode?.type === 'condition') {
+                suggestion = { type: 'ai', label: 'Follow-up Draft', data: { tone: 'urgent' } };
+            }
+
+            const newNode = addNode(suggestion.type, suggestion.label, suggestion.data);
+
+            // Auto-connect if there was a previous node
+            if (lastNode) {
+                setEdges((eds) => addEdge({
+                    source: lastNode.id,
+                    target: newNode.id,
+                    sourceHandle: null,
+                    targetHandle: null
+                }, eds));
+            }
+
+            toast.success(`AI Suggested: ${suggestion.label}`);
+            setSuggesting(false);
+        }, 800);
     };
 
     return (
-        <div className="h-[750px] w-full border border-white/10 rounded-2xl bg-slate-950 overflow-hidden shadow-2xl shadow-purple-950/20">
+        <div className="h-[750px] w-full border border-white/10 rounded-2xl bg-slate-950 overflow-hidden shadow-2xl shadow-purple-950/20 relative">
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -79,6 +150,7 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
                 onConnect={onConnect}
                 nodeTypes={nodeTypes}
                 fitView
+                className="bg-dots"
             >
                 <Controls />
                 <MiniMap
@@ -93,7 +165,7 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
                 />
                 <Background gap={20} size={1} color="#1e293b" />
 
-                <Panel position="top-left" className="bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl">
+                <Panel position="top-left" className="bg-slate-900/90 backdrop-blur-md p-4 rounded-2xl border border-white/10 flex flex-col gap-3 shadow-xl max-h-[80%] overflow-y-auto">
                     <h3 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-1">Nodes Palette</h3>
 
                     <button onClick={() => addNode('ai', 'AI Outreach Draft', { tone: 'professional' })} className="flex items-center gap-2 px-3 py-2 bg-purple-600/20 text-purple-300 border border-purple-500/30 text-xs rounded-xl hover:bg-purple-600/30 transition">
@@ -113,6 +185,14 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
                     </button>
 
                     <div className="h-[1px] bg-white/10 my-1"></div>
+
+                    <button
+                        onClick={handleAiSuggest}
+                        disabled={suggesting}
+                        className="flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-xs font-bold rounded-xl hover:opacity-90 shadow-lg shadow-pink-900/20 transition disabled:opacity-50"
+                    >
+                        {suggesting ? <span className="animate-spin">✨</span> : "✨"} AI Magic Suggest
+                    </button>
 
                     <button onClick={handleSave} className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 text-white text-xs font-bold rounded-xl hover:bg-purple-500 shadow-lg shadow-purple-900/40 transition">
                         Save Workflow

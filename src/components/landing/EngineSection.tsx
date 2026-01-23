@@ -14,11 +14,11 @@ export default function EngineSection() {
                         <div>
                             <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-3">
                                 <Cpu className="text-blue-500 w-8 h-8" />
-                                Real-Time Processing
+                                Sovereign Intelligence
                             </h3>
                             <p className="text-gray-400 text-lg">
-                                Our proprietary Cortex Engine processes millions of data points instantly.
-                                It doesn't just find leads; it understands them.
+                                Our proprietary Cortex Engine runs locally on your edge node.
+                                It processes millions of data points without exposing your strategy to the cloud.
                             </p>
                         </div>
                         <div>

@@ -1,34 +1,34 @@
 
 import SectionTitle from '../SectionTitle';
 import GlassCard from '../GlassCard';
-import { Target, Zap, Users, BarChart3, Mail, MessageSquare } from 'lucide-react';
+import { Target, Zap, Users, BarChart3, Shield } from 'lucide-react';
 
 export default function FeaturesSection() {
     const features = [
         {
-            title: "Multi-Channel Outreach",
-            description: "Seamlessly connect via Email, LinkedIn, and Twitter from a single dashboard.",
-            icon: <MessageSquare className="w-6 h-6 text-purple-400" />
+            title: "Sovereign Firewall",
+            description: "Bank-grade security. Your PII never leaves your device thanks to our physical Edge Node technology.",
+            icon: <Zap className="w-6 h-6 text-yellow-400" />
+        },
+        {
+            title: "Compliance Guardrails",
+            description: "Built for DPDP & GDPR. The system automatically redacts sensitive data before it touches the cloud.",
+            icon: <Shield className="w-6 h-6 text-green-400" />
+        },
+        {
+            title: "SafeRun™ Assisted Mode",
+            description: "No more bans. Our local-first engine drafts messages for your review and executes actions from your own IP.",
+            icon: <Shield className="w-6 h-6 text-blue-400" />
         },
         {
             title: "Smart ICP Builder",
             description: "Define your Ideal Customer Profile with AI-driven attributes and buying signals.",
-            icon: <Users className="w-6 h-6 text-blue-400" />
+            icon: <Users className="w-6 h-6 text-purple-400" />
         },
         {
             title: "Precision Targeting",
             description: "Pinpoint decision-makers with 99% accuracy using our proprietary data engine.",
             icon: <Target className="w-6 h-6 text-red-400" />
-        },
-        {
-            title: "Automated Follow-ups",
-            description: "Never drop the ball. Intelligent sequences ensure timely and relevant follow-ups.",
-            icon: <Zap className="w-6 h-6 text-yellow-400" />
-        },
-        {
-            title: "Unified Inbox",
-            description: "Manage all conversations in one place. AI drafts responses for you.",
-            icon: <Mail className="w-6 h-6 text-green-400" />
         },
         {
             title: "Deep Analytics",

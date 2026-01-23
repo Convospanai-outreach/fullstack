@@ -1,11 +1,12 @@
 import { Redis } from "ioredis";
-import { LLMProvider, ProviderHealth, LLMError } from "./types";
+import { LLMProvider, ProviderHealth } from "./types";
 import {
     OpenAIProvider,
     GeminiProvider,
     GroqProvider,
     AnthropicProvider,
-    BaseProvider
+    BaseProvider,
+    OllamaProvider
 } from "./providers";
 
 /**
@@ -36,7 +37,7 @@ export class LLMProviderRegistry {
         if (process.env['OPENAI_API_KEY']) {
             this.providers.set(
                 LLMProvider.OPENAI,
-                new OpenAIProvider(process.env['OPENAI_API_KEY'])
+                new OpenAIProvider(process.env['OPENAI_API_KEY']!)
             );
             this.initHealthStatus(LLMProvider.OPENAI);
         }
@@ -53,7 +54,7 @@ export class LLMProviderRegistry {
         if (process.env['GROQ_API_KEY']) {
             this.providers.set(
                 LLMProvider.GROQ,
-                new GroqProvider(process.env['GROQ_API_KEY'])
+                new GroqProvider(process.env['GROQ_API_KEY']!)
             );
             this.initHealthStatus(LLMProvider.GROQ);
         }
@@ -61,9 +62,18 @@ export class LLMProviderRegistry {
         if (process.env['ANTHROPIC_API_KEY']) {
             this.providers.set(
                 LLMProvider.ANTHROPIC,
-                new AnthropicProvider(process.env['ANTHROPIC_API_KEY'])
+                new AnthropicProvider(process.env['ANTHROPIC_API_KEY']!)
             );
             this.initHealthStatus(LLMProvider.ANTHROPIC);
+        }
+
+        // Always check for local Ollama, or if explicit URL is provided
+        if (process.env['OLLAMA_BASE_URL'] || process.env['ENABLE_LOCAL_LLM'] === 'true') {
+            this.providers.set(
+                LLMProvider.OLLAMA,
+                new OllamaProvider(process.env['OLLAMA_BASE_URL'])
+            );
+            this.initHealthStatus(LLMProvider.OLLAMA);
         }
 
         if (this.providers.size === 0) {
@@ -131,7 +141,7 @@ export class LLMProviderRegistry {
     /**
      * Mark a provider as unhealthy after failure
      */
-    recordFailure(provider: LLMProvider, error: Error) {
+    recordFailure(provider: LLMProvider, _error: Error) {
         const health = this.healthStatus.get(provider);
         if (!health) return;
 

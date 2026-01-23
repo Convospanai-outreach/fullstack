@@ -22,23 +22,23 @@ export async function getRedisClient() {
         }
     });
 
-});
 
-redisClient.on("error", (err: Error) => {
-    console.error("Redis Client Error:", err);
-});
 
-redisClient.on("connect", () => {
-    console.log("✅ Redis connected");
-});
+    redisClient.on("error", (err: Error) => {
+        console.error("Redis Client Error:", err);
+    });
 
-try {
-    await redisClient.connect();
-} catch (error) {
-    console.error("Failed to connect to Redis:", error);
-    // Do not throw, allow app to start without Redis
-}
-return redisClient;
+    redisClient.on("connect", () => {
+        console.log("✅ Redis connected");
+    });
+
+    try {
+        await redisClient.connect();
+    } catch (error) {
+        console.error("Failed to connect to Redis:", error);
+        // Do not throw, allow app to start without Redis
+    }
+    return redisClient;
 }
 
 export async function closeRedis() {

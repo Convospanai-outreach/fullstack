@@ -5,8 +5,8 @@ export type OnboardingStepId = "api_key" | "create_campaign" | "import_leads" | 
 export const ONBOARDING_STEPS: { id: OnboardingStepId, label: string, href: string }[] = [
     { id: "api_key", label: "Connect AI Provider", href: "/settings/keys" },
     { id: "import_leads", label: "Import your first Leads", href: "/leads" },
-    { id: "create_campaign", label: "Launch a Campaign", href: "/campaigns/new" },
-    { id: "enable_automation", label: "Setup Automation Rules", href: "/automations" },
+    { id: "create_campaign", label: "Draft a Campaign", href: "/campaigns/new" },
+    { id: "enable_automation", label: "Activate SafeRun™", href: "/settings/governance" },
 ];
 
 class OnboardingService {

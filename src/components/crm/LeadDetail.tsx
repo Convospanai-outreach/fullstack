@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { WifiOff } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -62,8 +63,33 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
         }
     };
 
+    const [isOffline, setIsOffline] = useState(false);
+
+    useEffect(() => {
+        setIsOffline(!navigator.onLine);
+
+        const handleOnline = () => setIsOffline(false);
+        const handleOffline = () => setIsOffline(true);
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
     return (
         <div className="space-y-6">
+            {isOffline && (
+                <div className="bg-orange-500/10 border border-orange-500/20 text-orange-200 p-3 rounded-xl flex items-center gap-3 animate-in slide-in-from-top-2">
+                    <WifiOff className="w-5 h-5 shrink-0" />
+                    <p className="text-sm font-medium">
+                        You are currently offline. Enrichment data may not load and actions will be queued.
+                    </p>
+                </div>
+            )}
             <div className="flex justify-between items-start">
                 <SectionHeader
                     title={lead.fullName}
@@ -73,13 +99,13 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
                         View on LinkedIn
                     </Button>
-                    <Button variant="outline" onClick={handleEnrich} disabled={loading || lead.isEnriched}>
+                    <Button variant="outline" onClick={handleEnrich} disabled={loading || lead.isEnriched || isOffline}>
                         {lead.isEnriched ? "Enriched" : "Enrich Data"}
                     </Button>
-                    <Button variant="primary" onClick={() => handleAction("CONNECT")} disabled={loading}>
+                    <Button variant="primary" onClick={() => handleAction("CONNECT")} disabled={loading || isOffline}>
                         Connect Now
                     </Button>
-                    <Button variant="outline" onClick={() => handleAction("MESSAGE")} disabled={loading}>
+                    <Button variant="outline" onClick={() => handleAction("MESSAGE")} disabled={loading || isOffline}>
                         Send Message
                     </Button>
                 </div>

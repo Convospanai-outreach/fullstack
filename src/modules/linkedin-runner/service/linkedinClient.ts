@@ -4,11 +4,30 @@ import { Humanizer } from "./Humanizer";
 import { LinkedInConstants } from "./LinkedInConstants";
 
 type ExecutionMode = 'CLOUD' | 'LOCAL';
-const EXECUTION_MODE: ExecutionMode = (process.env['LINKEDIN_EXECUTION_MODE'] as ExecutionMode) || 'LOCAL'; // Default to LOCAL for safety
+function getExecutionMode(): ExecutionMode {
+    if (process.env['LINKEDIN_EXECUTION_MODE'] === 'CLOUD') return 'CLOUD';
+    return 'LOCAL'; // Default to SafeRun™
+}
 
 export const linkedinClient = {
     async launch() {
-        if (EXECUTION_MODE === 'LOCAL') {
+        // Deep Tech / Cyber-Physical Mode
+        const browserWSEndpoint = process.env['BROWSER_NODE_URL'] || process.env['BROWSER_WS_ENDPOINT'];
+
+        if (browserWSEndpoint) {
+            console.log(`[LinkedIn] Connecting to Physical Browser Node at ${browserWSEndpoint}...`);
+            try {
+                return await puppeteer.connect({
+                    browserWSEndpoint: browserWSEndpoint,
+                    defaultViewport: null,
+                });
+            } catch (error: any) {
+                console.error("[LinkedIn] Failed to connect to Physical Browser:", error.message);
+                throw new Error("Physical Browser Node Unreachable - Hardware Verification Failed");
+            }
+        }
+
+        if (getExecutionMode() === 'LOCAL') {
             console.log("[LinkedIn] Launching in LOCAL mode (Instructions queued for Client-Side Agent)");
             return null; // No browser needed
         }
@@ -19,7 +38,7 @@ export const linkedinClient = {
     },
 
     async openProfile(browser: Browser | null, url: string) {
-        if (EXECUTION_MODE === 'LOCAL') {
+        if (getExecutionMode() === 'LOCAL') {
             return { mode: 'LOCAL', url }; // Virtual page
         }
         if (!browser) throw new Error("Browser not initialized");
@@ -28,15 +47,29 @@ export const linkedinClient = {
         return page;
     },
 
-    async sendConnectionRequest(page: Page | any, note?: string) {
-        if (EXECUTION_MODE === 'LOCAL') {
+    async sendConnectionRequest(page: Page | any, note?: string, context?: { teamId: string }) {
+        if (context?.teamId) {
+            const { FeatureFlagService } = await import("@/lib/flags/service");
+            const allowed = await FeatureFlagService.isEnabled("linkedin_automation", context.teamId);
+            if (!allowed) {
+                console.warn(`[LinkedIn] Blocked by policy for team ${context.teamId}`);
+                return {
+                    success: false,
+                    message: "Feature blocked by enterprise policy (linkedin_automation)",
+                    requiresReview: true
+                };
+            }
+        }
+
+        if (getExecutionMode() === 'LOCAL') {
             console.log(`[LinkedIn] Queuing LOCAL command: CONNECT ${page.url} with note: "${note || ''}"`);
             // In a real implementation, this would push to a Redis queue:
             // await commandQueue.add({ type: 'CONNECT', target: page.url, note, userId: ... });
             return {
                 success: true,
-                message: "Command queued for local execution",
-                queued: true
+                message: "Draft queued for user review (Assisted Mode)",
+                queued: true,
+                requiresReview: true
             };
         }
 
@@ -100,7 +133,7 @@ export const linkedinClient = {
     },
 
     async scrapeProfile(page: Page | any) {
-        if (EXECUTION_MODE === 'LOCAL') {
+        if (getExecutionMode() === 'LOCAL') {
             console.log(`[LinkedIn] Queuing LOCAL command: SCRAPE ${page.url}`);
             return { name: "Pending Local Execution" };
         }

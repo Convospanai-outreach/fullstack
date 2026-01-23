@@ -14,6 +14,7 @@
  */
 
 import { prisma } from "@/lib/db";
+import { z } from "zod";
 import type {
     ScoringWeights,
     ScoringConfig,
@@ -44,6 +45,13 @@ const DEFAULT_CONFIG: ScoringConfig = {
         warm: 0.4
     }
 };
+
+// Validation Schema
+const ScoreInputSchema = z.object({
+    dwellTimeMinutes: z.number().min(0, "Dwell time cannot be negative").max(1440, "Dwell time > 24h is unrealistic"),
+    emailClicks: z.number().int().min(0, "Clicks cannot be negative").max(1000, "Too many clicks (possible bot)"),
+    socialMentions: z.number().int().min(0, "Mentions cannot be negative")
+});
 
 export class LeadScoringService {
     private config: ScoringConfig;
@@ -110,12 +118,15 @@ export class LeadScoringService {
         emailClicks: number;
         socialMentions: number;
     }): LeadIntentScore {
+        // HARDENING: Strict Input Validation
+        const validated = ScoreInputSchema.parse(input);
+
         const { weights, normalization } = this.config;
 
         // Normalize each factor
-        const normalizedDwell = this.normalize(input.dwellTimeMinutes, normalization.dwellTimeMax);
-        const normalizedClicks = this.normalize(input.emailClicks, normalization.emailClicksMax);
-        const normalizedSocial = this.normalize(input.socialMentions, normalization.socialMentionsMax);
+        const normalizedDwell = this.normalize(validated.dwellTimeMinutes, normalization.dwellTimeMax);
+        const normalizedClicks = this.normalize(validated.emailClicks, normalization.emailClicksMax);
+        const normalizedSocial = this.normalize(validated.socialMentions, normalization.socialMentionsMax);
 
         // Calculate weighted contributions
         const dwellContribution = normalizedDwell * weights.dwellTime;
@@ -126,7 +137,7 @@ export class LeadScoringService {
         const score = dwellContribution + clicksContribution + socialContribution;
 
         // Calculate data confidence based on data availability
-        const dataPoints = [input.dwellTimeMinutes, input.emailClicks, input.socialMentions];
+        const dataPoints = [validated.dwellTimeMinutes, validated.emailClicks, validated.socialMentions];
         const nonZeroCount = dataPoints.filter(v => v > 0).length;
         const confidence = nonZeroCount / dataPoints.length;
 

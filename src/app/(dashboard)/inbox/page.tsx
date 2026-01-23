@@ -190,6 +190,17 @@ export default function InboxPage() {
                                             <Badge variant="default" className="py-0 px-1.5 h-5 text-[9px] bg-white/5 text-text-secondary border-none">Email</Badge>
                                         )}
                                         <span className="text-[10px] text-text-muted truncate max-w-[100px]">{thread.leadDetails?.company}</span>
+
+                                        {/* 2025 Feature: Sentiment Badge */}
+                                        <Badge
+                                            variant={
+                                                thread.sentiment === "POSITIVE" ? "success" :
+                                                    thread.sentiment === "NEGATIVE" ? "danger" : "default"
+                                            }
+                                            className="ml-auto text-[9px] h-5 py-0 px-2 uppercase tracking-wide opacity-80"
+                                        >
+                                            {thread.sentiment || "Neutral"}
+                                        </Badge>
                                     </div>
                                 </div>
                             ))
@@ -253,32 +264,58 @@ function ConversationView({ threadId }: { threadId: string }) {
         if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }, [threadId, messages]);
 
+    const undoTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const handleSend = async () => {
         if (!reply.trim()) return;
         setSending(true);
 
-        try {
-            const response = await fetch(`/api/inbox/${threadId}/send`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content: reply })
-            });
+        const promise = new Promise<void>((resolve, reject) => {
+            undoTimerRef.current = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/inbox/${threadId}/send`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: reply })
+                    });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to send message');
-            }
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.message || 'Failed to send message');
+                    }
 
-            setReply("");
-            toast.success("Reply sent successfully");
+                    // Success handling
+                    setReply("");
+                    setSending(false);
+                    mutate(`/api/inbox/${threadId}`);
+                    resolve();
+                } catch (error: any) {
+                    setSending(false);
+                    reject(error);
+                }
+            }, 5000); // 5 second delay
+        });
 
-            // Refresh the thread data to show new message
-            mutate(`/api/inbox/${threadId}`);
-        } catch (error: any) {
-            toast.error(error.message || "Failed to send reply");
-        } finally {
-            setSending(false);
-        }
+        toast.promise(promise, {
+            loading: (
+                <div className="flex items-center justify-between w-full gap-4">
+                    <span>Sending in 5s...</span>
+                    <button
+                        onClick={() => {
+                            if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+                            setSending(false);
+                            toast.dismiss();
+                            toast.info("Message cancelled");
+                        }}
+                        className="px-2 py-1 bg-white/20 rounded text-xs font-bold hover:bg-white/30"
+                    >
+                        UNDO
+                    </button>
+                </div>
+            ),
+            success: "Message sent",
+            error: "Failed to send"
+        });
     };
 
     if (isLoading) return <div className="flex-1 flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent-blue" /></div>;
@@ -359,7 +396,7 @@ function ConversationView({ threadId }: { threadId: string }) {
                             className="flex items-center gap-2 px-4 py-2 bg-accent-blue text-white text-xs font-bold rounded-xl hover:bg-accent-blue/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-900/20 active:scale-95"
                         >
                             {sending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                            Send
+                            {sending ? "Sending..." : "Send"}
                         </button>
                     </div>
                 </div>

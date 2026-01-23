@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getLeads } from "@/lib/api/leads";
 import FilterBar from "@/components/shared/FilterBar";
@@ -63,6 +64,47 @@ export default function LeadsPage() {
         }
     };
 
+    const [selectedIndex, setSelectedIndex] = useState<number>(-1);
+    const router = useRouter(); // Import needed
+
+    // Keyboard Navigation (j/k)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (leads.length === 0) return;
+
+            // Only hijack navigation if not typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+            switch (e.key) {
+                case 'j':
+                    setSelectedIndex(prev => (prev < leads.length - 1 ? prev + 1 : prev));
+                    break;
+                case 'k':
+                    setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
+                    break;
+                case 'x':
+                    // TODO: Implement toggle selection logic
+                    break;
+                case 'Enter':
+                    if (selectedIndex !== -1 && leads[selectedIndex]) {
+                        router.push(`/leads/${leads[selectedIndex].id}`);
+                    }
+                    break;
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [leads, selectedIndex, router]);
+
+    // Scroll selected item into view
+    useEffect(() => {
+        if (selectedIndex !== -1) {
+            const el = document.getElementById(`lead-card-${selectedIndex}`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [selectedIndex]);
+
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
@@ -70,6 +112,14 @@ export default function LeadsPage() {
                     title="Leads"
                     subtitle="Centralized management for all your target prospects."
                 />
+
+                {/* Keyboard Shortcut Hint */}
+                <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
+                    <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">j</kbd> next</span>
+                    <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">k</kbd> prev</span>
+                    <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">enter</kbd> view</span>
+                </div>
+
                 <div className="flex gap-4">
                     <Link href="/leads/import">
                         <Button variant="outline" className="gap-2">
@@ -117,8 +167,22 @@ export default function LeadsPage() {
                 </GlassCard>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {leads.map((lead) => (
-                        <GlassCard key={lead.id} className="p-6 hover:translate-y-[-4px] transition-all group">
+                    {leads.map((lead, index) => (
+                        <GlassCard
+                            key={lead.id}
+                            id={`lead-card-${index}`}
+                            className={`p-6 transition-all group relative ${index === selectedIndex
+                                ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-[#0B0C15] scale-[1.02]"
+                                : "hover:translate-y-[-4px]"
+                                }`}
+                            onClick={() => setSelectedIndex(index)}
+                        >
+                            {index === selectedIndex && (
+                                <div className="absolute top-2 right-2 flex gap-1">
+                                    <span className="bg-blue-600 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">⏎ to open</span>
+                                </div>
+                            )}
+
                             <div className="flex justify-between items-start mb-4">
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-white font-bold text-lg">
                                     {lead.fullName?.[0] || lead.email[0]?.toUpperCase() || '?'}
@@ -154,7 +218,7 @@ export default function LeadsPage() {
 
                             <div className="mt-6 flex gap-2">
                                 <button
-                                    onClick={() => handleEnrich(lead.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleEnrich(lead.id); }}
                                     disabled={enriching[lead.id]}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${lead.isEnriched
                                         ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
@@ -164,7 +228,7 @@ export default function LeadsPage() {
                                     {enriching[lead.id] ? <Zap className="w-3 h-3 animate-pulse" /> : <Zap className="w-3 h-3" />}
                                     {lead.isEnriched ? "Verified" : "AI Enrich"}
                                 </button>
-                                <button className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                                <button onClick={(e) => e.stopPropagation()} className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
                                     <MoreHorizontal className="w-4 h-4" />
                                 </button>
                             </div>

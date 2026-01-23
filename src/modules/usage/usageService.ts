@@ -24,12 +24,19 @@ export class UsageService {
 
     async getTeamUsage(teamId: string) {
         // Aggregate or find the main team quota
+        const team = await prisma.team.findUnique({
+            where: { id: teamId },
+            select: { credits: true }
+        });
+
         const quota = await prisma.userQuota.findFirst({
             where: { teamId }
         });
 
-        if (!quota) return { currentSpend: 0, monthlyLimit: 1000, teamId };
-        return quota;
+        const credits = team?.credits || 0;
+
+        if (!quota) return { currentSpend: 0, monthlyLimit: 1000, teamId, credits };
+        return { ...quota, credits };
     }
 
     async incrementUsage(teamId: string, amount: number = 1) {

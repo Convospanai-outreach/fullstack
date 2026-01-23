@@ -17,7 +17,7 @@ interface CampaignFormProps {
 export default function CampaignForm({
     initialData,
     onSubmit,
-    submitLabel = "Create Campaign",
+    submitLabel = "Draft Campaign",
 }: CampaignFormProps) {
     const [name, setName] = useState(initialData?.name || "");
     const [description, setDescription] = useState(

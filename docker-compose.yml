@@ -1,5 +1,6 @@
 version: '3.8'
 services:
+  # Service 0: Database (The Sovereignty Layer Persistence)
   db:
     image: pgvector/pgvector:pg16
     container_name: convospan-postgres
@@ -17,21 +18,51 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  # Service 1: The "Brain" (Next.js Cloud Interface)
+  convospan-web:
     build: .
-    container_name: convospan-app
+    container_name: convospan-web
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/convospan
+      - EDGE_NODE_URI=http://edge-node-sim:8000
+      - BROWSER_WS_ENDPOINT=ws://browser-node:3000
       - HOSTNAME=0.0.0.0
     ports:
       - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
+      edge-node-sim:
+        condition: service_started
     restart: always
     command: node server.js
 
+  # Service 2: The "Physical Node" (Python/FastAPI)
+  # This represents the code running inside the physical box in the client's office.
+  edge-node-sim:
+    build: ./services/edge-node
+    container_name: edge-node-sim
+    ports:
+      - "8000:8000"
+    environment:
+      # This UUID acts as the TPM (Trusted Platform Module) Hardware Key
+      - HARDWARE_SIGNATURE=uuid-550e8400-e29b-41d4-a716-446655440000
+    deploy:
+      resources:
+        limits:
+          cpus: '2' # Simulate low-power hardware constraints (Raspberry Pi)
+          memory: 4G
+
+  # Service 3: The "Physical Browser" (Puppeteer on Edge)
+  # Runs automation locally to use the residential IP, avoiding bot detection.
+  browser-node:
+    image: browserless/chrome:latest
+    container_name: browser-node
+    ports:
+      - "3001:3000"
+
+  # Service 4: Background Worker
   worker:
     build: .
     container_name: convospan-worker
@@ -39,6 +70,7 @@ services:
     env_file: .env
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/convospan
+      - EDGE_NODE_URI=http://edge-node-sim:8000
     depends_on:
       db:
         condition: service_healthy

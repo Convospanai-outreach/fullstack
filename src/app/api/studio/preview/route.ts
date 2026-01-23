@@ -14,8 +14,8 @@ export async function POST(req: NextRequest) {
         const validated = studioPreviewSchema.parse(body);
 
         const response = await generateResponse(
-            validated.context,
-            validated.mission,
+            validated.context || "",
+            validated.mission || "",
             validated.config
         );
 

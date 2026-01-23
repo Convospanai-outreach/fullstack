@@ -39,8 +39,10 @@ describe("VectorStore Search", () => {
         const results = await vectorStore.search("test query", "team-1");
 
         expect(results).toHaveLength(1);
-        expect(results[0].content).toBe("Matching doc");
-        expect(results[0].score).toBeGreaterThan(0.8);
+        if (results[0]) {
+            expect(results[0].content).toBe("Matching doc");
+            expect((results[0] as any).similarity).toBeGreaterThan(0.8);
+        }
     });
 
     it("should return empty if no knowledge bases found", async () => {

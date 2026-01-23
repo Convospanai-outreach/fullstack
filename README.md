@@ -32,7 +32,7 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 ### 🤖 AI-Powered Automation
 - **Autonomous AI Agents** with human-in-the-loop controls
-- **Multi-Provider LLM Support** (Gemini, OpenAI, Anthropic)
+- **Multi-Provider LLM Support** (Gemini, OpenAI, Anthropic, Ollama Local)
 - **RAG System** for context-aware responses
 - **Predictive Lead Scoring** with ML algorithms
 
@@ -68,7 +68,7 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS  
 **Backend**: Next.js API Routes, Prisma ORM, PostgreSQL  
-**AI**: Google Gemini, OpenAI, Custom ML Models  
+**AI**: Google Gemini, OpenAI, Ollama (Local LLMs), Custom ML Models  
 **Infrastructure**: Redis, Puppeteer, Background Workers
 
 ### System Overview

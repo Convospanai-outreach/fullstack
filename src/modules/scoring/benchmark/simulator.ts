@@ -1,8 +1,6 @@
 
-
 export interface SimulationEvent {
-    leadId: string;
-    type: string;
+    type: "PAGE_VIEW" | "CLICK" | "EMAIL_OPEN" | "REPLY";
     timestamp: Date;
     metadata?: any;
 }
@@ -10,43 +8,34 @@ export interface SimulationEvent {
 export class ScoringSimulator {
 
     /**
-     * Generates a sequence of events simulating a "High Intent" user
-     * who bursts into activity rapidly.
+     * Generates a sequence of events simulating a high-intent user
+     * @param leadId 
+     * @param startTime 
      */
-    generateHighIntentProfile(leadId: string, startTime: Date): SimulationEvent[] {
+    generateHighIntentProfile(_leadId: string, startTime: Date): SimulationEvent[] {
         const events: SimulationEvent[] = [];
         let currentTime = new Date(startTime);
 
-        // Initial Discovery
-        events.push({ leadId, type: "PAGE_VIEW", timestamp: new Date(currentTime), metadata: { url: "/blog" } });
+        // 1. Initial Discovery (Page View)
+        events.push({ type: "PAGE_VIEW", timestamp: new Date(currentTime) });
 
-        // 2 hours later - Deep Dive (Burst of activity)
-        currentTime = new Date(currentTime.getTime() + 2 * 60 * 60 * 1000);
-        events.push({ leadId, type: "PAGE_VIEW", timestamp: new Date(currentTime), metadata: { url: "/pricing" } });
+        // 2. Deep Dive (30 mins later)
+        currentTime = new Date(currentTime.getTime() + 30 * 60000);
+        events.push({ type: "PAGE_VIEW", timestamp: new Date(currentTime), metadata: { page: "/pricing" } });
 
-        // 5 mins later
-        currentTime = new Date(currentTime.getTime() + 5 * 60 * 1000);
-        events.push({ leadId, type: "PAGE_VIEW", timestamp: new Date(currentTime), metadata: { url: "/case-studies" } });
-
-        // 2 mins later
-        currentTime = new Date(currentTime.getTime() + 2 * 60 * 1000);
-        events.push({ leadId, type: "CLICK", timestamp: new Date(currentTime), metadata: { element: "book-demo" } });
+        // 3. Action (5 mins later)
+        currentTime = new Date(currentTime.getTime() + 5 * 60000);
+        events.push({ type: "CLICK", timestamp: new Date(currentTime), metadata: { element: "signup_button" } });
 
         return events;
     }
 
     /**
-     * Generates a "Dripping" profile (Low Intent/Browser)
+     * Generates a dormant user profile (sparse events)
      */
-    generateBrowserProfile(leadId: string, startTime: Date): SimulationEvent[] {
-        const events: SimulationEvent[] = [];
-        let currentTime = new Date(startTime);
-
-        // Visit once a day for 3 days
-        for (let i = 0; i < 3; i++) {
-            events.push({ leadId, type: "PAGE_VIEW", timestamp: new Date(currentTime), metadata: { url: "/blog" } });
-            currentTime = new Date(currentTime.getTime() + 24 * 60 * 60 * 1000);
-        }
-        return events;
+    generateDormantProfile(_leadId: string, startTime: Date): SimulationEvent[] {
+        return [
+            { type: "PAGE_VIEW", timestamp: startTime }
+        ];
     }
 }

@@ -2,8 +2,8 @@
 
 export default function TechStackSection() {
     const tech = [
-        "OpenAI GPT-4", "Llama 3", "Next.js 14", "PostgreSQL",
-        "Pinecone", "Vercel Edge", "React", "Tailwind CSS"
+        "NVIDIA Jetson", "PostgreSQL (pgvector)", "Presidio (Edge)",
+        "Sentence Transformers", "FastAPI", "Next.js 14", "React", "Docker"
     ];
 
     return (

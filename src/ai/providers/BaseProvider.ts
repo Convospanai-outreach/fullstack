@@ -1,4 +1,4 @@
-import { LLMProvider, ModelRequest, ModelResponse, LLMError } from "../types";
+import { LLMProvider, ModelRequest, ModelResponse, LLMError, TaskComplexity } from "../types";
 
 /**
  * Base class for all LLM providers

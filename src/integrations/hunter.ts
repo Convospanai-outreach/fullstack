@@ -37,7 +37,7 @@ export async function findEmailWithHunter(
       firstName,
       lastName,
       domain,
-      ...(leadId ? { leadId } : {})
+      leadId: leadId || ""
     });
 
     return {

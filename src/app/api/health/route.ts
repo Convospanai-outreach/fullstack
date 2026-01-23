@@ -1,23 +1,26 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { MonitoringService } from "@/modules/monitoring/MonitoringService";
 
-export async function GET() {
+/**
+ * Health check endpoint for monitoring systems
+ * GET /api/health
+ */
+export async function GET(req: NextRequest) {
     try {
-        // Simple DB check
-        await prisma.$queryRaw`SELECT 1`;
+        const health = await MonitoringService.getHealthStatus();
 
+        // Return appropriate HTTP status
+        const statusCode = health.status === "healthy" ? 200
+            : health.status === "degraded" ? 200
+                : 503;
+
+        return NextResponse.json(health, { status: statusCode });
+
+    } catch (error: any) {
         return NextResponse.json({
-            status: "ok",
+            status: "unhealthy",
             timestamp: new Date().toISOString(),
-            database: "connected",
-            version: process.env['npm_package_version'] || "1.0.0"
-        });
-    } catch (error) {
-        return NextResponse.json({
-            status: "error",
-            timestamp: new Date().toISOString(),
-            database: "disconnected",
-            error: String(error)
+            error: error.message
         }, { status: 503 });
     }
 }

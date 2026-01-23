@@ -2,12 +2,23 @@ import { prisma } from "@/lib/db";
 import { SequenceService } from "@/lib/sequenceService";
 
 export class CampaignService {
-    static async createCampaign(data: { name: string; description?: string; targetCount?: number; teamId: string }) {
+    static async createCampaign(data: {
+        name: string;
+        description?: string;
+        targetCount?: number;
+        teamId: string;
+        aiConfig?: any;
+        type?: string;
+        scheduledStart?: Date | string | null;
+    }) {
         const createData: any = {
             name: data.name,
             targetCount: data.targetCount || 0,
             status: "draft",
-            teamId: data.teamId
+            teamId: data.teamId,
+            aiConfig: data.aiConfig,
+            type: data.type || "standard",
+            scheduledStart: data.scheduledStart ? new Date(data.scheduledStart) : null
         };
         if (data.description !== undefined) {
             createData.description = data.description;

@@ -7,19 +7,22 @@ export enum Plan {
 export const PLAN_FEATURES = {
     [Plan.FREE]: {
         agents: 1,
-        automations: false,
+        assisted_actions: true,
+        autonomous_execution: false,
         analytics: "basic",
         team: false
     },
     [Plan.PRO]: {
         agents: 5,
-        automations: true,
+        assisted_actions: true,
+        autonomous_execution: true, // "Hybrid Autonomy"
         analytics: "advanced",
         team: false
     },
     [Plan.ENTERPRISE]: {
         agents: 999,
-        automations: true,
+        assisted_actions: true,
+        autonomous_execution: true,
         analytics: "advanced",
         team: true
     }

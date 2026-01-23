@@ -1,4 +1,5 @@
 import { browserManager } from "@/modules/scraper-bridge";
+import { executeWithBackoff } from "@/lib/api-resilience";
 import { v4 as uuidv4 } from "uuid";
 
 class LinkedInRunnerService {
@@ -13,7 +14,8 @@ class LinkedInRunnerService {
             const page = await browserManager.newPage(pageId);
 
             // Navigate to profile
-            await page.goto(input.profileUrl, { waitUntil: "networkidle2" });
+            // Navigate to profile with backoff
+            await executeWithBackoff(() => page.goto(input.profileUrl, { waitUntil: "networkidle2" }));
 
             let result;
 

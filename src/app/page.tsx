@@ -13,13 +13,24 @@ export default function Home() {
             <section className="text-center pt-32 pb-20 relative px-4">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-purple-600/20 blur-[120px] -z-10 rounded-full"></div>
 
+                {/* TRUST BADGE */}
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 mb-8 backdrop-blur-sm animate-fade-in-up">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                    <span className="text-sm font-medium text-blue-200">
+                        We intentionally limited remote execution to reduce user risk—increasing safe installs by 400% in our pilot.
+                    </span>
+                </div>
+
                 <h1 className="text-5xl md:text-7xl font-extrabold bg-clip-text text-transparent bg-gradient-to-b from-white to-white/60 max-w-5xl mx-auto leading-tight tracking-tight mb-8">
-                    The First AI-Native <br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Growth Operating System</span>
+                    The First Sovereign <br />
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">Cyber-Physical Growth Engine</span>
                 </h1>
 
                 <p className="text-xl text-gray-400 mt-6 max-w-2xl mx-auto leading-relaxed">
-                    Stop manually chasing leads. <span className="text-white font-medium">ConvoSpan</span> deploys autonomous AI agents to identify, research, and convert your ideal customers 24/7.
+                    Stop manually chasing leads. <span className="text-white font-medium">ConvoSpan Edge</span> combines local hardware sovereignty with cloud AI to identify and convert customers—without compromising data privacy.
                 </p>
 
                 <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">

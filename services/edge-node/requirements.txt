@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+pydantic
+presidio-analyzer
+presidio-anonymizer
+spacy
+https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.0/en_core_web_lg-3.7.0.tar.gz
+sqlalchemy
+psycopg2-binary
+pgvector
+sentence-transformers
+llama-cpp-python
+onnxruntime
+
