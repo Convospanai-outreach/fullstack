@@ -145,9 +145,11 @@ Implemented as a **Safety-First Context Layer** to support Indian business norms
 -   **Risk**: Complex inputs may timeout, defaulting to "Block".
 
 ### 🟠 RISK: Verification Environment
--   **Issue**: Verification pipeline implemented but requires CI execution.
+-   **Issue**: Verification pipeline requires CI execution. Local hardware not available.
 -   **Implementation**: CI-based verification using Docker + llama.cpp + real Phi-3 inference.
--   **Status**: **IMPLEMENTED**. Verification occurs in CI using a Linux runtime. No mock-based verification is claimed.
+-   **Key Files**: `docker/Dockerfile.verify`, `evaluation/eval_suite_prod.py`, `.github/workflows/verify.yml`
+-   **Status**: **IMPLEMENTED**. Verification pipeline implemented. Execution occurs in CI using a Linux runtime. No mock-based verification is claimed.
+-   **Guarantees**: NO mocks, NO fallbacks, NO auto-pass. CI FAILS if model or binary missing.
 -   **Action**: First CI run pending. Local hardware testing deferred to pilot phase.
 
 ---
@@ -156,7 +158,7 @@ Implemented as a **Safety-First Context Layer** to support Indian business norms
 
 | Area | Status | Notes |
 | :--- | :--- | :--- |
-| **Engineering** | **NEAR-READY** | Code complete. CI verification implemented. Awaiting first CI pass. |
+| **Engineering** | **NEAR-READY** | Code complete. CI verification implemented (NO MOCKS). Awaiting first CI pass. |
 | **Compliance** | **READY** | Audit trails and Safety Rules verified. |
 | **Pilot (India)** | **READY** | Region-Aware RAG implemented. |
 | **Enterprise** | **NOT-READY** | SLA testing on Pi hardware pending. |

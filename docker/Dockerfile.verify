@@ -1,10 +1,24 @@
 FROM ubuntu:22.04
 
-# Prevent interactive prompts
+# ==============================================================================
+# PHI-3 MICRO-LLM VERIFICATION DOCKERFILE
+# 
+# PURPOSE: Build and verify Phi-3 inference in CI environment
+# GUARANTEE: Image build FAILS if verification fails
+# 
+# HARD CONSTRAINTS:
+# - NO mocks
+# - NO fallbacks  
+# - NO caching of verification results
+# - FAIL build on any error
+# ==============================================================================
+
+# Prevent interactive prompts during package install
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
 # Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     cmake \
     git \
@@ -12,38 +26,105 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     wget \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Build llama.cpp from source
+# ==============================================================================
+# STEP 1: Build llama.cpp from source
+# Using a pinned release tag for reproducibility
+# ==============================================================================
 WORKDIR /opt
-RUN git clone https://github.com/ggerganov/llama.cpp.git && \
+
+# Clone and build llama.cpp at a specific release
+# Using b4622 tag which includes Phi-3 support with llama-cli binary
+RUN git clone --depth 1 --branch b4622 https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
-    git checkout b1696 && \
-    make -j$(nproc)
+    mkdir build && \
+    cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build . --config Release -j$(nproc)
 
-# Download Phi-3 model (Q4_K_M quantization)
-# Using Hugging Face mirror for reliability
-RUN mkdir -p /opt/models && \
-    cd /opt/models && \
-    wget -O phi-3-mini-4k-instruct-q4.gguf \
+# Verify llama.cpp binary was built
+RUN test -f /opt/llama.cpp/build/bin/llama-cli || \
+    (echo "FATAL: llama-cli binary not found after build" && exit 1)
+
+# Make binary executable
+RUN chmod +x /opt/llama.cpp/build/bin/llama-cli
+
+# Set environment variable for eval suite
+ENV LLAMA_CPP_BINARY=/opt/llama.cpp/build/bin/llama-cli
+
+# ==============================================================================
+# STEP 2: Download Phi-3 model (Q4_K_M quantization)
+# Source: Official Microsoft Hugging Face repository
+# Size: ~2.4GB
+# ==============================================================================
+RUN mkdir -p /opt/models
+
+# Download the Q4_K_M quantized model
+# Using the official Microsoft Phi-3 GGUF from Hugging Face
+RUN cd /opt/models && \
+    echo "Downloading Phi-3 model (this may take several minutes)..." && \
+    wget --progress=dot:giga -O phi-3-mini-4k-instruct-q4.gguf \
     "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf" && \
-    echo "Model downloaded: $(ls -lh phi-3-mini-4k-instruct-q4.gguf)"
+    echo "Model downloaded successfully" && \
+    ls -lh phi-3-mini-4k-instruct-q4.gguf
 
-# Copy evaluation suite
+# Verify model file exists and is reasonable size (>500MB)
+RUN test -f /opt/models/phi-3-mini-4k-instruct-q4.gguf || \
+    (echo "FATAL: Model file not found after download" && exit 1)
+
+RUN MODEL_SIZE=$(stat -c%s /opt/models/phi-3-mini-4k-instruct-q4.gguf) && \
+    if [ "$MODEL_SIZE" -lt 500000000 ]; then \
+    echo "FATAL: Model file too small ($MODEL_SIZE bytes). Download may have failed." && \
+    exit 1; \
+    fi && \
+    echo "Model size verified: $MODEL_SIZE bytes"
+
+# Set environment variable for eval suite  
+ENV MODEL_PATH=/opt/models/phi-3-mini-4k-instruct-q4.gguf
+
+# ==============================================================================
+# STEP 3: Copy and prepare evaluation suite
+# ==============================================================================
+WORKDIR /opt/eval
+
+# Copy evaluation files
 COPY evaluation/eval_suite_prod.py /opt/eval/eval_suite_prod.py
 COPY evaluation/eval_cases_prod.json /opt/eval/eval_cases_prod.json
 
-# Verify binary exists
-RUN test -f /opt/llama.cpp/main || (echo "llama.cpp binary not found" && exit 1)
+# Verify evaluation files exist
+RUN test -f /opt/eval/eval_suite_prod.py || \
+    (echo "FATAL: eval_suite_prod.py not found" && exit 1)
+RUN test -f /opt/eval/eval_cases_prod.json || \
+    (echo "FATAL: eval_cases_prod.json not found" && exit 1)
 
-# Verify model exists
-RUN test -f /opt/models/phi-3-mini-4k-instruct-q4.gguf || (echo "Model file not found" && exit 1)
+# ==============================================================================
+# STEP 4: Run verification (FAIL BUILD IF VERIFICATION FAILS)
+# This is the critical step - no caching allowed
+# ==============================================================================
 
-# Run verification (FAIL BUILD IF VERIFICATION FAILS)
-WORKDIR /opt/eval
-RUN python3 eval_suite_prod.py || (echo "VERIFICATION FAILED" && exit 1)
+# Print verification environment
+RUN echo "============================================" && \
+    echo "VERIFICATION ENVIRONMENT" && \
+    echo "============================================" && \
+    echo "llama.cpp binary: $LLAMA_CPP_BINARY" && \
+    echo "Model path: $MODEL_PATH" && \
+    echo "Eval cases: /opt/eval/eval_cases_prod.json" && \
+    $LLAMA_CPP_BINARY --version || true
+
+# RUN VERIFICATION (This line MUST succeed for image to build)
+# DO NOT add || true or any fallback here
+RUN python3 eval_suite_prod.py
 
 # If we reach here, verification passed
-RUN echo "VERIFICATION PASSED - Image build successful"
+RUN echo "============================================" && \
+    echo "VERIFICATION PASSED" && \
+    echo "Image build successful. All safety checks passed." && \
+    echo "============================================"
 
+# ==============================================================================
+# RUNTIME: Allow re-running verification
+# ==============================================================================
+WORKDIR /opt/eval
 CMD ["python3", "eval_suite_prod.py"]
