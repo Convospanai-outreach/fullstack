@@ -65,7 +65,14 @@ export default function LeadsPage() {
     };
 
     const [selectedIndex, setSelectedIndex] = useState<number>(-1);
-    const router = useRouter(); // Import needed
+    const router = useRouter();
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
 
     // Keyboard Navigation (j/k)
     useEffect(() => {
@@ -83,7 +90,9 @@ export default function LeadsPage() {
                     setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
                     break;
                 case 'x':
-                    // TODO: Implement toggle selection logic
+                    if (selectedIndex !== -1 && leads[selectedIndex]) {
+                        toggleSelection(leads[selectedIndex].id);
+                    }
                     break;
                 case 'Enter':
                     if (selectedIndex !== -1 && leads[selectedIndex]) {
@@ -117,6 +126,7 @@ export default function LeadsPage() {
                 <div className="hidden lg:flex items-center gap-4 text-xs text-gray-500 bg-white/5 px-4 py-2 rounded-lg border border-white/5">
                     <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">j</kbd> next</span>
                     <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">k</kbd> prev</span>
+                    <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">x</kbd> select</span>
                     <span className="flex items-center gap-1"><kbd className="bg-black/30 px-1.5 py-0.5 rounded text-gray-300 font-mono">enter</kbd> view</span>
                 </div>
 
@@ -127,7 +137,7 @@ export default function LeadsPage() {
                         </Button>
                     </Link>
                     <Link href="/leads/new">
-                        <Button variant="primary" className="gap-2">
+                        <Button variant="default" className="gap-2">
                             <UserPlus className="w-4 h-4" /> Add Lead
                         </Button>
                     </Link>
@@ -136,7 +146,7 @@ export default function LeadsPage() {
 
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                 <FilterBar
-                    onSearch={({ query, status }) => {
+                    onSearch={({ query, status }: { query: string; status?: string }) => {
                         setSearch(query);
                         setStatusFilter(status || "");
                     }}
