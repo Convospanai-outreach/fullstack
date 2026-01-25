@@ -35,7 +35,6 @@ export class MonitoringService {
      * Comprehensive health check for monitoring systems
      */
     static async getHealthStatus(): Promise<HealthStatus> {
-        const startTime = Date.now();
         const checks: HealthStatus["checks"] = {
             database: await this.checkDatabase(),
             auditLog: await this.checkAuditLog(),
@@ -43,7 +42,7 @@ export class MonitoringService {
         };
 
         // Optional: Check edge node if configured
-        if (process.env.EDGE_NODE_URI) {
+        if (process.env["EDGE_NODE_URI"]) {
             checks.edgeNode = await this.checkEdgeNode();
         }
 
@@ -122,7 +121,7 @@ export class MonitoringService {
     private static async checkEdgeNode(): Promise<HealthCheck> {
         const start = Date.now();
         try {
-            const endpoint = process.env.EDGE_NODE_URI || "http://localhost:8000";
+            const endpoint = process.env["EDGE_NODE_URI"] || "http://localhost:8000";
             const response = await fetch(`${endpoint}/health`, {
                 signal: AbortSignal.timeout(5000)
             });

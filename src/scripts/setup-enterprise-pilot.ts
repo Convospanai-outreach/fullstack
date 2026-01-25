@@ -61,7 +61,7 @@ export async function setupEnterprisePilot(config: PilotOrgConfig) {
                 teamId: team.id,
                 providerType: "SAML",
                 enforced: false, // Start with optional SSO
-                allowedDomains: [config.adminEmail.split("@")[1]]
+                allowedDomains: [(config.adminEmail || "").split("@")[1] || "example.com"]
             }
         });
         console.log(`   ✓ SSO configured for domain: ${config.adminEmail.split("@")[1]}`);

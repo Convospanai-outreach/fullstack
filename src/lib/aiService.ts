@@ -55,6 +55,22 @@ export class AIService {
         // 0. Hybrid Routing Decision (Cloud vs On-Prem)
         const { HybridRouter, AIDestination, AITaskType } = await import("@/lib/ai/HybridRouter");
 
+        // 0. Enterprise Contract Enforcement (Phase 9)
+        if (teamId) {
+            const { KillSwitch } = await import("@/modules/contract/killSwitch");
+            const { ContractResolver } = await import("@/modules/contract/contractResolver");
+            const { UsageMeter } = await import("@/modules/contract/usageMeter");
+
+            // a. Emergency Stop
+            await KillSwitch.verifyOrDie(teamId, "AI");
+
+            // b. Contract Capability Check
+            await ContractResolver.resolveOrThrow(teamId, "GOVERNED_AI");
+
+            // c. Usage Limits
+            await UsageMeter.checkLimitsOrThrow(teamId);
+        }
+
         const routingContext = {
             taskType: (taskContext?.taskType as any) || AITaskType.SUMMARY,
             containsPII: taskContext?.containsPII || false,

@@ -32,7 +32,7 @@ async function testCallerFlow() {
 
     // Create Dummy User
     const userId = "test-caller-id";
-    const user = await prisma.user.upsert({
+    await prisma.user.upsert({
         where: { email: "caller@test.com" },
         update: {},
         create: {

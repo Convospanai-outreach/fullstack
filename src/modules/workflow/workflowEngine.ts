@@ -97,7 +97,7 @@ export class WorkflowEngine {
                             runId,
                             stepId: currentNode.id,
                             nodeType: currentNode.type,
-                            context: run.context || {}
+                            context: (run.context as Record<string, any>) || {}
                         }
                     }
                 });

@@ -7,17 +7,17 @@ export default function FeaturesSection() {
     const features = [
         {
             title: "Sovereign Firewall",
-            description: "Bank-grade security. Your PII never leaves your device thanks to our physical Edge Node technology.",
+            description: "Bank-grade security. Our local Micro-LLM (Phi-3) inspects every outgoing message, ensuring PII never leaves your device.",
             icon: <Zap className="w-6 h-6 text-yellow-400" />
         },
         {
             title: "Compliance Guardrails",
-            description: "Built for DPDP & GDPR. The system automatically redacts sensitive data before it touches the cloud.",
+            description: "Built for DPDP & GDPR. The system mechanically redacts sensitive data before it touches the cloud.",
             icon: <Shield className="w-6 h-6 text-green-400" />
         },
         {
             title: "SafeRun™ Assisted Mode",
-            description: "No more bans. Our local-first engine drafts messages for your review and executes actions from your own IP.",
+            description: "No more bans. Our local-first engine executes actions from your own IP, mimicking human behavior perfectly.",
             icon: <Shield className="w-6 h-6 text-blue-400" />
         },
         {

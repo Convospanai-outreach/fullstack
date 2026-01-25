@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Main Application
+  app:
+    build: .
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/convospan
+      - NEXTAUTH_Secret=staging_secret
+      - NEXTAUTH_URL=http://localhost:3000
+      - MICRO_LLM_URL=http://micro-llm:8081
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - micro-llm
+    networks:
+      - staging_net
+
+  # Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=convospan
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - staging_net
+
+  # Micro-LLM (Simulated for Staging if no GPU/model available)
+  # In real staging, this would run the actual container or point to a dedicated host
+  micro-llm:
+    image: python:3.9-slim
+    command: python -m http.server 8081
+    networks:
+      - staging_net
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - staging_net
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    networks:
+      - staging_net
+
+networks:
+  staging_net:
+
+
+volumes:
+  postgres_data:

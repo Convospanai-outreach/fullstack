@@ -1,0 +1,41 @@
+# Training Configuration for Phi-3-mini (Raspberry Pi Target)
+
+model:
+  name: "microsoft/Phi-3-mini-4k-instruct"
+  base_dType: "bfloat16"         # Load base model in bf16
+  use_gradient_checkpointing: true
+
+training:
+  type: "sft"                    # Supervised Fine-Tuning
+  seed: 42                       # Deterministic seed
+  epochs: 3                      # Conservative epoch count
+  batch_size: 4                  # Small batch size for stability
+  grad_accumulation_steps: 4     # Effective batch size = 16
+  learning_rate: 2.0e-5          # Low LR for stability
+  lr_scheduler: "cosine"
+  optimizer: "adamw_torch"
+  max_seq_len: 1024              # Max context (Input + Output)
+  output_dir: "./adapters"
+  logging_steps: 10
+  save_strategy: "epoch"
+
+lora:
+  r: 16                          # Rank
+  alpha: 32                      # Alpha
+  dropout: 0.05
+  target_modules:                # Phi-3 specific modules
+    - "qkv_proj"
+    - "o_proj"
+    - "gate_up_proj"
+    - "down_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+data:
+  train_split: 0.9
+  val_split: 0.1
+  # Strict token limits (Soft limits for filtering)
+  max_input_tokens: 512
+  max_output_tokens: 128
+
+device: "cuda"                   # Training happens on GPU server, Inference on Pi CPU

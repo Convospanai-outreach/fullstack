@@ -1,0 +1,49 @@
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    curl \
+    python3 \
+    python3-pip \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Build llama.cpp from source
+WORKDIR /opt
+RUN git clone https://github.com/ggerganov/llama.cpp.git && \
+    cd llama.cpp && \
+    git checkout b1696 && \
+    make -j$(nproc)
+
+# Download Phi-3 model (Q4_K_M quantization)
+# Using Hugging Face mirror for reliability
+RUN mkdir -p /opt/models && \
+    cd /opt/models && \
+    wget -O phi-3-mini-4k-instruct-q4.gguf \
+    "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf" && \
+    echo "Model downloaded: $(ls -lh phi-3-mini-4k-instruct-q4.gguf)"
+
+# Copy evaluation suite
+COPY evaluation/eval_suite_prod.py /opt/eval/eval_suite_prod.py
+COPY evaluation/eval_cases_prod.json /opt/eval/eval_cases_prod.json
+
+# Verify binary exists
+RUN test -f /opt/llama.cpp/main || (echo "llama.cpp binary not found" && exit 1)
+
+# Verify model exists
+RUN test -f /opt/models/phi-3-mini-4k-instruct-q4.gguf || (echo "Model file not found" && exit 1)
+
+# Run verification (FAIL BUILD IF VERIFICATION FAILS)
+WORKDIR /opt/eval
+RUN python3 eval_suite_prod.py || (echo "VERIFICATION FAILED" && exit 1)
+
+# If we reach here, verification passed
+RUN echo "VERIFICATION PASSED - Image build successful"
+
+CMD ["python3", "eval_suite_prod.py"]

@@ -1,0 +1,302 @@
+[
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, where's the report? I've been waiting all morning and really need it now.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to follow up on the status of the report. Please let me know when it is available for review."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Seriously, did you even see my last three emails? I'm really getting worried here.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up on my previous correspondence. Please provide an update at your earliest convenience."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm super stressed about this deadline. You guys have to hurry up or we're gonna fail.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate an update on our progress toward the deadline to ensure we remain on schedule."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Can you just finish this already? It’s taking way longer than you said it would.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "Please let me know the estimated timeline for completion so I can plan accordingly."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm honestly so annoyed that nobody told me the meeting was moved. This is a mess.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I noticed the meeting time has changed. Please ensure I am included in future scheduling updates."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey! Just checking in again. I know you're busy but I really need an answer like, today.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am checking in to see if there are any updates regarding my previous request. I look forward to hearing from you."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "This draft is kind of a disaster. Can you fix it? I'm losing my mind here.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I believe the current draft requires further refinement. Please let me know if you can assist with these revisions."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Why haven't you paid the invoice yet? This is getting ridiculous.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to inquire about the status of the outstanding invoice. Please let us know if you require any further information."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm totally lost. What are we even supposed to be doing for this project?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate some clarification on the specific objectives and next steps for this project."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Listen, I need you to drop everything and look at this right now.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "When you have a moment, I would appreciate your feedback on this matter."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm so over these constant delays. Is there any hope of getting this done soon?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "Could you please provide a revised timeline for the completion of this task?"
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, sorry to bug you again, but I'm still waiting on those files. Ping me back.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up regarding the files I requested. Please send them over whenever you have the opportunity."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm getting really frustrated that you keep ignoring my calls.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I have been trying to reach you regarding our project. Please let me know when you are available for a brief discussion."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "This whole thing is a joke. We need to fix it before I lose it.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I believe there are several areas in this process that require improvement. I would appreciate your input on how to address them."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm super worried we're gonna miss the launch. Can you please just give me an update?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate a status update to ensure we are aligned with the upcoming launch schedule."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Ugh, this software is so buggy! Can someone please just fix it already?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I have identified several technical issues with the software. Please let me know the process for requesting a resolution."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I've asked you like five times for this info. What's the holdup?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up on my request for information. Please let me know if there is anything hindering its delivery."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Honestly, I'm just so confused by your feedback. It makes zero sense.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate further clarification on the feedback provided to ensure I fully understand the requested changes."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Are you ever going to get back to me? I'm tired of waiting.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am looking forward to your response regarding our previous discussion. Please let me know when you might have an update."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, I need a quick favor. Can you just sign this real fast? No big deal.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "When you have a moment, could you please review and sign the attached document?"
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "This is totally unacceptable. I expected way better from you guys.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "The current results do not meet our established expectations. I would like to discuss how we can improve this moving forward."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm literally drowning in work. Can you please take some of this off my plate?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "My current workload is quite high. I would appreciate discussing a potential redistribution of tasks if possible."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Just wanted to see if you've done that thing yet. Let me know!",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to inquire about the status of the task we discussed. Please provide an update when you can."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm so mad about how the meeting went. We need to talk about it now.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would like to schedule a time to discuss the outcomes of our recent meeting and address some concerns."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Did you forget about me? Still waiting on those notes!",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up on the meeting notes. Please share them whenever they are ready."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "This is driving me crazy! Why isn't anyone helping me?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am seeking assistance with a current challenge. Please let me know who would be best to contact for support."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I need you to confirm you're coming to the event. I can't wait any longer.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "Please confirm your attendance at the upcoming event at your earliest convenience."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm super bummed that you didn't like my proposal. What was wrong with it?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate more detailed feedback on my proposal so that I can make the necessary improvements."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Can we just skip all the fluff and get to the point?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I suggest we focus our discussion on the primary objectives to ensure a productive use of time."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm really stressed that this isn't going to be ready in time. Please help.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate an update on the timeline to ensure we remain on track for the deadline."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, did you see my text? I really need to know the answer.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up on my previous message. Please let me know when you have an answer to my inquiry."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm so sick of all these emails. Can't we just hop on a call and finish this?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I believe a brief phone call would be a more efficient way to resolve this matter. Please let me know your availability."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Your last email was kinda rude. I didn't appreciate it.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would like to discuss the communication style in our recent correspondence to ensure we maintain a positive working relationship."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Is this done yet? I'm getting really impatient.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to check on the progress of this task. Please provide an update when possible."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm totally overwhelmed with all these changes. Why do we keep changing things?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate more context regarding the recent changes so I can better align my efforts."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Can you just do your job and send me the files?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "Please send over the requested files at your earliest convenience so I can proceed with my work."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm really worried about the budget. We're spending way too much.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would like to review the current budget to ensure our expenditures are in line with our projections."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, what's the deal with the delay? This is taking forever.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to inquire about the reasons for the current delay and the updated expected completion date."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm so happy we finally finished this! It was a total nightmare though.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am pleased to see this project reach completion. It was a challenging process, and I appreciate everyone's efforts."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Can you please just listen to me for once? I know what I'm talking about.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate the opportunity to share my perspective on this matter in more detail."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm super confused about the new policy. It's so annoying.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I have some questions regarding the new policy and would appreciate further clarification."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, I'm just checking in to see if you've made any progress. No rush, but I'd like to know.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am writing to request a brief update on your progress whenever you have a moment."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm really frustrated that I wasn't included in the decision-making process.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate being involved in future discussions regarding matters that impact my department."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "This is taking way too long. Can we speed it up?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would like to explore any options for expediting this process if possible."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm so tired of all these meetings. Can't we just get some work done?",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I suggest we evaluate our meeting schedule to ensure we have sufficient time for focused project work."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Hey, did you get my last message? I'm still waiting for a reply.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I am following up on my previous message and look forward to your response when you are available."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm really worried about the quality of this work. It's not great.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I have some concerns regarding the current quality of the deliverables and would like to discuss potential improvements."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Why is this so complicated? It should be simple.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate a simpler explanation of this process to ensure it is understood by all parties."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "I'm honestly just so done with this project. It's been a disaster.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I believe we should conduct a post-project review to identify the challenges we faced and learn for future initiatives."
+  },
+  {
+    "task": "TONE_NORMALIZATION",
+    "input": "Can you just tell me what's going on? I'm in the dark here.",
+    "constraints": { "tone": "professional", "no_pressure": true },
+    "output": "I would appreciate more frequent updates to ensure I am fully informed of our progress."
+  }
+]

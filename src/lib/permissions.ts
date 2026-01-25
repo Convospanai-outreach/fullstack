@@ -92,9 +92,7 @@ export function canManageMembers(role: string): boolean {
     return ROLE_PERMISSIONS[role]?.includes(Permission.INVITE_MEMBERS) || false;
 }
 
-// @ts-ignore
-return ROLE_PERMISSIONS[role]?.includes(Permission.MANAGE_BILLING) || false;
-}
+
 
 // --- ENTERPRISE RBAC HELPERS ---
 

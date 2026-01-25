@@ -13,6 +13,19 @@ export class LinkedInService {
             where: { id: leadId }
         });
 
+        // 1b. Enterprise Contract Enforcement (Phase 9)
+        if (_teamId) {
+            const { KillSwitch } = await import("@/modules/contract/killSwitch");
+            const { ContractResolver } = await import("@/modules/contract/contractResolver");
+
+            // a. Emergency Stop (Outbound)
+            await KillSwitch.verifyOrDie(_teamId, "OUTBOUND");
+
+            // b. Contract Capability Check (Channel: LINKEDIN)
+            // LinkedIn is usually ADVANCED_OPS or just channel restricted
+            await ContractResolver.resolveOrThrow(_teamId, "ADVANCED_OPS", "LINKEDIN");
+        }
+
         if (!lead || !lead.linkedIn) {
             throw new Error("Lead not found or missing LinkedIn URL");
         }

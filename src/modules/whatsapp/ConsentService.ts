@@ -29,7 +29,7 @@ export class ConsentService {
                 purpose: "MARKETING_AND_SUPPORT", // Default purpose for now
                 status: "GRANTED",
                 proof: null, // Can be added later
-                notes
+                notes: notes || null
             }
         });
 
@@ -103,7 +103,7 @@ export class ConsentService {
                 channel: "WHATSAPP",
                 purpose: "REVOCATION",
                 status: "REVOKED", // Using string literal matching the Enum
-                notes: reason
+                notes: reason || null
             }
         });
 

@@ -60,7 +60,7 @@ model Lead {
   tasks       Task[]
   generations Generation[]
 
-  // Pipeline State (COLD → WARM → HOT → COORDINATING → MEETING_CONFIRMED → COMPLETED)
+  // Pipeline State (COLD â†’ WARM â†’ HOT â†’ COORDINATING â†’ MEETING_CONFIRMED â†’ COMPLETED)
   pipelineState        String    @default("COLD")
   pipelineStateChangedAt DateTime?
   hotAt                DateTime? // When lead became HOT
@@ -341,6 +341,7 @@ model Team {
   agentFeedbackLoops AgentFeedbackLoop[]
   Experiment         Experiment[]
   ImmutableAudit     ImmutableAudit[]
+  contractProfile    ContractProfile?
 }
 
 model CrmIntegration {
@@ -554,6 +555,7 @@ model User {
   requestedApprovals ApprovalRequest[] @relation("requester")
   reviewedApprovals  ApprovalRequest[] @relation("reviewer")
   agentTasks         AgentTask[]
+  datasetReviews     DatasetReview[]
 
   // Caller Role (Part 4)
   isCaller           Boolean   @default(false)
@@ -1352,3 +1354,156 @@ model ConsentLedger {
   @@index([leadId])
   @@index([channel, status])
 }
+
+model ContractProfile {
+  id                    String   @id @default(uuid())
+  teamId                String   @unique
+  allowedChannels       String[] // ["EMAIL", "WHATSAPP", "LINKEDIN"]
+  allowedCapabilityLayers String[] // ["CORE", "GOVERNED_AI"]
+  aiUsageLimit          Int      @default(1000) // Monthly limit
+  conversationThreadLimit Int    @default(50)
+  humanHandoffLimit     Int      @default(10)
+  onPremRequired        Boolean  @default(false)
+  dataRetentionDays     Int      @default(90)
+  featureTier           String   @default("CORE") // CORE, ADVANCED, CUSTOM
+  contractStatus        String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED
+  
+  updatedAt             DateTime @updatedAt
+  
+  team                  Team     @relation(fields: [teamId], references: [id])
+}
+
+// --- ENTERPRISE MICRO-LLM TRAINING INFRASTRUCTURE ---
+
+enum TrainingTaskType {
+  TONE_NORMALIZATION
+  GRAMMAR_REPAIR
+  BRAND_ENFORCEMENT
+  POLICY_CLASSIFICATION
+  POLICY_REWRITE
+  CONVERSATION_SUMMARY
+  OBJECTION_EXTRACTION
+  REFUSAL_GENERATION
+}
+
+enum DatasetStatus {
+  DRAFT
+  IN_REVIEW
+  REVIEWED
+  TRAINING
+  DEPLOYED
+}
+
+enum ModelStatus {
+  TRAINING
+  VALIDATION
+  DEPLOYED
+  ROLLED_BACK
+  DEPRECATED
+}
+
+model TrainingDataset {
+  id            String   @id @default(uuid())
+  version       String   @unique
+  taskType      TrainingTaskType
+  recordCount   Int      @default(0)
+  datasetHash   String
+  configHash    String
+  status        DatasetStatus @default(DRAFT)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  records       TrainingRecord[]
+  reviews       DatasetReview[]
+  modelVersions ModelVersion[]
+  
+  @@index([status])
+  @@index([taskType])
+}
+
+model TrainingRecord {
+  id                  String   @id @default(uuid())
+  datasetId           String
+  taskType            TrainingTaskType
+  inputText           String   @db.Text
+  brandRules          Json
+  policyRules         Json
+  expectedOutput      String   @db.Text
+  rejectionConditions Json
+  reviewScore         Float?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  approved            Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  
+  dataset             TrainingDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  
+  @@index([datasetId])
+  @@index([approved])
+  @@index([reviewScore])
+}
+
+model DatasetReview {
+  id                String   @id @default(uuid())
+  datasetId         String
+  reviewerId        String
+  sampleSize        Int
+  avgScore          Float
+  policyCorrectness Float
+  toneQuality       Float
+  clarity           Float
+  realism           Float
+  refusalQuality    Float?
+  notes             String?  @db.Text
+  approved          Boolean
+  createdAt         DateTime @default(now())
+  
+  dataset   TrainingDataset @relation(fields: [datasetId], references: [id])
+  reviewer  User            @relation(fields: [reviewerId], references: [id])
+  
+  @@index([datasetId])
+  @@index([reviewerId])
+}
+
+model ModelVersion {
+  id                  String   @id @default(uuid())
+  version             String   @unique
+  baseModel           String
+  datasetId           String
+  configHash          String
+  changelog           String   @db.Text
+  status              ModelStatus @default(TRAINING)
+  refusalAccuracy     Float?
+  policyViolationRate Float?
+  driftScore          Float?
+  verbosityScore      Float?
+  deployedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  dataset             TrainingDataset @relation(fields: [datasetId], references: [id])
+  metrics             EvaluationMetric[]
+  
+  @@index([status])
+  @@index([version])
+}
+
+model EvaluationMetric {
+  id              String   @id @default(uuid())
+  modelVersionId  String
+  metricType      String   // REFUSAL_ACC, POLICY_VIOLATION, DRIFT, VERBOSITY
+  value           Float
+  threshold       Float
+  passed          Boolean
+  metadata        Json?
+  timestamp       DateTime @default(now())
+  
+  modelVersion    ModelVersion @relation(fields: [modelVersionId], references: [id])
+  
+  @@index([modelVersionId])
+  @@index([metricType])
+  @@index([passed])
+}
+
+// --- END ML TRAINING INFRASTRUCTURE ---
+

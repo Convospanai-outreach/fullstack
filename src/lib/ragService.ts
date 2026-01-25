@@ -40,7 +40,13 @@ export class RAGService {
             }
 
             // Step 3: Re-rank based on outcome weights
-            const rankedResults = await OutcomeRAGService.rankResults(relevantResults, teamId);
+            const itemIds = relevantResults.map(r => r.id);
+            const { prisma } = await import("@/lib/db"); // Lazy import to avoid cycle if any
+            const performanceData = await prisma.knowledgePerformance.findMany({
+                where: { knowledgeItemId: { in: itemIds } }
+            });
+
+            const rankedResults = OutcomeRAGService.rankResults(relevantResults, performanceData);
 
             // Step 4: Format into structured context
             const context = vectorStore.formatContext(rankedResults);
@@ -61,7 +67,12 @@ export class RAGService {
     static async getRetrievalStats(query: string, teamId: string): Promise<any> {
         try {
             const results = await vectorStore.search(query, teamId, 10, 2000);
-            const rankedResults = await OutcomeRAGService.rankResults(results, teamId);
+            const { prisma } = await import("@/lib/db");
+            const itemIds = results.map(r => r.id);
+            const performanceData = await prisma.knowledgePerformance.findMany({
+                where: { knowledgeItemId: { in: itemIds } }
+            });
+            const rankedResults = OutcomeRAGService.rankResults(results, performanceData);
 
             return {
                 totalResults: results.length,

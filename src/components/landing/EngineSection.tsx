@@ -17,8 +17,8 @@ export default function EngineSection() {
                                 Sovereign Intelligence
                             </h3>
                             <p className="text-gray-400 text-lg">
-                                Our proprietary Cortex Engine runs locally on your edge node.
-                                It processes millions of data points without exposing your strategy to the cloud.
+                                Our proprietary <strong>Micro-LLM (Phi-3)</strong> runs locally on your edge node.
+                                It acts as a <span className="text-blue-400">Sovereign Firewall</span>, filtering every Cloud AI draft through your local safety policies before it ever leaves the building.
                             </p>
                         </div>
                         <div>
@@ -36,7 +36,7 @@ export default function EngineSection() {
                                 Enterprise Security
                             </h3>
                             <p className="text-gray-400 text-lg">
-                                SOC-2 compliant infrastructure ensures your data and strategies remain completely private and secure.
+                                SOC-2 compliant infrastructure ensures your data and strategies remain completely private. The <strong>Privacy-First Architecture</strong> guarantees no PII is ever trained into the global model.
                             </p>
                         </div>
                     </div>
@@ -56,7 +56,11 @@ export default function EngineSection() {
                                 </div>
                                 <div className="flex items-center gap-3 text-purple-400">
                                     <span className="w-2 h-2 bg-purple-500 rounded-full"></span>
-                                    <span>[Agent] Drafting personalized intro email...</span>
+                                    <span>[Cloud] Drafting personalized intro email...</span>
+                                </div>
+                                <div className="flex items-center gap-3 text-yellow-400">
+                                    <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                                    <span>[Micro-LLM] Verifying safety policy (Phi-3)... PASS</span>
                                 </div>
                                 <div className="flex items-center gap-3 text-orange-400">
                                     <span className="w-2 h-2 bg-orange-500 rounded-full"></span>

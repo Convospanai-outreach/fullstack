@@ -26,11 +26,11 @@ async function validateDatabaseIndexes() {
     console.log("\n📊 Validating Database Indexes...");
 
     // Check critical indexes exist
-    const checks = [
-        { table: "Lead", columns: ["teamId", "email", "status", "pipelineState"] },
-        { table: "AuditLog", columns: ["orgId", "createdAt"] },
-        { table: "ConversationThread", columns: ["leadId", "state"] }
-    ];
+    // const checks = [
+    //     { table: "Lead", columns: ["teamId", "email", "status", "pipelineState"] },
+    //     { table: "AuditLog", columns: ["orgId", "createdAt"] },
+    //     { table: "ConversationThread", columns: ["leadId", "state"] }
+    // ];
 
     // In a real implementation, query pg_indexes
     // For now, trust schema definition
@@ -165,9 +165,13 @@ async function generateReport() {
     console.log(`\nScore: ${score}/100 (${passed}/${total} checks passed)`);
 
     const byCategory = results.reduce((acc, r) => {
-        if (!acc[r.category]) acc[r.category] = { passed: 0, total: 0 };
-        acc[r.category].total++;
-        if (r.passed) acc[r.category].passed++;
+        let stats = acc[r.category];
+        if (!stats) {
+            stats = { passed: 0, total: 0 };
+            acc[r.category] = stats;
+        }
+        stats.total++;
+        if (r.passed) stats.passed++;
         return acc;
     }, {} as Record<string, { passed: number; total: number }>);
 

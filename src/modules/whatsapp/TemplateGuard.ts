@@ -114,7 +114,7 @@ export class TemplateGuard {
      * Get approved templates for the team
      * In production, these would be fetched from WhatsApp Business API
      */
-    static async getApprovedTemplates(teamId: string): Promise<string[]> {
+    static async getApprovedTemplates(_teamId: string): Promise<string[]> {
         // Stub: In real implementation, call WhatsApp API
         // For now, return common approved templates
         return [
@@ -127,7 +127,7 @@ export class TemplateGuard {
     /**
      * Record that a message was sent (for 24h window tracking)
      */
-    static async recordMessageSent(leadId: string, message: string, isTemplate: boolean) {
+    static async recordMessageSent(leadId: string, message: string, _isTemplate: boolean) {
         const { prisma } = await import("@/lib/db");
 
         await prisma.whatsAppMessage.create({

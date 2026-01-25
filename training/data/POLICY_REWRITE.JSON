@@ -1,0 +1,302 @@
+[
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee 100% uptime for our servers. If they go down for even a second, you get a full refund instantly!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We strive to maintain high availability for our services. In the event of a service interruption, customers may be eligible for credits as outlined in our Service Level Agreement."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You must sign this contract by midnight or the 50% discount is gone forever. Don't be stupid—act now!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Please note that the current promotional pricing is scheduled to expire shortly. You may review the agreement at your convenience if you wish to take advantage of these rates."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our software is hack-proof. We promise your data will never be stolen or accessed by anyone else.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We implement industry-standard security protocols to help protect user data. While no system is entirely without risk, we prioritize the integrity of your information."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Buy this course and we guarantee you'll land a six-figure job in 30 days or we'll pay you!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our curriculum is designed to provide professional skills relevant to high-growth industries. Career outcomes vary based on individual experience and market conditions."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Your order will definitely arrive by tomorrow morning. We never miss a deadline.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We aim to process and ship orders promptly. While we target an early delivery, arrival times are estimates and may be subject to carrier delays."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Stop ignoring our notices! If you don't update your billing right now, we are cutting off your access immediately.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We are writing to remind you that your billing information requires an update. To avoid any potential disruption in service, please review your account settings when possible."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our product is 100% natural and has zero side effects. It works for everyone, every time!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our product is formulated with naturally derived ingredients. As with any new regimen, results may vary and we recommend consulting with a professional regarding individual suitability."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We have the lowest prices in the world. If you find it cheaper anywhere else, we'll give it to you for free!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We strive to offer competitive pricing on all our products. Please contact our support team to discuss our price matching policy for qualifying retailers."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You absolutely must upgrade to the Pro plan today. The Basic plan is garbage and will fail you.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our Pro plan offers additional features that may better support your growing needs. You are welcome to compare our plan options to see which best aligns with your goals."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We promise that our AI will never make a mistake. It is perfect and 100% accurate.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our AI model is designed for high precision; however, outputs should be reviewed for accuracy as results are generated based on probabilistic patterns."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Refunds are processed in 1 second. No questions asked, you get your money back instantly!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We aim to process refund requests efficiently. Once approved, the funds will be issued to your original payment method, subject to your bank's processing times."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "This is your LAST CHANCE to get this deal. If you don't click now, you'll regret it!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "The current promotional offer is reaching its conclusion. Please let us know if you have any questions before the campaign ends."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee you will lose 20 pounds in 2 weeks using our method or your money back!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our program provides tools intended to support weight management goals. Individual results will vary based on several factors, including adherence and metabolic response."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our lawyers guarantee that you will win your case if you hire us. We never lose!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our legal team is committed to providing a rigorous defense. While no specific outcome can be promised in litigation, we will work diligently on your behalf."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You're crazy if you don't buy this right now. It's the best thing ever made.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We believe our product offers significant value and unique features. We invite you to explore the benefits and decide if it meets your requirements."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We will respond to your support ticket within 5 minutes, guaranteed, 24/7.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our support team aims to respond to all inquiries as quickly as possible. We generally target a prompt response time during standard operating hours."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "This software will never crash. It is impossible for it to have bugs.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We perform extensive testing to ensure platform stability. In the event of a technical issue, our team is available to provide assistance and updates."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "If you don't use this, your business will definitely fail by next year.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our solutions are designed to help businesses improve efficiency and mitigate risks. We would be happy to discuss how our tools can support your long-term strategy."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee this investment will double your money in six months with zero risk!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "This investment strategy seeks to maximize growth potential. Please be aware that all investments involve risk, and past performance is not indicative of future results."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You have to tell us why you're leaving or we won't let you cancel your subscription.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "While you may cancel your subscription at any time through your account settings, we would appreciate any feedback you are willing to share regarding your experience."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our battery lasts forever. You will never have to charge it again.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our product features an extended battery life designed for long-term use. Actual duration will depend on usage patterns and environmental factors."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We are the only company that actually cares about you. Everyone else is lying.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We are committed to providing high-quality customer service and transparent communication. Our goal is to build a professional relationship based on trust."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Sign up today or you'll be stuck with the old, broken version of our app forever.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We encourage users to update to the latest version of our application to access the newest features and security enhancements."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee that using our service will make you famous overnight.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our service is designed to increase your visibility and reach. While we provide the platform for growth, individual results depend on content and audience engagement."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "This is a one-time offer. If you leave this page, it's gone and you'll pay double later.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "The pricing shown is part of a limited-time promotion. Please be advised that standard rates may apply once this offer expires."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our insurance covers everything. You will never pay a penny out of pocket for any accident.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our insurance plans offer comprehensive coverage options. Please review your policy details for information regarding deductibles, limits, and exclusions."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We promise this skin cream will make you look 20 years younger in one week.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our formula is designed to improve the appearance of skin texture and tone. Continued use may lead to visible improvements over time."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You must refer 10 friends right now or your account will be limited.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We invite you to participate in our referral program. Sharing our service with others may provide you with additional benefits and account features."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee 100% satisfaction. If you're not happy, we'll give you double your money back!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We aim for complete customer satisfaction. If our product does not meet your expectations, please contact us to discuss available resolution options."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Don't let your competitors beat you! Buy this now or they will get ahead and you'll be bankrupt.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Utilizing our tools can provide a competitive advantage in your industry. We suggest exploring these options to help strengthen your market position."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our system is 100% automated. You don't have to do any work at all.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our platform offers extensive automation capabilities designed to reduce manual tasks. Some initial configuration and periodic monitoring may be required."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You are guaranteed to pass your exam if you use our study guide. We have a 100% pass rate.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our study materials are developed to align with exam objectives. While we aim to provide thorough preparation, success depends on individual effort and mastery of the subject matter."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our furniture will last for 500 years. It is completely indestructible.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our furniture is constructed with high-quality materials designed for durability. With proper care and maintenance, it is intended to provide long-term service."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Act fast! Only 2 items left in stock. Once they're gone, we're never making more.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our current inventory for this item is limited. We recommend placing your order soon if you wish to secure one from the current batch."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We promise our coffee will give you more energy than any other brand on Earth.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our coffee is roasted to provide a robust flavor and caffeine profile. Many customers find it to be a high-quality source of daily energy."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You must agree to all our terms without reading them or you can't use our site.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Access to our services is subject to our Terms and Conditions. We encourage you to review them carefully before proceeding."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our cleaning service guarantees your house will stay clean for a whole month after one visit.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We provide a thorough cleaning service designed to maintain a high standard of hygiene. The duration of cleanliness will vary based on household activity."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee that our marketing plan will increase your sales by 500%.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our marketing strategies are designed to optimize lead generation and sales growth. Performance outcomes are subject to market variables and business implementation."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Don't be the loser who doesn't have the newest phone. Pre-order now or be embarrassed.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "The latest model is now available for pre-order. We invite you to explore the new features and decide if an upgrade is right for you."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We promise our seeds will grow in any soil, even in the middle of a desert.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our seeds are selected for their resilience and high germination rates. For best results, we recommend following the included planting and soil guidelines."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "If you don't buy the extended warranty, we won't help you when the product inevitably breaks.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "The extended warranty provides additional protection beyond the standard manufacturer's period. You may choose to add this coverage for peace of mind."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our car is the safest in the world. You can't get hurt in an accident in this car.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "This vehicle is equipped with advanced safety features designed to maximize occupant protection. We prioritize safety in our engineering and design processes."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee you will be fluent in Spanish in 48 hours with our app.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our app uses accelerated learning techniques to help you acquire language skills quickly. Proficiency levels will depend on the time and effort invested by the learner."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You must provide your credit card info just to look at our prices. It's for your own good.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "To view our detailed pricing and plans, we ask that you create a secure account. This helps us provide a personalized experience for our clients."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our cloud storage is infinite. You can store everything in the world on it for free.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We offer expansive cloud storage options to accommodate large amounts of data. Please refer to our plan details for information on available storage tiers."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee that our consulting will solve every single problem your company has.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our consultants work to identify and address core operational challenges. We aim to provide effective solutions that support your organization’s health."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "If you don't like our service, we'll personally fly to your house and fix it for you.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We are dedicated to providing excellent service. If you encounter any issues, our remote support team is available to assist you promptly."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "Our internet is 1000x faster than anyone else's. We guarantee it!",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We offer high-speed internet plans designed to meet demanding connectivity needs. Speeds may vary based on location and network conditions."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "You'll never find a better deal than this. If you do, we'll shut down our business.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "We believe our current offer provides exceptional value. We encourage you to compare our services to ensure they meet your budgetary and quality standards."
+  },
+  {
+    "task": "POLICY_REWRITE",
+    "input": "We guarantee this roof will never leak for as long as the Earth exists.",
+    "constraints": { "tone": "professional", "no_pressure": true, "no_guarantees": true, "channel": "email" },
+    "output": "Our roofing systems are installed with high-grade materials and craftsmanship. We provide a long-term warranty covering defects and performance under normal conditions."
+  }
+]

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import * as XLSX from 'xlsx';
 import { Lead } from "@prisma/client";
 import { modelGateway } from "@/ai/ModelGateway";
+import { EventStore, SystemEventType } from "./EventStore";
 
 interface ExcelRow {
     Name: string;
@@ -107,6 +108,19 @@ export class DataIngestionService {
                     await this.triggerInitialGeneration(lead, extraction.proprietarySignal);
                 }
 
+                // [NEW] Record Lead Ingestion Event
+                await EventStore.record({
+                    type: SystemEventType.SYSTEM, // OR USER if we had the context
+                    name: "LEAD_INGESTED",
+                    teamId: teamId,
+                    payload: {
+                        leadId: lead.id,
+                        leadEmail: lead.email,
+                        source: "FILE_UPLOAD",
+                        filename: filePath
+                    }
+                });
+
                 results.push({ email: lead.email, status: "SUCCESS" });
 
             } catch (error: any) {
@@ -191,6 +205,18 @@ Keep it under 100 words. Be professional yet conversational.`;
                 conversionValue: 0.0 // Will be updated on success
             }
         });
+
+        // [NEW] Record Generation Event
+        await EventStore.record({
+            type: SystemEventType.AI,
+            name: "DRAFT_GENERATED",
+            teamId: lead.teamId,
+            payload: {
+                leadId: lead.id,
+                leadName: lead.fullName,
+                draftSnippet: draft.substring(0, 50) + "..."
+            }
+        });
     }
 
     /**
@@ -227,6 +253,18 @@ Keep it under 100 words. Be professional yet conversational.`;
                 }
             });
         }
+
+        // [NEW] Record Feedback Event
+        await EventStore.record({
+            type: SystemEventType.USER,
+            name: "FEEDBACK_RECEIVED",
+            teamId: generation.lead.teamId,
+            payload: {
+                generationId: generation.id,
+                feedbackType,
+                conversionValue
+            }
+        });
     }
 }
 

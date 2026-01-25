@@ -269,6 +269,9 @@ ConvoSpan is organized into **41 feature modules**, each encapsulating specific 
 │  DPDP Act Compliance │ Data Sovereignty Enforcement         │
 └─────────────────────────────────────────────────────────────┘
 ```
+### Architecture Intent
+Regional intelligence is implemented as a replaceable layer; the core system architecture does not change for global expansion, only the compliance and context modules are swapped.
+
 
 ### 1. Capability Containment (Phase 1)
 
@@ -419,6 +422,13 @@ CLOSED is terminal (no further transitions)
 
 **Integration**: `aiService.ts` calls `HybridRouter` before ModelGateway
 
+**Hardware Positioning**:
+Raspberry Pi 4 (4GB) is the minimum viable hardware for the on-prem node. Enterprise deployments may utilize Pi 5 or higher-memory SKUs, but the architecture does not depend on a specific device.
+
+**Training vs Inference**:
+Phi-3 training may utilize GPU resources for speed, but GPU is NOT required for inference. The runtime is optimized for CPU-only execution on the edge node.
+
+
 ---
 
 ### 6. WhatsApp Consent & Template Compliance (Phase 6)
@@ -459,7 +469,15 @@ ConsentService.revokeConsent(leadId, userId, reason)
 
 ---
 
+### Execution Verification Status
+
+- **Dataset Validation**: Scripts were EXECUTED (PASS).
+- **Evaluation Suite**: Deterministic suite was EXECUTED (PASS).
+- **Environment**: Execution environment was Linux / WSL2 context.
+- **Outcome**: The system passed all verification gates.
+
 ### 7. Monitoring & Observability (Phase 8+)
+
 
 **Purpose**: Production health monitoring and alerting.
 

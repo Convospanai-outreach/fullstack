@@ -48,7 +48,7 @@ export class CaseStudyService {
                 summary: data.summary,
                 content: data.content,
                 metrics: data.metrics || {},
-                embedding: embedding || [], // Prisma JSON can take empty array, though search will fail gracefully
+                embedding: JSON.stringify(embedding || []), // SQL vector or JSON storage
                 teamId
             }
         });
@@ -101,7 +101,11 @@ export class CaseStudyService {
         for (const cs of caseStudies) {
             if (!cs.embedding) continue;
 
-            const storedEmbedding = cs.embedding as number[];
+            // Handle potential string vs array return from Prisma depending on schema
+            const storedEmbedding = typeof cs.embedding === 'string'
+                ? JSON.parse(cs.embedding) as number[]
+                : cs.embedding as unknown as number[];
+
             const similarity = this.cosineSimilarity(queryEmbedding, storedEmbedding);
 
             if (similarity >= 0.7) { // Strict threshold for grounding

@@ -1,0 +1,202 @@
+[
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Dear Sir/Ma'am/Madam, I'm interested in the Pro plan. Agent: It's $99 per month. User: Oh, that is outside my current budget.",
+    "output": "The user expressed interest in the Pro plan but stated the price exceeds their current budget."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: Can we launch this by Friday? Provider: We need at least two weeks for setup. Client: That won't work for our timeline.",
+    "output": "The client requested a launch by Friday, but the provider requires two weeks for setup, leading to a timeline conflict."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Buyer: I like the car, but I need to talk to my spouse first. Seller: No problem, I can hold it until tomorrow. Buyer: Thanks, I'll let you know then.",
+    "output": "The buyer expressed interest in the vehicle but is delaying the decision to consult with a spouse. The seller agreed to hold the item until the following day."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Does this software include CRM integration? Agent: Not in the basic version. User: I'll have to pass then, as that's a requirement for us.",
+    "output": "The user inquired about CRM integration and declined the service because the basic version does not include this required feature."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: Your services look great. Can we start Monday? Consultant: I am fully booked until next month. Lead: Understood, I'll check back then.",
+    "output": "The lead requested a project start for Monday, but the consultant is unavailable until next month. The lead indicated they would follow up later."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Customer: Is there a discount for annual billing? Agent: Yes, you save 20%. Customer: I'm still not sure if I can commit to a full year yet.",
+    "output": "The customer inquired about annual discounts and expressed hesitation regarding a long-term commitment."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: I'm ready to sign if you can lower the onboarding fee. Provider: We cannot reduce that fee at this time. Client: In that case, I need to look at other options.",
+    "output": "The client requested a reduction in the onboarding fee as a condition for signing. The provider declined the request, and the client decided to explore other vendors."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: My trial ends today. Can I get a 3-day extension? Agent: I can grant that for you right now. User: Perfect, thanks.",
+    "output": "The user requested and received a three-day extension on their trial period."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Manager: We need the report by 5 PM. Employee: I have two other deadlines today. Manager: Okay, send it by tomorrow morning instead.",
+    "output": "The manager requested a report by 5 PM, but the employee cited conflicting deadlines. The deadline was moved to the following morning."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Inquirer: Are you available for a call at 2 PM? Partner: I have a conflict then, but 4 PM works. Inquirer: 4 PM is fine.",
+    "output": "The inquirer proposed a 2 PM call, which was rescheduled to 4 PM due to a conflict."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: We are interested, but our budget is frozen until Q3. Sales: I understand. Should I follow up in July? Lead: Yes, that would be best.",
+    "output": "The lead expressed interest but noted a budget freeze until the third quarter. A follow-up was scheduled for July."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: I'm worried about the security of my data. Provider: We use AES-256 encryption. Client: That's helpful, but I need to see the full audit report first.",
+    "output": "The client voiced security concerns and requested an audit report after being informed about the encryption standards."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Can I cancel my subscription immediately? Agent: Yes, but there are no refunds for the current month. User: That's fine, go ahead.",
+    "output": "The user requested immediate subscription cancellation and accepted that no refund would be provided for the current month."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Customer: Do you have this in blue? Seller: Only black and white are in stock. Customer: I'll wait until blue is back in stock.",
+    "output": "The customer inquired about a specific color that is currently out of stock and decided to delay the purchase."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Inquirer: Is the price negotiable? Seller: The price is firm as listed. Inquirer: I'll have to keep looking, then.",
+    "output": "The inquirer asked for a price negotiation, which the seller declined. The inquirer ended the conversation."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: Can you handle 10,000 users at once? Vendor: Our current limit is 5,000. Lead: We need something more scalable right now.",
+    "output": "The lead inquired about a 10,000-user capacity, and the vendor stated a 5,000-user limit. The lead declined the service due to scalability needs."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Tenant: Can I move in on the 1st? Landlord: The cleaning crew won't be done until the 3rd. Tenant: I'll see if I can change my truck rental.",
+    "output": "The tenant requested a move-in date of the 1st, but the landlord stated the property would not be ready until the 3rd. The tenant is checking their logistics."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Contractor: I've sent the invoice for the deposit. Client: I'm waiting on my partner's signature. Contractor: Let me know once it's processed.",
+    "output": "The contractor sent an invoice for a deposit, and the client is awaiting a partner's signature before processing the payment."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Candidate: What is the salary range for this role? Recruiter: Between $70k and $85k. Candidate: That's lower than what I'm looking for.",
+    "output": "The recruiter provided a salary range of $70k to $85k, which the candidate stated was below their requirements."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Is there a mobile app? Support: It's currently in development. User: I really need mobile access, so I'll check back in a few months.",
+    "output": "The user inquired about a mobile app and decided to wait for its release before committing to the service."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: We need to put the project on hold for a month. Agency: Understood. We will pause billing until you're ready. Client: Thank you for the flexibility.",
+    "output": "The client requested a one-month project pause, and the agency agreed to suspend billing during that time."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Buyer: Will you take $200? Seller: The lowest I can go is $250. Buyer: I can do $250 if you include shipping.",
+    "output": "The buyer made a counter-offer of $250 on the condition that shipping is included."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: Can we meet today to discuss the proposal? Sales: I'm out of the office today. How is tomorrow morning? Lead: Tomorrow works for me.",
+    "output": "A meeting to discuss a proposal was moved to tomorrow morning because the sales representative is out of the office."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: I can't find the export button. Support: It's under the 'Tools' menu. User: Ah, I see it now. Thanks.",
+    "output": "The user successfully located the export button after receiving instructions from support."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: We decided to go with a different agency. Manager: Thank you for letting us know. Can you share why? Client: They offered a more specialized package for our niche.",
+    "output": "The client notified the manager of their decision to hire a different agency that offers more specialized services."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: I'm interested in the demo. Sales: I can set that up for Thursday. Lead: Thursday is bad for me. Let's do next week.",
+    "output": "The lead requested a demo but postponed the appointment until next week due to a scheduling conflict on Thursday."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Customer: Is the fabric 100% cotton? Seller: It is a cotton-polyester blend. Customer: I'm looking for pure cotton, so I'll pass.",
+    "output": "The customer declined the purchase after learning the product is a blend rather than 100% cotton."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: I'm having trouble with my password. Agent: I've sent a reset link to your email. User: I haven't received it yet. Agent: Check your spam folder.",
+    "output": "The agent sent a password reset link to the user, who was then advised to check their spam folder when it did not appear."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Inquirer: Do you ship to Australia? Seller: We only ship within the US and Canada. Inquirer: Okay, thanks anyway.",
+    "output": "The seller informed the inquirer that shipping is limited to the US and Canada, precluding an Australian delivery."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: We need to reduce the scope of the project. Agency: That will change the final price. Client: Send us the revised quote.",
+    "output": "The client requested a reduction in project scope, and the agency is preparing a revised quote reflecting the change in price."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Is the API documented? Developer: Yes, I'll send the link. User: This looks quite complex for our team.",
+    "output": "The user received the API documentation and expressed concern regarding the complexity for their team."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Buyer: I'm ready to buy if you can deliver by tonight. Seller: Delivery is only available on weekdays. Buyer: I'll look for someone else then.",
+    "output": "The buyer required delivery by tonight, which the seller could not fulfill because they only deliver on weekdays."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: What's the minimum contract term? Sales: It's 12 months. Lead: We are only looking for a 3-month pilot right now.",
+    "output": "The lead expressed interest in a 3-month pilot, but the sales representative stated the minimum contract term is 12 months."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Patient: Can I see the doctor today? Reception: He is in surgery until 4 PM. Patient: I'll come by tomorrow morning instead.",
+    "output": "The patient requested a same-day appointment but rescheduled for the next morning due to the doctor's unavailability."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: Is this compatible with Mac? Agent: It's Windows only for now. Lead: That's a dealbreaker for me.",
+    "output": "The lead declined the product because it lacks Mac compatibility."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: We love the product, but we're waiting for budget approval. Sales: No problem. I'll check back in two weeks. Lead: Sounds good.",
+    "output": "The lead expressed interest but is awaiting budget approval. A follow-up is planned for two weeks."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "User: Can I change my username? Support: Username changes are not permitted once the account is created. User: That's unfortunate.",
+    "output": "Support informed the user that username changes are not allowed after account creation."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Client: Can we add another feature to the sprint? Dev: It will push back the release date. Client: Never mind, let's stick to the plan.",
+    "output": "The client inquired about adding a new feature but decided against it after learning it would delay the release."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Lead: Do you offer a non-profit discount? Sales: Yes, we offer 50% off for verified 501(c)(3)s. Lead: Great, I'll send our paperwork.",
+    "output": "The sales representative confirmed a 50% discount for non-profits, and the lead agreed to provide the necessary documentation."
+  },
+  {
+    "task": "SHORT_SUMMARY",
+    "input": "Inquirer: Is the parking included in the rent? Agent: No, parking is an extra $100 per month. Inquirer: I'll have to factor that into my budget.",
+    "output": "The agent stated that parking is not included in the rent and costs an additional $100 monthly. The inquirer is considering the impact on their budget."
+  }
+]

@@ -3,8 +3,10 @@ import { LLMProvider, TaskComplexity, ModelRequest, ModelResponse, LLMError } fr
 import { providerRegistry } from "./LLMProviderRegistry";
 import { semanticCache } from "@/modules/optimization/SemanticCache";
 import { tokenUsageGuard } from "@/modules/optimization/TokenUsageGuard";
+import { experimentService } from "@/modules/testing/ExperimentService";
 import { prisma } from "@/lib/db";
 import { Redis } from "ioredis";
+import * as crypto from 'crypto';
 
 export { TaskComplexity };
 export type { ModelRequest };
@@ -40,10 +42,39 @@ export class ModelGateway {
             return cachedContent;
         }
 
+        // [NEW] Causal Experimentation Injection
+        // If a teamId is present, check for active experiments
+        if (request.teamId) {
+            try {
+                const activeExperiments = await experimentService.getActiveExperiments(request.teamId);
+                console.log(`[Gateway] Active experiments for ${request.teamId}: ${activeExperiments.length}`);
 
-        /** Original Cache Logic Replaced/Augmented by Semantic Cache **/
-        // const cached = await this.checkCache(request.prompt, complexity);
-        // if (cached) { ... }
+                if (activeExperiments.length > 0) {
+                    // For now, pick the first active experiment (simplified)
+                    const experiment = activeExperiments[0];
+                    // Use a deterministic ID (e.g. prompt hash + teamId) or random text if unavailable
+                    const entityId = crypto.createHash('md5').update(request.prompt).digest('hex');
+                    console.log(`[Gateway] Experiment ${experiment.name} Entity ID: ${entityId}`);
+
+                    const variant = await experimentService.getVariant(experiment.id, entityId);
+
+                    if (variant) {
+                        console.log(`[Gateway] Applying experiment variant: ${variant.name} (${experiment.name})`);
+                        await experimentService.recordExposure(variant.id);
+
+                        // Apply config overrides
+                        const config = variant.config as any;
+                        if (config.promptSuffix) request.prompt += `\n\n${config.promptSuffix}`;
+                        if (config.model) request.model = config.model; // Force model override
+                        if (config.temperature) request.temperature = config.temperature;
+                    } else {
+                        console.log(`[Gateway] No variant assigned for ${entityId}`);
+                    }
+                }
+            } catch (e) {
+                console.error("[Gateway] Experiment injection failed:", e);
+            }
+        }
 
         // Determine preferred provider based on complexity
         const preferredProvider = this.selectPreferredProvider(complexity);

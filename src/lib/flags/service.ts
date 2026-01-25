@@ -23,10 +23,10 @@ export class FeatureFlagService {
 
         // 1. Fetch Team Policy
         const policy = await prisma.organizationPolicy.findUnique({
-            where: { teamId }
+            where: { organizationId: teamId }
         });
 
-        const mode = policy?.productMode || ProductMode.ENTERPRISE_CORE; // Default to safest mode
+        const mode = (policy?.productMode as ProductMode) || ProductMode.ENTERPRISE_CORE; // Default to safest mode
 
         // 2. Layer Restriction based on Mode
         if (!this.isLayerAllowedInMode(definition.layer, mode)) {

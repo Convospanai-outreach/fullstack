@@ -10,15 +10,19 @@ export default function FAQSection() {
                 <div className="space-y-4">
                     <FAQItem
                         question="How does the 'Sovereign Firewall' protect my data?"
-                        answer="Your PII never leaves your physical premises. Our Edge Node sanitizes all data locally before any cloud AI process begins, ensuring total privacy."
+                        answer="Your PII never leaves your physical premises. Our local Micro-LLM (Phi-3) sanitizes all data locally before any cloud AI process begins, ensuring total privacy."
+                    />
+                    <FAQItem
+                        question="Why do you use Phi-3 Locally?"
+                        answer="Phi-3 is a state-of-the-art small language model that runs efficiently on your Edge Node. It provides 'human-level' policy enforcement without sending your sensitive strategy to big tech clouds."
                     />
                     <FAQItem
                         question="Do I need special hardware?"
-                        answer="Yes. ConvoSpan Edge requires a small physical node (NVIDIA Jetson or approved mini-PC) to run the local Cortex Engine."
+                        answer="Yes. ConvoSpan Edge requires a supported node (Raspberry Pi 4/5 or NVIDIA Jetson) to run the local Cortex Engine."
                     />
                     <FAQItem
                         question="Is this compliant with India's DPDP Act?"
-                        answer="Absolutely. Toggle our 'Region Lock' to INDIA mode, and we enforce strict data residency and Aadhaar redaction protocols automatically."
+                        answer="Absolutely. Our Region-Aware RAG system automatically adapts aggressive sales language to Indian business norms (e.g., 'do the needful'), preventing cultural friction while maintaining compliance."
                     />
                     <FAQItem
                         question="What happens if my internet connection fails?"

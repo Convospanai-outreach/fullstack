@@ -93,7 +93,14 @@ export class EventStore {
 
         switch (event.name) {
             case "DRAFT_SENT":
+            case "DRAFT_GENERATED":
                 narrative = `AI generated a outreach draft for lead ${event.payload.leadName}.`;
+                break;
+            case "LEAD_INGESTED":
+                narrative = `Ingested lead ${event.payload.leadEmail} from source ${event.payload.source}.`;
+                break;
+            case "FEEDBACK_RECEIVED":
+                narrative = `User provided feedback (${event.payload.feedbackType}) on generation ${event.payload.generationId}.`;
                 break;
             case "ACTION_APPROVED":
                 narrative = `Human reviewer approved the automated outreach plan for ${event.payload.entityType}.`;

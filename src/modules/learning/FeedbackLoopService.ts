@@ -15,7 +15,7 @@ export class FeedbackLoopService {
         const lengthChange = edited.length - original.length;
 
         // Store in DB
-        await prisma.agentFeedbackLoop.create({
+        const feedback = await prisma.agentFeedbackLoop.create({
             data: {
                 teamId,
                 originalText: original,
@@ -26,6 +26,19 @@ export class FeedbackLoopService {
         });
 
         console.log(`[Feedback] Captured edit for team ${teamId}. Similarity: ${similarity.toFixed(2)}`);
+
+        // [NEW] Record Event for Audit
+        const { EventStore, SystemEventType } = await import("./EventStore"); // Lazy import to avoid circular dep if any
+        await EventStore.record({
+            type: SystemEventType.USER,
+            name: "FEEDBACK_CAPTURED",
+            teamId,
+            payload: {
+                feedbackLoopId: feedback.id,
+                similarity: similarity,
+                lengthChange: lengthChange
+            }
+        });
     }
 
     /**
