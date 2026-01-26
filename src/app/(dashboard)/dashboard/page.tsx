@@ -15,7 +15,7 @@ import {
     Bot
 } from "lucide-react";
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function DashboardPage() {

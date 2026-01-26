@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import MeetingList from "@/components/calendar/MeetingList";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export default function CalendarPage() {
     const [meetings, setMeetings] = useState([]);

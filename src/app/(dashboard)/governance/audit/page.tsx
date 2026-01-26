@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import GovernanceLayout from "@/components/governance/GovernanceLayout";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import {
     Search,

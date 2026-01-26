@@ -1,4 +1,4 @@
-﻿import sendpulse from 'sendpulse-api';
+import sendpulse from 'sendpulse-api';
 import { logger } from '@/lib/logger';
 
 const API_USER_ID = process.env['SENDPULSE_ID'] || "";

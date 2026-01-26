@@ -17,11 +17,11 @@ import {
     CheckCircle2
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export type WizardStep = "channel" | "autonomy" | "audience" | "messaging" | "review";
 

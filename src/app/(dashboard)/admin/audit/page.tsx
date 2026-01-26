@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Filter, Search } from "lucide-react";
+import { Download } from "lucide-react";
 
 interface AuditLog {
     id: string;
@@ -22,7 +22,7 @@ interface AuditLog {
 }
 
 export default function AuditLogPage() {
-    const { data: session } = useSession();
+
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [filters, setFilters] = useState({
@@ -84,11 +84,58 @@ export default function AuditLogPage() {
         a.click();
     };
 
-    const getActionColor = (action: string) => {
-        if (action.includes("DELETE") || action.includes("REVOKED")) return "destructive";
-        if (action.includes("CREATE") || action.includes("GRANTED")) return "default";
-        if (action.includes("UPDATE") || action.includes("CHANGE")) return "secondary";
-        return "outline";
+    type AuditBadgeVariant =
+        | "default"
+        | "info"
+        | "success"
+        | "warning"
+        | "danger";
+
+    const getActionColor = (action: string): AuditBadgeVariant => {
+        const act = action.toUpperCase();
+
+        // Semantic Mapping: DELETE / BLOCK / DENY -> "danger"
+        if (
+            act.includes("DELETE") ||
+            act.includes("BLOCK") ||
+            act.includes("DENY") ||
+            act.includes("REVOKED") // Preserved from existing logic
+        ) {
+            return "danger";
+        }
+
+        // Semantic Mapping: CREATE / INSERT / ENABLE -> "success"
+        if (
+            act.includes("CREATE") ||
+            act.includes("INSERT") ||
+            act.includes("ENABLE") ||
+            act.includes("GRANTED") || // Preserved from existing logic
+            act.includes("APPROVED")   // Preserved from existing logic
+        ) {
+            return "success";
+        }
+
+        // Semantic Mapping: UPDATE / MODIFY -> "info"
+        if (
+            act.includes("UPDATE") ||
+            act.includes("MODIFY") ||
+            act.includes("CHANGE") // Preserved from existing logic
+        ) {
+            return "info";
+        }
+
+        // Semantic Mapping: WARN / FLAG / SOFT_FAIL -> "warning"
+        if (
+            act.includes("WARN") ||
+            act.includes("FLAG") ||
+            act.includes("SOFT_FAIL") ||
+            act.includes("TOGGLED") // Preserved from existing logic
+        ) {
+            return "warning";
+        }
+
+        // Fallback -> "default"
+        return "default";
     };
 
     return (

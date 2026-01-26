@@ -1,4 +1,4 @@
-﻿import { getCompanyInsights } from '@/integrations/research.js';
+import { getCompanyInsights } from '@/integrations/research.js';
 import { scrapeLinkedInProfile } from '@/linkedin/scraper-bridge.js';
 
 import { buildICP } from '@/icp/fuse.js';

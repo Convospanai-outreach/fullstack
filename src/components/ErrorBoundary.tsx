@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Component, ReactNode } from 'react';
-import { Button } from './ui/Button';
+import { Button } from './ui/button';
 import { GlassCard } from './ui/GlassCard';
 import { AlertTriangle } from 'lucide-react';
 import { AuditService } from '@/modules/audit/auditService';

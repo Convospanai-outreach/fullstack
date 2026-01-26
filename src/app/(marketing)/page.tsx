@@ -1,6 +1,6 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import HeroScene from "@/components/marketing/HeroScene";
 
@@ -25,7 +25,7 @@ export default function Home() {
         {/* HERO SECTION */}
         <section className="text-center pt-20">
           <div className="inline-block mb-6 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-sm font-medium text-purple-300">
-            ✨ The Future of Automated Outreach is Here
+            ? The Future of Automated Outreach is Here
           </div>
           <h1 className="text-6xl md:text-8xl font-bold mb-8 tracking-tight leading-tight">
             Reclaim Your Time, <br />
@@ -70,7 +70,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
               <div className="h-14 w-14 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6 text-3xl">
-                😴
+                ??
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Sleep While We Work</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -80,7 +80,7 @@ export default function Home() {
 
             <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
               <div className="h-14 w-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 text-3xl">
-                🧠
+                ??
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">AI That Sounds Like You</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -90,7 +90,7 @@ export default function Home() {
 
             <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
               <div className="h-14 w-14 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 text-3xl">
-                🛡️
+                ???
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Enterprise-Grade Safety</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -129,7 +129,7 @@ export default function Home() {
               <div className="flex-1 text-left md:pl-12">
                 <h3 className="text-3xl font-bold text-white mb-4">2. Build Your Workflow</h3>
                 <p className="text-xl text-gray-400">
-                  Drag and drop actions to create complex sequences. Visit profile → Wait 1 day → Connect → Send Message.
+                  Drag and drop actions to create complex sequences. Visit profile ? Wait 1 day ? Connect ? Send Message.
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-blue-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">2</div>
@@ -198,10 +198,10 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { title: "Connect Accounts", icon: "🔌", desc: "Link your email and LinkedIn safely." },
-              { title: "Define Audience", icon: "🎯", desc: "Use precision filters to find your ICP." },
-              { title: "Launch Agents", icon: "🚀", desc: "Select a workflow and hit start." },
-              { title: "Close Deals", icon: "🤝", desc: "Jump in when prospects are interested." }
+              { title: "Connect Accounts", icon: "??", desc: "Link your email and LinkedIn safely." },
+              { title: "Define Audience", icon: "??", desc: "Use precision filters to find your ICP." },
+              { title: "Launch Agents", icon: "??", desc: "Select a workflow and hit start." },
+              { title: "Close Deals", icon: "??", desc: "Jump in when prospects are interested." }
             ].map((step, i) => (
               <div key={i} className="relative group">
                 <div className="absolute inset-0 bg-blue-600/20 rounded-2xl blur-xl group-hover:bg-purple-600/20 transition-all duration-500 opacity-0 group-hover:opacity-100" />
@@ -230,7 +230,7 @@ export default function Home() {
               <details key={i} className="group glass-card rounded-xl overflow-hidden cursor-pointer transition-all duration-300">
                 <summary className="flex justify-between items-center p-6 text-lg font-medium text-white hover:bg-white/5 transition-colors list-none">
                   {faq.q}
-                  <span className="transform group-open:rotate-180 transition-transform text-gray-400">▼</span>
+                  <span className="transform group-open:rotate-180 transition-transform text-gray-400">?</span>
                 </summary>
                 <div className="px-6 pb-6 text-gray-400 leading-relaxed">
                   {faq.a}

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 interface APISettingsData {
     apiKeyOpenAI?: string;

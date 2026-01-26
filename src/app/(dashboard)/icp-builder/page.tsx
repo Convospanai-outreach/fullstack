@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sparkles, Target, Loader2, Save } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function ICPBuilderPage() {

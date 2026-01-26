@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { WifiOff } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 interface Lead {

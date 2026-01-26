@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";

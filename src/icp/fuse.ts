@@ -1,4 +1,4 @@
-﻿export async function buildICP(company: any, profile: any, assets: any[] = []) {
+export async function buildICP(company: any, profile: any, assets: any[] = []) {
   return {
     company: company.name,
     name: profile?.name || "Unknown",

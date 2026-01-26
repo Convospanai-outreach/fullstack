@@ -1,7 +1,7 @@
 "use client";
 
 import { Mail, UserPlus, Search, MousePointer2, AlertCircle } from 'lucide-react';
-import { Badge } from '../ui/Badge';
+import { Badge } from '../ui/badge';
 
 interface ActivityItem {
     id: string;

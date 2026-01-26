@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import GovernanceLayout from "@/components/governance/GovernanceLayout";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 // Switch import removed as checkbox is used for now
 import { Input } from "@/components/ui/Input";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
     ShieldAlert,
     Trash2,

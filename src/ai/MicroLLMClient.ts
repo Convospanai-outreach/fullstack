@@ -39,11 +39,11 @@ export class MicroLLMClient {
             console.log(`[MicroLLM] Request: ${request.taskType} -> ${this.baseUrl}/infer`);
 
             // Inject context if present (RAG-Enriched Prompt)
-            let finalInput = request.input;
+            let finalInput = request.inputText;
             if (context) {
                 // Prepending context in a clearly demarcated way
                 // This informs the model without overriding the core instruction
-                finalInput = `[CONTEXT: ${context}] ${request.input}`;
+                finalInput = `[CONTEXT: ${context}] ${request.inputText}`;
             }
 
             const response = await fetch(`${this.baseUrl}/infer`, {
@@ -54,7 +54,7 @@ export class MicroLLMClient {
                 },
                 body: JSON.stringify({
                     ...request,
-                    input: finalInput
+                    inputText: finalInput
                 }),
                 signal: controller.signal
             });

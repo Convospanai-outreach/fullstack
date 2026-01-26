@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { Badge } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, Upload, Database, CheckCircle2, Globe, FileText } from 'lucide-react';
 
 export default function KnowledgeBaseManager() {

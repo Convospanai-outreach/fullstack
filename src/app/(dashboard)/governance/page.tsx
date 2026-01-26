@@ -1,9 +1,9 @@
 "use client";
 
 import GovernanceLayout from "@/components/governance/GovernanceLayout";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, AlertTriangle, Activity, Lock } from "lucide-react";
 
 export default function GovernancePage() {

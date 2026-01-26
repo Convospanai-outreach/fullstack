@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import ExportButton from "@/modules/data-export/ui/ExportButton";
 import FilterBar from "@/components/shared/FilterBar";

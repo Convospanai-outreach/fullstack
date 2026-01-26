@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 
 export default function TestCrashPage() {
     const [shouldCrash, setShouldCrash] = useState(false);

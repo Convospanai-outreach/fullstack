@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Hunter.io Integration
  * Provides email finding and verification using Hunter.io API
  */

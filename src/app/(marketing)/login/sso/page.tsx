@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { toast } from "sonner";
 import { Shield, ArrowLeft } from "lucide-react";

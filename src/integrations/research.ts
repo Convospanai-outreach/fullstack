@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Company Research Integration
  * Provides company insights using AI analysis
  */

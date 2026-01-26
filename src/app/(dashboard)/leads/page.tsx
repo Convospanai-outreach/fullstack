@@ -7,8 +7,8 @@ import { getLeads } from "@/lib/api/leads";
 import FilterBar from "@/components/shared/FilterBar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Users,
     UserPlus,

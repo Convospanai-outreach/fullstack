@@ -1,4 +1,4 @@
-﻿import { vectorStore } from '@/modules/rag/service/vectorStore';
+import { vectorStore } from '@/modules/rag/service/vectorStore';
 
 /**
  * Vector Search Wrapper

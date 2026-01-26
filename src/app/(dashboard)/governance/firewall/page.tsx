@@ -1,10 +1,10 @@
 "use client";
 
 import GovernanceLayout from "@/components/governance/GovernanceLayout";
-import { Card } from "@/components/ui/Card";
+import { Card } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ShieldAlert, EyeOff, Activity, RefreshCw } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
+import { Badge } from "@/components/ui/badge";
 
 export default function FirewallPage() {
     return (

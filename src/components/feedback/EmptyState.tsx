@@ -1,7 +1,7 @@
 "use client";
 
 import { LucideIcon, Plus } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Button } from '../ui/button';
 
 interface EmptyStateProps {
     title: string;

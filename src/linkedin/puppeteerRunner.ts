@@ -1,4 +1,4 @@
-﻿import puppeteer, { Page } from "puppeteer";
+import puppeteer, { Page } from "puppeteer";
 
 import { RateLimitService } from "@/lib/rateLimitService";
 

@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { audit } from "@/lib/governance/audit";

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/button";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 
 function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {

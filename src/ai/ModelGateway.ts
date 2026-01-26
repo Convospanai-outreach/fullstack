@@ -35,6 +35,10 @@ export class ModelGateway {
         // 0. Token Guard (Budget Check & Optimization)
         request = await tokenUsageGuard.guard(request);
 
+        // [FIX] Create execution payload to support experiment overrides (e.g. model)
+        // without violating ModelRequest contract.
+        let executionPayload = { ...request } as ModelRequest & { model?: string };
+
         // 1. Semantic Cache Check (Skip expensive calls)
         const cachedContent = await semanticCache.get(request.prompt);
         if (cachedContent) {
@@ -52,23 +56,25 @@ export class ModelGateway {
                 if (activeExperiments.length > 0) {
                     // For now, pick the first active experiment (simplified)
                     const experiment = activeExperiments[0];
-                    // Use a deterministic ID (e.g. prompt hash + teamId) or random text if unavailable
-                    const entityId = crypto.createHash('md5').update(request.prompt).digest('hex');
-                    console.log(`[Gateway] Experiment ${experiment.name} Entity ID: ${entityId}`);
+                    if (experiment) {
+                        // Use a deterministic ID (e.g. prompt hash + teamId) or random text if unavailable
+                        const entityId = crypto.createHash('md5').update(request.prompt).digest('hex');
+                        console.log(`[Gateway] Experiment ${experiment.name} Entity ID: ${entityId}`);
 
-                    const variant = await experimentService.getVariant(experiment.id, entityId);
+                        const variant = await experimentService.getVariant(experiment.id, entityId);
 
-                    if (variant) {
-                        console.log(`[Gateway] Applying experiment variant: ${variant.name} (${experiment.name})`);
-                        await experimentService.recordExposure(variant.id);
+                        if (variant) {
+                            console.log(`[Gateway] Applying experiment variant: ${variant.name} (${experiment.name})`);
+                            await experimentService.recordExposure(variant.id);
 
-                        // Apply config overrides
-                        const config = variant.config as any;
-                        if (config.promptSuffix) request.prompt += `\n\n${config.promptSuffix}`;
-                        if (config.model) request.model = config.model; // Force model override
-                        if (config.temperature) request.temperature = config.temperature;
-                    } else {
-                        console.log(`[Gateway] No variant assigned for ${entityId}`);
+                            // Apply config overrides
+                            const config = variant.config as any;
+                            if (config.promptSuffix) executionPayload.prompt += `\n\n${config.promptSuffix}`;
+                            if (config.model) executionPayload.model = config.model; // Force model override
+                            if (config.temperature) executionPayload.temperature = config.temperature;
+                        } else {
+                            console.log(`[Gateway] No variant assigned for ${entityId}`);
+                        }
                     }
                 }
             } catch (e) {
@@ -94,13 +100,13 @@ export class ModelGateway {
                 const provider = providerRegistry.getProvider(providerName);
                 if (!provider) continue;
 
-                const response = await provider.generate(request);
+                const response = await provider.generate(executionPayload);
 
                 // Record success
                 providerRegistry.recordSuccess(providerName, response.latency);
 
                 // Log usage for analytics
-                await this.logUsage(request, response);
+                await this.logUsage(executionPayload, response);
 
                 // Deduct Credits
                 if (request.teamId) {
@@ -108,10 +114,10 @@ export class ModelGateway {
                 }
 
                 // Semantic Cache Store
-                await semanticCache.set(request.prompt, response.content, response.tokensIn, response.tokensOut);
+                await semanticCache.set(executionPayload.prompt, response.content, response.tokensIn, response.tokensOut);
 
                 // Legacy Cache (Redis) - keeping for redundancy if needed, or remove
-                await this.cacheResponse(request.prompt, complexity, response.content);
+                await this.cacheResponse(executionPayload.prompt, complexity, response.content);
 
                 console.log(
                     `[Gateway] Success: ${providerName} | ` +
