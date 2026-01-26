@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { Activity, Ban, ShieldAlert, ZapOff } from "lucide-react";
 
 export default function ObservabilityDashboard() {
     const [data, setData] = useState<any>(null);
@@ -38,10 +39,10 @@ export default function ObservabilityDashboard() {
 
             {/* 1. High Level Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <StatCard title="Active Teams" value={data.metrics.activeTeams} type="neutral" />
-                <StatCard title="Suspended Teams" value={data.metrics.suspendedTeams} type="negative" />
-                <StatCard title="Contract Denials" value={data.metrics.totalDenials} type={data.metrics.totalDenials > 0 ? "negative" : "positive"} />
-                <StatCard title="Kill Switch Events" value={data.metrics.totalKillSwitch} type="critical" />
+                <StatCard label="Active Teams" value={data.metrics.activeTeams} icon={Activity} />
+                <StatCard label="Suspended Teams" value={data.metrics.suspendedTeams} icon={Ban} />
+                <StatCard label="Contract Denials" value={data.metrics.totalDenials} icon={ShieldAlert} />
+                <StatCard label="Kill Switch Events" value={data.metrics.totalKillSwitch} icon={ZapOff} />
             </div>
 
             {/* 2. Security Events Feed */}
