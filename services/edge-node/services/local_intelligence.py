@@ -43,6 +43,12 @@ class LocalIntelligenceService:
 
         # 2. Offline LLM (Phi-3-Mini GGUF)
         model_path = os.getenv("OFFLINE_MODEL_PATH", "./models/Phi-3-mini-4k-instruct.gguf")
+        
+        # Linkage Check: If custom path is set but file missing, warn and try default
+        if not os.path.exists(model_path) and "Custom" in model_path:
+            logger.warning(f"⚠️ Custom Model {model_path} not found. Falling back to default.")
+            model_path = "./models/Phi-3-mini-4k-instruct.gguf"
+
         if os.path.exists(model_path):
             try:
                 from llama_cpp import Llama
@@ -56,7 +62,7 @@ class LocalIntelligenceService:
             except Exception as e:
                 logger.error(f"❌ Failed to load Offline LLM: {e}")
         else:
-            logger.warning(f"⚠️ Offline model not found at {model_path}. Offline fallback will be mocked.")
+            logger.warning(f"⚠️ Offline model not found at {model_path} or default location.")
 
         self._models_loaded = True
 
@@ -126,6 +132,26 @@ class LocalIntelligenceService:
 
         return "".join(sanitized_text_list), token_stats
 
+    def reidentify_token(self, token: str, session_id: Optional[str] = None) -> Optional[str]:
+        """
+        Reverse lookup for a token in the local PII Vault.
+        """
+        db = self.db_session_factory()
+        try:
+            query = db.query(PIITokenMap).filter(PIITokenMap.token_id == token)
+            if session_id:
+                query = query.filter(PIITokenMap.session_id == session_id)
+            
+            record = query.first()
+            if record:
+                return record.original_text
+            return None
+        except Exception as e:
+            logger.error(f"Re-identification failed: {e}")
+            return None
+        finally:
+            db.close()
+
     # --- Task 2: Adversarial Judge (Vector Scoring) ---
     def critique_response(self, text: str) -> Dict:
         """
@@ -173,6 +199,44 @@ class LocalIntelligenceService:
             return {"status": "ERROR", "score": 0.0, "reason": str(e)}
         finally:
             db.close()
+
+    # --- Task 4: Intent Scoring (Karmic Friction) ---
+    def score_intent(self, text: str) -> int:
+        """
+        Analyzes the text for 'Karmic Friction' (Anger/Frustration) using the offline model.
+        Returns a score 0-100 (0 = Happy, 100 = Furious).
+        """
+        self.load_models()
+        if not self.llm:
+            logger.warning("Offline model not loaded, returning neutral score.")
+            return 50 # Neutral fallback
+
+        prompt = f"""<|system|>
+You are an expert sentiment analyst. Rate the anger/frustration level of the following text on a scale of 0 to 100.
+0 = Very Happy / Positive
+50 = Neutral
+100 = Extremely Angry / Threatening
+Output ONLY the number.
+<|user|>
+Text: "{text}"
+Score:
+<|assistant|>"""
+        
+        try:
+            output = self.llm(
+                prompt,
+                max_tokens=5, # We only need a number
+                stop=["<|end|>", "\n"],
+                echo=False,
+                temperature=0.1 # Deterministic
+            )
+            raw_text = output['choices'][0]['text'].strip()
+            # Extract digits
+            score = int(''.join(filter(str.isdigit, raw_text)))
+            return min(max(score, 0), 100) # Clamp 0-100
+        except Exception as e:
+            logger.error(f"Intent scoring failed: {e}")
+            return 50
 
     # --- Task 3: Offline Fallback (Quantized SLM) ---
     def generate_offline(self, prompt: str) -> str:

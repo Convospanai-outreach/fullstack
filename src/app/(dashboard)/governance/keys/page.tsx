@@ -17,7 +17,8 @@ import {
     Terminal,
     Clock,
     ExternalLink,
-    Activity
+    Activity,
+    Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -190,7 +191,9 @@ export default function SecurityKeysPage() {
                 footer={(
                     <>
                         <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-                        <Button onClick={createKey} loading={creating}>Generate Key</Button>
+                        <Button onClick={createKey} disabled={creating}>
+                            {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating</> : "Generate Key"}
+                        </Button>
                     </>
                 )}
             >

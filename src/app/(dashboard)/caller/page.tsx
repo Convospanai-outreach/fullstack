@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+// import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,7 @@ interface QueueItem {
 }
 
 export default function CallerPage() {
-    const { data: session } = useSession();
+    // const { data: session } = useSession();
     const [assigned, setAssigned] = useState<QueueItem[]>([]);
     const [pool, setPool] = useState<QueueItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -121,7 +121,7 @@ export default function CallerPage() {
                             >
                                 <div className="font-semibold">{item.lead.fullName || item.lead.email}</div>
                                 <div className="text-xs text-muted-foreground">{item.lead.company}</div>
-                                <Badge variant="outline" className="mt-1">{item.status}</Badge>
+                                <Badge variant="info" className="mt-1">{item.status}</Badge>
                             </Card>
                         ))}
                         {assigned.length === 0 && <div className="text-sm text-muted-foreground">No active tasks.</div>}
@@ -162,7 +162,7 @@ export default function CallerPage() {
                                 <p className="text-xl text-muted-foreground">{activeLead.lead.company}</p>
                                 <div className="mt-2 flex gap-2">
                                     <Badge>{activeLead.lead.phone || "No Phone"}</Badge>
-                                    <Badge variant="outline">{activeLead.lead.email}</Badge>
+                                    <Badge variant="default">{activeLead.lead.email}</Badge>
                                 </div>
                             </div>
                             <div className="text-right">

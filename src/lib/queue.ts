@@ -146,4 +146,35 @@ export class JobQueue {
             });
         }
     }
+
+    /**
+     * Resets jobs stuck in 'processing' for too long.
+     * This protects against worker crashes.
+     */
+    static async resetStaleJobs(maxAgeMs: number = 1000 * 60 * 15) {
+        const threshold = new Date(Date.now() - maxAgeMs);
+
+        const staleJobs = await prisma.job.findMany({
+            where: {
+                status: "processing",
+                startedAt: { lte: threshold }
+            }
+        });
+
+        if (staleJobs.length === 0) return 0;
+
+        console.log(`[JobQueue] Resetting ${staleJobs.length} stale jobs to pending.`);
+
+        const result = await prisma.job.updateMany({
+            where: {
+                id: { in: staleJobs.map(j => j.id) }
+            },
+            data: {
+                status: "pending",
+                error: "Stale job reset by watchdog."
+            }
+        });
+
+        return result.count;
+    }
 }

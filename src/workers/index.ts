@@ -175,6 +175,15 @@ async function processNextJob() {
     }
 }
 
+// 2. Start Watchdog (Every 5 minutes)
+setInterval(async () => {
+    try {
+        await JobQueue.resetStaleJobs();
+    } catch (err) {
+        logger.error("Watchdog failed:", err);
+    }
+}, 1000 * 60 * 5);
+
 // Start processing
 processNextJob();
 

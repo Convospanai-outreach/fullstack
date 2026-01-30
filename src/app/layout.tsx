@@ -10,6 +10,7 @@ export const metadata = {
 };
 
 import { Toaster } from "sonner";
+import { CommandPalette } from "@/components/ui/CommandPalette";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ErrorBoundary>
           <Providers>
             <Header />
+            <CommandPalette />
             <Toaster position="top-center" richColors />
             <main className="flex-1">{children}</main>
             <Footer />

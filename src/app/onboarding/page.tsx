@@ -140,7 +140,7 @@ export default function OnboardingPage() {
                     >
                         Back
                     </Button>
-                    <Button variant="primary" onClick={handleNext}>
+                    <Button variant="default" onClick={handleNext}>
                         {step === 3 ? "Get Started" : "Next"}
                     </Button>
                 </div>

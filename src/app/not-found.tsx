@@ -10,7 +10,7 @@ export default function NotFound() {
                 The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
             </p>
             <Link href="/dashboard">
-                <Button variant="primary">Return to Dashboard</Button>
+                <Button variant="default">Return to Dashboard</Button>
             </Link>
         </div>
     );

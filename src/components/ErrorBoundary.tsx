@@ -85,7 +85,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             <div className="space-y-3">
                                 <Button
                                     onClick={this.handleReset}
-                                    variant="primary"
+                                    variant="default"
                                     className="w-full"
                                 >
                                     Try Again

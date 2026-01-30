@@ -122,7 +122,7 @@ export default function ICPBuilderPage() {
                         </div>
 
                         <Button
-                            variant="primary"
+                            variant="default"
                             className="w-full py-4 text-lg font-medium bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 transition-all shadow-lg shadow-purple-500/25"
                             onClick={handleGenerate}
                             disabled={loading}

@@ -93,7 +93,7 @@ export class AIService {
 
             try {
                 // Use on-prem AI service for sensitive tasks
-                const response = await OnPremAIProxy.generate(finalPrompt);
+                const response = await OnPremAIProxy.generate(prompt);
                 return response;
             } catch (error: any) {
                 console.error("[Hybrid AI] On-Prem AI failed:", error);
@@ -133,12 +133,23 @@ ${prompt}
         const { modelGateway } = await import("@/ai/ModelGateway");
         const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
         const { UIArchitect } = await import("@/modules/ux/UIArchitect");
+        const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+
+        // [SOVEREIGN-FIREWALL] Intercept & Mask
+        // Determine region from taskContext (assumed passed from route/middleware)
+        // Defaulting to GLOBAL for now if not present, but should ideally be explicit.
+        const region = taskContext?.productMode === 'UAE_SHARD' ? 'UAE' : 'GLOBAL';
+
+        const { safeContext: safePrompt, tokenMap } = await SovereignFirewall.mask(finalPrompt, region);
 
         try {
-            const responseText = await modelGateway.generate({
-                prompt: finalPrompt,
+            const rawResponseText = await modelGateway.generate({
+                prompt: safePrompt,
                 ...(teamId ? { teamId } : {}),
             });
+
+            // [SOVEREIGN-FIREWALL] Rehydrate / Unmask
+            const responseText = SovereignFirewall.unmask(rawResponseText, tokenMap);
 
             // Task 10: Event Sourcing & Learning Loop
             if (teamId) {

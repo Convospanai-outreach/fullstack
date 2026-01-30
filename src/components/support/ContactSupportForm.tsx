@@ -86,7 +86,7 @@ export function ContactSupportForm() {
                             required
                         />
                     </div>
-                    <Button variant="primary" disabled={loading} className="w-full">
+                    <Button variant="default" disabled={loading} className="w-full">
                         {loading ? "Sending..." : "Send Message"}
                     </Button>
                 </form>

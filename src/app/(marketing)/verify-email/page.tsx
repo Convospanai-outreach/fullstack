@@ -102,7 +102,7 @@ export default function VerifyEmailPage() {
                             <div className="space-y-3">
                                 <Button
                                     onClick={handleResend}
-                                    variant="primary"
+                                    variant="default"
                                     className="w-full"
                                 >
                                     Resend Verification Email

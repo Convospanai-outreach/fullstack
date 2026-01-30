@@ -23,6 +23,8 @@
 - 📊 **Predictive Analytics** with ML-powered lead scoring
 - 🔄 **Workflow Automation** with visual builder
 - 🛡️ **Enterprise Governance** with compliance guardrails
+- 🧱 **Sovereign Firewall** with edge-based PII sanitization
+- ⚡ **Micro-LLM (Phi-3)** for offline intelligence & adversarial critique
 - 📈 **Real-time Analytics** and A/B testing
 - 🔗 **CRM Integration** (HubSpot, Salesforce)
 
@@ -58,6 +60,7 @@
 | **Google Gemini** | Primary LLM for content generation |
 | **OpenAI** | Alternative LLM provider |
 | **Anthropic Claude** | Alternative LLM provider |
+| **Microsoft Phi-3** | **Micro-LLM** for edge-based critique & offline fallback |
 | **Custom Vector Store** | RAG and semantic search |
 | **Proprietary Algorithms** | Lead scoring, intent detection |
 
@@ -622,9 +625,34 @@ npx tsx src/scripts/validate-production-readiness.ts
   - Sovereign Hardware Gating
   - Reversible PII Tokenization
   - Dead Letter Queue (DLQ) for retries
+  - Dead Letter Queue (DLQ) for retries
   - Confidence-based HITL
 
-#### 2. ModelGateway
+#### 2. Agent State Machine (Cyber-Physical DFA)
+The `AgentExecutor` implements a Deterministic Finite Automaton (DFA) that strictly enforces hardware interaction protocols:
+
+1.  **HARDWARE_HANDSHAKE**:
+    - Verifies physical connection to the Edge Node.
+    - Validates cryptographic hardware signature.
+2.  **DATA_INGESTION**:
+    - Fetches external data (Hunter.io, LinkedIn) to populate context.
+3.  **SANITIZATION**:
+    - **Input**: Raw Prompt + Data.
+    - **Process**: Sends text to Edge Node for PII masking.
+    - **Output**: Tokenized/Masked Prompt (Safe for Cloud).
+4.  **LLM_GENERATION**:
+    - **Input**: Masked Prompt.
+    - **Process**: Cloud LLM (Gemini/GPT) generates content.
+    - **Output**: Draft Content (Generic/Masked).
+5.  **ADVERSARIAL_CHECK (Sovereign Critic)**:
+    - **Input**: Draft Content.
+    - **Process**: **Micro-LLM (Phi-3)** on Edge Node critiques the draft against safety policies.
+    - **Output**: `APPROVED` or `REJECTED`.
+6.  **EXECUTION**:
+    - **Action**: Physical actuation (Browser navigation) or API call.
+    - **Constraint**: Only reachable if Critic returns `APPROVED`.
+
+#### 3. ModelGateway
 - **File**: `src/ai/ModelGateway.ts`
 - **Purpose**: Multi-provider LLM abstraction
 - **Features**:
@@ -633,23 +661,44 @@ npx tsx src/scripts/validate-production-readiness.ts
   - Token counting and cost tracking
   - Response caching
 
-#### 3. SovereignFirewall
+#### 4. SovereignFirewall
 - **File**: `src/ai/SovereignFirewall.ts`
-- **Purpose**: Data protection layer
+- **Purpose**: Data protection layer ensuring no PII leaves the physical boundary.
+- **Micro-LLM Integration**:
+    - Uses **Phi-3 Mini (3.8B)** running locally on the Edge Node.
+    - Performs **Offline Adversarial Critique** of generated content.
+    - Acts as a "Sovereign Critic" that cannot be overridden by cloud instructions.
 - **Features**:
-  - PII detection and masking
-  - Content filtering
-  - DPDP Act 2023 compliance
-  - Reversible tokenization
+    - **Regex-based PII Detection**:
+        - Email, Phone (Global), Credit Card (Luhn), SSN.
+    - **Circuit Breaker**:
+        - Blocks outbound traffic if Hardware Node is unreachable.
+        - Fails closed (Secure default).
+    - **Reversible Tokenization**:
+        - PII is replaced with tokens (e.g., `{{EMAIL_1}}`) locally.
+        - Token map stored ONLY on the Edge Node.
+        - Cloud LLM sees only tokens; re-hydration happens on Edge before execution.
 
-#### 4. RAG System
+#### 5. RAG System
 - **Files**: `src/modules/rag/`, `src/modules/scoring/service/CaseStudyService.ts`
 - **Purpose**: Retrieval-Augmented Generation
 - **Features**:
   - Vector embeddings with pgvector
   - Semantic search
   - Case study grounding
+  - Case study grounding
   - Local-first data processing
+
+#### 6. Micro-LLM (Microsoft Phi-3)
+- **Deployment**: Local inference on Raspberry Pi (Edge Node).
+- **Role**:
+    - **Adversarial Critic**: Reviews every outbound message for policy violations.
+    - **Offline Fallback**: Provides basic chat capabilities when internet is severed.
+    - **Safety Guard**: Enforces "Don't be creepy" rules locally.
+- **Why Phi-3?**:
+    - High reasoning capability in small parameter count (3.8B).
+    - Optimized for CPU-only execution (ONNX Runtime).
+    - Zero data egress (privacy guarantee).
 
 ---
 

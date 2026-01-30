@@ -17,7 +17,7 @@ export function QuickStartGuide() {
 
                 <div className="flex flex-wrap gap-4">
                     <Link href="/campaigns/new">
-                        <Button variant="primary" className="px-6 py-6 text-lg shadow-lg shadow-blue-500/20">
+                        <Button variant="default" className="px-6 py-6 text-lg shadow-lg shadow-blue-500/20">
                             <span className="mr-2">✨</span> Create First Campaign
                         </Button>
                     </Link>

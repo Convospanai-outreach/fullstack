@@ -37,7 +37,7 @@ export default function Home() {
 
           <div className="flex flex-col sm:flex-row justify-center gap-6">
             <Link href="/signup">
-              <Button variant="primary" className="px-10 py-5 text-xl w-full sm:w-auto shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all">
+              <Button variant="default" className="px-10 py-5 text-xl w-full sm:w-auto shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all">
                 Start for Free
               </Button>
             </Link>
@@ -285,7 +285,7 @@ export default function Home() {
             </p>
             <div className="flex justify-center gap-4">
               <Link href="/signup">
-                <Button variant="primary" className="px-12 py-6 text-xl">Get Started Now</Button>
+                <Button variant="default" className="px-12 py-6 text-xl">Get Started Now</Button>
               </Link>
             </div>
             <p className="text-sm text-gray-400">No credit card required for 14-day trial.</p>

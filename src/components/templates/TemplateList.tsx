@@ -22,7 +22,7 @@ export default function TemplateList({ templates, onSelect, onDelete, onCreate }
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-white">Email Templates</h3>
-                <Button onClick={onCreate} variant="primary" className="px-3 py-1 text-sm">
+                <Button onClick={onCreate} variant="default" className="px-3 py-1 text-sm">
                     + New Template
                 </Button>
             </div>

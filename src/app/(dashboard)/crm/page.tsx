@@ -4,7 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -116,61 +116,71 @@ export default function CRMIntegrationPage() {
 
                 {/* Sidebar configurations or logs */}
                 <div className="space-y-6">
-                    <Card title="Sync Configuration">
-                        <div className="space-y-6">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h4 className="text-sm font-bold text-white">Auto-Push Qualified Leads</h4>
-                                    <p className="text-[10px] text-text-secondary mt-1">
-                                        Automatically create CRM contacts when a lead replies or reaches score 80+
-                                    </p>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Sync Configuration</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-6">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-white">Auto-Push Qualified Leads</h4>
+                                        <p className="text-[10px] text-text-secondary mt-1">
+                                            Automatically create CRM contacts when a lead replies or reaches score 80+
+                                        </p>
+                                    </div>
+                                    <div className="h-6 w-11 bg-accent-blue rounded-full relative cursor-pointer">
+                                        <div className="absolute top-1 right-1 h-4 w-4 bg-white rounded-full transition-all shadow-sm" />
+                                    </div>
                                 </div>
-                                <div className="h-6 w-11 bg-accent-blue rounded-full relative cursor-pointer">
-                                    <div className="absolute top-1 right-1 h-4 w-4 bg-white rounded-full transition-all shadow-sm" />
-                                </div>
-                            </div>
 
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <h4 className="text-sm font-bold text-white">Bi-Directional Opt-Outs</h4>
-                                    <p className="text-[10px] text-text-secondary mt-1">
-                                        If marked DND in CRM, immediately stop campaigns in ConvoSpan
-                                    </p>
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <h4 className="text-sm font-bold text-white">Bi-Directional Opt-Outs</h4>
+                                        <p className="text-[10px] text-text-secondary mt-1">
+                                            If marked DND in CRM, immediately stop campaigns in ConvoSpan
+                                        </p>
+                                    </div>
+                                    <div className="h-6 w-11 bg-white/10 rounded-full relative cursor-pointer">
+                                        <div className="absolute top-1 left-1 h-4 w-4 bg-white/50 rounded-full transition-all shadow-sm" />
+                                    </div>
                                 </div>
-                                <div className="h-6 w-11 bg-white/10 rounded-full relative cursor-pointer">
-                                    <div className="absolute top-1 left-1 h-4 w-4 bg-white/50 rounded-full transition-all shadow-sm" />
-                                </div>
-                            </div>
 
-                            <div className="pt-4 border-t border-white/5">
-                                <Button className="w-full gap-2" variant="outline">
-                                    <Settings className="w-4 h-4" />
-                                    Map Custom Fields
-                                </Button>
+                                <div className="pt-4 border-t border-white/5">
+                                    <Button className="w-full gap-2" variant="outline">
+                                        <Settings className="w-4 h-4" />
+                                        Map Custom Fields
+                                    </Button>
+                                </div>
                             </div>
-                        </div>
+                        </CardContent>
                     </Card>
 
-                    <Card title="Recent Sync Interactions">
-                        <div className="space-y-4">
-                            {[1, 2, 3].map((_, i) => (
-                                <div key={i} className="flex gap-3 items-start p-3 hover:bg-white/5 rounded-xl transition">
-                                    <div className={`mt-0.5 p-1.5 rounded-full ${i === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                        <ArrowRightLeft className="w-3 h-3" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-white">
-                                            {i === 0 ? "Pushed lead 'Sarah Chen' to Salesforce" : "Updated 'TechCorp' opportunity stage"}
-                                        </p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className="text-[10px] text-text-muted">2 mins ago</span>
-                                            {i === 0 && <Badge variant="success" className="px-1 py-0 text-[9px] h-4">Success</Badge>}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Recent Sync Interactions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {[1, 2, 3].map((_, i) => (
+                                    <div key={i} className="flex gap-3 items-start p-3 hover:bg-white/5 rounded-xl transition">
+                                        <div className={`mt-0.5 p-1.5 rounded-full ${i === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                            <ArrowRightLeft className="w-3 h-3" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs text-white">
+                                                {i === 0 ? "Pushed lead 'Sarah Chen' to Salesforce" : "Updated 'TechCorp' opportunity stage"}
+                                            </p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-[10px] text-text-muted">2 mins ago</span>
+                                                {i === 0 && <Badge variant="success" className="px-1 py-0 text-[9px] h-4">Success</Badge>}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                            <Button variant="ghost" className="w-full text-xs text-text-muted">Older Logs</Button>
-                        </div>
+                                ))}
+                                <Button variant="ghost" className="w-full text-xs text-text-muted">Older Logs</Button>
+                            </div>
+                        </CardContent>
                     </Card>
                 </div>
             </div>
@@ -202,7 +212,7 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
                 {isActive ? (
                     <>
                         <Button
-                            variant="primary"
+                            variant="default"
                             className="flex-1 bg-white/5 hover:bg-white/10 border-white/10"
                             onClick={onSync}
                         >
@@ -216,10 +226,11 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
                 ) : (
                     <Button
                         variant="outline"
-                        loading={loading}
+                        disabled={loading}
                         onClick={onConnect}
                         className="w-full text-accent-blue border-accent-blue/30 hover:bg-accent-blue/10"
                     >
+                        {loading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                         Connect {name}
                     </Button>
                 )}

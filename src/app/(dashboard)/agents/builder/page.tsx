@@ -21,7 +21,8 @@ import {
     Save,
     Plus,
     Bot,
-    Database
+    Database,
+    Loader2
 } from "lucide-react";
 import { toast } from "sonner";
 import { AgentNode } from "@/components/orchestrator/nodes/AgentNode";
@@ -110,11 +111,20 @@ export default function AgentBuilderPage() {
                             </Button>
                             <Button
                                 onClick={handleRunSimulation}
-                                loading={isRunning}
+                                disabled={isRunning}
                                 className="h-8 bg-accent-blue hover:bg-blue-600 text-white border-none shadow-glow"
                             >
-                                <Play className="w-4 h-4 mr-2 fill-current" />
-                                Run Test
+                                {isRunning ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Running...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Play className="w-4 h-4 mr-2 fill-current" />
+                                        Run Test
+                                    </>
+                                )}
                             </Button>
                         </div>
                     </div>

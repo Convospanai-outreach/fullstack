@@ -32,7 +32,7 @@ export default function CalendarPage() {
                     title="Calendar"
                     subtitle="Manage your upcoming meetings and calls."
                 />
-                <Button variant="primary">Schedule Meeting</Button>
+                <Button variant="default">Schedule Meeting</Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

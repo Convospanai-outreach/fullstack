@@ -62,7 +62,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold gradient-text">Recent Leads</h3>
                     <div className="flex gap-2">
-                        <Button variant="primary">Add New Lead</Button>
+                        <Button variant="default">Add New Lead</Button>
                     </div>
                 </div>
                 <div className="overflow-x-auto">

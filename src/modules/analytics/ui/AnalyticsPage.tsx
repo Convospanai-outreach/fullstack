@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StatCard from "@/modules/dashboard/ui/components/StatCard";
+import { Users, Layers, Mail, Eye } from "lucide-react";
 
 export default function AnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -28,10 +29,10 @@ export default function AnalyticsPage() {
             <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Analytics</h1>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, marginBottom: 32 }}>
-                <StatCard title="Total Leads" value={data.overview.totalLeads} hint="All time" />
-                <StatCard title="Total Campaigns" value={data.overview.totalCampaigns} hint="All time" />
-                <StatCard title="Emails Sent" value={data.overview.emailStats.sent} hint="Total sent" />
-                <StatCard title="Open Rate" value={`${data.overview.emailStats.openRate.toFixed(1)}%`} hint="Average" />
+                <StatCard label="Total Leads" value={data.overview.totalLeads} description="All time" icon={Users} />
+                <StatCard label="Total Campaigns" value={data.overview.totalCampaigns} description="All time" icon={Layers} />
+                <StatCard label="Emails Sent" value={data.overview.emailStats.sent} description="Total sent" icon={Mail} />
+                <StatCard label="Open Rate" value={`${data.overview.emailStats.openRate.toFixed(1)}%`} description="Average" icon={Eye} />
             </div>
 
             <div style={{ background: "#fff", padding: 24, borderRadius: 8, boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>

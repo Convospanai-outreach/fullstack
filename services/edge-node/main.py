@@ -76,7 +76,7 @@ def health_check():
         "services": ["local_intelligence", "vector-db", "offline-llm"]
     }
 
-@app.post("/sanitize", response_model=SanitizeResponse)
+@app.post("/v1/sanitize", response_model=SanitizeResponse)
 def sanitize_text(request: SanitizeRequest):
     """Deep Tech: Semantic Masking with Metadata Injection"""
     session_id = request.session_id or str(uuid.uuid4())
@@ -88,7 +88,7 @@ def sanitize_text(request: SanitizeRequest):
         "stats": stats
     }
 
-@app.post("/critique", response_model=CritiqueResponse)
+@app.post("/v1/critique", response_model=CritiqueResponse)
 def critique_response(request: CritiqueRequest):
     """Deep Tech: Adversarial Judge"""
     result = local_intelligence.critique_response(request.text)
@@ -98,11 +98,35 @@ def critique_response(request: CritiqueRequest):
         "reason": result.get("reason")
     }
 
-@app.post("/generate_offline", response_model=OfflineResponse)
+@app.post("/v1/generate_offline", response_model=OfflineResponse)
 def generate_offline(request: OfflineRequest):
     """Deep Tech: Offline Fallback (Quantized SLM)"""
     output = local_intelligence.generate_offline(request.prompt)
     return {"text": output}
+
+class ReidentifyRequest(BaseModel):
+    token: str
+    session_id: Optional[str] = None
+
+@app.post("/v1/reidentify")
+def reidentify_token(request: ReidentifyRequest):
+    """Deep Tech: Protocol Break - Identity Vault Lookup"""
+    original = local_intelligence.reidentify_token(request.token, request.session_id)
+    if not original:
+        raise HTTPException(status_code=404, detail="Token not found or session mismatch")
+    return {"original": original}
+
+class ScoreRequest(BaseModel):
+    text: str
+
+class ScoreResponse(BaseModel):
+    score: int
+
+@app.post("/v1/score_intent", response_model=ScoreResponse)
+def score_intent(request: ScoreRequest):
+    """Deep Tech: Karmic Friction Analysis (Offline SLM)"""
+    score = local_intelligence.score_intent(request.text)
+    return {"score": score}
 
 # --- Legacy/Integration Endpoints (Search & Execute) ---
 # Keeping these inline or moving to service? Moving search to service makes sense but preserving logic for now.

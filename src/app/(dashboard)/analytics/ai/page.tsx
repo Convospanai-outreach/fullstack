@@ -11,7 +11,13 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { Card } from "@/components/ui/card";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardDescription,
+    CardContent
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
@@ -98,60 +104,74 @@ export default function AIPerformancePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
                 {/* Latency Comparison Chart */}
-                <Card title="Latency Benchmarks" subtitle="Provider response time comparison (Seconds)">
-                    <div className="space-y-6 mt-4">
-                        {loading ? (
-                            [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full" />)
-                        ) : (
-                            stats.sort((a, b) => a.avgLatency - b.avgLatency).map((s) => (
-                                <div key={s.name} className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span className="font-semibold text-white flex items-center gap-2">
-                                            <Zap className={`w-4 h-4 ${s.color}`} />
-                                            {s.name}
-                                        </span>
-                                        <span className="text-text-secondary font-mono">{s.avgLatency.toFixed(2)}s</span>
+                {/* Latency Comparison Chart */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Latency Benchmarks</CardTitle>
+                        <CardDescription>Provider response time comparison (Seconds)</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-6">
+                            {loading ? (
+                                [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-10 w-full" />)
+                            ) : (
+                                stats.sort((a, b) => a.avgLatency - b.avgLatency).map((s) => (
+                                    <div key={s.name} className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="font-semibold text-white flex items-center gap-2">
+                                                <Zap className={`w-4 h-4 ${s.color}`} />
+                                                {s.name}
+                                            </span>
+                                            <span className="text-text-secondary font-mono">{s.avgLatency.toFixed(2)}s</span>
+                                        </div>
+                                        <div className="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
+                                            <div
+                                                className={`h-full transition-all duration-1000 ${s.color.replace('text', 'bg')} shadow-glow animate-reveal`}
+                                                style={{ width: `${Math.min((s.avgLatency / 5) * 100, 100)}%` }}
+                                            />
+                                        </div>
                                     </div>
-                                    <div className="h-3 bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                        <div
-                                            className={`h-full transition-all duration-1000 ${s.color.replace('text', 'bg')} shadow-glow animate-reveal`}
-                                            style={{ width: `${Math.min((s.avgLatency / 5) * 100, 100)}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                                ))
+                            )}
+                        </div>
+                    </CardContent>
                 </Card>
 
                 {/* Reliability & Volume Card */}
-                <Card title="Operational Health" subtitle="Execution success rate and request distribution">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                        {loading ? (
-                            [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)
-                        ) : (
-                            stats.map((s) => (
-                                <div key={s.name} className="p-4 rounded-xl glass-strong border border-white/5 bg-white/[0.02] flex flex-col justify-between">
-                                    <div className="flex justify-between items-start">
-                                        <span className="text-xs font-bold text-text-muted uppercase tracking-widest">{s.name}</span>
-                                        <Badge variant={s.reliability > 99 ? 'success' : 'warning'}>
-                                            {s.reliability}%
-                                        </Badge>
-                                    </div>
-                                    <div className="mt-4 flex items-end justify-between">
-                                        <div>
-                                            <p className="text-2xl font-bold text-white tracking-tight">{s.count.toLocaleString()}</p>
-                                            <p className="text-[10px] text-text-muted uppercase font-bold tracking-tighter">Calls</p>
+                {/* Reliability & Volume Card */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Operational Health</CardTitle>
+                        <CardDescription>Execution success rate and request distribution</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {loading ? (
+                                [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 w-full" />)
+                            ) : (
+                                stats.map((s) => (
+                                    <div key={s.name} className="p-4 rounded-xl glass-strong border border-white/5 bg-white/[0.02] flex flex-col justify-between">
+                                        <div className="flex justify-between items-start">
+                                            <span className="text-xs font-bold text-text-muted uppercase tracking-widest">{s.name}</span>
+                                            <Badge variant={s.reliability > 99 ? 'success' : 'warning'}>
+                                                {s.reliability}%
+                                            </Badge>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-sm font-mono text-text-secondary">{(s.totalTokens / 1000).toFixed(1)}k</p>
-                                            <p className="text-[10px] text-text-muted uppercase font-bold tracking-tighter">Tokens</p>
+                                        <div className="mt-4 flex items-end justify-between">
+                                            <div>
+                                                <p className="text-2xl font-bold text-white tracking-tight">{s.count.toLocaleString()}</p>
+                                                <p className="text-[10px] text-text-muted uppercase font-bold tracking-tighter">Calls</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-sm font-mono text-text-secondary">{(s.totalTokens / 1000).toFixed(1)}k</p>
+                                                <p className="text-[10px] text-text-muted uppercase font-bold tracking-tighter">Tokens</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
+                                ))
+                            )}
+                        </div>
+                    </CardContent>
                 </Card>
             </div>
 

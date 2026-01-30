@@ -102,7 +102,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     <Button variant="outline" onClick={handleEnrich} disabled={loading || lead.isEnriched || isOffline}>
                         {lead.isEnriched ? "Enriched" : "Enrich Data"}
                     </Button>
-                    <Button variant="primary" onClick={() => handleAction("CONNECT")} disabled={loading || isOffline}>
+                    <Button variant="default" onClick={() => handleAction("CONNECT")} disabled={loading || isOffline}>
                         Connect Now
                     </Button>
                     <Button variant="outline" onClick={() => handleAction("MESSAGE")} disabled={loading || isOffline}>

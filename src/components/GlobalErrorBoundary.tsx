@@ -15,7 +15,7 @@ function ErrorFallback({ error, resetErrorBoundary }: { error: Error; resetError
                 <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
                 <p className="text-gray-400 mb-6 text-sm">{error.message || "An unexpected error occurred."}</p>
                 <Button
-                    variant="primary"
+                    variant="default"
                     className="w-full flex items-center justify-center gap-2"
                     onClick={resetErrorBoundary}
                 >

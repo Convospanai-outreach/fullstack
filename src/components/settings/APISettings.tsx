@@ -62,7 +62,7 @@ export function APISettings({ settings, onUpdate }: APISettingsProps) {
                         onChange={(e) => setLiCookie(e.target.value)}
                     />
                 </div>
-                <Button variant="primary" disabled={loading}>
+                <Button variant="default" disabled={loading}>
                     {loading ? "Saving..." : "Save Configuration"}
                 </Button>
             </form>

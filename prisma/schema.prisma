@@ -10,6 +10,12 @@ datasource db {
   extensions = [vector]
 }
 
+
+enum Region {
+  GLOBAL
+  UAE
+}
+
 model Lead {
   id           String    @id @default(uuid())
   fullName     String?
@@ -22,6 +28,11 @@ model Lead {
   status       String    @default("NEW")
   tags         String[]
   isEnriched   Boolean   @default(false)
+  
+  // Data Sharding & Market Context
+  regionId      Region    @default(GLOBAL)
+  marketContext Json?     // Stores { detectedCountry: "AE", frictionScore: 0.8 }
+
   enrichedData Json?
   embedding    String? // Temporarily String to match DB state and unblock push
   value        Float?    @default(0.0) // Potential Deal Value
@@ -239,6 +250,25 @@ model Job {
   @@index([processAt])
 }
 
+model ScrapingJob {
+  id          String   @id @default(uuid())
+  url         String
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  region      Region   @default(GLOBAL)
+  payload     Json?
+  tokenMap    Json?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id])
+
+  @@index([status])
+  @@index([region])
+}
+
+
 model Email {
   id         String    @id @default(uuid())
   leadId     String
@@ -303,6 +333,23 @@ model Notification {
   @@index([userId])
 }
 
+model ManualReview {
+  id             String   @id @default(uuid())
+  source         String   // "Sentinel", "Scraper"
+  payload        Json     // The raw data that was quarantined
+  reason         String   // "Low Quality", "Schema Mismatch", "Honeypot Suspected"
+  severity       String   // "WARN", "CRITICAL"
+  region         String   @default("GLOBAL")
+  status         String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+  @@index([severity])
+}
+
 model Team {
   id              String              @id @default(uuid())
   name            String
@@ -312,6 +359,7 @@ model Team {
   campaigns       Campaign[]
   templates       EmailTemplate[]
   jobs            Job[]
+  scrapingJobs    ScrapingJob[]
   leads           Lead[]
   meetings        Meeting[]
   // subscription Subscription? // Moved to User
@@ -328,6 +376,7 @@ model Team {
   tasks           Task[]
 
   branding           Json? // { logoUrl, primaryColor, portalTitle }
+  aiConfig           Json? // Global agent settings (voice, tone, constraints)
   domains            CustomDomain[]
   knowledgeBases     KnowledgeBase[]
   playbooks          Playbook[]

@@ -1,4 +1,3 @@
-
 import { prisma } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 
@@ -26,19 +25,46 @@ export class ComplianceMetricService {
      * Returns the "Compliance Scorecard" for the dashboard.
      */
     async getComplianceScorecard(_teamId: string) {
-        // Mock query - in prod, aggregate the logs
-        const mockMaskedCount = 15420; // "15k+ PII tokens protected"
-        const mockOptOuts = 127;      // "127 potential fines avoided"
+        try {
+            // Count PII tokens from all ScrapingJobs (Global)
+            // Ideally we'd check UAE shard too, but start with Global for MVP
+            const jobs = await prisma.scrapingJob.findMany({
+                where: { tokenMap: { not: {} } },
+                select: { tokenMap: true }
+            });
 
-        // Calculate "Saved Liability" (Mock: $500 per violation * opt-outs)
-        const savedLiability = mockOptOuts * 500;
+            let maskedCount = 0;
+            for (const job of jobs) {
+                if (job.tokenMap && typeof job.tokenMap === 'object') {
+                    maskedCount += Object.keys(job.tokenMap).length;
+                }
+            }
 
-        return {
-            piiProtected: mockMaskedCount,
-            humanVerifications: mockOptOuts, // Renamed from optOuts
-            estimatedLiabilitySavedUSD: savedLiability,
-            complianceStatus: "ASSISTED_MODE_ACTIVE"
-        };
+            // Add a base number to simulate historical data if count is low (for demo continuity)
+            const displayCount = maskedCount > 0 ? maskedCount : 0;
+
+            // Human Verifications could be the number of "Identity Reveals" or "Manual Reviews"
+            // Let's count ManualReview records if they exist, or just use 0
+            const manualReviews = await prisma.manualReview.count();
+
+            // Calculate "Saved Liability" ($500 per token protected)
+            const savedLiability = displayCount * 500;
+
+            return {
+                piiProtected: displayCount,
+                humanVerifications: manualReviews,
+                estimatedLiabilitySavedUSD: savedLiability,
+                complianceStatus: "ASSISTED_MODE_ACTIVE"
+            };
+        } catch (error) {
+            console.error("Failed to calculate compliance scorecard", error);
+            return {
+                piiProtected: 0,
+                humanVerifications: 0,
+                estimatedLiabilitySavedUSD: 0,
+                complianceStatus: "ERROR"
+            };
+        }
     }
 }
 

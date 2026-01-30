@@ -48,7 +48,7 @@ export function ProfileSettings({ settings, onUpdate }: ProfileSettingsProps) {
                         onChange={(e) => setEmail(e.target.value)}
                     />
                 </div>
-                <Button variant="primary" disabled={loading}>
+                <Button variant="default" disabled={loading}>
                     {loading ? "Saving..." : "Save Changes"}
                 </Button>
             </form>

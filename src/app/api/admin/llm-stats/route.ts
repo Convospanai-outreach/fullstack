@@ -14,6 +14,7 @@ export async function GET() {
         const realStats = await AiStatsService.getPerformanceMetrics();
 
         // Fallback to mock data if no traces exist (for better UI demo)
+        // TODO: Remove this fallback once production traffic is live
         const stats = realStats.length > 0 ? realStats : AiStatsService.getMockMetrics();
 
         return NextResponse.json({

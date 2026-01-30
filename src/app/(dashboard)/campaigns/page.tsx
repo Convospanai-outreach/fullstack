@@ -50,7 +50,7 @@ export default function CampaignsPage() {
                 <div className="flex gap-4">
                     <ExportButton type="campaigns" />
                     <Link href="/campaigns/new">
-                        <Button variant="primary">Create Campaign</Button>
+                        <Button variant="default">Create Campaign</Button>
                     </Link>
                 </div>
             </div>
@@ -90,7 +90,7 @@ export default function CampaignsPage() {
                         Create your first AI-driven outreach campaign. We'll help you find leads, personalize emails, and schedule everything.
                     </p>
                     <Link href="/campaigns/new">
-                        <Button variant="primary" className="px-8 py-4 text-lg shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform">
+                        <Button variant="default" className="px-8 py-4 text-lg shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform">
                             Create First Campaign
                         </Button>
                     </Link>

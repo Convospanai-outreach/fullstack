@@ -71,7 +71,7 @@ export function TeamSettings() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                 />
-                <Button variant="primary" disabled={loading}>
+                <Button variant="default" disabled={loading}>
                     {loading ? "Inviting..." : "Invite Member"}
                 </Button>
             </form>

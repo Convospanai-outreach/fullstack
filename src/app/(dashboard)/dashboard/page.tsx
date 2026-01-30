@@ -15,6 +15,7 @@ import {
     Bot
 } from "lucide-react";
 import { MorningBriefing } from "@/components/dashboard/MorningBriefing";
+import { SovereignConsole } from "@/components/dashboard/SovereignConsole";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -60,7 +61,7 @@ export default function DashboardPage() {
                         </Button>
                     </Link>
                     <Link href="/campaigns/new">
-                        <Button variant="primary" className="gap-2 shadow-glow">
+                        <Button variant="default" className="gap-2 shadow-glow">
                             <Megaphone className="w-4 h-4" />
                             New Campaign
                         </Button>
@@ -163,6 +164,10 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-3">
+                    <SovereignConsole />
+                </div>
+
                 <div className="lg:col-span-2">
                     <ActivityTimeline />
                 </div>
@@ -188,6 +193,12 @@ export default function DashboardPage() {
                                 <span className="text-text-secondary">AI Engines</span>
                                 <span className="text-emerald-400 font-bold flex items-center gap-2">
                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Operational
+                                </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-text-secondary">Sovereign Node (Phi-3)</span>
+                                <span className="text-emerald-400 font-bold flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Online
                                 </span>
                             </div>
                         </div>

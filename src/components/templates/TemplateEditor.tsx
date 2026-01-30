@@ -103,7 +103,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                 <Button type="button" variant="outline" onClick={onCancel} className="px-4 py-2">
                     Cancel
                 </Button>
-                <Button type="submit" variant="primary" className="px-4 py-2">
+                <Button type="submit" variant="default" className="px-4 py-2">
                     Save Template
                 </Button>
             </div>

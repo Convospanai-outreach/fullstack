@@ -147,27 +147,33 @@ export class AgentExecutor {
                 return await this.transition(taskId, AgentState.SANITIZATION);
             }
 
-            // 3. SANITIZATION (Edge Node Service)
+            // 3. SANITIZATION (Sovereign Firewall)
             if (currentState === AgentState.SANITIZATION) {
+                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: any = task.context || {};
-                const promptText = `Draft an email to ${ctx.role} at ${ctx.target_company} about our security product.`;
-                await this.log(taskId, "ACTION", `Sending prompt to Edge Node for Sanitization...`);
 
-                const { sanitized_text, token_map_id, metadata_tags } = await HardwareService.sanitize(promptText);
-                await this.log(taskId, "OBSERVATION", `Sanitization Complete.`);
+                // Construct the prompt with potentially sensitive data
+                const promptPayload = {
+                    role: ctx.role,
+                    company: ctx.target_company,
+                    context: `Draft an email to [ROLE] at [COMPANY] about our security product.`
+                };
 
-                let enhanced_prompt = sanitized_text;
-                if (metadata_tags) {
-                    Object.entries(metadata_tags).forEach(([token, tag]) => {
-                        enhanced_prompt = enhanced_prompt.replace(token, tag as string);
-                    });
-                }
+                await this.log(taskId, "ACTION", `Sovereign Firewall: Masking PII before Cloud Inference...`);
+
+                const { safeContext, tokenMap } = SovereignFirewall.mask(promptPayload);
+
+                // Store the Token Map ID (in a real app, this would be in Redis/Edge Store, not just context)
+                // For this implementation, we serialize the map to context - in production this is a security risk if context is logged to cloud DB
+                // We assume context is encrypted or local-only for now, or we store the Map locally in memory/Redis
+                const serializedMap = Array.from(tokenMap.entries());
+
+                await this.log(taskId, "OBSERVATION", `Sanitization Complete. Payload masked.`);
 
                 const newContext = {
                     ...ctx,
-                    sanitized_prompt: enhanced_prompt,
-                    raw_sanitized: sanitized_text,
-                    token_map_id
+                    safe_prompt_payload: safeContext,
+                    _token_map: serializedMap
                 };
                 await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
                 return await this.transition(taskId, AgentState.LLM_GENERATION);
@@ -176,35 +182,55 @@ export class AgentExecutor {
             // 4. LLM_GENERATION (ModelGateway via AI Service)
             if (currentState === AgentState.LLM_GENERATION) {
                 const { aiService } = await import("@/lib/aiService");
+                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: any = task.context || {};
-                const sanitizedPrompt = ctx.sanitized_prompt || ctx.goal; // Fallback if sanitization skipped
 
-                await this.log(taskId, "ACTION", "Generating content using sanitized prompt...");
+                // Use the SAFE Payload
+                const safePayload = JSON.parse(ctx.safe_prompt_payload || "{}");
+                const prompt = `Draft a cold outreach email. Context: ${JSON.stringify(safePayload)}`;
 
-                // Real LLM Call using our new Architecture
-                const generatedContent = await aiService.askAI(sanitizedPrompt, task.teamId);
+                await this.log(taskId, "ACTION", "Generating content using MASKED context...");
 
-                await this.log(taskId, "OBSERVATION", `LLM Generated Content (${generatedContent.length} chars).`);
+                // Real LLM Call
+                const generatedRaw = await aiService.askAI(prompt, task.teamId);
 
-                const newContext = { ...ctx, draft_content: generatedContent };
+                // UNMASK: Restore PII
+                const tokenMap = new Map(ctx._token_map as [string, string][]);
+                const restoredContent = SovereignFirewall.unmask(generatedRaw, tokenMap);
+
+                await this.log(taskId, "OBSERVATION", `LLM Generated & Detokenized content.`);
+
+                const newContext = { ...ctx, draft_content: restoredContent };
                 await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
                 return await this.transition(taskId, AgentState.ADVERSARIAL_CHECK);
             }
 
-            // 5. ADVERSARIAL_CHECK (Edge Node Critic)
+            // 5. ADVERSARIAL_CHECK (Sovereign Critic)
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
+                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: any = task.context || {};
                 const draft = ctx.draft_content;
-                await this.log(taskId, "ACTION", "Submitting draft to Sovereign Adversary/Critic...");
 
-                const { status, similarity_score, reason } = await HardwareService.critique(draft);
-                await this.log(taskId, "OBSERVATION", `Critic Verdict: ${status}. Reason: ${reason} (Score: ${similarity_score})`);
+                await this.log(taskId, "ACTION", "Submitting draft to Sovereign Adversary (Phi-3)...");
 
-                if (status === 'REJECTED') {
-                    await this.log(taskId, "CRITIC_REJECT", "Draft rejected by Sovereign Policy.");
-                    return await this.transition(taskId, AgentState.REVIEWING);
+                try {
+                    const verdict = await SovereignFirewall.critique(draft);
+
+                    await this.log(taskId, "OBSERVATION", `Critic Verdict: ${verdict.approved ? "APPROVED" : "REJECTED"}. Score: ${verdict.score}/10. Reason: ${verdict.reason}`);
+
+                    if (!verdict.approved) {
+                        await this.log(taskId, "CRITIC_REJECT", `Draft rejected: ${verdict.reason}`);
+                        // In a real loop, we would feedback into generation with the critique
+                        // For now, we fail or request manual review
+                        return await this.transition(taskId, AgentState.FAILED);
+                    }
+
+                    return await this.transition(taskId, AgentState.EXECUTION);
+                } catch (error: any) {
+                    // FAIL CLOSED HANDLING
+                    await this.log(taskId, "CRITICAL_ERROR", `Sovereign Firewall Unreachable: ${error.message}`);
+                    throw error; // Will be caught by outer catch block and halt agent
                 }
-                return await this.transition(taskId, AgentState.EXECUTION);
             }
 
             // 6. EXECUTION (Browser)

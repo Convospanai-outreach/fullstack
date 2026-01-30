@@ -19,6 +19,22 @@ export default function MessageControlStudio() {
     const [preview, setPreview] = useState<string>(`Hi John,\n\nI noticed your recent work on the core payments infrastructure at Stripe. Impressive stuff.\n\nUsually, engineering leaders tell me that balancing security compliance with developer velocity is their biggest headache in Q3.\n\nSince we just achieved SOC2 Type II, I wanted to share how we help teams like yours offload the heavy lifting.\n\nOpen to a quick 15-min chat next Tuesday?\n\nBest,\nAlex`);
 
     const [loading, setLoading] = useState(false);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        const loadConfig = async () => {
+            try {
+                const res = await fetch("/api/studio/config");
+                const data = await res.json();
+                if (data.config) {
+                    setConfig(data.config);
+                }
+            } catch (e) {
+                console.error("Failed to load studio config", e);
+            }
+        };
+        loadConfig();
+    }, []);
 
     const handleRegenerate = async () => {
         setLoading(true);
@@ -41,6 +57,23 @@ export default function MessageControlStudio() {
             toast.error(error.message || "Failed to generate preview");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const res = await fetch("/api/studio/config", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(config)
+            });
+            if (!res.ok) throw new Error("Failed to save");
+            toast.success("Configuration saved globally!");
+        } catch (e) {
+            toast.error("Failed to save configuration");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -127,7 +160,9 @@ export default function MessageControlStudio() {
                         >
                             Regenerate
                         </button>
-                        <PrimaryButton disabled={loading}>Save Configuration</PrimaryButton>
+                        <PrimaryButton disabled={loading || saving} onClick={handleSave}>
+                            {saving ? 'Saving...' : 'Save Configuration'}
+                        </PrimaryButton>
                     </div>
                 </GlassCard>
             </section>

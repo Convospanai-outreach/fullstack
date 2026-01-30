@@ -66,13 +66,6 @@ export default function LeadsPage() {
 
     const [selectedIndex, setSelectedIndex] = useState<number>(-1);
     const router = useRouter();
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-    const toggleSelection = (id: string) => {
-        setSelectedIds(prev =>
-            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-        );
-    };
 
     // Keyboard Navigation (j/k)
     useEffect(() => {
@@ -88,11 +81,6 @@ export default function LeadsPage() {
                     break;
                 case 'k':
                     setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
-                    break;
-                case 'x':
-                    if (selectedIndex !== -1 && leads[selectedIndex]) {
-                        toggleSelection(leads[selectedIndex].id);
-                    }
                     break;
                 case 'Enter':
                     if (selectedIndex !== -1 && leads[selectedIndex]) {
@@ -172,7 +160,7 @@ export default function LeadsPage() {
                     <h3 className="text-xl font-bold text-gray-400">No prospects found</h3>
                     <p className="text-gray-500 mt-2 mb-8">Start your journey by importing leads or creating one manually.</p>
                     <Link href="/leads/import">
-                        <Button variant="primary" className="px-8">Import your first leads</Button>
+                        <Button variant="default" className="px-8">Import your first leads</Button>
                     </Link>
                 </GlassCard>
             ) : (

@@ -143,7 +143,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSend()}
                     />
-                    <Button variant="primary" onClick={handleSend}>Send</Button>
+                    <Button variant="default" onClick={handleSend}>Send</Button>
                 </div>
             </div>
         </div>

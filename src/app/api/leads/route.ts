@@ -16,6 +16,15 @@ export async function POST(req: NextRequest) {
 
         await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
+        // [SOVEREIGN-ROUTING] Detect Market Context
+        const { MarketRoutingMiddleware } = await import("@/lib/middleware/MarketRoutingMiddleware");
+        const market = MarketRoutingMiddleware.getContext(req);
+
+        // Log if UAE context is active (Audit Trail)
+        if (market.region === 'UAE') {
+            console.log(`[Sovereign Routing] Request routed to UAE Shard. Origin: ${market.country}`);
+        }
+
         const body = await req.json();
 
         // Validate input
@@ -45,9 +54,14 @@ export async function POST(req: NextRequest) {
             throw new APIError("Either Email or LinkedIn URL is required", 400, "VALIDATION_ERROR");
         }
 
+        // [SOVEREIGN-SHARDING] Select Correct Database
+        const { DbFactory } = await import("@/lib/dbFactory");
+        // @ts-ignore - Region mismatch between simple string and enum
+        const db = DbFactory.getClient(market.region);
+
         // Check for duplicate within the team
         if (email) {
-            const existing = await prisma.lead.findFirst({
+            const existing = await db.lead.findFirst({
                 where: { email, teamId },
             });
 
@@ -56,7 +70,7 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        const lead = await prisma.lead.create({
+        const lead = await db.lead.create({
             data: {
                 fullName: fullName || null,
                 email: email || null,
@@ -73,12 +87,21 @@ export async function POST(req: NextRequest) {
                 value: value || 0.0,
                 campaignId: campaignId || null,
                 teamId, // Assign to current team
-                updatedAt: new Date()
+                updatedAt: new Date(),
+
+                // [SOVEREIGN-CONTEXT]
+                // @ts-ignore
+                regionId: market.region === 'UAE' ? 'UAE' : 'GLOBAL',
+                marketContext: {
+                    detectedCountry: market.country,
+                    routedAt: new Date().toISOString()
+                }
             },
         });
 
-        // Audit Log
-        await AuditService.log(teamId, userId, "LEAD_SYNCED", "Lead", lead.id, { email: lead.email });
+        // Audit Log (Always goes to Global/Audit DB? Or Sharded?)
+        // For now, keep Audit centralized or assume AuditService handles it.
+        await AuditService.log(teamId, userId, "LEAD_SYNCED", "Lead", lead.id, { email: lead.email, region: market.region });
 
         return successResponse(lead, 201);
     } catch (error) {

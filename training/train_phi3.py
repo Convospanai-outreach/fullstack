@@ -20,7 +20,12 @@ def format_instruction(sample):
     constraints = str(sample['constraints'])
     output = sample['output']
     
-    prompt = f"<|user|>\n{inputs}\nConstraints: {constraints}<|end|>\n<|assistant|>\n{output}<|end|>"
+    # context injection for high friction scenarios
+    context = ""
+    if 'friction_signal' in sample and sample['friction_signal']:
+        context = f"\nContext: High Friction detected: {sample['friction_signal']}"
+
+    prompt = f"<|user|>\n{inputs}\nConstraints: {constraints}{context}<|end|>\n<|assistant|>\n{output}<|end|>"
     return {"text": prompt}
 
 def train():
@@ -124,9 +129,46 @@ def train():
     print("Starting Training...")
     trainer.train()
 
-    # 8. Save
+    # 8. Save Adapters
     print(f"Saving adapters to {config['training']['output_dir']}")
     trainer.save_model()
+    
+    # 9. Merge and Export (Auto-Linkage)
+    merge_and_save(config, tokenizer)
+
+def merge_and_save(config, tokenizer):
+    """
+    Reloads the base model in FP16, merges the LoRA adapters,
+    and saves the full model for GGUF conversion.
+    """
+    from peft import PeftModel
+    
+    print("\n[Linkage] Starting Model Merge...")
+    adapter_dir = config['training']['output_dir']
+    output_merged_dir = os.path.join("training", "models", "merged-phi3")
+    
+    # Reload Base Model (Full Precision/FP16 for merging, NOT 4bit)
+    print(f"Reloading base model {config['model']['name']} in FP16...")
+    base_model = AutoModelForCausalLM.from_pretrained(
+        config['model']['name'],
+        torch_dtype=torch.float16,
+        device_map="auto",
+        trust_remote_code=True
+    )
+    
+    # Load Adapters
+    print(f"Loading adapters from {adapter_dir}...")
+    model = PeftModel.from_pretrained(base_model, adapter_dir)
+    
+    # Merge
+    print("Merging weights...")
+    model = model.merge_and_unload()
+    
+    # Save
+    print(f"Saving merged model to {output_merged_dir}...")
+    model.save_pretrained(output_merged_dir)
+    tokenizer.save_pretrained(output_merged_dir)
+    print("✅ Merge Complete. Setup for GGUF conversion.")
 
 if __name__ == "__main__":
     train()
