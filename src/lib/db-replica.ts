@@ -198,7 +198,7 @@ export async function checkDatabaseHealth() {
 export async function transaction<T>(
   operation: (tx: Prisma.TransactionClient) => Promise<T>
 ): Promise<T> {
-  return prisma.$transaction(operation);
+  return (prisma as any).$transaction(operation) as Promise<T>;
 }
 
 // Export the default client for backward compatibility
