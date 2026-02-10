@@ -173,7 +173,7 @@ export class SovereignFirewall {
     /**
      * Evaluate a prompt for safety (used by BullsEyeRAG)
      */
-    static async evaluate(prompt: string): Promise<{ safe: boolean; reason?: string }> {
+    static async evaluate(prompt: string): Promise<{ safe: boolean; reason?: string | undefined }> {
         try {
             const verdict = await this.critique(prompt);
             return { safe: verdict.approved, reason: verdict.reason };
