@@ -34,10 +34,7 @@ export async function GET(req: NextRequest) {
         const events = await prisma.systemEvent.findMany({
             where,
             orderBy: { timestamp: 'desc' },
-            take: limit,
-            include: {
-                audit: true // Include human-readable narrative
-            }
+            take: limit
         });
 
         // Format response
@@ -47,8 +44,7 @@ export async function GET(req: NextRequest) {
             eventType: event.name,
             actorId: event.actorId,
             teamId: event.teamId,
-            payload: event.payload,
-            narrative: event.audit[0]?.narrative || "No narrative generated"
+            payload: event.payload
         }));
 
         return NextResponse.json({
@@ -84,20 +80,16 @@ export async function POST(req: NextRequest) {
 
         const events = await prisma.systemEvent.findMany({
             where,
-            orderBy: { timestamp: 'asc' },
-            include: {
-                audit: true
-            }
+            orderBy: { timestamp: 'asc' }
         });
 
         if (format === "csv") {
             // Generate CSV
             const csv = [
-                "Timestamp,Event Type,Actor,Team ID,Task ID,Narrative",
+                "Timestamp,Event Type,Actor,Team ID,Task ID",
                 ...events.map(e => {
                     const taskId = (e.payload as any).taskId || "N/A";
-                    const narrative = e.audit[0]?.narrative || "";
-                    return `${e.timestamp.toISOString()},${e.name},${e.actorId},${e.teamId},${taskId},"${narrative.replace(/"/g, '""')}"`;
+                    return `${e.timestamp.toISOString()},${e.name},${e.actorId},${e.teamId},${taskId}`;
                 })
             ].join("\\n");
 
@@ -119,8 +111,7 @@ export async function POST(req: NextRequest) {
                 eventType: e.name,
                 actorId: e.actorId,
                 teamId: e.teamId,
-                payload: e.payload,
-                narrative: e.audit[0]?.narrative
+                payload: e.payload
             }))
         });
 

@@ -22,7 +22,7 @@ import {
  * GET /api/admin/rate-limits
  * Get overall rate limit statistics
  */
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
     const session = await getServerSession(authOptions);
     

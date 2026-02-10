@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== 'ADMIN') {
+    if (!session || session.user.enterpriseRole !== 'ADMIN') {
         return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }
 
