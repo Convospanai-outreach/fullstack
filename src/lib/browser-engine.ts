@@ -29,7 +29,7 @@ export class BrowserEngine {
             this.browser = await BrowserSandbox.launch({
                 maxMemory: 512,
                 sessionTimeout: 600000, // 10 minutes for agent tasks
-                enableSandbox: process.env.ENABLE_BROWSER_SANDBOX === 'true' || process.env.NODE_ENV === 'production',
+                enableSandbox: process.env['ENABLE_BROWSER_SANDBOX'] === 'true' || process.env.NODE_ENV === 'production',
                 blockedDomains: ['doubleclick.net', 'googleadservices.com', 'googlesyndication.com']
             });
 

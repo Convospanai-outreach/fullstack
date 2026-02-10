@@ -13,7 +13,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { NextRequest, NextResponse } from 'next/server';
-import { safeGet, safeSet, safeDel, getRedisClient } from './redis';
+import { safeGet, safeDel, getRedisClient } from './redis';
 import { logger } from './logger';
 
 interface RateLimitConfig {
@@ -100,7 +100,7 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
   
   // Fall back to IP address
   const ip = 
-    req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+    (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()) ||
     req.headers.get('x-real-ip') ||
     'unknown';
   

@@ -17,16 +17,10 @@ export class ApprovalService {
             data: {
                 entityId: taskId,
                 entityType: "AgentTask",
-                // requesterId is required by schema, assuming valid ID or system user for now. 
-                // WARNING: Schema requires requesterId. modifying to include it or finding a workaround.
-                // Looking at schema: requesterId String. 
-                // We'll need to pass requesterId to this function or use a fallback if allowed. 
-                // For now, let's assume the payload might have it or we need to update the signature.
-                // To avoid breaking signature, I will use a placeholder or check if I can update signature.
-                requesterId: "system-agent", // Placeholder for now, ideally passed in
+                requesterId: "system-agent", // Default for automated requests
                 teamId,
                 actionType,
-                payload: JSON.stringify(payload),
+                payload: payload || {},
                 status: ApprovalStatus.PENDING
             }
         });
@@ -59,20 +53,20 @@ export class ApprovalService {
     /**
      * Approves a request (callable via UI/API).
      */
-    static async approve(requestId: string, approverId: string) {
+    static async approve(requestId: string, reviewerId: string) {
         return await prisma.approvalRequest.update({
             where: { id: requestId },
-            data: { status: ApprovalStatus.APPROVED, approverId, resolvedAt: new Date() }
+            data: { status: ApprovalStatus.APPROVED, reviewerId, reviewedAt: new Date() }
         });
     }
 
     /**
      * Rejects a request.
      */
-    static async reject(requestId: string, approverId: string) {
+    static async reject(requestId: string, reviewerId: string) {
         return await prisma.approvalRequest.update({
             where: { id: requestId },
-            data: { status: ApprovalStatus.REJECTED, approverId, resolvedAt: new Date() }
+            data: { status: ApprovalStatus.REJECTED, reviewerId, reviewedAt: new Date() }
         });
     }
 }

@@ -21,7 +21,10 @@ export enum AgentState {
     EXECUTION = "EXECUTION",
 
     // Offline Mode
-    QUEUED_OFFLINE = "QUEUED_OFFLINE"
+    QUEUED_OFFLINE = "QUEUED_OFFLINE",
+
+    // Governance States
+    AWAITING_APPROVAL = "AWAITING_APPROVAL"
 }
 
 export class AgentExecutor {

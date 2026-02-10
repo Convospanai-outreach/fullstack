@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { applyRateLimit, RATE_LIMITS, getClientIdentifier, checkRateLimit, addRateLimitHeaders } from './lib/rateLimit';
+import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
 
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;

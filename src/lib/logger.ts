@@ -22,7 +22,7 @@ const prodFormat = combine(
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === 'production';
-const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
+const logLevel = process.env['LOG_LEVEL'] || (isProduction ? 'info' : 'debug');
 
 /**
  * Structured Logger using Winston
@@ -51,3 +51,6 @@ export const stream = {
     logger.info(message.trim());
   },
 };
+
+// Worker-specific logger alias for background jobs
+export const logWorker = logger;

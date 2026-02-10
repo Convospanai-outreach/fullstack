@@ -6,7 +6,7 @@
 import { Redis } from "ioredis";
 
 // Mock Redis client if env vars are missing
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+const redis = new Redis(process.env['REDIS_URL'] || "redis://localhost:6379", {
     lazyConnect: true // Don't crash if Redis isn't running in dev
 });
 

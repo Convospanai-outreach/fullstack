@@ -1,6 +1,5 @@
 import crypto from 'crypto';
 import axios from 'axios';
-import { prisma } from "@/lib/db";
 
 interface SanitizedPayload {
     safeContext: string;
@@ -13,8 +12,35 @@ interface CriticVerdict {
     reason?: string;
 }
 
+class HardwareCircuitBreaker {
+    private failureCount = 0;
+    private lastFailure = 0;
+    private readonly THRESHOLD = 3;
+    private readonly RESET_MS = 30000;
+
+    isOpen(): boolean {
+        if (this.failureCount >= this.THRESHOLD) {
+            if (Date.now() - this.lastFailure > this.RESET_MS) {
+                this.reset();
+                return false;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    recordFailure() {
+        this.failureCount++;
+        this.lastFailure = Date.now();
+    }
+
+    reset() {
+        this.failureCount = 0;
+    }
+}
+
 export class SovereignFirewall {
-    private static readonly PI_ENDPOINT = process.env.PHI3_LOCAL_ENDPOINT || 'http://localhost:8000';
+    private static readonly PI_ENDPOINT = process.env['PHI3_LOCAL_ENDPOINT'] || 'http://localhost:8000';
     private static readonly SENSITIVE_KEYS = ['email', 'phone', 'name', 'linkedin', 'ssn', 'credit_card'];
     private static breaker = new HardwareCircuitBreaker();
 
@@ -62,7 +88,7 @@ export class SovereignFirewall {
      * Fallback/Local Masking Logic (Sync)
      */
     static maskLocal(data: any, region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
-        if (region !== 'UAE' && process.env.STRICT_SOVEREIGNTY !== 'true') {
+        if (region !== 'UAE' && process.env['STRICT_SOVEREIGNTY'] !== 'true') {
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap: new Map() };
         }
 
@@ -143,31 +169,16 @@ export class SovereignFirewall {
             }
         }
     }
-}
 
-class HardwareCircuitBreaker {
-    private failureCount = 0;
-    private lastFailure = 0;
-    private readonly THRESHOLD = 3;
-    private readonly RESET_MS = 30000;
-
-    isOpen(): boolean {
-        if (this.failureCount >= this.THRESHOLD) {
-            if (Date.now() - this.lastFailure > this.RESET_MS) {
-                this.reset();
-                return false;
-            }
-            return true;
+    /**
+     * Evaluate a prompt for safety (used by BullsEyeRAG)
+     */
+    static async evaluate(prompt: string): Promise<{ safe: boolean; reason?: string }> {
+        try {
+            const verdict = await this.critique(prompt);
+            return { safe: verdict.approved, reason: verdict.reason };
+        } catch {
+            return { safe: false, reason: 'Evaluation failed' };
         }
-        return false;
-    }
-
-    recordFailure() {
-        this.failureCount++;
-        this.lastFailure = Date.now();
-    }
-
-    reset() {
-        this.failureCount = 0;
     }
 }

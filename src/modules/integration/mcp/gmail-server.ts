@@ -12,21 +12,15 @@ export class GmailMCPServer {
 
     constructor() {
         this.oauth2Client = new google.auth.OAuth2(
-            process.env.GOOGLE_CLIENT_ID,
-            process.env.GOOGLE_CLIENT_SECRET,
-            process.env.GOOGLE_REDIRECT_URI
+            process.env['GOOGLE_CLIENT_ID'],
+            process.env['GOOGLE_CLIENT_SECRET'],
+            process.env['GOOGLE_REDIRECT_URI']
         );
 
         // In a real scenario, we'd set credentials here from the user's session
         // this.oauth2Client.setCredentials({ refresh_token: ... });
 
         this.registerTools();
-    }
-
-    private getGmailClient() {
-        // Mock authentication for development if no credentials
-        // In production, this would throw or require a user session context
-        return google.gmail({ version: "v1", auth: this.oauth2Client });
     }
 
     private registerTools() {
@@ -46,7 +40,7 @@ export class GmailMCPServer {
                 try {
                     console.log(`[MCP:Gmail] Composing email to ${to}...`);
 
-                    const message = [
+                    const _message = [
                         'Content-Type: text/plain; charset="UTF-8"\n',
                         'MIME-Version: 1.0\n',
                         'Content-Transfer-Encoding: 7bit\n',
@@ -85,7 +79,7 @@ export class GmailMCPServer {
                 },
                 required: ["query"]
             },
-            handler: async ({ query, limit = 5 }) => {
+            handler: async ({ query, limit: _limit = 5 }) => {
                 try {
                     console.log(`[MCP:Gmail] Searching: "${query}"`);
                     // const gmail = this.getGmailClient();

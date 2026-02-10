@@ -15,7 +15,7 @@
 export class OnPremAIProxy {
 
     private static getEndpoint(): string {
-        return process.env.ON_PREM_AI_ENDPOINT || process.env.EDGE_NODE_URI || "http://localhost:8000";
+        return process.env['ON_PREM_AI_ENDPOINT'] || process.env['EDGE_NODE_URI'] || "http://localhost:8000";
     }
 
     /**
@@ -38,7 +38,7 @@ export class OnPremAIProxy {
                 headers: {
                     "Content-Type": "application/json",
                     // Hardware signature for authentication
-                    "X-Hardware-Signature": process.env.HARDWARE_SIGNATURE || ""
+                    "X-Hardware-Signature": process.env['HARDWARE_SIGNATURE'] || ""
                 },
                 body: JSON.stringify({
                     prompt,

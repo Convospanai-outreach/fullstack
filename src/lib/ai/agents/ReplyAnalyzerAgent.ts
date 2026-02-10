@@ -108,16 +108,16 @@ export class ReplyAnalyzerAgent {
             await prisma.replyTracker.create({
                 data: {
                     leadId,
-                    emailId,
+                    emailId: emailId ?? null,
                     senderEmail,
                     subject,
                     body,
                     aiClassification: analysis.classification,
                     aiConfidence: analysis.confidence,
-                    aiReasoning: analysis.reasoning,
+                    aiReasoning: analysis.reasoning ?? null,
                     status: status,
                     actionTaken: status === 'AUTO_HANDLED' ? analysis.suggestedAction : null,
-                    replyDraft: analysis.draftResponse
+                    replyDraft: analysis.draftResponse ?? null
                 }
             });
             logger.info(`[ReplyAnalyzer] Tracked reply as ${analysis.classification} (Status: ${status})`);

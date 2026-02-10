@@ -23,14 +23,14 @@ export class McpClient {
 
         // Create appropriate transport
         try {
-            this.transport = createTransport({
-                type: this.config.transport,
-                command: this.config.command,
-                args: this.config.args,
-                env: this.config.env,
-                url: this.config.url,
-                headers: this.config.headers
-            });
+            const transportConfig: any = { type: this.config.transport };
+            if (this.config.command) transportConfig.command = this.config.command;
+            if (this.config.args) transportConfig.args = this.config.args;
+            if (this.config.env) transportConfig.env = this.config.env;
+            if (this.config.url) transportConfig.url = this.config.url;
+            if (this.config.headers) transportConfig.headers = this.config.headers;
+
+            this.transport = createTransport(transportConfig);
 
             // Set up message handlers
             this.transport.setHandlers({
@@ -143,7 +143,7 @@ export class McpClient {
         this.isConnected = false;
 
         // Reject all pending requests
-        for (const [id, pending] of this.pendingRequests.entries()) {
+        for (const [_id, pending] of this.pendingRequests.entries()) {
             pending.reject(new Error("Connection closed"));
         }
         this.pendingRequests.clear();

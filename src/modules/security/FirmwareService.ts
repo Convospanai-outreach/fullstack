@@ -7,8 +7,8 @@ import crypto from 'crypto';
  */
 export class FirmwareService {
     // In production, these would be loaded from a secure HSM or KMS
-    private static PRIVATE_KEY = process.env.DEV_PRIVATE_KEY || "mock-private-key";
-    private static PUBLIC_KEY = process.env.DEV_PUBLIC_KEY || "mock-public-key";
+    private static PRIVATE_KEY = process.env['DEV_PRIVATE_KEY'] || "mock-private-key";
+    private static _PUBLIC_KEY = process.env['DEV_PUBLIC_KEY'] || "mock-public-key";
 
     /**
      * Signs a firmware payload or configuration blob.

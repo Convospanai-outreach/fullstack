@@ -33,9 +33,9 @@ export interface McpMessage {
 }
 
 export abstract class Transport {
-    protected onMessage?: (message: McpMessage) => void;
-    protected onError?: (error: Error) => void;
-    protected onClose?: () => void;
+    protected onMessage?: ((message: McpMessage) => void) | undefined;
+    protected onError?: ((error: Error) => void) | undefined;
+    protected onClose?: (() => void) | undefined;
 
     abstract connect(): Promise<void>;
     abstract disconnect(): Promise<void>;
@@ -43,9 +43,9 @@ export abstract class Transport {
     abstract isConnected(): boolean;
 
     setHandlers(handlers: {
-        onMessage?: (message: McpMessage) => void;
-        onError?: (error: Error) => void;
-        onClose?: () => void;
+        onMessage?: ((message: McpMessage) => void) | undefined;
+        onError?: ((error: Error) => void) | undefined;
+        onClose?: (() => void) | undefined;
     }) {
         this.onMessage = handlers.onMessage;
         this.onError = handlers.onError;
@@ -57,7 +57,7 @@ export abstract class Transport {
  * Stdio Transport - spawns a child process and communicates via stdin/stdout
  */
 export class StdioTransport extends Transport {
-    private process?: ChildProcess;
+    private process?: ChildProcess | undefined;
     private buffer: string = "";
     private config: TransportConfig;
 
@@ -170,7 +170,7 @@ export class StdioTransport extends Transport {
  * SSE Transport - connects to an HTTP server using Server-Sent Events
  */
 export class SseTransport extends Transport {
-    private eventSource?: EventSource;
+    private eventSource?: EventSource | undefined;
     private config: TransportConfig;
     private connected: boolean = false;
 
@@ -189,7 +189,7 @@ export class SseTransport extends Transport {
 
                 this.eventSource = new EventSource(this.config.url!, {
                     headers: this.config.headers
-                });
+                } as any);
 
                 this.eventSource.onopen = () => {
                     console.log("[SseTransport] Connection opened");

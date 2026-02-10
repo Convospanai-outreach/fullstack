@@ -7,8 +7,8 @@ export const WhatsAppService = {
    */
   async sendMessage(leadId: string, message: string, isTemplate: boolean): Promise<boolean> {
     // Check for Mock Mode explicitly or Default to Mock in Dev if no credentials
-    const hasCredentials = !!process.env.WHATSAPP_ACCESS_TOKEN;
-    const isMock = process.env.WHATSAPP_MOCK_MODE === "true" || (!hasCredentials && process.env.NODE_ENV !== "production");
+    const hasCredentials = !!process.env['WHATSAPP_ACCESS_TOKEN'];
+    const isMock = process.env['WHATSAPP_MOCK_MODE'] === "true" || (!hasCredentials && process.env.NODE_ENV !== "production");
 
     if (isMock) {
       logger.info(`[WhatsApp Mock] 📱 Message simulated to Lead ${leadId}`, { 
@@ -23,7 +23,7 @@ export const WhatsAppService = {
 
     // --- Real Implementation Starts Here ---
     
-    if (!process.env.WHATSAPP_ACCESS_TOKEN || !process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (!process.env['WHATSAPP_ACCESS_TOKEN'] || !process.env['WHATSAPP_PHONE_NUMBER_ID']) {
       logger.error("[WhatsApp] Missing credentials for production send.");
       throw new Error("WhatsApp integration not configured (Missing Credentials)");
     }

@@ -1,6 +1,4 @@
-
 import { McpClient } from "../McpClient";
-import { McpTool } from "../types";
 import { BrowserEngine } from "@/lib/browser-engine";
 import { Page } from "puppeteer";
 
@@ -127,7 +125,7 @@ export class ComputerUseServer {
     private async getPage(): Promise<Page> {
         // Reuse tabs if possible, for now just get new/current
         const pages = await (await this.browserEngine.getBrowser()).pages();
-        if (pages.length > 0) return pages[0];
+        if (pages.length > 0 && pages[0]) return pages[0];
         return await this.browserEngine.getPage();
     }
 

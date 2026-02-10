@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { OutreachAgent, OutreachTask } from "@/lib/ai/agents/OutreachAgent";
+import { OutreachTask } from "@/lib/ai/agents/OutreachAgent";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
