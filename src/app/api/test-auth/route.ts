@@ -21,6 +21,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "User not found within Next.js runtime" }, { status: 404 });
         }
 
+        if (!user.password) {
+            return NextResponse.json({ error: "User has no password set" }, { status: 400 });
+        }
+
         const isValid = await compare(password, user.password);
 
         return NextResponse.json({

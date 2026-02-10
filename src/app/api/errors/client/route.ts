@@ -11,9 +11,9 @@ const RATE_LIMIT_WINDOW = 60000; // 1 minute
 export async function POST(req: NextRequest) {
     try {
         // Get client IP for rate limiting
-        const headersList = headers();
+        const headersList = await headers();
         const forwarded = headersList.get("x-forwarded-for");
-        const ip = forwarded ? forwarded.split(",")[0] : req.ip || "unknown";
+        const ip = (forwarded?.split(",")[0]?.trim()) || "unknown";
 
         // Rate limiting
         const now = Date.now();
