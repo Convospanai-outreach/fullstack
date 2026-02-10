@@ -9,7 +9,7 @@ export function GlassCard({ children, className, ...props }: GlassCardProps) {
     return (
         <div
             className={cn(
-                "glass",
+                "clerk-card",
                 className
             )}
             {...props}

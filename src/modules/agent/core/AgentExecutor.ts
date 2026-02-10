@@ -3,6 +3,7 @@ import { HardwareService } from "@/services/HardwareService";
 import { HardwareConnectionError } from "./errors";
 import { TrustEngine } from "@/modules/governance/TrustEngine";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
+import { mcpManager } from "@/lib/mcp/McpManager";
 
 export enum AgentState {
     // Standard States
@@ -24,12 +25,17 @@ export enum AgentState {
 }
 
 export class AgentExecutor {
+
+
     /**
      * Starts a new autonomous task (Task 10: Unified Architecture)
      */
     async startTask(teamId: string, goal: string, context: any = {}): Promise<string> {
         // Task 5: Hard Policy Enforcement
         await TrustEngine.enforcePolicy(teamId, "AGENT_START");
+
+        // Initialize MCP
+        await mcpManager.initialize();
 
         // Mode: CYBER_PHYSICAL
         const startState = AgentState.HARDWARE_HANDSHAKE;
@@ -52,7 +58,7 @@ export class AgentExecutor {
             payload: { taskId: task.id, goal }
         });
 
-        await this.log(task.id, "SYSTEM", `Task started: ${goal}. Mode: CYBER_PHYSICAL. State: ${startState}`);
+        await this.log(task.id, "SYSTEM", `Task started: ${goal}. Mode: CYBER_PHYSICAL. State: ${startState}. MCP Initialized.`);
         return task.id;
     }
 
@@ -64,7 +70,7 @@ export class AgentExecutor {
         while (steps < maxSteps) {
             try {
                 const status = await this.step(taskId);
-                if (status === AgentState.COMPLETED || status === AgentState.FAILED || status === AgentState.REVIEWING) {
+                if (status === AgentState.COMPLETED || status === AgentState.FAILED || status === AgentState.REVIEWING || status === AgentState.AWAITING_APPROVAL) {
                     return status;
                 }
             } catch (error: any) {
@@ -84,9 +90,6 @@ export class AgentExecutor {
     /**
      * Executes a single step of the State Machine
      */
-    /**
-     * Executes a single step of the State Machine
-     */
     async step(taskId: string): Promise<string> {
         const task = await prisma.agentTask.findUnique({
             where: { id: taskId },
@@ -101,11 +104,14 @@ export class AgentExecutor {
         const retryCount = ctx._retryCount || 0;
         const MAX_RETRY = 3;
 
-        if (currentState === AgentState.COMPLETED || currentState === AgentState.FAILED || currentState === AgentState.REVIEWING) return currentState;
+        if (currentState === AgentState.COMPLETED || currentState === AgentState.FAILED || currentState === AgentState.REVIEWING || currentState === AgentState.AWAITING_APPROVAL) return currentState;
 
         await this.log(taskId, "SYSTEM", `Entering State: ${currentState} (Attempt ${retryCount + 1})`);
 
         try {
+            // HARDENING: Identify & Fail-Closed check at every step
+            await HardwareService.verifyHardwareIdentity();
+
             // --- CYBER-PHYSICAL DFA ---
 
             // 1. HARDWARE_HANDSHAKE
@@ -161,7 +167,7 @@ export class AgentExecutor {
 
                 await this.log(taskId, "ACTION", `Sovereign Firewall: Masking PII before Cloud Inference...`);
 
-                const { safeContext, tokenMap } = SovereignFirewall.mask(promptPayload);
+                const { safeContext, tokenMap } = await SovereignFirewall.mask(promptPayload);
 
                 // Store the Token Map ID (in a real app, this would be in Redis/Edge Store, not just context)
                 // For this implementation, we serialize the map to context - in production this is a security risk if context is logged to cloud DB
@@ -183,17 +189,85 @@ export class AgentExecutor {
             if (currentState === AgentState.LLM_GENERATION) {
                 const { aiService } = await import("@/lib/aiService");
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+                const { mcpManager } = await import("@/lib/mcp/McpManager");
+
                 const ctx: any = task.context || {};
 
                 // Use the SAFE Payload
                 const safePayload = JSON.parse(ctx.safe_prompt_payload || "{}");
-                const prompt = `Draft a cold outreach email. Context: ${JSON.stringify(safePayload)}`;
 
-                await this.log(taskId, "ACTION", "Generating content using MASKED context...");
+                // DISCOVER TOOLS
+                const tools = await mcpManager.getAllTools();
+                const toolsDesc = tools.map(t =>
+                    `- ${t.name}: ${t.description} (Schema: ${JSON.stringify(t.inputSchema)})`
+                ).join("\n");
+
+                const prompt = `
+GOAL: ${task.goal}
+CONTEXT: ${JSON.stringify(safePayload)}
+
+AVAILABLE TOOLS:
+${toolsDesc}
+
+INSTRUCTIONS:
+You are an autonomous agent. You can either generate content OR use a tool.
+If you need to use a tool to achieve the goal (e.g. navigate, click), output a JSON object with this EXACT structure:
+{
+  "tool": "tool_name",
+  "args": { ...arguments }
+}
+
+If you are generating final content (e.g. email draft), just output the text.
+
+RESPONSE:
+`;
+
+                await this.log(taskId, "ACTION", "Generating content/action using MASKED context and TOOLS...");
 
                 // Real LLM Call
                 const generatedRaw = await aiService.askAI(prompt, task.teamId);
 
+                // Check for Tool Call (Simple JSON extraction)
+                let toolCall = null;
+                try {
+                    const clean = generatedRaw.trim().replace(/```json/g, "").replace(/```/g, "");
+                    if (clean.startsWith("{") && clean.endsWith("}")) {
+                        const parsed = JSON.parse(clean);
+                        if (parsed.tool && parsed.args) {
+                            toolCall = parsed;
+                        }
+                    }
+                } catch (e) { /* Not a JSON tool call */ }
+
+                if (toolCall) {
+                    await this.log(taskId, "DECISION", `Agent selected tool: ${toolCall.tool}`);
+                    const newContext = { ...ctx, tool_call: toolCall };
+                    await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
+
+                    // GOVERNANCE: High-Risk Action Check
+                    // For now, ALL tool calls are considered high risk and require approval
+                    const { ApprovalService } = await import("@/modules/governance/ApprovalService");
+                    await ApprovalService.requestApproval(taskId, task.teamId, "MCP_TOOL_EXECUTION", toolCall);
+
+                    // AUDIT: Approval requested
+                    await EventStore.record({
+                        type: SystemEventType.AGENT,
+                        name: "AGENT_APPROVAL_REQUESTED",
+                        teamId: task.teamId,
+                        actorId: "AGENT_EXECUTOR",
+                        payload: {
+                            taskId,
+                            actionType: "MCP_TOOL_EXECUTION",
+                            riskLevel: "HIGH",
+                            details: toolCall
+                        }
+                    });
+
+                    await this.log(taskId, "GOVERNANCE", "Transitioning to AWAITING_APPROVAL for Tool Execution.");
+                    return await this.transition(taskId, AgentState.AWAITING_APPROVAL);
+                }
+
+                // Normal Content Flow
                 // UNMASK: Restore PII
                 const tokenMap = new Map(ctx._token_map as [string, string][]);
                 const restoredContent = SovereignFirewall.unmask(generatedRaw, tokenMap);
@@ -205,7 +279,44 @@ export class AgentExecutor {
                 return await this.transition(taskId, AgentState.ADVERSARIAL_CHECK);
             }
 
-            // 5. ADVERSARIAL_CHECK (Sovereign Critic)
+            // 5. AWAITING_APPROVAL
+            if (currentState === AgentState.AWAITING_APPROVAL) {
+                const { ApprovalService, ApprovalStatus } = await import("@/modules/governance/ApprovalService");
+                const status = await ApprovalService.checkStatus(taskId);
+
+                if (status === ApprovalStatus.APPROVED) {
+                    await this.log(taskId, "GOVERNANCE", "Action APPROVED. Proceeding to Execution.");
+
+                    // AUDIT: Approval granted
+                    await EventStore.record({
+                        type: SystemEventType.AGENT,
+                        name: "AGENT_APPROVAL_GRANTED",
+                        teamId: task.teamId,
+                        actorId: "HUMAN_APPROVER",
+                        payload: { taskId }
+                    });
+
+                    return await this.transition(taskId, AgentState.EXECUTION);
+                } else if (status === ApprovalStatus.REJECTED) {
+                    await this.log(taskId, "GOVERNANCE", "Action REJECTED. Terminating Task.");
+
+                    // AUDIT: Approval rejected
+                    await EventStore.record({
+                        type: SystemEventType.AGENT,
+                        name: "AGENT_APPROVAL_REJECTED",
+                        teamId: task.teamId,
+                        actorId: "HUMAN_APPROVER",
+                        payload: { taskId, reason: "User rejected" }
+                    });
+
+                    return await this.transition(taskId, AgentState.FAILED);
+                }
+
+                // Still Pending
+                return AgentState.AWAITING_APPROVAL; // Breaks the loop in runToCompletion
+            }
+
+            // 6. ADVERSARIAL_CHECK (Sovereign Critic) [Legacy Content Check]
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: any = task.context || {};
@@ -233,17 +344,105 @@ export class AgentExecutor {
                 }
             }
 
-            // 6. EXECUTION (Browser)
+            // 6. EXECUTION (Browser / MCP)
             if (currentState === AgentState.EXECUTION) {
+                const ctx: any = task.context || {};
+
+                // CHECK FOR MCP TOOL CALL
+                if (ctx.tool_call) {
+                    const { tool, args } = ctx.tool_call;
+                    await this.log(taskId, "ACTION", `Executing MCP Tool: ${tool} with args ${JSON.stringify(args)}`);
+
+                    try {
+                        // Find client that has this tool
+                        const allClients = mcpManager['clients']; // Access internal map via hack or add accessor
+                        // Better: Iterate registered servers. For now, we know "computer-use" is registered.
+                        const client = mcpManager.getClient("computer-use");
+
+                        if (client) {
+                            const result = await client.callTool(tool, args);
+                            await this.log(taskId, "OBSERVATION", `Tool Execution Result: ${JSON.stringify(result)}`);
+
+                            // AUDIT: Tool execution success
+                            await EventStore.record({
+                                type: SystemEventType.AGENT,
+                                name: "AGENT_TOOL_EXECUTION",
+                                teamId: task.teamId,
+                                actorId: "AGENT_EXECUTOR",
+                                payload: {
+                                    taskId,
+                                    toolName: tool,
+                                    args,
+                                    result,
+                                    success: true
+                                }
+                            });
+
+                            // Clear tool call after execution
+                            const newContext = { ...ctx };
+                            delete newContext.tool_call;
+                            await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
+                        } else {
+                            await this.log(taskId, "ERROR", `No MCP client found for tool ${tool}.`);
+
+                            // AUDIT: Tool execution failure (no client)
+                            await EventStore.record({
+                                type: SystemEventType.AGENT,
+                                name: "AGENT_TOOL_EXECUTION",
+                                teamId: task.teamId,
+                                actorId: "AGENT_EXECUTOR",
+                                payload: {
+                                    taskId,
+                                    toolName: tool,
+                                    args,
+                                    success: false,
+                                    error: "No MCP client found"
+                                }
+                            });
+                        }
+                    } catch (e: any) {
+                        await this.log(taskId, "ERROR", `Tool Execution Failed: ${e.message}`);
+
+                        // AUDIT: Tool execution failure
+                        await EventStore.record({
+                            type: SystemEventType.AGENT,
+                            name: "AGENT_TOOL_EXECUTION",
+                            teamId: task.teamId,
+                            actorId: "AGENT_EXECUTOR",
+                            payload: {
+                                taskId,
+                                toolName: tool,
+                                args,
+                                success: false,
+                                error: e.message
+                            }
+                        });
+
+                        // ERROR RECOVERY: If tool fails, request handover instead of failing completely
+                        await this.log(taskId, "GOVERNANCE", "Tool Failed. Initiating Handover to Human Operator.");
+                        return await this.transition(taskId, AgentState.REVIEWING);
+                    }
+                    return await this.transition(taskId, AgentState.COMPLETED);
+                }
+
+                // EXPLICIT HANDOVER CHECK
+                // If model outputs "HANDOVER", switch to reviewing
+                // checks context...
+
+                // FALLBACK TO LEGACY HARDWARE EXECUTION
                 await this.log(taskId, "ACTION", "Executing Outreach via Physical Browser Node...");
                 await HardwareService.execute("NAVIGATE", { url: "https://linkedin.com/in/target" });
                 await this.log(taskId, "OBSERVATION", "Outreach Dispatched successfully.");
+
+                // AUDIT: Task completed
                 await EventStore.record({
-                    type: SystemEventType.SYSTEM,
+                    type: SystemEventType.AGENT,
                     name: "AGENT_TASK_COMPLETED",
                     teamId: task.teamId,
-                    payload: { taskId }
+                    actorId: "AGENT_EXECUTOR",
+                    payload: { taskId, success: true }
                 });
+
                 return await this.transition(taskId, AgentState.COMPLETED);
             }
 
@@ -283,10 +482,24 @@ export class AgentExecutor {
     }
 
     private async transition(taskId: string, newState: AgentState): Promise<string> {
+        // Get current state for audit log
+        const task = await prisma.agentTask.findUnique({ where: { id: taskId } });
+        const fromState = task?.status || 'UNKNOWN';
+
         await prisma.agentTask.update({
             where: { id: taskId },
             data: { status: newState }
         });
+
+        // AUDIT: Record state transition
+        await EventStore.record({
+            type: SystemEventType.AGENT,
+            name: "AGENT_STATE_TRANSITION",
+            teamId: task?.teamId || "unknown",
+            actorId: "AGENT_EXECUTOR",
+            payload: { taskId, fromState, toState: newState }
+        });
+
         return newState;
     }
 
@@ -299,4 +512,3 @@ export class AgentExecutor {
 }
 
 export const agentExecutor = new AgentExecutor();
-

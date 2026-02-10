@@ -11,7 +11,6 @@
 
 import { prisma } from "@/lib/db";
 import { evaluationService } from "../evaluation/EvaluationService";
-import type { TrainingRecordSchema } from "../types";
 
 export class TrainingManager {
 

@@ -3,9 +3,20 @@ import { hash } from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { setupUser } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
+import { logger } from "@/lib/logger";
+
+/**
+ * User Registration Endpoint
+ * 
+ * Rate limiting is now handled by middleware.ts using the comprehensive
+ * rate limiting service (src/lib/rateLimit.ts)
+ * 
+ * Configuration: 5 attempts per hour per IP (RATE_LIMITS.AUTH)
+ */
 
 export async function POST(req: Request) {
     try {
+
         const { name, email, password } = await req.json();
 
         if (!email || !password) {
@@ -53,7 +64,7 @@ export async function POST(req: Request) {
             const token = await EmailService.createVerificationToken(user.email);
             await EmailService.sendVerificationEmail(user.email, user.name || 'User', token);
         } catch (emailError) {
-            console.error('Failed to send verification email:', emailError);
+            logger.error('Failed to send verification email:', emailError);
             // Don't fail registration if email fails
         }
 
@@ -66,7 +77,7 @@ export async function POST(req: Request) {
             message: 'Account created! Please check your email to verify your account.'
         });
     } catch (error: any) {
-        console.error("Registration error:", error);
+        logger.error("Registration error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

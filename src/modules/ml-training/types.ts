@@ -44,7 +44,7 @@ export interface ReviewScore {
     tone_quality: number;       // 1-5
     clarity: number;            // 1-5
     realism: number;            // 1-5
-    refusal_quality?: number;   // 1-5 (if applicable)
+    refusal_quality?: number | undefined;   // 1-5 (if applicable)
 }
 
 export interface DatasetReviewSubmission {
@@ -52,7 +52,7 @@ export interface DatasetReviewSubmission {
     reviewerId: string;
     sampleSize: number;
     scores: ReviewScore;
-    notes?: string;
+    notes?: string | undefined;
     approved: boolean;
 }
 

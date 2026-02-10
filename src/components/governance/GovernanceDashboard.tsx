@@ -1,4 +1,5 @@
 import { Experiment, ExperimentVariant, TrainingDataset } from '@prisma/client';
+import { ApprovalGate } from '@/components/governance/ApprovalGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -17,9 +18,9 @@ interface GovernanceDashboardProps {
 }
 
 export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboardProps) {
-    const activeExperiments = experiments.filter(e => e.isActive);
-    const approvedDatasets = datasets.filter(d => d.status === 'APPROVED');
-    const pendingDatasets = datasets.filter(d => d.status === 'PENDING_REVIEW');
+    const activeExperiments = experiments.filter(e => e.status === 'RUNNING');
+    const approvedDatasets = datasets.filter(d => d.status === 'REVIEWED');
+    const pendingDatasets = datasets.filter(d => d.status === 'IN_REVIEW');
 
     return (
         <div className="p-6 space-y-6">
@@ -73,66 +74,73 @@ export function GovernanceDashboard({ experiments, datasets }: GovernanceDashboa
                 </Card>
             </div>
 
-            {/* Experiments Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Active A/B Experiments</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {activeExperiments.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No active experiments</p>
-                    ) : (
-                        <div className="space-y-4">
-                            {activeExperiments.map((exp) => (
-                                <div key={exp.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                                    <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Approval Gate */}
+                <div className="lg:col-span-2">
+                    <ApprovalGate />
+                </div>
+
+                {/* Experiments Table */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Active A/B Experiments</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {activeExperiments.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No active experiments</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {activeExperiments.map((exp) => (
+                                    <div key={exp.id} className="border-l-4 border-blue-500 pl-4 py-2">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <h3 className="font-semibold">{exp.name}</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    {exp.variants.length} variants • {exp.goal}
+                                                </p>
+                                            </div>
+                                            <Button variant="outline" size="sm">View Results</Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Training Datasets */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Training Datasets</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-3">
+                            {datasets.map((dataset) => (
+                                <div key={dataset.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                    <div className="flex items-center gap-3">
+                                        {dataset.status === 'REVIEWED' ? (
+                                            <CheckCircle className="w-5 h-5 text-green-500" />
+                                        ) : dataset.status === 'IN_REVIEW' ? (
+                                            <Clock className="w-5 h-5 text-yellow-500" />
+                                        ) : (
+                                            <XCircle className="w-5 h-5 text-red-500" />
+                                        )}
                                         <div>
-                                            <h3 className="font-semibold">{exp.name}</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                {exp.variants.length} variants • {exp.metric} metric
+                                            <p className="font-medium">Dataset {dataset.version}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {dataset.taskType} • Version {dataset.version}
                                             </p>
                                         </div>
-                                        <Button variant="outline" size="sm">View Results</Button>
                                     </div>
+                                    <Badge variant={dataset.status === 'REVIEWED' ? 'default' : 'secondary'}>
+                                        {dataset.status}
+                                    </Badge>
                                 </div>
                             ))}
                         </div>
-                    )}
-                </CardContent>
-            </Card>
-
-            {/* Training Datasets */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Training Datasets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-3">
-                        {datasets.map((dataset) => (
-                            <div key={dataset.id} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    {dataset.status === 'APPROVED' ? (
-                                        <CheckCircle className="w-5 h-5 text-green-500" />
-                                    ) : dataset.status === 'PENDING_REVIEW' ? (
-                                        <Clock className="w-5 h-5 text-yellow-500" />
-                                    ) : (
-                                        <XCircle className="w-5 h-5 text-red-500" />
-                                    )}
-                                    <div>
-                                        <p className="font-medium">{dataset.name}</p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {dataset.taskType} • Version {dataset.version}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Badge variant={dataset.status === 'APPROVED' ? 'default' : 'secondary'}>
-                                    {dataset.status}
-                                </Badge>
-                            </div>
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

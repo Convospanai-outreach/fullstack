@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const token = await getToken({ req });
 
     // Authorization check
-    const allowedRoles = [UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER, UserRole.SYSTEM_ADMIN];
+    const allowedRoles: UserRole[] = [UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER, UserRole.SYSTEM_ADMIN];
     if (!token || !allowedRoles.includes(token.enterpriseRole as UserRole)) {
         return NextResponse.json({ error: "Forbidden - Requires admin access" }, { status: 403 });
     }

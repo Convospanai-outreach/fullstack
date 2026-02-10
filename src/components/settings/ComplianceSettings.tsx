@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { HardwareService } from '@/services/HardwareService';
+import { setComplianceMode } from '@/app/actions/hardware';
 import ComplianceLog from './ComplianceLog';
 
 export default function ComplianceSettings() {
@@ -23,8 +23,8 @@ export default function ComplianceSettings() {
         const newRegion = region === 'INDIA' ? 'EU' : 'INDIA';
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Enforce on Physical Edge Node
-        await HardwareService.setComplianceMode(newRegion);
+        // Enforce on Physical Edge Node (via Server Action)
+        await setComplianceMode(newRegion);
 
         localStorage.setItem('CONVOSPAN_REGION', newRegion);
         setRegion(newRegion);

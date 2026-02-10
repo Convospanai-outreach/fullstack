@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { leadScoringService } from "@/modules/scoring";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
     try {
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
             data: explanation
         });
     } catch (error: any) {
-        console.error("[API] Lead Intent Score Error:", error);
+        logger.error("[API] Lead Intent Score Error:", error);
 
         // Handle DPDP compliance errors specifically
         if (error.message?.includes("DPDP_COMPLIANCE")) {
@@ -102,7 +103,7 @@ export async function GET(req: NextRequest) {
             }
         });
     } catch (error: any) {
-        console.error("[API] Get Score Error:", error);
+        logger.error("[API] Get Score Error:", error);
         return NextResponse.json(
             { error: error.message || "Failed to get score" },
             { status: 500 }
@@ -134,7 +135,7 @@ export async function PUT(req: NextRequest) {
             config: leadScoringService.getConfig()
         });
     } catch (error: any) {
-        console.error("[API] Update Weights Error:", error);
+        logger.error("[API] Update Weights Error:", error);
         return NextResponse.json(
             { error: error.message || "Failed to update weights" },
             { status: 400 }

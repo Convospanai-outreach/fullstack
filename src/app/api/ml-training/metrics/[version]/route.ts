@@ -11,7 +11,7 @@ import { evaluationService } from "@/modules/ml-training/evaluation/EvaluationSe
 import { prisma } from "@/lib/db";
 
 export async function GET(
-    req: NextRequest,
+    _req: NextRequest,
     { params }: { params: { version: string } }
 ) {
     const session = await getServerSession(authOptions);

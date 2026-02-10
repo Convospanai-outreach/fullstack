@@ -4,7 +4,7 @@ export default function GlassCard({ title, children }: any) {
             {title && (
                 <h3 className="text-xl font-semibold mb-2 text-purple-300">{title}</h3>
             )}
-            <p className="text-gray-300">{children}</p>
+            <div className="text-gray-300">{children}</div>
         </div>
     );
 }

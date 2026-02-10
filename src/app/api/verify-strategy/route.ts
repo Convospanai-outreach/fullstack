@@ -4,6 +4,11 @@ import { CampaignService } from "@/lib/campaignService";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
+    // Security: Only allow in development environment
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    }
+
     try {
         console.log("1. Creating Campaign via Service (In-Band Verification)...");
 

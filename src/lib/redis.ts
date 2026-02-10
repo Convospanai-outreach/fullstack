@@ -33,7 +33,11 @@ export async function getRedisClient() {
     });
 
     try {
-        await redisClient.connect();
+        if (!redisClient.isOpen) {
+            const connectPromise = redisClient.connect();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 2000));
+            await Promise.race([connectPromise, timeoutPromise]);
+        }
     } catch (error) {
         console.error("Failed to connect to Redis:", error);
         // Do not throw, allow app to start without Redis

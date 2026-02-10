@@ -53,6 +53,7 @@ export default function LoginPage() {
                             <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
                             <input
                                 type="email"
+                                name="email"
                                 required
                                 value={credentials.email}
                                 onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
@@ -68,6 +69,7 @@ export default function LoginPage() {
                             </div>
                             <input
                                 type="password"
+                                name="password"
                                 required
                                 value={credentials.password}
                                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}

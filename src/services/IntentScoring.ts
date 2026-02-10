@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export class IntentScoringService {
 
@@ -7,14 +8,14 @@ export class IntentScoringService {
      * Calculates Karmic Friction Score and triggers notifications.
      */
     async processWebhookData(data: any): Promise<void> {
-        console.log("[IntentScoring] Processing webhook data:", data);
+        logger.info("[IntentScoring] Processing webhook data:", data);
 
         const sentiment = data.sentiment || {};
         // Pass text content if available (e.g. data.content, data.message, or data.snippet)
         const textContent = data.content || data.snippet || "No content provided";
         const frictionScore = await this.calculateKarmicFriction(sentiment, textContent);
 
-        console.log(`[IntentScoring] Calculated Friction Score: ${frictionScore}`);
+        logger.info(`[IntentScoring] Calculated Friction Score: ${frictionScore}`);
 
         if (frictionScore > 80) {
             await this.triggerMasterAdminNotification(data, frictionScore);
@@ -31,7 +32,7 @@ export class IntentScoringService {
         // 1. Try Edge Node (Deep Learning)
         try {
             // Assuming EDGE_NODE_URI is available in environment or config
-            const edgeUri = process.env.EDGE_NODE_URI || "http://localhost:8000";
+            const edgeUri = process.env['EDGE_NODE_URI'] || "http://localhost:8000";
             const res = await fetch(`${edgeUri}/v1/score_intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -43,7 +44,7 @@ export class IntentScoringService {
                 return json.score;
             }
         } catch (e) {
-            console.warn("[IntentScoring] Edge Node offline, falling back to heuristic.");
+            logger.warn("[IntentScoring] Edge Node offline, falling back to heuristic.");
         }
 
         // 2. Heuristic Fallback
@@ -58,7 +59,7 @@ export class IntentScoringService {
     }
 
     private async triggerMasterAdminNotification(data: any, score: number) {
-        console.log("[IntentScoring] High Friction Detected! Triggering Master Admin Notification.");
+        logger.info("[IntentScoring] High Friction Detected! Triggering Master Admin Notification.");
 
         try {
             // Identify Super Admin / Master Admin
@@ -85,11 +86,11 @@ export class IntentScoringService {
 
             // If no admins found, log warning
             if (admins.length === 0) {
-                console.warn("[IntentScoring] No admins found to notify.");
+                logger.warn("[IntentScoring] No admins found to notify.");
             }
 
         } catch (error) {
-            console.error("[IntentScoring] Failed to create notification:", error);
+            logger.error("[IntentScoring] Failed to create notification:", error);
         }
     }
 }

@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/db";
-import { DatasetStatus, TrainingTaskType, DatasetReview } from "@prisma/client";
+import { DatasetStatus, TrainingTaskType } from "@prisma/client";
 
 /**
  * Stage 2 Schema (User Defined)

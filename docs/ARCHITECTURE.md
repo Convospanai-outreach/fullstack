@@ -135,7 +135,7 @@
   - Data transformation
 
 #### 4. Data Access Layer
-- **Location**: `prisma/`, `src/lib/db.ts`
+- **Location**: `prisma/`, `src/lib/db.ts` (Enforced `server-only`)
 - **Responsibilities**:
   - Database schema management
   - Query optimization
@@ -528,7 +528,13 @@ ConsentService.revokeConsent(leadId, userId, reason)
 - CONSENT_GRANTED, CONSENT_REVOKED
 - CONVERSATION_STATE_CHANGE
 - CAMPAIGN_APPROVED, CAMPAIGN_REJECTED
+- CAMPAIGN_APPROVED, CAMPAIGN_REJECTED
 - FEATURE_FLAG_TOGGLED
+
+### Codebase Safety
+- **Server-Only Enforcement**: `src/lib/db.ts` uses `import 'server-only'` to prevent accidental bundling of Prisma Client in client-side code.
+- **Client Component Isolation**: Service modules (`src/modules/*`) are restricted from being imported into Client Components (`"use client"`).
+
 
 ---
 

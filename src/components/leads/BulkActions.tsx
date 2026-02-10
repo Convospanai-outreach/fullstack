@@ -26,7 +26,7 @@ export default function BulkActions({ selectedCount, onDelete, onExport, onClear
                     <Button onClick={onExport} variant="outline" className="px-3 py-1 text-sm">
                         Export
                     </Button>
-                    <Button onClick={onDelete} variant="danger" className="px-3 py-1 text-sm">
+                    <Button onClick={onDelete} variant="destructive" className="px-3 py-1 text-sm">
                         Delete
                     </Button>
                 </div>

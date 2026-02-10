@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { predictiveService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 async function getTeamId(userId: string): Promise<string | null> {
     const member = await prisma.teamMember.findFirst({
@@ -104,7 +105,7 @@ export async function POST(req: NextRequest) {
                 );
         }
     } catch (error: any) {
-        console.error("[API] Predictive Error:", error);
+        logger.error("[API] Predictive Error:", error);
         return NextResponse.json(
             { error: error.message || "Prediction failed" },
             { status: 500 }
@@ -138,7 +139,7 @@ export async function GET(_req: NextRequest) {
             }
         });
     } catch (error: any) {
-        console.error("[API] Get Clusters Error:", error);
+        logger.error("[API] Get Clusters Error:", error);
         return NextResponse.json(
             { error: error.message || "Failed to get clusters" },
             { status: 500 }

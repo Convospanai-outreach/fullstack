@@ -17,6 +17,10 @@ export const CommandPalette: React.FC = () => {
         { id: 'campaigns', name: 'View Campaigns', icon: Mail, shortcut: 'G C', url: '/campaigns' },
         { id: 'crm', name: 'CRM Sync Status', icon: Zap, shortcut: 'G S', url: '/crm' },
         { id: 'settings', name: 'Organization Settings', icon: Settings, shortcut: 'G O', url: '/settings' },
+        // Operator Commands
+        { id: 'approvals', name: 'View Approval Queue', icon: Shield, shortcut: 'G A', url: '/dashboard?tab=approvals' },
+        { id: 'operator-scrapers', name: 'Run: Start All Scrapers', icon: Zap, shortcut: 'R S', url: '/api/admin/actions/start-scrapers', action: true },
+        { id: 'operator-pause', name: 'Run: Pause Outreach', icon: Zap, shortcut: 'R P', url: '/api/admin/actions/pause-outreach', action: true },
     ];
 
     const filteredActions = actions.filter(action =>
@@ -41,19 +45,19 @@ export const CommandPalette: React.FC = () => {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] px-4 backdrop-blur-md bg-black/40 animate-in fade-in duration-200">
-            <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden glass-morphism">
-                <div className="relative flex items-center p-4 border-b border-slate-700/50">
-                    <Search className="w-5 h-5 text-slate-400 mr-3" />
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[15vh] px-4 backdrop-blur-sm bg-background/80 data-[state=open]:animate-in data-[state=closed]:animate-out fade-in-0 duration-200">
+            <div className="w-full max-w-2xl bg-popover border border-border rounded-xl shadow-2xl overflow-hidden">
+                <div className="relative flex items-center p-4 border-b border-border">
+                    <Search className="w-5 h-5 text-muted-foreground mr-3" />
                     <input
                         autoFocus
                         type="text"
                         placeholder="Type a command or search..."
-                        className="bg-transparent border-none outline-none text-white w-full text-lg placeholder:text-slate-500"
+                        className="bg-transparent border-none outline-none text-foreground w-full text-lg placeholder:text-muted-foreground"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
-                    <div className="flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-[10px] text-slate-400 font-mono">
+                    <div className="flex items-center gap-1 px-2 py-1 rounded bg-muted text-[10px] text-muted-foreground font-mono">
                         <Command className="w-3 h-3" />
                         <span>K</span>
                     </div>
@@ -65,33 +69,41 @@ export const CommandPalette: React.FC = () => {
                             <button
                                 key={action.id}
                                 onClick={() => {
-                                    router.push(action.url);
+                                    if ((action as any).action) {
+                                        fetch(action.url, { method: 'POST' })
+                                            .then(res => {
+                                                if (res.ok) alert('Action Triggered: ' + action.name);
+                                                else alert('Action Failed');
+                                            });
+                                    } else {
+                                        router.push(action.url);
+                                    }
                                     setIsOpen(false);
                                 }}
-                                className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-white/10 transition-colors group text-left"
+                                className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors group text-left"
                             >
                                 <div className="flex items-center">
-                                    <div className="p-2 rounded-lg bg-slate-800 mr-4 group-hover:bg-indigo-500/20 transition-colors">
-                                        <action.icon className="w-5 h-5 text-slate-400 group-hover:text-indigo-400" />
+                                    <div className="p-2 rounded-md bg-muted mr-4 group-hover:bg-brand-500/10 transition-colors">
+                                        <action.icon className="w-5 h-5 text-muted-foreground group-hover:text-brand-600" />
                                     </div>
-                                    <span className="text-slate-200 font-medium group-hover:text-white">{action.name}</span>
+                                    <span className="text-foreground font-medium">{action.name}</span>
                                 </div>
-                                <span className="text-xs text-slate-500 font-mono group-hover:text-slate-400">{action.shortcut}</span>
+                                <span className="text-xs text-muted-foreground font-mono">{action.shortcut}</span>
                             </button>
                         ))
                     ) : (
-                        <div className="p-8 text-center text-slate-500">
+                        <div className="p-8 text-center text-muted-foreground">
                             No commands found for "{search}"
                         </div>
                     )}
                 </div>
 
-                <div className="p-3 bg-slate-950/50 border-t border-slate-700/30 flex justify-between items-center text-[10px] text-slate-500 uppercase tracking-widest">
+                <div className="p-3 bg-muted/50 border-t border-border flex justify-between items-center text-[10px] text-muted-foreground uppercase tracking-widest">
                     <span>Navigation</span>
                     <div className="flex gap-4">
-                        <span><kbd className="bg-slate-800 px-1 rounded mr-1">↑↓</kbd> Select</span>
-                        <span><kbd className="bg-slate-800 px-1 rounded mr-1">⏎</kbd> Confirm</span>
-                        <span><kbd className="bg-slate-800 px-1 rounded mr-1">ESC</kbd> Close</span>
+                        <span><kbd className="bg-muted px-1 rounded mr-1 border border-border">↑↓</kbd> Select</span>
+                        <span><kbd className="bg-muted px-1 rounded mr-1 border border-border">⏎</kbd> Confirm</span>
+                        <span><kbd className="bg-muted px-1 rounded mr-1 border border-border">ESC</kbd> Close</span>
                     </div>
                 </div>
             </div>

@@ -6,7 +6,8 @@ export enum SystemEventType {
     USER = "USER",
     AI = "AI",
     ESP = "ESP", // Email Service Provider
-    SYSTEM = "SYSTEM"
+    SYSTEM = "SYSTEM",
+    AGENT = "AGENT" // Agent autonomous actions
 }
 
 export interface EventPayload extends Record<string, any> {
@@ -107,6 +108,25 @@ export class EventStore {
                 break;
             case "REPLY_RECEIVED":
                 narrative = `Successful conversion! Received a reply from ${event.payload.leadEmail}.`;
+                break;
+            // Agent-specific events
+            case "AGENT_STATE_TRANSITION":
+                narrative = `Agent task ${event.payload.taskId} transitioned from ${event.payload.fromState} to ${event.payload.toState}.`;
+                break;
+            case "AGENT_TOOL_EXECUTION":
+                narrative = `Agent executed tool '${event.payload.toolName}' ${event.payload.success ? 'successfully' : 'with error: ' + event.payload.error}.`;
+                break;
+            case "AGENT_APPROVAL_REQUESTED":
+                narrative = `Agent task ${event.payload.taskId} requested approval for ${event.payload.actionType} (Risk: ${event.payload.riskLevel}).`;
+                break;
+            case "AGENT_APPROVAL_GRANTED":
+                narrative = `Approval granted for agent task ${event.payload.taskId} by ${event.payload.approverId}.`;
+                break;
+            case "AGENT_APPROVAL_REJECTED":
+                narrative = `Approval rejected for agent task ${event.payload.taskId} by ${event.payload.approverId}. Reason: ${event.payload.reason || 'N/A'}.`;
+                break;
+            case "AGENT_TASK_COMPLETED":
+                narrative = `Agent task ${event.payload.taskId} completed ${event.payload.success ? 'successfully' : 'with failure'}.`;
                 break;
         }
 

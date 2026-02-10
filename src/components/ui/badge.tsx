@@ -1,29 +1,40 @@
-"use client";
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 
-import React from 'react';
+import { cn } from "@/lib/utils"
 
-interface BadgeProps {
-    children: React.ReactNode;
-    variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
-    className?: string;
-}
+const badgeVariants = cva(
+    "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+    {
+        variants: {
+            variant: {
+                default:
+                    "border-transparent bg-brand-600 text-white hover:bg-brand-600/80",
+                secondary:
+                    "border-transparent bg-slate-100 text-slate-900 hover:bg-slate-100/80 dark:bg-slate-800 dark:text-slate-50",
+                destructive:
+                    "border-transparent bg-red-600 text-white hover:bg-red-600/80",
+                outline: "text-foreground",
+                success: "border-transparent bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+                warning: "border-transparent bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                danger: "border-transparent bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+                info: "border-transparent bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+            },
+        },
+        defaultVariants: {
+            variant: "default",
+        },
+    }
+)
 
-export function Badge({
-    children,
-    variant = 'default',
-    className = ''
-}: BadgeProps) {
-    const variants = {
-        default: 'bg-white/10 text-text-secondary border-white/5',
-        success: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-        warning: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-        danger: 'bg-red-500/10 text-red-400 border-red-500/20',
-        info: 'bg-accent-blue/10 text-accent-blue border-accent-blue/20',
-    };
+export interface BadgeProps
+    extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> { }
 
+function Badge({ className, variant, ...props }: BadgeProps) {
     return (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-widest border ${variants[variant]} ${className}`}>
-            {children}
-        </span>
-    );
+        <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    )
 }
+
+export { Badge, badgeVariants }

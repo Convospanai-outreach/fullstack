@@ -70,7 +70,7 @@ export class HybridRouter {
      */
     static getEndpoint(destination: AIDestination): string {
         if (destination === AIDestination.ON_PREM) {
-            return process.env.ON_PREM_AI_ENDPOINT || process.env.EDGE_NODE_URI || "http://localhost:8000";
+            return process.env['ON_PREM_AI_ENDPOINT'] || process.env['EDGE_NODE_URI'] || "http://localhost:8000";
         }
 
         // Cloud endpoint - returns null to signal standard API usage

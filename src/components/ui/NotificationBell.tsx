@@ -4,15 +4,23 @@ import { useState, useEffect } from "react";
 
 import Link from "next/link";
 
+import { useSession } from "next-auth/react";
+
 export function NotificationBell() {
+    const { status } = useSession();
     const [count, setCount] = useState(0);
 
     useEffect(() => {
-        fetch("/api/notifications")
-            .then(res => res.json())
-            .then(data => setCount(data.length))
-            .catch(err => console.error(err));
-    }, []);
+        if (status === "authenticated") {
+            fetch("/api/notifications")
+                .then(res => {
+                    if (res.ok) return res.json();
+                    return [];
+                })
+                .then(data => setCount(Array.isArray(data) ? data.length : 0))
+                .catch(err => console.error(err));
+        }
+    }, [status]);
 
     return (
         <Link href="/notifications">

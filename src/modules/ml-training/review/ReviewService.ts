@@ -92,8 +92,8 @@ export class ReviewService {
                 toneQuality: review.scores.tone_quality,
                 clarity: review.scores.clarity,
                 realism: review.scores.realism,
-                refusalQuality: review.scores.refusal_quality,
-                notes: review.notes,
+                refusalQuality: review.scores.refusal_quality ?? null,
+                notes: review.notes ?? null,
                 approved: review.approved
             }
         });
@@ -154,12 +154,7 @@ export class ReviewService {
      * Get random sample of records for quick review
      */
     async getSampleForReview(datasetId: string, sampleSize: number = 50) {
-        const total = await prisma.trainingRecord.count({
-            where: { datasetId }
-        });
 
-        // Get sample percentage
-        const samplePercent = Math.min(sampleSize / total, 0.10); // Max 10%
 
         const records = await prisma.$queryRaw<any[]>`
       SELECT * FROM "TrainingRecord"

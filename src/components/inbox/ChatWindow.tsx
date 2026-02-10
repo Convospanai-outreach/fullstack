@@ -88,23 +88,23 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
     if (loading) return <div className="flex-1 flex items-center justify-center text-white/60">Loading...</div>;
 
     return (
-        <div className="flex flex-col h-full bg-white/5">
+        <div className="flex flex-col h-full bg-surface-panel">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.map((msg) => (
                     <div
                         key={msg.id}
                         className={cn(
-                            "max-w-[70%] p-4 rounded-2xl",
+                            "max-w-[70%] p-4 rounded-xl",
                             msg.sender === "me"
-                                ? "ml-auto bg-blue-600 text-white rounded-tr-none"
-                                : "bg-white/10 text-white rounded-tl-none"
+                                ? "ml-auto bg-brand-600 text-white rounded-tr-none"
+                                : "bg-muted text-foreground rounded-tl-none"
                         )}
                     >
                         <p>{msg.content}</p>
                         <div className={cn(
-                            "text-xs mt-1 opacity-60",
-                            msg.sender === "me" ? "text-blue-100" : "text-white/40"
+                            "text-xs mt-1",
+                            msg.sender === "me" ? "text-brand-100" : "text-muted-foreground"
                         )}>
                             {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
@@ -116,7 +116,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
             {/* Smart Replies */}
             <div className="px-4 py-2 flex gap-2 overflow-x-auto min-h-[50px]">
                 {suggestionsLoading ? (
-                    <div className="text-xs text-white/40 flex items-center animate-pulse">
+                    <div className="text-xs text-muted-foreground flex items-center animate-pulse">
                         <span className="mr-2">✨</span> Generating suggestions...
                     </div>
                 ) : (
@@ -124,7 +124,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
                         <button
                             key={i}
                             onClick={() => setNewMessage(reply)}
-                            className="whitespace-nowrap px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-200 text-xs hover:bg-purple-500/20 transition-colors"
+                            className="whitespace-nowrap px-3 py-1 rounded-full bg-purple-100 border border-purple-200 text-purple-700 text-xs hover:bg-purple-200 dark:bg-purple-900/20 dark:border-purple-800 dark:text-purple-300 transition-colors"
                         >
                             ✨ {reply}
                         </button>
@@ -133,11 +133,11 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t border-white/10 bg-black/20">
+            <div className="p-4 border-t border-border bg-background/50">
                 <div className="flex gap-4">
                     <input
                         type="text"
-                        className="flex-1 bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500"
+                        className="flex-1 bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-1 focus:ring-brand-500"
                         placeholder="Type a message..."
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}

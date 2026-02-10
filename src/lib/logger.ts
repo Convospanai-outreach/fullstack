@@ -1,51 +1,53 @@
+
 import winston from 'winston';
 
-const { combine, timestamp, printf, colorize, json } = winston.format;
+const { combine, timestamp, json, colorize, printf, errors } = winston.format;
 
-// Custom log format for development
-const devFormat = printf(({ level, message, timestamp, ...metadata }) => {
-    let msg = `${timestamp} [${level}]: ${message} `;
-    if (Object.keys(metadata).length > 0) {
-        msg += JSON.stringify(metadata);
-    }
-    return msg;
-});
+// Standard log format for development
+const devFormat = combine(
+  colorize(),
+  timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+  errors({ stack: true }),
+  printf(({ level, message, timestamp, stack }) => {
+    return `${timestamp} [${level}]: ${stack || message}`;
+  })
+);
 
+// JSON format for production (easy ingestion by DataDog/Sentry/Splunk)
+const prodFormat = combine(
+  timestamp(),
+  errors({ stack: true }),
+  json()
+);
+
+// Determine environment
+const isProduction = process.env.NODE_ENV === 'production';
+const logLevel = process.env.LOG_LEVEL || (isProduction ? 'info' : 'debug');
+
+/**
+ * Structured Logger using Winston
+ * 
+ * Usage:
+ * import { logger } from '@/lib/logger';
+ * 
+ * logger.info('User logged in', { userId: '123' });
+ * logger.error('Database connection failed', error);
+ * logger.warn('Rate limit approaching', { ip: '192.168.1.1' });
+ */
 export const logger = winston.createLogger({
-    level: process.env['LOG_LEVEL'] || 'info',
-    format: combine(
-        timestamp(),
-        process.env.NODE_ENV === 'production' ? json() : combine(colorize(), devFormat)
-    ),
-    transports: [
-        new winston.transports.Console()
-    ],
+  level: logLevel,
+  format: isProduction ? prodFormat : devFormat,
+  defaultMeta: { service: 'convospan-api' },
+  transports: [
+    new winston.transports.Console(),
+    // Add file transport implementation if needed
+    // new winston.transports.File({ filename: 'error.log', level: 'error' }),
+  ],
 });
 
-/**
- * Log an audit event
- * @param action - The action performed (e.g. 'LOGIN', 'CREATE_CAMPAIGN')
- * @param actorId - User ID identifying the actor
- * @param details - Additional structured data
- */
-export const logAudit = (action: string, actorId: string, details: Record<string, any> = {}) => {
-    logger.info(`AUDIT: ${action}`, {
-        actorId,
-        category: 'audit',
-        ...details
-    });
-};
-
-/**
- * Log a worker job event
- * @param jobId - ID of the job
- * @param status - Status update
- * @param details - Context
- */
-export const logWorker = (jobId: string, status: string, details?: any) => {
-    logger.info(`WORKER: [${jobId}] ${status}`, {
-        jobId,
-        category: 'worker',
-        ...details
-    });
+// Create a stream for Morgan/HTTP loggers if needed
+export const stream = {
+  write: (message: string) => {
+    logger.info(message.trim());
+  },
 };

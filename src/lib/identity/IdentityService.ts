@@ -3,8 +3,8 @@ import axios from "axios";
 
 export class IdentityService {
     // In a real deployment, these would point to different physical IP addresses
-    private static EDGE_UAE = process.env.EDGE_NODE_UAE || "http://edge-node-uae:8000";
-    private static EDGE_GLOBAL = process.env.EDGE_NODE_GLOBAL || "http://edge-node-sim:8000";
+    private static EDGE_UAE = process.env['EDGE_NODE_UAE'] || "http://edge-node-uae:8000";
+    private static EDGE_GLOBAL = process.env['EDGE_NODE_GLOBAL'] || "http://edge-node-sim:8000";
 
     /**
      * Resolves a PII token to its original value by querying the Sovereign Vault.

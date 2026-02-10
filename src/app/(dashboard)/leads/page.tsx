@@ -7,6 +7,7 @@ import { getLeads } from "@/lib/api/leads";
 import FilterBar from "@/components/shared/FilterBar";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -132,18 +133,18 @@ export default function LeadsPage() {
                 </div>
             </div>
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+            <Card className="p-4 border-border">
                 <FilterBar
-                    onSearch={({ query, status }: { query: string; status?: string }) => {
+                    onSearch={({ query, status }) => {
                         setSearch(query);
                         setStatusFilter(status || "");
                     }}
                     placeholder="Search prospects by name, email, or firm..."
                 />
-            </div>
+            </Card>
 
             {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-center gap-3">
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-xl flex items-center gap-3">
                     <Zap className="w-5 h-5" /> {error}
                 </div>
             )}
@@ -151,14 +152,14 @@ export default function LeadsPage() {
             {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[1, 2, 3, 4, 5, 6].map(i => (
-                        <div key={i} className="h-48 bg-white/5 rounded-2xl animate-pulse border border-white/10" />
+                        <div key={i} className="h-48 bg-muted rounded-2xl animate-pulse border border-border" />
                     ))}
                 </div>
             ) : leads.length === 0 ? (
-                <GlassCard className="text-center py-24 border-dashed border-2">
-                    <Users className="w-16 h-16 text-gray-700 mx-auto mb-6 opacity-20" />
-                    <h3 className="text-xl font-bold text-gray-400">No prospects found</h3>
-                    <p className="text-gray-500 mt-2 mb-8">Start your journey by importing leads or creating one manually.</p>
+                <GlassCard className="text-center py-24 border-dashed border-2 box-border shadow-none">
+                    <Users className="w-16 h-16 text-muted-foreground mx-auto mb-6 opacity-20" />
+                    <h3 className="text-xl font-bold text-muted-foreground">No prospects found</h3>
+                    <p className="text-muted-foreground mt-2 mb-8">Start your journey by importing leads or creating one manually.</p>
                     <Link href="/leads/import">
                         <Button variant="default" className="px-8">Import your first leads</Button>
                     </Link>
@@ -170,45 +171,45 @@ export default function LeadsPage() {
                             key={lead.id}
                             id={`lead-card-${index}`}
                             className={`p-6 transition-all group relative ${index === selectedIndex
-                                ? "ring-2 ring-blue-500 ring-offset-2 ring-offset-[#0B0C15] scale-[1.02]"
-                                : "hover:translate-y-[-4px]"
+                                ? "ring-2 ring-brand-500 ring-offset-2 ring-offset-background scale-[1.02]"
+                                : "hover:shadow-clerk"
                                 }`}
                             onClick={() => setSelectedIndex(index)}
                         >
                             {index === selectedIndex && (
                                 <div className="absolute top-2 right-2 flex gap-1">
-                                    <span className="bg-blue-600 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">⏎ to open</span>
+                                    <span className="bg-brand-600 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">⏎ to open</span>
                                 </div>
                             )}
 
                             <div className="flex justify-between items-start mb-4">
-                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 border border-white/10 flex items-center justify-center text-white font-bold text-lg">
+                                <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/20 border border-border flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-lg">
                                     {lead.fullName?.[0] || lead.email[0]?.toUpperCase() || '?'}
                                 </div>
                                 <div className="flex gap-2">
-                                    <Badge variant={lead.status === 'enriched' ? 'success' : 'default'}>
+                                    <Badge variant={lead.status === 'enriched' ? 'success' : 'secondary'}>
                                         {lead.status}
                                     </Badge>
                                 </div>
                             </div>
 
                             <div className="space-y-1">
-                                <h3 className="text-lg font-bold text-white group-hover:text-blue-400 transition-colors truncate">
+                                <h3 className="text-lg font-bold text-foreground group-hover:text-brand-600 transition-colors truncate">
                                     {lead.fullName || "Unnamed Lead"}
                                 </h3>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 font-medium">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
                                     <Globe className="w-3.5 h-3.5" /> {lead.company || "Independent"}
                                 </div>
                             </div>
 
-                            <div className="mt-6 pt-6 border-t border-white/5 space-y-3">
-                                <div className="flex items-center gap-3 text-sm text-gray-400">
-                                    <Mail className="w-4 h-4 text-purple-400" />
+                            <div className="mt-6 pt-6 border-t border-border space-y-3">
+                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                    <Mail className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                     <span className="truncate">{lead.email}</span>
                                 </div>
                                 {lead.linkedIn && (
-                                    <div className="flex items-center gap-3 text-sm text-gray-400">
-                                        <Linkedin className="w-4 h-4 text-blue-400" />
+                                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                        <Linkedin className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                         <span className="truncate">Active Profile</span>
                                     </div>
                                 )}
@@ -219,14 +220,14 @@ export default function LeadsPage() {
                                     onClick={(e) => { e.stopPropagation(); handleEnrich(lead.id); }}
                                     disabled={enriching[lead.id]}
                                     className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold transition-all ${lead.isEnriched
-                                        ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
-                                        : "bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-900/20"
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 border border-emerald-500/20"
+                                        : "bg-brand-600 text-white hover:bg-brand-500 shadow-lg shadow-brand-900/20"
                                         } disabled:opacity-50`}
                                 >
                                     {enriching[lead.id] ? <Zap className="w-3 h-3 animate-pulse" /> : <Zap className="w-3 h-3" />}
                                     {lead.isEnriched ? "Verified" : "AI Enrich"}
                                 </button>
-                                <button onClick={(e) => e.stopPropagation()} className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all">
+                                <button onClick={(e) => e.stopPropagation()} className="px-3 py-2 bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all">
                                     <MoreHorizontal className="w-4 h-4" />
                                 </button>
                             </div>

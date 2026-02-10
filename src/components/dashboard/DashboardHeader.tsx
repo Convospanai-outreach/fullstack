@@ -34,23 +34,23 @@ import { QuickActions } from "./QuickActions";
 export function DashboardHeader() {
 
     return (
-        <header className="fixed top-0 left-0 right-0 h-16 glass-panel border-b border-white/10 z-40 flex items-center justify-between px-8">
+        <header className="fixed top-0 left-0 right-0 h-16 glass-panel border-b border-border z-40 flex items-center justify-between px-8 bg-surface-app/70 backdrop-blur-md">
             {/* Left: Logo & Navigation */}
             <div className="flex items-center gap-8">
-                <Link href="/dashboard" className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <Link href="/dashboard" className="text-xl font-bold text-foreground">
                     ConvoSpan
                 </Link>
 
                 <nav className="flex items-center gap-4">
                     {/* Execute Dropdown */}
                     <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors outline-none">
+                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors outline-none">
                             <span>Execute</span>
                             <ChevronDown className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 bg-[#020617] border-white/10 text-gray-300">
+                        <DropdownMenuContent className="w-48 bg-surface-app border-border text-foreground">
                             <DropdownMenuLabel>Operations</DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuSeparator className="bg-border" />
                             <DropdownMenuItem asChild>
                                 <Link href="/campaigns" className="cursor-pointer flex items-center gap-2">
                                     <Megaphone className="w-4 h-4" /> Campaigns
@@ -76,13 +76,13 @@ export function DashboardHeader() {
 
                     {/* Automate Dropdown */}
                     <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors outline-none">
+                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors outline-none">
                             <span>Assist</span>
                             <ChevronDown className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 bg-[#020617] border-white/10 text-gray-300">
+                        <DropdownMenuContent className="w-48 bg-surface-app border-border text-foreground">
                             <DropdownMenuLabel>Workflows & AI</DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuSeparator className="bg-border" />
                             <DropdownMenuItem asChild>
                                 <Link href="/workflows" className="cursor-pointer flex items-center gap-2">
                                     <Workflow className="w-4 h-4" /> Workflows
@@ -108,13 +108,13 @@ export function DashboardHeader() {
 
                     {/* Grow Dropdown */}
                     <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors outline-none">
+                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors outline-none">
                             <span>Grow</span>
                             <ChevronDown className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 bg-[#020617] border-white/10 text-gray-300">
+                        <DropdownMenuContent className="w-48 bg-surface-app border-border text-foreground">
                             <DropdownMenuLabel>Resources</DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuSeparator className="bg-border" />
                             <DropdownMenuItem asChild>
                                 <Link href="/marketplace" className="cursor-pointer flex items-center gap-2">
                                     <Store className="w-4 h-4" /> Marketplace
@@ -130,13 +130,13 @@ export function DashboardHeader() {
 
                     {/* System Dropdown */}
                     <DropdownMenu>
-                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-gray-300 hover:text-white transition-colors outline-none">
+                        <DropdownMenuTrigger className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors outline-none">
                             <span>System</span>
                             <ChevronDown className="w-4 h-4" />
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-48 bg-[#020617] border-white/10 text-gray-300">
+                        <DropdownMenuContent className="w-48 bg-surface-app border-border text-foreground">
                             <DropdownMenuLabel>Admin</DropdownMenuLabel>
-                            <DropdownMenuSeparator className="bg-white/10" />
+                            <DropdownMenuSeparator className="bg-border" />
                             <DropdownMenuItem asChild>
                                 <Link href="/billing" className="cursor-pointer flex items-center gap-2">
                                     <CreditCard className="w-4 h-4" /> Billing
@@ -156,18 +156,18 @@ export function DashboardHeader() {
             {/* Right: Search, Actions & Profile */}
             <div className="flex items-center gap-4">
                 <div className="relative max-w-sm w-64 hidden xl:block group">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 group-focus-within:text-blue-400 transition-colors" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-500 transition-colors" />
                     <input
                         type="text"
                         placeholder="Search..."
-                        className="w-full bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:bg-white/10 focus:border-blue-500/50 transition-all"
+                        className="w-full bg-surface-accent/50 border border-input rounded-lg pl-10 pr-4 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:bg-surface-accent focus:border-brand-500/50 transition-all"
                     />
                 </div>
 
-                <div className="h-6 w-px bg-white/10 hidden xl:block" />
+                <div className="h-6 w-px bg-border hidden xl:block" />
 
-                <button className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/20 transition-all text-sm font-medium group">
-                    <Sparkles className="w-4 h-4 group-hover:text-purple-200 transition-colors" />
+                <button className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 transition-all text-sm font-medium group">
+                    <Sparkles className="w-4 h-4 group-hover:text-brand-300 transition-colors" />
                     <span className="hidden lg:inline">Ask AI</span>
                 </button>
 
@@ -175,12 +175,12 @@ export function DashboardHeader() {
                 <OfflineIndicator />
                 <QuickActions />
 
-                <div className="h-6 w-px bg-white/10" />
+                <div className="h-6 w-px bg-border" />
 
                 <NotificationBell />
 
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 p-[2px] cursor-pointer hover:scale-105 transition-transform">
-                    <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-brand-500 to-indigo-500 p-[2px] cursor-pointer hover:scale-105 transition-transform">
+                    <div className="w-full h-full rounded-full bg-surface-panel flex items-center justify-center overflow-hidden">
                         <span className="text-xs font-bold text-white">JD</span>
                     </div>
                 </div>

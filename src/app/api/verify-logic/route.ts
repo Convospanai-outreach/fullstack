@@ -5,6 +5,11 @@ import { prisma } from "@/lib/db";
 import { CampaignService } from "@/lib/campaignService";
 
 export async function GET() {
+    // Security: Only allow in development environment
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    }
+
     try {
         const team = await prisma.team.findFirst();
         if (!team) return NextResponse.json({ error: "No team found" });

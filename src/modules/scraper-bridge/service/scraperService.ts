@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import { prisma } from "@/lib/db";
 import { browserManager } from "./browserManager";
+import { logger } from "@/lib/logger";
 
 // Types for the Ingestion Payload
 export interface ShadowSignalPayload {
@@ -17,6 +17,7 @@ export interface IngestionResult {
     isWarmLead: boolean;
     detectedICPs: string[];
     signalId: string;
+    data?: any;
 }
 
 const FRICTION_KEYWORDS = {
@@ -40,7 +41,7 @@ class ShadowIngestionService {
      */
     async ingestSignal(payload: ShadowSignalPayload): Promise<IngestionResult> {
         const signalId = uuidv4();
-        console.log(`[ShadowIngestion] Processing signal from ${payload.source}: ${payload.thread_url}`);
+        logger.info(`[ShadowIngestion] Processing signal from ${payload.source}: ${payload.thread_url}`);
 
         // 1. Calculate Friction Score (Karmic Gap)
         const frictionScore = this.calculateFriction(payload.content);
@@ -57,7 +58,8 @@ class ShadowIngestionService {
             frictionScore,
             isWarmLead: frictionScore > 60 && detectedICPs.length > 0,
             detectedICPs,
-            signalId
+            signalId,
+            data: payload
         };
     }
 
@@ -72,7 +74,7 @@ class ShadowIngestionService {
         let page;
 
         try {
-            console.log(`[ShadowIngestion] Scraping URL: ${url}`);
+            logger.info(`[ShadowIngestion] Scraping URL: ${url}`);
             page = await browserManager.newPage(pageId);
             await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
 
@@ -89,7 +91,7 @@ class ShadowIngestionService {
 
             return this.ingestSignal(signalPayload);
         } catch (error) {
-            console.error(`[ShadowIngestion] Failed to scrape ${url}:`, error);
+            logger.error(`[ShadowIngestion] Failed to scrape ${url}:`, error);
             throw error;
         } finally {
             if (page) {
@@ -109,7 +111,7 @@ class ShadowIngestionService {
                 const result = await this.scrape(req);
                 results.push(result);
             } catch (error) {
-                console.error(`[ShadowIngestion] Batch scrape error for request:`, req, error);
+                logger.error(`[ShadowIngestion] Batch scrape error for request:`, error);
                 // Continue with other requests
             }
         }
@@ -142,7 +144,7 @@ class ShadowIngestionService {
 
     private async logIngestion(id: string, payload: ShadowSignalPayload, score: number, icps: string[]) {
         // Mock logging or Prisma call
-        console.log(`[ShadowIngestion] Signal ${id} | Score: ${score} | ICPs: ${icps.join(", ")} | Content Preview: ${payload.content.substring(0, 50)}...`);
+        logger.info(`[ShadowIngestion] Signal ${id} | Score: ${score} | ICPs: ${icps.join(", ")}`);
     }
 }
 

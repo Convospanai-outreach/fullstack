@@ -94,10 +94,24 @@ export async function GET() {
             });
         }
 
+        // 3. Queue Depth & Rate Limit Health (Hardening Metrics)
+        const [pendingJobs, rateLimitedEvents] = await Promise.all([
+            globalDb.job.count({ where: { status: "pending" } }),
+            globalDb.auditLog.count({
+                where: {
+                    action: "SENTINEL_BLOCK",
+                    metadata: { path: ["logs"], array_contains: "⚠️ Node is being rate-limited" },
+                    createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60) } // Last hour
+                }
+            }).catch(() => 0) // Resilience if JSON query fails
+        ]);
+
         return NextResponse.json({
             ok: true,
             signals: formattedSignals,
             audits: formattedAudits.slice(0, 5),
+            queueDepth: pendingJobs,
+            rateLimitStatus: rateLimitedEvents > 0 ? "THROTTLED" : "STABLE",
             lastScan: new Date().toISOString()
         });
 

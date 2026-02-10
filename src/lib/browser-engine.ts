@@ -1,6 +1,7 @@
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { Browser, Page } from "puppeteer";
+import { BrowserSandbox } from "@/lib/security/BrowserSandbox";
 
 puppeteer.use(StealthPlugin());
 
@@ -23,17 +24,13 @@ export class BrowserEngine {
     public async getBrowser(): Promise<Browser> {
         if (!this.browser || !this.browser.isConnected()) {
             console.log("🚀 Launching new browser instance...");
-            this.browser = await puppeteer.launch({
-                headless: true, // Set to false for debugging
-                args: [
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-accelerated-2d-canvas",
-                    "--no-first-run",
-                    "--no-zygote",
-                    "--disable-gpu",
-                ],
+
+            // Use BrowserSandbox for secure launch
+            this.browser = await BrowserSandbox.launch({
+                maxMemory: 512,
+                sessionTimeout: 600000, // 10 minutes for agent tasks
+                enableSandbox: process.env.ENABLE_BROWSER_SANDBOX === 'true' || process.env.NODE_ENV === 'production',
+                blockedDomains: ['doubleclick.net', 'googleadservices.com', 'googlesyndication.com']
             });
 
             // Handle disconnect
@@ -41,6 +38,8 @@ export class BrowserEngine {
                 console.log("❌ Browser disconnected.");
                 this.browser = null;
             });
+
+            console.log(BrowserSandbox.getEnvironmentGuidance());
         }
         return this.browser;
     }

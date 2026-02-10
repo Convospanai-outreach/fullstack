@@ -11,7 +11,7 @@ export default function Nav() {
 
             <ul className={`md:flex gap-8 ${open ? "block" : "hidden"} md:block`}>
                 <li><Link href="/about">About</Link></li>
-                <li><Link href="/pricing">Pricing</Link></li>
+                <li className="md:hidden"><Link href="/pricing">Pricing</Link></li>
                 <li><Link href="/faq">FAQ</Link></li>
                 <li><Link href="/dashboard">Dashboard</Link></li>
             </ul>

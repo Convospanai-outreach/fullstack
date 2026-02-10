@@ -1,23 +1,35 @@
-"use client";
+import * as React from "react"
 
-import React from 'react';
+import { cn } from "@/lib/utils"
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps
+    extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
     hint?: string;
     error?: string;
 }
 
-export function Input({ label, hint, error, className = '', ...props }: InputProps) {
-    return (
-        <div className="space-y-1 block w-full">
-            {label && <span className="text-sm text-text-secondary font-medium">{label}</span>}
-            <input
-                {...props}
-                className={`w-full rounded-lg bg-bg-glass border border-border-subtle px-3 py-2 text-white placeholder:text-text-muted focus:outline-none focus:ring-1 focus:ring-accent-blue transition-all ${error ? 'border-red-500/50 ring-red-500/20' : ''} ${className}`}
-            />
-            {error && <p className="text-xs text-red-400 font-medium">{error}</p>}
-            {hint && !error && <p className="text-xs text-text-muted">{hint}</p>}
-        </div>
-    );
-}
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+    ({ className, type, label, hint, error, ...props }, ref) => {
+        return (
+            <div className="space-y-2 w-full">
+                {label && <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{label}</label>}
+                <input
+                    type={type}
+                    className={cn(
+                        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand-500 disabled:cursor-not-allowed disabled:opacity-50",
+                        error && "border-red-500 focus-visible:ring-red-500",
+                        className
+                    )}
+                    ref={ref}
+                    {...props}
+                />
+                {error && <p className="text-xs text-red-500 font-medium">{error}</p>}
+                {hint && !error && <p className="text-xs text-muted-foreground">{hint}</p>}
+            </div>
+        )
+    }
+)
+Input.displayName = "Input"
+
+export { Input }

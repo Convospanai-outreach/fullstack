@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, ShieldAlert, Cpu, Activity, Lock, EyeOff, Radio } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Cpu, Activity, EyeOff, Radio } from "lucide-react";
 import {
     LineChart,
     Line,
@@ -27,9 +27,11 @@ const roiData = [
 
 export function SovereignConsole() {
     const [piStatus, setPiStatus] = useState<'ONLINE' | 'OFFLINE' | 'BUSY'>('ONLINE');
-    const [lastScan, setLastScan] = useState<string>(new Date().toLocaleTimeString());
+
     const [signals, setSignals] = useState<any[]>([]);
     const [audits, setAudits] = useState<any[]>([]);
+    const [queueDepth, setQueueDepth] = useState<number>(0);
+    const [rateLimit, setRateLimit] = useState<string>("STABLE");
 
     // Poll Real-time Stats
     useEffect(() => {
@@ -40,7 +42,9 @@ export function SovereignConsole() {
                 if (data.ok) {
                     setSignals(data.signals || []);
                     setAudits(data.audits || []);
-                    setLastScan(new Date(data.lastScan).toLocaleTimeString());
+                    setQueueDepth(data.queueDepth || 0);
+                    setRateLimit(data.rateLimitStatus || "STABLE");
+
                     setPiStatus('ONLINE'); // Assume online if API responds
                 }
             } catch (e) {
@@ -69,9 +73,9 @@ export function SovereignConsole() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* 1. Sovereign Firewall Status */}
-                <Card className="border-emerald-500/20 bg-emerald-950/5">
+                <Card className="border-border">
                     <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-emerald-400">
+                        <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
                             <ShieldCheck className="w-5 h-5" />
                             Sovereign Firewall
                         </CardTitle>
@@ -79,26 +83,26 @@ export function SovereignConsole() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center py-2 border-b border-white/5">
-                                <span className="text-sm text-gray-400">Status</span>
-                                <Badge variant="success" className="bg-emerald-500/20 text-emerald-400">Active</Badge>
+                            <div className="flex justify-between items-center py-2 border-b border-border">
+                                <span className="text-sm text-muted-foreground">Status</span>
+                                <Badge variant="success">Active</Badge>
                             </div>
-                            <div className="flex justify-between items-center py-2 border-b border-white/5">
-                                <span className="text-sm text-gray-400">Tokenization Strategy</span>
-                                <span className="text-xs font-mono text-white bg-white/10 px-2 py-1 rounded">DETERMINISTIC_SHA256</span>
+                            <div className="flex justify-between items-center py-2 border-b border-border">
+                                <span className="text-sm text-muted-foreground">Tokenization Strategy</span>
+                                <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-foreground">DETERMINISTIC_SHA256</span>
                             </div>
                             <div className="flex justify-between items-center py-2">
-                                <span className="text-sm text-gray-400">Last PII Blocked</span>
-                                <span className="text-xs text-white">243ms ago</span>
+                                <span className="text-sm text-muted-foreground">Last PII Blocked</span>
+                                <span className="text-xs text-foreground">243ms ago</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* 2. Adversarial Critic Feed */}
-                <Card>
+                <Card className="border-border">
                     <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-blue-400">
+                        <CardTitle className="flex items-center gap-2 text-brand-600 dark:text-brand-400">
                             <EyeOff className="w-5 h-5" />
                             Adversarial Critic
                         </CardTitle>
@@ -106,13 +110,13 @@ export function SovereignConsole() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {audits.length === 0 && <div className="text-gray-500 text-xs text-center py-2">No active threats detected.</div>}
+                            {audits.length === 0 && <div className="text-muted-foreground text-xs text-center py-2">No active threats detected.</div>}
                             {audits.map((audit, i) => (
-                                <div key={i} className="flex justify-between items-center p-2 rounded bg-white/5 text-xs">
-                                    <span className="italic text-gray-400 truncate max-w-[140px]">"{audit.text}"</span>
+                                <div key={i} className="flex justify-between items-center p-2 rounded bg-muted text-xs">
+                                    <span className="italic text-muted-foreground truncate max-w-[140px]">"{audit.text}"</span>
                                     <div className="flex items-center gap-2">
                                         <div className={`w-2 h-2 rounded-full ${audit.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                        <span className="font-bold">{audit.score}/10</span>
+                                        <span className="font-bold text-foreground">{audit.score}/10</span>
                                     </div>
                                 </div>
                             ))}
@@ -121,9 +125,9 @@ export function SovereignConsole() {
                 </Card>
 
                 {/* 3. Shadow Ingestion Live Feed */}
-                <Card className="border-purple-500/20 bg-purple-950/5">
+                <Card className="border-border">
                     <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-purple-400">
+                        <CardTitle className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
                             <Radio className="w-5 h-5" />
                             Shadow Ingestion
                         </CardTitle>
@@ -132,20 +136,58 @@ export function SovereignConsole() {
                     <CardContent>
                         <div className="space-y-3">
                             {signals.map((signal) => (
-                                <div key={signal.id} className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                                <div key={signal.id} className="p-3 rounded-xl bg-muted border border-border">
                                     <div className="flex justify-between mb-1">
-                                        <Badge variant="outline" className="text-[10px] border-purple-400/30 text-purple-300">{signal.source}</Badge>
-                                        <span className="text-[10px] text-gray-400">{signal.time}</span>
+                                        <Badge variant="outline" className="text-[10px]">{signal.source}</Badge>
+                                        <span className="text-[10px] text-muted-foreground">{signal.time}</span>
                                     </div>
-                                    <p className="text-xs font-medium text-white mb-2 line-clamp-2">"{signal.context}"</p>
+                                    <p className="text-xs font-medium text-foreground mb-2 line-clamp-2">"{signal.context}"</p>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] text-gray-500">Friction Score</span>
-                                        <div className="h-1.5 w-16 bg-gray-700 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${signal.friction}%` }} />
+                                        <span className="text-[10px] text-muted-foreground">Friction Score</span>
+                                        <div className="h-1.5 w-16 bg-muted-foreground/20 rounded-full overflow-hidden">
+                                            <div className="h-full bg-gradient-to-r from-brand-500 to-purple-500" style={{ width: `${signal.friction}%` }} />
                                         </div>
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* 4. Hardening & Scalability Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                    <CardHeader className="py-4">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-yellow-500" />
+                            ORCHESTRATION_QUEUE
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                        <div className="flex items-end gap-4">
+                            <span className="text-5xl font-black text-foreground">{queueDepth}</span>
+                            <div className="pb-1">
+                                <p className="text-xs text-muted-foreground uppercase tracking-widest">Pending Tasks</p>
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-mono">LATENCY: ~2.4s</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="py-4">
+                        <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            <ShieldAlert className="w-4 h-4 text-orange-500" />
+                            RATE_LIMIT_STATUS
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pb-4">
+                        <div className="flex items-center gap-4">
+                            <Badge variant={rateLimit === 'STABLE' ? 'success' : 'warning'}>
+                                {rateLimit}
+                            </Badge>
+                            <p className="text-[10px] text-muted-foreground font-mono">PROVIDER: MULTI_LLM_GATEWAY</p>
                         </div>
                     </CardContent>
                 </Card>

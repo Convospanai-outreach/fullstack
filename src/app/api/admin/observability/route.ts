@@ -2,13 +2,13 @@ import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
 
     // Strict Admin Check
-    if (!session || session.user.role !== "admin") {
-        // NOTE: In production, check for SYSTEM_ADMIN enterprise role too
+    if (!session || (session.user as any).enterpriseRole !== UserRole.SYSTEM_ADMIN) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -30,10 +30,7 @@ export async function GET(req: Request) {
                 timestamp: { gte: startDate }
             },
             orderBy: { timestamp: "desc" },
-            take: 100,
-            include: {
-                // We'll fetch team names separately or rely on teamId if implicit
-            }
+            take: 100
         });
 
         // 2. Kill Switch Triggers

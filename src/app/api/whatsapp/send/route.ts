@@ -4,6 +4,8 @@ import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { prisma } from "@/lib/db";
 import { withFeatureGuard } from "@/lib/flags/guard";
+import { WhatsAppService } from "@/services/WhatsAppService";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
     const token = await getToken({ req });
@@ -48,7 +50,14 @@ export async function POST(req: NextRequest) {
                 throw new Error(`Template Violation: ${templateCheck.reason}`);
             }
 
-            // Step 3: Send (Mock / Record)
+            // Step 3: Send via Service (Mock Supported)
+            const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false);
+            
+            if (!sent) {
+                throw new Error("Failed to send message via WhatsApp Service");
+            }
+
+            // Record in Database
             await TemplateGuard.recordMessageSent(leadId, message, isTemplate || false);
         });
 
@@ -70,7 +79,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
 
-        console.error("[WhatsApp Send] Error:", error);
+        logger.error("[WhatsApp Send] Error:", error);
         return NextResponse.json(
             { error: "Internal server error", details: error.message },
             { status: 500 }
@@ -108,7 +117,7 @@ export async function GET(req: NextRequest) {
         });
 
     } catch (error: any) {
-        console.error("[WhatsApp Check] Error:", error);
+        logger.error("[WhatsApp Check] Error:", error);
         return NextResponse.json(
             { error: "Internal server error", details: error.message },
             { status: 500 }

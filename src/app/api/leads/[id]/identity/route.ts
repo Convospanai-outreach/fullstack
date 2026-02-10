@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { DbFactory } from "@/lib/dbFactory";
 import { IdentityService } from "@/lib/identity/IdentityService";
-import { Region } from "@prisma/client";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = params;
         const prisma = DbFactory.getClient('GLOBAL'); // Start with Global
@@ -16,7 +14,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         });
 
         // Check UAE if not found globally
-        if (!lead && process.env.UAE_DATABASE_URL) {
+        if (!lead && process.env['UAE_DATABASE_URL']) {
             const uaeClient = DbFactory.getClient('UAE');
             lead = await uaeClient.lead.findUnique({
                 where: { id },
@@ -47,7 +45,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
         // 2. Fallback: Try Finding a ScrapingJob (Draft Flow)
         let job = await prisma.scrapingJob.findUnique({ where: { id } });
-        if (!job && process.env.UAE_DATABASE_URL) {
+        if (!job && process.env['UAE_DATABASE_URL']) {
             const uaeClient = DbFactory.getClient('UAE');
             job = await uaeClient.scrapingJob.findUnique({ where: { id } });
         }

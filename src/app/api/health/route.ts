@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { MonitoringService } from "@/modules/monitoring/MonitoringService";
 
 /**
  * Health check endpoint for monitoring systems
  * GET /api/health
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
     try {
         const health = await MonitoringService.getHealthStatus();
 

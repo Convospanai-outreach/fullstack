@@ -5,6 +5,7 @@ export interface RAGOptions {
     maxTokens?: number;
     limit?: number;
     minRelevance?: number;
+    strategy?: 'balanced' | 'precision';
 }
 
 export class RAGService {
@@ -18,10 +19,15 @@ export class RAGService {
         options: RAGOptions = {}
     ): Promise<string> {
         try {
-            const { maxTokens = 2000, limit = 10, minRelevance = 0.7 } = options;
+            const { maxTokens = 2000, limit = 10, strategy = 'balanced' } = options;
+
+            // Bulls-Eye Logic: Dynamic Threshold
+            // If strategy is precision, we enforce strict relevance (0.85)
+            // If balanced, we use standard (0.7)
+            const minRelevance = options.minRelevance ?? (strategy === 'precision' ? 0.85 : 0.7);
 
             console.log(`[RAG] Retrieving context for query: "${query}" in team: ${teamId}`);
-            console.log(`[RAG] Constraints: maxTokens=${maxTokens}, limit=${limit}, minRelevance=${minRelevance}`);
+            console.log(`[RAG] Strategy: ${strategy}, Threshold: ${minRelevance}`);
 
             // Step 1: Vector search with token budget
             const results = await vectorStore.search(query, teamId, limit, maxTokens);

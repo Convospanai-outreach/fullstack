@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     return (
-        <div className="flex h-screen bg-gray-900 text-white">
+        <div className="flex h-screen bg-surface-app text-foreground">
             {/* Sidebar */}
-            <aside className="w-64 border-r border-white/10 p-6 space-y-2">
+            <aside className="w-64 border-r border-border p-6 space-y-2 bg-surface-panel">
                 <h2 className="text-xl font-bold mb-6 px-2">Settings</h2>
 
                 <NavLink href="/settings/general">General</NavLink>
@@ -35,7 +36,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 function NavLink({ href, children }: { href: string, children: React.ReactNode }) {
     // Basic link component. In a real app we'd use usePathname for active state
     return (
-        <Link href={href} className="block px-4 py-2 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition-colors">
+        <Link href={href} className="block px-4 py-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors font-medium text-sm">
             {children}
         </Link>
     );

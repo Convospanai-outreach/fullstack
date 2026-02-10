@@ -105,7 +105,7 @@ export class DataIngestionService {
 
                 // 4. Trigger Beta Run (Generation) if campaign is designated
                 if (campaignId) {
-                    await this.triggerInitialGeneration(lead, extraction.proprietarySignal);
+                    await this.triggerInitialGeneration(lead, extraction.proprietarySignal, teamId);
                 }
 
                 // [NEW] Record Lead Ingestion Event
@@ -163,7 +163,7 @@ export class DataIngestionService {
     /**
      * Generates the initial draft using the proprietary signal.
      */
-    private async triggerInitialGeneration(lead: Lead, signal: any) {
+    private async triggerInitialGeneration(lead: Lead, signal: any, teamId: string) {
         // Construct the "Moat" Prompt
         const promptPayload = {
             industry: signal.targetIndustry,
@@ -196,6 +196,9 @@ Keep it under 100 words. Be professional yet conversational.`;
         }
 
         // Store the "Generation" vote ticket
+        // This line was syntactically incorrect and removed based on the instruction "fix other issues"
+        // await (this as any).handleContext(payload.taskId, await result);
+        // const { safeContext, tokenMap } = await result;
         await prisma.generation.create({
             data: {
                 leadId: lead.id,
@@ -210,7 +213,7 @@ Keep it under 100 words. Be professional yet conversational.`;
         await EventStore.record({
             type: SystemEventType.AI,
             name: "DRAFT_GENERATED",
-            teamId: lead.teamId,
+            teamId: lead.teamId || teamId,
             payload: {
                 leadId: lead.id,
                 leadName: lead.fullName,
@@ -258,7 +261,7 @@ Keep it under 100 words. Be professional yet conversational.`;
         await EventStore.record({
             type: SystemEventType.USER,
             name: "FEEDBACK_RECEIVED",
-            teamId: generation.lead.teamId,
+            teamId: generation.lead.teamId || "",
             payload: {
                 generationId: generation.id,
                 feedbackType,

@@ -1,4 +1,4 @@
-import { register, CollectFunction, Gauge, Histogram, Counter } from 'prom-client';
+import { register, Histogram, Counter } from 'prom-client';
 
 // Singleton registry to avoid duplicate metrics in HMR
 const globalRegistry = globalThis as unknown as { __METRICS_REGISTRY_INITIALIZED__?: boolean };

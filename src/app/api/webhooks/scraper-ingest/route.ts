@@ -15,7 +15,7 @@ export async function POST(req: Request) {
         const timestamp = req.headers.get("X-Timestamp");
         const regionHeader = req.headers.get("X-Region-ID") || "GLOBAL";
 
-        const validSecret = process.env.SCRAPER_SECRET || "dev-secret";
+        const validSecret = process.env['SCRAPER_SECRET'] || "dev-secret";
 
         if (secret !== validSecret) {
             return NextResponse.json({ error: "Unauthorized: Invalid Secret" }, { status: 401 });

@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
-import { Region } from "@prisma/client";
 
 export async function GET() {
     try {
@@ -18,7 +17,7 @@ export async function GET() {
 
         // Fetch from UAE DB if configured
         let uaeJobs: any[] = [];
-        if (process.env.UAE_DATABASE_URL) {
+        if (process.env['UAE_DATABASE_URL']) {
             try {
                 const uaeClient = DbFactory.getClient('UAE');
                 uaeJobs = await uaeClient.scrapingJob.findMany({

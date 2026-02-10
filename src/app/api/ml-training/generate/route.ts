@@ -9,6 +9,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { syntheticDataGenerator } from "@/modules/ml-training/generators/SyntheticGenerator";
 import { z } from "zod";
+import { UserRole } from "@prisma/client";
 
 const generateSchema = z.object({
     taskType: z.enum([
@@ -29,7 +30,8 @@ export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
 
     // Require admin or system_admin role
-    if (!session || !['admin', 'SYSTEM_ADMIN', 'ORG_ADMIN'].includes(session.user.role)) {
+    const allowedRoles: string[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN];
+    if (!session || !allowedRoles.includes((session.user as any).enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

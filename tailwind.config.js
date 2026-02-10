@@ -1,39 +1,45 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-    content: [
-        "./src/app/**/*.{js,ts,jsx,tsx}",
-        "./src/components/**/*.{js,ts,jsx,tsx}",
-    ],
+    darkMode: ["class"],
+    content: ["./src/**/*.{ts,tsx,js,jsx}"],
     theme: {
         extend: {
             colors: {
-                bg: {
-                    base: '#0B0F1A',
-                    glass: 'rgba(255,255,255,0.08)',
-                    glassStrong: 'rgba(255,255,255,0.14)',
+                // Clerk's Signature Brand Colors
+                brand: {
+                    50: '#f5f7ff',
+                    100: '#ebf0fe',
+                    200: '#ced9fd',
+                    500: '#6366f1', // Primary Indigo
+                    600: '#4f46e5',
+                    700: '#4338ca',
+                    900: '#312e81',
                 },
-                accent: {
-                    blue: '#4F8BFF',
-                    violet: '#8B5CF6',
-                    mint: '#2DD4BF',
+                // Antigravity dark-mode surfaces
+                surface: {
+                    app: '#020617',     // Deepest background
+                    panel: '#0f172a',   // Sidebar/Panel background
+                    accent: '#1e293b',  // Hover states
                 },
-                text: {
-                    primary: '#E6EAF2',
-                    secondary: '#9CA3AF',
-                    muted: '#6B7280',
-                },
-                border: {
-                    subtle: 'rgba(255,255,255,0.12)',
-                }
+                border: "hsl(var(--border))",
+                input: "hsl(var(--input))",
+                ring: "hsl(var(--ring))",
+                background: "hsl(var(--background))",
+                foreground: "hsl(var(--foreground))",
+            },
+            borderRadius: {
+                lg: "0.75rem", // Clerk uses softer rounded corners
+                md: "calc(0.75rem - 2px)",
+                sm: "calc(0.75rem - 4px)",
+            },
+            fontFamily: {
+                sans: ["var(--font-inter)", "sans-serif"], // Clerk's primary font
+                mono: ["var(--font-jetbrains-mono)", "monospace"], // For the code-heavy Antigravity UI
             },
             boxShadow: {
-                soft: '0 10px 30px rgba(0,0,0,0.25)',
-                glow: '0 0 0 1px rgba(255,255,255,0.08), 0 10px 40px rgba(79,139,255,0.25)',
-            },
-            transitionTimingFunction: {
-                smooth: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                'clerk': '0 0 0 1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05)',
             }
         },
     },
-    plugins: [],
-};
+    plugins: [require("tailwindcss-animate")],
+}

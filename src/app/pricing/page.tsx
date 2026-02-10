@@ -174,7 +174,7 @@ export default function PricingPage() {
                                     </ul>
 
                                     <Button
-                                        variant={plan.highlight ? 'primary' : 'outline'}
+                                        variant={plan.highlight ? 'default' : 'outline'}
                                         className="w-full py-6 text-base font-bold"
                                         onClick={() => handleCheckout(plan.name)}
                                     >

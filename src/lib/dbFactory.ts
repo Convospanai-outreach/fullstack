@@ -30,7 +30,7 @@ export class DbFactory {
     }
 
     private static getUaeClient(): PrismaClient {
-        const uaeUrl = process.env.UAE_DATABASE_URL;
+        const uaeUrl = process.env['UAE_DATABASE_URL'];
 
         if (!uaeUrl) {
             console.warn("⚠️ UAE_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");

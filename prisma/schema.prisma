@@ -104,6 +104,7 @@ model Lead {
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
   consentLedger ConsentLedger[]
+  replies       ReplyTracker[]
 }
 
 model Generation {
@@ -1556,3 +1557,55 @@ model EvaluationMetric {
 
 // --- END ML TRAINING INFRASTRUCTURE ---
 
+// --- CLIENT ERROR LOGGING ---
+
+model ClientError {
+  id             String   @id @default(uuid())
+  message        String   @db.VarChar(500)
+  stack          String?  @db.Text
+  componentStack String?  @db.Text
+  url            String
+  userAgent      String
+  userId         String?
+  ip             String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  
+  @@index([createdAt])
+  @@index([userId])
+  @@index([url])
+}
+
+// --- REPLY DECISION TREE TRACKER ---
+
+model ReplyTracker {
+  id              String   @id @default(uuid())
+  leadId          String
+  emailId         String?  // Original outbound email ID if available
+  receivedAt      DateTime @default(now())
+  
+  senderEmail     String
+  subject         String
+  body            String   @db.Text
+  
+  // AI Classification
+  aiClassification String  // INTERESTED, NOT_INTERESTED, OOO, QUESTION, DNC
+  aiConfidence     Float   // 0.0 - 1.0 confidence score
+  aiReasoning      String? @db.Text
+  
+  // HITL State
+  status          String   @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, AUTO_HANDLED
+  humanCorrection String?  // Stores correct classification if AI was wrong
+  reviewedBy      String?  // User ID of operator
+  reviewedAt      DateTime?
+  
+  // Action taken
+  actionTaken     String?  // PAUSED_CAMPAIGN, SENT_REPLY, SCHEDULED_MEETING
+  replyDraft      String?  @db.Text // The AI suggested reply
+  
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  
+  @@index([status])
+  @@index([leadId])
+  @@index([aiClassification])
+}

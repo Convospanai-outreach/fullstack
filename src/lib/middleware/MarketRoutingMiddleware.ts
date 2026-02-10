@@ -26,7 +26,7 @@ export class MarketRoutingMiddleware {
         }
 
         // 3. GeoIP Lookup
-        const geo = geoip.lookup(ip);
+        const geo = geoip.lookup(ip as string);
         const country = geo?.country || "US";
 
         // 4. Region Classification

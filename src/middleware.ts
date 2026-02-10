@@ -1,9 +1,50 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { applyRateLimit, RATE_LIMITS, getClientIdentifier, checkRateLimit, addRateLimitHeaders } from './lib/rateLimit';
 
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
+    // Get token early for rate limiting
+    const secret = process.env['NEXTAUTH_SECRET'] || "";
+    const token = await getToken({ req, secret });
+    const userId = token?.sub as string | undefined;
+
+    // === RATE LIMITING (Before all other checks) ===
+    if (path.startsWith("/api")) {
+        let rateLimitResponse: NextResponse | null = null;
+        
+        // 1. Authentication endpoints (strictest)
+        if (path.startsWith("/api/auth") || path.startsWith("/api/register")) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
+        }
+        // 2. Webhook endpoints
+        else if (path.startsWith("/api/webhooks")) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
+        }
+        // 3. Error logging endpoint
+        else if (path.startsWith("/api/errors/client")) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
+        }
+        // 4. Admin endpoints (high limit, but tracked)
+        else if (path.startsWith("/api/admin")) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
+        }
+        // 5. Authenticated endpoints (requires valid token)
+        else if (userId) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTHENTICATED, 'authenticated', userId);
+        }
+        // 6. Public endpoints (per IP)
+        else {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.PUBLIC, 'public', userId);
+        }
+        
+        // If rate limit exceeded, return immediately
+        if (rateLimitResponse) {
+            return rateLimitResponse;
+        }
+    }
+
 
     // 1. CORS for API routes
     if (path.startsWith("/api")) {
@@ -32,12 +73,12 @@ export async function middleware(req: NextRequest) {
         path.startsWith("/images") ||
         path.startsWith("/api/webhooks") ||
         path.startsWith("/api/queue") || // Public for Extension Polling
-        path.startsWith("/api/test") || // Public for Verifying
+        // Removed /api/test from public paths for security
         path.startsWith("/api/register");
 
     if (!isPublic) {
-        const secret = process.env['NEXTAUTH_SECRET'] || "";
-        const token = await getToken({ req, secret });
+        // Token already fetched at the top for rate limiting
+
 
         if (!token) {
             // Redirect if page, JSON error if API

@@ -45,11 +45,6 @@ export class AiStatsService {
             });
 
             if (traces.length === 0) {
-                // If no data, return empty array to trigger UI empty state or use fallback if desired
-                // For now, let's return mock data ONLY if env var says so, otherwise empty.
-                // But audit requested removal of forced mock. 
-                // Let's return empty if no traces, UI should handle it.
-                // actually, let's keep the mock method available but valid only if called explicitly.
                 return [];
             }
 
@@ -89,12 +84,10 @@ export class AiStatsService {
                 s.totalTokens += t.tokens;
 
                 // Estimate cost
-                const rate = COST_PER_1K_TOKENS[model] || COST_PER_1K_TOKENS["unknown"];
+                const rate = COST_PER_1K_TOKENS[model] || COST_PER_1K_TOKENS["unknown"] || 0.001;
                 s.cost += (t.tokens / 1000) * rate;
 
-                // Reliability (Mock logic: if traces exist usage implies success unless error field added later)
-                // For now assume 100% success if trace recorded, or random glitch for realism if needed.
-                // Ideally we'd have an 'error' field.
+                // Reliability (Mock logic)
                 s.count_success++;
 
                 // Add trace point for chart (sample if too many?)
@@ -166,3 +159,5 @@ export class AiStatsService {
         ];
     }
 }
+
+export const aiStatsService = new AiStatsService();

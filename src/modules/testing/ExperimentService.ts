@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/db";
-import { Experiment, ExperimentVariant } from "@prisma/client";
+import { ExperimentVariant } from "@prisma/client";
 import { createHash } from "crypto";
 
 export class ExperimentService {
@@ -45,7 +45,7 @@ export class ExperimentService {
         const hash = createHash('sha256').update(`${experimentId}:${entityId}`).digest('hex');
         const index = parseInt(hash.substring(0, 8), 16) % experiment.variants.length;
 
-        return experiment.variants[index];
+        return experiment.variants[index] || null;
     }
 
     /**

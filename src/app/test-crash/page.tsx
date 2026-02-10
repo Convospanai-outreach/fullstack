@@ -19,7 +19,7 @@ export default function TestCrashPage() {
                 triggering the nearest Error Boundary (src/app/error.tsx).
             </p>
             <Button
-                variant="danger"
+                variant="destructive"
                 onClick={() => setShouldCrash(true)}
             >
                 Trigger Crash

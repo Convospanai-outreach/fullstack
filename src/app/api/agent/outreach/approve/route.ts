@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
-import { Region } from "@prisma/client";
 
 export async function POST(req: Request) {
     try {

@@ -1,7 +1,7 @@
 
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
-import Docker from 'dockerode'; // Need to install types if strictly typed, or use require
+import Docker from 'dockerode';
+import { HardwareService } from "@/services/HardwareService";
 
 // Interface for the Sentinel's Report
 export interface SentinelReport {
@@ -13,7 +13,7 @@ export interface SentinelReport {
 }
 
 export class SentinelService {
-    private static docker = new Docker({ socketPath: '/var/run/docker.sock' });
+    private static docker = new Docker({ socketPath: process.env['DOCKER_SOCK'] || '/var/run/docker.sock' });
 
     // Moving average state (In-memory for MVP, should be Redis in prod)
     private static latencyHistory: number[] = [];
@@ -79,6 +79,21 @@ export class SentinelService {
             report.status = "FAIL";
             report.logs.push("🚨 HONEYPOT DETECTED: Hidden text field was scraped.");
             report.action_taken = "SESSION_TERMINATED";
+        }
+
+        // Semantic Sanity Judge (Harden Factor)
+        try {
+            const textToJudge = payload.content || payload.friction_signal || "";
+            if (textToJudge.length > 30) {
+                const verdict = await HardwareService.critique(textToJudge, "Verify if this scraped content is high quality and readable.");
+                if (verdict.status === 'REJECTED') {
+                    report.status = "FAIL";
+                    report.logs.push(`🚨 Semantic Decay: Content failed local LLM sanity judge. Reason: ${verdict.reason}`);
+                    report.data_score = 0.0;
+                }
+            }
+        } catch (e) {
+            report.logs.push("⚠️ Semantic Judge bypassed: Edge Node unreachable.");
         }
 
         // 3. Operational Actions & Audit Logging
@@ -149,7 +164,7 @@ export class SentinelService {
     private static async rebootScraperNode() {
         try {
             // Check if we are in a containerized env before calling Docker
-            if (process.env.NODE_ENV === 'production' || process.env.DOCKER_SOCK) {
+            if (process.env.NODE_ENV === 'production' || process.env['DOCKER_SOCK']) {
                 const container = this.docker.getContainer('scraper-node');
                 await container.restart();
                 console.log("[Sentinel] Scraper Node successfully restarted.");

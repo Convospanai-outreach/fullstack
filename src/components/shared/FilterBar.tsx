@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { Search, X } from "lucide-react";
 
 interface FilterBarProps {
-    onSearch: (filters: { query: string; status: string | undefined; tags?: string[] }) => void;
+    onSearch: (filters: { query: string; status?: string; tags?: string[] }) => void;
     placeholder?: string;
     showStatusFilter?: boolean;
 }
@@ -26,7 +26,7 @@ export default function FilterBar({ onSearch, placeholder = "Search...", showSta
     useEffect(() => {
         onSearch({
             query: debouncedQuery,
-            status: status || undefined
+            ...(status ? { status } : {})
         });
     }, [debouncedQuery, status]);
 

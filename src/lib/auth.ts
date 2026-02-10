@@ -78,12 +78,11 @@ export const authOptions: NextAuthOptions = {
             // Fetch Plan with Redis caching
             if (token.id) {
                 try {
-                    const { getRedisClient } = await import("@/lib/redis");
-                    const redis = await getRedisClient();
+                    const { safeGet, safeSet } = await import("@/lib/redis");
                     const cacheKey = `user:plan:${token.id}`;
 
                     // Try cache first
-                    let planName = await redis.get(cacheKey);
+                    let planName = await safeGet(cacheKey);
 
                     if (!planName) {
                         // Cache miss - query DB
@@ -99,7 +98,7 @@ export const authOptions: NextAuthOptions = {
                         planName = user?.subscription?.plan?.name || "FREE";
 
                         // Cache for 5 minutes
-                        await redis.setEx(cacheKey, 300, planName);
+                        await safeSet(cacheKey, planName, 300);
                     }
 
                     token.plan = planName;

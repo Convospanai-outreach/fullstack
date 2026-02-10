@@ -109,6 +109,17 @@ services:
         condition: service_healthy
     restart: always
 
+  # Service 5: Redis Cache (Session & Queue)
+  redis:
+    image: redis:7-alpine
+    container_name: convospan-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
 volumes:
   pgdata:
   pgdata_uae:
+  redis_data:
