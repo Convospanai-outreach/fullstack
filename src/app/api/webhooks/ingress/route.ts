@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const secret = process.env.WEBHOOK_SECRET || "default-secret-dev";
+        const secret = process.env['WEBHOOK_SECRET'] || "default-secret-dev";
 
         // 2. Verify Identity/Integrity
         const isValid = IdentityService.verifyWebhook(body, signature, secret);
