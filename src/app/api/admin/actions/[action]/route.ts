@@ -7,6 +7,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
+
 export async function POST(
     _req: NextRequest,
     { params }: { params: { action: string } }
@@ -21,22 +24,30 @@ export async function POST(
     const { action } = params;
 
     try {
+        // Retrieve Team for context (assuming first team for MVP)
+        const teamMember = await prisma.teamMember.findFirst({
+            where: { userId: session.user.id }
+        });
+        const teamId = teamMember?.teamId;
+
         switch (action) {
             case "start-scrapers":
                 console.log("[Admin] Starting all scrapers...");
-                // In real implementation, this would trigger a job queue
-                // await queue.add("scrape-all", {});
-                return NextResponse.json({ success: true, message: "Scrapers started" });
+                await JobQueue.enqueue("linkedin_scraping", { action: "FULL_SURVEY" }, { teamId: teamId ?? null });
+                return NextResponse.json({ success: true, message: "Scrapers job enqueued" });
 
             case "pause-outreach":
                 console.log("[Admin] Pausing outreach campaigns...");
-                // await prisma.campaign.updateMany({ data: { status: 'PAUSED' } });
-                return NextResponse.json({ success: true, message: "Outreach paused" });
+                const result = await prisma.campaign.updateMany({
+                    where: { teamId: teamId ?? null, status: "active" },
+                    data: { status: "paused" }
+                });
+                return NextResponse.json({ success: true, message: `Paused ${result.count} campaigns` });
 
             case "sync-crm":
                 console.log("[Admin] Syncing CRM...");
-                // await crmService.syncAll();
-                return NextResponse.json({ success: true, message: "CRM sync initiated" });
+                await JobQueue.enqueue("CRM_SYNC", { provider: "HUBSPOT" }, { teamId: teamId ?? null });
+                return NextResponse.json({ success: true, message: "CRM sync job enqueued" });
 
             default:
                 return NextResponse.json({ error: "Invalid action" }, { status: 400 });

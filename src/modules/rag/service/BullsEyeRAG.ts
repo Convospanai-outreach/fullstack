@@ -1,9 +1,10 @@
+import { aiService } from "@/lib/aiService";
 import { ComputerUseService } from "@/modules/caller/computer-use";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 export interface Signal {
     id: string;
-    type: 'INTENT_DETECTED' | 'DEAL_CLOSED' | 'MEETING_BOOKED';
+    type: 'INTENT_DETECTED' | 'DEAL_CLOSED' | 'MEETING_BOOKED' | 'CONCERN_RAISED';
     confidence: number;
     metadata: Record<string, any>;
 }
@@ -11,18 +12,46 @@ export interface Signal {
 export class BullsEyeRAG {
     /**
      * Detects high-value signals from the RAG context/conversation stream.
-     * In a real system, this would listen to an event bus or analyze the vector store.
+     * Uses semantic analysis via AI Service.
      */
     static async detectSignal(conversationId: string, context: string): Promise<Signal | null> {
-        // Mock logic: looking for keywords
-        if (context.includes("schedule a meeting") || context.includes("interested in pricing")) {
-            return {
-                id: crypto.randomUUID(),
-                type: 'INTENT_DETECTED',
-                confidence: 0.92,
-                metadata: { conversationId, source: 'transcript' }
-            };
+        const prompt = `
+            Analyze the following conversation context and determine if any high-value sales signals are present.
+            Signals:
+            - INTENT_DETECTED: Lead expresses explicit interest, asks about pricing, or mentions a pain point we solve.
+            - DEAL_CLOSED: Lead agrees to a purchase or contract.
+            - MEETING_BOOKED: Lead agrees to a specific time for a call/demo.
+            - CONCERN_RAISED: Lead mentions a specific blocker or competitor.
+
+            CONTEXT:
+            "${context}"
+
+            RESPONSE FORMAT (JSON ONLY, OR "NULL"):
+            {
+                "type": "SIGNAL_TYPE",
+                "confidence": 0.0-1.0,
+                "reason": "..."
+            }
+        `;
+
+        try {
+            const result = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS" });
+            if (result.trim().toUpperCase() === "NULL") return null;
+
+            const parsed = JSON.parse(result.trim().replace(/```json/g, "").replace(/```/g, ""));
+            
+            if (parsed.confidence > 0.7) {
+                return {
+                    id: crypto.randomUUID(),
+                    type: parsed.type,
+                    confidence: parsed.confidence,
+                    metadata: { conversationId, source: 'semantic_rag', ...parsed }
+                };
+            }
+        } catch (e) {
+            console.error("[BullsEye] Semantic analysis failed:", e);
         }
+
         return null;
     }
 
