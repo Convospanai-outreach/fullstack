@@ -3,7 +3,7 @@
  * Connects to Google's Gmail API to perform actions on behalf of the user.
  */
 
-import { google } from "googleapis";
+// import { google } from "googleapis";
 import { HelperTool } from "./slack-server";
 
 export class GmailMCPServer {
@@ -36,7 +36,7 @@ export class GmailMCPServer {
                 },
                 required: ["to", "subject", "body"]
             },
-            handler: async ({ to, subject, body }) => {
+            handler: async ({ to, subject: _subject, body: _body }) => {
                 try {
                     console.log(`[MCP:Gmail] Composing email to ${to}...`);
 
