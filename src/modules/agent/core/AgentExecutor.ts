@@ -250,7 +250,7 @@ RESPONSE:
                     // GOVERNANCE: High-Risk Action Check
                     // For now, ALL tool calls are considered high risk and require approval
                     const { ApprovalService } = await import("@/modules/governance/ApprovalService");
-                    await ApprovalService.requestApproval(taskId, task.teamId, "MCP_TOOL_EXECUTION", toolCall);
+                    await ApprovalService.requestApproval(taskId, task.teamId, "MCP_TOOL_EXECUTION", toolCall, task.userId || "agent-autonomous");
 
                     // AUDIT: Approval requested
                     await EventStore.record({
@@ -357,50 +357,29 @@ RESPONSE:
                     await this.log(taskId, "ACTION", `Executing MCP Tool: ${tool} with args ${JSON.stringify(args)}`);
 
                     try {
-                        // Better: Iterate registered servers. For now, we know "computer-use" is registered.
-                        const client = mcpManager.getClient("computer-use");
+                        // Use McpManager's discovery logic
+                        const result = await mcpManager.callTool(tool, args);
+                        await this.log(taskId, "OBSERVATION", `Tool Execution Result: ${JSON.stringify(result)}`);
 
-                        if (client) {
-                            const result = await client.callTool(tool, args);
-                            await this.log(taskId, "OBSERVATION", `Tool Execution Result: ${JSON.stringify(result)}`);
+                        // AUDIT: Tool execution success
+                        await EventStore.record({
+                            type: SystemEventType.AGENT,
+                            name: "AGENT_TOOL_EXECUTION",
+                            teamId: task.teamId,
+                            actorId: "AGENT_EXECUTOR",
+                            payload: {
+                                taskId,
+                                toolName: tool,
+                                args,
+                                result,
+                                success: true
+                            }
+                        });
 
-                            // AUDIT: Tool execution success
-                            await EventStore.record({
-                                type: SystemEventType.AGENT,
-                                name: "AGENT_TOOL_EXECUTION",
-                                teamId: task.teamId,
-                                actorId: "AGENT_EXECUTOR",
-                                payload: {
-                                    taskId,
-                                    toolName: tool,
-                                    args,
-                                    result,
-                                    success: true
-                                }
-                            });
-
-                            // Clear tool call after execution
-                            const newContext = { ...ctx };
-                            delete newContext.tool_call;
-                            await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
-                        } else {
-                            await this.log(taskId, "ERROR", `No MCP client found for tool ${tool}.`);
-
-                            // AUDIT: Tool execution failure (no client)
-                            await EventStore.record({
-                                type: SystemEventType.AGENT,
-                                name: "AGENT_TOOL_EXECUTION",
-                                teamId: task.teamId,
-                                actorId: "AGENT_EXECUTOR",
-                                payload: {
-                                    taskId,
-                                    toolName: tool,
-                                    args,
-                                    success: false,
-                                    error: "No MCP client found"
-                                }
-                            });
-                        }
+                        // Clear tool call after execution
+                        const newContext = { ...ctx };
+                        delete newContext.tool_call;
+                        await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
                     } catch (e: any) {
                         await this.log(taskId, "ERROR", `Tool Execution Failed: ${e.message}`);
 

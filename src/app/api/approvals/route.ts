@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { ApprovalService } from "@/modules/governance/service/approvalService";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 export const dynamic = "force-dynamic";
 

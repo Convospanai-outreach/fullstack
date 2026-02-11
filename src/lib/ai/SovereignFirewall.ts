@@ -88,11 +88,12 @@ export class SovereignFirewall {
      * Fallback/Local Masking Logic (Sync)
      */
     static maskLocal(data: any, region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
+        const tokenMap = new Map<string, string>();
+
         if (region !== 'UAE' && process.env['STRICT_SOVEREIGNTY'] !== 'true') {
-            return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap: new Map() };
+            return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
 
-        const tokenMap = new Map<string, string>();
         const traverseAndMask = (obj: any): any => {
             if (typeof obj !== 'object' || obj === null) return obj;
             if (Array.isArray(obj)) return obj.map(traverseAndMask);
@@ -112,7 +113,25 @@ export class SovereignFirewall {
         };
 
         const processed = typeof data === 'object' ? traverseAndMask(data) : data;
-        const safeContext = typeof processed === 'string' ? processed : JSON.stringify(processed);
+        let safeContext = typeof processed === 'string' ? processed : JSON.stringify(processed);
+
+        // EXTRA LAYER: Regex-based masking for unstructured text in the final prompt
+        const emailRegex = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
+        safeContext = safeContext.replace(emailRegex, (match) => {
+            const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+            const token = `[EMAIL_${hash}]`;
+            tokenMap.set(token, match);
+            return token;
+        });
+
+        // Add phone masking if needed
+        const phoneRegex = /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g;
+        safeContext = safeContext.replace(phoneRegex, (match) => {
+            const hash = crypto.createHash('sha256').update(match).digest('hex').substring(0, 12);
+            const token = `[PHONE_${hash}]`;
+            tokenMap.set(token, match);
+            return token;
+        });
 
         return { safeContext, tokenMap };
     }

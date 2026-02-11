@@ -46,6 +46,20 @@ class McpManager {
         }
         return allTools;
     }
+
+    async callTool(name: string, args: any): Promise<any> {
+        for (const client of this.clients.values()) {
+            try {
+                const tools = await client.listTools();
+                if (tools.find(t => t.name === name)) {
+                    return await client.callTool(name, args);
+                }
+            } catch (e) {
+                console.error(`Failed to check tools for client:`, e);
+            }
+        }
+        throw new Error(`Tool ${name} not found in any registered MCP server.`);
+    }
 }
 
 export const mcpManager = new McpManager();
