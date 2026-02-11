@@ -107,7 +107,7 @@ export class AgentExecutor {
         const retryCount = ctx._retryCount || 0;
         const MAX_RETRY = 3;
 
-        if (currentState === AgentState.COMPLETED || currentState === AgentState.FAILED || currentState === AgentState.REVIEWING || currentState === AgentState.AWAITING_APPROVAL) return currentState;
+        if (currentState === AgentState.COMPLETED || currentState === AgentState.FAILED || currentState === AgentState.REVIEWING) return currentState;
 
         await this.log(taskId, "SYSTEM", `Entering State: ${currentState} (Attempt ${retryCount + 1})`);
 
@@ -357,8 +357,6 @@ RESPONSE:
                     await this.log(taskId, "ACTION", `Executing MCP Tool: ${tool} with args ${JSON.stringify(args)}`);
 
                     try {
-                        // Find client that has this tool
-                        const allClients = mcpManager['clients']; // Access internal map via hack or add accessor
                         // Better: Iterate registered servers. For now, we know "computer-use" is registered.
                         const client = mcpManager.getClient("computer-use");
 

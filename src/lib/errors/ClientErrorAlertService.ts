@@ -150,7 +150,7 @@ export class ClientErrorAlertService {
                 where: {
                     OR: [
                         { role: "ADMIN" },
-                        { enterpriseRole: "PLATFORM_ADMIN" }
+                        { enterpriseRole: "SYSTEM_ADMIN" }
                     ]
                 },
                 select: { id: true }

@@ -8,14 +8,14 @@ import { HelperTool } from "./slack-server";
 
 export class GmailMCPServer {
     private tools: HelperTool[] = [];
-    private oauth2Client;
+    // private oauth2Client;
 
     constructor() {
-        this.oauth2Client = new google.auth.OAuth2(
-            process.env['GOOGLE_CLIENT_ID'],
-            process.env['GOOGLE_CLIENT_SECRET'],
-            process.env['GOOGLE_REDIRECT_URI']
-        );
+        // this.oauth2Client = new google.auth.OAuth2(
+        //     process.env['GOOGLE_CLIENT_ID'],
+        //     process.env['GOOGLE_CLIENT_SECRET'],
+        //     process.env['GOOGLE_REDIRECT_URI']
+        // );
 
         // In a real scenario, we'd set credentials here from the user's session
         // this.oauth2Client.setCredentials({ refresh_token: ... });
@@ -40,14 +40,14 @@ export class GmailMCPServer {
                 try {
                     console.log(`[MCP:Gmail] Composing email to ${to}...`);
 
-                    const _message = [
-                        'Content-Type: text/plain; charset="UTF-8"\n',
-                        'MIME-Version: 1.0\n',
-                        'Content-Transfer-Encoding: 7bit\n',
-                        `to: ${to}\n`,
-                        `subject: ${subject}\n\n`,
-                        body
-                    ].join('');
+                    // const _message = [
+                    //     'Content-Type: text/plain; charset="UTF-8"\n',
+                    //     'MIME-Version: 1.0\n',
+                    //     'Content-Transfer-Encoding: 7bit\n',
+                    //     `to: ${to}\n`,
+                    //     `subject: ${subject}\n\n`,
+                    //     body
+                    // ].join('');
 
                     // const gmail = this.getGmailClient();
                     // const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

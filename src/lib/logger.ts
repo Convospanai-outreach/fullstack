@@ -53,4 +53,9 @@ export const stream = {
 };
 
 // Worker-specific logger alias for background jobs
-export const logWorker = logger;
+// We use Object.assign to make the function also have all winston.Logger methods
+const logWorkerInternal = (id: string, message: string, meta?: any) => {
+  logger.info(message, { jobId: id, ...meta });
+};
+
+export const logWorker = Object.assign(logWorkerInternal, logger) as any;

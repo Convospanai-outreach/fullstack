@@ -48,7 +48,7 @@ export class BullsEyeRAG {
             await ComputerUseService.clickCoords(150, 20); // "Click CRM Tab"
 
             // Simulate typing the update note
-            const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata.conversationId}.`;
+            const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata['conversationId']}.`;
             await ComputerUseService.typeText(note);
 
             // Simulate saving

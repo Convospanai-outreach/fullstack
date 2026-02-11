@@ -26,7 +26,7 @@ export const MockROIService = {
         };
     },
 
-    getTrends: async (metric: keyof ROIMetrics) => {
+    getTrends: async (_metric: keyof ROIMetrics) => {
         // Mock trend data for charts
         await new Promise(resolve => setTimeout(resolve, 300));
         const points = 12; // Last 12 months/weeks

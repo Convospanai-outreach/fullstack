@@ -142,7 +142,7 @@ class ShadowIngestionService {
         return Array.from(foundICPs);
     }
 
-    private async logIngestion(id: string, payload: ShadowSignalPayload, score: number, icps: string[]) {
+    private async logIngestion(id: string, _payload: ShadowSignalPayload, score: number, icps: string[]) {
         // Mock logging or Prisma call
         logger.info(`[ShadowIngestion] Signal ${id} | Score: ${score} | ICPs: ${icps.join(", ")}`);
     }

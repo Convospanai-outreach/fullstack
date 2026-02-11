@@ -14,7 +14,7 @@ const SovereignFirewall = {
 
 export class ComputerUseService {
     // Current state of the simulated desktop
-    private static isCallActive = false;
+    // private static isCallActive = false;
 
     static async takeScreenshot(): Promise<string> {
         console.log("[ComputerUse] Taking desktop screenshot...");
@@ -26,7 +26,7 @@ export class ComputerUseService {
         console.log(`[ComputerUse] Mouse Click at (${x}, ${y})`);
         // Simulate interacting with VoIP client based on coords
         if (x > 800 && y > 600) {
-            this.isCallActive = true;
+            // this.isCallActive = true;
             console.log("[ComputerUse] Call Initiated.");
         }
     }
