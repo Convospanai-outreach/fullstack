@@ -54,7 +54,6 @@ export function ApprovalQueue() {
     };
 
     return (
-    return (
         <Card className="glass-premium border-white/5 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
             {/* Ambient Background Glow */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 blur-3xl rounded-full" />
@@ -141,7 +140,5 @@ export function ApprovalQueue() {
                 </AnimatePresence>
             </CardContent>
         </Card>
-    );
-}
     );
 }

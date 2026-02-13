@@ -81,7 +81,7 @@ export function DashboardWelcome() {
                         Master the art of <span className="text-white">Sovereign Growth</span>. 
                         Your local AI agents are synchronized and ready to amplify your impact without compromising your data privacy. 
                         Your command center is online.
-                    </p>
+                    </motion.p>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
                         {[
