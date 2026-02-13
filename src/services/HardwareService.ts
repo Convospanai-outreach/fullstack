@@ -19,7 +19,21 @@ export interface CritiqueResponse {
 export interface SearchResult {
     content: string;
     score: number;
-    metadata?: any;
+    metadata?: Record<string, any>;
+}
+
+export interface Workflow {
+    id?: string;
+    name: string;
+    steps: any[];
+    teamId: string;
+}
+
+export interface IdentityResponse {
+    email?: string;
+    name?: string;
+    phone?: string;
+    [key: string]: any;
 }
 
 export class HardwareService {
@@ -91,7 +105,7 @@ export class HardwareService {
         }
     }
 
-    static async execute(action: string, payload: any): Promise<boolean> {
+    static async execute(action: string, payload: Record<string, any>): Promise<boolean> {
         try {
             await axios.post(`${EDGE_NODE_URI}/execute`, { action, payload }, { timeout: 5000 });
             return true;
@@ -103,7 +117,7 @@ export class HardwareService {
 
     // --- NIDHI-PRAYAS ADDITIONS ---
 
-    static async saveWorkflow(workflow: any): Promise<void> {
+    static async saveWorkflow(workflow: Workflow): Promise<void> {
         try {
             logger.info("[HardwareService] Saving Workflow to Sovereign Edge Storage...");
             await axios.post(`${EDGE_NODE_URI}/workflows/save`, { workflow }, { timeout: 5000 });
@@ -114,7 +128,7 @@ export class HardwareService {
         }
     }
 
-    static async getWorkflows(): Promise<any[]> {
+    static async getWorkflows(): Promise<Workflow[]> {
         try {
             const res = await axios.get(`${EDGE_NODE_URI}/workflows`, { timeout: 5000 });
             return res.data;
@@ -132,11 +146,11 @@ export class HardwareService {
         }
     }
 
-    static async reIdentify(maskedId: string, purpose: string): Promise<any> {
+    static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
         try {
             // In a real scenario, this hits the secure enclave
             logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
-            const response = await axios.post(`${EDGE_NODE_URI}/identity/resolve`, { maskedId, purpose }, { timeout: 5000 });
+            const response = await axios.post<IdentityResponse>(`${EDGE_NODE_URI}/identity/resolve`, { maskedId, purpose }, { timeout: 5000 });
             return response.data;
         } catch (error: any) {
             logger.warn(`[HardwareService] Re-identification failed: ${error.message}`);

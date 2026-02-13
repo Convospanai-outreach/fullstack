@@ -52,38 +52,47 @@ export function NudgeBar() {
     if (!nudge) return null;
 
     return (
-        <div className="mb-4">
+        <div className="mb-6">
             <motion.div 
                 key={nudge.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="glass border border-white/10 rounded-2xl p-3 px-5 flex items-center justify-between shadow-lg overflow-hidden group relative"
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="glass-premium border border-white/5 rounded-2xl p-4 pl-6 flex items-center justify-between shadow-2xl overflow-hidden group relative"
             >
-                {/* Progress bar for cycle */}
+                {/* Refined Progress Bar */}
                 <motion.div 
                     initial={{ width: "0%" }}
                     animate={{ width: "100%" }}
                     transition={{ duration: 8, ease: "linear" }}
-                    className="absolute bottom-0 left-0 h-0.5 bg-indigo-500/30"
+                    className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-indigo-500/0 via-indigo-500/40 to-indigo-500/0"
                 />
 
-                <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg bg-white/5 ${nudge.color}`}>
-                        <nudge.icon className="w-4 h-4" />
+                <div className="flex items-center gap-5">
+                    <div className="flex flex-col items-center">
+                        <div className={`p-2.5 rounded-xl bg-white/5 ${nudge.color} shadow-lg shadow-current/10 border border-white/5`}>
+                            <nudge.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+                        </div>
                     </div>
-                    <p className="text-sm text-gray-300">
-                        {nudge.text}
-                    </p>
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">System Nudge</span>
+                            <div className="w-1 h-1 rounded-full bg-slate-700" />
+                            <span className="text-[10px] font-bold text-slate-500">{currentNudgeIndex + 1}/{nudges.length}</span>
+                        </div>
+                        <p className="text-sm text-slate-200 font-medium leading-relaxed max-w-lg">
+                            {nudge.text}
+                        </p>
+                    </div>
                 </div>
 
                 <Button 
                     variant="ghost" 
                     size="sm" 
-                    className="hover:bg-indigo-500 hover:text-white transition-all group-hover:scale-105"
+                    className="hover:bg-indigo-500 hover:text-white transition-all group-hover:px-6 rounded-xl font-bold font-outfit text-xs px-4 py-5"
                 >
                     {nudge.actionLabel}
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
             </motion.div>
         </div>

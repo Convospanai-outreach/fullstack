@@ -1,5 +1,4 @@
-import { aiService } from "@/lib/aiService";
-import { ComputerUseService } from "@/modules/caller/computer-use";
+import { mcpManager } from "@/lib/mcp/McpManager";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 export interface Signal {
@@ -73,17 +72,26 @@ export class BullsEyeRAG {
             }
 
             // 2. Trigger Computer Use to update CRM
-            // Simulate navigation to HubSpot/Salesforce tab
-            await ComputerUseService.clickCoords(150, 20); // "Click CRM Tab"
+            try {
+                // Ensure MCP is initialized
+                await mcpManager.initialize();
 
-            // Simulate typing the update note
-            const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata['conversationId']}.`;
-            await ComputerUseService.typeText(note);
+                // 1. "Click CRM Tab" (Using MCP)
+                // In a real scenario, we'd have a specific tool for this or use navigate
+                // For logic parity with the legacy mock:
+                await mcpManager.callTool("computer_click", { selector: "#crm-tab" });
 
-            // Simulate saving
-            await ComputerUseService.clickCoords(500, 800); // "Save Button"
+                // 2. Type the update note
+                const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata['conversationId']}.`;
+                await mcpManager.callTool("computer_type", { selector: "#note-field", text: note });
 
-            console.log("[BullsEye] CRM successfully updated via Computer Use.");
+                // 3. "Save Button"
+                await mcpManager.callTool("computer_click", { selector: "#save-button" });
+
+                console.log("[BullsEye] CRM successfully updated via MCP Computer Use Server.");
+            } catch (e: any) {
+                console.error("[BullsEye] CRM update failed:", e.message);
+            }
         }
     }
 }

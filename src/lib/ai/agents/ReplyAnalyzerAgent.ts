@@ -1,7 +1,7 @@
-
 import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 export interface ReplyAnalysisResult {
     classification: 'INTERESTED' | 'NOT_INTERESTED' | 'OOO' | 'QUESTION' | 'DNC';
@@ -31,14 +31,22 @@ export class ReplyAnalyzerAgent {
         
         logger.info(`[ReplyAnalyzer] Analyzing reply from Lead ${leadId}`);
 
-        // 1. Construct the analysis prompt based on SOP
+        // 1. Mask PII in incoming content (Sovereign Firewall)
+        logger.info(`[ReplyAnalyzer] Masking ingress PII for Lead ${leadId}...`);
+        const { safeContext: safeSubject, tokenMap: subjectMap } = await SovereignFirewall.mask(subject);
+        const { safeContext: safeBody, tokenMap: bodyMap } = await SovereignFirewall.mask(body);
+        
+        // Merge maps for later detokenization
+        const combinedTokenMap = new Map([...subjectMap, ...bodyMap]);
+
+        // 2. Construct the analysis prompt based on SOP
         const prompt = `
             You are the "Reply Analyzer Agent" for an email outreach system.
             Analyze the following email reply based on the standard operating procedure (SOP).
 
             EMAIL CONTENT:
-            Subject: ${subject}
-            Body: "${body}"
+            Subject: ${safeSubject}
+            Body: "${safeBody}"
 
             CLASSIFICATION CATEGORIES:
             1. INTERESTED: "Let's talk", "Demo", "Pricing?", "Calendar", "Send more info".
@@ -79,6 +87,16 @@ export class ReplyAnalyzerAgent {
             // Clean Markdown code blocks if present
             const cleanedJson = resultText.replace(/```json/g, "").replace(/```/g, "").trim();
             analysis = JSON.parse(cleanedJson);
+
+            // 3. Detokenize Draft Response asynchronously
+            if (analysis.draftResponse) {
+                analysis.draftResponse = await SovereignFirewall.unmaskAsync(
+                    analysis.draftResponse, 
+                    combinedTokenMap, 
+                    "SYSTEM", // Team ID fallback
+                    `REPLY_ANALYSIS_UNMASK_${leadId}`
+                );
+            }
 
         } catch (error: any) {
             logger.error("[ReplyAnalyzer] AI Classification Failed", error);

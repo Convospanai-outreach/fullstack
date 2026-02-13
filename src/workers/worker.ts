@@ -3,6 +3,8 @@ import { handleLikePost, handleCommentPost, handleScrapeProfile } from "./handle
 import { handleSmartComment, handleSmartConnect } from "./handlers/aiHandlers";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleEmailSend } from "./handlers/emailHandlers";
+import { EventStore } from "@/modules/learning/EventStore";
+import { dataIngestionService } from "@/modules/learning/DataIngestionService";
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
@@ -33,6 +35,19 @@ async function processJob(job: any) {
                 break;
             case "email_send": // Matching the JobType enum case
                 result = await handleEmailSend(job.payload);
+                break;
+            case "event_processing":
+                await EventStore.processEventJob(job.payload.eventId);
+                result = { ok: true };
+                break;
+            case "lead_enrichment":
+                await dataIngestionService.processEnrichmentJob(
+                    job.payload.leadId,
+                    job.payload.teamId,
+                    job.payload.campaignId,
+                    job.payload.extraction
+                );
+                result = { ok: true };
                 break;
             default:
                 throw new Error(`Unknown job type: ${job.type}`);

@@ -27,13 +27,42 @@ export enum AgentState {
     AWAITING_APPROVAL = "AWAITING_APPROVAL"
 }
 
+export interface ToolCall {
+    tool: string;
+    args: Record<string, any>;
+}
+
+export interface AgentContext {
+    target_company?: string;
+    target_name?: string;
+    target_domain?: string;
+    email?: string;
+    role?: string;
+    company?: string;
+    _hunter_score?: number;
+    safe_prompt_payload?: string;
+    _token_map?: [string, string][];
+    tool_call?: ToolCall;
+    draft_content?: string;
+    _retryCount?: number;
+    _failureReason?: string;
+    [key: string]: any;
+}
+
+export interface HunterResult {
+    email?: string;
+    score?: number;
+    position?: string;
+    company?: string;
+}
+
 export class AgentExecutor {
 
 
     /**
      * Starts a new autonomous task (Task 10: Unified Architecture)
      */
-    async startTask(teamId: string, goal: string, context: any = {}): Promise<string> {
+    async startTask(teamId: string, goal: string, context: AgentContext = {}): Promise<string> {
         // Task 5: Hard Policy Enforcement
         await TrustEngine.enforcePolicy(teamId, "AGENT_START");
 
@@ -103,7 +132,7 @@ export class AgentExecutor {
         const currentState = task.status as AgentState;
 
         // Dead Letter Queue Check
-        const ctx: any = task.context || {};
+        const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
         const retryCount = ctx._retryCount || 0;
         const MAX_RETRY = 3;
 
@@ -132,12 +161,12 @@ export class AgentExecutor {
                 await this.log(taskId, "ACTION", "Querying Hunter.io API for contact details...");
 
                 // Extract query params from context or goal
-                const ctx: any = task.context || {};
+                const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
                 const targetCompany = ctx.target_company || "Acme Corp";
                 const targetName = ctx.target_name || "John Doe";
                 const domain = ctx.target_domain || "acme.com";
 
-                const result = await HunterService.findEmail(targetName, domain);
+                const result: HunterResult = await HunterService.findEmail(targetName, domain);
 
                 if (result.email) {
                     const enrichedContext = {
@@ -159,7 +188,7 @@ export class AgentExecutor {
             // 3. SANITIZATION (Sovereign Firewall)
             if (currentState === AgentState.SANITIZATION) {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
-                const ctx: any = task.context || {};
+                const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
 
                 // Construct the prompt with potentially sensitive data
                 const promptPayload = {
@@ -194,7 +223,7 @@ export class AgentExecutor {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const { mcpManager } = await import("@/lib/mcp/McpManager");
 
-                const ctx: any = task.context || {};
+                const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
 
                 // Use the SAFE Payload
                 const safePayload = JSON.parse(ctx.safe_prompt_payload || "{}");
@@ -231,7 +260,7 @@ RESPONSE:
                 const generatedRaw = await aiService.askAI(prompt, task.teamId);
 
                 // Check for Tool Call (Simple JSON extraction)
-                let toolCall = null;
+                let toolCall: ToolCall | null = null;
                 try {
                     const clean = generatedRaw.trim().replace(/```json/g, "").replace(/```/g, "");
                     if (clean.startsWith("{") && clean.endsWith("}")) {
@@ -273,7 +302,12 @@ RESPONSE:
                 // Normal Content Flow
                 // UNMASK: Restore PII
                 const tokenMap = new Map(ctx._token_map as [string, string][]);
-                const restoredContent = SovereignFirewall.unmask(generatedRaw, tokenMap);
+                const restoredContent = await SovereignFirewall.unmaskAsync(
+                    generatedRaw, 
+                    tokenMap, 
+                    task.teamId, 
+                    `RESTORE_DRAFT_FOR_TASK_${taskId}`
+                );
 
                 await this.log(taskId, "OBSERVATION", `LLM Generated & Detokenized content.`);
 
@@ -322,8 +356,8 @@ RESPONSE:
             // 6. ADVERSARIAL_CHECK (Sovereign Critic) [Legacy Content Check]
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
-                const ctx: any = task.context || {};
-                const draft = ctx.draft_content;
+                const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
+                const draft = ctx.draft_content || "";
 
                 await this.log(taskId, "ACTION", "Submitting draft to Sovereign Adversary (Phi-3)...");
 
@@ -349,7 +383,7 @@ RESPONSE:
 
             // 6. EXECUTION (Browser / MCP)
             if (currentState === AgentState.EXECUTION) {
-                const ctx: any = task.context || {};
+                const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
 
                 // CHECK FOR MCP TOOL CALL
                 if (ctx.tool_call) {

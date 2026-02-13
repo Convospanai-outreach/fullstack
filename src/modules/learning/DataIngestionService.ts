@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { Lead } from "@prisma/client";
 import { modelGateway } from "@/ai/ModelGateway";
 import { EventStore, SystemEventType } from "./EventStore";
+import { JobQueue } from "@/lib/queue";
 
 interface ExcelRow {
     Name: string;
@@ -103,10 +104,13 @@ export class DataIngestionService {
                     });
                 }
 
-                // 4. Trigger Beta Run (Generation) if campaign is designated
-                if (campaignId) {
-                    await this.triggerInitialGeneration(lead, extraction.proprietarySignal, teamId);
-                }
+                // 4. TRIGGER ASYNCHRONOUS ENRICHMENT (Scalability)
+                await JobQueue.enqueue("lead_enrichment", {
+                    leadId: lead.id,
+                    teamId: teamId,
+                    campaignId: campaignId || undefined,
+                    extraction: extraction // Pass pre-parsed signals to the background task
+                });
 
                 // [NEW] Record Lead Ingestion Event
                 await EventStore.record({
@@ -220,6 +224,37 @@ Keep it under 100 words. Be professional yet conversational.`;
                 draftSnippet: draft.substring(0, 50) + "..."
             }
         });
+    }
+
+    /**
+     * Entry point for background worker to perform heavy AI enrichment.
+     */
+    async processEnrichmentJob(leadId: string, teamId: string, campaignId?: string, extraction?: any) {
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead) return;
+
+        // If extraction wasn't passed, we can re-derive it (but passing it is more efficient)
+        const effectiveExtraction = extraction || await this.enrichLeadData({
+            Name: lead.fullName || "",
+            Email: lead.email || "",
+            Company: lead.company || "",
+            Industry: lead.tags[0] // heuristic
+        });
+
+        // Update lead with enriched data if not already done
+        if (!lead.isEnriched) {
+            await prisma.lead.update({
+                where: { id: lead.id },
+                data: {
+                    isEnriched: true,
+                    enrichedData: effectiveExtraction.proprietarySignal
+                }
+            });
+        }
+
+        if (campaignId) {
+            await this.triggerInitialGeneration(lead, effectiveExtraction.proprietarySignal, teamId);
+        }
     }
 
     /**

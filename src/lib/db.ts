@@ -13,10 +13,9 @@ const createPrismaClient = () => {
             message: {
                 async create({ args, query }) {
                     // Strict Invariant: Messages must belong to a thread
-                    // Cast to any to avoid complex union type checks for 'conversationThreadId'
-                    const data = args.data as any;
-                    const hasThreadId = data.conversationThreadId;
-                    const hasThreadConnect = data.thread;
+                    const data = args.data;
+                    const hasThreadId = 'conversationThreadId' in data && data.conversationThreadId;
+                    const hasThreadConnect = 'thread' in data && data.thread;
 
                     if (!hasThreadId && !hasThreadConnect) {
                         throw new Error("Invariant Violation: Message must belong to a ConversationThread.");

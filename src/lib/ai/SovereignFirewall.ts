@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import axios from 'axios';
+import { IdentityService } from '@/modules/identity/IdentityService';
 
 interface SanitizedPayload {
     safeContext: string;
@@ -48,7 +49,7 @@ export class SovereignFirewall {
      * Replaces sensitive data with deterministic UUIDs.
      * Hits Edge Node (Async) if available, falls back to Local (Sync) if not.
      */
-    static async mask(data: any, region: 'UAE' | 'GLOBAL' = 'GLOBAL'): Promise<SanitizedPayload> {
+    static async mask(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
 
         // Pre-Send Regex Audit (Logging only, masking still happens)
@@ -69,17 +70,21 @@ export class SovereignFirewall {
 
             this.breaker.reset();
 
-            // Note: Edge Node stores mapping in Vault. 
-            // We return a map for 'transient' unmasking in Brain for now, 
-            // but eventually Brain should just detokenize via IdentityService.
             return {
                 safeContext: response.data.sanitized_text,
                 tokenMap: new Map() // Edge Node holds the map
             };
 
         } catch (error: any) {
-            console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
             this.breaker.recordFailure();
+
+            // FAIL-CLOSED Logic for Strict Sovereignty
+            if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
+                console.error("[SovereignFirewall] CRITICAL: Edge Node unreachable. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
+                throw new Error("Sovereign Node Unreachable. PII Exposure Risk Blocked.");
+            }
+
+            console.warn("[SovereignFirewall] Edge Node failed, falling back to local masking.", error.message);
             return this.maskLocal(data, region);
         }
     }
@@ -87,19 +92,19 @@ export class SovereignFirewall {
     /**
      * Fallback/Local Masking Logic (Sync)
      */
-    static maskLocal(data: any, region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
+    static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
         const tokenMap = new Map<string, string>();
 
         if (region !== 'UAE' && process.env['STRICT_SOVEREIGNTY'] !== 'true') {
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
 
-        const traverseAndMask = (obj: any): any => {
+        const traverseAndMask = (obj: unknown): any => {
             if (typeof obj !== 'object' || obj === null) return obj;
             if (Array.isArray(obj)) return obj.map(traverseAndMask);
 
-            const newObj: any = {};
-            for (const [key, value] of Object.entries(obj)) {
+            const newObj: Record<string, unknown> = {};
+            for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
                 if (this.isSensitive(key) && typeof value === 'string') {
                     const hash = crypto.createHash('sha256').update(value).digest('hex').substring(0, 12);
                     const token = `[${key.toUpperCase()}_${hash}]`;
@@ -144,9 +149,39 @@ export class SovereignFirewall {
 
         let restored = content;
         for (const [token, original] of tokenMap.entries()) {
-            const escapedToken = token.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+            const escapedToken = token.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
+                                     .replace(/\</g, '\\<').replace(/\>/g, '\\>');
             restored = restored.replace(new RegExp(escapedToken, 'g'), original);
         }
+        return restored;
+    }
+
+    /**
+     * detokenizes content asynchronously by resolving unknown tokens via IdentityService (Vault).
+     */
+    static async unmaskAsync(content: string, tokenMap: Map<string, string>, teamId: string, purpose: string): Promise<string> {
+        // 1. First unmask using the local transient map (Fast)
+        let restored = this.unmask(content, tokenMap);
+
+        // 2. Identify remaining tokens that look like Edge Node tags: <ENTITY_N ...> or [ENTITY_HASH]
+        const edgeTokenRegex = /<([A-Z]+)_\d+[^>]*>|\[([A-Z]+)_[a-f0-9]{12}\]/g;
+        const matches = Array.from(restored.matchAll(edgeTokenRegex));
+
+        if (matches.length === 0) return restored;
+
+        // 3. Resolve all unique tokens in parallel
+        const uniqueTokens = Array.from(new Set(matches.map(m => m[0])));
+        
+        await Promise.all(uniqueTokens.map(async (fullToken) => {
+            try {
+                const pii = await IdentityService.resolveIdentity(fullToken, purpose, teamId);
+                const replacement = typeof pii === 'object' ? (pii.email || pii.name || JSON.stringify(pii)) : String(pii);
+                restored = restored.split(fullToken).join(replacement);
+            } catch (e) {
+                console.warn(`[SovereignFirewall] Failed to resolve token ${fullToken}:`, e);
+            }
+        }));
+
         return restored;
     }
 

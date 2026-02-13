@@ -59,64 +59,68 @@ export function SovereignConsole() {
     }, []);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
-            <div className="flex items-center justify-between">
+        <div className="space-y-8">
+            <div className="flex items-center justify-between mb-2">
                 <div>
-                    <h2 className="text-3xl font-black tracking-tight text-white mb-1">Sovereign Console</h2>
-                    <p className="text-text-secondary">Real-time visibility into Local Intelligence & Privacy Layer</p>
+                    <h2 className="text-4xl font-black tracking-tight text-white mb-2 font-outfit">Sovereign Console</h2>
+                    <p className="text-slate-500 font-medium">Real-time local intelligence & privacy orchestration</p>
                 </div>
-                <div className={`flex items-center gap-3 px-4 py-2 rounded-full border ${piStatus === 'ONLINE' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+                <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === 'ONLINE' ? 'bg-emerald-500/10 border-emerald-500/10 text-emerald-400' : 'bg-red-500/10 border-red-500/10 text-red-400'} shadow-lg backdrop-blur-md`}>
                     <Cpu className={`w-5 h-5 ${piStatus === 'ONLINE' ? 'animate-pulse' : ''}`} />
-                    <span className="font-mono font-bold">NODE_PHI3: {piStatus}</span>
+                    <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* 1. Sovereign Firewall Status */}
-                <Card className="border-border">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                            <ShieldCheck className="w-5 h-5" />
+                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                    <CardHeader className="pb-4 pt-8 px-8">
+                        <CardTitle className="flex items-center gap-3 text-emerald-400 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-emerald-500/10">
+                                <ShieldCheck className="w-5 h-5" />
+                            </div>
                             Sovereign Firewall
                         </CardTitle>
-                        <CardDescription>PII Masking & Fail-Closed Logic</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">PII Masking & Fail-Closed Logic</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-8 pb-8">
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center py-2 border-b border-border">
-                                <span className="text-sm text-muted-foreground">Status</span>
-                                <Badge variant="success">Active</Badge>
+                            <div className="flex justify-between items-center py-3 border-b border-white/5">
+                                <span className="text-sm font-bold text-slate-400">Status</span>
+                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-3">Active</Badge>
                             </div>
-                            <div className="flex justify-between items-center py-2 border-b border-border">
-                                <span className="text-sm text-muted-foreground">Tokenization Strategy</span>
-                                <span className="text-xs font-mono bg-muted px-2 py-1 rounded text-foreground">DETERMINISTIC_SHA256</span>
+                            <div className="flex justify-between items-center py-3 border-b border-white/5">
+                                <span className="text-sm font-bold text-slate-400">Strictness</span>
+                                <span className="text-xs font-black bg-white/5 px-3 py-1.5 rounded-lg text-slate-300">MAXIMUM</span>
                             </div>
-                            <div className="flex justify-between items-center py-2">
-                                <span className="text-sm text-muted-foreground">Last PII Blocked</span>
-                                <span className="text-xs text-foreground">243ms ago</span>
+                            <div className="flex justify-between items-center py-3">
+                                <span className="text-sm font-bold text-slate-400">Last PII Blocked</span>
+                                <span className="text-xs font-mono text-indigo-400">243ms ago</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
                 {/* 2. Adversarial Critic Feed */}
-                <Card className="border-border">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-brand-600 dark:text-brand-400">
-                            <EyeOff className="w-5 h-5" />
+                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                    <CardHeader className="pb-4 pt-8 px-8">
+                        <CardTitle className="flex items-center gap-3 text-indigo-400 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-indigo-500/10">
+                                <EyeOff className="w-5 h-5" />
+                            </div>
                             Adversarial Critic
                         </CardTitle>
-                        <CardDescription>Local "Bot-Likeness" Evaluation</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">Local "Bot-Likeness" Evaluation</CardDescription>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="px-8 pb-8">
                         <div className="space-y-3">
-                            {audits.length === 0 && <div className="text-muted-foreground text-xs text-center py-2">No active threats detected.</div>}
+                            {audits.length === 0 && <div className="text-slate-500 text-xs text-center py-6 font-medium italic">Scanning for anomalies...</div>}
                             {audits.map((audit, i) => (
-                                <div key={i} className="flex justify-between items-center p-2 rounded bg-muted text-xs">
-                                    <span className="italic text-muted-foreground truncate max-w-[140px]">"{audit.text}"</span>
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${audit.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                                        <span className="font-bold text-foreground">{audit.score}/10</span>
+                                <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs hover:bg-white/[0.05] transition-colors">
+                                    <span className="italic text-slate-400 truncate max-w-[140px]">"{audit.text}"</span>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-1.5 h-1.5 rounded-full ${audit.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-red-500'} shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
+                                        <span className="font-black text-slate-200">{audit.score}/10</span>
                                     </div>
                                 </div>
                             ))}
@@ -125,27 +129,29 @@ export function SovereignConsole() {
                 </Card>
 
                 {/* 3. Shadow Ingestion Live Feed */}
-                <Card className="border-border">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="flex items-center gap-2 text-purple-600 dark:text-purple-400">
-                            <Radio className="w-5 h-5" />
-                            Shadow Ingestion
+                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                    <CardHeader className="pb-4 pt-8 px-8">
+                        <CardTitle className="flex items-center gap-3 text-purple-400 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-purple-500/10">
+                                <Radio className="w-5 h-5" />
+                            </div>
+                            Signal Feed
                         </CardTitle>
-                        <CardDescription>Live Friction Signals (External)</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">Live Friction Signals (External)</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
+                    <CardContent className="px-8 pb-8">
+                        <div className="space-y-4">
                             {signals.map((signal) => (
-                                <div key={signal.id} className="p-3 rounded-xl bg-muted border border-border">
-                                    <div className="flex justify-between mb-1">
-                                        <Badge variant="outline" className="text-[10px]">{signal.source}</Badge>
-                                        <span className="text-[10px] text-muted-foreground">{signal.time}</span>
+                                <div key={signal.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all">
+                                    <div className="flex justify-between mb-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{signal.source}</span>
+                                        <span className="text-[10px] font-bold text-indigo-400/60">{signal.time}</span>
                                     </div>
-                                    <p className="text-xs font-medium text-foreground mb-2 line-clamp-2">"{signal.context}"</p>
+                                    <p className="text-xs font-bold text-slate-200 mb-3 line-clamp-2 leading-relaxed">"{signal.context}"</p>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] text-muted-foreground">Friction Score</span>
-                                        <div className="h-1.5 w-16 bg-muted-foreground/20 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-brand-500 to-purple-500" style={{ width: `${signal.friction}%` }} />
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Friction</span>
+                                        <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
+                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${signal.friction}%` }} />
                                         </div>
                                     </div>
                                 </div>

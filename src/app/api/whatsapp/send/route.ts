@@ -25,14 +25,19 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Retrieve Team ID for Feature Flag Check
+        // Retrieve Team ID and Phone for Feature Flag Check and Delivery
         const lead = await prisma.lead.findUnique({
             where: { id: leadId },
-            select: { teamId: true }
+            select: { teamId: true, phone: true }
         });
 
         if (!lead || !lead.teamId) {
             return NextResponse.json({ error: "Lead or Team not found" }, { status: 404 });
+        }
+
+        const phone = lead.phone || body.recipientPhone;
+        if (!phone) {
+            return NextResponse.json({ error: "Lead has no phone number associated" }, { status: 400 });
         }
 
         // Feature Guard: Strict Execution Check
@@ -51,7 +56,7 @@ export async function POST(req: NextRequest) {
             }
 
             // Step 3: Send via Service (Mock Supported)
-            const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false);
+            const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false, phone);
             
             if (!sent) {
                 throw new Error("Failed to send message via WhatsApp Service");

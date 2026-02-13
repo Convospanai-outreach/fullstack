@@ -33,77 +33,88 @@ export function DashboardWelcome() {
     return (
         <AnimatePresence>
             <motion.div 
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: -40 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative overflow-hidden glass rounded-3xl border border-white/10 p-8 mb-8 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent shadow-2xl"
+                className="relative glass-premium rounded-[2.5rem] p-12 mb-12 group transition-all duration-700"
             >
-                {/* Background Blobs */}
-                <div className="absolute -top-24 -right-24 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl" />
-                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl" />
+                {/* Refined Background Blobs */}
+                <div className="absolute -top-32 -right-32 w-80 h-80 bg-indigo-500/15 rounded-full blur-[100px] group-hover:bg-indigo-500/25 transition-colors duration-1000" />
+                <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-purple-500/10 rounded-full blur-[100px] group-hover:bg-purple-500/20 transition-colors duration-1000" />
+
+                {/* Light Sweep Effect */}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
+                    <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.03] to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-[1500ms]" />
+                </div>
 
                 <div className="relative z-10">
-                    <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-3 mb-6">
-                            <div className="bg-indigo-500 p-2.5 rounded-xl shadow-lg shadow-indigo-500/30">
-                                <Sparkles className="w-6 h-6 text-white" />
+                    <div className="flex justify-between items-start mb-10">
+                        <motion.div 
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex items-center gap-4"
+                        >
+                            <div className="bg-indigo-600 p-3 rounded-2xl shadow-[0_0_25px_rgba(79,70,229,0.3)]">
+                                <Sparkles className="w-7 h-7 text-white" />
                             </div>
-                            <h1 className="text-3xl font-black text-white tracking-tight">
-                                Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">ConvoSpan</span>
+                            <h1 className="text-4xl font-black text-white tracking-tight font-outfit">
+                                Welcome to <span className="text-glow text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-300">ConvoSpan</span>
                             </h1>
-                        </div>
+                        </motion.div>
                         <Button 
                             variant="ghost" 
                             size="icon" 
-                            className="rounded-full hover:bg-white/10" 
+                            className="rounded-full hover:bg-white/10 w-10 h-10 transition-transform hover:rotate-90" 
                             onClick={dismissWelcome}
                         >
-                            <X className="w-5 h-5 text-gray-400" />
+                            <X className="w-6 h-6 text-slate-500 hover:text-white" />
                         </Button>
                     </div>
 
-                    <p className="text-lg text-gray-300 max-w-3xl mb-10 leading-relaxed">
-                        The world's first <span className="text-white font-semibold">Sovereign Growth Platform</span>. 
-                        Your AI agents work locally to protect your data while maximizing your outreach impact. 
-                        Here's how to navigate your new command center:
+                    <motion.p 
+                        initial={{ y: 20, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-xl text-slate-400 max-w-4xl mb-12 leading-relaxed font-medium"
+                    >
+                        Master the art of <span className="text-white">Sovereign Growth</span>. 
+                        Your local AI agents are synchronized and ready to amplify your impact without compromising your data privacy. 
+                        Your command center is online.
                     </p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                        <div className="group p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-indigo-500/30 transition-all duration-300">
-                            <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center mb-4 group-hover:bg-indigo-500/30 transition-colors">
-                                <Cpu className="w-5 h-5 text-indigo-400" />
-                            </div>
-                            <h3 className="text-white font-bold mb-2">Sovereign Core</h3>
-                            <p className="text-sm text-gray-400">Monitor local Phi-3 inference and PII masking status in the console below.</p>
-                        </div>
-
-                        <div className="group p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-purple-500/30 transition-all duration-300">
-                            <div className="w-10 h-10 rounded-lg bg-purple-500/20 flex items-center justify-center mb-4 group-hover:bg-purple-500/30 transition-colors">
-                                <ShieldCheck className="w-5 h-5 text-purple-400" />
-                            </div>
-                            <h3 className="text-white font-bold mb-2">Governance Gate</h3>
-                            <p className="text-sm text-gray-400">Review and approve high-risk agent actions before they hit the wire.</p>
-                        </div>
-
-                        <div className="group p-5 rounded-2xl bg-white/5 border border-white/5 hover:border-emerald-500/30 transition-all duration-300">
-                            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center mb-4 group-hover:bg-emerald-500/30 transition-colors">
-                                <Target className="w-5 h-5 text-emerald-400" />
-                            </div>
-                            <h3 className="text-white font-bold mb-2">Bulls-Eye RAG</h3>
-                            <p className="text-sm text-gray-400">Semantic signal detection that autonomously finds high-value leads.</p>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+                        {[
+                            { icon: Cpu, color: "text-indigo-400", bg: "bg-indigo-500/10", title: "Sovereign Core", desc: "Local SLM execution with zero-leak PII masking protocols." },
+                            { icon: ShieldCheck, color: "text-purple-400", bg: "bg-purple-500/10", title: "Governance Gate", desc: "Human-in-the-loop validation for all high-risk agent behaviors." },
+                            { icon: Target, color: "text-emerald-400", bg: "bg-emerald-500/10", title: "Bulls-Eye RAG", desc: "Autonomous signal detection tuned for high-conversion outcomes." }
+                        ].map((feature, idx) => (
+                            <motion.div 
+                                key={idx}
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.4 + (idx * 0.1) }}
+                                className="group/card p-6 rounded-3xl bg-white/5 border border-white/5 hover:border-white/10 hover:bg-white/[0.08] transition-all duration-300 shadow-xl"
+                            >
+                                <div className={`w-12 h-12 rounded-xl ${feature.bg} flex items-center justify-center mb-5 group-hover/card:scale-110 transition-transform duration-500 shadow-lg`}>
+                                    <feature.icon className={`w-6 h-6 ${feature.color}`} />
+                                </div>
+                                <h3 className="text-lg text-white font-bold mb-3 font-outfit">{feature.title}</h3>
+                                <p className="text-sm text-slate-400 leading-relaxed font-medium">{feature.desc}</p>
+                            </motion.div>
+                        ))}
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex flex-col sm:flex-row gap-6">
                         <Button 
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-6 rounded-xl text-lg font-bold shadow-xl shadow-indigo-600/20 transition-all hover:scale-[1.02]"
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-8 rounded-[1.5rem] text-lg font-bold shadow-[0_0_30px_rgba(79,70,229,0.2)] transition-all hover:scale-[1.03] active:scale-95 border-none"
                             onClick={dismissWelcome}
                         >
-                            Let's Get Started
-                            <ArrowRight className="w-5 h-5 ml-2" />
+                            Enter Command Center
+                            <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
                         </Button>
-                        <Button variant="ghost" className="text-gray-400 hover:text-white px-8 py-6 rounded-xl text-lg hover:bg-white/5 transition-all">
-                            View Documentation
+                        <Button variant="ghost" className="text-slate-400 hover:text-white px-10 py-8 rounded-[1.5rem] text-lg hover:bg-white/5 transition-all font-bold">
+                            View Sovereignty Docs
                         </Button>
                     </div>
                 </div>

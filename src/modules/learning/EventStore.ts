@@ -1,6 +1,6 @@
-
 import { prisma } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { JobQueue } from "@/lib/queue";
 
 export enum SystemEventType {
     USER = "USER",
@@ -35,18 +35,29 @@ export class EventStore {
             }
         });
 
-        // Trigger asynchronous processing pipelines
-        // Task 1: Update RAG weights if it's an outcome event
-        if (["REPLY_RECEIVED", "CLICK", "BOUNCE"].includes(params.name)) {
-            // Processing logic for reweighting happens via background workers 
-            // but we can trigger it or do it inline for now
+        // TRIGGER ASYNCHRONOUS PROCESSING (De-coupled for Scalability)
+        await JobQueue.enqueue("event_processing", {
+            eventId: event.id,
+            teamId: event.teamId
+        });
+
+        return event;
+    }
+
+    /**
+     * Entry point for background worker to process event side-effects.
+     */
+    static async processEventJob(eventId: string) {
+        const event = await prisma.systemEvent.findUnique({ where: { id: eventId } });
+        if (!event) return;
+
+        // 1. Update RAG weights if it's an outcome event
+        if (["REPLY_RECEIVED", "CLICK", "BOUNCE"].includes(event.name)) {
             await this.processOutcomeForRAG(event);
         }
 
-        // Task 7: Generate narrative audit log
+        // 2. Generate narrative audit log (Immutable Trail)
         await this.generateAuditNarrative(event);
-
-        return event;
     }
 
     /**

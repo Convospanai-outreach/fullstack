@@ -1114,6 +1114,8 @@ model AgentLog {
 
   @@index([taskId])
   @@index([type])
+  @@index([taskId, createdAt])
+  @@index([taskId, type])
 }
 
 // Proprietary Data Flywheel
@@ -1214,6 +1216,8 @@ model SystemEvent {
 
   @@index([teamId, timestamp])
   @@index([name])
+  @@index([teamId, name])
+  @@index([timestamp])
 }
 
 // Task 1: Outcome-Weighted Knowledge
