@@ -166,7 +166,7 @@ export class AgentExecutor {
                 const targetName = ctx.target_name || "John Doe";
                 const domain = ctx.target_domain || "acme.com";
 
-                const result: HunterResult = await HunterService.findEmail(targetName, domain);
+                const result: HunterResult = await HunterService.findEmail(targetName, domain) as any;
 
                 if (result.email) {
                     const enrichedContext = {

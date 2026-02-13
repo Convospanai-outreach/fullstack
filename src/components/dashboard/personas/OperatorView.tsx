@@ -7,7 +7,7 @@ import { DashboardWelcome } from "@/components/dashboard/DashboardWelcome";
 import { NudgeBar } from "@/components/dashboard/NudgeBar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { Play, Pause, RefreshCw, Zap, Rocket, Terminal } from "lucide-react";
+import { Play, Pause, RefreshCw, Zap, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { toast } from "sonner";

@@ -11,6 +11,8 @@ export function MorningBriefing() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        let typingInterval: NodeJS.Timeout;
+        
         const hour = new Date().getHours();
         const timeGreeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
         setGreeting(`${timeGreeting}, Growth Leader`);
@@ -24,17 +26,15 @@ export function MorningBriefing() {
                 
                 let i = 0;
                 setBriefing(""); // Clear before typing
-                const typing = setInterval(() => {
+                typingInterval = setInterval(() => {
                     if (i < fullText.length) {
                         setBriefing(prev => prev + fullText.charAt(i));
                         i++;
                     } else {
-                        clearInterval(typing);
+                        clearInterval(typingInterval);
                         setLoading(false);
                     }
                 }, 20);
-
-                return () => clearInterval(typing);
             } catch (err) {
                 setBriefing("System intelligence is calibrating. Your campaigns are running normally.");
                 setLoading(false);
@@ -42,6 +42,9 @@ export function MorningBriefing() {
         };
 
         fetchBriefing();
+        return () => {
+            if (typingInterval) clearInterval(typingInterval);
+        };
     }, []);
 
     return (
