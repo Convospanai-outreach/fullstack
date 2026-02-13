@@ -238,7 +238,7 @@ Keep it under 100 words. Be professional yet conversational.`;
             Name: lead.fullName || "",
             Email: lead.email || "",
             Company: lead.company || "",
-            Industry: lead.tags[0] // heuristic
+            Industry: lead.tags[0] || "" // heuristic
         });
 
         // Update lead with enriched data if not already done

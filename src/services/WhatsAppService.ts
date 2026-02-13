@@ -27,7 +27,7 @@ export const WhatsAppService = {
     }
 
     try {
-      const url = `https://graph.facebook.com/v19.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+      const url = `https://graph.facebook.com/v19.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`;
       
       const payload: any = {
         messaging_product: "whatsapp",
@@ -47,7 +47,7 @@ export const WhatsAppService = {
 
       await axios.post(url, payload, {
         headers: {
-          'Authorization': `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`,
+          'Authorization': `Bearer ${process.env["WHATSAPP_ACCESS_TOKEN"]}`,
           'Content-Type': 'application/json'
         },
         timeout: 5000

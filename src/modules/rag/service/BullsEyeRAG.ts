@@ -1,5 +1,6 @@
 import { mcpManager } from "@/lib/mcp/McpManager";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { aiService } from "@/lib/aiService";
 
 export interface Signal {
     id: string;
