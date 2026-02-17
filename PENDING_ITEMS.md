@@ -22,6 +22,8 @@
 - Unified Computer Use logic via MCP Server.
 - Implemented `STRICT_SOVEREIGNTY` fail-closed mode.
 - Hardened `ReplyAnalyzerAgent` with PII masking and async unmasking.
+- **Scalability**: Added composite indices to `AgentLog` and `SystemEvent` (Feb 17).
+- **UX**: Overhauled Command Center with Sovereign-Dark theme (Feb 17).
 
 ---
 

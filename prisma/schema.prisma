@@ -1114,6 +1114,7 @@ model AgentLog {
 
   @@index([taskId])
   @@index([type])
+  @@index([createdAt])
   @@index([taskId, createdAt])
   @@index([taskId, type])
 }
@@ -1218,6 +1219,7 @@ model SystemEvent {
   @@index([name])
   @@index([teamId, name])
   @@index([timestamp])
+  @@index([type])
 }
 
 // Task 1: Outcome-Weighted Knowledge
@@ -1612,4 +1614,22 @@ model ReplyTracker {
   @@index([status])
   @@index([leadId])
   @@index([aiClassification])
+}
+
+model CalendarEvent {
+  id             String      @id @default(cuid())
+  eventName      String
+  eventDate      DateTime
+  category       String
+  leadGenAngle   String
+  newsletterId   String?     @unique
+  newsletter     Newsletter? @relation(fields: [newsletterId], references: [id])
+}
+
+model Newsletter {
+  id             String         @id @default(cuid())
+  subjectLine    String
+  emailBodyHtml  String
+  cta            String
+  event          CalendarEvent?
 }

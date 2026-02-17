@@ -8,7 +8,6 @@ import { motion } from "framer-motion";
 export function MorningBriefing() {
     const [greeting, setGreeting] = useState("");
     const [briefing, setBriefing] = useState("");
-    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         let typingInterval: NodeJS.Timeout;
@@ -31,13 +30,10 @@ export function MorningBriefing() {
                         setBriefing(prev => prev + fullText.charAt(i));
                         i++;
                     } else {
-                        clearInterval(typingInterval);
-                        setLoading(false);
                     }
                 }, 20);
             } catch (err) {
                 setBriefing("System intelligence is calibrating. Your campaigns are running normally.");
-                setLoading(false);
             }
         };
 
