@@ -198,7 +198,7 @@ export function SovereignConsole() {
                                         <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
                                             <div 
                                                 className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-1000" 
-                                                style={{ width: `${signal.friction}%` }} 
+                                                style={{ ["--friction-width" as any]: `${signal.friction}%`, width: "var(--friction-width)" }} 
                                             />
                                         </div>
                                     </div>

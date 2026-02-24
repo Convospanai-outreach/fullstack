@@ -3,13 +3,14 @@ import { NextResponse } from "next/server";
 import { NurtureService } from "@/modules/learning/NurtureService";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
+import { NextRequest } from "next/server"; // Added NextRequest import
 
-export async function POST(req: Request) {
+export async function POST(_req: NextRequest) { // Changed type to NextRequest
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const { searchParams } = new URL(req.url);
+        const { searchParams } = new URL(_req.url);
         const action = searchParams.get("action") || "generate";
         const teamId = session.user?.image || "team-convo-1"; // Use image as teamId proxy for demo
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     }
 }
 
-export async function GET(req: Request) {
+export async function GET(_req: NextRequest) {
     // Return upcoming events for the radar widget
     try {
         const session = await getServerSession(authOptions);

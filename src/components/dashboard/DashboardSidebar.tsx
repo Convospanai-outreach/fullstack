@@ -116,7 +116,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                                         <Link
                                             key={link.href}
                                             href={link.href}
-                                            onClick={onClose}
+                                            onClick={() => onClose?.()}
                                             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 group ${isActive
                                                 ? "bg-brand-500/10 text-brand-600 dark:text-brand-400 shadow-sm"
                                                 : "text-muted-foreground hover:text-foreground hover:bg-surface-accent"

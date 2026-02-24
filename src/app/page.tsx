@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import HeroScene from "@/components/marketing/HeroScene";
@@ -11,7 +10,7 @@ import FeaturesSection from "@/components/landing/FeaturesSection";
 import TechStackSection from "@/components/landing/TechStackSection";
 import FAQSection from "@/components/landing/FAQSection";
 import {
-    Zap, ArrowRight, ShieldCheck, Moon, Brain, Link2, Target, Rocket, Handshake
+    Zap
 } from "lucide-react";
 
 export default function Home() {

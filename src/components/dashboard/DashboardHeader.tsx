@@ -13,9 +13,11 @@ import { useSession } from "next-auth/react";
 
 function getUserInitials(name?: string | null): string {
     if (!name) return "U";
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return parts[0].substring(0, 2).toUpperCase();
+    const parts = name.trim().split(/\s+/).filter(p => p.length > 0);
+    if (parts.length >= 2 && parts[0] && parts[1]) {
+        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return (name.trim().charAt(0) || "U").toUpperCase();
 }
 
 export function DashboardHeader({ onToggleSidebar }: { onToggleSidebar?: () => void }) {

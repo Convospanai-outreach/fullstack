@@ -115,11 +115,10 @@ export class SentinelService {
             });
             report.action_taken = report.action_taken === "NONE" ? "QUARANTINED" : report.action_taken;
 
-            // [Persistence] Record a SystemEvent for the dashboard alerting system
             try {
-                const { EventStore } = await import("@/modules/learning/EventStore");
+                const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
                 await EventStore.record({
-                    type: "SENTINEL",
+                    type: SystemEventType.SYSTEM, // Changed from "SENTINEL" to valid enum
                     name: "SENTINEL_ALERT",
                     teamId: payload.teamId || "SYSTEM",
                     actorId: "SENTINEL_AGENT",

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError } from "@/lib/apiResponse";
-import { modelGateway } from "@/ai/ModelGateway";
+import { modelGateway, TaskComplexity } from "@/ai/ModelGateway";
 
 export async function GET() {
     try {
@@ -54,7 +54,7 @@ export async function GET() {
             const aiSummary = await modelGateway.generate({
                 prompt,
                 teamId,
-                complexity: "ROUTINE",
+                complexity: TaskComplexity.ROUTINE,
                 maxTokens: 100
             });
             if (aiSummary) narrative = aiSummary;

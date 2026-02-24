@@ -7,6 +7,7 @@ import { EventStore, SystemEventType } from "./EventStore";
 import { JobQueue } from "@/lib/queue";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
+
 interface ExcelRow {
     Name: string;
     Email: string;
@@ -68,7 +69,7 @@ export class DataIngestionService {
 
                 // [NEW] Sovereign Firewall: Mask PII before storage
                 console.log(`[DataIngestion] Masking PII for lead ${extraction.email}`);
-                const firewallRegion = (region === Region.UAE) ? 'UAE' : 'GLOBAL';
+                const firewallRegion: 'UAE' | 'GLOBAL' = (region === Region.UAE) ? 'UAE' : 'GLOBAL';
                 const { safeContext } = await SovereignFirewall.mask({
                     name: extraction.name,
                     email: extraction.email,
@@ -126,19 +127,22 @@ export class DataIngestionService {
 
                 // [NEW] Record Lead Ingestion Event
                 try {
-                const { EventStore } = await import("@/modules/learning/EventStore");
-                await EventStore.record({
-                    type: SystemEventType.SYSTEM, 
-                    name: "LEAD_INGESTED",
-                    teamId: teamId,
-                    payload: {
-                        leadId: lead.id,
-                        leadEmail: lead.email,
-                        source: "FILE_UPLOAD",
-                        filename: filePath,
-                        region
-                    }
-                });
+                    const { EventStore } = await import("@/modules/learning/EventStore");
+                    await EventStore.record({
+                        type: SystemEventType.SYSTEM, 
+                        name: "LEAD_INGESTED",
+                        teamId: teamId,
+                        payload: {
+                            leadId: lead.id,
+                            leadEmail: lead.email,
+                            source: "FILE_UPLOAD",
+                            filename: filePath,
+                            region
+                        }
+                    });
+                } catch (e) {
+                    console.error("[DataIngestion] Failed to record ingestion event", e);
+                }
 
                 results.push({ email: lead.email, status: "SUCCESS" });
 

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { intentScoringService } from "@/services/IntentScoring";
-import { Region } from "@prisma/client";
 import { v4 as uuidv4 } from "uuid";
 import { SentinelService } from "@/modules/audit/SentinelService";
 import { DbFactory } from "@/lib/dbFactory";
@@ -13,7 +12,6 @@ export async function POST(req: Request) {
         // 1. Security Check
         const secret = req.headers.get("X-Scraper-Secret");
         const timestamp = req.headers.get("X-Timestamp");
-        const regionHeader = req.headers.get("X-Region-ID") || "GLOBAL";
 
         const validSecret = process.env['SCRAPER_SECRET'] || "dev-secret";
 
@@ -67,7 +65,8 @@ export async function POST(req: Request) {
         // 3. Residency Lock & Sovereign Firewall Masking
         const { ResidencyLockService } = await import("@/modules/compliance/ResidencyLockService");
         const region = ResidencyLockService.getRegionFromContext(req.headers);
-        const { safeContext, tokenMap } = await SovereignFirewall.mask(body, region);
+        const firewallRegion: 'UAE' | 'GLOBAL' = (region === 'UAE') ? 'UAE' : 'GLOBAL';
+        const { safeContext, tokenMap } = await SovereignFirewall.mask(body, firewallRegion);
 
         // 3. Database Update (Upsert ScrapingJob)
         const jobId = body.jobId || uuidv4();
