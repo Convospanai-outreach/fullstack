@@ -65,16 +65,13 @@ export async function middleware(req: NextRequest) {
     }
 
     // 2. Authentication Check
-    const publicPaths = ["/", "/login", "/signup", "/help", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
+    const publicPaths = ["/", "/login", "/signup", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
     const isPublic = publicPaths.some(p => path === p) ||
         path.startsWith("/api/auth") ||
         path.startsWith("/_next") ||
         path.startsWith("/static") ||
         path.startsWith("/images") ||
-        path.startsWith("/api/webhooks") ||
-        path.startsWith("/api/queue") || // Public for Extension Polling
-        // Removed /api/test from public paths for security
-        path.startsWith("/api/register");
+        path.startsWith("/api/webhooks");
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting

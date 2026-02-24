@@ -14,6 +14,7 @@ datasource db {
 enum Region {
   GLOBAL
   UAE
+  EU
 }
 
 model Lead {
@@ -1624,6 +1625,8 @@ model CalendarEvent {
   leadGenAngle   String
   newsletterId   String?     @unique
   newsletter     Newsletter? @relation(fields: [newsletterId], references: [id])
+
+  @@unique([eventName, eventDate])
 }
 
 model Newsletter {

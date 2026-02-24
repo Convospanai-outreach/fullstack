@@ -33,6 +33,9 @@ export function SovereignConsole() {
     const [queueDepth, setQueueDepth] = useState<number>(0);
     const [rateLimit, setRateLimit] = useState<string>("STABLE");
 
+    const [events, setEvents] = useState<any[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
+
     // Poll Real-time Stats
     useEffect(() => {
         const fetchStats = async () => {
@@ -47,6 +50,13 @@ export function SovereignConsole() {
 
                     setPiStatus('ONLINE'); // Assume online if API responds
                 }
+
+                // Fetch upcoming nurture events
+                const nurtureRes = await fetch('/api/nurture/trigger');
+                const nurtureData = await nurtureRes.json();
+                if (nurtureData.ok) {
+                    setEvents(nurtureData.events || []);
+                }
             } catch (e) {
                 console.error("Failed to fetch sovereign stats", e);
                 setPiStatus('OFFLINE');
@@ -54,9 +64,25 @@ export function SovereignConsole() {
         };
 
         fetchStats();
-        const interval = setInterval(fetchStats, 5000);
+        const interval = setInterval(fetchStats, 10000); // 10s for dashboard
         return () => clearInterval(interval);
     }, []);
+
+    const handleSync = async () => {
+        setIsSyncing(true);
+        try {
+            await fetch('/api/nurture/trigger?action=sync', { method: 'POST' });
+            await fetch('/api/nurture/trigger?action=generate', { method: 'POST' });
+            // Refresh
+            const nurtureRes = await fetch('/api/nurture/trigger');
+            const nurtureData = await nurtureRes.json();
+            if (nurtureData.ok) setEvents(nurtureData.events || []);
+        } catch (e) {
+            console.error("Sync failed", e);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     return (
         <div className="space-y-8">
@@ -65,9 +91,19 @@ export function SovereignConsole() {
                     <h2 className="text-4xl font-black tracking-tight text-white mb-2 font-outfit">Sovereign Console</h2>
                     <p className="text-slate-500 font-medium">Real-time local intelligence & privacy orchestration</p>
                 </div>
-                <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === 'ONLINE' ? 'bg-emerald-500/10 border-emerald-500/10 text-emerald-400' : 'bg-red-500/10 border-red-500/10 text-red-400'} shadow-lg backdrop-blur-md`}>
-                    <Cpu className={`w-5 h-5 ${piStatus === 'ONLINE' ? 'animate-pulse' : ''}`} />
-                    <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                        className="flex items-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
+                    >
+                        <Radio className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                        {isSyncing ? 'SYNCING...' : 'SYNC EVENT RADAR'}
+                    </button>
+                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === 'ONLINE' ? 'bg-emerald-500/10 border-emerald-500/10 text-emerald-400' : 'bg-red-500/10 border-red-500/10 text-red-400'} shadow-lg backdrop-blur-md`}>
+                        <Cpu className={`w-5 h-5 ${piStatus === 'ONLINE' ? 'animate-pulse' : ''}`} />
+                        <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
+                    </div>
                 </div>
             </div>
 
@@ -101,26 +137,37 @@ export function SovereignConsole() {
                     </CardContent>
                 </Card>
 
-                {/* 2. Adversarial Critic Feed */}
+                {/* 2. Autonomous Event Radar */}
                 <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-indigo-400 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-indigo-500/10">
-                                <EyeOff className="w-5 h-5" />
+                        <CardTitle className="flex items-center gap-3 text-orange-400 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-orange-500/10">
+                                <Radio className="w-5 h-5" />
                             </div>
-                            Adversarial Critic
+                            Growth Radar
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">Local "Bot-Likeness" Evaluation</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">Event-Driven Nurture Pipeline</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-3">
-                            {audits.length === 0 && <div className="text-slate-500 text-xs text-center py-6 font-medium italic">Scanning for anomalies...</div>}
-                            {audits.map((audit, i) => (
-                                <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.03] border border-white/5 text-xs hover:bg-white/[0.05] transition-colors">
-                                    <span className="italic text-slate-400 truncate max-w-[140px]">"{audit.text}"</span>
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-1.5 h-1.5 rounded-full ${audit.status === 'APPROVED' ? 'bg-emerald-500' : 'bg-red-500'} shadow-[0_0_8px_rgba(16,185,129,0.5)]`} />
-                                        <span className="font-black text-slate-200">{audit.score}/10</span>
+                            {events.length === 0 && (
+                                <div className="text-center py-6">
+                                    <p className="text-xs text-slate-500 italic font-medium mb-4">No events in current horizon.</p>
+                                </div>
+                            )}
+                            {events.map((event, i) => (
+                                <div key={i} className="group relative p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-tighter">
+                                            {new Date(event.eventDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                        </span>
+                                        <Badge variant="outline" className="text-[8px] h-4 border-white/10 text-slate-500 uppercase">{event.category}</Badge>
+                                    </div>
+                                    <h4 className="text-xs font-bold text-white truncate mb-1">{event.eventName}</h4>
+                                    <p className="text-[10px] text-slate-500 line-clamp-1 italic">{event.leadGenAngle}</p>
+                                    
+                                    <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
                                     </div>
                                 </div>
                             ))}
@@ -133,7 +180,7 @@ export function SovereignConsole() {
                     <CardHeader className="pb-4 pt-8 px-8">
                         <CardTitle className="flex items-center gap-3 text-purple-400 font-bold font-outfit text-lg">
                             <div className="p-2 rounded-xl bg-purple-500/10">
-                                <Radio className="w-5 h-5" />
+                                <Activity className="w-5 h-5" />
                             </div>
                             Signal Feed
                         </CardTitle>
@@ -199,7 +246,7 @@ export function SovereignConsole() {
                 </Card>
             </div>
 
-            {/* 4. Karmic Debt / ROI Chart */}
+            {/* 5. Karmic Debt / ROI Chart */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-sm uppercase tracking-widest text-gray-500">Karmic ROI (Cost Saved vs Cloud)</CardTitle>

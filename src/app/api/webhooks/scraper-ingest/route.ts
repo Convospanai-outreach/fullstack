@@ -45,7 +45,7 @@ export async function POST(req: Request) {
 
         // 2. Sentinel Audit (Data Quality & Health)
         const metrics = {
-            statusCode: 200, // The scraper is successfully calling us
+            statusCode: 200, 
             latency: parseInt(req.headers.get("X-Scrape-Latency") || "0", 10),
             proxy_used: !!req.headers.get("X-Proxy-IP"),
             user_agent: req.headers.get("User-Agent") || "",
@@ -64,27 +64,22 @@ export async function POST(req: Request) {
             return NextResponse.json({ ok: true, status: "QUARANTINED", report: sentinelReport });
         }
 
-        // 3. Sovereign Firewall Masking
-        const region = (regionHeader === "UAE") ? Region.UAE : Region.GLOBAL;
+        // 3. Residency Lock & Sovereign Firewall Masking
+        const { ResidencyLockService } = await import("@/modules/compliance/ResidencyLockService");
+        const region = ResidencyLockService.getRegionFromContext(req.headers);
         const { safeContext, tokenMap } = await SovereignFirewall.mask(body, region);
 
         // 3. Database Update (Upsert ScrapingJob)
-        // Assume body.jobId exists, else generate one for creating
         const jobId = body.jobId || uuidv4();
-
-        // We need to parse safeContext back to JSON for storage if payload is Json type
-        // However, SovereignFirewall returns a stringified version.
-        // We'll trust the safeContext string is valid JSON.
         let safePayload;
         try {
             safePayload = JSON.parse(safeContext);
         } catch (e) {
-            console.warn("[Webhook] Failed to parse safe context JSON", e);
-            safePayload = {}; // Fallback
+            safePayload = {}; 
         }
 
-        // Use DbFactory to respect Data Residency (UAE vs Global)
-        const targetPrisma = DbFactory.getClient(region === Region.UAE ? 'UAE' : 'GLOBAL');
+        // Use DbFactory to respect Data Residency (UAE vs EU vs Global)
+        const targetPrisma = DbFactory.getClient(region);
 
         const job = await targetPrisma.scrapingJob.upsert({
             where: { id: jobId },

@@ -49,6 +49,22 @@ async function processJob(job: any) {
                 );
                 result = { ok: true };
                 break;
+
+            case "CSV_IMPORT":
+                if (job.payload.filePath && job.payload.teamId) {
+                    await dataIngestionService.processFileUpload(
+                        job.payload.teamId,
+                        job.payload.filePath,
+                        job.payload.campaignId
+                    );
+                    // Cleanup temp file
+                    const fs = require('fs/promises');
+                    await fs.unlink(job.payload.filePath).catch((e: any) => console.error("Failed to delete temp file", e));
+                    result = { ok: true, processed: true };
+                } else {
+                    throw new Error("Missing filePath or teamId for CSV_IMPORT");
+                }
+                break;
             default:
                 throw new Error(`Unknown job type: ${job.type}`);
         }

@@ -5,6 +5,7 @@ import { Lead } from "@prisma/client";
 import { modelGateway } from "@/ai/ModelGateway";
 import { EventStore, SystemEventType } from "./EventStore";
 import { JobQueue } from "@/lib/queue";
+import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 
 interface ExcelRow {
     Name: string;
@@ -42,20 +43,21 @@ export class DataIngestionService {
      * Step 2: Enrich with Proprietary Signals
      * Step 3: Trigger Initial Generation (Beta Run)
      */
-    async processFileUpload(teamId: string, filePath: string, campaignId?: string) {
+    async processFileUpload(teamId: string, filePath: string, region: Region = Region.GLOBAL, campaignId?: string) {
+        // Use DbFactory to respect Data Residency (UAE vs EU vs Global)
+        const targetPrisma = DbFactory.getClient(region);
+
         // 1. Parse File (Supports .xlsx, .csv, .ods, .xls, etc.)
         const workbook = XLSX.readFile(filePath);
         const sheetName = workbook.SheetNames[0];
         if (!sheetName) return [];
         const sheet = workbook.Sheets[sheetName];
 
-        if (!sheet) return []; // Fix: Return empty if sheet not found, instead of continue
+        if (!sheet) return []; 
 
-        // Use raw: false to ensure dates/numbers are parsed correctly where possible
-        // For CSV, XLSX handles standard comma delimiters automatically
         const rows: ExcelRow[] = XLSX.utils.sheet_to_json(sheet);
 
-        console.log(`[DataIngestion] Processing ${rows.length} rows from ${filePath} for team ${teamId}`);
+        console.log(`[DataIngestion] Processing ${rows.length} rows from ${filePath} for team ${teamId} in region ${region}`);
 
         const results = [];
 
@@ -64,11 +66,21 @@ export class DataIngestionService {
                 // 2. Middle-Layer Logic: Inject Proprietary Signals
                 const extraction = await this.enrichLeadData(row);
 
-                // 3. Store in DB (Prisma)
-                // Use findFirst + update/create because email is not unique in schema
-                const existingLead = await prisma.lead.findFirst({
+                // [NEW] Sovereign Firewall: Mask PII before storage
+                console.log(`[DataIngestion] Masking PII for lead ${extraction.email}`);
+                const { safeContext, tokenMap } = await SovereignFirewall.mask({
+                    name: extraction.name,
+                    email: extraction.email,
+                    company: extraction.company,
+                    jobTitle: extraction.jobTitle
+                }, region);
+
+                const maskedData = JSON.parse(safeContext);
+
+                // 3. Store in DB (Regional Client)
+                const existingLead = await targetPrisma.lead.findFirst({
                     where: {
-                        email: extraction.email,
+                        email: maskedData.email,
                         teamId: teamId
                     }
                 });
@@ -76,29 +88,27 @@ export class DataIngestionService {
                 let lead;
 
                 if (existingLead) {
-                    lead = await prisma.lead.update({
+                    lead = await targetPrisma.lead.update({
                         where: { id: existingLead.id },
                         data: {
-                            company: extraction.company,
-                            jobTitle: extraction.jobTitle || null, // Fix: Ensure null if undefined
-                            // If we found a better industry match, update it
+                            company: maskedData.company,
+                            jobTitle: maskedData.jobTitle || null,
                             ...(extraction.industry && { tags: { push: extraction.industry } }),
-                            campaignId: campaignId || null
+                            campaignId: campaignId || null,
                         }
                     });
                 } else {
-                    // ... create block ...
-                    lead = await prisma.lead.create({
+                    lead = await targetPrisma.lead.create({
                         data: {
-                            email: extraction.email,
-                            fullName: extraction.name,
-                            company: extraction.company,
-                            jobTitle: extraction.jobTitle || null,
+                            email: maskedData.email,
+                            fullName: maskedData.name,
+                            company: maskedData.company,
+                            jobTitle: maskedData.jobTitle || null,
                             teamId: teamId,
                             campaignId: campaignId || null,
                             status: "NEW",
                             isEnriched: true,
-                            enrichedData: extraction.proprietarySignal,
+                            enrichedData: extraction.proprietarySignal as any,
                             tags: extraction.industry ? [extraction.industry] : []
                         }
                     });
@@ -108,20 +118,22 @@ export class DataIngestionService {
                 await JobQueue.enqueue("lead_enrichment", {
                     leadId: lead.id,
                     teamId: teamId,
+                    region: region, // Pass region to background job
                     campaignId: campaignId || undefined,
-                    extraction: extraction // Pass pre-parsed signals to the background task
+                    extraction: extraction 
                 });
 
                 // [NEW] Record Lead Ingestion Event
                 await EventStore.record({
-                    type: SystemEventType.SYSTEM, // OR USER if we had the context
+                    type: SystemEventType.SYSTEM, 
                     name: "LEAD_INGESTED",
                     teamId: teamId,
                     payload: {
                         leadId: lead.id,
                         leadEmail: lead.email,
                         source: "FILE_UPLOAD",
-                        filename: filePath
+                        filename: filePath,
+                        region
                     }
                 });
 
@@ -165,10 +177,41 @@ export class DataIngestionService {
     }
 
     /**
+     * Entry point for background worker to perform heavy AI enrichment.
+     */
+    async processEnrichmentJob(leadId: string, teamId: string, region: Region = Region.GLOBAL, campaignId?: string, extraction?: any) {
+        const targetPrisma = DbFactory.getClient(region);
+        const lead = await targetPrisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead) return;
+
+        const effectiveExtraction = extraction || await this.enrichLeadData({
+            Name: lead.fullName || "",
+            Email: lead.email || "",
+            Company: lead.company || "",
+            Industry: (lead as any).tags?.[0] || ""
+        });
+
+        if (!lead.isEnriched) {
+            await targetPrisma.lead.update({
+                where: { id: lead.id },
+                data: {
+                    isEnriched: true,
+                    enrichedData: effectiveExtraction.proprietarySignal as any
+                }
+            });
+        }
+
+        if (campaignId) {
+            await this.triggerInitialGeneration(lead, effectiveExtraction.proprietarySignal, teamId, region);
+        }
+    }
+
+    /**
      * Generates the initial draft using the proprietary signal.
      */
-    private async triggerInitialGeneration(lead: Lead, signal: any, teamId: string) {
-        // Construct the "Moat" Prompt
+    private async triggerInitialGeneration(lead: Lead, signal: any, teamId: string, region: Region = Region.GLOBAL) {
+        const targetPrisma = DbFactory.getClient(region);
+        
         const promptPayload = {
             industry: signal.targetIndustry,
             painPoint: signal.topPainPoint,
@@ -185,12 +228,11 @@ Our Solution Angle: ${signal.winningAngle}
 Write a personalized cold email to ${lead.fullName} at ${lead.company}.
 Keep it under 100 words. Be professional yet conversational.`;
 
-        // Real AI Call via ModelGateway
         let draft = "";
         try {
             draft = await modelGateway.generate({
                 prompt: systemPrompt,
-                // model: "gemini-1.5-flash", // Removed as per error, gateway handles selection
+                teamId: lead.teamId || teamId,
                 maxTokens: 300,
                 temperature: 0.7
             });
@@ -199,21 +241,16 @@ Keep it under 100 words. Be professional yet conversational.`;
             draft = `Hi ${lead.fullName},\n\nI noticed ${lead.company} might be facing challenges with ${signal.topPainPoint}. We have a solution.\n\nBest,\n[Your Name]`;
         }
 
-        // Store the "Generation" vote ticket
-        // This line was syntactically incorrect and removed based on the instruction "fix other issues"
-        // await (this as any).handleContext(payload.taskId, await result);
-        // const { safeContext, tokenMap } = await result;
-        await prisma.generation.create({
+        await targetPrisma.generation.create({
             data: {
                 leadId: lead.id,
                 promptPayload: promptPayload,
                 generatedText: draft,
-                status: "PENDING", // Ready for human review or sending
-                conversionValue: 0.0 // Will be updated on success
+                status: "PENDING", 
+                conversionValue: 0.0 
             }
         });
 
-        // [NEW] Record Generation Event
         await EventStore.record({
             type: SystemEventType.AI,
             name: "DRAFT_GENERATED",
@@ -221,40 +258,10 @@ Keep it under 100 words. Be professional yet conversational.`;
             payload: {
                 leadId: lead.id,
                 leadName: lead.fullName,
-                draftSnippet: draft.substring(0, 50) + "..."
+                draftSnippet: draft.substring(0, 50) + "...",
+                region
             }
         });
-    }
-
-    /**
-     * Entry point for background worker to perform heavy AI enrichment.
-     */
-    async processEnrichmentJob(leadId: string, teamId: string, campaignId?: string, extraction?: any) {
-        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-        if (!lead) return;
-
-        // If extraction wasn't passed, we can re-derive it (but passing it is more efficient)
-        const effectiveExtraction = extraction || await this.enrichLeadData({
-            Name: lead.fullName || "",
-            Email: lead.email || "",
-            Company: lead.company || "",
-            Industry: lead.tags[0] || "" // heuristic
-        });
-
-        // Update lead with enriched data if not already done
-        if (!lead.isEnriched) {
-            await prisma.lead.update({
-                where: { id: lead.id },
-                data: {
-                    isEnriched: true,
-                    enrichedData: effectiveExtraction.proprietarySignal
-                }
-            });
-        }
-
-        if (campaignId) {
-            await this.triggerInitialGeneration(lead, effectiveExtraction.proprietarySignal, teamId);
-        }
     }
 
     /**

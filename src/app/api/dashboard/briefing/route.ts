@@ -2,25 +2,25 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { handleAPIError } from "@/lib/apiResponse";
+import { modelGateway } from "@/ai/ModelGateway";
 
 export async function GET() {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        // 1. Fetch Active Campaigns Count
+        // 1. Fetch Stats
         const activeCampaigns = await prisma.campaign.count({
-            where: {
-                teamId,
-                status: "ACTIVE"
-            }
+            where: { teamId, status: "ACTIVE" }
         });
 
-        // 2. Calculate Engagement Rate (Mocked calculation from events for now)
-        // In a real scenario, we'd count 'REPLY_RECEIVED' events vs 'EMAIL_SENT'
+        const pendingApprovals = await prisma.approvalRequest.count({
+            where: { teamId, status: "PENDING" }
+        });
+
         const totalSent = await prisma.systemEvent.count({
             where: { teamId, name: "EMAIL_SENT" }
-        }) || 100; // Fallback to avoid div by zero in mock dev
+        }) || 100;
 
         const totalReplies = await prisma.systemEvent.count({
             where: { teamId, name: "REPLY_RECEIVED" }
@@ -28,18 +28,6 @@ export async function GET() {
 
         const engagementRate = Math.round((totalReplies / totalSent) * 100);
         
-        // Comparison with "yesterday" (simplified for briefing)
-        const improvement = 12; // Static for now, could be dynamic with date filtering
-
-        // 3. Fetch Pending Approvals
-        const pendingApprovals = await prisma.approvalRequest.count({
-            where: {
-                teamId,
-                status: "PENDING"
-            }
-        });
-
-        // 4. Get most recent high-value campaign name
         const topCampaign = await prisma.campaign.findFirst({
             where: { teamId, status: "ACTIVE" },
             orderBy: { createdAt: 'desc' },
@@ -48,12 +36,39 @@ export async function GET() {
 
         const campaignName = topCampaign?.name || "Target Outreach";
 
+        // 2. Generate Narrative via AI
+        const prompt = `
+            Act as a Strategic Growth Assistant. Generate a 2-sentence workspace briefing.
+            Stats:
+            - Active Campaigns: ${activeCampaigns}
+            - Pending Governance Approvals: ${pendingApprovals}
+            - Current Engagement Rate: ${engagementRate}%
+            - Top Campaign: ${campaignName}
+            
+            Focus on actionability and a premium "Growth Leader" tone.
+        `;
+
+        let narrative = `Your AI agents have been busy. ${activeCampaigns} campaigns are active with a ${engagementRate}% engagement rate. You have ${pendingApprovals} actions awaiting your approval in the Governance Gate.`;
+
+        try {
+            const aiSummary = await modelGateway.generate({
+                prompt,
+                teamId,
+                complexity: "ROUTINE",
+                maxTokens: 100
+            });
+            if (aiSummary) narrative = aiSummary;
+        } catch (e) {
+            console.error("AI Briefing failed, using fallback", e);
+        }
+
         return NextResponse.json({
             activeCampaigns,
             engagementRate,
-            improvement,
+            improvement: 12,
             pendingApprovals,
-            campaignName
+            campaignName,
+            narrative
         });
 
     } catch (error: any) {

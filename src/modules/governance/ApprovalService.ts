@@ -75,9 +75,19 @@ export class ApprovalService {
     /**
      * Approves a request (callable via UI/API).
      */
-    static async approve(requestId: string, reviewerId: string) {
+    static async approve(requestId: string, reviewerId: string, revisedPayload?: any) {
         const request = await prisma.approvalRequest.findUnique({ where: { id: requestId } });
         if (!request) throw new Error("Request not found");
+
+        const updateData: any = { 
+            status: ApprovalStatus.APPROVED, 
+            reviewerId, 
+            reviewedAt: new Date() 
+        };
+
+        if (revisedPayload) {
+            updateData.reviewNote = JSON.stringify(revisedPayload);
+        }
 
         // Handle specific action side-effects
         if (request.actionType === "CAMPAIGN_START") {
@@ -89,7 +99,7 @@ export class ApprovalService {
 
         return await prisma.approvalRequest.update({
             where: { id: requestId },
-            data: { status: ApprovalStatus.APPROVED, reviewerId, reviewedAt: new Date() }
+            data: updateData
         });
     }
 

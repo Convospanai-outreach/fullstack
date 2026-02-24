@@ -145,11 +145,27 @@
   }
 }
 
-/* Animation delay utilities (outside @layer for specificity) */
-.animation-delay-2000 {
-  animation-delay: 2s;
+/* Animation delay utilities */
+.animation-delay-0 {
+  animation-delay: 0ms;
 }
 
-.animation-delay-4000 {
-  animation-delay: 4s;
+.animation-delay-100 {
+  animation-delay: 100ms;
+}
+
+.animation-delay-200 {
+  animation-delay: 200ms;
+}
+
+.animation-delay-300 {
+  animation-delay: 300ms;
+}
+
+.animation-delay-400 {
+  animation-delay: 400ms;
+}
+
+.animation-delay-500 {
+  animation-delay: 500ms;
 }

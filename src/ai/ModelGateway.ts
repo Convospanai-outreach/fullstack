@@ -30,6 +30,12 @@ export class ModelGateway {
      * with automatic fallback on failure
      */
     async generate(request: ModelRequest): Promise<string> {
+        // [SECURITY] Enforce teamId for traceability and budget guardrails
+        if (!request.teamId) {
+            console.error("[Gateway] REJECTED: Missing teamId in ModelRequest");
+            throw new Error("Security Violation: AI request missing team context.");
+        }
+
         const complexity = request.complexity || this.analyzeComplexity(request.prompt);
 
         // 0. Token Guard (Budget Check & Optimization)

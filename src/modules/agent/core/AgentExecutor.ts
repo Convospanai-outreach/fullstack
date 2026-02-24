@@ -324,13 +324,40 @@ RESPONSE:
                 if (status === ApprovalStatus.APPROVED) {
                     await this.log(taskId, "GOVERNANCE", "Action APPROVED. Proceeding to Execution.");
 
+                    // [NEW] Check for human edits/overrides in the approval note
+                    const request = await prisma.approvalRequest.findFirst({
+                        where: { entityId: taskId, status: "APPROVED" },
+                        orderBy: { createdAt: 'desc' }
+                    });
+
+                    if (request?.reviewNote) {
+                        try {
+                            const edits = JSON.parse(request.reviewNote);
+                            await this.log(taskId, "GOVERNANCE", "Applying human edits to task context...");
+                            const currentCtx = (task.context as any) || {};
+                            const updatedCtx = { ...currentCtx, ...edits };
+                            
+                            // If it was a tool call, the edits might be the new args
+                            if (currentCtx.tool_call && edits.args) {
+                                updatedCtx.tool_call = { ...currentCtx.tool_call, args: edits.args };
+                            }
+
+                            await prisma.agentTask.update({
+                                where: { id: taskId },
+                                data: { context: updatedCtx }
+                            });
+                        } catch (e) {
+                            console.error("Failed to parse reviewNote for edits", e);
+                        }
+                    }
+
                     // AUDIT: Approval granted
                     await EventStore.record({
                         type: SystemEventType.AGENT,
                         name: "AGENT_APPROVAL_GRANTED",
                         teamId: task.teamId,
                         actorId: "HUMAN_APPROVER",
-                        payload: { taskId }
+                        payload: { taskId, withEdits: !!request?.reviewNote }
                     });
 
                     return await this.transition(taskId, AgentState.EXECUTION);

@@ -17,9 +17,9 @@ export async function startAgentTask(goal: string, teamId: string) {
     return { success: true, taskId };
 }
 
-export async function approveTask(requestId: string, approverId: string) {
-    console.log("[Action] Approving Request:", requestId);
-    await ApprovalService.approve(requestId, approverId);
+export async function approveTask(requestId: string, approverId: string, revisedPayload?: any) {
+    console.log("[Action] Approving Request:", requestId, revisedPayload ? "(with edits)" : "");
+    await ApprovalService.approve(requestId, approverId, revisedPayload);
     revalidatePath("/dashboard");
     return { success: true };
 }
@@ -56,7 +56,8 @@ export async function getPendingApprovals(teamId: string) {
             type: r.actionType,
             risk: "HIGH",
             detail: detail,
-            status: r.status
+            status: r.status,
+            payload: r.payload // Include the raw payload for editing
         };
     });
 }

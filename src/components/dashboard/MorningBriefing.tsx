@@ -21,7 +21,7 @@ export function MorningBriefing() {
                 const res = await fetch('/api/dashboard/briefing');
                 const data = await res.json();
                 
-                const fullText = `Your AI agents have been busy. ${data.activeCampaigns} campaigns are currently active with a ${data.improvement}% higher engagement rate than yesterday. Suggested focus: Review the '${data.campaignName}' outreach - ${data.pendingApprovals} replies need your approval.`;
+                const fullText = data.narrative || `Your AI agents have been busy. ${data.activeCampaigns} campaigns are currently active with a ${data.improvement}% higher engagement rate than yesterday. Suggested focus: Review the '${data.campaignName}' outreach - ${data.pendingApprovals} replies need your approval.`;
                 
                 let i = 0;
                 setBriefing(""); // Clear before typing

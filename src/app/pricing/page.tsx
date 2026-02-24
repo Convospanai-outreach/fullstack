@@ -124,8 +124,11 @@ export default function PricingPage() {
                         return (
                             <div
                                 key={plan.name}
-                                className={`relative group animate-slide-up`}
-                                style={{ animationDelay: `${i * 100}ms` }}
+                                className={`relative group animate-slide-up ${
+                                    i === 0 ? 'animation-delay-0' : 
+                                    i === 1 ? 'animation-delay-100' : 
+                                    'animation-delay-200'
+                                }`}
                             >
                                 {plan.highlight && (
                                     <div className="absolute -top-4 inset-x-0 flex justify-center z-20">

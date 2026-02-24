@@ -55,9 +55,10 @@ export const calendarNurtureFlow = ai.defineFlow(
     for (const event of data.calendarEvents) {
       await prisma.calendarEvent.upsert({
         where: { 
-          // Assuming eventName + eventDate is unique enough for this demo
-          // In production, use a more robust idempotency key
-          newsletterId: undefined // Logic to handle relations below
+          eventName_eventDate: {
+            eventName: event.eventName,
+            eventDate: new Date(event.eventDate)
+          }
         },
         create: {
           eventName: event.eventName,
@@ -73,7 +74,6 @@ export const calendarNurtureFlow = ai.defineFlow(
           },
         },
         update: {
-          eventDate: new Date(event.eventDate),
           category: event.category,
           leadGenAngle: event.leadGenAngle,
           newsletter: {

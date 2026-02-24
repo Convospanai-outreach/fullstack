@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import { JobQueue } from "@/lib/queue";
+import { getCurrentContext } from "@/lib/auth";
 import fs from "fs/promises";
 import path from "path";
 
 export async function POST(req: Request) {
     try {
+        const { teamId } = await getCurrentContext();
+        if (!teamId) {
+            return NextResponse.json({ ok: false, error: "No active workspace" }, { status: 401 });
+        }
+
         const formData = await req.formData();
         const file = formData.get("file") as File;
+        const campaignId = formData.get("campaignId") as string | undefined;
 
         if (!file) {
             return NextResponse.json(
@@ -24,10 +31,12 @@ export async function POST(req: Request) {
         await fs.writeFile(filePath, buffer);
 
         // Enqueue job
-        const job = await JobQueue.enqueue("lead_enrichment", { // csv_import isn't in JobType, using lead_enrichment or generic
+        const job = await JobQueue.enqueue("CSV_IMPORT", {
             filePath,
             originalFilename: file.name,
-        });
+            teamId,
+            campaignId
+        }, { teamId });
 
         return NextResponse.json({
             ok: true,

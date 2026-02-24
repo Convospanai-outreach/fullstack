@@ -7,9 +7,11 @@ import { HardwareService } from "@/services/HardwareService";
 export interface SentinelReport {
     status: "PASS" | "FAIL" | "WARN";
     data_score: number;
+    security_score: number; // 0.0 - 1.0 (Higher is safer)
     connection_health: "STABLE" | "DEGRADED" | "OFFLINE";
     logs: string[];
     action_taken: string;
+    suggested_actions?: string[]; // e.g. ["ROTATE_PROXY", "INCREASE_JITTER"]
 }
 
 export class SentinelService {
@@ -27,9 +29,11 @@ export class SentinelService {
         const report: SentinelReport = {
             status: "PASS",
             data_score: 1.0,
+            security_score: 1.0,
             connection_health: "STABLE",
             logs: [],
-            action_taken: "NONE"
+            action_taken: "NONE",
+            suggested_actions: []
         };
 
         // 1. Connection Health Check (CHC) ("Saturn" Logic)
@@ -97,8 +101,8 @@ export class SentinelService {
         }
 
         // 3. Operational Actions & Audit Logging
-        if (report.status === "FAIL" || report.data_score < 0.6) {
-            // Quarantine
+        if (report.status === "FAIL" || report.data_score < 0.6 || report.security_score < 0.5) {
+            // Quarantine in review queue
             await prisma.manualReview.create({
                 data: {
                     source: "Sentinel",
@@ -111,6 +115,24 @@ export class SentinelService {
             });
             report.action_taken = report.action_taken === "NONE" ? "QUARANTINED" : report.action_taken;
 
+            // [Persistence] Record a SystemEvent for the dashboard alerting system
+            try {
+                const { EventStore } = await import("@/lib/events");
+                await EventStore.record({
+                    type: "SENTINEL",
+                    name: "SENTINEL_ALERT",
+                    teamId: payload.teamId || "SYSTEM",
+                    actorId: "SENTINEL_AGENT",
+                    payload: {
+                        report,
+                        jobId: payload.jobId,
+                        region: payload.region_id
+                    }
+                });
+            } catch (e) {
+                console.error("[Sentinel] Failed to record SystemEvent alert", e);
+            }
+
             // Log to Audit Trail
             await prisma.auditLog.create({
                 data: {
@@ -118,7 +140,7 @@ export class SentinelService {
                     entity: "ScrapingJob",
                     entityId: payload.jobId || "unknown",
                     metadata: report as any,
-                    orgId: payload.teamId || "SYSTEM",  // Ensure this field exists/matches schema
+                    orgId: payload.teamId || "SYSTEM",
                 }
             });
         }
@@ -149,15 +171,21 @@ export class SentinelService {
         if (metrics.proxy_used === false) {
             report.logs.push("⚠️ Security Warning: Direct connection used (No Proxy).");
             report.status = "WARN";
-
-            // Active Defense: Block IP if repeated (Mock)
-            // await this.blockIP(metrics.ip);
+            report.security_score -= 0.5;
+            report.suggested_actions?.push("ROTATE_PROXY", "ENFORCE_RESIDENTIAL_PROXY");
         }
 
         // User Agent Variance
-        if (metrics.user_agent && metrics.user_agent.includes("HeadlessChrome")) {
+        if (metrics.user_agent && (metrics.user_agent.includes("HeadlessChrome") || metrics.user_agent.includes("Playwright"))) {
             report.logs.push("⚠️ Bot Detection Risk: Headless User-Agent detected.");
-            report.data_score -= 0.1;
+            report.security_score -= 0.3;
+            report.suggested_actions?.push("RANDOMIZE_USER_AGENT", "INJECT_HUMAN_JITTER");
+        }
+
+        // Latency Anomalies
+        if (metrics.latency > 5000) {
+            report.logs.push("⚠️ High Latency Detected: Potential bot-mitigation bottleneck.");
+            report.suggested_actions?.push("COOLDOWN_SESSION");
         }
     }
 
