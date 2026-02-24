@@ -3,6 +3,10 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import HeroScene from "@/components/marketing/HeroScene";
+import {
+    Moon, Brain, ShieldCheck, Link2, Target, Rocket, Handshake,
+    Twitter, Linkedin, Github, Zap, ArrowRight
+} from "lucide-react";
 
 export default function Home() {
   return (
@@ -13,7 +17,7 @@ export default function Home() {
       {/* Background Gradients (Legacy/Fallback) */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-50">
         <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: "2s" }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] animate-pulse [animation-delay:2s]" />
         <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-pink-600/10 rounded-full blur-[150px]" />
       </div>
 
@@ -24,8 +28,9 @@ export default function Home() {
 
         {/* HERO SECTION */}
         <section className="text-center pt-20">
-          <div className="inline-block mb-6 px-4 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-sm font-medium text-purple-300">
-            ? The Future of Automated Outreach is Here
+          <div className="inline-flex items-center gap-2 mb-6 px-5 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm text-sm font-medium text-purple-300">
+            <Zap className="w-4 h-4 text-purple-400" />
+            The Future of Automated Outreach is Here
           </div>
           <h1 className="text-6xl md:text-8xl font-bold mb-8 tracking-tight leading-tight">
             Reclaim Your Time, <br />
@@ -68,9 +73,9 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
-              <div className="h-14 w-14 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6 text-3xl">
-                ??
+            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300 group/benefit">
+              <div className="h-14 w-14 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6 group-hover/benefit:scale-110 transition-transform duration-300">
+                <Moon className="w-7 h-7 text-purple-400" />
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Sleep While We Work</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -78,9 +83,9 @@ export default function Home() {
               </p>
             </GlassCard>
 
-            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
-              <div className="h-14 w-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 text-3xl">
-                ??
+            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300 group/benefit">
+              <div className="h-14 w-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-6 group-hover/benefit:scale-110 transition-transform duration-300">
+                <Brain className="w-7 h-7 text-blue-400" />
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">AI That Sounds Like You</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -88,9 +93,9 @@ export default function Home() {
               </p>
             </GlassCard>
 
-            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300">
-              <div className="h-14 w-14 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 text-3xl">
-                ???
+            <GlassCard className="p-8 hover:bg-white/10 transition-colors duration-300 group/benefit">
+              <div className="h-14 w-14 rounded-2xl bg-pink-500/20 flex items-center justify-center mb-6 group-hover/benefit:scale-110 transition-transform duration-300">
+                <ShieldCheck className="w-7 h-7 text-pink-400" />
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Enterprise-Grade Safety</h3>
               <p className="text-gray-400 leading-relaxed">
@@ -198,16 +203,16 @@ export default function Home() {
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { title: "Connect Accounts", icon: "??", desc: "Link your email and LinkedIn safely." },
-              { title: "Define Audience", icon: "??", desc: "Use precision filters to find your ICP." },
-              { title: "Launch Agents", icon: "??", desc: "Select a workflow and hit start." },
-              { title: "Close Deals", icon: "??", desc: "Jump in when prospects are interested." }
+              { title: "Connect Accounts", Icon: Link2, desc: "Link your email and LinkedIn safely.", color: "text-blue-400" },
+              { title: "Define Audience", Icon: Target, desc: "Use precision filters to find your ICP.", color: "text-purple-400" },
+              { title: "Launch Agents", Icon: Rocket, desc: "Select a workflow and hit start.", color: "text-pink-400" },
+              { title: "Close Deals", Icon: Handshake, desc: "Jump in when prospects are interested.", color: "text-emerald-400" }
             ].map((step, i) => (
               <div key={i} className="relative group">
                 <div className="absolute inset-0 bg-blue-600/20 rounded-2xl blur-xl group-hover:bg-purple-600/20 transition-all duration-500 opacity-0 group-hover:opacity-100" />
                 <GlassCard className="relative h-full flex flex-col items-center text-center p-8 border border-white/10 group-hover:border-purple-500/30 transition-all">
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center text-3xl mb-6 shadow-inner">
-                    {step.icon}
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                    <step.Icon className={`w-7 h-7 ${step.color}`} />
                   </div>
                   <h3 className="text-xl font-bold mb-3">{step.title}</h3>
                   <p className="text-gray-400 text-sm">{step.desc}</p>
@@ -230,7 +235,7 @@ export default function Home() {
               <details key={i} className="group glass-card rounded-xl overflow-hidden cursor-pointer transition-all duration-300">
                 <summary className="flex justify-between items-center p-6 text-lg font-medium text-white hover:bg-white/5 transition-colors list-none">
                   {faq.q}
-                  <span className="transform group-open:rotate-180 transition-transform text-gray-400">?</span>
+                  <ArrowRight className="w-5 h-5 transform group-open:rotate-90 transition-transform text-gray-400" />
                 </summary>
                 <div className="px-6 pb-6 text-gray-400 leading-relaxed">
                   {faq.a}
@@ -264,7 +269,9 @@ export default function Home() {
               <GlassCard key={i} className="p-8 flex flex-col justify-between">
                 <p className="text-lg text-gray-300 italic mb-6">"{t.quote}"</p>
                 <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-gray-700 to-gray-600"></div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-sm font-bold text-white shadow-lg">
+                    {t.author.charAt(0)}
+                  </div>
                   <div>
                     <div className="font-semibold text-white">{t.author}</div>
                     <div className="text-sm text-gray-500">{t.role}</div>
@@ -326,11 +333,16 @@ export default function Home() {
             <p className="text-gray-500">
               Empowering sales teams with AI-driven automation.
             </p>
-            <div className="flex gap-4">
-              {/* Social Icons Placeholders */}
-              <div className="w-8 h-8 rounded bg-white/10 hover:bg-white/20 cursor-pointer"></div>
-              <div className="w-8 h-8 rounded bg-white/10 hover:bg-white/20 cursor-pointer"></div>
-              <div className="w-8 h-8 rounded bg-white/10 hover:bg-white/20 cursor-pointer"></div>
+            <div className="flex gap-3">
+              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" title="Twitter" className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-all duration-200 hover:scale-110 group/social">
+                <Twitter className="w-4 h-4 text-gray-400 group-hover/social:text-white transition-colors" />
+              </a>
+              <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" title="LinkedIn" className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-all duration-200 hover:scale-110 group/social">
+                <Linkedin className="w-4 h-4 text-gray-400 group-hover/social:text-white transition-colors" />
+              </a>
+              <a href="https://github.com" target="_blank" rel="noopener noreferrer" title="GitHub" className="w-9 h-9 rounded-lg bg-white/5 hover:bg-white/15 flex items-center justify-center transition-all duration-200 hover:scale-110 group/social">
+                <Github className="w-4 h-4 text-gray-400 group-hover/social:text-white transition-colors" />
+              </a>
             </div>
           </div>
         </footer>

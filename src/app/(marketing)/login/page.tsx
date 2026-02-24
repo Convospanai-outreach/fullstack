@@ -7,6 +7,8 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Link from "next/link";
+import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -44,7 +46,13 @@ export default function LoginPage() {
 
     return (
         <main className="min-h-screen flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
+            {/* Decorative Background */}
+            <div className="fixed inset-0 pointer-events-none opacity-30">
+                <div className="absolute top-[20%] right-[30%] w-[400px] h-[400px] bg-indigo-600/20 rounded-full blur-[120px]" />
+                <div className="absolute bottom-[20%] left-[20%] w-[300px] h-[300px] bg-purple-600/15 rounded-full blur-[120px]" />
+            </div>
+
+            <div className="w-full max-w-md relative z-10 animate-[fadeSlideUp_0.5s_ease-out]">
                 <SectionHeader title="Welcome Back" subtitle="Sign in to your account" />
 
                 <GlassCard>
@@ -57,7 +65,7 @@ export default function LoginPage() {
                                 required
                                 value={credentials.email}
                                 onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
                                 placeholder="you@example.com"
                             />
                         </div>
@@ -65,7 +73,7 @@ export default function LoginPage() {
                         <div>
                             <div className="flex justify-between mb-2">
                                 <label className="block text-sm font-medium text-gray-300">Password</label>
-                                <a href="/forgot-password" className="text-sm text-blue-400 hover:text-blue-300">Forgot password?</a>
+                                <Link href="/forgot-password" className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">Forgot password?</Link>
                             </div>
                             <input
                                 type="password"
@@ -73,7 +81,7 @@ export default function LoginPage() {
                                 required
                                 value={credentials.password}
                                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition"
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
                                 placeholder="••••••••"
                             />
                         </div>
@@ -81,9 +89,10 @@ export default function LoginPage() {
                         <Button
                             disabled={loading}
                             type="submit"
-                            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 border-0"
+                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border-0 rounded-xl py-3 text-base font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all duration-300 gap-2"
                         >
                             {loading ? "Signing in..." : "Sign In"}
+                            {!loading && <ArrowRight className="w-4 h-4" />}
                         </Button>
 
                         <div className="relative my-6">
@@ -91,7 +100,7 @@ export default function LoginPage() {
                                 <div className="w-full border-t border-white/10"></div>
                             </div>
                             <div className="relative flex justify-center text-sm">
-                                <span className="px-2 bg-[#0f172a] text-gray-400">Or continue with</span>
+                                <span className="px-3 bg-[#0f172a] text-gray-500 text-xs uppercase tracking-wider font-medium">Or continue with</span>
                             </div>
                         </div>
 
@@ -99,7 +108,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={handleGoogleLogin}
-                                className="glass py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition"
+                                className="bg-white/5 border border-white/10 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
                             >
                                 <img src="https://www.google.com/favicon.ico" alt="Google" className="w-4 h-4" />
                                 <span className="text-white text-sm font-medium">Google</span>
@@ -107,7 +116,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => router.push("/login/sso")}
-                                className="glass py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-white/10 transition"
+                                className="bg-white/5 border border-white/10 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
                             >
                                 <div className="w-4 h-4 bg-orange-500 rounded-sm flex items-center justify-center">
                                     <div className="w-2 h-2 border-t border-l border-white"></div>
@@ -117,12 +126,19 @@ export default function LoginPage() {
                         </div>
                     </form>
 
-                    <p className="mt-6 text-center text-gray-400">
+                    {/* Trust Badge */}
+                    <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70" />
+                        <span>256-bit encryption · SOC2 compliant</span>
+                    </div>
+
+                    <p className="mt-4 text-center text-gray-400">
                         Don't have an account?{" "}
-                        <a href="/signup" className="text-blue-400 hover:text-blue-300 font-medium">Sign up</a>
+                        <Link href="/signup" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Sign up</Link>
                     </p>
                 </GlassCard>
             </div>
         </main>
     );
 }
+

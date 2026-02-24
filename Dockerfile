@@ -1,12 +1,13 @@
 FROM node:20-alpine AS base
 
 FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-# Install esbuild for compilation
-RUN npm ci && npm install esbuild
+RUN npm install
 
 FROM base AS builder
+RUN apk add --no-cache libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -29,13 +30,18 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Install Prisma engine for Alpine
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Copy Prisma for migrations/client access
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+# Ensure worker dependencies are available at runtime (not bundled by esbuild or next)
+# We run this after copies to ensure we supplement the standalone node_modules
+RUN npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth && \
+    chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs
 

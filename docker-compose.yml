@@ -92,8 +92,7 @@ services:
 
   # Service 4: Background Worker
   worker:
-    build: .
-    image: convospan-app:latest
+    image: convospan-worker:patched
     container_name: convospan-worker
     # Use compiled worker for efficiency
     command: node worker.js

@@ -37,10 +37,18 @@ export const CommandPalette: React.FC = () => {
         }
     }, []);
 
+    const openPalette = useCallback(() => {
+        setIsOpen(true);
+    }, []);
+
     useEffect(() => {
         window.addEventListener('keydown', togglePalette);
-        return () => window.removeEventListener('keydown', togglePalette);
-    }, [togglePalette]);
+        window.addEventListener('convo:open-command-palette', openPalette);
+        return () => {
+            window.removeEventListener('keydown', togglePalette);
+            window.removeEventListener('convo:open-command-palette', openPalette);
+        };
+    }, [togglePalette, openPalette]);
 
     if (!isOpen) return null;
 

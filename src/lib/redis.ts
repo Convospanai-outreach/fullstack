@@ -1,12 +1,16 @@
-import { createClient } from "redis";
 
-let redisClient: ReturnType<typeof createClient> | null = null;
+let redisClient: any = null;
 
 export async function getRedisClient() {
+    if (process.env['NEXT_RUNTIME'] !== 'nodejs') {
+        return null;
+    }
+
     if (redisClient && redisClient.isOpen) {
         return redisClient;
     }
 
+    const { createClient } = await import("redis");
     const redisUrl = process.env['REDIS_URL'] || "redis://localhost:6379";
 
     redisClient = createClient({

@@ -103,6 +103,7 @@ export default function PricingPage() {
                         <span className={`text-sm font-semibold transition-colors ${!isAnnual ? 'text-white' : 'text-text-muted'}`}>Monthly</span>
                         <button
                             onClick={() => setIsAnnual(!isAnnual)}
+                            aria-label="Toggle billing cycle"
                             className="w-14 h-7 bg-white/5 rounded-full p-1 border border-white/10 hover:border-white/20 transition-all relative group"
                         >
                             <div className={`w-5 h-5 bg-accent-blue rounded-full transition-all shadow-glow ${isAnnual ? 'translate-x-7' : 'translate-x-0'}`} />
@@ -184,20 +185,6 @@ export default function PricingPage() {
                             </div>
                         );
                     })}
-                </div>
-
-                {/* Social Proof / FAQ Section */}
-                <div className="mt-32 text-center animate-slide-up">
-                    <p className="text-[10px] font-bold text-text-muted uppercase tracking-[0.3em] mb-12">
-                        Trusted by hyper-growth operators at
-                    </p>
-                    <div className="flex flex-wrap justify-center items-center gap-12 opacity-30 grayscale invert">
-                        {/* Fake Logos for UI demo */}
-                        <div className="text-2xl font-black italic">STRIPE</div>
-                        <div className="text-2xl font-black italic">VERCEL</div>
-                        <div className="text-2xl font-black italic">LINEAR</div>
-                        <div className="text-2xl font-black italic">NOTION</div>
-                    </div>
                 </div>
 
                 {/* Value Proposition */}

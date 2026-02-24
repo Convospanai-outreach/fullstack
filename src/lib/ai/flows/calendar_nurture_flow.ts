@@ -47,7 +47,7 @@ export const calendarNurtureFlow = ai.defineFlow(
       output: { schema: CalendarOutputSchema },
     });
 
-    const data = response.output();
+    const data = response.output;
 
     if (!data) throw new Error("Failed to generate calendar data");
 

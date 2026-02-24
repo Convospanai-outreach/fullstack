@@ -1,7 +1,7 @@
-import { HardwareService } from './services/HardwareService';
 
 export async function register() {
     if (process.env['NEXT_RUNTIME'] === 'nodejs') {
+        const { HardwareService } = await import('./services/HardwareService');
         // Only run on the server side
         try {
             console.log('Starting Hardware Verification...');

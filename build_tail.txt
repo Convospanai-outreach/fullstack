@@ -1,0 +1,81 @@
+﻿
+> build
+> next build
+
+   Γû▓ Next.js 16.0.10 (Turbopack)
+   - Environments: .env
+   - Experiments (use with caution):
+     ┬╖ optimizePackageImports
+
+node.exe :  ΓÜá The 
+"middleware" file 
+convention is 
+deprecated. Please 
+use "proxy" instead. 
+Learn more: https://ne
+xtjs.org/docs/messages
+/middleware-to-proxy
+At line:1 char:1
++ & "C:\Program Files\
+nodejs/node.exe" "C:\U
+sers\siddharth\AppData
+\Roam ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
+~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: ( ΓÜá The "   
+ middl...leware-to    
+-proxy:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+   Creating an optimized production build ...
+ Γ£ô Compiled successfully in 5.5min
+   Running TypeScript ...
+Failed to compile.
+
+./src/components/dashb
+oard/DashboardHeader.t
+sx:35:11
+Type error: 
+'pathname' is 
+declared but its 
+value is never read.
+
+[0m [90m 33 |[39m
+ [90m 34 |[39m 
+[36mexport[39m 
+[36mfunction[39m [3
+3mDashboardHeader[39m
+() {
+[31m[1m>[22m[39m[
+90m 35 |[39m     
+[36mconst[39m 
+pathname [33m=[39m u
+sePathname()[33m;[39
+m
+ [90m    |[39m      
+     
+[31m[1m^[22m[39m
+ [90m 36 |[39m
+ [90m 37 |[39m     
+[36mreturn[39m (
+ [90m 38 |[39m      
+   [33m<[39m[33mhea
+der[39m className[33
+m=[39m[32m"fixed 
+top-0 left-0 right-0 
+h-16 glass-panel 
+border-b 
+border-white/10 z-40 
+flex items-center 
+justify-between px-8"
+[39m[33m>[39m[0m
+Next.js build worker 
+exited with code: 1 
+and signal: null
