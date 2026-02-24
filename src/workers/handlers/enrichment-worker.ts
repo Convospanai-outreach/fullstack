@@ -63,8 +63,20 @@ export async function handleLeadEnrichment(payload: JobPayload) {
     // Find email if we don't have one
     if (!lead.email && lead.fullName) {
         try {
-            // Placeholder: domain extraction would happen here
-            const domain = "gmail.com";
+            // Real Domain Extraction: Extract from LinkedIn URL or use company name if URL is missing
+            let domain = null;
+            if (lead.linkedIn) {
+                const urlObj = new URL(lead.linkedIn);
+                const pathParts = urlObj.pathname.split('/').filter(p => p);
+                // Simple heuristic: if it's a company page, the name is the domain base
+                if (lead.linkedIn.includes('/company/')) {
+                    domain = `${pathParts[pathParts.length - 1]}.com`;
+                }
+            }
+
+            if (!domain && lead.company) {
+                domain = `${lead.company.toLowerCase().replace(/\s+/g, '')}.com`;
+            }
 
             if (domain && domain !== "gmail.com") {
                 const nameParts = lead.fullName.split(" ");

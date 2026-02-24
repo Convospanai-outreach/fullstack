@@ -51,11 +51,16 @@ export class PredictiveService {
                 messages: {
                     orderBy: { createdAt: 'desc' },
                     take: 10,
-                    select: { direction: true, createdAt: true }
+                    select: { direction: true, createdAt: true, sentimentScore: true }
                 },
                 meetings: {
                     where: { startTime: { gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) } },
                     select: { id: true }
+                },
+                replies: {
+                    orderBy: { receivedAt: 'desc' },
+                    take: 5,
+                    select: { sentimentScore: true }
                 }
             }
         });
@@ -70,7 +75,7 @@ export class PredictiveService {
         const dealProgress = this.normalizeDealProgress(lead.status);
         const responseTime = this.calculateAverageResponseTime(lead.messages);
         const meetingFrequency = this.normalizeMeetingFrequency(lead.meetings.length);
-        const sentimentTrend = 0.5; // Placeholder - would need NLP analysis
+        const sentimentTrend = this.calculateSentimentTrend(lead.messages, lead.replies);
 
         // Calculate churn score (0 = low churn risk, 1 = high churn risk)
         const churnScore =
@@ -151,6 +156,25 @@ export class PredictiveService {
 
     private normalizeMeetingFrequency(count: number): number {
         return Math.min(count / 3, 1); // 3+ meetings in 90 days = max engagement
+    }
+
+    private calculateSentimentTrend(
+        messages: Array<{ sentimentScore: number | null }>,
+        replies: Array<{ sentimentScore: number | null }>
+    ): number {
+        const scores: number[] = [];
+        
+        messages.forEach(m => { if (m.sentimentScore !== null) scores.push(m.sentimentScore); });
+        replies.forEach(r => { if (r.sentimentScore !== null) scores.push(r.sentimentScore); });
+
+        if (scores.length === 0) return 0.5; // Neutral default
+
+        // Simple average for now, could be weighted by time
+        const sum = scores.reduce((a, b) => a + b, 0);
+        const avg = sum / scores.length;
+
+        // Map -1..1 to 0..1 scale
+        return (avg + 1) / 2;
     }
 
     /**

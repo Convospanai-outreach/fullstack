@@ -148,6 +148,8 @@ export function ApprovalQueue() {
                                             onChange={(e) => setEditedContent(e.target.value)}
                                             className="w-full bg-transparent text-xs text-orange-300 font-mono focus:outline-none min-h-[100px] leading-relaxed resize-none"
                                             autoFocus
+                                            aria-label="Edit draft content"
+                                            placeholder="Edit draft here..."
                                         />
                                     ) : (
                                         <p className="text-xs text-slate-400 font-medium leading-relaxed line-clamp-3 italic">

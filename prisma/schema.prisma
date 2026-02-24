@@ -106,6 +106,7 @@ model Lead {
   @@index([teamId, email]) // For faster duplicate checks
   consentLedger ConsentLedger[]
   replies       ReplyTracker[]
+  shadowSignals ShadowSignal[]
 }
 
 model Generation {
@@ -393,6 +394,7 @@ model Team {
   Experiment         Experiment[]
   ImmutableAudit     ImmutableAudit[]
   contractProfile    ContractProfile?
+  shadowSignals     ShadowSignal[]
 }
 
 model CrmIntegration {
@@ -660,6 +662,7 @@ model Message {
   sender    String? // Name of sender
   status    String          @default("received") // received, sent, draft
   isRead    Boolean         @default(false)
+  sentimentScore Float?     // -1.0 to 1.0
   createdAt DateTime        @default(now())
   lead      Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
   feedback  AgentFeedback[]
@@ -1599,6 +1602,7 @@ model ReplyTracker {
   aiClassification String  // INTERESTED, NOT_INTERESTED, OOO, QUESTION, DNC
   aiConfidence     Float   // 0.0 - 1.0 confidence score
   aiReasoning      String? @db.Text
+  sentimentScore   Float?  // -1.0 to 1.0
   
   // HITL State
   status          String   @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, AUTO_HANDLED
@@ -1635,4 +1639,28 @@ model Newsletter {
   emailBodyHtml  String
   cta            String
   event          CalendarEvent?
+}
+
+model ShadowSignal {
+  id            String   @id @default(uuid())
+  source        String   // "reddit", "glassdoor", etc.
+  url           String
+  content       String   @db.Text
+  frictionScore Float
+  detectedICPs  String[]
+  isWarmLead    Boolean  @default(false)
+  metadata      Json?
+  
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id])
+  
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  
+  createdAt     DateTime @default(now())
+
+  @@index([teamId])
+  @@index([leadId])
+  @@index([source])
+  @@index([isWarmLead])
 }

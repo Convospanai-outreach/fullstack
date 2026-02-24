@@ -24,7 +24,7 @@ export class OnPremAIProxy {
      * NOTE: This is a stub. The actual Edge Node AI service needs to be implemented
      * in the services/edge-node directory with AI model hosting capabilities.
      */
-    static async generate(prompt: string, options?: {
+    static async generate(prompt: string, teamId: string, options?: {
         model?: string;
         temperature?: number;
         maxTokens?: number;
@@ -61,7 +61,7 @@ export class OnPremAIProxy {
             await EventStore.record({
                 type: SystemEventType.AI,
                 name: "ON_PREM_GENERATION",
-                teamId: "system", // Or pass teamId if context allows (TODO: Add teamId to context)
+                teamId: teamId || "system", 
                 payload: {
                     promptLength: prompt.length,
                     model: options?.model || "llama-local",

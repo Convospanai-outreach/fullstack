@@ -4,7 +4,6 @@ import { calendarNurtureFlow } from "@/lib/ai/flows/calendar_nurture_flow";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { OnPremAIProxy } from "@/lib/ai/OnPremAIProxy";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
-import { v4 as uuidv4 } from "uuid";
 
 export class NurtureService {
     
@@ -14,7 +13,7 @@ export class NurtureService {
     static async syncEvents(year: number = new Date().getFullYear() + 1) {
         console.log(`[NurtureService] Syncing events for year ${year}...`);
         try {
-            const data = await calendarNurtureFlow(year);
+            const data = await calendarNurtureFlow({ year });
             console.log(`[NurtureService] Successfully synced ${data.calendarEvents.length} events.`);
             return data;
         } catch (error) {
@@ -88,7 +87,8 @@ export class NurtureService {
                         `Draft a hyper-personalized outreach email for ${lead.fullName} at ${lead.company}. 
                         Context: Upcoming event "${event.eventName}" on ${event.eventDate.toDateString()}. 
                         Angle: ${event.leadGenAngle}. 
-                        Template: ${event.newsletter.emailBodyHtml}`
+                        Template: ${event.newsletter.emailBodyHtml}`,
+                        teamId
                     );
                 } catch (e) {
                     // System fallback to cloud provided template if on-prem is down

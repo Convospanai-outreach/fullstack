@@ -93,7 +93,7 @@ export class AIService {
 
             try {
                 // Use on-prem AI service for sensitive tasks
-                const response = await OnPremAIProxy.generate(prompt);
+                const response = await OnPremAIProxy.generate(prompt, teamId || "system");
                 return response;
             } catch (error: any) {
                 console.error("[Hybrid AI] On-Prem AI failed:", error);

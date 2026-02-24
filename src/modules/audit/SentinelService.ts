@@ -117,7 +117,7 @@ export class SentinelService {
 
             // [Persistence] Record a SystemEvent for the dashboard alerting system
             try {
-                const { EventStore } = await import("@/lib/events");
+                const { EventStore } = await import("@/modules/learning/EventStore");
                 await EventStore.record({
                     type: "SENTINEL",
                     name: "SENTINEL_ALERT",

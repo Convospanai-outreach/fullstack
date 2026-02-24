@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, ShieldAlert, Cpu, Activity, EyeOff, Radio } from "lucide-react";
+import { ShieldCheck, ShieldAlert, Cpu, Activity, Radio } from "lucide-react";
 import {
     LineChart,
     Line,
@@ -29,7 +29,6 @@ export function SovereignConsole() {
     const [piStatus, setPiStatus] = useState<'ONLINE' | 'OFFLINE' | 'BUSY'>('ONLINE');
 
     const [signals, setSignals] = useState<any[]>([]);
-    const [audits, setAudits] = useState<any[]>([]);
     const [queueDepth, setQueueDepth] = useState<number>(0);
     const [rateLimit, setRateLimit] = useState<string>("STABLE");
 
@@ -44,7 +43,6 @@ export function SovereignConsole() {
                 const data = await res.json();
                 if (data.ok) {
                     setSignals(data.signals || []);
-                    setAudits(data.audits || []);
                     setQueueDepth(data.queueDepth || 0);
                     setRateLimit(data.rateLimitStatus || "STABLE");
 
@@ -198,7 +196,10 @@ export function SovereignConsole() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Friction</span>
                                         <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" style={{ width: `${signal.friction}%` }} />
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-1000" 
+                                                style={{ width: `${signal.friction}%` }} 
+                                            />
                                         </div>
                                     </div>
                                 </div>

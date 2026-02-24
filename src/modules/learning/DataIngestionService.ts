@@ -1,8 +1,8 @@
-
 import { prisma } from "@/lib/db";
 import * as XLSX from 'xlsx';
-import { Lead } from "@prisma/client";
+import { Lead, Region } from "@prisma/client";
 import { modelGateway } from "@/ai/ModelGateway";
+import { DbFactory } from "@/lib/dbFactory";
 import { EventStore, SystemEventType } from "./EventStore";
 import { JobQueue } from "@/lib/queue";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
@@ -68,12 +68,13 @@ export class DataIngestionService {
 
                 // [NEW] Sovereign Firewall: Mask PII before storage
                 console.log(`[DataIngestion] Masking PII for lead ${extraction.email}`);
-                const { safeContext, tokenMap } = await SovereignFirewall.mask({
+                const firewallRegion = (region === Region.UAE) ? 'UAE' : 'GLOBAL';
+                const { safeContext } = await SovereignFirewall.mask({
                     name: extraction.name,
                     email: extraction.email,
                     company: extraction.company,
                     jobTitle: extraction.jobTitle
-                }, region);
+                }, firewallRegion);
 
                 const maskedData = JSON.parse(safeContext);
 
@@ -124,6 +125,8 @@ export class DataIngestionService {
                 });
 
                 // [NEW] Record Lead Ingestion Event
+                try {
+                const { EventStore } = await import("@/modules/learning/EventStore");
                 await EventStore.record({
                     type: SystemEventType.SYSTEM, 
                     name: "LEAD_INGESTED",

@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { browserManager } from "./browserManager";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/db";
 
 // Types for the Ingestion Payload
 export interface ShadowSignalPayload {
@@ -49,16 +50,28 @@ class ShadowIngestionService {
         // 2. Identify ICPs
         const detectedICPs = this.mapToICP(payload.content);
 
-        // 3. Persist (Mock DB write for now, or real if schema existed)
-        // In a real app, this would match `prisma.shadowSignal.create(...)`
-        await this.logIngestion(signalId, payload, frictionScore, detectedICPs);
+        // 3. Persist (Real Prisma write)
+        const signal = await prisma.shadowSignal.create({
+            data: {
+                id: signalId,
+                source: payload.source,
+                url: payload.thread_url,
+                content: payload.content,
+                frictionScore,
+                detectedICPs,
+                isWarmLead: frictionScore > 60 && detectedICPs.length > 0,
+                metadata: payload.metadata
+            }
+        });
+
+        await this.logIngestion(signal.id, signal.frictionScore, signal.detectedICPs);
 
         return {
             success: true,
             frictionScore,
-            isWarmLead: frictionScore > 60 && detectedICPs.length > 0,
+            isWarmLead: signal.isWarmLead,
             detectedICPs,
-            signalId,
+            signalId: signal.id,
             data: payload
         };
     }
@@ -142,8 +155,7 @@ class ShadowIngestionService {
         return Array.from(foundICPs);
     }
 
-    private async logIngestion(id: string, _payload: ShadowSignalPayload, score: number, icps: string[]) {
-        // Mock logging or Prisma call
+    private async logIngestion(id: string, score: number, icps: string[]) {
         logger.info(`[ShadowIngestion] Signal ${id} | Score: ${score} | ICPs: ${icps.join(", ")}`);
     }
 }
