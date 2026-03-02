@@ -37,8 +37,7 @@ export class DbFactory {
         const uaeUrl = process.env['UAE_DATABASE_URL'];
 
         if (!uaeUrl) {
-            console.warn("⚠️ UAE_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
-            return this.getGlobalClient();
+            throw new Error("CRITICAL_COMPLIANCE_ERROR: UAE_DATABASE_URL is not set. Data residency requirements cannot be met for UAE region.");
         }
 
         if (process.env.NODE_ENV === "production") {

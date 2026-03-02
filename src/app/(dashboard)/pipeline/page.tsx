@@ -35,7 +35,7 @@ export default function PipelinePage() {
             const leadsData = await leadsRes.json();
             const statsData = await statsRes.json();
 
-            setLeads(leadsData.data || []);
+            setLeads(leadsData.data?.leads || []);
             setStats(statsData.data || { totalValue: 0 });
         } catch (error) {
             toast.error("Failed to load pipeline data");
@@ -101,7 +101,7 @@ export default function PipelinePage() {
                                     {leads.filter(l => l.status === stage).length}
                                 </span>
                             </div>
-                            <button className="text-gray-600 hover:text-white"><MoreVertical className="w-4 h-4" /></button>
+                            <button className="text-gray-600 hover:text-white" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
                         </div>
 
                         <div className="flex-1 flex flex-col gap-3 rounded-2xl bg-white/[0.02] p-2 border border-white/5">
@@ -138,7 +138,7 @@ export default function PipelinePage() {
                                     </div>
                                 </div>
                             ))}
-                            <button className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all">
+                            <button className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all" title="Add lead to stage">
                                 <Plus className="w-3 h-3" /> Add Lead
                             </button>
                         </div>
@@ -153,7 +153,7 @@ export default function PipelinePage() {
                         <div className="flex items-center gap-2 text-purple-400 font-bold text-sm">
                             <Sparkles className="w-4 h-4" /> AI Recommendations
                         </div>
-                        <button onClick={() => setAiSuggestions([])} className="text-gray-500 hover:text-white"><X className="w-4 h-4" /></button>
+                        <button onClick={() => setAiSuggestions([])} className="text-gray-500 hover:text-white" title="Close"><X className="w-4 h-4" /></button>
                     </div>
                     <div className="space-y-4">
                         {aiSuggestions.map((s, i) => (

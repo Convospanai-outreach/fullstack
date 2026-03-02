@@ -6,7 +6,7 @@ import TemplateList from "@/components/templates/TemplateList";
 import TemplateEditor from "@/components/templates/TemplateEditor";
 
 export default function TemplatesPage() {
-    const [templates, setTemplates] = useState([]);
+    const [templates, setTemplates] = useState<any[]>([]);
     const [isEditing, setIsEditing] = useState(false);
     const [currentTemplate, setCurrentTemplate] = useState<any>(null);
 
@@ -18,7 +18,7 @@ export default function TemplatesPage() {
         try {
             const res = await fetch("/api/templates");
             const data = await res.json();
-            setTemplates(data);
+            setTemplates(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Failed to fetch templates", error);
         } finally {

@@ -20,19 +20,35 @@ export class ZKVault {
      */
 
     static async prepareForStorage(plaintext: string, publicKey: string): Promise<string> {
-        // Pseudo-implementation of WebCrypto RSA-OAEP
-        // In real app, utilites/crypto.ts would use window.crypto.subtle
-        return `zk_sealed_${btoa(plaintext)}_${publicKey.substring(0, 8)}`;
+        const { publicEncrypt, constants } = await import("crypto");
+        const buffer = Buffer.from(plaintext, "utf8");
+        const encrypted = publicEncrypt(
+            {
+                key: publicKey,
+                padding: constants.RSA_PKCS1_OAEP_PADDING,
+                oaepHash: "sha256",
+            },
+            buffer
+        );
+        return `zk_sealed_v1_${encrypted.toString("base64")}`;
     }
 
-    static async decryptForExecution(blob: string, _privateKey: string): Promise<string> {
-        if (!blob.startsWith("zk_sealed_")) {
-            throw new Error("Security Violation: Attempted to process unsealed credential.");
+    static async decryptForExecution(blob: string, privateKey: string): Promise<string> {
+        if (!blob.startsWith("zk_sealed_v1_")) {
+            throw new Error("Security Violation: Attempted to process unsealed credential or legacy format.");
         }
-        // Decryption happens ONLY on the Local Node
-        const parts = blob.split("_");
-        if (!parts[2]) throw new Error("Invalid blob format");
-        return atob(parts[2]);
+        const { privateDecrypt, constants } = await import("crypto");
+        const encryptedData = blob.replace("zk_sealed_v1_", "");
+        const buffer = Buffer.from(encryptedData, "base64");
+        const decrypted = privateDecrypt(
+            {
+                key: privateKey,
+                padding: constants.RSA_PKCS1_OAEP_PADDING,
+                oaepHash: "sha256",
+            },
+            buffer
+        );
+        return decrypted.toString("utf8");
     }
 
     /**

@@ -199,7 +199,7 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
                     <div className="text-black font-black text-xs">{name.substring(0, 2).toUpperCase()}</div>
                 </div>
                 <Badge variant={isActive ? "success" : "default"} className={isActive ? "bg-emerald-500/20 text-emerald-400 border-none" : "bg-white/5 text-text-muted"}>
-                    {isActive ? "Connnected" : "Not Connected"}
+                    {isActive ? "Connected" : "Not Connected"}
                 </Badge>
             </div>
 

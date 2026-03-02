@@ -66,31 +66,37 @@ export class TrainingManager {
      * Transitions: TRAINING -> VALIDATION -> DEPLOYED (or FAILED)
      */
     private async simulateTrainingProcess(modelVersionId: string, records: any[]) {
-        // Simulate training time (e.g., 5 seconds for demo, usually hours)
-        setTimeout(async () => {
-            try {
+        const adapter = this.getTrainingAdapter();
+        await adapter.train(modelVersionId, records, {
+            onComplete: async () => {
                 console.log(`[TrainingManager] Training complete for ${modelVersionId}. Moving to VALIDATION.`);
-
-                // Update status to VALIDATION
                 await prisma.modelVersion.update({
                     where: { id: modelVersionId },
                     data: { status: 'VALIDATION' }
                 });
-
-                // Trigger Evaluation
                 await this.runPostTrainingEvaluation(modelVersionId, records);
-
-            } catch (error) {
+            },
+            onError: async (error) => {
                 console.error(`[TrainingManager] Training Job Failed:`, error);
                 await prisma.modelVersion.update({
                     where: { id: modelVersionId },
                     data: {
-                        status: 'ROLLED_BACK', // Or error status if we had one
-                        changelog: `Training Failed: ${error}`
+                        status: 'ROLLED_BACK',
+                        changelog: `Training Failed: ${error.message}`
                     }
                 });
             }
-        }, 5000);
+        });
+    }
+
+    private getTrainingAdapter() {
+        // In the future, this would return GoogleTrainingAdapter, OpenAITrainingAdapter, etc.
+        return {
+            train: async (id: string, _recs: any[], hooks: any) => {
+                // Mock implementation of an async training job
+                setTimeout(() => hooks.onComplete(), 5000);
+            }
+        };
     }
 
     /**

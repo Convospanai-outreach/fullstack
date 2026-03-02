@@ -121,7 +121,7 @@ export default function CampaignsPage() {
                             </div>
 
                             <div className="pt-2 flex gap-2">
-                                <Link href={`/dashboard/campaigns/${campaign.id}/edit`} className="w-full">
+                                <Link href={`/campaigns/${campaign.id}/edit`} className="w-full">
                                     <Button variant="outline" className="w-full">Edit</Button>
                                 </Link>
                                 <button className="p-2 rounded-lg border border-white/10 hover:bg-white/5 text-purple-300">

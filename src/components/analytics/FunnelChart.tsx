@@ -32,7 +32,7 @@ export default function FunnelChart({ data }: { data: FunnelData }) {
     return (
         <GlassCard className="h-[350px] w-full">
             <h3 className="text-lg font-semibold mb-4 text-text-primary">Conversion Funnel</h3>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                 <BarChart
                     data={chartData}
                     layout="vertical"

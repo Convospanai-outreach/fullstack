@@ -34,8 +34,14 @@ export async function handleLinkedInAction(payload: LinkedInPayload) {
 
             case "VISIT_PROFILE":
                 if (!payload.profileUrl) throw new Error("Profile URL required");
-                await page.goto(payload.profileUrl, { waitUntil: "domcontentloaded" });
-                await new Promise(r => setTimeout(r, 2000)); // Human delay
+                await page.goto(payload.profileUrl, { waitUntil: "networkidle2" });
+
+                // Robust waiting instead of manual timeout
+                try {
+                    await page.waitForSelector("h1", { timeout: 10000 });
+                } catch (e) {
+                    logger.warn(`Timeout waiting for profile name on ${payload.profileUrl}`);
+                }
 
                 // Basic scraping
                 const name = await page.$eval("h1", (el) => el.textContent?.trim() || "Unknown");

@@ -341,10 +341,10 @@ function ConversationView({ threadId }: { threadId: string }) {
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <button className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition">
+                    <button className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition" title="View profile">
                         <User className="w-4 h-4" />
                     </button>
-                    <button className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition">
+                    <button className="p-2 text-text-muted hover:text-white hover:bg-white/5 rounded-lg transition" title="More options">
                         <MoreHorizontal className="w-4 h-4" />
                     </button>
                 </div>
@@ -375,7 +375,7 @@ function ConversationView({ threadId }: { threadId: string }) {
                     <textarea
                         value={reply}
                         onChange={(e) => setReply(e.target.value)}
-                        placeholder={`Reply to ${lead.fullName.split(' ')[0]}...`}
+                        placeholder={`Reply to ${(lead.fullName ?? 'there').split(' ')[0]}...`}
                         className="w-full bg-transparent border-none rounded-2xl p-4 pr-32 text-sm text-white focus:ring-0 resize-none h-[100px] placeholder:text-text-muted/50"
                     />
 

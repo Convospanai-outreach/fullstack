@@ -150,7 +150,7 @@ export class SovereignFirewall {
         let restored = content;
         for (const [token, original] of tokenMap.entries()) {
             const escapedToken = token.replace(/\[/g, '\\[').replace(/\]/g, '\\]')
-                                     .replace(/\</g, '\\<').replace(/\>/g, '\\>');
+                .replace(/\</g, '\\<').replace(/\>/g, '\\>');
             restored = restored.replace(new RegExp(escapedToken, 'g'), original);
         }
         return restored;
@@ -171,7 +171,7 @@ export class SovereignFirewall {
 
         // 3. Resolve all unique tokens in parallel
         const uniqueTokens = Array.from(new Set(matches.map(m => m[0])));
-        
+
         await Promise.all(uniqueTokens.map(async (fullToken) => {
             try {
                 const pii = await IdentityService.resolveIdentity(fullToken, purpose, teamId);
@@ -198,9 +198,6 @@ export class SovereignFirewall {
             };
         } catch (error: any) {
             console.error("CRITICAL_IO_ERROR: Sovereign Firewall Connection Failed", error.message);
-            if (process.env.NODE_ENV === 'development') {
-                return { score: 1.0, approved: true, reason: "DEV_BYPASS" };
-            }
             throw new Error(`Local Sovereign Node Unreachable. Halting to prevent leakage.`);
         }
     }

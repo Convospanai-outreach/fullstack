@@ -27,24 +27,27 @@ export async function handleSequenceAction(payload: JobPayload) {
             break;
 
         case "CONNECT":
-            // Generate smart message
-            const profileContext = "Context for " + url; // Mock
-            const message = await aiService.generateConnectionMessage(profileContext);
+            // Generate smart message based on lead context
+            const connectContext = leadId ? await prisma.lead.findUnique({ where: { id: leadId } }).then(l => l?.enrichedData ? JSON.stringify(l.enrichedData) : `Connect with lead at ${url}`) : `Connect with lead at ${url}`;
+            const message = await aiService.generateConnectionMessage(connectContext);
 
-            // Connect with note (using INMAIL/CONNECT logic)
+            // Connect with note
             result = await runLinkedInAction({
-                type: "INMAIL", // Using InMail as proxy for Connect+Note
+                type: "INMAIL",
                 url: url,
                 message: message
             });
             break;
 
         case "MESSAGE":
-            // Follow up message
+            // Follow up message - Personalized via lead context
+            const followUpContext = leadId ? await prisma.lead.findUnique({ where: { id: leadId } }).then(l => l?.enrichedData ? JSON.stringify(l.enrichedData) : `Follow up with lead at ${url}`) : `Follow up with lead at ${url}`;
+            const followUpMessage = await aiService.askAI(`Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`);
+
             result = await runLinkedInAction({
                 type: "INMAIL",
                 url: url,
-                message: "Just checking in!"
+                message: followUpMessage || "Just checking in to see if you had a chance to look at my previous message."
             });
             break;
 

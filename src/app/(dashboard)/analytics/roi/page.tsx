@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import {
     TrendingUp,
@@ -119,7 +119,7 @@ export default function ROIDashboardPage() {
                         <CardContent>
                             <div className="h-[300px] w-full mt-4">
                                 {loading ? <Skeleton className="w-full h-full" /> : (
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                                         <AreaChart data={data?.history}>
                                             <defs>
                                                 <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -270,6 +270,14 @@ export default function ROIDashboardPage() {
 }
 
 function FunnelStep({ label, count, color, percent }: any) {
+    const barRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (barRef.current) {
+            barRef.current.style.width = `${Math.max(percent, 2)}%`;
+        }
+    }, [percent]);
+
     return (
         <div className="relative pl-8 py-3 group">
             <div className={`absolute left-[9px] top-5 w-2 h-2 rounded-full ${color} shadow-[0_0_8px_currentColor]`} />
@@ -279,8 +287,9 @@ function FunnelStep({ label, count, color, percent }: any) {
             </div>
             <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
                 <div
+                    ref={barRef}
                     className={`h-full ${color} transition-all duration-1000 ease-out`}
-                    style={{ width: `${Math.max(percent, 2)}%` }}
+                    title={`${label}: ${percent}%`}
                 />
             </div>
         </div>

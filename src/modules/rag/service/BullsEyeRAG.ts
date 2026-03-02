@@ -39,7 +39,7 @@ export class BullsEyeRAG {
             if (result.trim().toUpperCase() === "NULL") return null;
 
             const parsed = JSON.parse(result.trim().replace(/```json/g, "").replace(/```/g, ""));
-            
+
             if (parsed.confidence > 0.7) {
                 return {
                     id: crypto.randomUUID(),
@@ -77,17 +77,20 @@ export class BullsEyeRAG {
                 // Ensure MCP is initialized
                 await mcpManager.initialize();
 
+                // Selectors should be moved to a configuration file or environment variables
+                const CRM_TAB_SELECTOR = process.env['CRM_TAB_SELECTOR'] || "#crm-tab";
+                const NOTE_FIELD_SELECTOR = process.env['NOTE_FIELD_SELECTOR'] || "#note-field";
+                const SAVE_BUTTON_SELECTOR = process.env['SAVE_BUTTON_SELECTOR'] || "#save-button";
+
                 // 1. "Click CRM Tab" (Using MCP)
-                // In a real scenario, we'd have a specific tool for this or use navigate
-                // For logic parity with the legacy mock:
-                await mcpManager.callTool("computer_click", { selector: "#crm-tab" });
+                await mcpManager.callTool("computer_click", { selector: CRM_TAB_SELECTOR });
 
                 // 2. Type the update note
                 const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata['conversationId']}.`;
-                await mcpManager.callTool("computer_type", { selector: "#note-field", text: note });
+                await mcpManager.callTool("computer_type", { selector: NOTE_FIELD_SELECTOR, text: note });
 
                 // 3. "Save Button"
-                await mcpManager.callTool("computer_click", { selector: "#save-button" });
+                await mcpManager.callTool("computer_click", { selector: SAVE_BUTTON_SELECTOR });
 
                 console.log("[BullsEye] CRM successfully updated via MCP Computer Use Server.");
             } catch (e: any) {

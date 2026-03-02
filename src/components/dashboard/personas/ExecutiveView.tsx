@@ -61,7 +61,7 @@ export default function ExecutiveView() {
                         <CardDescription>6-Month Growth Trajectory</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minHeight={1}>
                             <LineChart data={trends}>
                                 <defs>
                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">

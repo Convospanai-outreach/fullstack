@@ -206,11 +206,7 @@ ${prompt}
                 return result.embedding.values;
             });
         } catch (error: any) {
-            // Fallback for Auth/Key issues to allow RAG verification to proceed
-            if (error.message?.includes("API_KEY_INVALID") || error.message?.includes("key not valid") || !process.env['GEMINI_API_KEY']) {
-                const hash = text.split("").reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0);
-                return Array(768).fill(0).map((_, i) => (Math.sin(hash + i) + 1) / 10);
-            }
+            logger.error("AI Embedding generation failed:", error.message);
             throw error;
         }
     }

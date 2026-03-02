@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const createPrismaClient = () => {
-    return new PrismaClient({
+    const client = new PrismaClient({
         log: ["error"],
     }).$extends({
         query: {
@@ -25,6 +25,8 @@ const createPrismaClient = () => {
             }
         }
     });
+
+    return client;
 };
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, ShieldAlert, Cpu, Activity, Radio } from "lucide-react";
@@ -196,10 +196,7 @@ export function SovereignConsole() {
                                     <div className="flex items-center justify-between">
                                         <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Friction</span>
                                         <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
-                                            <div 
-                                                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-1000" 
-                                                style={{ ["--friction-width" as any]: `${signal.friction}%`, width: "var(--friction-width)" }} 
-                                            />
+                                            <FrictionBar percent={signal.friction} />
                                         </div>
                                     </div>
                                 </div>
@@ -269,5 +266,23 @@ export function SovereignConsole() {
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+function FrictionBar({ percent }: { percent: number }) {
+    const barRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (barRef.current) {
+            barRef.current.style.width = `${percent}%`;
+        }
+    }, [percent]);
+
+    return (
+        <div
+            ref={barRef}
+            className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 shadow-[0_0_10px_rgba(99,102,241,0.5)] transition-all duration-1000"
+            title={`Friction: ${percent}%`}
+        />
     );
 }

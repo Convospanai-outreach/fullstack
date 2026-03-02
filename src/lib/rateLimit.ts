@@ -45,37 +45,37 @@ export const RATE_LIMITS = {
     windowMs: 60 * 1000,      // 1 minute
     maxRequests: 100,         // 100 requests per minute
   },
-  
+
   // Authentication endpoints (stricter)
   AUTH: {
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 5,           // 5 attempts per hour
   },
-  
+
   // Authenticated user APIs (per user)
   AUTHENTICATED: {
     windowMs: 60 * 1000,      // 1 minute
     maxRequests: 1000,        // 1000 requests per minute
   },
-  
+
   // Admin APIs (high limit, logged)
   ADMIN: {
     windowMs: 60 * 1000,      // 1 minute
     maxRequests: 5000,        // 5000 requests per minute
   },
-  
+
   // Webhook endpoints (per source)
   WEBHOOK: {
     windowMs: 60 * 1000,      // 1 minute
     maxRequests: 50,          // 50 requests per minute
   },
-  
+
   // Registration endpoint
   REGISTRATION: {
     windowMs: 60 * 60 * 1000, // 1 hour
     maxRequests: 5,           // 5 attempts per hour
   },
-  
+
   // Error logging endpoint
   ERROR_LOGGING: {
     windowMs: 60 * 1000,      // 1 minute
@@ -91,19 +91,19 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
   if (userId) {
     return `user:${userId}`;
   }
-  
+
   // Check for API key
   const apiKey = req.headers.get('x-api-key');
   if (apiKey) {
     return `apikey:${apiKey}`;
   }
-  
+
   // Fall back to IP address
-  const ip = 
+  const ip =
     (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()) ||
     req.headers.get('x-real-ip') ||
     'unknown';
-  
+
   return `ip:${ip}`;
 }
 
@@ -121,7 +121,7 @@ export async function checkRateLimit(
 ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
   const now = Date.now();
   const key = `ratelimit:${endpoint}:${identifier}`;
-  
+
   // 1. Try Redis First
   const redisClient = await getRedisClient();
   if (redisClient && redisClient.isOpen) {
@@ -151,7 +151,7 @@ export async function checkRateLimit(
 
       // Increment
       entry.count += 1;
-      
+
       // Calculate TTL in seconds
       const ttl = Math.ceil((entry.resetTime - now) / 1000);
       if (ttl > 0) {
@@ -165,7 +165,7 @@ export async function checkRateLimit(
       };
 
     } catch (error) {
-       logger.warn("Redis Rate Limit Failed, falling back to LRU", error);
+      logger.warn("Redis Rate Limit Failed, falling back to LRU", error);
     }
   }
 
@@ -184,7 +184,7 @@ function checkRateLimitLRU(
   const now = Date.now();
   const key = `${endpoint}:${identifier}`;
   const entry = rateLimitCache.get(key);
-  
+
   if (!entry || now > entry.resetTime) {
     const newEntry: RateLimitEntry = {
       count: 1,
@@ -197,7 +197,7 @@ function checkRateLimitLRU(
       resetTime: newEntry.resetTime,
     };
   }
-  
+
   if (entry.count >= config.maxRequests) {
     return {
       allowed: false,
@@ -205,10 +205,10 @@ function checkRateLimitLRU(
       resetTime: entry.resetTime,
     };
   }
-  
+
   entry.count += 1;
   rateLimitCache.set(key, entry);
-  
+
   return {
     allowed: true,
     remaining: config.maxRequests - entry.count,
@@ -227,10 +227,10 @@ export async function applyRateLimit(
 ): Promise<NextResponse | null> {
   const identifier = getClientIdentifier(req, userId);
   const result = await checkRateLimit(identifier, config, endpoint);
-  
+
   if (!result.allowed) {
     const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000);
-    
+
     return NextResponse.json(
       {
         error: 'Rate limit exceeded',
@@ -249,7 +249,7 @@ export async function applyRateLimit(
       }
     );
   }
-  
+
   // Add rate limit headers to response
   // Note: These will be added by the middleware
   return null;
@@ -267,7 +267,7 @@ export function addRateLimitHeaders(
   response.headers.set('X-RateLimit-Limit', config.maxRequests.toString());
   response.headers.set('X-RateLimit-Remaining', remaining.toString());
   response.headers.set('X-RateLimit-Reset', resetTime.toString());
-  
+
   return response;
 }
 
@@ -304,14 +304,14 @@ export async function getRateLimitStatus(identifier: string, endpoint: string): 
  */
 export async function clearAllRateLimits(): Promise<void> {
   rateLimitCache.clear();
-  
+
   // Redis clear is tricky/dangerous to do globally, so we log a warning
   // Ideally, use SCAN to find keys with prefix 'ratelimit:*'
   const client = await getRedisClient();
   if (client && client.isOpen) {
-      // Allow dangerous flushDB for dev environments only?
-      // For now, we only clear memory cache for immediate relief
-      logger.info("[RateLimit] Cleared in-memory cache. Redis keys remain until TTL expires.");
+    // Allow dangerous flushDB for dev environments only?
+    // For now, we only clear memory cache for immediate relief
+    logger.info("[RateLimit] Cleared in-memory cache. Redis keys remain until TTL expires.");
   }
 }
 

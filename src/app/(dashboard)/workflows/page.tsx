@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function WorkflowsPage() {
@@ -19,7 +20,7 @@ export default function WorkflowsPage() {
         try {
             const res = await fetch('/api/workflows');
             const data = await res.json();
-            setWorkflows(data);
+            setWorkflows(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -87,8 +88,9 @@ export default function WorkflowsPage() {
                         <button
                             onClick={(e) => handleDelete(wf.id, e)}
                             className="absolute top-4 right-4 text-red-400 opacity-0 group-hover:opacity-100 hover:bg-red-900/20 p-1 rounded"
+                            title="Delete workflow"
                         >
-                            Trash
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </GlassCard>
                 ))}

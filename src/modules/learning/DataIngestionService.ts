@@ -54,7 +54,7 @@ export class DataIngestionService {
         if (!sheetName) return [];
         const sheet = workbook.Sheets[sheetName];
 
-        if (!sheet) return []; 
+        if (!sheet) return [];
 
         const rows: ExcelRow[] = XLSX.utils.sheet_to_json(sheet);
 
@@ -122,14 +122,14 @@ export class DataIngestionService {
                     teamId: teamId,
                     region: region, // Pass region to background job
                     campaignId: campaignId || undefined,
-                    extraction: extraction 
+                    extraction: extraction
                 });
 
                 // [NEW] Record Lead Ingestion Event
                 try {
                     const { EventStore } = await import("@/modules/learning/EventStore");
                     await EventStore.record({
-                        type: SystemEventType.SYSTEM, 
+                        type: SystemEventType.SYSTEM,
                         name: "LEAD_INGESTED",
                         teamId: teamId,
                         payload: {
@@ -157,26 +157,45 @@ export class DataIngestionService {
 
     /**
      * "The Enrichment Injection"
-     * Looks up proprietary data to create a stronger prompt payload.
+     * Looks up proprietary data from CaseStudy model or falls back to local index.
      */
     private async enrichLeadData(row: ExcelRow) {
-        // Fallbacks for CSVs which might have different headers (case sensitive)
-        // We normalize common variations if needed, or assume standard template
         const industry = row.Industry || "Generic";
-        const signal = INDUSTRY_WINS[industry] || {
-            painPoints: ["Efficiency", "Growth"],
-            winningAngle: "Improve your operational efficiency."
-        };
+
+        // 1. Try to fetch from managed CaseStudy database
+        let signal = null;
+        try {
+            const caseStudy = await prisma.caseStudy.findFirst({
+                where: { industry: { equals: industry, mode: 'insensitive' } }
+            });
+
+            if (caseStudy) {
+                signal = {
+                    painPoints: [caseStudy.summary.substring(0, 50)], // Simplified mapping
+                    winningAngle: caseStudy.title
+                };
+            }
+        } catch (e) {
+            console.error("[DataIngestion] Database CaseStudy lookup failed:", e);
+        }
+
+        // 2. Fallback to hardcoded index (The Moat)
+        if (!signal) {
+            signal = INDUSTRY_WINS[industry] || {
+                painPoints: ["Efficiency", "Growth"],
+                winningAngle: "Improve your operational efficiency."
+            };
+        }
 
         return {
             name: row.Name,
             email: row.Email,
             company: row.Company,
-            jobTitle: row.JobTitle, // This is potentially undefined
+            jobTitle: row.JobTitle,
             industry: industry,
             proprietarySignal: {
                 targetIndustry: industry,
-                topPainPoint: signal.painPoints[0], // Picking the top one for the prompt
+                topPainPoint: signal.painPoints[0],
                 winningAngle: signal.winningAngle,
                 source: "ConvoSpan Proprietary Index 2026"
             }
@@ -218,7 +237,7 @@ export class DataIngestionService {
      */
     private async triggerInitialGeneration(lead: Lead, signal: any, teamId: string, region: Region = Region.GLOBAL) {
         const targetPrisma = DbFactory.getClient(region);
-        
+
         const promptPayload = {
             industry: signal.targetIndustry,
             painPoint: signal.topPainPoint,
@@ -253,8 +272,8 @@ Keep it under 100 words. Be professional yet conversational.`;
                 leadId: lead.id,
                 promptPayload: promptPayload,
                 generatedText: draft,
-                status: "PENDING", 
-                conversionValue: 0.0 
+                status: "PENDING",
+                conversionValue: 0.0
             }
         });
 

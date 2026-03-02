@@ -148,20 +148,12 @@ export class HardwareService {
 
     static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
         try {
-            // In a real scenario, this hits the secure enclave
             logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
             const response = await axios.post<IdentityResponse>(`${EDGE_NODE_URI}/identity/resolve`, { maskedId, purpose }, { timeout: 5000 });
             return response.data;
         } catch (error: any) {
-            logger.warn(`[HardwareService] Re-identification failed: ${error.message}`);
-            // Fallback for mocked environment if Edge Node is missing the specific endpoint
-            if (maskedId.startsWith("MASKED_")) {
-                return {
-                    email: `restored.${maskedId.split('_')[1]}@example.com`,
-                    name: "Restored User"
-                };
-            }
-            throw new Error("Identity Resolution Failed");
+            logger.error(`[HardwareService] Re-identification failed: ${error.message}`);
+            throw new Error(`Identity Resolution Failed: ${error.message}. Secure enclave unreachable.`);
         }
     }
 }

@@ -39,21 +39,26 @@ export const authOptions: NextAuthOptions = {
                     throw new Error("Invalid credentials");
                 }
 
-                const user = await prisma.user.findUnique({
-                    where: { email: credentials.email }
-                });
+                try {
+                    const user = await prisma.user.findUnique({
+                        where: { email: credentials.email }
+                    });
 
-                if (!user || !user.password) {
-                    throw new Error("User not found or password not set");
+                    if (!user || !user.password) {
+                        throw new Error("User not found or password not set");
+                    }
+
+                    const isValid = await compare(credentials.password, user.password);
+
+                    if (!isValid) {
+                        throw new Error("Invalid password");
+                    }
+
+                    return user;
+                } catch (error: any) {
+                    console.error("[Auth] Authorize Fallback Failure:", error.message);
+                    throw new Error("Authentication Service Temporarily Unavailable (DB_OFF)");
                 }
-
-                const isValid = await compare(credentials.password, user.password);
-
-                if (!isValid) {
-                    throw new Error("Invalid password");
-                }
-
-                return user;
             }
         })
     ],

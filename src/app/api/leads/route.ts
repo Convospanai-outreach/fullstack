@@ -5,6 +5,53 @@ import { createLeadSchema } from "@/lib/validation/schemas";
 import { AuditService } from "@/modules/audit/auditService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 
+// GET /api/leads - List leads with optional filters
+export async function GET(req: NextRequest) {
+    try {
+        const { teamId, userId } = await getCurrentContext();
+        if (!teamId || !userId) {
+            throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        }
+
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
+
+        const { searchParams } = new URL(req.url);
+        const search = searchParams.get("search") || "";
+        const status = searchParams.get("status") || "";
+        const campaignId = searchParams.get("campaignId") || "";
+        const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
+        const offset = parseInt(searchParams.get("offset") || "0");
+
+        const { DbFactory } = await import("@/lib/dbFactory");
+        const db = DbFactory.getClient();
+
+        const where: any = { teamId };
+        if (search) {
+            where.OR = [
+                { fullName: { contains: search, mode: "insensitive" } },
+                { email: { contains: search, mode: "insensitive" } },
+                { company: { contains: search, mode: "insensitive" } },
+            ];
+        }
+        if (status) where.status = status;
+        if (campaignId) where.campaignId = campaignId;
+
+        const [leads, total] = await Promise.all([
+            db.lead.findMany({
+                where,
+                take: limit,
+                skip: offset,
+                orderBy: { updatedAt: "desc" },
+            }),
+            db.lead.count({ where }),
+        ]);
+
+        return successResponse({ leads, total });
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
 // POST /api/leads - Create single lead
 export async function POST(req: NextRequest) {
     try {

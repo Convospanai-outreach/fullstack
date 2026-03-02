@@ -1,6 +1,6 @@
-
 import { HardwareService } from "@/services/HardwareService";
 import { createHmac } from "crypto";
+import { logger } from "@/lib/logger";
 
 export class IdentityService {
 
@@ -10,17 +10,17 @@ export class IdentityService {
      */
     static async resolveIdentity(maskedId: string, purpose: string, teamId: string): Promise<any> {
         // 1. Audit Log (Pre-access)
-        console.log(`[IdentityVault] Access Request: ${maskedId} by Team ${teamId} for ${purpose}`);
+        logger.info(`[IdentityVault] Access Request: ${maskedId} by Team ${teamId} for ${purpose}`);
 
         // 2. Hardware Enclave Call
         try {
             const pii = await HardwareService.reIdentify(maskedId, purpose);
 
             // 3. Audit Log (Success)
-            console.log(`[IdentityVault] Access Granted.`);
+            logger.info(`[IdentityVault] Access Granted.`);
             return pii;
-        } catch (e) {
-            console.error(`[IdentityVault] Access Denied or Failed.`);
+        } catch (e: any) {
+            logger.error(`[IdentityVault] Access Denied or Failed. Error: ${e.message}`);
             throw e;
         }
     }
@@ -38,4 +38,5 @@ export class IdentityService {
 
         return computed === signature;
     }
+}
 }
