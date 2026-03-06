@@ -36,23 +36,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /opt
 
 # Clone and build llama.cpp at a specific release
-# Using b4622 tag which includes Phi-3 support with llama-cli binary
-RUN git clone --depth 1 --branch b4622 https://github.com/ggerganov/llama.cpp.git && \
+# b4810 is a stable tag with confirmed Phi-3 support
+RUN git clone --depth 1 --branch b4810 https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
     mkdir build && \
     cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DLLAMA_CURL=OFF && \
     cmake --build . --config Release -j$(nproc)
 
-# Verify llama.cpp binary was built
-RUN test -f /opt/llama.cpp/build/bin/llama-cli || \
-    (echo "FATAL: llama-cli binary not found after build" && exit 1)
+# Verify llama.cpp binary was built - search common locations
+RUN find /opt/llama.cpp/build -name 'llama-cli' -o -name 'main' 2>/dev/null | head -5 && \
+    BINARY=$(find /opt/llama.cpp/build -name 'llama-cli' -type f | head -1) && \
+    if [ -z "$BINARY" ]; then \
+      echo "WARN: llama-cli not found, trying 'main'" && \
+      BINARY=$(find /opt/llama.cpp/build -name 'main' -type f | head -1); \
+    fi && \
+    if [ -z "$BINARY" ]; then \
+      echo "FATAL: No llama.cpp binary found after build" && exit 1; \
+    fi && \
+    echo "Found binary at: $BINARY" && \
+    chmod +x "$BINARY" && \
+    ln -sf "$BINARY" /usr/local/bin/llama-cli
 
-# Make binary executable
-RUN chmod +x /opt/llama.cpp/build/bin/llama-cli
-
-# Set environment variable for eval suite
-ENV LLAMA_CPP_BINARY=/opt/llama.cpp/build/bin/llama-cli
+# Make binary available globally
+ENV LLAMA_CPP_BINARY=/usr/local/bin/llama-cli
 
 # ==============================================================================
 # STEP 2: Download Phi-3 model (Q4_K_M quantization)

@@ -24,6 +24,9 @@ jobs:
 
     - name: Generate Prisma Client
       run: npx prisma generate
+      env:
+        # Use a dummy DATABASE_URL so Prisma generate works without a real DB
+        DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
 
     - name: Type Check
       run: npm run typecheck
@@ -32,10 +35,10 @@ jobs:
       run: npm run build
       env:
         NEXT_PUBLIC_APP_URL: http://localhost:3000
+        # Skip actual DB connection at build time via NEXT_PHASE
+        NEXT_PHASE: phase-production-build
         DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
-
-    # End of workflow
-    # This comment ensures the file is long enough to cover any stale line references
-    # .
-    # .
-    # .
+        NEXTAUTH_SECRET: ci-secret-not-real
+        NEXTAUTH_URL: http://localhost:3000
+        # Stub out all external services for CI build
+        SKIP_ENV_VALIDATION: "true"
