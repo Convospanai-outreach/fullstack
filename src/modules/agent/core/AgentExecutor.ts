@@ -4,6 +4,7 @@ import { HardwareConnectionError } from "./errors";
 import { TrustEngine } from "@/modules/governance/TrustEngine";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
 import { mcpManager } from "@/lib/mcp/McpManager";
+import { microLLM } from "@/ai/MicroLLMClient";
 
 export enum AgentState {
     // Standard States
@@ -185,7 +186,7 @@ export class AgentExecutor {
                 return await this.transition(taskId, AgentState.SANITIZATION);
             }
 
-            // 3. SANITIZATION (Sovereign Firewall)
+            // 3. SANITIZATION (Sovereign Firewall + Micro-LLM Intent Pre-Check)
             if (currentState === AgentState.SANITIZATION) {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
@@ -200,11 +201,26 @@ export class AgentExecutor {
                 await this.log(taskId, "ACTION", `Sovereign Firewall: Masking PII before Cloud Inference...`);
 
                 const { safeContext, tokenMap } = await SovereignFirewall.mask(promptPayload);
-
-                // Store the Token Map ID (in a real app, this would be in Redis/Edge Store, not just context)
-                // For this implementation, we serialize the map to context - in production this is a security risk if context is logged to cloud DB
-                // We assume context is encrypted or local-only for now, or we store the Map locally in memory/Redis
                 const serializedMap = Array.from(tokenMap.entries());
+
+                // MICRO-LLM GATE: Classify outbound intent LOCALLY before touching the cloud
+                // This prevents wasting cloud tokens on spam/policy violations
+                try {
+                    const intentCheck = await microLLM.infer({
+                        taskType: "POLICY_CLASSIFICATION",
+                        inputText: typeof safeContext === "string" ? safeContext : JSON.stringify(safeContext),
+                        policyRules: { noPressure: true, noGuarantees: true, whatsappConsent: false }
+                    });
+                    await this.log(taskId, "OBSERVATION", `[MicroLLM] Intent Pre-Check: ${intentCheck.classification ?? "ALLOW"} (confidence: ${intentCheck.confidence.toFixed(2)})`);
+
+                    if (intentCheck.classification === "BLOCK") {
+                        await this.log(taskId, "GOVERNANCE", `[MicroLLM] Payload blocked before cloud inference: ${intentCheck.refusalReason ?? "policy violation"}`);
+                        return await this.transition(taskId, AgentState.FAILED);
+                    }
+                } catch (microErr: any) {
+                    // Non-fatal: if edge node is offline, log a warning but continue
+                    await this.log(taskId, "WARNING", `[MicroLLM] Intent pre-check unavailable (edge node offline?): ${microErr.message}`);
+                }
 
                 await this.log(taskId, "OBSERVATION", `Sanitization Complete. Payload masked.`);
 
@@ -380,32 +396,77 @@ RESPONSE:
                 return AgentState.AWAITING_APPROVAL; // Breaks the loop in runToCompletion
             }
 
-            // 6. ADVERSARIAL_CHECK (Sovereign Critic) [Legacy Content Check]
+            // 5. ADVERSARIAL_CHECK (Micro-LLM Brand + Policy Critic, then Sovereign Firewall)
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
                 const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
                 const draft = ctx.draft_content || "";
 
-                await this.log(taskId, "ACTION", "Submitting draft to Sovereign Adversary (Phi-3)...");
+                await this.log(taskId, "ACTION", "[MicroLLM] Running Brand + Policy adversarial check (local, private)...");
 
+                // STEP 1: Brand Enforcement via Micro-LLM (Private, Edge-only)
                 try {
-                    const verdict = await SovereignFirewall.critique(draft);
+                    const team = await prisma.team.findUnique({ where: { id: task.teamId } });
+                    const branding = (team?.branding as any) || {};
+                    const brandCheck = await microLLM.infer({
+                        taskType: "BRAND_ENFORCEMENT",
+                        inputText: draft,
+                        brandRules: {
+                            tone: branding.tone || "Professional",
+                            forbiddenPhrases: branding.forbiddenPhrases || []
+                        }
+                    }, undefined);
 
-                    await this.log(taskId, "OBSERVATION", `Critic Verdict: ${verdict.approved ? "APPROVED" : "REJECTED"}. Score: ${verdict.score}/10. Reason: ${verdict.reason}`);
+                    await this.log(taskId, "OBSERVATION", `[MicroLLM] Brand Check: ${brandCheck.classification ?? "ALLOW"} (confidence: ${brandCheck.confidence.toFixed(2)})`);
 
-                    if (!verdict.approved) {
-                        await this.log(taskId, "CRITIC_REJECT", `Draft rejected: ${verdict.reason}`);
-                        // In a real loop, we would feedback into generation with the critique
-                        // For now, we fail or request manual review
+                    if (brandCheck.classification === "BLOCK") {
+                        await this.log(taskId, "CRITIC_REJECT", `[MicroLLM] Brand violation: ${brandCheck.refusalReason ?? "brand guidelines violated"}`);
                         return await this.transition(taskId, AgentState.FAILED);
                     }
 
-                    return await this.transition(taskId, AgentState.EXECUTION);
-                } catch (error: any) {
-                    // FAIL CLOSED HANDLING
-                    await this.log(taskId, "CRITICAL_ERROR", `Sovereign Firewall Unreachable: ${error.message}`);
-                    throw error; // Will be caught by outer catch block and halt agent
+                    // STEP 2: Policy Compliance via Micro-LLM
+                    const policyCheck = await microLLM.infer({
+                        taskType: "POLICY_CLASSIFICATION",
+                        inputText: draft,
+                        policyRules: { noPressure: true, noGuarantees: true }
+                    });
+
+                    await this.log(taskId, "OBSERVATION", `[MicroLLM] Policy Check: ${policyCheck.classification ?? "ALLOW"} (confidence: ${policyCheck.confidence.toFixed(2)})`);
+
+                    if (policyCheck.classification === "BLOCK") {
+                        await this.log(taskId, "CRITIC_REJECT", `[MicroLLM] Policy violation: ${policyCheck.refusalReason ?? "policy violation"}. Attempting auto-rewrite...`);
+                        // Try auto-repair via POLICY_REWRITE before giving up
+                        const rewrite = await microLLM.infer({
+                            taskType: "POLICY_REWRITE",
+                            inputText: draft
+                        });
+                        if (rewrite.outputText && rewrite.confidence > 0.7) {
+                            await this.log(taskId, "OBSERVATION", `[MicroLLM] Policy auto-rewrite succeeded (confidence: ${rewrite.confidence.toFixed(2)})`);
+                            const rewrittenCtx = { ...ctx, draft_content: rewrite.outputText };
+                            await prisma.agentTask.update({ where: { id: taskId }, data: { context: rewrittenCtx } });
+                        } else {
+                            await this.log(taskId, "CRITIC_REJECT", `[MicroLLM] Auto-rewrite confidence too low. Failing task.`);
+                            return await this.transition(taskId, AgentState.FAILED);
+                        }
+                    }
+
+                } catch (microErr: any) {
+                    await this.log(taskId, "WARNING", `[MicroLLM] Checks unavailable: ${microErr.message}. Falling back to Sovereign Firewall critique.`);
+                    // Fallback: use the SovereignFirewall critique (the old behaviour)
+                    try {
+                        const verdict = await SovereignFirewall.critique(draft);
+                        await this.log(taskId, "OBSERVATION", `Fallback Critic Verdict: ${verdict.approved ? "APPROVED" : "REJECTED"} (score: ${verdict.score})`);
+                        if (!verdict.approved) {
+                            return await this.transition(taskId, AgentState.FAILED);
+                        }
+                    } catch (sfErr: any) {
+                        await this.log(taskId, "CRITICAL_ERROR", `Sovereign Firewall also unreachable: ${sfErr.message}`);
+                        throw sfErr;
+                    }
                 }
+
+                await this.log(taskId, "OBSERVATION", "Adversarial checks passed. Draft approved for execution.");
+                return await this.transition(taskId, AgentState.EXECUTION);
             }
 
             // 6. EXECUTION (Browser / MCP)
