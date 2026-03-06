@@ -40,8 +40,14 @@ export default function InboxPage() {
 
     const queryUrl = useMemo(() => {
         const params = new URLSearchParams();
-        // Map folder to status filters if needed, for now just passing 'status' for real implementations
-        if (activeFolder === "inbox") params.append("status", "ACTIVE");
+        const folderStatusMap: Record<string, string> = {
+            inbox: "ACTIVE",
+            sent: "SENT",
+            archive: "ARCHIVED",
+            trash: "DELETED",
+        };
+        const status = folderStatusMap[activeFolder];
+        if (status) params.append("status", status);
         if (debouncedSearch) params.append("search", debouncedSearch);
         return `/api/inbox?${params.toString()}`;
     }, [activeFolder, debouncedSearch]);
@@ -375,7 +381,14 @@ function ConversationView({ threadId }: { threadId: string }) {
                     <textarea
                         value={reply}
                         onChange={(e) => setReply(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                if (reply.trim() && !sending) handleSend();
+                            }
+                        }}
                         placeholder={`Reply to ${(lead.fullName ?? 'there').split(' ')[0]}...`}
+                        aria-label="Reply message"
                         className="w-full bg-transparent border-none rounded-2xl p-4 pr-32 text-sm text-white focus:ring-0 resize-none h-[100px] placeholder:text-text-muted/50"
                     />
 
@@ -401,7 +414,7 @@ function ConversationView({ threadId }: { threadId: string }) {
                     </div>
                 </div>
                 <div className="mt-2 text-center">
-                    <span className="text-[10px] text-text-muted font-medium">Press <kbd className="font-mono bg-white/10 px-1 rounded">Enter</kbd> to send</span>
+                    <span className="text-[10px] text-text-muted font-medium">Press <kbd className="font-mono bg-white/10 px-1 rounded">Enter</kbd> to send · <kbd className="font-mono bg-white/10 px-1 rounded">Shift+Enter</kbd> for new line</span>
                 </div>
             </div>
         </>
