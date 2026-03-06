@@ -125,9 +125,9 @@ export async function POST(req: NextRequest) {
                 company: company || null,
                 jobTitle: jobTitle || null,
                 location: location || null,
-                status: (status as any) || "NEW",
+                status: status || "NEW",
                 // @ts-ignore - Field exists in schema but generated client is stale
-                pipelineState: (pipelineState as any) || "COLD",
+                pipelineState: pipelineState || "COLD",
                 tags: tags || [],
                 crmId: crmId || null,
                 value: value || 0.0,

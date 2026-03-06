@@ -150,16 +150,20 @@ export const authOptions: NextAuthOptions = {
                     });
 
                     if (membership) {
-                        await AuditService.log(
-                            membership.teamId,
-                            message.user.id,
-                            "USER_LOGIN",
-                            "Auth",
-                            message.user.id,
-                            { email: message.user.email }
-                        );
+                        try {
+                            await AuditService.log(
+                                membership.teamId,
+                                message.user.id,
+                                "USER_LOGIN",
+                                "Auth",
+                                message.user.id,
+                                { email: message.user.email }
+                            );
+                        } catch (logError) {
+                            console.error("Audit logging failed during login:", logError);
+                        }
                     }
-                } catch (e) { console.error("Failed to log login", e) }
+                } catch (e) { console.error("Failed to load AuditService during login", e) }
             }
         },
     },

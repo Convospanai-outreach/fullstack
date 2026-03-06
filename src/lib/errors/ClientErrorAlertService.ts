@@ -178,11 +178,43 @@ export class ClientErrorAlertService {
             console.error("[ErrorAlert] Failed to create notifications:", error);
         }
 
-        // TODO: Add additional alert channels:
-        // - Email alerts (for critical errors)
-        // - Slack webhooks
-        // - PagerDuty integration
-        // - SMS for critical alerts
+        // Slack webhook integration
+        const slackWebhookUrl = process.env['SLACK_WEBHOOK_URL'];
+        if (slackWebhookUrl) {
+            try {
+                const emoji = alert.severity === 'critical' ? '🚨' : alert.severity === 'high' ? '⚠️' : 'ℹ️';
+                await fetch(slackWebhookUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: `${emoji} *[${alert.severity.toUpperCase()}]* ${alert.message}\n> Errors: ${alert.errorCount} | Users affected: ${alert.affectedUsers}${alert.url ? ` | URL: ${alert.url}` : ''}`
+                    })
+                });
+                console.log(`[ErrorAlert] Slack notification sent`);
+            } catch (slackErr) {
+                console.error("[ErrorAlert] Slack webhook failed:", slackErr);
+            }
+        }
+
+        // Email alert for critical errors
+        if (alert.severity === 'critical') {
+            const emailEndpoint = process.env['ALERT_EMAIL_ENDPOINT'];
+            if (emailEndpoint) {
+                try {
+                    await fetch(emailEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            subject: `[CRITICAL] ${alert.message}`,
+                            body: `Error Count: ${alert.errorCount}\nAffected Users: ${alert.affectedUsers}\nURL: ${alert.url || 'N/A'}\nTimestamp: ${alert.timestamp.toISOString()}`
+                        })
+                    });
+                    console.log(`[ErrorAlert] Critical email alert sent`);
+                } catch (emailErr) {
+                    console.error("[ErrorAlert] Email alert failed:", emailErr);
+                }
+            }
+        }
     }
 
     /**

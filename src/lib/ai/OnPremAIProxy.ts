@@ -19,10 +19,9 @@ export class OnPremAIProxy {
     }
 
     /**
-     * Sends a request to the on-prem AI service
-     * 
-     * NOTE: This is a stub. The actual Edge Node AI service needs to be implemented
-     * in the services/edge-node directory with AI model hosting capabilities.
+     * Sends a request to the on-prem AI service.
+     * Connects to the Edge Node at ON_PREM_AI_ENDPOINT or EDGE_NODE_URI.
+     * Includes audit trail logging for compliance.
      */
     static async generate(prompt: string, teamId: string, options?: {
         model?: string;

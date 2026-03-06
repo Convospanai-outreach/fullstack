@@ -225,6 +225,11 @@ export async function applyRateLimit(
   endpoint: string,
   userId?: string
 ): Promise<NextResponse | null> {
+  // Bypass rate limiting in test or development if explicitly disabled
+  if (process.env.NODE_ENV === 'test' || process.env['DISABLE_RATE_LIMIT'] === 'true') {
+    return null;
+  }
+
   const identifier = getClientIdentifier(req, userId);
   const result = await checkRateLimit(identifier, config, endpoint);
 

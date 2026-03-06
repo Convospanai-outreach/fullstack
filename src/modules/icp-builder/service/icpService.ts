@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 type ICPInput = {
     name: string;
@@ -13,12 +14,11 @@ type ICPFilter = {
 
 class ICPService {
     async create(input: ICPInput) {
-        // @ts-ignore - Prisma model casing issue
-        const icp = await prisma.ICP.create({
+        const icp = await prisma.iCP.create({
             data: {
                 name: input.name,
-                description: input.description,
-                criteria: input.criteria,
+                description: input.description ?? null,
+                criteria: input.criteria as Prisma.InputJsonValue,
                 status: input.status || "active",
             },
         });
@@ -31,8 +31,7 @@ class ICPService {
             where.status = filter.status;
         }
 
-        // @ts-ignore
-        const icps = await prisma.ICP.findMany({
+        const icps = await prisma.iCP.findMany({
             where,
             orderBy: { createdAt: "desc" },
         });
@@ -40,21 +39,19 @@ class ICPService {
     }
 
     async getById(id: string) {
-        // @ts-ignore
-        const icp = await prisma.ICP.findUnique({
+        const icp = await prisma.iCP.findUnique({
             where: { id },
         });
         return icp;
     }
 
     async update(id: string, input: Partial<ICPInput>) {
-        // @ts-ignore
-        const icp = await prisma.ICP.update({
+        const icp = await prisma.iCP.update({
             where: { id },
             data: {
                 ...(input.name && { name: input.name }),
                 ...(input.description !== undefined && { description: input.description }),
-                ...(input.criteria && { criteria: input.criteria }),
+                ...(input.criteria && { criteria: input.criteria as Prisma.InputJsonValue }),
                 ...(input.status && { status: input.status }),
             },
         });
@@ -62,8 +59,7 @@ class ICPService {
     }
 
     async delete(id: string) {
-        // @ts-ignore
-        await prisma.ICP.delete({
+        await prisma.iCP.delete({
             where: { id },
         });
     }

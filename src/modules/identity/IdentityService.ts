@@ -39,4 +39,3 @@ export class IdentityService {
         return computed === signature;
     }
 }
-}

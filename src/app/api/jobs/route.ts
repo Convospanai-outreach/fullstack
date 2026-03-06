@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { JobQueue, JobType } from "@/lib/queue";
+import { JobQueue } from "@/lib/queue";
 
 // GET /api/jobs - List all jobs
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
-        const type = searchParams.get("type") as JobType | undefined;
-        const status = searchParams.get("status") as any;
+        const type = searchParams.get("type") || undefined;
+        const status = searchParams.get("status") || undefined;
         const limit = parseInt(searchParams.get("limit") || "50");
         const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
         // For now, let's keep it simple and use Prisma since it's just a GET route.
         const jobs = await prisma.job.findMany({
             where: {
-                type: type as any,
-                status: status
+                ...(type && { type }),
+                ...(status && { status })
             },
             take: limit,
             skip: offset,

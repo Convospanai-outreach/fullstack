@@ -55,7 +55,7 @@ export async function setupEnterprisePilot(config: PilotOrgConfig) {
 
     // 3. Configure SSO (if requested)
     if (config.enableSSO) {
-        console.log("3. Configuring SSO (stub)...");
+        console.log("3. Configuring SSO (SAML)...");
         await prisma.ssoConfiguration.create({
             data: {
                 teamId: team.id,

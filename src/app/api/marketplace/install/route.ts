@@ -36,12 +36,18 @@ export async function POST(req: NextRequest) {
         await AuditService.log(ctx.teamId, ctx.userId, "INSTALL_TEMPLATE", "Workflow", installedItem.id, { templateId });
     }
     else if (template.type === 'CAMPAIGN' || template.type === 'PLAYBOOK') {
-        // Create a new Campaign (Logic assumes config matches Campaign structure)
-        // For MVP, we might just create a shell campaign or fail if structure differs
-        /* 
-        installedItem = await prisma.campaign.create({ ... })
-        */
-        return NextResponse.json({ error: "Campaign installation not yet supported" }, { status: 501 });
+        const config = (template.config as any) || {};
+        installedItem = await prisma.campaign.create({
+            data: {
+                teamId: ctx.teamId,
+                name: `${template.name} (Installed)`,
+                description: template.description || '',
+                status: 'DRAFT',
+                targetCount: config.targetCount || 0,
+                aiConfig: config.aiConfig || {},
+            }
+        });
+        await AuditService.log(ctx.teamId, ctx.userId, "INSTALL_TEMPLATE", "Campaign", installedItem.id, { templateId });
     }
 
     return NextResponse.json(installedItem);

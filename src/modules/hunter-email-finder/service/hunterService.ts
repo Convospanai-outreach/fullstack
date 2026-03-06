@@ -68,18 +68,58 @@ export class HunterService {
     }
 
     /**
-     * Legacy/Stub method for integration compatibility
+     * Verifies an email address using Hunter.io Email Verifier API
      */
     async verifyAndUpdateEmail(email: string, _leadId?: string) {
-        // Stub implementation
-        return { email, status: 'unknown', score: 0 };
+        const apiKey = process.env['HUNTER_API_KEY'];
+
+        if (!apiKey) {
+            logger.warn("[HunterService] No API key for verification. Returning unknown.");
+            return { email, status: 'unknown', score: 0 };
+        }
+
+        try {
+            const params = new URLSearchParams({ email, api_key: apiKey });
+            const response = await fetchWithBackoff(`https://api.hunter.io/v2/email-verifier?${params}`);
+            const data = await response.json();
+
+            if (data.data) {
+                return {
+                    email: data.data.email,
+                    status: data.data.status, // 'valid', 'invalid', 'accept_all', 'unknown'
+                    score: data.data.score
+                };
+            }
+            return { email, status: 'unknown', score: 0 };
+        } catch (error) {
+            logger.error("[HunterService] Verification failed", error);
+            return { email, status: 'error', score: 0 };
+        }
     }
 
     /**
-     * Legacy/Stub method for integration compatibility
+     * Finds emails for multiple leads in bulk using sequential calls
      */
-    async bulkFindEmails(_leads: any[]) {
-        return [];
+    async bulkFindEmails(leads: Array<{ fullName: string; domain: string; leadId?: string }>) {
+        const results: Array<{ leadId?: string; result: HunterResult }> = [];
+
+        for (const lead of leads) {
+            try {
+                const result = await HunterService.findEmail(lead.fullName, lead.domain);
+                const entry: { leadId?: string; result: HunterResult } = { result };
+                if (lead.leadId !== undefined) entry.leadId = lead.leadId;
+                results.push(entry);
+            } catch (error) {
+                logger.warn(`[HunterService] Bulk find failed for ${lead.fullName}`, error);
+                const entry: { leadId?: string; result: HunterResult } = {
+                    result: { email: null, score: 0, position: null, company: null, sources: [] }
+                };
+                if (lead.leadId !== undefined) entry.leadId = lead.leadId;
+                results.push(entry);
+            }
+        }
+
+        return results;
     }
 }
 

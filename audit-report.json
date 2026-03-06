@@ -1,5 +1,30 @@
 [
   {
+    "route": "/",
+    "type": "console-warn",
+    "message": "[GroupMarkerNotSet(crbug.com/242999)!:A8401900D45F0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+  },
+  {
+    "route": "/",
+    "type": "console-warn",
+    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "route": "/",
+    "type": "console-warn",
+    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "route": "/",
+    "type": "console-warn",
+    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  },
+  {
+    "route": "/",
+    "type": "console-warn",
+    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  },
+  {
     "route": "/login",
     "type": "console-error",
     "message": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"

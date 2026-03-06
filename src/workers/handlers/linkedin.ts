@@ -1,5 +1,6 @@
 import { BrowserEngine } from "@/lib/browser-engine";
 import { Page } from "puppeteer";
+import { logger } from "@/lib/logger";
 
 interface LinkedInPayload {
     action: "LOGIN" | "VISIT_PROFILE" | "CONNECT" | "SCRAPE_INBOX";

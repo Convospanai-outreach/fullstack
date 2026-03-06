@@ -37,7 +37,7 @@ export default function Home() {
             <span className="gradient-text">Supercharge Your Growth</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Stop wasting hours on manual follow-ups. ConvoSpan's AI agents orchestrate intelligent, human-like conversations that convert leads while you sleep.
+            Stop spending hours on manual follow-ups. ConvoSpan&apos;s AI agents orchestrate intelligent, human-like conversations across channels — converting leads into meetings while you focus on closing.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-6">
@@ -79,7 +79,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Sleep While We Work</h3>
               <p className="text-gray-400 leading-relaxed">
-                Our agents work across time zones, engaging prospects the moment they are active. Wake up to booked meetings, not unread emails.
+                Our agents operate around the clock, engaging prospects the moment they're active — across every time zone. Wake up to booked meetings, not overflowing inboxes.
               </p>
             </GlassCard>
 
@@ -89,7 +89,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">AI That Sounds Like You</h3>
               <p className="text-gray-400 leading-relaxed">
-                Forget robotic templates. Our Gemini-powered brain analyzes profiles and crafts hyper-personalized messages that actually get replies.
+                Forget robotic templates. Our Gemini-powered AI analyzes each prospect's profile, company, and activity to craft hyper-personalized messages that earn genuine replies.
               </p>
             </GlassCard>
 
@@ -99,7 +99,7 @@ export default function Home() {
               </div>
               <h3 className="text-2xl font-semibold text-white mb-4">Enterprise-Grade Safety</h3>
               <p className="text-gray-400 leading-relaxed">
-                Built-in safe mode throttling ensures your accounts stay healthy. We mimic human behavior patterns to fly under the radar.
+                Built-in smart throttling mimics natural human behavior patterns to keep your accounts healthy. Rate limiting, warm-up schedules, and anomaly detection come standard.
               </p>
             </GlassCard>
           </div>
@@ -134,7 +134,7 @@ export default function Home() {
               <div className="flex-1 text-left md:pl-12">
                 <h3 className="text-3xl font-bold text-white mb-4">2. Build Your Workflow</h3>
                 <p className="text-xl text-gray-400">
-                  Drag and drop actions to create complex sequences. Visit profile ? Wait 1 day ? Connect ? Send Message.
+                  Drag and drop actions to create multi-step sequences: Visit profile → Wait 1 day → Connect → Send personalized message.
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-blue-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">2</div>
@@ -154,7 +154,7 @@ export default function Home() {
               <div className="flex-1 text-right md:pr-12">
                 <h3 className="text-3xl font-bold text-white mb-4">3. Launch & Optimize</h3>
                 <p className="text-xl text-gray-400">
-                  Hit start and watch the live feed. Our A/B testing module automatically routes traffic to the best-performing variants.
+                  Launch your campaign and watch engagement unfold in real time. Our built-in A/B testing engine automatically routes traffic to the highest-performing message variants.
                 </p>
               </div>
               <div className="w-12 h-12 rounded-full bg-pink-600 border-4 border-black z-10 flex items-center justify-center font-bold text-xl shrink-0">3</div>
@@ -288,7 +288,7 @@ export default function Home() {
           <div className="relative z-10 p-16 text-center space-y-8">
             <h2 className="text-4xl md:text-5xl font-bold text-white">Ready to Automate Your Growth?</h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Join thousands of sales professionals who are saving time and closing more deals with ConvoSpan.
+              Join thousands of growth professionals who are saving 10+ hours per week and closing more deals with ConvoSpan.
             </p>
             <div className="flex justify-center gap-4">
               <Link href="/signup">

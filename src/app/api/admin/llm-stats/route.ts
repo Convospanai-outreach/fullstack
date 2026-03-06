@@ -13,9 +13,9 @@ export async function GET() {
         // Attempt to get real data
         const realStats = await AiStatsService.getPerformanceMetrics();
 
-        // Fallback to mock data if no traces exist (for better UI demo)
-        // TODO: Remove this fallback once production traffic is live
-        const stats = realStats.length > 0 ? realStats : AiStatsService.getMockMetrics();
+        // Only use mock data when explicitly enabled for demo/dev purposes
+        const useMock = realStats.length === 0 && process.env['ENABLE_LLM_MOCK_DATA'] === 'true';
+        const stats = useMock ? AiStatsService.getMockMetrics() : realStats;
 
         return NextResponse.json({
             success: true,

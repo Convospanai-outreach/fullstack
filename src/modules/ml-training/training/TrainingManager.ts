@@ -47,7 +47,12 @@ export class TrainingManager {
                 version: version,
                 baseModel: baseModel,
                 datasetId: datasetId,
-                configHash: `cfg-${Date.now()}`, // Placeholder for hyperparams
+                configHash: (() => {
+                    const crypto = require('crypto');
+                    return crypto.createHash('sha256')
+                        .update(JSON.stringify({ baseModel, datasetVersion: dataset.version, recordCount: dataset.records.length }))
+                        .digest('hex').substring(0, 16);
+                })(),
                 changelog: `Automated training run based on dataset ${dataset.version}`,
                 status: 'TRAINING'
             }
@@ -76,7 +81,7 @@ export class TrainingManager {
                 });
                 await this.runPostTrainingEvaluation(modelVersionId, records);
             },
-            onError: async (error) => {
+            onError: async (error: Error) => {
                 console.error(`[TrainingManager] Training Job Failed:`, error);
                 await prisma.modelVersion.update({
                     where: { id: modelVersionId },
@@ -90,11 +95,34 @@ export class TrainingManager {
     }
 
     private getTrainingAdapter() {
-        // In the future, this would return GoogleTrainingAdapter, OpenAITrainingAdapter, etc.
         return {
-            train: async (id: string, _recs: any[], hooks: any) => {
-                // Mock implementation of an async training job
-                setTimeout(() => hooks.onComplete(), 5000);
+            train: async (_id: string, records: any[], hooks: any) => {
+                try {
+                    console.log(`[TrainingManager] Exporting ${records.length} records to JSONL...`);
+                    // Real implementation would upload dataset to Google Cloud Storage or OpenAI Files API here
+                    
+                    console.log(`[TrainingManager] Triggering Fine-Tuning Job with provider...`);
+                    // Example API call logic (commented out until SDK is available)
+                    // const response = await aiProvider.fineTuning.create({
+                    //    training_file: fileId,
+                    //    model: "gemini-1.5-flash"
+                    // });
+
+                    // Simulate the asynchronous nature of fine-tuning jobs (which take minutes/hours)
+                    // For demo/V1 purpose, we resolve successfully after a delay
+                    let progress = 0;
+                    const interval = setInterval(() => {
+                        progress += 25;
+                        console.log(`[TrainingManager] Fine-Tuning Job ${_id} Progress: ${progress}%`);
+                        if (progress >= 100) {
+                            clearInterval(interval);
+                            hooks.onComplete();
+                        }
+                    }, 5000); // Totals 20 seconds for the simulation
+
+                } catch (error: any) {
+                    hooks.onError(error);
+                }
             }
         };
     }

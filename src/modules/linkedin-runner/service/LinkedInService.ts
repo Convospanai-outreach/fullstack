@@ -84,11 +84,21 @@ export class LinkedInService {
     }
 
     /**
-     * Checks if a user is connected
+     * Checks if a user is connected on LinkedIn via the Edge Node
      */
-    static async checkConnectionStatus(_leadId: string): Promise<boolean> {
-        // Implementation for checking status via scraping or specialized edge endpoint
-        // Placeholder
-        return false;
+    static async checkConnectionStatus(leadId: string): Promise<boolean> {
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead || !lead.linkedIn) return false;
+
+        try {
+            const connected = await HardwareService.execute('check_connection', {
+                url: lead.linkedIn,
+                selectors: LinkedInConstants.SELECTORS
+            });
+            return connected;
+        } catch (error) {
+            console.warn(`[LinkedInService] Connection status check failed for ${leadId}`, error);
+            return false;
+        }
     }
 }

@@ -1,4 +1,5 @@
 import { CampaignService } from "@/lib/campaignService";
+import { Prisma } from "@prisma/client";
 import { createCampaignSchema } from "@/lib/validation/schemas";
 import { SearchService } from "@/modules/search/service/SearchService";
 import { getCurrentContext } from "@/lib/auth";
@@ -43,11 +44,12 @@ export async function POST(req: Request) {
         }
 
         const campaign = await CampaignService.createCampaign({
-            ...validation.data,
-            teamId,
-            // Ensure scheduledStart is passed if it exists (Zod returns string if datetime(), Service handles conversion)
+            name: validation.data.name,
+            description: validation.data.description,
+            type: validation.data.type,
             scheduledStart: validation.data.scheduledStart,
-            type: validation.data.type
+            aiConfig: validation.data.aiConfig as Prisma.InputJsonValue,
+            teamId,
         } as any);
         return successResponse(campaign);
     } catch (error: any) {

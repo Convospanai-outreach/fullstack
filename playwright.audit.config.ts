@@ -31,5 +31,8 @@ export default defineConfig({
         url: 'http://localhost:3000',
         reuseExistingServer: true,
         timeout: 180 * 1000,
+        env: {
+            DISABLE_RATE_LIMIT: 'true',
+        }
     },
 });

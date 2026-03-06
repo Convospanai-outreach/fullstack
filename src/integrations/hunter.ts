@@ -82,5 +82,10 @@ export async function verifyEmailWithHunter(
 export async function bulkFindEmailsWithHunter(
   leads: Array<{ id: string; firstName: string; lastName: string; domain: string }>
 ) {
-  return hunterService.bulkFindEmails(leads);
+  const mapped = leads.map(l => ({
+    fullName: `${l.firstName} ${l.lastName}`,
+    domain: l.domain,
+    leadId: l.id
+  }));
+  return hunterService.bulkFindEmails(mapped);
 }

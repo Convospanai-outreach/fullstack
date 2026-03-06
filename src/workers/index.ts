@@ -5,6 +5,7 @@ import { executeCampaign } from "./handlers/campaign-worker";
 import { deductCredits } from "../lib/credits";
 import { handleLinkedInAction } from "./handlers/linkedin";
 import { HubSpotService } from "@/lib/crm";
+import { agentExecutor, AgentState } from "@/modules/agent/core/AgentExecutor";
 
 import { logger } from "@/lib/logger";
 
@@ -111,15 +112,43 @@ async function processNextJob() {
                     break;
 
                 // ... existing code ...
-                case "agent_run":
-                    logger.info(`🤖 Starting Agent ${payload['agentId']}...`, { agentId: payload['agentId'] });
-                    result = { status: "started" };
-                    break;
+                case "agent_run": {
+                    const agentId = payload['agentId'];
+                    const goal = payload['goal'] || "Perform autonomous generation";
+                    const teamId = job.teamId;
+                    
+                    if (!teamId) throw new Error("Team ID required for agent_run");
 
-                case "agent_stop":
-                    logger.info(`🛑 Stopping Agent ${payload['agentId']}...`, { agentId: payload['agentId'] });
-                    result = { status: "stopped" };
+                    logger.info(`🤖 Starting Agent Task for agent ${agentId}...`, { agentId, goal });
+
+                    // 1. Create a task via Executor
+                    const taskId = await agentExecutor.startTask(teamId, goal as string, payload['context'] as any || {});
+                    
+                    // 2. Run the loop (blocks until completed, failed, or awaiting human approval)
+                    const status = await agentExecutor.runToCompletion(taskId);
+                    
+                    result = { status, taskId };
+                    
+                    if (status === AgentState.FAILED) {
+                        throw new Error(`Agent Task Failed (Status: ${status})`);
+                    }
                     break;
+                }
+
+                case "agent_stop": {
+                    const taskId = payload['taskId'];
+                    if (!taskId) throw new Error("Missing taskId for agent_stop");
+                    
+                    logger.info(`🛑 Stopping Agent Task ${taskId}...`, { taskId });
+                    
+                    await prisma.agentTask.update({
+                        where: { id: taskId as string },
+                        data: { status: AgentState.FAILED }
+                    });
+                    
+                    result = { status: "stopped", taskId };
+                    break;
+                }
 
                 // ... (kept cases consistent)
 

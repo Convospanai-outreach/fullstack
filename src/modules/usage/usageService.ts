@@ -7,17 +7,25 @@ export class UsageService {
         });
 
         if (!quota) {
-            // Return a default object if no quota is found, without creating a record.
-            // This avoids creating "bad records" with placeholder user IDs.
-            return {
-                id: "default", // A placeholder ID as this object doesn't exist in DB
-                teamId: teamId,
-                userId: "default", // Placeholder for consistency, but not persisted
-                monthlyLimit: 1000,
-                currentSpend: 0,
-                createdAt: new Date(), // Placeholder
-                updatedAt: new Date()  // Placeholder
-            };
+            // Find the team owner or at least one user to attach the quota to
+            const member = await prisma.teamMember.findFirst({
+                where: { teamId },
+                orderBy: { role: 'asc' } // prioritize 'admin' or 'owner' over 'member'
+            });
+
+            if (!member || !member.userId) {
+                throw new Error(`Cannot create UserQuota: Team ${teamId} has no assigned users.`);
+            }
+
+            // Create a real record so it can be incremented later
+            quota = await prisma.userQuota.create({
+                data: {
+                    teamId,
+                    userId: member.userId,
+                    monthlyLimit: 1000,
+                    currentSpend: 0
+                }
+            });
         }
         return quota;
     }
@@ -40,16 +48,13 @@ export class UsageService {
     }
 
     async incrementUsage(teamId: string, amount: number = 1) {
-        const quota = await prisma.userQuota.findFirst({
-            where: { teamId }
-        });
+        // Use getUsage to ensure the record exists (it auto-creates if missing)
+        const quota = await this.getUsage(teamId);
 
-        if (quota) {
-            await prisma.userQuota.update({
-                where: { id: quota.id },
-                data: { currentSpend: { increment: amount } }
-            });
-        }
+        await prisma.userQuota.update({
+            where: { id: quota.id },
+            data: { currentSpend: { increment: amount } }
+        });
     }
 
     async checkAvailability(teamId: string, cost: number = 1): Promise<boolean> {

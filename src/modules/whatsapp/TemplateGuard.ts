@@ -112,16 +112,53 @@ export class TemplateGuard {
 
     /**
      * Get approved templates for the team
-     * In production, these would be fetched from WhatsApp Business API
+     * Fetches from WhatsApp Business API using the configured system access token
      */
     static async getApprovedTemplates(_teamId: string): Promise<string[]> {
-        // Stub: In real implementation, call WhatsApp API
-        // For now, return common approved templates
-        return [
-            "Hello {{1}}, this is {{2}} from {{3}}. We received your inquiry and would like to schedule a call. Are you available?",
-            "Hi {{1}}, thank you for your interest in {{2}}. Our team will reach out to discuss your requirements.",
-            "Hello {{1}}, following up on our previous conversation about {{2}}. Let me know if you have any questions."
-        ];
+        const token = process.env['WHATSAPP_API_TOKEN'];
+        const wabaId = process.env['WHATSAPP_WABA_ID']; // WhatsApp Business Account ID
+        
+        // If no token is configured, fall back to the safe default stubs 
+        // to prevent breaking local development environments that don't have WhatsApp set up
+        if (!token || !wabaId) {
+            console.warn("[TemplateGuard] WHATSAPP_API_TOKEN missing. Using fallback templates.");
+            return [
+                "Hello {{1}}, this is {{2}} from {{3}}. We received your inquiry and would like to schedule a call. Are you available?",
+                "Hi {{1}}, thank you for your interest in {{2}}. Our team will reach out to discuss your requirements.",
+                "Hello {{1}}, following up on our previous conversation about {{2}}. Let me know if you have any questions."
+            ];
+        }
+
+        try {
+            // Fetch real templates from the WhatsApp Cloud API
+            const response = await fetch(`https://graph.facebook.com/v19.0/${wabaId}/message_templates?status=APPROVED`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                console.error(`[TemplateGuard] WhatsApp API error: ${response.statusText}`);
+                throw new Error("Failed to fetch WhatsApp templates");
+            }
+
+            const data = await response.json();
+            
+            // Extract the body text from the approved templates
+            const templates: string[] = data.data
+                .map((t: any) => {
+                    const bodyComponent = t.components.find((c: any) => c.type === 'BODY');
+                    return bodyComponent ? bodyComponent.text : null;
+                })
+                .filter(Boolean);
+
+            return templates.length > 0 ? templates : [ "Hi {{1}}, how can we help?" ];
+        } catch (error) {
+            console.error("[TemplateGuard] Error fetching from WhatsApp API", error);
+            return [ "Hi {{1}}, how can we help?" ]; // emergency fallback
+        }
     }
 
     /**

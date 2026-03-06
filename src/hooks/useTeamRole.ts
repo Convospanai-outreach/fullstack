@@ -29,16 +29,14 @@ export function useTeamRole() {
                 const { success, data } = await res.json();
 
                 if (success) {
-                    // In a multi-team setup, this would need more logic
-                    // For now, we assume current context team
-                    // Find the 'You' entry (id matches current user, typically handled by API returning data.myRole)
-                    // Simplified: We'll assume the API provides a 'currentRole' or we find it in the list.
-                    // For the sake of this prompt, we'll use a placeholder logic or rely on the list.
-                    // Let's assume the standard members API is enough for now if we can identify 'self'.
+                    // Identify self by fetching the current session and matching email
+                    const sessionRes = await fetch("/api/auth/session");
+                    const session = await sessionRes.json();
+                    const currentEmail = session?.user?.email;
 
-                    // Actually, let's create a dedicated role endpoint if needed, 
-                    // but for this task, we'll try to find 'self' in data.
-                    const self = data.find((m: any) => m.status === 'active'); // Mock logic for demo
+                    const self = currentEmail
+                        ? data.find((m: any) => m.email === currentEmail)
+                        : data.find((m: any) => m.status === 'active');
                     setRole(self?.role as TeamRole || TeamRole.VIEWER);
                 }
             } catch (e) {

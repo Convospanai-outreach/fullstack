@@ -98,7 +98,7 @@ export class AiStatsService {
 
             return Object.values(stats).map((s: any) => ({
                 ...s,
-                reliability: 100, // Placeholder
+                reliability: s.count > 0 ? Math.round((s.count_success / s.count) * 1000) / 10 : 0,
                 avgLatency: Math.round(s.avgLatency) / 1000 // Convert ms to s
             }));
 

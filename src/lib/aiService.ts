@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { TokenManager } from "./tokenManager";
+import { logger } from "@/lib/logger";
 
 export class AIService {
     private genAI: GoogleGenerativeAI | null = null;

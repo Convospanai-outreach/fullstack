@@ -1,7 +1,5 @@
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient(); // Temp
+import { prisma } from "@/lib/db";
 
 export class ComplianceGuard {
 
@@ -39,8 +37,25 @@ export class ComplianceGuard {
             }
         });
 
-        // 2. Stop all Active Campaigns for this Lead
-        // (In a real system, we'd query relation tables, here we stub the logic)
+        // 2. If this lead belongs to a campaign, mark them as DNC in all campaign contexts
+        if (leadId) {
+            // Find all leads with the same email or linkedIn in other campaigns and mark them DNC too
+            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            if (lead?.email) {
+                const updated = await prisma.lead.updateMany({
+                    where: {
+                        email: lead.email,
+                        id: { not: leadId },
+                        status: { not: 'DNC' }
+                    },
+                    data: { status: 'DNC', consentObtained: false }
+                });
+                if (updated.count > 0) {
+                    console.log(`[Compliance] Deactivated ${updated.count} related lead records for opt-out`);
+                }
+            }
+        }
+
         console.log(`[Compliance] Enforced Opt-Out for Lead ${leadId}: ${reason}`);
 
         // 3. Log into Audit Trail for Legal Proof
