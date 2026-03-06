@@ -20,12 +20,12 @@ function getUserInitials(name?: string | null): string {
     return (name.trim().charAt(0) || "U").toUpperCase();
 }
 
-export function DashboardHeader({ onToggleSidebar }: { onToggleSidebar?: () => void }) {
+export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSidebar?: () => void; bannerOffset?: boolean }) {
     const { data: session } = useSession();
     const initials = getUserInitials(session?.user?.name);
 
     return (
-        <header className="fixed top-0 left-0 lg:left-64 right-0 h-16 border-b border-border z-40 flex items-center justify-between px-4 lg:px-8 bg-surface-app/80 backdrop-blur-md">
+        <header className={`fixed ${bannerOffset ? 'top-12' : 'top-0'} left-0 lg:left-64 right-0 h-16 border-b border-border z-40 flex items-center justify-between px-4 lg:px-8 bg-surface-app/80 backdrop-blur-md transition-all duration-300`}>
             {/* Left: Mobile toggle + Logo */}
             <div className="flex items-center gap-4">
                 {/* Mobile sidebar toggle */}

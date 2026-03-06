@@ -29,6 +29,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function InboxPage() {
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
     const [activeFolder, setActiveFolder] = useState("inbox");
+    const [activeLabel, setActiveLabel] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -64,7 +65,17 @@ export default function InboxPage() {
         }
     }, [isLoading, threads, selectedThreadId]);
 
-    const validThreads = Array.isArray(threads) ? threads : [];
+    const allThreads = Array.isArray(threads) ? threads : [];
+
+    // Client-side label filtering
+    const validThreads = activeLabel
+        ? allThreads.filter((t: any) => {
+            if (activeLabel === "high-value") return (t.sentiment === "POSITIVE" || (t._hunterScore ?? 0) > 80);
+            if (activeLabel === "follow-up") return t.sentiment === "NEUTRAL" || t.status === "FOLLOW_UP";
+            if (activeLabel === "linkedin") return t.platform === "LINKEDIN";
+            return true;
+          })
+        : allThreads;
 
     return (
         <AppShell>
@@ -109,19 +120,26 @@ export default function InboxPage() {
 
                     <div className="mt-8 px-2">
                         <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Labels</h4>
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-white transition">
-                                <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                                High Value
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-white transition">
-                                <div className="w-2 h-2 rounded-full bg-orange-500" />
-                                Follow Up
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer hover:text-white transition">
-                                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                LinkedIn
-                            </div>
+                        <div className="space-y-1">
+                            {[
+                                { id: "high-value", label: "High Value", color: "bg-emerald-500" },
+                                { id: "follow-up", label: "Follow Up", color: "bg-orange-500" },
+                                { id: "linkedin", label: "LinkedIn", color: "bg-blue-500" },
+                            ].map(({ id, label, color }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => setActiveLabel(activeLabel === id ? null : id)}
+                                    className={`w-full flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg transition-all ${
+                                        activeLabel === id
+                                            ? "bg-white/10 text-white font-medium"
+                                            : "text-text-secondary hover:text-white hover:bg-white/5"
+                                    }`}
+                                >
+                                    <div className={`w-2 h-2 rounded-full ${color} shrink-0`} />
+                                    {label}
+                                    {activeLabel === id && <span className="ml-auto text-[10px] text-text-muted">✕</span>}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 </div>
@@ -155,9 +173,19 @@ export default function InboxPage() {
                                 ))}
                             </div>
                         ) : validThreads.length === 0 ? (
-                            <div className="p-8 text-center text-text-muted">
-                                <Inbox className="w-10 h-10 mx-auto mb-3 opacity-20" />
-                                <p className="text-sm">No messages found</p>
+                            <div className="p-8 text-center text-text-muted space-y-2">
+                                <Inbox className="w-10 h-10 mx-auto opacity-20" />
+                                <p className="text-sm font-medium">
+                                    {activeLabel ? `No "${activeLabel.replace(/-/g, ' ')}" threads` :
+                                     activeFolder === "sent" ? "No sent messages yet" :
+                                     activeFolder === "archive" ? "Nothing archived" :
+                                     activeFolder === "trash" ? "Trash is empty" :
+                                     searchQuery ? "No results match your search" :
+                                     "Your inbox is empty"}
+                                </p>
+                                {activeLabel && (
+                                    <button onClick={() => setActiveLabel(null)} className="text-xs text-accent-blue hover:underline">Clear filter</button>
+                                )}
                             </div>
                         ) : (
                             validThreads.map((thread: any) => (

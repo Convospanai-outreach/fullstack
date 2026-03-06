@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 import {
     LayoutDashboard,
     Megaphone,
@@ -18,6 +18,7 @@ import {
     BookOpen,
     CheckSquare,
     GitBranch,
+    Bot,
     X,
 } from "lucide-react";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
@@ -44,6 +45,7 @@ const sidebarGroups = [
     {
         label: "Intelligence",
         items: [
+            { href: "/agents", label: "Agents", icon: Bot },
             { href: "/knowledge", label: "Knowledge Base", icon: Database },
             { href: "/marketplace", label: "Marketplace", icon: Store },
             { href: "/approvals", label: "Approvals", icon: CheckSquare },
@@ -65,6 +67,11 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     const pathname = usePathname();
+    const { data: session } = useSession();
+
+    const userName = session?.user?.name ?? "User";
+    const userEmail = session?.user?.email ?? "";
+    const userInitial = userName.charAt(0).toUpperCase();
 
     return (
         <>
@@ -135,12 +142,33 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-white/5">
+                {/* User profile + sign out */}
+                <div className="p-4 border-t border-white/5 space-y-3">
+                    {/* User info */}
+                    <div className="flex items-center gap-3 px-2 py-1.5">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-lg">
+                            {session?.user?.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={session.user.image} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                                userInitial
+                            )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{userEmail}</p>
+                        </div>
+                        <Link href="/settings/profile" className="p-1 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white transition-colors" aria-label="Profile settings">
+                            <Settings className="w-3.5 h-3.5" />
+                        </Link>
+                    </div>
+
+                    {/* Sign out */}
                     <button
                         onClick={() => signOut({ callbackUrl: "/login" })}
-                        className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     >
-                        <LogOut className="w-5 h-5" />
+                        <LogOut className="w-4 h-4" />
                         Sign Out
                     </button>
                 </div>

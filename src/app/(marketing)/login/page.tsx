@@ -63,6 +63,7 @@ export default function LoginPage() {
                                 type="email"
                                 name="email"
                                 required
+                                autoComplete="email"
                                 value={credentials.email}
                                 onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
@@ -79,6 +80,7 @@ export default function LoginPage() {
                                 type="password"
                                 name="password"
                                 required
+                                autoComplete="current-password"
                                 value={credentials.password}
                                 onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"

@@ -41,13 +41,13 @@ export default function DashboardLayout({
             {/* Main Content Area */}
             <div className="flex-1 flex flex-col min-h-screen relative lg:pl-64">
                 
-                {/* Setup Wizard Banner */}
+                {/* Setup Wizard Banner — sits above the header */}
                 {showSetupBanner && (
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 flex items-center justify-between z-50 fixed top-0 left-0 right-0 lg:left-64">
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 flex items-center justify-between z-50 fixed top-0 left-0 right-0 h-12">
                         <div className="flex items-center space-x-4">
                             <span className="font-medium text-sm">Action Required: Complete your workspace setup to launch campaigns. ({setupPercent}% complete)</span>
                         </div>
-                        <Link href="/setup" className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm font-semibold transition-colors">
+                        <Link href="/setup" className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm font-semibold transition-colors shrink-0">
                             Resume Setup
                         </Link>
                     </div>
@@ -55,9 +55,11 @@ export default function DashboardLayout({
 
                 <DashboardHeader
                     onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+                    bannerOffset={showSetupBanner}
                 />
 
-                <main className={`flex-1 ${showSetupBanner ? 'mt-28' : 'mt-16'} p-4 lg:p-8 overflow-y-auto z-10 transition-all`}>
+                {/* mt = header(64px) + optional banner(48px) */}
+                <main className={`flex-1 ${showSetupBanner ? 'mt-[112px]' : 'mt-16'} p-4 lg:p-8 overflow-y-auto z-10 transition-all duration-300`}>
                     {/* Background Gradients */}
                     <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
                         <div className="absolute top-[10%] right-[10%] w-[400px] h-[400px] bg-brand-900/10 rounded-full blur-[100px]" />
