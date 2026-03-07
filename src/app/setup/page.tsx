@@ -212,6 +212,7 @@ export default function SetupWizardPage() {
             return (
               <button
                 key={step.id}
+                type="button"
                 onClick={() => setActiveStep(step.id)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
                   isActive 
@@ -241,7 +242,10 @@ export default function SetupWizardPage() {
             <p className="text-slate-400 text-lg">{STEPS[activeStep - 1]?.description}</p>
           </div>
 
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl">
+          <form 
+            onSubmit={(e) => { e.preventDefault(); handleSaveStep(activeStep); }}
+            className="bg-slate-900 border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl"
+          >
             
             {/* --- STEP 1: Account --- */}
             {activeStep === 1 && (
@@ -447,7 +451,7 @@ export default function SetupWizardPage() {
                 <ChecklistItem label={`${status.leadsWithLinkedIn} Leads with LinkedIn Profiles`} passed={status.leadsWithLinkedIn > 0} />
                 
                 <div className="mt-8 flex justify-center">
-                  <button onClick={() => router.push("/dashboard/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
+                  <button type="button" onClick={() => router.push("/dashboard/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
                     Import More Leads (CSV)
                   </button>
                 </div>
@@ -462,7 +466,7 @@ export default function SetupWizardPage() {
                 <ChecklistItem label={`Leads Assigned to Campaigns`} passed={status.hasAssignedLeads} />
                 
                 <div className="mt-8 flex justify-center">
-                  <button onClick={() => router.push("/dashboard/campaigns/new")} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50">
+                  <button type="button" onClick={() => router.push("/dashboard/campaigns/new")} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50">
                     Create New Campaign
                   </button>
                 </div>
@@ -498,7 +502,7 @@ export default function SetupWizardPage() {
 
                 <div className="p-4 border border-dashed border-white/20 rounded-xl bg-slate-900/50 text-center">
                   <p className="text-sm text-slate-400 mb-3">Upload brochures or case studies (PDF) in the Knowledge Base area to make them available to agents.</p>
-                  <button onClick={() => router.push("/dashboard/governance/playbooks")} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
+                  <button type="button" onClick={() => router.push("/dashboard/governance/playbooks")} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
                     Manage PDFs
                   </button>
                 </div>
@@ -537,6 +541,7 @@ export default function SetupWizardPage() {
             {/* ACTION BUTTONS */}
             <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6">
               <button 
+                type="button"
                 onClick={() => setActiveStep(prev => Math.max(1, prev - 1))}
                 disabled={activeStep === 1}
                 className="px-6 py-3 text-sm font-medium text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
@@ -545,7 +550,7 @@ export default function SetupWizardPage() {
               </button>
               
               <button 
-                onClick={() => handleSaveStep(activeStep)}
+                type="submit"
                 disabled={saving}
                 className="flex items-center space-x-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50 disabled:opacity-50"
               >
@@ -560,7 +565,7 @@ export default function SetupWizardPage() {
               </button>
             </div>
 
-          </div>
+          </form>
         </div>
       </div>
 

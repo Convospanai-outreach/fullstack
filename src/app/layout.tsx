@@ -11,6 +11,10 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 export const metadata = {
   title: "ConvoSpan – AI Agent Army for Growth Teams",
   description: "Automate outreach, prospecting, ICP scoring, and LinkedIn workflows.",
+  icons: {
+    icon: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 import { Toaster } from "sonner";

@@ -26,8 +26,14 @@ class SanitizeRequest(BaseModel):
     session_id: Optional[str] = None
 
 class CritiqueRequest(BaseModel):
-    text: str
-    context: Optional[str] = None
+    text: Optional[str] = None
+    content: Optional[str] = None  # alias used by MicroLLMClient.ts
+    context: Optional[Dict[str, Any]] = None
+
+    def get_text(self) -> str:
+        """Return whichever field was provided."""
+        return self.text or self.content or ""
+
 
 class SearchRequest(BaseModel):
     query: str
@@ -277,7 +283,7 @@ def critique_text(req: CritiqueRequest):
 
     # Step 1: Policy check
     policy_req = InferRequest(
-        inputText=req.text,
+        inputText=req.get_text(),
         taskType="POLICY_CLASSIFICATION",
         policyRules={"noPressure": True, "noGuarantees": True}
     )
@@ -286,9 +292,9 @@ def critique_text(req: CritiqueRequest):
 
     # Step 2: Brand enforcement check
     brand_req = InferRequest(
-        inputText=req.text,
+        inputText=req.get_text(),
         taskType="BRAND_ENFORCEMENT",
-        brandRules={}
+        brandRules=(req.context or {}).get("branding", {}) if isinstance(req.context, dict) else {}
     )
     brand_result = parse_llm_json(phi3_engine.infer(build_prompt(brand_req), "BRAND_ENFORCEMENT").get("result", ""), "BRAND_ENFORCEMENT")
     brand_ok = brand_result.get("classification", "ALLOW") != "BLOCK"

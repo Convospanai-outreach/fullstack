@@ -1,6 +1,18 @@
 import os
 import logging
-from llama_cpp import Llama
+
+# llama_cpp is only required on actual edge hardware (Raspberry Pi with model downloaded)
+# In MOCK mode (no model file), the import is skipped gracefully
+try:
+    from llama_cpp import Llama
+    LLAMA_AVAILABLE = True
+except ImportError:
+    Llama = None  # type: ignore
+    LLAMA_AVAILABLE = False
+    logging.getLogger("llm_engine").warning(
+        "llama_cpp not installed — running in MOCK mode. "
+        "Install llama-cpp-python on the edge device for real inference."
+    )
 
 logger = logging.getLogger("llm_engine")
 

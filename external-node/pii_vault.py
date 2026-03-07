@@ -13,7 +13,7 @@ class PIIVault:
     """
     def __init__(self):
         # Maps masked ID -> original PII
-        self._vault: Dict[string, Dict[string, str]] = {}
+        self._vault: Dict[str, Dict[str, str]] = {}
         
         self.PATTERNS = {
             'EMAIL': r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
