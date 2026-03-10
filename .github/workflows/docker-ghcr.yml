@@ -1,0 +1,92 @@
+name: Register Docker Images to GHCR
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  # Converts the repository name to lowercase for GHCR compatibility
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: actions/setup-docker-actions@v1 # Optional: Ensure docker environment
+        continue-on-error: true # Not strictly necessary if using docker login directly
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Web
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: runner-web
+          push: true
+          tags: ${{ id.meta-web.outputs.tags }}
+          labels: ${{ id.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (tags, labels) for Worker
+        id: meta-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push Worker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: runner-worker
+          push: true
+          tags: ${{ id.meta-worker.outputs.tags }}
+          labels: ${{ id.meta-worker.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (tags, labels) for Edge Node
+        id: meta-edge
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/edge-node
+          tags: |
+            type=raw,value=latest
+            type=sha,format=short
+
+      - name: Build and push Edge Node image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/edge-node
+          push: true
+          tags: ${{ id.meta-edge.outputs.tags }}
+          labels: ${{ id.meta-edge.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

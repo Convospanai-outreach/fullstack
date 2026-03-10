@@ -1,0 +1,18 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.venv
+.env
+.git
+.gitignore
+.dockerignore
+Dockerfile
+models
+tests
+docs
+*.log
+venv
+node_modules
+README.md
+! .env.example

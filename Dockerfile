@@ -1,53 +1,76 @@
+# Stage 1: Base image with shared environment settings
 FROM node:20-alpine AS base
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
 
+# Stage 2: Install dependencies (only what's needed for build)
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm install
+# Use npm ci for reproducible builds and clean cache in same layer to minimize layer size
+RUN npm ci && \
+    npm cache clean --force && \
+    rm -rf /tmp/*
 
+# Stage 3: Build the application
 FROM base AS builder
-RUN apk add --no-cache libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Disable telemetry during build
-ENV NEXT_TELEMETRY_DISABLED=1
-# Skip linting and type checking for speed in staging, strict in prod
-RUN npx prisma generate
-RUN npm run build
+# Generate Prisma client, Build Next.js, and compile Custom Server/Worker
+RUN npx prisma generate && \
+    npm run build && \
+    node scripts/compile-server.js && \
+    # Clean up build-only files to save space in builder stage memory (though not strictly necessary for final size)
+    rm -rf src/ tests/ e2e/ docs/ scripts/
 
-# Compile custom server and worker for production efficiency
-RUN node scripts/compile-server.js
-
-FROM base AS runner
+# Stage 4: Production runner for ConvoSpan WEB
+FROM base AS runner-web
 WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs && \
+    # Install minimal runtime dependencies (Prisma needs openssl)
+    apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main && \
+    # Ensure proper permissions for the runner
+    mkdir .next && \
+    chown nextjs:nodejs .next
 
-# Install Prisma engine for Alpine
-RUN apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
-
+# Copy only the necessary standalone build artifacts from builder stage (highly minimized)
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-# Copy Prisma for migrations/client access
+# Copy Prisma for potential migrations or client runtime needs
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-
-# Ensure worker dependencies are available at runtime (not bundled by esbuild or next)
-# We run this after copies to ensure we supplement the standalone node_modules
-RUN npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth && \
-    chown -R nextjs:nodejs /app/node_modules
 
 USER nextjs
 
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000 \
+    HOSTNAME="0.0.0.0"
 
-# Use server-custom.js (compiled with Socket.io) by default
+# Use standalone server entrypoint (Next.js standard) or server-custom.js (socket.io enabled)
+# For web, we use server-custom.js to enable real-time features
 CMD ["node", "server-custom.js"]
+
+# Stage 5: Production runner for ConvoSpan WORKER
+FROM base AS runner-worker
+WORKDIR /app
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs && \
+    # Install minimal runtime dependencies (Prisma needs openssl)
+    apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
+
+# Workers often need specific node modules that are 'external' in esbuild
+# We copy node_modules from deps to ensure they are available
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/worker.js ./
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
+USER nextjs
+
+# The worker-only entrypoint
+CMD ["node", "worker.js"]
