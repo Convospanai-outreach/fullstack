@@ -1,42 +1,38 @@
-// This is a manual test script to verify logic flow.
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mocks must be defined before imports
-// Using unstable_mockModule for ESM mocking support in Jest if needed, 
-// but ts-jest usually handles standard jest.mock hoisting if possible. 
-// However, with ESM, sometimes we need explicit hoisting or unstable_mockModule.
-// Let's try standard jest.mock first as ts-jest handles it.
-
-const mockDeductCredits = jest.fn();
+const { mockDeductCredits } = vi.hoisted(() => ({
+    mockDeductCredits: vi.fn()
+}));
 
 // Mock the credit service
-jest.mock('@/services/billing/creditService', () => ({
+vi.mock('@/lib/credits', () => ({
     deductCredits: mockDeductCredits
 }));
 
 // Mock DB
-jest.mock('@/lib/db', () => ({
+vi.mock('@/lib/db', () => ({
     prisma: {
         lead: {
-            findUnique: jest.fn().mockResolvedValue({ id: 'lead-1', fullName: 'Test Lead' }),
-            update: jest.fn()
+            findUnique: vi.fn().mockResolvedValue({ id: 'lead-1', fullName: 'Test Lead' }),
+            update: vi.fn()
         },
-        job: { create: jest.fn() }
+        job: { create: vi.fn() }
     }
 }));
 
 // Mock Queue
-jest.mock('@/lib/queue', () => ({
-    JobQueue: { enqueue: jest.fn() }
+vi.mock('@/lib/queue', () => ({
+    JobQueue: { enqueue: vi.fn() }
 }));
 
 // Mock other services to avoid ESM/import issues
-jest.mock('@/modules/scraper-bridge', () => ({
-    scraperService: { scrape: jest.fn() }
+vi.mock('@/modules/scraper-bridge', () => ({
+    scraperService: { scrape: vi.fn() }
 }));
 
-jest.mock('@/modules/hunter-email-finder', () => ({
-    hunterService: { findAndStoreEmail: jest.fn() }
+vi.mock('@/modules/hunter-email-finder', () => ({
+    hunterService: { findAndStoreEmail: vi.fn() }
 }));
 
 // Import after mocks
@@ -44,29 +40,31 @@ import { handleLeadEnrichment } from '@/workers/handlers/enrichment-worker';
 
 describe('Billing Integration', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('should deduct credits when userId is present', async () => {
-        (mockDeductCredits as jest.Mock).mockResolvedValueOnce(undefined);
+        (mockDeductCredits as any).mockResolvedValue(true);
 
         const payload = {
             leadId: 'lead-1',
             campaignId: 'camp-1',
-            userId: 'user-123'
+            userId: 'user-123',
+            teamId: 'team-1'
         };
 
         await handleLeadEnrichment(payload);
 
-        expect(mockDeductCredits).toHaveBeenCalledWith('user-123', 1, expect.stringContaining('Enrichment'));
+        expect(mockDeductCredits).toHaveBeenCalledWith('team-1', 1, expect.stringContaining('Enrichment'), expect.any(Object));
     });
 
     it('should fail job if insufficient credits', async () => {
-        (mockDeductCredits as jest.Mock).mockRejectedValueOnce(new Error('Insufficient credits'));
+        (mockDeductCredits as any).mockResolvedValueOnce(false);
 
         const payload = {
             leadId: 'lead-1',
-            userId: 'user-broke'
+            userId: 'user-broke',
+            teamId: 'team-broke'
         };
 
         await expect(handleLeadEnrichment(payload)).rejects.toThrow('Insufficient credits');

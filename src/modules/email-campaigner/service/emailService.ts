@@ -1,4 +1,11 @@
+/**
+ * emailService.ts (email-campaigner module)
+ * Real SMTP-powered email sending for campaign outreach.
+ * Replaces the previous SendPulse mock stub.
+ */
 import { prisma } from "@/lib/db";
+import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { getSmtpConfig } from "./smtpConfigService";
 
 export type EmailSendResult = {
     success: boolean;
@@ -8,41 +15,55 @@ export type EmailSendResult = {
 
 class EmailService {
     /**
-     * Send an email using the configured provider
-     * Currently mocks the sending process
+     * Send a campaign email using the team's stored SMTP credentials.
+     * Records the email in the Email table on success.
      */
     async sendEmail(
         to: string,
         subject: string,
         body: string,
-        metadata?: any
+        metadata?: {
+            leadId?: string;
+            campaignId?: string;
+            teamId?: string;
+            fromName?: string;
+            fromEmail?: string;
+        }
     ): Promise<EmailSendResult> {
-        console.log(`📧 Sending email to ${to}`);
-        console.log(`Subject: ${subject}`);
+        const teamId = metadata?.teamId;
 
-        // Simulate provider delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Lookup SMTP config
+        const config = teamId ? await getSmtpConfig(teamId) : null;
+        if (!config) {
+            const errMsg = teamId
+                ? `No SMTP config found for team ${teamId}. Configure email in Setup → Step 3.`
+                : "No teamId provided for email send.";
+            console.error(`[EmailService] ${errMsg}`);
+            return { success: false, error: errMsg };
+        }
 
-        // Mock success
-        // In a real implementation, this would call SendPulse, SendGrid, etc.
-        const mockProviderId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        const result = await sendViaSMTP(config, { to, subject, html: body });
 
-        // Log the email record
-        await prisma.email.create({
-            data: {
-                leadId: metadata?.leadId,
-                campaignId: metadata?.campaignId,
-                subject,
-                body,
-                status: "sent",
-                providerId: mockProviderId,
-            }
-        });
+        if (!result.success) {
+            return result.error ? { success: false, error: result.error } : { success: false };
+        }
 
-        return {
-            success: true,
-            providerId: mockProviderId,
-        };
+        // Record in DB if we have context
+        if (metadata?.leadId && metadata?.campaignId) {
+            await prisma.email.create({
+                data: {
+                    leadId: metadata.leadId,
+                    campaignId: metadata.campaignId,
+                    subject,
+                    body,
+                    status: "sent",
+                    ...(result.messageId ? { providerId: result.messageId } : {}),
+                },
+            });
+        }
+        return result.messageId 
+            ? { success: true, providerId: result.messageId }
+            : { success: true };
     }
 }
 

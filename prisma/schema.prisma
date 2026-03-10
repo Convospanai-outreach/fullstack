@@ -1664,3 +1664,28 @@ model ShadowSignal {
   @@index([source])
   @@index([isWarmLead])
 }
+
+// Foundation Models for RAG and Analytics
+model VectorDocument {
+  id        String   @id @default(uuid())
+  type      String
+  content   String   @db.Text
+  metadata  String?  @db.Text // JSON string
+  embedding String?  @db.Text // JSON string
+  created_at DateTime @default(now())
+
+  @@index([type])
+}
+
+model EngagementLog {
+  id        String   @id @default(uuid())
+  email     String
+  event     String
+  context   String?  @db.Text
+  result    String?  @db.Text // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([event])
+}
+

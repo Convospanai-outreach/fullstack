@@ -160,12 +160,13 @@ class VectorStore {
         // Efficient pgvector search with teamId isolation and model version check
         const results: any[] = await prisma.$queryRawUnsafe(
             `SELECT ki.id, ki.content, ki.metadata, 
-                    (1 - (ki.embedding <=> $1::vector)) as similarity
+                    (1 - (ki.embedding::vector <=> $1::vector)) as similarity
              FROM "KnowledgeItem" ki
              JOIN "KnowledgeBase" kb ON ki."knowledgeBaseId" = kb.id
              WHERE kb."teamId" = $2 
              AND ki."embeddingModel" = $3
-             ORDER BY ki.embedding <=> $1::vector
+             AND ki.embedding IS NOT NULL
+             ORDER BY ki.embedding::vector <=> $1::vector
              LIMIT $4`,
             embeddingSql,
             teamId,

@@ -1,19 +1,20 @@
+import { vi } from 'vitest';
 import { webhookService } from "../service/webhookService";
 import { prisma } from "@/lib/db";
 
 // Mock prisma and fetch
-jest.mock("@/lib/db", () => ({
+vi.mock("@/lib/db", () => ({
     prisma: {
         webhook: {
-            findUnique: jest.fn(),
+            findUnique: vi.fn(),
         },
         webhookLog: {
-            create: jest.fn(),
+            create: vi.fn(),
         },
     },
 }));
 
-global.fetch = jest.fn() as jest.Mock;
+global.fetch = vi.fn() as vi.Mock;
 
 describe("WebhookService Failure scenarios", () => {
     const webhookId = "wh_123";
@@ -21,18 +22,18 @@ describe("WebhookService Failure scenarios", () => {
     const payload = { id: "lead_1", email: "test@example.com" };
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     test("should log failure and throw when target returns 500", async () => {
-        (prisma.webhook.findUnique as jest.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
             id: webhookId,
             url: "https://example.com/webhook",
             isActive: true,
             secret: "shhh",
         });
 
-        (global.fetch as jest.Mock).mockResolvedValue({
+        (global.fetch as vi.Mock).mockResolvedValue({
             ok: false,
             status: 500,
             text: () => Promise.resolve("Internal Server Error"),
@@ -52,13 +53,13 @@ describe("WebhookService Failure scenarios", () => {
     });
 
     test("should log failure and throw when network error occurs", async () => {
-        (prisma.webhook.findUnique as jest.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
             id: webhookId,
             url: "https://example.com/webhook",
             isActive: true,
         });
 
-        (global.fetch as jest.Mock).mockRejectedValue(new Error("DNS Resolution Failed"));
+        (global.fetch as vi.Mock).mockRejectedValue(new Error("DNS Resolution Failed"));
 
         await expect(webhookService.processDelivery(webhookId, event, payload))
             .rejects.toThrow("DNS Resolution Failed");
@@ -73,7 +74,7 @@ describe("WebhookService Failure scenarios", () => {
     });
 
     test("should skip delivery if webhook is inactive", async () => {
-        (prisma.webhook.findUnique as jest.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
             id: webhookId,
             isActive: false,
         });

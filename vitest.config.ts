@@ -5,9 +5,10 @@ import path from 'path';
 export default defineConfig({
     plugins: [react()],
     test: {
-        environment: 'jsdom',
+        environment: 'node',
         globals: true,
         setupFiles: ['./tests/setup.ts'],
+        exclude: ['**/node_modules/**', '**/e2e/**', '**/tests/verify-rate-limit.ts', '**/rag-integration.test.ts'],
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],

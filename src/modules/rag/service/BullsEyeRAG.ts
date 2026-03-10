@@ -1,6 +1,8 @@
 import { mcpManager } from "@/lib/mcp/McpManager";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { aiService } from "@/lib/aiService";
+import { TOON } from "@/lib/ai/TOON";
+import { netjanaServer } from "@/modules/integration/mcp/netjana-server";
 
 export interface Signal {
     id: string;
@@ -53,6 +55,35 @@ export class BullsEyeRAG {
         }
 
         return null;
+    }
+
+    /**
+     * Agentic Market Intelligence:
+     * Pulls signals from Netjana and autonomously updates lead context.
+     */
+    static async syncMarketIntelligence(query: string, teamId: string) {
+        console.log(`[BullsEye:Agentic] Syncing market intelligence for "${query}"...`);
+
+        // 1. Fetch Ingress Signal from Netjana MCP
+        const intentData = await netjanaServer.callTool("fetch_customer_intent", { query });
+
+        // 2. Process each signal
+        for (const signal of intentData.signals) {
+            // Sterilize via TOON before logic processing
+            const { optimizedPrompt: safeSignal } = await TOON.process(signal.signal, teamId);
+            
+            console.log(`[BullsEye] Processed safe signal for ${signal.company}: ${safeSignal}`);
+
+            // Logic to update Lead or Campaign based on intent
+            if (signal.confidence > 0.9) {
+                await this.processSignal({
+                    id: crypto.randomUUID(),
+                    type: 'INTENT_DETECTED',
+                    confidence: signal.confidence,
+                    metadata: { ...signal, sterilizedSignal: safeSignal, teamId }
+                });
+            }
+        }
     }
 
     /**

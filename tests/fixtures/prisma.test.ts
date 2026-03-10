@@ -2,7 +2,7 @@
  * ✅ Prisma Vector + EngagementLog Test
  * Run after migrating schema to verify RAG + Automation logging setup.
  */
-
+// @vitest-environment node
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();

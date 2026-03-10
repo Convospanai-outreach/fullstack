@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
-// No crypto import needed as we'll use Math.random for this demo or standard crypto if available globally
+import { randomBytes } from "crypto";
 
 export async function GET() {
     const session = await getServerSession(authOptions);
@@ -24,10 +24,25 @@ export async function GET() {
 
         const keys = await prisma.apiKey.findMany({
             where: { teamId },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                name: true,
+                scopes: true,
+                lastUsedAt: true,
+                isActive: true,
+                createdAt: true,
+                // Mask the key: only show first 4 characters
+                key: true
+            }
         });
 
-        return NextResponse.json({ success: true, keys });
+        const maskedKeys = keys.map(k => ({
+            ...k,
+            key: `${k.key.substring(0, 7)}...${k.key.substring(k.key.length - 4)}`
+        }));
+
+        return NextResponse.json({ success: true, keys: maskedKeys });
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         logger.error("[Governance API] Failed to fetch API keys", { error: errorMessage });
@@ -53,8 +68,8 @@ export async function POST(req: Request) {
             return new NextResponse("Workspace Not Found", { status: 404 });
         }
 
-        // Generate a secure key
-        const key = `cs_${Math.random().toString(36).substring(2)}${Math.random().toString(36).substring(2)}`;
+        // Generate a cryptographically secure key
+        const key = `cs_live_${randomBytes(24).toString('hex')}`;
 
         const apiKey = await prisma.apiKey.create({
             data: {

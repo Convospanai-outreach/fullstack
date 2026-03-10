@@ -6,6 +6,7 @@ import { deductCredits } from "../lib/credits";
 import { handleLinkedInAction } from "./handlers/linkedin";
 import { HubSpotService } from "@/lib/crm";
 import { agentExecutor, AgentState } from "@/modules/agent/core/AgentExecutor";
+import { handleSequenceAction } from "./handlers/sequenceHandlers";
 
 import { logger } from "@/lib/logger";
 
@@ -147,6 +148,11 @@ async function processNextJob() {
                     });
                     
                     result = { status: "stopped", taskId };
+                    break;
+                }
+
+                case "SEQUENCE_ACTION": {
+                    result = await handleSequenceAction(payload as any);
                     break;
                 }
 

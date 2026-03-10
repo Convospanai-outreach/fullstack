@@ -113,8 +113,8 @@ class BaseContract:
 # --- Playbook Generator Agent ---
 
 class PlaybookStep(BaseModel, BaseContract):
-    step_id: constr(regex=r'^step_[a-zA-Z0-9]+$')
-    action_type: constr(regex=r'^(email|linkedin_message|call_script|wait)$')
+    step_id: str = Field(pattern=r'^step_[a-zA-Z0-9]+$')
+    action_type: str = Field(pattern=r'^(email|linkedin_message|call_script|wait)$')
     content_template: str = Field(..., description="Template string with variables like {{first_name}}")
     wait_duration_hours: Optional[int] = Field(None, ge=0)
     expected_outcome: str
@@ -138,7 +138,7 @@ class PlaybookGeneratorOutput(BaseModel, BaseContract):
 
 class Violation(BaseModel, BaseContract):
     rule_id: str
-    severity: constr(regex=r'^(low|medium|high|critical)$')
+    severity: str = Field(pattern=r'^(low|medium|high|critical)$')
     step_id: Optional[str] = None
     description: str
 
@@ -170,7 +170,7 @@ class DriftDetectorInput(BaseModel, BaseContract):
 
 class DriftDetectorOutput(BaseModel, BaseContract):
     drift_detected: bool
-    severity: Optional[constr(regex=r'^(low|medium|high|critical)$')] = None
+    severity: Optional[str] = Field(None, pattern=r'^(low|medium|high|critical)$')
     drifted_metrics: List[str]
     root_cause_hypothesis_hash: Optional[str] = None
 
@@ -179,7 +179,7 @@ class DriftDetectorOutput(BaseModel, BaseContract):
 
 class CritiquePoint(BaseModel, BaseContract):
     target_step_id: str
-    issue_type: constr(regex=r'^(tone|compliance|engagement_drop|hallucination)$')
+    issue_type: str = Field(pattern=r'^(tone|compliance|engagement_drop|hallucination)$')
     suggested_fix: str
 
 class SelfCriticInput(BaseModel, BaseContract):

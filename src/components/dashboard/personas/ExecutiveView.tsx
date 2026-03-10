@@ -10,13 +10,15 @@ import { ArrowUpRight } from "lucide-react";
 export default function ExecutiveView() {
     const [metrics, setMetrics] = useState<ROIMetrics | null>(null);
     const [trends, setTrends] = useState<any[]>([]);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         MockROIService.getMetrics().then(setMetrics);
         MockROIService.getTrends('mrr').then(setTrends);
     }, []);
 
-    if (!metrics) return <div className="p-10 text-center animate-pulse">Loading Strategic Insights...</div>;
+    if (!mounted || !metrics) return <div className="p-10 text-center animate-pulse">Loading Strategic Insights...</div>;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -61,7 +63,7 @@ export default function ExecutiveView() {
                         <CardDescription>6-Month Growth Trajectory</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%" minHeight={1}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={0}>
                             <LineChart data={trends}>
                                 <defs>
                                     <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">

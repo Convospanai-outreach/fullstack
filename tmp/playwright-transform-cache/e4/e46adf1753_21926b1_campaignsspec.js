@@ -1,0 +1,31 @@
+"use strict";
+
+var _test = require("@playwright/test");
+// NOTE: These tests require a running backend and potentially a seeded DB.
+// In a real CI, we'd mock the API calls or use a test DB.
+// For now, these are smoke tests.
+
+_test.test.describe('Campaigns Flow', () => {
+  // TODO: Figure out how to bypass Auth in E2E.
+  // Usually via 'global-setup.ts' saving storage state.
+  // For this generic setup, we'll write the test assuming we can reach the page,
+  // knowing it might fail until we configure auth bypass.
+
+  _test.test.skip('should create a new campaign', async ({
+    page
+  }) => {
+    // Log in logic would go here
+
+    await page.goto('/campaigns');
+    await page.getByRole('button', {
+      name: 'New Campaign'
+    }).click();
+    await page.getByPlaceholder('Campaign Name').fill('E2E Test Campaign');
+    await page.getByPlaceholder('Describe your campaign...').fill('Created via Playwright');
+    await page.getByRole('button', {
+      name: 'Create Campaign'
+    }).click();
+    await (0, _test.expect)(page.getByText('E2E Test Campaign')).toBeVisible();
+  });
+});
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJfdGVzdCIsInJlcXVpcmUiLCJ0ZXN0IiwiZGVzY3JpYmUiLCJza2lwIiwicGFnZSIsImdvdG8iLCJnZXRCeVJvbGUiLCJuYW1lIiwiY2xpY2siLCJnZXRCeVBsYWNlaG9sZGVyIiwiZmlsbCIsImV4cGVjdCIsImdldEJ5VGV4dCIsInRvQmVWaXNpYmxlIl0sInNvdXJjZXMiOlsiY2FtcGFpZ25zLnNwZWMudHMiXSwic291cmNlc0NvbnRlbnQiOlsiXHJcbmltcG9ydCB7IHRlc3QsIGV4cGVjdCB9IGZyb20gJ0BwbGF5d3JpZ2h0L3Rlc3QnO1xyXG5cclxuLy8gTk9URTogVGhlc2UgdGVzdHMgcmVxdWlyZSBhIHJ1bm5pbmcgYmFja2VuZCBhbmQgcG90ZW50aWFsbHkgYSBzZWVkZWQgREIuXHJcbi8vIEluIGEgcmVhbCBDSSwgd2UnZCBtb2NrIHRoZSBBUEkgY2FsbHMgb3IgdXNlIGEgdGVzdCBEQi5cclxuLy8gRm9yIG5vdywgdGhlc2UgYXJlIHNtb2tlIHRlc3RzLlxyXG5cclxudGVzdC5kZXNjcmliZSgnQ2FtcGFpZ25zIEZsb3cnLCAoKSA9PiB7XHJcbiAgICAvLyBUT0RPOiBGaWd1cmUgb3V0IGhvdyB0byBieXBhc3MgQXV0aCBpbiBFMkUuXHJcbiAgICAvLyBVc3VhbGx5IHZpYSAnZ2xvYmFsLXNldHVwLnRzJyBzYXZpbmcgc3RvcmFnZSBzdGF0ZS5cclxuICAgIC8vIEZvciB0aGlzIGdlbmVyaWMgc2V0dXAsIHdlJ2xsIHdyaXRlIHRoZSB0ZXN0IGFzc3VtaW5nIHdlIGNhbiByZWFjaCB0aGUgcGFnZSxcclxuICAgIC8vIGtub3dpbmcgaXQgbWlnaHQgZmFpbCB1bnRpbCB3ZSBjb25maWd1cmUgYXV0aCBieXBhc3MuXHJcblxyXG4gICAgdGVzdC5za2lwKCdzaG91bGQgY3JlYXRlIGEgbmV3IGNhbXBhaWduJywgYXN5bmMgKHsgcGFnZSB9KSA9PiB7XHJcbiAgICAgICAgLy8gTG9nIGluIGxvZ2ljIHdvdWxkIGdvIGhlcmVcclxuXHJcbiAgICAgICAgYXdhaXQgcGFnZS5nb3RvKCcvY2FtcGFpZ25zJyk7XHJcbiAgICAgICAgYXdhaXQgcGFnZS5nZXRCeVJvbGUoJ2J1dHRvbicsIHsgbmFtZTogJ05ldyBDYW1wYWlnbicgfSkuY2xpY2soKTtcclxuXHJcbiAgICAgICAgYXdhaXQgcGFnZS5nZXRCeVBsYWNlaG9sZGVyKCdDYW1wYWlnbiBOYW1lJykuZmlsbCgnRTJFIFRlc3QgQ2FtcGFpZ24nKTtcclxuICAgICAgICBhd2FpdCBwYWdlLmdldEJ5UGxhY2Vob2xkZXIoJ0Rlc2NyaWJlIHlvdXIgY2FtcGFpZ24uLi4nKS5maWxsKCdDcmVhdGVkIHZpYSBQbGF5d3JpZ2h0Jyk7XHJcbiAgICAgICAgYXdhaXQgcGFnZS5nZXRCeVJvbGUoJ2J1dHRvbicsIHsgbmFtZTogJ0NyZWF0ZSBDYW1wYWlnbicgfSkuY2xpY2soKTtcclxuXHJcbiAgICAgICAgYXdhaXQgZXhwZWN0KHBhZ2UuZ2V0QnlUZXh0KCdFMkUgVGVzdCBDYW1wYWlnbicpKS50b0JlVmlzaWJsZSgpO1xyXG4gICAgfSk7XHJcbn0pO1xyXG4iXSwibWFwcGluZ3MiOiI7O0FBQ0EsSUFBQUEsS0FBQSxHQUFBQyxPQUFBO0FBRUE7QUFDQTtBQUNBOztBQUVBQyxVQUFJLENBQUNDLFFBQVEsQ0FBQyxnQkFBZ0IsRUFBRSxNQUFNO0VBQ2xDO0VBQ0E7RUFDQTtFQUNBOztFQUVBRCxVQUFJLENBQUNFLElBQUksQ0FBQyw4QkFBOEIsRUFBRSxPQUFPO0lBQUVDO0VBQUssQ0FBQyxLQUFLO0lBQzFEOztJQUVBLE1BQU1BLElBQUksQ0FBQ0MsSUFBSSxDQUFDLFlBQVksQ0FBQztJQUM3QixNQUFNRCxJQUFJLENBQUNFLFNBQVMsQ0FBQyxRQUFRLEVBQUU7TUFBRUMsSUFBSSxFQUFFO0lBQWUsQ0FBQyxDQUFDLENBQUNDLEtBQUssQ0FBQyxDQUFDO0lBRWhFLE1BQU1KLElBQUksQ0FBQ0ssZ0JBQWdCLENBQUMsZUFBZSxDQUFDLENBQUNDLElBQUksQ0FBQyxtQkFBbUIsQ0FBQztJQUN0RSxNQUFNTixJQUFJLENBQUNLLGdCQUFnQixDQUFDLDJCQUEyQixDQUFDLENBQUNDLElBQUksQ0FBQyx3QkFBd0IsQ0FBQztJQUN2RixNQUFNTixJQUFJLENBQUNFLFNBQVMsQ0FBQyxRQUFRLEVBQUU7TUFBRUMsSUFBSSxFQUFFO0lBQWtCLENBQUMsQ0FBQyxDQUFDQyxLQUFLLENBQUMsQ0FBQztJQUVuRSxNQUFNLElBQUFHLFlBQU0sRUFBQ1AsSUFBSSxDQUFDUSxTQUFTLENBQUMsbUJBQW1CLENBQUMsQ0FBQyxDQUFDQyxXQUFXLENBQUMsQ0FBQztFQUNuRSxDQUFDLENBQUM7QUFDTixDQUFDLENBQUMiLCJpZ25vcmVMaXN0IjpbXX0=

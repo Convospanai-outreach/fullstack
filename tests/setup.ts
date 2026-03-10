@@ -1,5 +1,10 @@
-import '@testing-library/jest-dom';
 import { vi } from 'vitest';
+ 
+// Mock server-only to allow tests to run in Node environment
+vi.mock('server-only', () => ({}));
+
+// Compatibility layer for Jest tests
+(globalThis as any).jest = vi;
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({

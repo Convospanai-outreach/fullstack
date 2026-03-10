@@ -82,6 +82,9 @@ export function SovereignConsole() {
         }
     };
 
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between mb-2">
@@ -250,19 +253,21 @@ export function SovereignConsole() {
                     <CardTitle className="text-sm uppercase tracking-widest text-gray-500">Karmic ROI (Cost Saved vs Cloud)</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[200px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={roiData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                            <XAxis dataKey="time" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                            <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} unit="$" />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                itemStyle={{ fontSize: '12px' }}
-                            />
-                            <Line type="monotone" dataKey="localSavings" stroke="#10b981" strokeWidth={2} dot={false} name="Local Inference (Saved)" />
-                            <Line type="monotone" dataKey="cloudCost" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Cloud Cost (Avoided)" />
-                        </LineChart>
-                    </ResponsiveContainer>
+                    {mounted && (
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <LineChart data={roiData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                                <XAxis dataKey="time" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} unit="$" />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
+                                    itemStyle={{ fontSize: '12px' }}
+                                />
+                                <Line type="monotone" dataKey="localSavings" stroke="#10b981" strokeWidth={2} dot={false} name="Local Inference (Saved)" />
+                                <Line type="monotone" dataKey="cloudCost" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Cloud Cost (Avoided)" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
                 </CardContent>
             </Card>
         </div>

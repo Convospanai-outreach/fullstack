@@ -4,8 +4,8 @@ import { getCurrentContext } from "@/lib/auth";
 
 export async function GET() {
     try {
-        const { userId } = await getCurrentContext();
-
+        const { userId, teamId } = await getCurrentContext();
+        
         if (!userId) {
             return NextResponse.json(
                 { ok: false, error: "Unauthorized" },
@@ -13,7 +13,7 @@ export async function GET() {
             );
         }
 
-        const progress = await onboardingService.getOnboardingStatus(userId);
+        const progress = await onboardingService.getOnboardingStatus(userId, teamId);
         return NextResponse.json({ ok: true, progress });
     } catch (err: any) {
         return NextResponse.json(

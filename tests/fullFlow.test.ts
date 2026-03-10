@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { PrismaClient } from "@prisma/client";
 import { buildRAGContext, extractKeyInsights } from "@/ai/ragEngine";
 import { generateWithGemini } from "@/ai/gemini";
@@ -30,7 +31,7 @@ describe("🔗 Full AI + RAG + Analytics pipeline", () => {
   });
 
   test("2️⃣ Generates insights using Gemini (mock-safe)", async () => {
-    delete process.env.GEMINI_API_KEY; // Ensure mock mode works
+    delete process.env['GEMINI_API_KEY']; // Ensure mock mode works
     const insights = await extractKeyInsights(
       "Acme Corp focuses on optimizing marketing automation using AI."
     );
@@ -60,7 +61,9 @@ describe("🔗 Full AI + RAG + Analytics pipeline", () => {
     });
 
     expect(retrievedLogs.length).toBeGreaterThan(0);
-    expect(retrievedLogs[0].result).toContain("AI Automation");
+    const firstLog = retrievedLogs[0];
+    if (!firstLog) throw new Error("No log found");
+    expect(firstLog.result).toContain("AI Automation");
   });
 
   test("4️⃣ RAG + Gemini combined response integrity", async () => {

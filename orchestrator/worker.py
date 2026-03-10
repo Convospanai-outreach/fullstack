@@ -27,7 +27,7 @@ class MockRedisStream:
         self.streams[stream].append((str(uuid.uuid4()).encode(), fields))
         logger.debug(f"[REDIS] Added task to stream {stream}")
         
-    async def xreadgroup(self, groupname: str, consumername: str, streams: Dict[str, str], count: int = 1, block: int = 2000):
+    async def xreadgroup(self, groupname: str, consumername: str, streams: Dict[str, str], count: int = 1, block: int = 2000) -> list:
         # Simulate blocking read
         await asyncio.sleep(0.1) 
         
@@ -44,7 +44,7 @@ class MockRedisStream:
 
 
 # Global Mock Instance
-redis_client = MockRedisStream()
+redis_client: MockRedisStream = MockRedisStream()
 
 async def push_task_to_queue(task_payload: Dict[str, Any], priority: str = "normal"):
     """API or Orchestrator pushes new tasks onto the appropriate stream."""
@@ -116,7 +116,7 @@ class AgentWorkerNode:
                         # Ensure fields are strings
                         fields = {k if isinstance(k, str) else k.decode(): v if isinstance(v, str) else v.decode() for k, v in raw_fields.items()}
                         
-                        task_type = fields.get("task_type")
+                        task_type = str(fields.get("task_type", ""))
                         task_id = fields.get("id")
 
                         # 3. Validation: Can this worker handle this task type?

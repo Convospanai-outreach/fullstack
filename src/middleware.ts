@@ -71,7 +71,8 @@ export async function middleware(req: NextRequest) {
         path.startsWith("/_next") ||
         path.startsWith("/static") ||
         path.startsWith("/images") ||
-        path.startsWith("/api/webhooks");
+        path.startsWith("/api/webhooks") ||
+        path.startsWith("/api/test-auth");
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting

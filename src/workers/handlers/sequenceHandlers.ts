@@ -3,6 +3,8 @@ import { JobPayload } from "@/lib/queue";
 import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
+import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
+import { EmailService } from "@/lib/emailService";
 
 export async function handleSequenceAction(payload: JobPayload) {
     const leadId = payload['leadId'];
@@ -54,51 +56,46 @@ export async function handleSequenceAction(payload: JobPayload) {
         case "EMAIL":
             // Send email
             // We need to fetch the lead's email from DB first
-            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-            if (lead && lead.email) {
-                const { EmailService } = require("@/lib/emailService");
+            const lead = await prisma.lead.findUnique({ 
+                where: { id: leadId },
+                include: { campaign: { include: { team: true } } }
+            });
 
-                // AI Personalization
-                let emailBody = "Hi, just checking in on my previous message.";
-                let emailSubject = "Follow up";
+            if (lead && lead.email && lead.campaign) {
+                const campaign = lead.campaign;
 
-                // Check if we have scraped data (enrichedData or just raw profile text stored somewhere)
-                // Assuming enrichedData might contain the scraped profile if we saved it there during VISIT/SCRAPE
-                // Or we can try to use the 'linkedIn' URL as context if we don't have deep data, 
-                // but ideally we want the scraped bio.
-
-                // Let's assume for now we pass the 'linkedIn' URL and maybe some basic info we have.
-                // But to be truly "AI Embedded based on profile", we need the profile text.
-                // In handleSequenceAction for VISIT, we did:
-                // result = await runLinkedInAction({ type: "SCRAPE", ... });
-                // But we didn't save the result to DB in that block (it just returned result).
-                // We should probably have saved it. 
-
-                // For this implementation, I will try to use 'enrichedData' if available, 
-                // otherwise I'll fallback to a generic AI improvement of the template.
-
-                const profileContext = lead.enrichedData ? JSON.stringify(lead.enrichedData) : `Profile URL: ${lead.linkedIn}`;
+                let emailSubject = "Checking in";
+                let emailBody = "Hi, I'm following up on our LinkedIn connection request. Would love to chat about your sales motion.";
 
                 try {
-                    // Generate personalized email
-                    // We'll ask AI to write a follow-up based on the profile
-                    const prompt = `Write a short, professional B2B follow-up email to a lead.
-                    
-                    Lead Context: ${profileContext}
-                    
-                    My Goal: Schedule a demo for our AI sales agent platform.
-                    Previous Interaction: I sent a connection request on LinkedIn.
-                    
-                    Keep it under 100 words. Return ONLY the email body.`;
+                    // 1. Prepare Node A Input
+                    const nodeAInput = {
+                        prospect_name: lead.fullName || "Prospect",
+                        prospect_title: lead.jobTitle || "Professional",
+                        prospect_company: lead.company || "Your Company",
+                        pain_context: (campaign.aiConfig as any)?.painContext || "Improving sales efficiency",
+                        outreach_timing: "Post-LinkedIn interaction",
+                        avoid_topics: (campaign.aiConfig as any)?.avoidTopics || [],
+                        hypothesis: (campaign.aiConfig as any)?.hypothesis || "Your team is looking for automation",
+                        signal_type: "LinkedIn Activity",
+                        extracted_signal: `Recent profile visit at ${url}`,
+                        sender_name: campaign.team?.name || "ConvoSpan Team",
+                        sender_email: "outbound@convospan.ai"
+                    };
 
-                    emailBody = await aiService.askAI(prompt);
+                    // 2. Compose via Autonomous Knowledge Engine
+                    const draft = await composeNodeA(
+                        nodeAInput, 
+                        campaign.teamId || "", 
+                        campaign.id, 
+                        lead.id
+                    );
 
-                    // Generate subject line too
-                    const subjectPrompt = `Generate a short, catchy subject line for this email body: "${emailBody}". Return ONLY the subject line.`;
-                    emailSubject = await aiService.askAI(subjectPrompt);
+                    emailSubject = draft.subject;
+                    emailBody = draft.body;
 
                 } catch (error) {
-                    console.warn("AI Email generation failed, falling back to template", error);
+                    console.warn("[Sequence] Autonomous generation failed, using fallback.", error);
                 }
 
                 result = await EmailService.sendEmail(lead.email, emailSubject, emailBody);
@@ -109,7 +106,9 @@ export async function handleSequenceAction(payload: JobPayload) {
             break;
     }
 
-    if (result && result.ok) {
+    const success = result && ((result as any).ok || (result as any).success);
+
+    if (success) {
         // Update DB status
         await prisma.lead.update({
             where: { id: leadId },

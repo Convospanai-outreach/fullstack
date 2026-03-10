@@ -1,29 +1,30 @@
+import { vi } from 'vitest';
 import { WorkflowService } from "@/lib/workflowService";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 
-jest.mock("@/lib/db", () => ({
+vi.mock("@/lib/db", () => ({
     prisma: {
         workflowRun: {
-            findUnique: jest.fn(),
-            update: jest.fn(),
-            create: jest.fn()
+            findUnique: vi.fn(),
+            update: vi.fn(),
+            create: vi.fn()
         },
         lead: {
-            findUnique: jest.fn()
+            findUnique: vi.fn()
         }
     }
 }));
 
-jest.mock("@/lib/queue", () => ({
+vi.mock("@/lib/queue", () => ({
     JobQueue: {
-        enqueue: jest.fn()
+        enqueue: vi.fn()
     }
 }));
 
 describe("WorkflowService DAG Traversal", () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it("should process an AI node and move to the next step", async () => {
@@ -43,7 +44,7 @@ describe("WorkflowService DAG Traversal", () => {
             }
         };
 
-        (prisma.workflowRun.findUnique as jest.Mock).mockResolvedValue(mockRun);
+        (prisma.workflowRun.findUnique as vi.Mock).mockResolvedValue(mockRun);
 
         await WorkflowService.processNode("run-1", "node-1");
 
@@ -74,8 +75,8 @@ describe("WorkflowService DAG Traversal", () => {
             }
         };
 
-        (prisma.workflowRun.findUnique as jest.Mock).mockResolvedValue(mockRun);
-        (prisma.lead.findUnique as jest.Mock).mockResolvedValue({ id: "lead-1", status: "replied" });
+        (prisma.workflowRun.findUnique as vi.Mock).mockResolvedValue(mockRun);
+        (prisma.lead.findUnique as vi.Mock).mockResolvedValue({ id: "lead-1", status: "replied" });
 
         await WorkflowService.processNode("run-2", "node-1");
 

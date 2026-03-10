@@ -14,30 +14,46 @@ class OnboardingService {
      * Checks which steps the user has completed by querying real data.
      * We don't store "completed" state for everything, we just check existence.
      */
-    async getOnboardingStatus(userId: string, teamId?: string) {
-        if (!teamId) return [];
-
-        const status = [];
+    async getOnboardingStatus(userId: string, teamId: string | null) {
+        const completedIds = [];
+        
+        // Return 0 if no team context
+        if (!teamId) {
+            return {
+                percentComplete: 0,
+                steps: ONBOARDING_STEPS.map(s => ({ ...s, completed: false }))
+            };
+        }
 
         // 1. Check API Keys
         const settings = await prisma.settings.findUnique({ where: { userId } });
         if (settings?.apiKeyOpenAI || settings?.apiKeyGemini) {
-            status.push("api_key");
+            completedIds.push("api_key");
         }
 
         // 2. Check Leads
         const leadCount = await prisma.lead.count({ where: { teamId } });
-        if (leadCount > 0) status.push("import_leads");
+        if (leadCount > 0) completedIds.push("import_leads");
 
         // 3. Check Campaigns
         const campaignCount = await prisma.campaign.count({ where: { teamId } });
-        if (campaignCount > 0) status.push("create_campaign");
+        if (campaignCount > 0) completedIds.push("create_campaign");
 
         // 4. Check Automations
         const automationCount = await prisma.automation.count({ where: { teamId } });
-        if (automationCount > 0) status.push("enable_automation");
+        if (automationCount > 0) completedIds.push("enable_automation");
 
-        return status;
+        const steps = ONBOARDING_STEPS.map(step => ({
+            ...step,
+            completed: completedIds.includes(step.id)
+        }));
+
+        const percentComplete = Math.round((completedIds.length / ONBOARDING_STEPS.length) * 100);
+
+        return {
+            percentComplete,
+            steps
+        };
     }
 }
 

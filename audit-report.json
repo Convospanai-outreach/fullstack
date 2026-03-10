@@ -2,31 +2,96 @@
   {
     "route": "/",
     "type": "console-warn",
-    "message": "[GroupMarkerNotSet(crbug.com/242999)!:A8401900D45F0000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
+    "message": "[GroupMarkerNotSet(crbug.com/242999)!:A84019007C430000]Automatic fallback to software WebGL has been deprecated. Please use the --enable-unsafe-swiftshader (about:flags#enable-unsafe-swiftshader) flag to opt in to lower security guarantees for trusted content."
   },
   {
     "route": "/",
     "type": "console-warn",
-    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "message": "[.WebGL-0x682403ce8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
   },
   {
     "route": "/",
     "type": "console-warn",
-    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "message": "[.WebGL-0x682403ce8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
   },
   {
     "route": "/",
     "type": "console-warn",
-    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+    "message": "[.WebGL-0x682403ce8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
   },
   {
     "route": "/",
     "type": "console-warn",
-    "message": "[.WebGL-0x569403596300]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+    "message": "[.WebGL-0x682403ce8600]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+  },
+  {
+    "route": "/contact",
+    "type": "console-error",
+    "message": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:\n\n- A server/client branch `if (typeof window !== 'undefined')`.\n- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.\n- Date formatting in a user's locale which doesn't match the server.\n- External changing data without sending a snapshot of it along with the HTML.\n- Invalid HTML tag nesting.\n\nIt can also happen if the client has a browser extension installed which messes with the HTML before React loaded.\n\n%s%s https://react.dev/link/hydration-mismatch \n\n  ...\n    <RedirectBoundary>\n      <RedirectErrorBoundary router={{...}}>\n        <InnerLayoutRouter url=\"/contact\" tree={[...]} params={{}} cacheNode={{rsc:<Fragment>, ...}} segmentPath={[...]} ...>\n          <SegmentViewNode type=\"page\" pagePath=\"contact/pa...\">\n            <SegmentTrieNode>\n            <ClientPageRoot Component={function ContactPage} serverProvidedParams={{...}}>\n              <ContactPage params={Promise} searchParams={Promise}>\n                <div className=\"min-h-scre...\">\n                  <div>\n                  <div>\n                  <div className=\"max-w-6xl ...\">\n                    <section>\n                    <div className=\"grid grid-...\">\n                      <div>\n                      <div className=\"lg:col-span-3\">\n                        <div className=\"p-8 rounde...\">\n                          <h2>\n                          <p>\n                          <form onSubmit={function handleSubmit} className=\"space-y-5\">\n                            <div className=\"grid grid-...\">\n                              <div>\n                                <label>\n                                <input\n                                  type=\"text\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n                                  className=\"w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white ...\"\n                                  placeholder=\"Jane Smith\"\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                              <div>\n                                <label>\n                                <input\n                                  type=\"email\"\n                                  required={true}\n                                  value=\"\"\n                                  onChange={function onChange}\n                                  className=\"w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white ...\"\n                                  placeholder=\"jane@company.com\"\n-                                 style={{caret-color:\"transparent\"}}\n                                >\n                            <div>\n                            <div>\n                              <label>\n                              <textarea\n                                required={true}\n                                rows={5}\n                                value=\"\"\n                                onChange={function onChange}\n                                className=\"w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white fo...\"\n                                placeholder=\"Tell us how we can help...\"\n-                               style={{caret-color:\"transparent\"}}\n                              >\n                            ...\n          ...\n        ...\n"
+  },
+  {
+    "route": "/login",
+    "type": "request-failed",
+    "message": "GET http://localhost:3000/dashboard?_rsc=17j70 - net::ERR_ABORTED"
+  },
+  {
+    "route": "/login",
+    "type": "request-failed",
+    "message": "GET http://localhost:3000/dashboard?_rsc=1usnx - net::ERR_ABORTED"
+  },
+  {
+    "route": "/login",
+    "type": "console-warn",
+    "message": "The width(-1) and height(-1) of chart should be greater than 0,\n       please check the style of container, or the props width(100%) and height(100%),\n       or add a minWidth(0) or minHeight(1) or use aspect(undefined) to control the\n       height and width."
+  },
+  {
+    "route": "/login",
+    "type": "console-warn",
+    "message": "The width(-1) and height(-1) of chart should be greater than 0,\n       please check the style of container, or the props width(100%) and height(100%),\n       or add a minWidth(0) or minHeight(1) or use aspect(undefined) to control the\n       height and width."
+  },
+  {
+    "route": "/login",
+    "type": "request-failed",
+    "message": "GET http://localhost:3000/api/auth/session - net::ERR_ABORTED"
+  },
+  {
+    "route": "/settings",
+    "type": "request-failed",
+    "message": "GET http://localhost:3000/api/auth/session - net::ERR_ABORTED"
   },
   {
     "route": "/login",
     "type": "console-error",
-    "message": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    "message": "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}"
+  },
+  {
+    "route": "/settings",
+    "type": "console-error",
+    "message": "[next-auth][error][CLIENT_FETCH_ERROR] \nhttps://next-auth.js.org/errors#client_fetch_error Failed to fetch {error: Object, url: /api/auth/session, message: Failed to fetch}"
+  },
+  {
+    "route": "/login",
+    "type": "console-error",
+    "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+    "route": "/settings",
+    "type": "console-error",
+    "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+    "route": "/login",
+    "type": "console-error",
+    "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+    "route": "/settings",
+    "type": "console-error",
+    "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+    "route": "/settings/profile",
+    "type": "console-error",
+    "message": "Failed to load resource: the server responded with a status of 404 (Not Found)"
   }
 ]

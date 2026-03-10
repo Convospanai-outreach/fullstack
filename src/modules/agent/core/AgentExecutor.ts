@@ -188,7 +188,7 @@ export class AgentExecutor {
 
             // 3. SANITIZATION (Sovereign Firewall + Micro-LLM Intent Pre-Check)
             if (currentState === AgentState.SANITIZATION) {
-                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+                const { TOON } = await import("@/lib/ai/TOON");
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
 
                 // Construct the prompt with potentially sensitive data
@@ -198,9 +198,9 @@ export class AgentExecutor {
                     context: `Draft an email to [ROLE] at [COMPANY] about our security product.`
                 };
 
-                await this.log(taskId, "ACTION", `Sovereign Firewall: Masking PII before Cloud Inference...`);
+                await this.log(taskId, "ACTION", `TOON: Sterilizing and optimizing prompt...`);
 
-                const { safeContext, tokenMap } = await SovereignFirewall.mask(promptPayload);
+                const { optimizedPrompt: safeContext, tokenMap } = await TOON.process(JSON.stringify(promptPayload), task.teamId);
                 const serializedMap = Array.from(tokenMap.entries());
 
                 // MICRO-LLM GATE: Classify outbound intent LOCALLY before touching the cloud
@@ -236,7 +236,8 @@ export class AgentExecutor {
             // 4. LLM_GENERATION (ModelGateway via AI Service)
             if (currentState === AgentState.LLM_GENERATION) {
                 const { aiService } = await import("@/lib/aiService");
-                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+                const { TOON } = await import("@/lib/ai/TOON");
+                const { KnowledgeIngressService } = await import("@/modules/rag/service/KnowledgeIngressService");
                 const { mcpManager } = await import("@/lib/mcp/McpManager");
 
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
@@ -250,9 +251,15 @@ export class AgentExecutor {
                     `- ${t.name}: ${t.description} (Schema: ${JSON.stringify(t.inputSchema)})`
                 ).join("\n");
 
+                // AGENTIC RAG: Retrieve campaign context
+                const query = task.goal.substring(0, 100); // Simple query extraction
+                const ragContext = await KnowledgeIngressService.agenticSearch(task.teamId, query);
+
                 const prompt = `
 GOAL: ${task.goal}
 CONTEXT: ${JSON.stringify(safePayload)}
+DOMAIN KNOWLEDGE:
+${ragContext}
 
 AVAILABLE TOOLS:
 ${toolsDesc}
@@ -318,12 +325,7 @@ RESPONSE:
                 // Normal Content Flow
                 // UNMASK: Restore PII
                 const tokenMap = new Map(ctx._token_map as [string, string][]);
-                const restoredContent = await SovereignFirewall.unmaskAsync(
-                    generatedRaw, 
-                    tokenMap, 
-                    task.teamId, 
-                    `RESTORE_DRAFT_FOR_TASK_${taskId}`
-                );
+                const restoredContent = TOON.unmask(generatedRaw, tokenMap);
 
                 await this.log(taskId, "OBSERVATION", `LLM Generated & Detokenized content.`);
 
@@ -398,7 +400,7 @@ RESPONSE:
 
             // 5. ADVERSARIAL_CHECK (Micro-LLM Brand + Policy Critic, then Sovereign Firewall)
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
-                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+                const { TOON } = await import("@/lib/ai/TOON");
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
                 const draft = ctx.draft_content || "";
 

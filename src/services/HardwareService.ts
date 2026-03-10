@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { logger } from "@/lib/logger";
 
 const EDGE_NODE_URI = process.env['EDGE_NODE_URL'] || process.env['EDGE_NODE_URI'] || 'http://localhost:8000';
@@ -45,11 +44,20 @@ export class HardwareService {
         try {
             // detailed connection log removed for security
 
-            const response = await axios.get(`${EDGE_NODE_URI}/health`, {
-                timeout: 2000,
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            const response = await fetch(`${EDGE_NODE_URI}/health`, {
+                signal: controller.signal,
             });
+            clearTimeout(timeoutId);
 
-            const { status, hardware_id } = response.data;
+            if (!response.ok) {
+                 throw new Error(`Edge Node HTTP error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const { status, hardware_id } = data;
 
             if (status !== 'ONLINE') {
                 throw new Error(`Edge Node reported status: ${status}`);
@@ -77,8 +85,17 @@ export class HardwareService {
 
     static async sanitize(text: string): Promise<SanitizeResponse> {
         try {
-            const response = await axios.post(`${EDGE_NODE_URI}/sanitize`, { text }, { timeout: 5000 });
-            return response.data;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/sanitize`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            return await response.json();
         } catch (error: any) {
             throw new Error(`Edge Sanitization Failed: ${error.message}`);
         }
@@ -86,8 +103,17 @@ export class HardwareService {
 
     static async critique(text: string, context?: string): Promise<CritiqueResponse> {
         try {
-            const response = await axios.post<CritiqueResponse>(`${EDGE_NODE_URI}/critique`, { text, context }, { timeout: 5000 });
-            return response.data;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/critique`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, context }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            return await response.json();
         } catch (error: any) {
             // "Failsafe - if Edge is offline, Agent MUST fail."
             throw new Error(`Edge Critique Failed: ${error.message}`);
@@ -96,8 +122,18 @@ export class HardwareService {
 
     static async search(query: string): Promise<SearchResult[]> {
         try {
-            const response = await axios.post<{ results: SearchResult[] }>(`${EDGE_NODE_URI}/search`, { query, limit: 3 }, { timeout: 5000 });
-            return response.data.results;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/search`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, limit: 3 }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            const data = await response.json();
+            return data.results;
         } catch (error: any) {
             logger.error("Hardware Search Error:", error);
             // Fallback to empty array to not break UI, but log error
@@ -107,7 +143,16 @@ export class HardwareService {
 
     static async execute(action: string, payload: Record<string, any>): Promise<boolean> {
         try {
-            await axios.post(`${EDGE_NODE_URI}/execute`, { action, payload }, { timeout: 5000 });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/execute`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action, payload }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
             return true;
         } catch (error: any) {
             logger.error("Hardware Execution Error:", error);
@@ -120,7 +165,16 @@ export class HardwareService {
     static async saveWorkflow(workflow: Workflow): Promise<void> {
         try {
             logger.info("[HardwareService] Saving Workflow to Sovereign Edge Storage...");
-            await axios.post(`${EDGE_NODE_URI}/workflows/save`, { workflow }, { timeout: 5000 });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/workflows/save`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ workflow }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         } catch (error: any) {
             logger.error("Failed to save workflow to Edge Node", error);
             // Non-blocking in dev but critical in prod
@@ -130,8 +184,12 @@ export class HardwareService {
 
     static async getWorkflows(): Promise<Workflow[]> {
         try {
-            const res = await axios.get(`${EDGE_NODE_URI}/workflows`, { timeout: 5000 });
-            return res.data;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch(`${EDGE_NODE_URI}/workflows`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+            return await res.json();
         } catch (error) {
             return [];
         }
@@ -140,7 +198,16 @@ export class HardwareService {
     static async setComplianceMode(region: 'INDIA' | 'EU'): Promise<void> {
         try {
             logger.info(`[HardwareService] Enforcing Region Compliance: ${region}`);
-            await axios.post(`${EDGE_NODE_URI}/compliance/mode`, { region }, { timeout: 5000 });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/compliance/mode`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ region }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
         } catch (error) {
             logger.error("Failed to set compliance mode on Edge Node");
         }
@@ -149,8 +216,17 @@ export class HardwareService {
     static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
         try {
             logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
-            const response = await axios.post<IdentityResponse>(`${EDGE_NODE_URI}/identity/resolve`, { maskedId, purpose }, { timeout: 5000 });
-            return response.data;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            const response = await fetch(`${EDGE_NODE_URI}/identity/resolve`, { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ maskedId, purpose }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            return await response.json();
         } catch (error: any) {
             logger.error(`[HardwareService] Re-identification failed: ${error.message}`);
             throw new Error(`Identity Resolution Failed: ${error.message}. Secure enclave unreachable.`);

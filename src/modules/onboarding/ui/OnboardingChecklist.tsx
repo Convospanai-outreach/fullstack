@@ -50,7 +50,7 @@ export default function OnboardingChecklist() {
                 </div>
 
                 <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                    {progress.steps.map((step: any) => (
+                    {progress.steps?.map((step: any) => (
                         <li key={step.id} style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, opacity: step.completed ? 0.5 : 1 }}>
                             <div style={{
                                 width: 20, height: 20, borderRadius: "50%",
@@ -63,7 +63,9 @@ export default function OnboardingChecklist() {
                             </div>
                             <span style={{ fontSize: 14, textDecoration: step.completed ? "line-through" : "none" }}>{step.label}</span>
                         </li>
-                    ))}
+                    )) || (
+                        <li style={{ fontSize: 14, color: "#6b7280" }}>Initializing steps...</li>
+                    )}
                 </ul>
             </div>
         </div>

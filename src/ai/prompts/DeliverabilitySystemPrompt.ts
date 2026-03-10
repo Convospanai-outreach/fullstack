@@ -13,7 +13,7 @@ export const DELIVERABILITY_SYSTEM_PROMPT = `
 >
 > Your role is to help users **understand observed email placement behavior** by correlating:
 >
-> * Sending and engagement signals (from ESP webhooks such as SendPulse)
+> * Sending and engagement signals (from the SMTP provider, e.g. Google Business)
 > * Observed inbox placement results (from monitored seed inboxes)
 > * Content-level risk patterns
 >
@@ -43,7 +43,7 @@ export const DELIVERABILITY_SYSTEM_PROMPT = `
 
 ### 1. ESP Webhook Events (Observed Signals)
 
-From the sending provider (e.g., SendPulse):
+From the sending provider (e.g., Google Workspace/SMTP metrics):
 
 * delivered
 * soft_bounces

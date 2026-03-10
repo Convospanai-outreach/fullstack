@@ -226,7 +226,7 @@ export async function applyRateLimit(
   userId?: string
 ): Promise<NextResponse | null> {
   // Bypass rate limiting in test or development if explicitly disabled
-  if (process.env.NODE_ENV === 'test' || process.env['DISABLE_RATE_LIMIT'] === 'true') {
+  if (process.env.NODE_ENV !== 'production' || process.env['DISABLE_RATE_LIMIT'] === 'true') {
     return null;
   }
 

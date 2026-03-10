@@ -19,6 +19,11 @@ export class AIService {
     }
 
     private getEmbeddingModel() {
+        const key = process.env['GEMINI_API_KEY'];
+        if (!key || key.includes("your-") || key === "placeholder" || process.env["NODE_ENV"] === "test") {
+            return null; // Signals mock mode
+        }
+
         const client = this.getClient();
         if (!client) throw new Error("GEMINI_API_KEY required for Embeddings");
         return client.getGenerativeModel({ model: "embedding-001" });
@@ -134,14 +139,10 @@ ${prompt}
         const { modelGateway } = await import("@/ai/ModelGateway");
         const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
         const { UIArchitect } = await import("@/modules/ux/UIArchitect");
-        const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
+        const { TOON } = await import("@/lib/ai/TOON");
 
-        // [SOVEREIGN-FIREWALL] Intercept & Mask
-        // Determine region from taskContext (assumed passed from route/middleware)
-        // Defaulting to GLOBAL for now if not present, but should ideally be explicit.
-        const region = taskContext?.productMode === 'UAE_SHARD' ? 'UAE' : 'GLOBAL';
-
-        const { safeContext: safePrompt, tokenMap } = await SovereignFirewall.mask(finalPrompt, region);
+        // [TOON] Intercept, Mask & Optimize
+        const { optimizedPrompt: safePrompt, tokenMap } = await TOON.process(finalPrompt, teamId || "system");
 
         try {
             const rawResponseText = await modelGateway.generate({
@@ -149,8 +150,8 @@ ${prompt}
                 ...(teamId ? { teamId } : {}),
             });
 
-            // [SOVEREIGN-FIREWALL] Rehydrate / Unmask
-            const responseText = SovereignFirewall.unmask(rawResponseText, tokenMap);
+            // [TOON] Rehydrate / Unmask
+            const responseText = TOON.unmask(rawResponseText, tokenMap);
 
             // Task 10: Event Sourcing & Learning Loop
             if (teamId) {
@@ -200,9 +201,17 @@ ${prompt}
 
     async getEmbeddings(text: string): Promise<number[]> {
         const safeText = TokenManager.truncate(text, 1000);
+        
+        const key = process.env['GEMINI_API_KEY'];
+        if (!key || key.includes("your-") || key === "placeholder" || process.env["NODE_ENV"] === "test") {
+             // Return a stable mock vector based on text length/content
+             return Array.from({ length: 1536 }, (_, i) => (text.length + i) % 100 / 100);
+        }
+
         try {
             return await AIService.retryOperation(async () => {
                 const model = this.getEmbeddingModel();
+                if (!model) throw new Error("Model unavailable (Mock check failed)");
                 const result = await model.embedContent(safeText);
                 return result.embedding.values;
             });

@@ -1,30 +1,53 @@
-import { sendEmailViaSendPulse } from "@/integrations/sendpulse";
 import crypto from 'crypto';
 import { prisma } from './db';
+import { sendViaSMTP } from '@/lib/email/smtpClient';
+import { getSmtpConfig } from '@/modules/email-campaigner/service/smtpConfigService';
+import type { SmtpConfig } from '@/lib/email/smtpClient';
 
 export class EmailService {
+    /**
+     * Send an email.
+     * If teamId is provided, uses the team's stored SMTP credentials.
+     * Otherwise falls back to global SMTP env vars (for system emails).
+     */
     static async sendEmail(
         to: string,
         subject: string,
         body: string,
         fromName?: string,
-        fromEmail?: string
+        fromEmail?: string,
+        teamId?: string
     ) {
-        console.log(`[EmailService] Sending email to ${to}`);
+        let config: SmtpConfig;
 
-        // Use provided sender, or env vars, or fallback
-        const senderName = fromName || process.env['SMTP_FROM_NAME'] || "ConvoSpan User";
-        const senderEmail = fromEmail || process.env['SMTP_FROM_EMAIL'] || "noreply@convospan.com";
-
-        try {
-            const result = await sendEmailViaSendPulse(to, subject, body, senderName, senderEmail);
-            return { success: true, result };
-        } catch (error: any) {
-            console.error("[EmailService] Failed to send email:", error);
-            // Fallback to mock if SendPulse fails (for dev/demo reliability)
-            // In prod, you might want to throw error
-            return { success: false, error: error.message || error };
+        if (teamId) {
+            const stored = await getSmtpConfig(teamId);
+            if (stored) {
+                config = stored;
+            } else {
+                config = EmailService.getEnvSmtpConfig(fromName, fromEmail);
+            }
+        } else {
+            config = EmailService.getEnvSmtpConfig(fromName, fromEmail);
         }
+
+        const result = await sendViaSMTP(config, { to, subject, html: body });
+        if (!result.success) {
+            console.error('[EmailService] SMTP send failed:', result.error);
+        }
+        return result;
+    }
+
+    /** Build an SmtpConfig from environment variables (system emails). */
+    private static getEnvSmtpConfig(fromName?: string, fromEmail?: string): SmtpConfig {
+        const host = process.env['SMTP_HOST'] ?? 'smtp.gmail.com';
+        const port = parseInt(process.env['SMTP_PORT'] ?? '587', 10);
+        const secure = process.env['SMTP_SECURE'] === 'true';
+        const user = process.env['SMTP_USER'] ?? process.env['SMTP_FROM_EMAIL'] ?? '';
+        const password = process.env['SMTP_PASSWORD'] ?? '';
+        const resolvedFromName = fromName ?? process.env['SMTP_FROM_NAME'] ?? 'ConvoSpan';
+        const resolvedFromEmail = fromEmail ?? process.env['SMTP_FROM_EMAIL'] ?? user;
+        return { host, port, secure, user, password, fromName: resolvedFromName, fromEmail: resolvedFromEmail };
     }
 
     /**

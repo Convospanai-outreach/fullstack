@@ -12,7 +12,7 @@ export class SequenceService {
     static async scheduleStep(leadId: string, profileUrl: string, step: SequenceStep, delaySeconds: number = 0) {
         console.log(`Scheduling step ${step} for lead ${leadId} in ${delaySeconds}s`);
 
-        await JobQueue.enqueue("CRM_SYNC", { // Changed type to match enum or use generic
+        await JobQueue.enqueue("SEQUENCE_ACTION", {
             leadId,
             url: profileUrl,
             action: step

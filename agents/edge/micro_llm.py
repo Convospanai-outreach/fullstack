@@ -102,7 +102,7 @@ class MicroLLMEdgeNode:
         # Extract the last message from the lead
         last_message = next((msg["content"] for msg in reversed(conversation_history) if msg["role"] == "user"), "")
         
-        print(f"[EDGE NODE] Classifying intent for: '{last_message[:50]}...'")
+        print(f"[EDGE NODE] Classifying intent for: '{last_message}...'")
         
         # Mocking the inference result
         intent = "unclassified"
@@ -162,7 +162,7 @@ class PIIVault:
             # encrypted_value = aesgcm.encrypt(nonce, raw_value, None)
             
             # 3. Store in Vault DB here (simulated)
-            print(f"[VAULT] Securing {entity['type']} -> Hash: {hashed_val[:8]}...")
+            print(f"[VAULT] Securing {entity['type']} -> Hash: {hashed_val}...")
             
             # 4. Return token mapping for the safe outbound payload
             token_map[entity["token"]] = hashed_val

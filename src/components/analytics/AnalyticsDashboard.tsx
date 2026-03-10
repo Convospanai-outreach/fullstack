@@ -39,8 +39,10 @@ interface AnalyticsStats {
 export function AnalyticsDashboard() {
     const [data, setData] = useState<AnalyticsStats | null>(null);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
+        setMounted(true);
         fetch("/api/analytics/stats")
             .then((res) => res.json())
             .then((result) => {
@@ -53,7 +55,7 @@ export function AnalyticsDashboard() {
             });
     }, []);
 
-    if (loading) return <div className="p-8 text-center text-gray-400">Loading analytics...</div>;
+    if (loading || !mounted) return <div className="p-8 text-center text-gray-400">Loading analytics...</div>;
 
     // Safely extract values from the actual API shape
     const overview = data?.overview;
@@ -94,7 +96,7 @@ export function AnalyticsDashboard() {
                     <h3 className="text-lg font-semibold mb-6 gradient-text">Campaign Activity</h3>
                     <div className="h-[300px] w-full">
                         {trends.length > 0 ? (
-                            <ResponsiveContainer width="100%" height="100%" minHeight={1}>
+                            <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                                 <LineChart data={trends}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                                     <XAxis dataKey="date" stroke="#94a3b8" />
@@ -118,7 +120,7 @@ export function AnalyticsDashboard() {
                 <div className="glass p-6 rounded-xl border border-white/10">
                     <h3 className="text-lg font-semibold mb-6 gradient-text">Email Funnel</h3>
                     <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%" minHeight={1}>
+                        <ResponsiveContainer width="100%" height="100%" minHeight={0} minWidth={0}>
                             <BarChart data={funnelData} layout="vertical">
                                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
                                 <XAxis type="number" stroke="#94a3b8" />

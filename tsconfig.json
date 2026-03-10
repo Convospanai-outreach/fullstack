@@ -37,10 +37,12 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "types": ["vitest/globals", "@playwright/test"]
   },
   "include": [
     "src",
+    "tests",
     "next-env.d.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"

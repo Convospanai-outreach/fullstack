@@ -31,6 +31,9 @@ export async function GET() {
         const member = user.memberships[0];
         const branding = (team.branding as any) || {};
         const aiConfig = (team.aiConfig as any) || {};
+        if (aiConfig.smtpConfig) {
+            delete aiConfig.smtpConfig.encryptedPassword;
+        }
 
         // Step 1: Account
         const hasAccount = !!user;
@@ -44,10 +47,11 @@ export async function GET() {
         const brandingComplete = hasPrimaryColor && hasLogo;
 
         // Step 3: Email Integration
-        // SendPulse config is likely global env vars, but we check if they are set
-        const hasSendPulseCredentials = !!process.env['SENDPULSE_ID'] && !!process.env['SENDPULSE_SECRET'];
-        const canSendEmail = hasSendPulseCredentials;
-        const hasCustomSender = !!process.env['SMTP_FROM_EMAIL'];
+        const { getSmtpConfigRedacted } = await import("@/modules/email-campaigner/service/smtpConfigService");
+        const smtpConfig = await getSmtpConfigRedacted(ctx.teamId);
+        const hasSmtpConfig = !!smtpConfig;
+        const canSendEmail = hasSmtpConfig;
+        const hasCustomSender = hasSmtpConfig;
 
         // Step 4: LinkedIn
         const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || "EDGE";
@@ -129,7 +133,7 @@ export async function GET() {
             // Statuses mapped from steps
             hasAccount, isEmailVerified, hasTeam: true, hasTeamRole,
             hasCompanyName, hasLogo, hasPrimaryColor, brandingComplete,
-            hasSendPulseCredentials, canSendEmail, hasCustomSender,
+            hasSmtpConfig, canSendEmail, hasCustomSender,
             hasLinkedInSession, hasBrowserNode, linkedInMode,
             hasToneSet, hasVoiceDescription, hasEmailSignature, hasGreetingStyle, emailVoiceComplete,
             hasGeminiKey, canGenerateMessage,

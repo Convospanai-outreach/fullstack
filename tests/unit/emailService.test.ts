@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EmailService } from '@/lib/emailService';
 import { prisma } from '@/lib/db';
@@ -17,9 +18,10 @@ vi.mock('@/lib/db', () => ({
     }
 }));
 
-// Mock SendPulse integration
-vi.mock('@/integrations/sendpulse', () => ({
-    sendEmailViaSendPulse: vi.fn().mockResolvedValue({ success: true })
+// Mock SMTP integration
+vi.mock('@/lib/email/smtpClient', () => ({
+    sendViaSMTP: vi.fn().mockResolvedValue({ success: true, messageId: 'test-id' }),
+    verifySmtpConfig: vi.fn().mockResolvedValue({ ok: true })
 }));
 
 describe('EmailService', () => {
@@ -133,8 +135,8 @@ describe('EmailService', () => {
 
             await EmailService.sendVerificationEmail(email, name, token);
 
-            // Verify email was sent (mocked)
-            expect(true).toBe(true); // SendPulse mock is called internally
+            // Verify email was sent (mocked via SMTP)
+            expect(true).toBe(true); // sendViaSMTP mock is called internally
         });
     });
 });

@@ -8,7 +8,7 @@ test("RAG context should return string", async () => {
 });
 
 test("Gemini mock returns text without API key", async () => {
-  delete process.env.GEMINI_API_KEY;
+  delete process.env['GEMINI_API_KEY'];
   const result = await generateWithGemini("Hello world");
   expect(result).toContain("Mock Gemini");
 });

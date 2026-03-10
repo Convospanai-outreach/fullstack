@@ -14,8 +14,21 @@ class McpManager {
             const client = await server.initialize();
             this.clients.set("computer-use", client);
             console.log("[McpManager] Computer Use Server registered.");
+
+            // Register Netjana Server
+            const { NetjanaMCPServer } = await import("@/modules/integration/mcp/netjana-server");
+            const netjana = new NetjanaMCPServer();
+            // We can wrap it in a client or just register its tools
+            // For internal consistency, we keep internal servers in a separate set or wrap them
+            this.clients.set("netjana", {
+                listTools: async () => netjana.getTools(),
+                callTool: async (name, args) => netjana.callTool(name, args),
+                connect: async () => {},
+                config: { id: "netjana", name: "Netjana", transport: "sse" } // Virtual config
+            } as any);
+            console.log("[McpManager] Netjana Server registered.");
         } catch (e) {
-            console.error("[McpManager] Failed to register Computer Use Server:", e);
+            console.error("[McpManager] Failed to register Internal Servers:", e);
         }
     }
 

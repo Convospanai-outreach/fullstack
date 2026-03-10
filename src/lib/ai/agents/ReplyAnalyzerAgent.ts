@@ -139,8 +139,34 @@ export class ReplyAnalyzerAgent {
                 }
             });
             logger.info(`[ReplyAnalyzer] Tracked reply as ${analysis.classification} (Status: ${status})`);
+
+            // 5. SELF-LEARNING: Automatically consolidate success patterns
+            if (analysis.classification === 'INTERESTED' && analysis.confidence > 0.8) {
+                // Fetch teamId via lead relationship
+                const leadWithTeam = await prisma.lead.findUnique({
+                    where: { id: leadId },
+                    select: { teamId: true, company: true, jobTitle: true }
+                });
+
+                if (leadWithTeam && leadWithTeam.teamId) {
+                    const lesson = `Pattern: Success with ${leadWithTeam.company} (${leadWithTeam.jobTitle}). 
+                    Reasoning: ${analysis.reasoning}. 
+                    Outcome: Lead expressed interest. 
+                    Lesson learned: Continue using this pitch angle.`;
+
+                    await prisma.agentMemory.create({
+                        data: {
+                            teamId: leadWithTeam.teamId,
+                            key: "outcome_success",
+                            value: lesson,
+                            confidence: 1.0
+                        }
+                    });
+                    logger.info(`[Self-Learning] Success memory synthesized for team ${leadWithTeam.teamId}`);
+                }
+            }
         } catch (dbError) {
-             logger.error("[ReplyAnalyzer] Failed to save to DB", dbError);
+             logger.error("[ReplyAnalyzer] Failed to save/learn to DB", dbError);
         }
 
         return analysis;
