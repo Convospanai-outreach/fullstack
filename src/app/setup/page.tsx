@@ -89,6 +89,15 @@ export default function SetupWizardPage() {
             portalTitle: data.branding?.portalTitle || "",
             guidelinesUrl: data.branding?.guidelinesUrl || "",
           },
+          step3: {
+            host: data.aiConfig?.smtpConfig?.host || "smtp.gmail.com",
+            port: data.aiConfig?.smtpConfig?.port || 587,
+            secure: data.aiConfig?.smtpConfig?.secure || false,
+            user: data.aiConfig?.smtpConfig?.user || "",
+            password: "",
+            fromName: data.aiConfig?.smtpConfig?.fromName || data.teamName || "",
+            fromEmail: data.aiConfig?.smtpConfig?.fromEmail || data.aiConfig?.smtpConfig?.user || "",
+          },
           step5: {
             tone: data.aiConfig?.tone || "Professional",
             voice: data.aiConfig?.voice || "",
@@ -127,7 +136,18 @@ export default function SetupWizardPage() {
       if (stepId === 6) payload = formData.step6;
       if (stepId === 9) payload = formData.step9;
 
-      if (payload) {
+      if (stepId === 3) {
+        // Save SMTP configuration using the dedicated endpoint
+        await fetch("/api/setup/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData.step3,
+            port: Number(formData.step3.port)
+          })
+        });
+        await loadStatus(); // Refresh status
+      } else if (payload) {
         await fetch("/api/setup/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -334,15 +354,129 @@ export default function SetupWizardPage() {
             {activeStep === 3 && (
               <div className="space-y-4">
                 <div className="p-4 bg-sky-900/20 border border-sky-500/30 rounded-xl mb-6">
-                  <h3 className="text-sky-400 font-semibold mb-2">SendPulse Configuration</h3>
-                  <p className="text-sky-300/80 text-sm">
-                    Currently, email infrastructure is managed globally via environment variables (`SENDPULSE_ID`, `SENDPULSE_SECRET`). 
-                    Contact your system administrator to configure these settings.
+                  <h3 className="text-sky-400 font-semibold mb-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4" /> Google Business SMTP (Gmail)
+                  </h3>
+                  <p className="text-sky-300/80 text-sm mb-2">
+                    Connect your team's email account. For Google Workspace or Gmail accounts with 2-Step Verification, you must use an App Password.
                   </p>
+                  <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">
+                    How to create a Google App Password
+                  </a>
                 </div>
                 
-                <ChecklistItem label="SendPulse API Configured" passed={status.canSendEmail} />
-                <ChecklistItem label="Custom Sender Configured" passed={status.hasCustomSender} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Host</label>
+                    <input 
+                      type="text"
+                      title="SMTP Host"
+                      placeholder="smtp.gmail.com"
+                      value={formData.step3.host}
+                      onChange={e => setFormData({...formData, step3: {...formData.step3, host: e.target.value}})}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Port</label>
+                    <input 
+                      type="number"
+                      title="SMTP Port"
+                      placeholder="587"
+                      value={formData.step3.port}
+                      onChange={e => setFormData({...formData, step3: {...formData.step3, port: e.target.value}})}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
+                    <input 
+                      type="email"
+                      title="Email Address"
+                      placeholder="you@company.com"
+                      value={formData.step3.user}
+                      onChange={e => setFormData({
+                        ...formData, 
+                        step3: {
+                          ...formData.step3, 
+                          user: e.target.value,
+                          fromEmail: formData.step3.fromEmail === formData.step3.user ? e.target.value : formData.step3.fromEmail
+                        }
+                      })}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">App Password</label>
+                    <input 
+                      type="password"
+                      title="App Password"
+                      placeholder={status?.canSendEmail ? "•••••••••••••••• (Set)" : "16-char app password"}
+                      value={formData.step3.password}
+                      onChange={e => setFormData({...formData, step3: {...formData.step3, password: e.target.value}})}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">From Name (Display Name)</label>
+                    <input 
+                      type="text"
+                      title="From Name"
+                      placeholder="Jane Doe"
+                      value={formData.step3.fromName}
+                      onChange={e => setFormData({...formData, step3: {...formData.step3, fromName: e.target.value}})}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">From Email (Sender)</label>
+                    <input 
+                      type="email"
+                      title="From Email"
+                      placeholder="you@company.com"
+                      value={formData.step3.fromEmail}
+                      onChange={e => setFormData({...formData, step3: {...formData.step3, fromEmail: e.target.value}})}
+                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 flex items-center justify-between">
+                  <button 
+                    onClick={async () => {
+                      try {
+                        const res = await fetch("/api/email/verify", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            ...formData.step3,
+                            port: Number(formData.step3.port)
+                          })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                          alert("Connection successful!");
+                        } else {
+                          alert("Connection failed: " + result.error);
+                        }
+                      } catch (e: any) {
+                        alert("Error: " + e.message);
+                      }
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium text-sm transition"
+                  >
+                    Test Connection
+                  </button>
+                  <div className="flex flex-col gap-2">
+                    <ChecklistItem label="SMTP Configured" passed={status.canSendEmail} />
+                  </div>
+                </div>
               </div>
             )}
 

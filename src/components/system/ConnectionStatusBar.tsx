@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Wifi, WifiOff, AlertTriangle, RefreshCw, Server, Cpu, Activity } from "lucide-react";
 
 interface ServiceStatus {
@@ -76,6 +76,7 @@ export function ConnectionStatusBar() {
     const [isLoading, setIsLoading] = useState(true);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [expanded, setExpanded] = useState(false);
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     const fetchStatus = useCallback(async (showLoader = false) => {
         if (showLoader) setIsLoading(true);
@@ -98,6 +99,12 @@ export function ConnectionStatusBar() {
         const interval = setInterval(() => fetchStatus(false), 30000);
         return () => clearInterval(interval);
     }, [fetchStatus]);
+
+    useEffect(() => {
+        if (triggerRef.current) {
+            triggerRef.current.setAttribute("aria-expanded", expanded ? "true" : "false");
+        }
+    }, [expanded]);
 
     // Show skeleton until first load completes
     if (!hasLoaded) return <StatusPillSkeleton />;
@@ -164,8 +171,8 @@ export function ConnectionStatusBar() {
 
             {/* Toggle Pill — always min 44px tall for WCAG touch targets */}
             <button
+                ref={triggerRef}
                 onClick={() => setExpanded(!expanded)}
-                aria-expanded={expanded}
                 aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-200 text-xs font-medium backdrop-blur min-h-[44px]
                     ${overallColors.bg} ring-1 ${overallColors.ring} border-white/10 hover:ring-2 hover:scale-105`}

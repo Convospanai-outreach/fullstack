@@ -1,5 +1,19 @@
+import path from 'path';
+import fs from 'fs';
+import dotenv from 'dotenv';
 
-import { defineConfig, devices } from '@playwright/test';
+// Redirect Playwright's transform cache to a writable local directory before it initializes.
+// This prevents EPERM errors on Windows where C:\WINDOWS\TEMP is protected.
+const cacheDir = path.resolve(__dirname, '.playwright-cache');
+if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true });
+}
+process.env['PLAYWRIGHT_COMPILE_CACHE'] = cacheDir;
+process.env['TEMP'] = cacheDir;
+process.env['TMP'] = cacheDir;
+
+// Dynamically require playwright AFTER setting the cache dir to avoid ES import hoisting
+const { defineConfig, devices } = require('@playwright/test') as typeof import('@playwright/test');
 import dotenv from 'dotenv';
 import path from 'path';
 

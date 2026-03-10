@@ -1,5 +1,11 @@
 {
     "css.lint.unknownAtRules": "ignore",
     "scss.lint.unknownAtRules": "ignore",
-    "workbench.externalBrowser": "chrome"
+    "workbench.externalBrowser": "chrome",
+    "python.defaultInterpreterPath": "venv/Scripts/python.exe",
+    "playwright.env": {
+        "PLAYWRIGHT_COMPILE_CACHE": "${workspaceFolder}/.playwright-cache",
+        "TEMP": "${workspaceFolder}/.playwright-cache",
+        "TMP": "${workspaceFolder}/.playwright-cache"
+    }
 }

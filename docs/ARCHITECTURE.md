@@ -25,7 +25,9 @@
 - 🛡️ **Enterprise Governance** with compliance guardrails
 - 🧱 **Sovereign Firewall** with edge-based PII sanitization
 - ⚡ **Micro-LLM (Phi-3)** for offline intelligence & adversarial critique
-- 📈 **Real-time Analytics** and A/B testing
+- 🧠 **Autonomous Knowledge Engine** featuring TOON serialization and MCP ingestion
+- 📡 **Model Context Protocol (MCP)** for real-time customer intent discovery
+- 📉 **Real-time Analytics** and A/B testing
 - 🔗 **CRM Integration** (HubSpot, Salesforce)
 
 ---
@@ -53,6 +55,7 @@
 | **PostgreSQL** | 14+ | Primary database |
 | **Redis** | 5.10.0 | Caching and job queue |
 | **NextAuth.js** | 4.24.13 | Authentication |
+| **Python** | 3.11 | ML & Orchestrator (uv-managed) |
 
 ### AI & ML
 | Technology | Purpose |
@@ -61,6 +64,7 @@
 | **OpenAI** | Alternative LLM provider |
 | **Anthropic Claude** | Alternative LLM provider |
 | **Microsoft Phi-3** | **Micro-LLM** for edge-based critique & offline fallback |
+| **TOON** | **Token-Oriented Object Notation** for context optimization |
 | **Custom Vector Store** | RAG and semantic search |
 | **Proprietary Algorithms** | Lead scoring, intent detection |
 
@@ -69,9 +73,10 @@
 |---------|---------|
 | **Razorpay** | Payment processing |
 | **SendPulse** | Email delivery |
-| **HubSpot** | CRM integration |
-| **Salesforce** | CRM integration |
+| **HubSpot / Salesforce** | CRM integration |
 | **Puppeteer** | Web scraping & automation |
+| **Model Context Protocol** | External knowledge ingestion (SSE/Stdio) |
+| **Google SMTP** | Secure outbound delivery (AES-256 encrypted) |
 
 ---
 
@@ -705,6 +710,50 @@ The `AgentExecutor` implements a Deterministic Finite Automaton (DFA) that stric
     - High reasoning capability in small parameter count (3.8B).
     - Optimized for CPU-only execution (ONNX Runtime).
     - Zero data egress (privacy guarantee).
+
+---
+
+## Autonomous Knowledge Engine
+
+The **Autonomous Knowledge Engine** is the orchestration layer responsible for discovering, ingesting, and optimizing external knowledge before it reaches the AI Agents.
+
+### 1. Model Context Protocol (MCP) Ingestion
+- **Protocol**: Model Context Protocol (v1.0)
+- **Service**: `src/modules/knowledge/services/mcpClient.ts`
+- **Capabilities**:
+    - **Resource Discovery**: Automatically probes external platforms (e.g., Netjana) for customer-specific intents.
+    - **Real-time Signals**: Fetches behavioral data (page visits, downloads, pricing queries) via Server-Sent Events (SSE).
+    - **Contextual Enrichment**: Hydrates lead profiles with "Deep Intent" signals that aren't present in static CRM data.
+
+### 2. TOON Serialization (Token-Oriented Object Notation)
+- **Purpose**: Dramatic reduction in LLM operating costs and context window usage.
+- **Service**: `src/lib/ai/TOON.ts`
+- **Format**: Optimized row-based serialization with shared headers for tabular data.
+- **Metric**: Achieves **30-50% token reduction** compared to standard JSON payloads for lead lists and intent streams.
+
+### 3. Knowledge Orchestrator (Agentic RAG)
+- **Role**: The central "Brain" of the pre-generation pipeline.
+- **Workflow**:
+    1. **Discovers**: Queries local DB for campaign context.
+    2. **Ingests**: Triggers MCP client to fetch external intents.
+    3. **Sterilizes**: Passes raw data through the Sovereign Firewall (Local PII masking).
+    4. **Optimizes**: Converts the result into **TOON** format.
+    5. **Injects**: Provides the final optimized string to the `emailComposer`.
+
+---
+
+## 3-Node Outreach Engine
+
+ConvoSpan utilizes a multi-stage outreach strategy governed by the `emailComposer` service.
+
+| Node | Scenario | AI Strategy |
+|------|----------|-------------|
+| **Node A** | Initial Cold Outreach | **Signal-Driven**: Uses "Mirror / Hypothesis / Proof / CTA" structure based on bio and intent. |
+| **Node B** | 3-Day Follow-Up | **Behavioral-Driven**: Targeted at prospects who opened but didn't reply. Focuses on business consequences. |
+| **Node C** | 5-Day Follow-Up | **Pattern-Interrupt**: Targeted at non-openers. Short, concise "Brevity-first" approach. |
+
+- **Security**: All drafts use encrypted Team SMTP credentials.
+- **Diversity**: Dynamic prompt builders enforce strict tone variety and peer-to-peer relevance.
 
 ---
 

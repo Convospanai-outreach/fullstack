@@ -22,7 +22,7 @@
 |------------------|-----------------------------------------------------------------------|
 | **System Name**  | ConvoSpan Autonomous Engine                                           |
 | **Version**      | 1.0.0                                                                 |
-| **Runtime**      | Python 3.12, PostgreSQL 16, Redis 7.2, Gemini 2.0 Flash (cloud), Micro-LLM (edge) |
+| **Runtime**      | Python 3.11 (with 'uv'), PostgreSQL 16, Redis 7.2, Gemini 2.0 Flash (cloud), Micro-LLM (edge) |
 | **Architecture** | Hybrid Edge-Cloud                                                     |
 | **Data Policy**  | PII never leaves sovereign firewall boundary                          |
 
@@ -795,7 +795,7 @@ HEARTBEAT = {
 
 | Component           | Specification                                          |
 |---------------------|--------------------------------------------------------|
-| **Python Runtime**  | Python 3.12, FastAPI 0.115+, Celery 5.4+ (optional)   |
+| **Python Runtime**  | Python 3.11 (Managed with 'uv'), FastAPI 0.115+, Celery 5.4+ (optional) |
 | **PostgreSQL**      | v16, RLS enabled, TDE (pgcrypto), SSL enforced         |
 | **Redis**           | v7.2 Cluster, Sentinel HA, `maxmemory-policy noeviction` |
 | **Micro-LLM**       | Llama 3.2-1B or Phi-3 Mini, ONNX runtime, GPU optional |
