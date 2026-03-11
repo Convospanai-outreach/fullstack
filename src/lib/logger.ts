@@ -6,16 +6,30 @@ if (process.env['NEXT_RUNTIME'] === 'nodejs') {
   const winston = require('winston');
   const { combine, timestamp, json, colorize, printf, errors } = winston.format;
 
+  const contextFormat = winston.format((info: any) => {
+    try {
+        const { RequestContext } = require('./requestContext');
+        const cid = RequestContext.getCorrelationId();
+        if (cid) {
+            info.correlationId = cid;
+        }
+    } catch (e) { /* ignore */ }
+    return info;
+  });
+
   const devFormat = combine(
+    contextFormat(),
     colorize(),
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     errors({ stack: true }),
-    printf(({ level, message, timestamp, stack }: any) => {
-      return `${timestamp} [${level}]: ${stack || message}`;
+    printf(({ level, message, timestamp, stack, correlationId }: any) => {
+      const cid = correlationId ? `[${correlationId}] ` : '';
+      return `${timestamp} ${cid}[${level}]: ${stack || message}`;
     })
   );
 
   const prodFormat = combine(
+    contextFormat(),
     timestamp(),
     errors({ stack: true }),
     json()

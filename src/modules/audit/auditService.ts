@@ -13,8 +13,24 @@ export class AuditService {
         resource: string, // e.g. "Campaign", "Team"
         resourceId: string | null,
         details: any = {},
-        ipAddress: string | null = null
+        ipAddress: string | null = null,
+        correlationId: string | null = null
     ) {
+        // [Observability] Auto-discover correlation ID if missing
+        if (!correlationId) {
+            try {
+                const { RequestContext } = await import("@/lib/requestContext");
+                correlationId = RequestContext.getCorrelationId() || null;
+
+                if (!correlationId) {
+                    const { headers } = await import("next/headers");
+                    const headerList = await headers();
+                    correlationId = headerList.get('x-correlation-id');
+                }
+            } catch (e) {
+                // Ignore: outside of request context
+            }
+        }
         // Safe metadata handling
         let safeDetails = details;
         try {
@@ -39,7 +55,8 @@ export class AuditService {
                     entity: resource,
                     entityId: resourceId || null,
                     metadata: safeDetails || null,
-                    ipAddress: ipAddress || null
+                    ipAddress: ipAddress || null,
+                    correlationId: correlationId || null
                 }
             });
         } catch (error) {

@@ -22,6 +22,7 @@ export interface ModelRequest {
     maxTokens?: number;
     temperature?: number;
     teamId?: string; // For usage tracking
+    model?: string;  // Specific model override (e.g. from HybridRouter)
 }
 
 export interface ModelResponse {

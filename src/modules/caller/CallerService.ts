@@ -93,15 +93,23 @@ export class CallerService {
             await ConversationService.transitionState(thread.id, ConversationState.COORDINATING, `Claimed by user ${userId}`);
         }
 
-        // Assign Queue Item
-        return await prisma.meetingCoordinationQueue.update({
-            where: { leadId },
-            data: {
-                assignedUserId: userId,
-                status: "IN_PROGRESS",
-                updatedAt: new Date()
-            }
-        });
+        // Assign Queue Item (ATOMIC CHECK)
+        try {
+            return await prisma.meetingCoordinationQueue.update({
+                where: { 
+                    leadId,
+                    assignedUserId: null // ONLY claim if unassigned
+                },
+                data: {
+                    assignedUserId: userId,
+                    status: "IN_PROGRESS",
+                    updatedAt: new Date()
+                }
+            });
+        } catch (error) {
+            // Prisma will throw error if 'where' clause doesn't match
+            throw new Error("LEAD_ALREADY_CLAIMED");
+        }
     }
 
     /**

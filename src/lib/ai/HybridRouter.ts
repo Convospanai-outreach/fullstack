@@ -28,41 +28,60 @@ export class HybridRouter {
     /**
      * Core routing logic: Determines if task should run on Cloud or On-Prem
      */
-    static route(context: AIContext): AIDestination {
-
+    static async route(context: AIContext): Promise<{ destination: AIDestination; model: string }> {
+        const isEdgeHealthy = await this.checkEdgeNodeHealth();
+        
         // Rule 1: ENTERPRISE_CORE mode forces on-prem for everything sensitive
         if (context.productMode === ProductMode.ENTERPRISE_CORE && context.isComplianceSensitive) {
-            return AIDestination.ON_PREM;
+            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: Cannot process compliance-sensitive task.");
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
         }
 
         // Rule 2: Any PII must stay on-prem (DPDP Act compliance)
         if (context.containsPII) {
-            return AIDestination.ON_PREM;
+            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: PII detected, blocking cloud egress.");
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
         }
 
-        // Rule 3: Tasks requiring residential IP (LinkedIn automation, scraping)
+        // Rule 3: Tasks requiring residential IP
         if (context.requiresResidentialIP) {
-            return AIDestination.ON_PREM;
+            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: Physical node required for automation.");
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
         }
 
-        // Rule 4: Specific task types that are inherently risky
-        const onPremTasks = [
+        // Rule 4: Preferred On-Prem, but can fallback to cloud if healthy
+        const preferredOnPrem = [
             AITaskType.LINKEDIN_MESSAGE,
             AITaskType.SCRAPING,
             AITaskType.AUTOMATION
         ];
 
-        if (onPremTasks.includes(context.taskType)) {
-            return AIDestination.ON_PREM;
+        if (preferredOnPrem.includes(context.taskType)) {
+            if (isEdgeHealthy) {
+                return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
+            }
+            // Fallback to Cloud ONLY if non-PII and not strictly residential
+            return { destination: AIDestination.CLOUD, model: "gemini-1.5-flash" };
         }
 
-        // Rule 5: Lead enrichment with PII
-        if (context.taskType === AITaskType.LEAD_ENRICHMENT && context.containsPII) {
-            return AIDestination.ON_PREM;
-        }
+        // Default: Pure intelligence tasks go to cloud
+        return { 
+            destination: AIDestination.CLOUD, 
+            model: context.taskType === AITaskType.EMAIL_DRAFT ? "gemini-1.5-pro" : "gemini-1.5-flash"
+        };
+    }
 
-        // Default: Safe tasks go to cloud (cheaper, faster)
-        return AIDestination.CLOUD;
+    private static async checkEdgeNodeHealth(): Promise<boolean> {
+        const endpoint = this.getEndpoint(AIDestination.ON_PREM);
+        try {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), 1000); // 1s timeout
+            const res = await fetch(`${endpoint}/health`, { signal: controller.signal });
+            clearTimeout(id);
+            return res.ok;
+        } catch (e) {
+            return false;
+        }
     }
 
     /**

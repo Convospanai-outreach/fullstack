@@ -5,6 +5,7 @@ import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
 
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
+    const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     // Get token early for rate limiting
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     const token = await getToken({ req, secret });
@@ -101,8 +102,58 @@ export async function middleware(req: NextRequest) {
         }
     }
 
-    // Apply CORS headers to the actual response for API routes
+    // Apply Correlation ID and Security headers
     const response = NextResponse.next();
+    response.headers.set('x-correlation-id', correlationId);
+    
+    // === Hardened Security Headers ===
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('X-XSS-Protection', '1; mode=block');
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
+    
+    // Strict-Transport-Security (Only for production HTTPS)
+    if (process.env.NODE_ENV === 'production') {
+        response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    }
+
+    // === Content Security Policy (Enterprise Grade) ===
+    const edgeNodeUri = process.env['EDGE_NODE_URI'] || '';
+    const onPremAI = process.env['ON_PREM_AI_ENDPOINT'] || '';
+    
+    const cspValues = [
+        "default-src 'self'",
+        // Scripts: Allow self, Google Auth, and Razorpay
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com",
+        // Styles: Allow self and Google Fonts
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        // Images: Allow self, Google placeholders, and data URLs for icons
+        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
+        // Fonts: Allow self and Google Fonts
+        "font-src 'self' https://fonts.gstatic.com",
+        // Connect: Self, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
+        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
+        // Frames: Google Auth & Razorpay
+        "frame-src 'self' https://accounts.google.com https://api.razorpay.com",
+        // Media/Workers: Stricter constraints
+        "worker-src 'self' blob:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+        "upgrade-insecure-requests"
+    ];
+
+    if (process.env.NODE_ENV !== 'production') {
+        // Dev friendliness
+        const devAdditions = " localhost:* 127.0.0.1:* ws://localhost:*";
+        cspValues[1] += devAdditions; // script-src
+        cspValues[5] += devAdditions; // connect-src
+    }
+
+    response.headers.set('Content-Security-Policy', cspValues.join('; '));
+
     if (path.startsWith("/api")) {
         const origin = req.headers.get("origin");
         const allowedOrigins = process.env['ALLOWED_ORIGINS']?.split(",") || ["http://localhost:3000"];
@@ -110,7 +161,7 @@ export async function middleware(req: NextRequest) {
             response.headers.set("Access-Control-Allow-Origin", origin);
             response.headers.set("Access-Control-Allow-Credentials", "true");
             response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-            response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+            response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-correlation-id");
         }
     }
 

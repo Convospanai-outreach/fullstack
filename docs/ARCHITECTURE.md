@@ -486,30 +486,31 @@ ConsentService.revokeConsent(leadId, userId, reason)
 
 ### 7. Monitoring & Observability (Phase 8+)
 
+**Purpose**: Production health monitoring, alerting, and end-to-end tracing.
 
-**Purpose**: Production health monitoring and alerting.
-
-**Service**: `src/modules/monitoring/MonitoringService.ts`
+**Distributed Tracing (Correlation ID)**:
+The platform implements a unified **Correlation ID** system for distributed observability across the stack:
+- **Generation**: `Next.js Middleware` generates/captures `X-Correlation-ID` for every inbound request.
+- **Propagation**: ID is passed via request headers to API routes and background workers using `AsyncLocalStorage` (Node.js) and `contextvars` (Python).
+- **Storage**: The `correlationId` is automatically stored in `AuditLog` rows and injected into `Winston` and `Sentry` logs.
+- **Cross-Service**: The Python Edge Node captures and responds with the same ID, ensuring logs can be joined across the network.
 
 **Health Checks**:
 - Database connectivity (query execution time)
 - Audit log activity (last 24h)
 - Feature flag configuration
-- Edge node reachability (if configured)
+- Edge node reachability via `HARDWARE_SIGNATURE` handshake.
 
 **Metrics**:
-- Active users (sessions in last 24h)
-- Daily audit logs
-- Pending approvals
-- Guardrail violations (last 24h)
+- `micro_llm_latency_seconds`: Latency of edge-node AI operations.
+- `micro_llm_requests_total`: Throughput of the Sovereign Critic.
+- `rag_retrieval_latency_seconds`: Performance of the vector storage.
+- Active users (sessions in last 24h).
+- Daily audit logs and Guardrail violations.
 
 **API Endpoints**:
-- `GET /api/health` - Public health check (200/503)
-- `GET /api/metrics` - Admin metrics dashboard (RBAC protected)
-
-**Alert Thresholds**:
-- **Critical**: Approval queue > 50, Guardrail violations > 100/hour
-- **Warning**: Approval queue > 20
+- `GET /api/health` - Public health check (200/503). Includes system status and version.
+- `GET /api/metrics` - Prometheus metrics endpoint.
 
 ---
 

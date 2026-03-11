@@ -8,11 +8,14 @@ import { dataIngestionService } from "@/modules/learning/DataIngestionService";
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
-import { logger, logWorker } from "@/lib/logger";
+import { RequestContext } from "@/lib/requestContext";
 
 async function processJob(job: any) {
-    logWorker(job.id, "Processing started", { type: job.type });
-    try {
+    const correlationId = job.payload?.correlationId || `job-${job.id}`;
+
+    return await RequestContext.run({ correlationId }, async () => {
+        logWorker(job.id, "Processing started", { type: job.type, correlationId });
+        try {
         let result;
         switch (job.type) {
             case "LINKEDIN_LIKE":
@@ -79,6 +82,7 @@ async function processJob(job: any) {
         logWorker(job.id, "Failed", { error: error.message });
         await JobQueue.fail(job.id, error.message);
     }
+    }); // End RequestContext
 }
 
 export async function startWorker() {

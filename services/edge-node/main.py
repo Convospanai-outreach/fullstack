@@ -10,10 +10,39 @@ from database import init_db, get_db, SessionLocal
 from services.local_intelligence import LocalIntelligenceService
 
 # Logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+import contextvars
+from starlette.middleware.base import BaseHTTPMiddleware
+
+CORRELATION_ID_CTX = contextvars.ContextVar("correlation_id", default=None)
+
+class CorrelationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        correlation_id = request.headers.get("x-correlation-id", str(uuid.uuid4()))
+        token = CORRELATION_ID_CTX.set(correlation_id)
+        try:
+            response = await call_next(request)
+            response.headers["x-correlation-id"] = correlation_id
+            return response
+        finally:
+            CORRELATION_ID_CTX.reset(token)
 
 app = FastAPI(title="ConvoSpan Edge Node")
+app.add_middleware(CorrelationMiddleware)
+
+# Inject correlation ID into logs
+class CorrelationLogFilter(logging.Filter):
+    def filter(self, record):
+        record.correlation_id = CORRELATION_ID_CTX.get()
+        return True
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - [%(correlation_id)s] - %(levelname)s - %(message)s'
+)
+for handler in logging.root.handlers:
+    handler.addFilter(CorrelationLogFilter())
+
+logger = logging.getLogger(__name__)
 
 # Hardware Signature
 HARDWARE_SIGNATURE = os.getenv("HARDWARE_SIGNATURE", "unix-default-sig")

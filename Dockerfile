@@ -57,6 +57,10 @@ EXPOSE 3000
 ENV PORT=3000 \
     HOSTNAME="0.0.0.0"
 
+# Healthcheck for production readiness
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "fetch('http://localhost:3000/api/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+
 # Use standalone server-custom.js (socket.io enabled)
 CMD ["node", "server-custom.js"]
 
@@ -67,7 +71,19 @@ ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs && \
-    apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main
+    # Install minimal runtime dependencies (Prisma needs openssl)
+    apk add --no-cache openssl libssl1.1 --repository=http://dl-cdn.alpinelinux.org/alpine/v3.16/main && \
+    # Install Chromium for Puppeteer (LinkedIn Runner)
+    apk add --no-cache \
+      chromium \
+      nss \
+      freetype \
+      harfbuzz \
+      ca-certificates \
+      ttf-freefont
+
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Workers need their own set of production dependencies
 COPY package.json package-lock.json ./

@@ -4,6 +4,21 @@
 
 ## 🚀 Quick Start
 
+### Option A: Professional Docker Orchestration (Self-Hosted/Prod)
+```bash
+# Set up environment
+cp .env.example .env
+
+# Run the production setup script
+./setup-dev.sh  # Unix
+# OR
+.\setup-dev.ps1 # Windows
+
+# Start the entire system
+docker compose up -d
+```
+
+### Option B: Local Node.js Development
 ```bash
 # Install dependencies
 npm install
@@ -12,15 +27,13 @@ npm install
 # We recommend using 'uv' for fast, reliable dependency management
 uv venv venv --python 3.11
 # On Windows:
-.\venv\Scripts\activate.ps1 
+.\venv\Scripts\activate.ps1
 uv pip install -r requirements.txt
 
-# Set up environment
+# Set up database & env
 cp .env.example .env
-
-# Set up database
-npx prisma migrate dev
 npx prisma generate
+npx prisma migrate dev
 
 # Start development server
 npm run dev

@@ -40,12 +40,23 @@ export class JobQueue {
 
         const data: any = {
             type,
-            payload,
+            payload: { ...payload }, // Clone to avoid mutation
             priority: options.priority ?? 0,
             processAt: options.processAt ?? new Date(),
             teamId: options.teamId ?? null,
             status: "pending",
         };
+
+        // [Observability] Propagate correlationId to worker
+        if (!data.payload.correlationId) {
+            try {
+                const { RequestContext } = await import("@/lib/requestContext");
+                const cid = RequestContext.getCorrelationId();
+                if (cid) {
+                    data.payload.correlationId = cid;
+                }
+            } catch (e) { /* ignore */ }
+        }
 
         if (options.idempotencyKey) {
             data.idempotencyKey = options.idempotencyKey;

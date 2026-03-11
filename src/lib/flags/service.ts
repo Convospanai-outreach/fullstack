@@ -1,20 +1,30 @@
 import { prisma } from "@/lib/db";
 import { FEATURE_DEFINITIONS, CapabilityLayer, ProductMode } from "./config";
+import { safeGet, safeSet } from "@/lib/redis";
 
 export class FeatureFlagService {
     /**
      * Checks if a feature is enabled for a specific team.
-     * 
-     * Evaluation Logic:
-     * 1. Check if the feature exists in definitions.
-     * 2. Check the team's ProductMode (Enterprise Core, Growth, etc.).
-     * 3. Check specific FeatureFlag overrides in DB.
-     * 
-     * Rule:
-     * - If ProductMode is ENTERPRISE_CORE, only CORE and GOVERNED_AI layers are allowed.
-     * - EXPERIMENTAL is blocked unless mode is ALL_FEATURES.
+     * Evaluates definitions, ProductMode, and DB overrides with Redis caching.
      */
     static async isEnabled(featureKey: string, teamId: string): Promise<boolean> {
+        const cacheKey = `ff:${teamId}:${featureKey}`;
+        
+        // [Performance] Check cache first
+        const cached = await safeGet(cacheKey);
+        if (cached !== null) {
+            return cached === "true";
+        }
+
+        const isEnabled = await this.resolveEnabled(featureKey, teamId);
+        
+        // [Performance] Store in cache for 5 minutes
+        await safeSet(cacheKey, isEnabled.toString(), 300);
+
+        return isEnabled;
+    }
+
+    private static async resolveEnabled(featureKey: string, teamId: string): Promise<boolean> {
         const definition = FEATURE_DEFINITIONS[featureKey];
         if (!definition) {
             console.warn(`Feature flag ${featureKey} not defined`);

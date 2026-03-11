@@ -837,10 +837,11 @@ model GuardrailLog {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  actorId   String?  @map("userId")
-  orgId     String   @map("teamId")
-  action    String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
+  id            String   @id @default(uuid())
+  actorId       String?  @map("userId")
+  orgId         String   @map("teamId")
+  correlationId String?
+  action        String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
   entity    String   @map("resource")
   entityId  String?  @map("resourceId")
   metadata  Json?    @map("details") // Metadata
@@ -1211,8 +1212,9 @@ model LLMCache {
 
 // Task 2: Event-Sourced Learning Loop (Append-Only)
 model SystemEvent {
-  id        String   @id @default(uuid())
-  type      String // USER, AI, ESP, SYSTEM
+  id            String   @id @default(uuid())
+  correlationId String?
+  type          String // USER, AI, ESP, SYSTEM
   name      String // e.g., "DRAFT_SENT", "REPLY_RECEIVED", "BOUNCE", "ACTION_REJECTED"
   actorId   String? // User ID or "SYSTEM"
   teamId    String

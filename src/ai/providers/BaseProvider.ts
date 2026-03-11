@@ -45,7 +45,7 @@ export abstract class BaseProvider {
      */
     async generate(request: ModelRequest): Promise<ModelResponse> {
         const complexity = request.complexity || TaskComplexity.ROUTINE;
-        const model = this.getModelForComplexity(complexity);
+        const model = request.model || this.getModelForComplexity(complexity);
 
         let lastError: Error | null = null;
 

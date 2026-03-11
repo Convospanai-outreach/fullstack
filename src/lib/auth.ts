@@ -57,7 +57,7 @@ export const authOptions: NextAuthOptions = {
                     return user;
                 } catch (error: any) {
                     console.error("[Auth] Authorize Fallback Failure:", error.message);
-                    throw new Error("Authentication Service Temporarily Unavailable (DB_OFF)");
+                    throw new Error("Authentication service temporarily unavailable. Please try again later.");
                 }
             }
         })

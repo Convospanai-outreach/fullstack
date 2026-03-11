@@ -84,22 +84,22 @@ export class AIService {
             isComplianceSensitive: !!teamId
         };
 
-        const destination = HybridRouter.route(routingContext);
+        const { destination, model } = await HybridRouter.route(routingContext);
 
         // Validate no PII goes to cloud
         HybridRouter.validateCloudSafety(destination, prompt);
 
         // Log routing decision
-        console.log(`[Hybrid AI] Task routed to: ${destination}`);
+        console.log(`[Hybrid AI] Task routed to: ${destination} (${model})`);
 
         // If ON_PREM, delegate to edge node
         if (destination === AIDestination.ON_PREM) {
-            console.log("[Hybrid AI] Routing to On-Prem Edge Node");
+            console.log(`[Hybrid AI] Routing to On-Prem Edge Node (${model})`);
             const { OnPremAIProxy } = await import("@/lib/ai/OnPremAIProxy");
 
             try {
                 // Use on-prem AI service for sensitive tasks
-                const response = await OnPremAIProxy.generate(prompt, teamId || "system");
+                const response = await OnPremAIProxy.generate(prompt, teamId || "system", { model });
                 return response;
             } catch (error: any) {
                 console.error("[Hybrid AI] On-Prem AI failed:", error);
@@ -147,6 +147,7 @@ ${prompt}
         try {
             const rawResponseText = await modelGateway.generate({
                 prompt: safePrompt,
+                model, // Dynamic model selection (e.g. gemini-1.5-pro for drafts)
                 ...(teamId ? { teamId } : {}),
             });
 

@@ -57,6 +57,11 @@ export class SovereignFirewall {
 
         // Fail-Closed Circuit Breaker
         if (this.breaker.isOpen()) {
+            // FAIL-CLOSED Logic for Strict Sovereignty
+            if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
+                console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
+                throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
+            }
             console.warn("[SovereignFirewall] Circuit Breaker OPEN. Using Local Masking.");
             return this.maskLocal(data, region);
         }
@@ -95,7 +100,12 @@ export class SovereignFirewall {
     static maskLocal(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): SanitizedPayload {
         const tokenMap = new Map<string, string>();
 
-        if (region !== 'UAE' && process.env['STRICT_SOVEREIGNTY'] !== 'true') {
+        // If not in a high-privacy region and sovereignty is not strict, we don't necessarily need to mask ALL data
+        // but for security-first, we should still mask unstructured text if it looks like PII.
+        const isStrict = process.env['STRICT_SOVEREIGNTY'] === 'true';
+        
+        if (region !== 'UAE' && !isStrict) {
+            // Even if not strict, we should still perform Audit
             return { safeContext: typeof data === 'string' ? data : JSON.stringify(data), tokenMap };
         }
 
@@ -171,16 +181,28 @@ export class SovereignFirewall {
 
         // 3. Resolve all unique tokens in parallel
         const uniqueTokens = Array.from(new Set(matches.map(m => m[0])));
+        const resolutions = new Map<string, string>();
 
         await Promise.all(uniqueTokens.map(async (fullToken) => {
             try {
                 const pii = await IdentityService.resolveIdentity(fullToken, purpose, teamId);
-                const replacement = typeof pii === 'object' ? (pii.email || pii.name || JSON.stringify(pii)) : String(pii);
-                restored = restored.split(fullToken).join(replacement);
+                const replacement = typeof pii === 'object' 
+                    ? (pii.email || pii.name || JSON.stringify(pii)) 
+                    : String(pii);
+                resolutions.set(fullToken, replacement);
             } catch (e) {
                 console.warn(`[SovereignFirewall] Failed to resolve token ${fullToken}:`, e);
             }
         }));
+
+        // 4. Single pass replacement to avoid race conditions and O(N^2) string ops
+        if (resolutions.size > 0) {
+            const escapedTokens = Array.from(resolutions.keys())
+                .map(t => t.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'))
+                .join('|');
+            const regex = new RegExp(escapedTokens, 'g');
+            restored = restored.replace(regex, (matched) => resolutions.get(matched) || matched);
+        }
 
         return restored;
     }
