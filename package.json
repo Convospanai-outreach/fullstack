@@ -21,7 +21,8 @@
     "test:integration": "cross-env TEMP=d:\\Convo\\fullstack\\tmp TMP=d:\\Convo\\fullstack\\tmp vitest run tests/integration",
     "test:e2e": "cross-env TEMP=d:\\Convo\\fullstack\\tmp TMP=d:\\Convo\\fullstack\\tmp playwright test",
     "readiness:seed": "tsx src/scripts/seed-readiness.ts",
-    "readiness:audit": "tsx src/scripts/validate-production-readiness.ts"
+    "readiness:audit": "tsx src/scripts/validate-production-readiness.ts",
+    "db:archive": "tsx src/scripts/archive-audit-logs.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

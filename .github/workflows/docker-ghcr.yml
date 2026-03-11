@@ -32,11 +32,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Lowercase IMAGE_NAME
+        run: |
+          echo "IMAGE_NAME_LOWER=$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Extract metadata (tags, labels) for Web
         id: meta-web
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web
           tags: |
             type=raw,value=latest
             type=sha,format=short
@@ -47,14 +51,14 @@ jobs:
           context: .
           target: runner-web
           load: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:test
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner on Web
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/web:test'
+          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web:test'
           format: 'table'
           exit-code: '1'
           ignore-unfixed: true
@@ -76,7 +80,7 @@ jobs:
         id: meta-worker
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/worker
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/worker
           tags: |
             type=raw,value=latest
             type=sha,format=short
@@ -87,8 +91,8 @@ jobs:
           context: .
           target: runner-worker
           push: true
-          tags: ${{ id.meta-worker.outputs.tags }}
-          labels: ${{ id.meta-worker.outputs.labels }}
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -96,7 +100,7 @@ jobs:
         id: meta-edge
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/edge-node
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/edge-node
           tags: |
             type=raw,value=latest
             type=sha,format=short
@@ -106,7 +110,7 @@ jobs:
         with:
           context: ./services/edge-node
           push: true
-          tags: ${{ id.meta-edge.outputs.tags }}
-          labels: ${{ id.meta-edge.outputs.labels }}
+          tags: ${{ steps.meta-edge.outputs.tags }}
+          labels: ${{ steps.meta-edge.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
