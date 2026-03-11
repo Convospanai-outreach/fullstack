@@ -35,9 +35,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ==============================================================================
 WORKDIR /opt
 
-# Clone and build llama.cpp at a specific release
-# b4810 is a stable tag with confirmed Phi-3 support
-RUN git clone --depth 1 --branch b4810 https://github.com/ggerganov/llama.cpp.git && \
+# Clone and build llama.cpp
+# Using master branch for latest features and guaranteed branch existence
+RUN git clone --depth 1 https://github.com/ggerganov/llama.cpp.git && \
     cd llama.cpp && \
     mkdir build && \
     cd build && \
