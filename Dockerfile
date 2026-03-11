@@ -1,5 +1,6 @@
 # Stage 1: Base image with shared environment settings
 FROM node:20-alpine AS base
+LABEL org.opencontainers.image.source="https://github.com/Convospanai-outreach/fullstack"
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Stage 2: Install all dependencies (neccessary for build)

@@ -1,6 +1,13 @@
 {
   "name": "convospan-full-scaffold",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Convospanai-outreach/fullstack.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "cross-env NODE_OPTIONS='--max-old-space-size=8192' prisma generate && cross-env NODE_OPTIONS='--max-old-space-size=8192' next build",
