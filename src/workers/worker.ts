@@ -81,13 +81,14 @@ async function processJob(job: any) {
                 throw new Error(`Unknown job type: ${job.type}`);
         }
 
-        const isSuccess = result === true || (result && (result.ok === true || result.success === true || result.processed === true));
+        const res = result as any;
+        const isSuccess = result === true || (res && (res.ok === true || res.success === true || res.processed === true));
 
         if (isSuccess) {
             await JobQueue.complete(job.id, result);
             logWorker(job.id, "Completed successfully");
         } else {
-            throw new Error((result && result.error) || "Unknown error or failed result");
+            throw new Error((res && res.error) || "Unknown error or failed result");
         }
     } catch (error: any) {
         logWorker(job.id, "Failed", { error: error.message });
