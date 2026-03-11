@@ -1,5 +1,4 @@
 import { SovereignFirewall } from './SovereignFirewall';
-import { tokenUsageGuard } from '@/modules/optimization/TokenUsageGuard';
 
 export interface TOONResult {
     optimizedPrompt: string;
