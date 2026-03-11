@@ -7,6 +7,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   validate-readiness:
     name: Production Stability Audit
@@ -14,7 +17,7 @@ jobs:
     
     services:
       postgres:
-        image: postgres:16
+        image: ankane/pgvector:latest
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: password
