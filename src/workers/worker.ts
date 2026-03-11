@@ -5,10 +5,19 @@ import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleEmailSend } from "./handlers/emailHandlers";
 import { EventStore } from "@/modules/learning/EventStore";
 import { dataIngestionService } from "@/modules/learning/DataIngestionService";
+import { logger } from "@/lib/logger";
+import { RequestContext } from "@/lib/requestContext";
 
 const POLL_INTERVAL = 5000; // 5 seconds
 
-import { RequestContext } from "@/lib/requestContext";
+function logWorker(jobId: string, status: string, meta: any = {}) {
+    logger.info(`[Worker] Job ${jobId}: ${status}`, {
+        jobId,
+        status,
+        ...meta,
+        category: 'worker'
+    });
+}
 
 async function processJob(job: any) {
     const correlationId = job.payload?.correlationId || `job-${job.id}`;
@@ -72,11 +81,13 @@ async function processJob(job: any) {
                 throw new Error(`Unknown job type: ${job.type}`);
         }
 
-        if (result.ok) {
+        const isSuccess = result === true || (result && (result.ok === true || result.success === true || result.processed === true));
+
+        if (isSuccess) {
             await JobQueue.complete(job.id, result);
             logWorker(job.id, "Completed successfully");
         } else {
-            throw new Error(result.error || "Unknown error");
+            throw new Error((result && result.error) || "Unknown error or failed result");
         }
     } catch (error: any) {
         logWorker(job.id, "Failed", { error: error.message });

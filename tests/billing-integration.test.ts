@@ -1,4 +1,3 @@
-import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 const { mockDeductCredits } = vi.hoisted(() => ({

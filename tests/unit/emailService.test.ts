@@ -1,4 +1,3 @@
-import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { EmailService } from '@/lib/emailService';
 import { prisma } from '@/lib/db';

@@ -21,10 +21,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to the Container registry
-        uses: actions/setup-docker-actions@v1 # Optional: Ensure docker environment
-        continue-on-error: true # Not strictly necessary if using docker login directly
-
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:

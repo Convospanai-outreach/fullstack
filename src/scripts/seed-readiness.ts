@@ -69,7 +69,6 @@ async function seed() {
         await prisma.featureFlag.create({
             data: {
                 key: "linkedin_automation",
-                name: "LinkedIn Automation",
                 isEnabled: true,
                 layer: "CORE"
             }

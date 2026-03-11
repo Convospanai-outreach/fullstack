@@ -55,8 +55,8 @@ jobs:
         env:
           DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
 
-      - name: Run Migrations
-        run: npx prisma migrate deploy
+      - name: Setup Database
+        run: npx prisma db push --skip-generate
         env:
           DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
 

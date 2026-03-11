@@ -1,4 +1,3 @@
-import { vi } from 'vitest';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { GET } from '@/app/api/auth/verify-email/route';
 import { EmailService } from '@/lib/emailService';
