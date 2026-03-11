@@ -47,7 +47,10 @@ async function validateEnvironmentConfig() {
     ];
 
     const optional = [
-        "GEMINI_API_KEY",
+        "GEMINI_API_KEY"
+    ];
+
+    const bindingReady = [
         "EDGE_NODE_URI",
         "ON_PREM_AI_ENDPOINT"
     ];
@@ -60,6 +63,11 @@ async function validateEnvironmentConfig() {
     for (const key of optional) {
         const exists = !!process.env[key];
         addResult("Environment", key, exists, exists ? "Configured" : "Not set (optional)");
+    }
+
+    for (const key of bindingReady) {
+        const exists = !!process.env[key];
+        addResult("Environment", `${key} (User Binding)`, true, exists ? "Global Fallback Active" : "Dynamic User Binding Ready (Non-Blocking)");
     }
 }
 

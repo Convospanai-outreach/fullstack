@@ -1,4 +1,5 @@
 import { ProductMode } from "@prisma/client";
+import { prisma } from "@/lib/db";
 
 export enum AIDestination {
     CLOUD = "CLOUD",
@@ -17,6 +18,7 @@ export enum AITaskType {
 
 export interface AIContext {
     taskType: AITaskType;
+    userId?: string; // Bind to individual user edge node
     containsPII?: boolean;
     productMode?: ProductMode;
     requiresResidentialIP?: boolean;
@@ -28,25 +30,29 @@ export class HybridRouter {
     /**
      * Core routing logic: Determines if task should run on Cloud or On-Prem
      */
-    static async route(context: AIContext): Promise<{ destination: AIDestination; model: string }> {
-        const isEdgeHealthy = await this.checkEdgeNodeHealth();
+    static async route(context: AIContext): Promise<{ destination: AIDestination; model: string; endpoint?: string }> {
+        const endpoint = await this.getEndpoint(AIDestination.ON_PREM, context.userId);
+        const isEdgeHealthy = await this.checkEdgeNodeHealth(endpoint);
         
         // Rule 1: ENTERPRISE_CORE mode forces on-prem for everything sensitive
         if (context.productMode === ProductMode.ENTERPRISE_CORE && context.isComplianceSensitive) {
-            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: Cannot process compliance-sensitive task.");
-            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
+            if (!isEdgeHealthy) {
+                // If it's compliance sensitive but NO node is bound, we MUST fail closed
+                throw new Error("Compliance Violation: Enterprise policy requires a bound Sovereign Node, but none found or node offline.");
+            }
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini", endpoint };
         }
 
         // Rule 2: Any PII must stay on-prem (DPDP Act compliance)
         if (context.containsPII) {
-            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: PII detected, blocking cloud egress.");
-            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
+            if (!isEdgeHealthy) throw new Error("Sovereign Protection: PII detected but no healthy Edge Node assigned. Blocking cloud egress.");
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini", endpoint };
         }
 
         // Rule 3: Tasks requiring residential IP
         if (context.requiresResidentialIP) {
-            if (!isEdgeHealthy) throw new Error("Sovereign Node Offline: Physical node required for automation.");
-            return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
+            if (!isEdgeHealthy) throw new Error("Infrastructure Missing: Task requires a physical residential node.");
+            return { destination: AIDestination.ON_PREM, model: "phi-3-mini", endpoint };
         }
 
         // Rule 4: Preferred On-Prem, but can fallback to cloud if healthy
@@ -58,7 +64,7 @@ export class HybridRouter {
 
         if (preferredOnPrem.includes(context.taskType)) {
             if (isEdgeHealthy) {
-                return { destination: AIDestination.ON_PREM, model: "phi-3-mini" };
+                return { destination: AIDestination.ON_PREM, model: "phi-3-mini", endpoint };
             }
             // Fallback to Cloud ONLY if non-PII and not strictly residential
             return { destination: AIDestination.CLOUD, model: "gemini-1.5-flash" };
@@ -71,8 +77,8 @@ export class HybridRouter {
         };
     }
 
-    private static async checkEdgeNodeHealth(): Promise<boolean> {
-        const endpoint = this.getEndpoint(AIDestination.ON_PREM);
+    private static async checkEdgeNodeHealth(endpoint: string): Promise<boolean> {
+        if (!endpoint || endpoint === "CLOUD") return false;
         try {
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), 1000); // 1s timeout
@@ -86,13 +92,27 @@ export class HybridRouter {
 
     /**
      * Helper to get the appropriate endpoint based on destination
+     * Prioritizes User-level binding over Environment-level binding
      */
-    static getEndpoint(destination: AIDestination): string {
+    static async getEndpoint(destination: AIDestination, userId?: string): Promise<string> {
         if (destination === AIDestination.ON_PREM) {
-            return process.env['ON_PREM_AI_ENDPOINT'] || process.env['EDGE_NODE_URI'] || "http://localhost:8000";
+            // 1. Check for User-specific binding
+            if (userId) {
+                const user = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: { edgeNodeUri: true }
+                });
+                if (user?.edgeNodeUri) return user.edgeNodeUri;
+            }
+
+            // 2. Fallback to Environment Variables
+            return process.env['ON_PREM_AI_ENDPOINT'] || 
+                   process.env['EDGE_NODE_URI'] || 
+                   process.env['PHI3_LOCAL_ENDPOINT'] ||
+                   "http://localhost:8000";
         }
 
-        // Cloud endpoint - returns null to signal standard API usage
+        // Cloud endpoint - returns string to signal standard API usage
         return "CLOUD";
     }
 

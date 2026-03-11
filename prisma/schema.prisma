@@ -616,6 +616,7 @@ model User {
   callerMaxQueueSize Int       @default(10) // Max assigned items at once
   callerActiveAt     DateTime? // Last activity timestamp
   callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
+  edgeNodeUri        String? // Individual Phi-3 Edge Node binding
 }
 
 model Account {

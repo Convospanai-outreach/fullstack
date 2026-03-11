@@ -49,15 +49,20 @@ export class SovereignFirewall {
      * Replaces sensitive data with deterministic UUIDs.
      * Hits Edge Node (Async) if available, falls back to Local (Sync) if not.
      */
-    static async mask(data: string | Record<string, unknown> | unknown[], region: 'UAE' | 'GLOBAL' = 'GLOBAL'): Promise<SanitizedPayload> {
+    static async mask(
+        data: string | Record<string, unknown> | unknown[], 
+        region: 'UAE' | 'GLOBAL' = 'GLOBAL',
+        overrideEndpoint?: string
+    ): Promise<SanitizedPayload> {
         const text = typeof data === 'string' ? data : JSON.stringify(data);
+        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
 
         // Pre-Send Regex Audit (Logging only, masking still happens)
         this.auditText(text);
 
         // Fail-Closed Circuit Breaker
         if (this.breaker.isOpen()) {
-            // FAIL-CLOSED Logic for Strict Sovereignty
+            // ... strict check omitted for brevity in targetContent but I will keep it in ReplacementContent
             if (process.env['STRICT_SOVEREIGNTY'] === 'true') {
                 console.error("[SovereignFirewall] CRITICAL: Circuit Breaker OPEN. STRICT_SOVEREIGNTY is TRUE. Failing closed.");
                 throw new Error("Sovereign Node Offline (Breaker Open). PII Exposure Risk Blocked.");
@@ -68,7 +73,7 @@ export class SovereignFirewall {
 
         try {
             // Attempt Hardware Sanitization (Edge Node)
-            const response = await axios.post(`${this.PI_ENDPOINT}/v1/sanitize`, {
+            const response = await axios.post(`${endpoint}/v1/sanitize`, {
                 text: text,
                 session_id: crypto.randomUUID()
             }, { timeout: 2000 });
@@ -210,9 +215,10 @@ export class SovereignFirewall {
     /**
      * Bot-Likeness scoring (Adversarial Judge)
      */
-    static async critique(draft: string): Promise<CriticVerdict> {
+    static async critique(draft: string, overrideEndpoint?: string): Promise<CriticVerdict> {
+        const endpoint = overrideEndpoint || this.PI_ENDPOINT;
         try {
-            const response = await axios.post(`${this.PI_ENDPOINT}/v1/critique`, { text: draft }, { timeout: 3000 });
+            const response = await axios.post(`${endpoint}/v1/critique`, { text: draft }, { timeout: 3000 });
             return {
                 score: response.data.score,
                 approved: response.data.score >= 0.8, // Logic: >0.8 similar to golden records
@@ -246,9 +252,9 @@ export class SovereignFirewall {
     /**
      * Evaluate a prompt for safety (used by BullsEyeRAG)
      */
-    static async evaluate(prompt: string): Promise<{ safe: boolean; reason?: string | undefined }> {
+    static async evaluate(prompt: string, overrideEndpoint?: string): Promise<{ safe: boolean; reason?: string | undefined }> {
         try {
-            const verdict = await this.critique(prompt);
+            const verdict = await this.critique(prompt, overrideEndpoint);
             return { safe: verdict.approved, reason: verdict.reason };
         } catch {
             return { safe: false, reason: 'Evaluation failed' };
