@@ -1,6 +1,6 @@
 // Client-side API wrapper for campaign operations
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL + "/campaigns";
+const API_BASE = process.env['NEXT_PUBLIC_API_URL'] + "/campaigns";
 
 export interface Campaign {
     id: string;
