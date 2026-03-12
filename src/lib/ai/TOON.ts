@@ -18,7 +18,7 @@ export class TOON {
     /**
      * Sterilizes and optimizes a prompt for the cloud LLM.
      */
-    static async process(prompt: string, teamId: string): Promise<TOONResult> {
+    static async process(prompt: string, _teamId: string): Promise<TOONResult> {
         // 1. Data Sterilization (PII Masking)
         const { safeContext: sterilized, tokenMap } = await SovereignFirewall.mask(prompt);
 
