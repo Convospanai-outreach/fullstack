@@ -6,7 +6,7 @@ const nextConfig = {
     compress: true,
     experimental: {
         optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
-        serverExternalPackages: ['ssh2', 'docker-modem', '@genkit-ai/googleai'],
+        serverComponentsExternalPackages: ['ssh2', 'docker-modem', '@genkit-ai/googleai'],
     },
     images: {
         remotePatterns: [
