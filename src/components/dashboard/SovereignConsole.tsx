@@ -39,7 +39,7 @@ export function SovereignConsole() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/admin/sovereign-stats');
+                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/admin/sovereign-stats');
                 const data = await res.json();
                 if (data.ok) {
                     setSignals(data.signals || []);
@@ -50,7 +50,7 @@ export function SovereignConsole() {
                 }
 
                 // Fetch upcoming nurture events
-                const nurtureRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/nurture/trigger');
+                const nurtureRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger');
                 const nurtureData = await nurtureRes.json();
                 if (nurtureData.ok) {
                     setEvents(nurtureData.events || []);
@@ -69,10 +69,10 @@ export function SovereignConsole() {
     const handleSync = async () => {
         setIsSyncing(true);
         try {
-            await fetch(process.env.NEXT_PUBLIC_API_URL + '/nurture/trigger?action=sync', { method: 'POST' });
-            await fetch(process.env.NEXT_PUBLIC_API_URL + '/nurture/trigger?action=generate', { method: 'POST' });
+            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger?action=sync', { method: 'POST' });
+            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger?action=generate', { method: 'POST' });
             // Refresh
-            const nurtureRes = await fetch(process.env.NEXT_PUBLIC_API_URL + '/nurture/trigger');
+            const nurtureRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger');
             const nurtureData = await nurtureRes.json();
             if (nurtureData.ok) setEvents(nurtureData.events || []);
         } catch (e) {

@@ -74,7 +74,7 @@ export default function SetupWizardPage() {
   // Fetch status on load
   const loadStatus = async () => {
     try {
-      const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/setup/status");
+      const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/status");
       if (res.ok) {
         const data = await res.json();
         setStatus(data);
@@ -138,7 +138,7 @@ export default function SetupWizardPage() {
 
       if (stepId === 3) {
         // Save SMTP configuration using the dedicated endpoint
-        await fetch(process.env.NEXT_PUBLIC_API_URL + "/setup/email", {
+        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -148,7 +148,7 @@ export default function SetupWizardPage() {
         });
         await loadStatus(); // Refresh status
       } else if (payload) {
-        await fetch(process.env.NEXT_PUBLIC_API_URL + "/setup/save", {
+        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ step: stepId, data: payload })
@@ -451,7 +451,7 @@ export default function SetupWizardPage() {
                   <button 
                     onClick={async () => {
                       try {
-                        const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/email/verify", {
+                        const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/email/verify", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({

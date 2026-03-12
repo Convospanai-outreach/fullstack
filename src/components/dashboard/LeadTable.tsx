@@ -40,7 +40,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
     const handleBulkDelete = async () => {
         if (!confirm(`Delete ${selectedIds.length} leads?`)) return;
         try {
-            await fetch(process.env.NEXT_PUBLIC_API_URL + "/leads/bulk", {
+            await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/leads/bulk", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ids: selectedIds })
@@ -53,7 +53,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
 
     const handleBulkExport = () => {
         // In a real app, we'd POST ids to export endpoint
-        window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/leads/export?ids=${selectedIds.join(",")}`;
+        window.location.href = `${process.env['NEXT_PUBLIC_API_URL']}/leads/export?ids=${selectedIds.join(",")}`;
     };
 
     return (

@@ -19,7 +19,7 @@ export default function DashboardLayout({
 
     useEffect(() => {
         // Only check setup status once on dashboard load
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/setup/status")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/status")
             .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (data && (!data.readyToLaunch || data.completionPercent < 100)) {

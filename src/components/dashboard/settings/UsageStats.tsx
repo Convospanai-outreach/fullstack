@@ -18,7 +18,7 @@ export function UsageStats() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/usage")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/usage")
             .then((res) => res.json())
             .then((json) => {
                 if (json.usage) setData(json.usage);

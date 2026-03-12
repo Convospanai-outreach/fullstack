@@ -12,7 +12,7 @@ export function NotificationBell() {
 
     useEffect(() => {
         if (status === "authenticated") {
-            fetch(process.env.NEXT_PUBLIC_API_URL + "/notifications")
+            fetch(process.env['NEXT_PUBLIC_API_URL'] + "/notifications")
                 .then(res => {
                     if (res.ok) return res.json();
                     return [];

@@ -30,7 +30,7 @@ export default function SsoSettingsPage() {
 
     const fetchConfig = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/sso");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/sso");
             const data = await res.json();
             if (data && data.teamId) {
                 setConfig(data);
@@ -50,7 +50,7 @@ export default function SsoSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/sso", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/sso", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

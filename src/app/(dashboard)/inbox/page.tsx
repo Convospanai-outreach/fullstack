@@ -50,7 +50,7 @@ export default function InboxPage() {
         const status = folderStatusMap[activeFolder];
         if (status) params.append("status", status);
         if (debouncedSearch) params.append("search", debouncedSearch);
-        return `${process.env.NEXT_PUBLIC_API_URL}/inbox?${params.toString()}`;
+        return `${process.env['NEXT_PUBLIC_API_URL']}/inbox?${params.toString()}`;
     }, [activeFolder, debouncedSearch]);
 
     const { data: threads, isLoading } = useSWR<Thread[]>(queryUrl, fetcher, {
@@ -286,7 +286,7 @@ function FolderItem({ label, icon: Icon, active, count, onClick }: any) {
 function ConversationView({ threadId }: { threadId: string }) {
     // Note: In a real app we'd fetch specific messages, but our mock service returns messages directly on the thread object or via a separate call.
     // Here let's assume valid mock messages are returned for the demo.
-    const { data, isLoading } = useSWR(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}`, fetcher);
+    const { data, isLoading } = useSWR(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`, fetcher);
     const [reply, setReply] = useState("");
     const [sending, setSending] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -307,7 +307,7 @@ function ConversationView({ threadId }: { threadId: string }) {
         const promise = new Promise<void>((resolve, reject) => {
             undoTimerRef.current = setTimeout(async () => {
                 try {
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}/send`, {
+                    const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}/send`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ content: reply })
@@ -321,7 +321,7 @@ function ConversationView({ threadId }: { threadId: string }) {
                     // Success handling
                     setReply("");
                     setSending(false);
-                    mutate(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}`);
+                    mutate(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`);
                     resolve();
                 } catch (error: any) {
                     setSending(false);

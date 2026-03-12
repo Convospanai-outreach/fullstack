@@ -28,8 +28,8 @@ export default function PipelinePage() {
     const loadData = async () => {
         try {
             const [leadsRes, statsRes] = await Promise.all([
-                fetch(process.env.NEXT_PUBLIC_API_URL + "/leads"),
-                fetch(process.env.NEXT_PUBLIC_API_URL + "/pipeline/stats")
+                fetch(process.env['NEXT_PUBLIC_API_URL'] + "/leads"),
+                fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/stats")
             ]);
 
             const leadsData = await leadsRes.json();
@@ -46,7 +46,7 @@ export default function PipelinePage() {
 
     const analyzeLead = async (leadId: string) => {
         toast.promise(
-            fetch(process.env.NEXT_PUBLIC_API_URL + "/pipeline/ai/analyze", {
+            fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/ai/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leadId, action: "suggestTasks" })

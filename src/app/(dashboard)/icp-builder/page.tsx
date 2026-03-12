@@ -22,7 +22,7 @@ export default function ICPBuilderPage() {
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/agents/icp", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/agents/icp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)

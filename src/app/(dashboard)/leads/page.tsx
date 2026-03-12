@@ -54,7 +54,7 @@ export default function LeadsPage() {
     const handleEnrich = async (id: string) => {
         setEnriching((prev) => ({ ...prev, [id]: true }));
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${id}/enrich`, { method: "POST" });
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${id}/enrich`, { method: "POST" });
             if (!res.ok) throw new Error("Enrichment failed");
             toast.success("Lead enriched successfully");
             await loadLeads();

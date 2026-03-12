@@ -6,7 +6,7 @@ import { useEffect } from "react";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingSettings() {
-    const { data: team, mutate } = useSWR(process.env.NEXT_PUBLIC_API_URL + "/team?include=subscription,transactions", fetcher);
+    const { data: team, mutate } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/team?include=subscription,transactions", fetcher);
 
     useEffect(() => {
         // Load Razorpay Script
@@ -26,7 +26,7 @@ export default function BillingSettings() {
     const handleTopUp = async (credits: number, priceINR: number) => {
         try {
             // 1. Create Order
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/billing/checkout", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ amount: priceINR, currency: "INR" }), // Amount in rupees, API converts to paise
@@ -55,7 +55,7 @@ export default function BillingSettings() {
                     } catch (err) { }
 
                     // Revalidate team data
-                    mutate(process.env.NEXT_PUBLIC_API_URL + "/team?include=subscription,transactions");
+                    mutate(process.env['NEXT_PUBLIC_API_URL'] + "/team?include=subscription,transactions");
                 },
                 prefill: {
                     name: "User Name", // Ideally retrieve from user session if available here

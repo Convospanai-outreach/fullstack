@@ -37,7 +37,7 @@ export default function ClientErrorsPage() {
             if (filter.url) params.append("url", filter.url);
             if (filter.userId) params.append("userId", filter.userId);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/client-errors?${params}`);
+            const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/admin/client-errors?${params}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -54,7 +54,7 @@ export default function ClientErrorsPage() {
 
     const exportErrors = async () => {
         try {
-            const response = await fetch(process.env.NEXT_PUBLIC_API_URL + "/admin/client-errors/export", {
+            const response = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/client-errors/export", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ format: "csv" })

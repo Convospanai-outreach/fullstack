@@ -8,7 +8,7 @@ import { ONBOARDING_STEPS } from "@/modules/onboarding/service/onboardingService
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function GettingStartedWidget() {
-    const { data: completedSteps } = useSWR<string[]>(process.env.NEXT_PUBLIC_API_URL + "/onboarding/status", fetcher);
+    const { data: completedSteps } = useSWR<string[]>(process.env['NEXT_PUBLIC_API_URL'] + "/onboarding/status", fetcher);
 
     if (!completedSteps) return null; // Loading or error
     if (completedSteps.length === ONBOARDING_STEPS.length) return null; // All done!

@@ -13,7 +13,7 @@ export default function MarketplacePage() {
     const router = useRouter();
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/marketplace")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/marketplace")
             .then(res => res.json())
             .then(data => {
                 setTemplates(data);
@@ -28,7 +28,7 @@ export default function MarketplacePage() {
     const handleInstall = async (templateId: string, type: string) => {
         const toastId = toast.loading("Installing...");
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/marketplace/install", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/marketplace/install", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ templateId })

@@ -43,7 +43,7 @@ export default function TeamSettingsPage() {
 
     const loadMembers = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/team/members");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/team/members");
             const data = await res.json();
             if (data.success) {
                 setMembers(data.data);
@@ -59,7 +59,7 @@ export default function TeamSettingsPage() {
         e.preventDefault();
         setInviting(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/team/members", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/team/members", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: inviteEmail, role: inviteRole })
@@ -85,7 +85,7 @@ export default function TeamSettingsPage() {
         if (!confirm("Are you sure you want to remove this member?")) return;
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/team/members/${id}`, { method: "DELETE" });
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/team/members/${id}`, { method: "DELETE" });
             const data = await res.json();
             if (data.success) {
                 toast.success("Member removed");
@@ -100,7 +100,7 @@ export default function TeamSettingsPage() {
 
     const handleRoleUpdate = async (id: string, newRole: string) => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/team/members/${id}`, {
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/team/members/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ role: newRole })

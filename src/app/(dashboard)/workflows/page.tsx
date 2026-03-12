@@ -18,7 +18,7 @@ export default function WorkflowsPage() {
 
     const fetchWorkflows = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/workflows');
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/workflows');
             const data = await res.json();
             setWorkflows(Array.isArray(data) ? data : []);
         } catch (e) {
@@ -33,7 +33,7 @@ export default function WorkflowsPage() {
         if (!name) return;
 
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/workflows', {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/workflows', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
@@ -49,7 +49,7 @@ export default function WorkflowsPage() {
         e.stopPropagation();
         if (!confirm("Are you sure?")) return;
 
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workflows/${id}`, { method: 'DELETE' });
+        await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/workflows/${id}`, { method: 'DELETE' });
         fetchWorkflows();
         toast.success("Workflow deleted");
     };

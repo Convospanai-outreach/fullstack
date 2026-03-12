@@ -19,7 +19,7 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/notifications")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/notifications")
             .then(res => res.json())
             .then(data => {
                 setNotifications(data);
@@ -32,7 +32,7 @@ export default function NotificationsPage() {
     }, []);
 
     const markRead = async (id: string) => {
-        await fetch(process.env.NEXT_PUBLIC_API_URL + "/notifications", {
+        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/notifications", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ action: "markRead", id })

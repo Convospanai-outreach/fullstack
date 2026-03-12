@@ -43,7 +43,7 @@ export function AnalyticsDashboard() {
 
     useEffect(() => {
         setMounted(true);
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/analytics/stats")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/analytics/stats")
             .then((res) => res.json())
             .then((result) => {
                 setData(result);

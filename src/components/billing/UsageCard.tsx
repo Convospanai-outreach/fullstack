@@ -8,7 +8,7 @@ export function UsageCard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/usage")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/usage")
             .then(res => res.json())
             .then(data => {
                 if (data.usage) setUsage(data.usage);

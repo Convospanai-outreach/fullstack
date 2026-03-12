@@ -37,7 +37,7 @@ export default function ROIDashboardPage() {
 
     useEffect(() => {
         // Fetch data
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/analytics/roi')
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + '/analytics/roi')
             .then(res => res.json())
             .then(json => {
                 setData(json);

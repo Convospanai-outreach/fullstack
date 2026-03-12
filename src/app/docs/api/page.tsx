@@ -16,7 +16,7 @@ const ENDPOINTS = [
     {
         category: "Leads",
         method: "GET",
-        path: process.env.NEXT_PUBLIC_API_URL + "/v1/leads",
+        path: process.env['NEXT_PUBLIC_API_URL'] + "/v1/leads",
         description: "Fetch a list of leads with advanced filtering and pagination support.",
         params: [
             { name: "limit", type: "number", desc: "Max results (default 10, max 100)" },
@@ -30,7 +30,7 @@ const ENDPOINTS = [
     {
         category: "Leads",
         method: "POST",
-        path: process.env.NEXT_PUBLIC_API_URL + "/v1/leads",
+        path: process.env['NEXT_PUBLIC_API_URL'] + "/v1/leads",
         description: "Create a new lead and optionally assign to a campaign.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -H "Content-Type: application/json" \\
@@ -40,7 +40,7 @@ const ENDPOINTS = [
     {
         category: "Knowledge",
         method: "GET",
-        path: process.env.NEXT_PUBLIC_API_URL + "/v1/knowledge/search",
+        path: process.env['NEXT_PUBLIC_API_URL'] + "/v1/knowledge/search",
         description: "Contextual search across your knowledge base collections using RAG logic.",
         params: [
             { name: "q", type: "string", desc: "The natural language query" },
@@ -52,7 +52,7 @@ const ENDPOINTS = [
     {
         category: "Workflows",
         method: "POST",
-        path: process.env.NEXT_PUBLIC_API_URL + "/v1/workflows/{id}/run",
+        path: process.env['NEXT_PUBLIC_API_URL'] + "/v1/workflows/{id}/run",
         description: "Programmatically trigger a workflow execution for a specific lead or entity.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -d '{"leadId": "lead_123"}' \\
@@ -61,7 +61,7 @@ const ENDPOINTS = [
     {
         category: "Tasks",
         method: "GET",
-        path: process.env.NEXT_PUBLIC_API_URL + "/v1/tasks",
+        path: process.env['NEXT_PUBLIC_API_URL'] + "/v1/tasks",
         description: "Retrieve a list of pending and completed tasks for your team.",
         params: [
             { name: "status", type: "string", desc: "Filter by status (TODO, DONE)" },

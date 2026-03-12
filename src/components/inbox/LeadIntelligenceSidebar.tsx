@@ -26,7 +26,7 @@ export function LeadIntelligenceSidebar({ threadId }: LeadIntelligenceSidebarPro
                     { role: "user", content: "We need SSO and audit logs, but the price is high." }
                 ];
 
-                const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/agents/inbox/analyze", {
+                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/agents/inbox/analyze", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ messages: mockMessages })

@@ -16,7 +16,7 @@ export default function AuditLogPage() {
     const [loadingTraces, setLoadingTraces] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/audit")
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/audit")
             .then(res => res.json())
             .then(data => {
                 setLogs(data);
@@ -37,7 +37,7 @@ export default function AuditLogPage() {
         if (!isExpanded && entityType === 'WorkflowRun' && !traces[logId]) {
             setLoadingTraces(prev => ({ ...prev, [logId]: true }));
             try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/traces/${entityId}`);
+                const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/traces/${entityId}`);
                 if (res.ok) {
                     const data = await res.json();
                     setTraces(prev => ({ ...prev, [logId]: data }));

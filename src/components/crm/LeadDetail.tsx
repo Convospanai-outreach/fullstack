@@ -32,7 +32,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const handleAction = async (action: string) => {
         setLoading(true);
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${lead.id}/action`, {
+            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}/action`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action })
@@ -49,7 +49,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const handleEnrich = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${lead.id}/enrich`, {
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}/enrich`, {
                 method: "POST"
             });
             const data = await res.json();

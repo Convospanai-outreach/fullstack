@@ -22,7 +22,7 @@ export function WorkspaceSwitcher() {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/user/teams");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/user/teams");
             const data = await res.json();
 
             // Mocking for now if endpoint structure is unknown, but let's assume standard structure

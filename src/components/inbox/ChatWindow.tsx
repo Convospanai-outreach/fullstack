@@ -21,7 +21,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
     useEffect(() => {
         setLoading(true);
         setSuggestions([]); // Clear previous suggestions
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}`)
+        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`)
             .then(res => res.json())
             .then(data => {
                 setMessages(data);
@@ -36,7 +36,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
     const fetchSuggestions = async () => {
         setSuggestionsLoading(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}/suggest`);
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}/suggest`);
             const data = await res.json();
             if (data.suggestions) {
                 setSuggestions(data.suggestions);
@@ -71,7 +71,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
         scrollToBottom();
 
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/inbox/${threadId}`, {
+            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: tempMsg.content })

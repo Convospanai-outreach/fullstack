@@ -39,7 +39,7 @@ export default function AIPerformancePage() {
     const fetchStats = async () => {
         setLoading(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/admin/llm-stats");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/llm-stats");
             const data = await res.json();
             if (data.success) {
                 setStats(data.stats);

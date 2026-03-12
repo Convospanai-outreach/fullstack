@@ -10,7 +10,7 @@ export default function ObservabilityDashboard() {
     const [range, setRange] = useState("24h");
 
     useEffect(() => {
-        fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/observability?range=${range}`)
+        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/admin/observability?range=${range}`)
             .then((res) => res.json())
             .then((d) => {
                 setData(d);

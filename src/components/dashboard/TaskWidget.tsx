@@ -25,7 +25,7 @@ export function TaskWidget() {
         if (!newTaskTitle.trim()) return;
 
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/pipeline/tasks", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -47,7 +47,7 @@ export function TaskWidget() {
 
     const loadTasks = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/pipeline/tasks");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/tasks");
             const data = await res.json();
             if (data.success) {
                 setTasks(data.data);
@@ -62,7 +62,7 @@ export function TaskWidget() {
     const toggleTask = async (taskId: string, currentStatus: string) => {
         const newStatus = currentStatus === "TODO" ? "DONE" : "TODO";
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pipeline/tasks/${taskId}`, {
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/pipeline/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus })

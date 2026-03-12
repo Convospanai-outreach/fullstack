@@ -19,8 +19,8 @@ export const CommandPalette: React.FC = () => {
         { id: 'settings', name: 'Organization Settings', icon: Settings, shortcut: 'G O', url: '/settings' },
         // Operator Commands
         { id: 'approvals', name: 'View Approval Queue', icon: Shield, shortcut: 'G A', url: '/dashboard?tab=approvals' },
-        { id: 'operator-scrapers', name: 'Run: Start All Scrapers', icon: Zap, shortcut: 'R S', url: process.env.NEXT_PUBLIC_API_URL + '/admin/actions/start-scrapers', action: true },
-        { id: 'operator-pause', name: 'Run: Pause Outreach', icon: Zap, shortcut: 'R P', url: process.env.NEXT_PUBLIC_API_URL + '/admin/actions/pause-outreach', action: true },
+        { id: 'operator-scrapers', name: 'Run: Start All Scrapers', icon: Zap, shortcut: 'R S', url: process.env['NEXT_PUBLIC_API_URL'] + '/admin/actions/start-scrapers', action: true },
+        { id: 'operator-pause', name: 'Run: Pause Outreach', icon: Zap, shortcut: 'R P', url: process.env['NEXT_PUBLIC_API_URL'] + '/admin/actions/pause-outreach', action: true },
     ];
 
     const filteredActions = actions.filter(action =>
