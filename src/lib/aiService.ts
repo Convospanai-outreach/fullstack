@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  */
 export class AIService {
     private async callBackend(action: string, data: any) {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+        const apiUrl = process.env['NEXT_PUBLIC_API_URL'] || "http://localhost:3001";
         try {
             const response = await fetch(`${apiUrl}/ai/execute`, {
                 method: "POST",
