@@ -1,4 +1,6 @@
 
+export const runtime = "nodejs";
+
 import { NextResponse } from "next/server";
 import { NurtureService } from "@/modules/learning/NurtureService";
 import { authOptions } from "@/lib/auth";
