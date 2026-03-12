@@ -400,7 +400,7 @@ RESPONSE:
 
             // 5. ADVERSARIAL_CHECK (Micro-LLM Brand + Policy Critic, then Sovereign Firewall)
             if (currentState === AgentState.ADVERSARIAL_CHECK) {
-                const { TOON } = await import("@/lib/ai/TOON");
+                const { SovereignFirewall } = await import("@/lib/ai/SovereignFirewall");
                 const ctx: AgentContext = (task.context as unknown as AgentContext) || {};
                 const draft = ctx.draft_content || "";
 

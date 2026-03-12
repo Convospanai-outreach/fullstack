@@ -2,7 +2,7 @@
 import { HybridRouter, AIDestination, AITaskType, AIContext } from "../lib/ai/HybridRouter";
 import { ProductMode } from "@prisma/client";
 
-function testHybridRouting() {
+async function testHybridRouting() {
     console.log("Starting Hybrid AI Routing Verification...\n");
 
     const tests: Array<{ name: string; context: AIContext; expected: AIDestination }> = [
@@ -70,8 +70,8 @@ function testHybridRouting() {
     let failed = 0;
 
     for (const test of tests) {
-        const result = HybridRouter.route(test.context);
-        const success = result === test.expected;
+        const result = await HybridRouter.route(test.context);
+        const success = result.destination === test.expected;
 
         if (success) {
             console.log(`✓ PASS: ${test.name}`);
@@ -127,4 +127,4 @@ function testHybridRouting() {
     }
 }
 
-testHybridRouting();
+await testHybridRouting();

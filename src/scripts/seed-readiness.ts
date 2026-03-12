@@ -104,7 +104,7 @@ async function seed() {
     await prisma.auditLog.create({
         data: {
             orgId: team.id,
-            actorId: admin?.id,
+            actorId: admin?.id ?? null,
             action: "CI_VALIDATION_SEED",
             entity: "SYSTEM",
             metadata: { status: "Ready" },

@@ -22,7 +22,7 @@ class McpManager {
             // For internal consistency, we keep internal servers in a separate set or wrap them
             this.clients.set("netjana", {
                 listTools: async () => netjana.getTools(),
-                callTool: async (name, args) => netjana.callTool(name, args),
+                callTool: async (name: string, args: any) => netjana.callTool(name, args),
                 connect: async () => {},
                 config: { id: "netjana", name: "Netjana", transport: "sse" } // Virtual config
             } as any);

@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
-import { ListResourcesResultSchema, ReadResourceResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import { ReadResourceResultSchema } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * MCPClient
@@ -19,9 +19,7 @@ export class NetjanaMCPClient {
                 version: "1.0.0",
             },
             {
-                capabilities: {
-                    resources: {},
-                },
+                capabilities: {},
             }
         );
     }

@@ -124,7 +124,7 @@ Respond ONLY with valid JSON in this exact structure:
 ${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
 }
 
-function buildCritiquePrompt(input: any, draft: any): string {
+function buildCritiquePrompt(_input: any, draft: any): string {
     return `You are a Senior Copy Editor reviewing a cold email.
     
     ## DRAFT

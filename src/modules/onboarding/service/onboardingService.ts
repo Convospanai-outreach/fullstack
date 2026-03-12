@@ -15,7 +15,7 @@ class OnboardingService {
      * We don't store "completed" state for everything, we just check existence.
      */
     async getOnboardingStatus(userId: string, teamId: string | null) {
-        const completedIds = [];
+        const completedIds: string[] = [];
         
         // Return 0 if no team context
         if (!teamId) {

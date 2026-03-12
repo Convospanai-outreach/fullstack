@@ -82,7 +82,7 @@ async function processJob(job: any) {
         }
 
         const res = result as any;
-        const isSuccess = result === true || (res && (res.ok === true || res.success === true || res.processed === true));
+        const isSuccess = res === true || (res && (res.ok === true || res.success === true || res.processed === true));
 
         if (isSuccess) {
             await JobQueue.complete(job.id, result);

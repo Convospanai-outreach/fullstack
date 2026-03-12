@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db";
 import { vectorStore } from "./vectorStore";
-import { aiService } from "@/lib/aiService";
 import { TOON } from "@/lib/ai/TOON";
 
 export class KnowledgeIngressService {
@@ -25,19 +24,34 @@ export class KnowledgeIngressService {
         // 1. Data Sterilization via TOON
         const { optimizedPrompt: sterilized } = await TOON.process(content, "system");
 
-        // 2. Generate Embeddings and Save to Vector Store
-        const embedding = await aiService.getEmbeddings(sterilized);
+        // 2. Save to Vector Store (addDocument handles embedding internally)
 
-        await vectorStore.addDocument({
-            id: crypto.randomUUID(),
-            content: sterilized,
-            metadata: { 
-                campaignId, 
-                source, 
-                type, 
-                ingestedAt: new Date().toISOString() 
-            },
-            embedding
+        // Fetch teamId for the campaign
+        const campaign = await prisma.campaign.findUnique({
+            where: { id: campaignId },
+            select: { teamId: true }
+        });
+        if (!campaign?.teamId) throw new Error("Campaign not found");
+
+        // Find or create a knowledge base for this team
+        let kb = await prisma.knowledgeBase.findFirst({
+            where: { teamId: campaign.teamId }
+        });
+
+        if (!kb) {
+            kb = await prisma.knowledgeBase.create({
+                data: {
+                    name: "Campaign Knowledge",
+                    teamId: campaign.teamId
+                }
+            });
+        }
+
+        await vectorStore.addDocument(sterilized, kb.id, { 
+            campaignId, 
+            source, 
+            type, 
+            ingestedAt: new Date().toISOString() 
         });
 
         console.log(`[KnowledgeIngress] Knowledge for Campaign ${campaignId} indexed successfully.`);
@@ -51,12 +65,15 @@ export class KnowledgeIngressService {
         // 1. Sterilize Query
         const { optimizedPrompt: safeQuery } = await TOON.process(query, "system");
 
-        // 2. Vector Search
-        const results = await vectorStore.search({
-            query: safeQuery,
-            limit: 5,
-            filter: { campaignId }
+        // Fetch teamId
+        const campaign = await prisma.campaign.findUnique({
+            where: { id: campaignId },
+            select: { teamId: true }
         });
+        if (!campaign?.teamId) return "";
+
+        // 2. Vector Search (using teamId as required by VectorStore.search)
+        const results = await vectorStore.search(safeQuery, campaign.teamId, 5);
 
         return results.map(r => r.content).join("\n\n---\n\n");
     }

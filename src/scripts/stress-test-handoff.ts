@@ -25,7 +25,7 @@ async function runHandoffStress() {
 
     // 2. Create 100 Leads in the Handoff Queue
     console.log("Ingesting 100 leads into the coordination queue...");
-    const leadIds = [];
+    const leadIds: string[] = [];
     for (let i = 0; i < 100; i++) {
         const lid = uuidv4();
         await prisma.lead.create({

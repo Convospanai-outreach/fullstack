@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, Mock } from 'vitest';
 import { WorkflowService } from "@/lib/workflowService";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
@@ -44,7 +44,7 @@ describe("WorkflowService DAG Traversal", () => {
             }
         };
 
-        (prisma.workflowRun.findUnique as vi.Mock).mockResolvedValue(mockRun);
+        (prisma.workflowRun.findUnique as Mock).mockResolvedValue(mockRun);
 
         await WorkflowService.processNode("run-1", "node-1");
 
@@ -75,8 +75,8 @@ describe("WorkflowService DAG Traversal", () => {
             }
         };
 
-        (prisma.workflowRun.findUnique as vi.Mock).mockResolvedValue(mockRun);
-        (prisma.lead.findUnique as vi.Mock).mockResolvedValue({ id: "lead-1", status: "replied" });
+        (prisma.workflowRun.findUnique as Mock).mockResolvedValue(mockRun);
+        (prisma.lead.findUnique as Mock).mockResolvedValue({ id: "lead-1", status: "replied" });
 
         await WorkflowService.processNode("run-2", "node-1");
 

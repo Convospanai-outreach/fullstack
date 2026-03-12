@@ -34,7 +34,7 @@ export class KnowledgeOrchestrator {
 
             // 2. Fetch External Intents via MCP (Netjana)
             await this.mcpClient.connect();
-            const externalIntents = await this.mcpClient.getCustomerIntents(lead.email);
+            const externalIntents = await this.mcpClient.getCustomerIntents(lead.email || "");
             await this.mcpClient.close();
 
             // 3. Assemble the payload

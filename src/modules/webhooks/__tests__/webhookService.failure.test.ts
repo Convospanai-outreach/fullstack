@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi, Mock } from 'vitest';
 import { webhookService } from "../service/webhookService";
 import { prisma } from "@/lib/db";
 
@@ -14,7 +14,7 @@ vi.mock("@/lib/db", () => ({
     },
 }));
 
-global.fetch = vi.fn() as vi.Mock;
+global.fetch = vi.fn() as Mock;
 
 describe("WebhookService Failure scenarios", () => {
     const webhookId = "wh_123";
@@ -26,14 +26,14 @@ describe("WebhookService Failure scenarios", () => {
     });
 
     test("should log failure and throw when target returns 500", async () => {
-        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
             id: webhookId,
             url: "https://example.com/webhook",
             isActive: true,
             secret: "shhh",
         });
 
-        (global.fetch as vi.Mock).mockResolvedValue({
+        (global.fetch as Mock).mockResolvedValue({
             ok: false,
             status: 500,
             text: () => Promise.resolve("Internal Server Error"),
@@ -53,13 +53,13 @@ describe("WebhookService Failure scenarios", () => {
     });
 
     test("should log failure and throw when network error occurs", async () => {
-        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
             id: webhookId,
             url: "https://example.com/webhook",
             isActive: true,
         });
 
-        (global.fetch as vi.Mock).mockRejectedValue(new Error("DNS Resolution Failed"));
+        (global.fetch as Mock).mockRejectedValue(new Error("DNS Resolution Failed"));
 
         await expect(webhookService.processDelivery(webhookId, event, payload))
             .rejects.toThrow("DNS Resolution Failed");
@@ -74,7 +74,7 @@ describe("WebhookService Failure scenarios", () => {
     });
 
     test("should skip delivery if webhook is inactive", async () => {
-        (prisma.webhook.findUnique as vi.Mock).mockResolvedValue({
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
             id: webhookId,
             isActive: false,
         });
