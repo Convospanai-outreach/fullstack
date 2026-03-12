@@ -10,7 +10,7 @@ const createPrismaClient = () => {
         log: ["error"],
     }).$extends({
         query: {
-            $allOperations({ model, operation, args, query }) {
+            $allOperations({ model: _model, operation: _operation, args, query }) {
                 try {
                     const { RequestContext } = require('./requestContext');
                     const correlationId = RequestContext.getCorrelationId();
