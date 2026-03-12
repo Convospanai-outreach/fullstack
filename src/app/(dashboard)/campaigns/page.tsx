@@ -22,7 +22,7 @@ export default function CampaignsPage() {
         if (search) params.set("search", search);
         if (statusFilter) params.set("status", statusFilter);
 
-        fetch(`/api/campaigns?${params.toString()}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/campaigns?${params.toString()}`)
             .then((res) => res.json())
             .then((data) => {
                 if (Array.isArray(data)) {

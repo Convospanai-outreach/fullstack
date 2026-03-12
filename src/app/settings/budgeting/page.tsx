@@ -40,7 +40,7 @@ export default function BudgetingPage() {
 
     const fetchData = async () => {
         try {
-            const res = await fetch("/api/settings/budgeting");
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/budgeting");
             const d = await res.json();
             setData(d);
 
@@ -65,7 +65,7 @@ export default function BudgetingPage() {
                 monthlyLimit
             }));
 
-            const res = await fetch("/api/settings/budgeting", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/budgeting", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

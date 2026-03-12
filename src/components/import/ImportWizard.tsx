@@ -56,7 +56,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
     const analyzeHeaders = async (extractedHeaders: string[]) => {
         setIsAnalyzing(true);
         try {
-            const res = await fetch("/api/import/suggest-mapping", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/import/suggest-mapping", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ headers: extractedHeaders })
@@ -77,7 +77,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
         setIsImporting(true);
         try {
             // Send CSV content and mapping to the import API
-            const res = await fetch("/api/leads/import", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/leads/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

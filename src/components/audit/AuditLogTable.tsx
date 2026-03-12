@@ -18,7 +18,7 @@ interface AuditLog {
     };
 }
 
-export function AuditLogTable({ apiUrl = "/api/settings/audit" }: { apiUrl?: string }) {
+export function AuditLogTable({ apiUrl = process.env.NEXT_PUBLIC_API_URL + "/settings/audit" }: { apiUrl?: string }) {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("ALL");

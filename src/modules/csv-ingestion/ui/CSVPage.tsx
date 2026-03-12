@@ -13,7 +13,7 @@ export default function CSVPage() {
         setResult(null);
         try {
             const text = await file.text();
-            const res = await fetch("/api/leads/import", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/leads/import", {
                 method: "POST",
                 body: text,
             });

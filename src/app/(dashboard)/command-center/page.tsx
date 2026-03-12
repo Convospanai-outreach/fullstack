@@ -14,7 +14,7 @@ export default function CommandCenterPage() {
 
     const fetchDrafts = async () => {
         try {
-            const res = await fetch('/api/agent/outreach/drafts');
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/agent/outreach/drafts');
             if (res.ok) {
                 const data = await res.json();
                 setDrafts(data);
@@ -32,7 +32,7 @@ export default function CommandCenterPage() {
 
     const handleApprove = async (id: string, region: string) => {
         try {
-            const promise = fetch('/api/agent/outreach/approve', {
+            const promise = fetch(process.env.NEXT_PUBLIC_API_URL + '/agent/outreach/approve', {
                 method: 'POST',
                 body: JSON.stringify({ id, region })
             });
@@ -52,7 +52,7 @@ export default function CommandCenterPage() {
 
     const handleReject = async (id: string, region: string) => {
         try {
-            await fetch('/api/agent/outreach/approve', {
+            await fetch(process.env.NEXT_PUBLIC_API_URL + '/agent/outreach/approve', {
                 method: 'POST',
                 body: JSON.stringify({ id, region, action: 'REJECT' })
             });
@@ -65,7 +65,7 @@ export default function CommandCenterPage() {
 
     const handleReveal = async (draftId: string, originalLeadId: string) => {
         try {
-            const res = await fetch(`/api/leads/${originalLeadId}/identity`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${originalLeadId}/identity`);
             const data = await res.json();
 
             if (data.email) {

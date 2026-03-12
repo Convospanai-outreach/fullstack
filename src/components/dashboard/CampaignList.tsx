@@ -12,7 +12,7 @@ export default function CampaignList({ campaigns }: any) {
     const handleRun = async (id: string) => {
         setRunning(id);
         try {
-            const res = await fetch("/api/orchestrator/run", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/orchestrator/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ campaignId: id }),

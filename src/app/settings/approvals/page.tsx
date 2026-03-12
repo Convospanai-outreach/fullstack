@@ -22,7 +22,7 @@ export default function ApprovalsPage() {
 
     const fetchRequests = async () => {
         try {
-            const res = await fetch("/api/settings/approvals");
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/approvals");
             const data = await res.json();
             setRequests(data);
         } catch (err) {
@@ -34,7 +34,7 @@ export default function ApprovalsPage() {
 
     const handleResolve = async (id: string, status: "APPROVED" | "REJECTED") => {
         try {
-            const res = await fetch("/api/settings/approvals", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/approvals", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id, status })

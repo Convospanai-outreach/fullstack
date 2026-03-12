@@ -15,7 +15,7 @@ export default function CalendarPage() {
 
     const fetchMeetings = async () => {
         try {
-            const res = await fetch("/api/meetings");
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/meetings");
             const data = await res.json();
             setMeetings(data);
         } catch (error) {

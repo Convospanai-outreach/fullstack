@@ -32,7 +32,7 @@ export default function GuardrailsPage() {
     const [newRegex, setNewRegex] = useState("");
 
     useEffect(() => {
-        fetch("/api/settings/guardrails")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/guardrails")
             .then(res => res.json())
             .then(data => {
                 // Ensure arrays initialized
@@ -53,7 +53,7 @@ export default function GuardrailsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch("/api/settings/guardrails", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/guardrails", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

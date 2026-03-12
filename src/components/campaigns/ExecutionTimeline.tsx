@@ -26,7 +26,7 @@ export default function ExecutionTimeline({ campaignId }: { campaignId: string }
 
     const fetchTimeline = async () => {
         try {
-            const res = await fetch(`/api/orchestrator/timeline?campaignId=${campaignId}`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/orchestrator/timeline?campaignId=${campaignId}`);
             const data = await res.json();
             if (data.timeline) {
                 setEvents(data.timeline);

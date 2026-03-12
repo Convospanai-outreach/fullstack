@@ -7,7 +7,7 @@ export default function VariantStats() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch("/api/ab-testing/track")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/ab-testing/track")
             .then(res => res.json())
             .then(json => {
                 if (json.ok) setStats(json.stats);

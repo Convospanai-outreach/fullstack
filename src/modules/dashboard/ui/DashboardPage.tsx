@@ -20,14 +20,14 @@ export default function DashboardPage() {
         async function fetchData() {
             try {
                 // Fetch stats
-                const statsRes = await fetch("/api/dashboard/stats");
+                const statsRes = await fetch(process.env.NEXT_PUBLIC_API_URL + "/dashboard/stats");
                 const statsJson = await statsRes.json();
                 if (statsJson.ok) {
                     setStats(statsJson.stats);
                 }
 
                 // Fetch latest job
-                const jobsRes = await fetch("/api/jobs?limit=1");
+                const jobsRes = await fetch(process.env.NEXT_PUBLIC_API_URL + "/jobs?limit=1");
                 const jobsJson = await jobsRes.json();
                 if (jobsJson.jobs && jobsJson.jobs.length > 0) {
                     setLatestJob(jobsJson.jobs[0]);

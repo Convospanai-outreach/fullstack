@@ -8,7 +8,7 @@ export default function OnboardingChecklist() {
     const [minimized, setMinimized] = useState(false);
 
     useEffect(() => {
-        fetch("/api/onboarding/progress")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/onboarding/progress")
             .then(res => res.json())
             .then(json => {
                 if (json.ok) setProgress(json.progress);

@@ -1,48 +1,415 @@
-# ConvoSpan Agent System
+# ConvoSpan Agent Architecture
 
-The ConvoSpan Agent System is a cyber-physical automation engine designed for high-compliance outreach and lead engagement. It operates as a Deterministic Finite Automaton (DFA) to ensure reliability and security.
+## Overview
 
-## Architecture Overiew
+ConvoSpan operates as a distributed multi-agent system composed of intelligence agents, orchestration agents, and execution agents.
 
-The system follows a "Brain-and-Edge" architecture:
-- **Brain (Cloud)**: Orchestrates tasks, manages the state machine, and integrates with high-level LLMs.
-- **Edge (Physical Node)**: Executes browser automation locally to bypass bot detection and maintains data sovereignty.
+The platform is divided into three layers:
 
-## Agent State Machine
+1. **Intel Layer (NetJana)**
+   Signal discovery and intelligence extraction.
 
-The `AgentExecutor` manages tasks through the following states:
+2. **Control Layer (SaaS Platform)**
+   Campaign orchestration and AI conversation management.
 
-| State | Role | Description |
-|---|---|---|
-| `HARDWARE_HANDSHAKE` | Handshake | Verifies the identity of the physical edge node. |
-| `DATA_INGESTION` | Enrichment | Queries Hunter.io and other sources for contact enrichment. |
-| `SANITIZATION` | Sovereignty | Masks PII using the `SovereignFirewall` before cloud transmission. |
-| `LLM_GENERATION` | Generation | Generates outreach drafts using masked context in the cloud. |
-| `ADVERSARIAL_CHECK` | Critique | A local "Critic" model (Phi-3) reviews the draft for safety. |
-| `EXECUTION` | Action | Dispatches the action (e.g., LinkedIn message) via the Edge Browser. |
+3. **Execution Layer (Edge Node)**
+   Physical automation and sovereign data protection.
 
-## Key Components
+Each layer contains specialized agents that collaborate through queues and event streams.
 
-### 1. AgentExecutor
-The core loop located in `src/modules/agent/core/AgentExecutor.ts`. It handles state transitions, retries (DLQ logic), and logging.
+---
 
-### 2. Sovereign Firewall
-Located in `src/lib/ai/SovereignFirewall.ts`, it ensures data privacy.
-- **Masking**: Replaces sensitive data (names, emails) with tokens.
-- **Detokenization**: Restores sensitive data after the cloud processing is complete.
-- **Adversarial Critique**: Performs local quality checks to prevent jailbreaks or hallucinations.
+# Layer 1: Intelligence Agents (ConvoSpan Intel)
 
-### 3. Background Worker
-The system uses a background worker (`src/workers/index.ts`) to poll for jobs from the `JobQueue`. This allows for asynchronous execution of long-running agent tasks without blocking the main web server.
+These agents operate inside the NetJana intelligence engine.
 
-## Operational Flow
+Their role is to discover and analyze external signals that indicate potential business opportunities.
 
-1. **Task Injection**: A user or schedule triggers a task via `prisma.agentTask`.
-2. **Worker Selection**: The `worker` process picks up the job.
-3. **Execution Loop**: `AgentExecutor.runToCompletion()` iterates through the states.
-4. **Human-in-the-Loop (HITL)**: If a check fails or review is required, the task transitions to `REVIEWING` for manual approval in the dashboard.
+---
 
-## Error Handling & Resilience
-- **Fail-Closed**: If the logic/firewall fails, the agent stops immediately.
-- **Dead Letter Queue (DLQ)**: Tasks that fail repeatedly are moved to a `FAILED` status for inspection.
-- **Hardware Watchdog**: If the physical node disconnects, the task is paused or failed to prevent synchronization issues.
+## Signal Discovery Agent
+
+Purpose:
+Detect new company signals from scraped data.
+
+Input:
+
+* scraped page content
+* company metadata
+* news sections
+* career pages
+
+Detectable signals:
+
+* hiring surge
+* infrastructure expansion
+* technology adoption
+* funding announcement
+* operational friction
+
+Output:
+
+```
+{
+ signal_type,
+ company,
+ signal_strength,
+ signal_timestamp
+}
+```
+
+---
+
+## Pain Point Analyst Agent
+
+Purpose:
+Convert detected signals into actionable outreach insights.
+
+Example:
+
+Signal
+
+```
+Hiring expansion
+```
+
+Pain hypothesis
+
+```
+Rapid hiring may indicate scaling infrastructure challenges.
+```
+
+Output:
+
+```
+{
+ company,
+ pain_points,
+ outreach_angles
+}
+```
+
+---
+
+## Lead Qualification Agent
+
+Purpose:
+Score prospects against Ideal Customer Profile (ICP).
+
+Scoring criteria:
+
+* job seniority
+* company size
+* industry alignment
+* signal presence
+
+Output:
+
+```
+{
+ lead_id,
+ score,
+ qualification_reason
+}
+```
+
+---
+
+# Layer 2: SaaS Orchestration Agents
+
+These agents manage campaigns and conversations.
+
+---
+
+## Campaign Planner Agent
+
+Purpose:
+
+Create outreach sequences based on signals and ICP.
+
+Example sequence:
+
+Day 1: profile visit
+Day 2: connection request
+Day 4: message
+Day 7: follow-up
+
+Output:
+
+```
+campaign_workflow
+```
+
+represented as DAG.
+
+---
+
+## Message Composer Agent
+
+Purpose:
+
+Generate LinkedIn messages using contextual data.
+
+Inputs:
+
+* lead context
+* company signals
+* industry data
+* previous conversation history
+
+Rules:
+
+* no sales tone
+* peer-to-peer communication
+* max 350 characters
+
+Output:
+
+```
+message_text
+```
+
+---
+
+## Reply Intelligence Agent
+
+Purpose:
+
+Classify incoming messages.
+
+Categories:
+
+* POSITIVE
+* CURIOUS
+* NEED_INFO
+* NOT_INTERESTED
+* OUT_OF_OFFICE
+
+Output:
+
+```
+{
+ intent,
+ confidence,
+ next_action
+}
+```
+
+---
+
+## Meeting Conversion Agent
+
+Purpose:
+
+Convert positive conversations into meetings.
+
+Steps:
+
+1. detect intent
+2. propose meeting
+3. generate calendar link
+
+Output:
+
+```
+meeting_invite
+```
+
+---
+
+## Safety Sentinel Agent
+
+Purpose:
+
+Prevent risky automation behavior.
+
+Checks:
+
+* repetitive messages
+* excessive activity
+* LinkedIn limits
+
+If risk detected:
+
+* reduce activity
+* pause campaign
+
+---
+
+# Layer 3: Edge Execution Agents
+
+These agents run on physical Edge Nodes.
+
+They execute automation tasks in a real browser environment.
+
+---
+
+## Edge Task Executor
+
+Purpose:
+
+Execute automation commands sent by SaaS.
+
+Supported actions:
+
+* visit_profile
+* send_connection
+* send_message
+* follow_up
+* check_connection
+
+Execution flow:
+
+```
+receive task
+open browser session
+execute action
+return result
+```
+
+---
+
+## Behavior Simulation Agent
+
+Purpose:
+
+Simulate natural user activity.
+
+Actions:
+
+* scroll feed
+* open profile
+* like post
+* idle pause
+* campaign action
+
+Rules:
+
+* campaign actions ≤ 60% of session
+* random delays
+* session duration 10–30 minutes
+
+---
+
+## PII Firewall Agent
+
+Purpose:
+
+Protect sensitive information before sending data to cloud AI systems.
+
+Detectable PII:
+
+* names
+* email addresses
+* phone numbers
+* company contact info
+
+Process:
+
+```
+detect PII
+replace with token
+store mapping in local vault
+```
+
+Example:
+
+```
+Rahul Sharma → PERSON_1
+```
+
+---
+
+## Hardware Identity Agent
+
+Purpose:
+
+Authenticate the edge node with the SaaS platform.
+
+Mechanism:
+
+* hardware_signature
+* HMAC request signing
+
+Unauthorized nodes are rejected.
+
+---
+
+# Agent Communication Model
+
+Agents communicate using event-driven architecture.
+
+```
+Intel Agents
+      ↓
+SaaS Agents
+      ↓
+Edge Agents
+```
+
+Events include:
+
+```
+signal_detected
+lead_scored
+campaign_started
+task_dispatched
+task_completed
+reply_received
+meeting_scheduled
+```
+
+---
+
+# Agent Memory Model
+
+Agents share knowledge through three memory layers:
+
+1. **Lead Memory**
+   Lead-specific context and interaction history.
+
+2. **Campaign Memory**
+   Campaign-level performance insights.
+
+3. **Organization Memory**
+   Company-specific messaging style and learning.
+
+---
+
+# Safety Principles
+
+All agents must follow these rules:
+
+1. Avoid robotic behavior patterns.
+2. Messages must vary structurally.
+3. Outreach should resemble peer-to-peer conversations.
+4. Automation limits must mimic human usage.
+
+---
+
+# System Event Flow
+
+Typical lifecycle:
+
+```
+Intel discovers signal
+→ Lead Qualification Agent scores lead
+→ Campaign Planner creates sequence
+→ SaaS dispatches tasks
+→ Edge Node executes automation
+→ Reply Intelligence analyzes response
+→ Meeting Conversion Agent schedules call
+```
+
+---
+
+# Future Agents
+
+Planned additions:
+
+* Intent Prediction Agent
+* Buyer Committee Graph Agent
+* Account Health Monitor
+* Signal Graph Builder
+
+These will extend ConvoSpan into a full autonomous sales intelligence platform.

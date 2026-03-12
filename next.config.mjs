@@ -1,7 +1,7 @@
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'standalone',
+    output: 'export',
     reactStrictMode: true,
     compress: true,
     serverExternalPackages: ['ssh2', 'docker-modem', '@genkit-ai/googleai', '@cfworker/json-schema'],

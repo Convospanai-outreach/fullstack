@@ -33,7 +33,7 @@ export default function GuardrailsPage() {
     const [newItem, setNewItem] = useState({ block: "", competitor: "" });
 
     useEffect(() => {
-        fetch("/api/governance/guardrails")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/governance/guardrails")
             .then(res => res.json())
             .then(data => {
                 if (data.success) setPolicy(data.policy);
@@ -44,7 +44,7 @@ export default function GuardrailsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch("/api/governance/guardrails", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/governance/guardrails", {
                 method: "POST",
                 body: JSON.stringify(policy),
             });

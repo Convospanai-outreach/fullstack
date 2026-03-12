@@ -121,17 +121,17 @@ export default function OperatorView() {
                         </CardHeader>
                         <CardContent className="space-y-4 p-8">
                             <ActionButton
-                                endpoint="/api/admin/actions/start-scrapers"
+                                endpoint=process.env.NEXT_PUBLIC_API_URL + "/admin/actions/start-scrapers"
                                 label="Trigger Data Ingestion"
                                 icon={<Play className="w-5 h-5 text-emerald-400" />}
                             />
                             <ActionButton
-                                endpoint="/api/admin/actions/pause-outreach"
+                                endpoint=process.env.NEXT_PUBLIC_API_URL + "/admin/actions/pause-outreach"
                                 label="Halt Active Campaigns"
                                 icon={<Pause className="w-5 h-5 text-orange-400" />}
                             />
                             <ActionButton
-                                endpoint="/api/admin/actions/sync-crm"
+                                endpoint=process.env.NEXT_PUBLIC_API_URL + "/admin/actions/sync-crm"
                                 label="Sync External Records"
                                 icon={<RefreshCw className="w-5 h-5 text-indigo-400" />}
                             />

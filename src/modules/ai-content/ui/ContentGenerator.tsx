@@ -9,7 +9,7 @@ export default function ContentGenerator({ lead, onDraftGenerated }: { lead: any
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/ai/compose", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/ai/compose", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ lead }),

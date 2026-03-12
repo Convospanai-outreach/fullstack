@@ -27,7 +27,7 @@ interface CrmIntegration {
 
 export default function CRMIntegrationPage() {
     // In a real app we'd fetch actual integrations status
-    const { data: integrations } = useSWR<CrmIntegration[]>("/api/settings/crm", fetcher);
+    const { data: integrations } = useSWR<CrmIntegration[]>(process.env.NEXT_PUBLIC_API_URL + "/settings/crm", fetcher);
     const [connecting, setConnecting] = useState<string | null>(null);
 
     const handleConnect = async (provider: string) => {
@@ -36,14 +36,14 @@ export default function CRMIntegrationPage() {
         await new Promise(r => setTimeout(r, 1500));
 
         toast.success(`Redirecting to ${provider} authentication...`);
-        // Here we would window.location.href = `/api/auth/crm/${provider}`
+        // Here we would window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auth/crm/${provider}`
 
         setConnecting(null);
     };
 
     const handleSync = async (provider: string) => {
         toast.promise(
-            fetch("/api/crm/sync", {
+            fetch(process.env.NEXT_PUBLIC_API_URL + "/crm/sync", {
                 method: "POST",
                 body: JSON.stringify({ provider })
             }),

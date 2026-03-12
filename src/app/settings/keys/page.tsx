@@ -20,7 +20,7 @@ export default function ApiKeysPage() {
 
     const loadKeys = async () => {
         try {
-            const res = await fetch("/api/settings/keys");
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/keys");
             const data = await res.json();
             setKeys(data);
         } catch (e) {
@@ -32,7 +32,7 @@ export default function ApiKeysPage() {
 
     const handleCreate = async () => {
         try {
-            const res = await fetch("/api/settings/keys", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/keys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: createName, scopes: ["leads:read", "campaigns:read", "leads:write"] })
@@ -54,7 +54,7 @@ export default function ApiKeysPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure? Integration using this key will stop working.")) return;
         try {
-            await fetch(`/api/settings/keys/${id}`, { method: "DELETE" });
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/settings/keys/${id}`, { method: "DELETE" });
             toast.success("Key revoked");
             loadKeys();
         } catch (e) {

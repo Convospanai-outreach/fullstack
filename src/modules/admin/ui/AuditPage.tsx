@@ -17,7 +17,7 @@ export default function AuditPage() {
                 <SectionHeader title="System Audit Logs" subtitle="Track user activity and security events" />
 
                 <div className="mt-8">
-                    <AuditLogTable apiUrl="/api/audit" />
+                    <AuditLogTable apiUrl=process.env.NEXT_PUBLIC_API_URL + "/audit" />
                 </div>
             </div>
         </main>

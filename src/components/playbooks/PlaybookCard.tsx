@@ -22,7 +22,7 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
     const handleUse = async () => {
         setLoading(true)
         try {
-            const res = await fetch(`/api/playbooks/${playbook.id}/instantiate`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/playbooks/${playbook.id}/instantiate`, {
                 method: "POST",
                 body: JSON.stringify({ values: params })
             })

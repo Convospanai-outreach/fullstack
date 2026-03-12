@@ -25,7 +25,7 @@ export default function AutomationsPage() {
 
     const fetchAutomations = async () => {
         try {
-            const res = await fetch("/api/workflows");
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/workflows");
             if (!res.ok) throw new Error("Failed to fetch automations");
             const data = await res.json();
             setAutomations(data);
@@ -39,7 +39,7 @@ export default function AutomationsPage() {
 
     const toggleAutomation = async (id: string, currentStatus: boolean) => {
         try {
-            const res = await fetch(`/api/workflows/${id}`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/workflows/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isActive: !currentStatus })

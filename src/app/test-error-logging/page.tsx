@@ -14,7 +14,7 @@ export default function TestErrorLoggingPage() {
 
         try {
             // Send a test error to the API
-            const response = await fetch('/api/errors/client', {
+            const response = await fetch(process.env.NEXT_PUBLIC_API_URL + '/errors/client', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

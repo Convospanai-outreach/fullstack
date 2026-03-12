@@ -8,7 +8,7 @@ export default function LeadPage({ params }: { params: { id: string } }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`/api/leads/${params.id}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/leads/${params.id}`)
             .then((res) => res.json())
             .then((data) => {
                 setLead(data);

@@ -6,7 +6,7 @@ import useSWR, { mutate } from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function NotificationsPage() {
-    const { data: settings } = useSWR("/api/settings", fetcher);
+    const { data: settings } = useSWR(process.env.NEXT_PUBLIC_API_URL + "/settings", fetcher);
     // Note: /api/settings returns 'notifications' object nested
     const [toggles, setToggles] = useState({
         emailGlobal: true,
@@ -31,12 +31,12 @@ export default function NotificationsPage() {
         setToggles(newToggles);
 
         try {
-            await fetch("/api/settings/notifications", {
+            await fetch(process.env.NEXT_PUBLIC_API_URL + "/settings/notifications", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ [key]: value })
             });
-            mutate("/api/settings");
+            mutate(process.env.NEXT_PUBLIC_API_URL + "/settings");
         } catch (error) {
             console.error("Failed to update notification");
         }

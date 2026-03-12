@@ -16,7 +16,7 @@ export default function PlaybooksPage() {
 
     const fetchPlaybooks = async () => {
         try {
-            const res = await fetch("/api/playbooks")
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/playbooks")
             const data = await res.json()
             if (Array.isArray(data)) {
                 setPlaybooks(data)
@@ -30,7 +30,7 @@ export default function PlaybooksPage() {
 
     // Quick helper to seed a dummy playbook for demo if empty
     const handleCreateDemo = async () => {
-        await fetch("/api/playbooks", {
+        await fetch(process.env.NEXT_PUBLIC_API_URL + "/playbooks", {
             method: "POST",
             body: JSON.stringify({
                 name: "Cold Outreach V1",

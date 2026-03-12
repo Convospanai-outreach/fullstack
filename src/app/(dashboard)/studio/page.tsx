@@ -24,7 +24,7 @@ export default function MessageControlStudio() {
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const res = await fetch("/api/studio/config");
+                const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/studio/config");
                 const data = await res.json();
                 if (data.config) {
                     setConfig(data.config);
@@ -39,7 +39,7 @@ export default function MessageControlStudio() {
     const handleRegenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/studio/preview", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/studio/preview", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -63,7 +63,7 @@ export default function MessageControlStudio() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch("/api/studio/config", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/studio/config", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

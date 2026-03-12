@@ -30,7 +30,7 @@ export default function AccessControlPage() {
     const [members, setMembers] = useState<Member[]>([]);
 
     useEffect(() => {
-        fetch("/api/governance/members")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/governance/members")
             .then(res => res.json())
             .then(data => {
                 if (data.success) setMembers(data.members);

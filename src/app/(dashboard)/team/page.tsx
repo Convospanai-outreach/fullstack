@@ -21,8 +21,8 @@ export default function TeamPage() {
     const fetchData = async () => {
         try {
             const [membersRes, policyRes] = await Promise.all([
-                fetch('/api/team/members'),
-                fetch('/api/team/policy')
+                fetch(process.env.NEXT_PUBLIC_API_URL + '/team/members'),
+                fetch(process.env.NEXT_PUBLIC_API_URL + '/team/policy')
             ]);
             setMembers(await membersRes.json());
             setPolicy(await policyRes.json());
@@ -36,7 +36,7 @@ export default function TeamPage() {
     const handleInvite = async (email: string, role: string) => {
         const toastId = toast.loading("Inviting...");
         try {
-            const res = await fetch('/api/team/members', {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + '/team/members', {
                 method: 'POST',
                 body: JSON.stringify({ email, role })
             });
@@ -53,7 +53,7 @@ export default function TeamPage() {
     const handlePolicyUpdate = async () => {
         const toastId = toast.loading("Saving policy...");
         try {
-            await fetch('/api/team/policy', {
+            await fetch(process.env.NEXT_PUBLIC_API_URL + '/team/policy', {
                 method: 'PATCH',
                 body: JSON.stringify(policy)
             });

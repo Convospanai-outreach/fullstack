@@ -1,12 +1,3 @@
 [build]
   command = "npm run build"
-  publish = ".next"
-
-[build.environment]
-  NODE_VERSION = "22"
-  PNPM_FLAGS = "--shamefully-hoist"
-  NEXT_PRIVATE_TURBOPACK = "false"
-  NEXT_TURBO = "false"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  publish = "out"

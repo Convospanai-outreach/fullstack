@@ -10,7 +10,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function HelpPage() {
     const [query, setQuery] = useState("");
-    const { data: articles } = useSWR<HelpArticle[]>(`/api/help/search?q=${query}`, fetcher);
+    const { data: articles } = useSWR<HelpArticle[]>(`${process.env.NEXT_PUBLIC_API_URL}/help/search?q=${query}`, fetcher);
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
     const activeArticle = articles?.find(a => a.slug === selectedSlug) || (articles && articles.length > 0 ? articles[0] : null);

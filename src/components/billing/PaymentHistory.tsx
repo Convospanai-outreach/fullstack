@@ -6,7 +6,7 @@ import { format } from "date-fns";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function PaymentHistory() {
-    const { data: payments, isLoading } = useSWR("/api/billing/history", fetcher);
+    const { data: payments, isLoading } = useSWR(process.env.NEXT_PUBLIC_API_URL + "/billing/history", fetcher);
 
     return (
         <GlassCard>

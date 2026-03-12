@@ -76,7 +76,7 @@ export default function CampaignDetailPage({
 
     const loadActivities = async () => {
         try {
-            const res = await fetch(`/api/campaigns/${params.id}/activity`);
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/campaigns/${params.id}/activity`);
             const data = await res.json();
             if (data.success) {
                 setActivities(data.activities);

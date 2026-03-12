@@ -16,19 +16,19 @@ export async function middleware(req: NextRequest) {
         let rateLimitResponse: NextResponse | null = null;
         
         // 1. Authentication endpoints (strictest)
-        if (path.startsWith("/api/auth") || path.startsWith("/api/register")) {
+        if (path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/auth") || path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/register")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
         // 2. Webhook endpoints
-        else if (path.startsWith("/api/webhooks")) {
+        else if (path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/webhooks")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
         // 3. Error logging endpoint
-        else if (path.startsWith("/api/errors/client")) {
+        else if (path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/errors/client")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
         }
         // 4. Admin endpoints (high limit, but tracked)
-        else if (path.startsWith("/api/admin")) {
+        else if (path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/admin")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
         }
         // 5. Authenticated endpoints (requires valid token)
@@ -68,12 +68,12 @@ export async function middleware(req: NextRequest) {
     // 2. Authentication Check
     const publicPaths = ["/", "/login", "/signup", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
     const isPublic = publicPaths.some(p => path === p) ||
-        path.startsWith("/api/auth") ||
+        path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/auth") ||
         path.startsWith("/_next") ||
         path.startsWith("/static") ||
         path.startsWith("/images") ||
-        path.startsWith("/api/webhooks") ||
-        path.startsWith("/api/test-auth");
+        path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/webhooks") ||
+        path.startsWith(process.env.NEXT_PUBLIC_API_URL + "/test-auth");
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting

@@ -12,7 +12,7 @@ export default function WorkflowEditorPage() {
 
     useEffect(() => {
         if (!id) return;
-        fetch(`/api/workflows/${id}`)
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/workflows/${id}`)
             .then(res => res.json())
             .then(data => {
                 setWorkflow(data);

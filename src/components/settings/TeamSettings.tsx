@@ -17,7 +17,7 @@ export function TeamSettings() {
     const [loading, setLoading] = useState(false);
 
     const fetchMembers = () => {
-        fetch("/api/team")
+        fetch(process.env.NEXT_PUBLIC_API_URL + "/team")
             .then((res) => res.json())
             .then((data) => setMembers(data))
             .catch((err) => console.error(err));
@@ -31,7 +31,7 @@ export function TeamSettings() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch("/api/team", {
+            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/team", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email })
@@ -51,7 +51,7 @@ export function TeamSettings() {
     const handleRemove = async (id: string) => {
         if (!confirm("Are you sure you want to remove this member?")) return;
         try {
-            await fetch(`/api/team/${id}`, { method: "DELETE" });
+            await fetch(`${process.env.NEXT_PUBLIC_API_URL}/team/${id}`, { method: "DELETE" });
             fetchMembers();
         } catch (error) {
             console.error(error);
