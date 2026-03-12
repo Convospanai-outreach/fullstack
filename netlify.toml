@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_FLAGS = "--shamefully-hoist"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
