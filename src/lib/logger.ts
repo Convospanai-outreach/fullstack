@@ -1,53 +1,66 @@
 
 let internalLogger: any;
 
-if (process.env['NEXT_RUNTIME'] === 'nodejs') {
-  // Use require for Node.js specific modules to avoid Edge runtime issues
-  const winston = require('winston');
-  const { combine, timestamp, json, colorize, printf, errors } = winston.format;
+/**
+ * Robust check to determine if we are in a Node.js server environment 
+ * and NOT in an Edge/Middleware runtime.
+ */
+const isNodeServer = typeof window === 'undefined' && 
+                     process.env.NEXT_RUNTIME === 'nodejs';
 
-  const contextFormat = winston.format((info: any) => {
-    try {
-        const { RequestContext } = require('./requestContext');
-        const cid = RequestContext.getCorrelationId();
-        if (cid) {
-            info.correlationId = cid;
-        }
-    } catch (e) { /* ignore */ }
-    return info;
-  });
+if (isNodeServer) {
+  try {
+    // Standard Node.js logging with Winston
+    const winston = require('winston');
+    const { combine, timestamp, json, colorize, printf, errors } = winston.format;
 
-  const devFormat = combine(
-    contextFormat(),
-    colorize(),
-    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    errors({ stack: true }),
-    printf(({ level, message, timestamp, stack, correlationId }: any) => {
-      const cid = correlationId ? `[${correlationId}] ` : '';
-      return `${timestamp} ${cid}[${level}]: ${stack || message}`;
-    })
-  );
+    const contextFormat = winston.format((info: any) => {
+      try {
+          const { RequestContext } = require('./requestContext');
+          const cid = RequestContext.getCorrelationId();
+          if (cid) {
+              info.correlationId = cid;
+          }
+      } catch (e) { /* ignore */ }
+      return info;
+    });
 
-  const prodFormat = combine(
-    contextFormat(),
-    timestamp(),
-    errors({ stack: true }),
-    json()
-  );
+    const devFormat = combine(
+      contextFormat(),
+      colorize(),
+      timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+      errors({ stack: true }),
+      printf(({ level, message, timestamp, stack, correlationId }: any) => {
+        const cid = correlationId ? `[${correlationId}] ` : '';
+        return `${timestamp} ${cid}[${level}]: ${stack || message}`;
+      })
+    );
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  const logLevel = process.env['LOG_LEVEL'] || (isProduction ? 'info' : 'debug');
+    const prodFormat = combine(
+      contextFormat(),
+      timestamp(),
+      errors({ stack: true }),
+      json()
+    );
 
-  internalLogger = winston.createLogger({
-    level: logLevel,
-    format: isProduction ? prodFormat : devFormat,
-    defaultMeta: { service: 'convospan-api' },
-    transports: [
-      new winston.transports.Console(),
-    ],
-  });
+    const isProduction = process.env.NODE_ENV === 'production';
+    const logLevel = process.env['LOG_LEVEL'] || (isProduction ? 'info' : 'debug');
+
+    internalLogger = winston.createLogger({
+      level: logLevel,
+      format: isProduction ? prodFormat : devFormat,
+      defaultMeta: { service: 'convospan-frontend' },
+      transports: [
+        new winston.transports.Console(),
+      ],
+    });
+  } catch (err) {
+    // Fallback if winston fails to load even in Node
+    console.error("Failed to initialize Winston logger:", err);
+    internalLogger = console;
+  }
 } else {
-  // Edge/Browser Fallback
+  // Edge runtime, Middleware, or Browser fallback (Console only)
   internalLogger = {
     info: (message: string, meta?: any) => console.log(`[INFO] ${message}`, meta || ''),
     error: (message: string, meta?: any) => console.error(`[ERROR] ${message}`, meta || ''),
@@ -59,14 +72,12 @@ if (process.env['NEXT_RUNTIME'] === 'nodejs') {
 
 export const logger = internalLogger;
 
-// Create a stream for Morgan/HTTP loggers if needed
 export const stream = {
   write: (message: string) => {
     logger.info(message.trim());
   },
 };
 
-// Worker-specific logger alias for background jobs
 const logWorkerInternal = (id: string, message: string, meta?: any) => {
   logger.info(message, { jobId: id, ...meta });
 };
