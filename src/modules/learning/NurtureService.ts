@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/db";
-import { calendarNurtureFlow } from "@/lib/ai/flows/calendar_nurture_flow";
+// import { calendarNurtureFlow } from "@/lib/ai/flows/calendar_nurture_flow"; // Moved to dynamic import
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 import { OnPremAIProxy } from "@/lib/ai/OnPremAIProxy";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
@@ -13,6 +13,7 @@ export class NurtureService {
     static async syncEvents(year: number = new Date().getFullYear() + 1) {
         console.log(`[NurtureService] Syncing events for year ${year}...`);
         try {
+            const { calendarNurtureFlow } = await import("@/lib/ai/flows/calendar_nurture_flow");
             const data = await calendarNurtureFlow({ year });
             console.log(`[NurtureService] Successfully synced ${data.calendarEvents.length} events.`);
             return data;
