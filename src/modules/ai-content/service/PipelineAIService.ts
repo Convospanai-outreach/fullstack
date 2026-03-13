@@ -1,95 +1,50 @@
-import { generateWithGemini } from "@/ai/gemini";
-import { prisma } from "@/lib/db";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export class PipelineAIService {
-    /**
-     * Analyze recent messages and suggest follow-up tasks
-     */
-    static async suggestTasks(_teamId: string, leadId: string) {
-        const messages = await prisma.message.findMany({
-            where: { leadId },
-            take: 10,
-            orderBy: { createdAt: "desc" }
-        });
-
-        if (messages.length === 0) return [];
-
-        const conversationText = messages.reverse().map(m => `${m.direction}: ${m.content}`).join("\n");
-
-        const prompt = `
-        Conversation History:
-        ${conversationText}
-
-        Based on this conversation, suggest 1-2 actionable sales tasks.
-        Format: JSON array of objects with { "title": "...", "description": "...", "priority": "LOW/MEDIUM/HIGH", "dueDate": "ISO Date" }
-        If no tasks are needed, return [].
-        `;
-
+    static async suggestTasks(teamId: string, leadId: string) {
         try {
-            const response = await generateWithGemini(prompt);
-            // Basic JSON parsing (handling potential markdown blocks)
-            const cleaned = response.replace(/```json/g, "").replace(/```/g, "").trim();
-            return JSON.parse(cleaned);
+            const res = await fetch(`${API_URL}/ai/pipeline/suggest-tasks`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId, leadId })
+            });
+            if (!res.ok) throw new Error("Pipeline proxy failure");
+            return await res.json();
         } catch (error) {
-            console.error("AI Task Suggestion failed", error);
+            console.error("AI Task Suggestion proxy failed:", error);
             return [];
         }
     }
 
-    /**
-     * Recommend a pipeline stage transition
-     */
     static async recommendStage(leadId: string) {
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId },
-            include: { messages: { take: 10, orderBy: { createdAt: "desc" } } }
-        });
-
-        if (!lead || lead.messages.length === 0) return null;
-
-        const conversationText = lead.messages.reverse().map(m => `${m.direction}: ${m.content}`).join("\n");
-
-        const prompt = `
-        Current Lead Status: ${lead.status}
-        Conversation History:
-        ${conversationText}
-
-        Available Stages: NEW, QUALIFIED, CONTACTED, MEETING, PROPOSAL, WON, LOST
-
-        Analyze the lead's intent. Should they move to a new stage? 
-        If yes, return the stage name. If no, return null.
-        Response Format: Just the stage name or "null".
-        `;
-
         try {
-            const response = await generateWithGemini(prompt);
-            const choice = response.trim().toUpperCase();
-            return choice === "NULL" ? null : choice;
+            const res = await fetch(`${API_URL}/ai/pipeline/recommend-stage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId })
+            });
+            if (!res.ok) throw new Error("Pipeline proxy failure");
+            const data = await res.json();
+            return data.stage || null;
         } catch (error) {
+            console.error("AI Stage Recommendation proxy failed:", error);
             return null;
         }
     }
 
-    /**
-     * Summarize lead status for Kanban cards
-     */
     static async summarizeLead(leadId: string) {
-        const messages = await prisma.message.findMany({
-            where: { leadId },
-            take: 5,
-            orderBy: { createdAt: "desc" }
-        });
-
-        if (messages.length === 0) return "New lead, no interaction yet.";
-
-        const prompt = `
-        Summarize this lead's current status and interest level in under 15 words based on these messages:
-        ${messages.map(m => m.content).join("\n")}
-        `;
-
         try {
-            return await generateWithGemini(prompt);
+            const res = await fetch(`${API_URL}/ai/pipeline/summarize-lead`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId })
+            });
+            if (!res.ok) throw new Error("Pipeline proxy failure");
+            const data = await res.json();
+            return data.summary || "Summary unavailable.";
         } catch (error) {
+            console.error("AI Lead Summary proxy failed:", error);
             return "Status analysis unavailable.";
         }
     }
