@@ -8,6 +8,7 @@ const nextConfig = {
     experimental: {
         optimizePackageImports: ['lucide-react', 'recharts', 'date-fns'],
     },
+    optimizeFonts: false,
     images: {
         remotePatterns: [
             {
