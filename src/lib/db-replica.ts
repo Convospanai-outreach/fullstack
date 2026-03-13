@@ -30,18 +30,18 @@ export function getDbClient(_queryType: QueryType = 'read', _region: Region = 'i
   // Route reads to nearest replica
   switch (region) {
     case 'eu':
-      return process.env.DATABASE_REPLICA_EU 
-        ? createPrismaClient(process.env.DATABASE_REPLICA_EU)
+      return process.env['DATABASE_REPLICA_EU'] 
+        ? createPrismaClient(process.env['DATABASE_REPLICA_EU'])
         : prisma;
     
     case 'us':
-      return process.env.DATABASE_REPLICA_US
-        ? createPrismaClient(process.env.DATABASE_REPLICA_US)
+      return process.env['DATABASE_REPLICA_US']
+        ? createPrismaClient(process.env['DATABASE_REPLICA_US'])
         : prisma;
     
     case 'apac':
-      return process.env.DATABASE_REPLICA_APAC
-        ? createPrismaClient(process.env.DATABASE_REPLICA_APAC)
+      return process.env['DATABASE_REPLICA_APAC']
+        ? createPrismaClient(process.env['DATABASE_REPLICA_APAC'])
         : prisma;
     
     default:

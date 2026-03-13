@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 // import { Resend } from 'resend';
 
 // Initialize Resend if API key is present
-const resend: any = null; // process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const resend: any = null; // process.env['RESEND_API_KEY'] ? new Resend(process.env['RESEND_API_KEY']) : null;
 
 export type NotificationType = "CAMPAIGN" | "LEAD" | "SYSTEM" | "BILLING";
 

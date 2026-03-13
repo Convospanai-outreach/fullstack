@@ -191,7 +191,7 @@ export class SentinelService {
     private static async rebootScraperNode() {
         try {
             // Check if we are in a containerized env before calling Docker
-            if (process.env.NODE_ENV === 'production' || process.env['DOCKER_SOCK']) {
+            if (process.env['NODE_ENV'] === 'production' || process.env['DOCKER_SOCK']) {
                 const container = this.docker.getContainer('scraper-node');
                 await container.restart();
                 console.log("[Sentinel] Scraper Node successfully restarted.");

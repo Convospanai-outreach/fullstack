@@ -114,7 +114,7 @@ export async function middleware(req: NextRequest) {
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
     
     // Strict-Transport-Security (Only for production HTTPS)
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env['NODE_ENV'] === 'production') {
         response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
     }
 
@@ -145,7 +145,7 @@ export async function middleware(req: NextRequest) {
         "upgrade-insecure-requests"
     ];
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env['NODE_ENV'] !== 'production') {
         // Dev friendliness
         const devAdditions = " localhost:* 127.0.0.1:* ws://localhost:*";
         cspValues[1] += devAdditions; // script-src

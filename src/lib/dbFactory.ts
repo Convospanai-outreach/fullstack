@@ -24,7 +24,7 @@ export class DbFactory {
     }
 
     private static getGlobalClient(): PrismaClient {
-        if (process.env.NODE_ENV === "production") {
+        if (process.env['NODE_ENV'] === "production") {
             return new PrismaClient();
         }
         if (!globalForPrisma.prismaGlobal) {
@@ -40,7 +40,7 @@ export class DbFactory {
             throw new Error("CRITICAL_COMPLIANCE_ERROR: UAE_DATABASE_URL is not set. Data residency requirements cannot be met for UAE region.");
         }
 
-        if (process.env.NODE_ENV === "production") {
+        if (process.env['NODE_ENV'] === "production") {
             return new PrismaClient({
                 datasources: { db: { url: uaeUrl } },
             });
@@ -62,7 +62,7 @@ export class DbFactory {
             return this.getGlobalClient();
         }
 
-        if (process.env.NODE_ENV === "production") {
+        if (process.env['NODE_ENV'] === "production") {
             return new PrismaClient({
                 datasources: { db: { url: euUrl } },
             });

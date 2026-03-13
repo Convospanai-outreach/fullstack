@@ -9,7 +9,7 @@ export const WhatsAppService = {
   async sendMessage(leadId: string, message: string, isTemplate: boolean, recipientPhone: string): Promise<boolean> {
     // Check for Mock Mode explicitly or Default to Mock in Dev if no credentials
     const hasCredentials = !!process.env['WHATSAPP_ACCESS_TOKEN'] && !!process.env['WHATSAPP_PHONE_NUMBER_ID'];
-    const isMock = process.env['WHATSAPP_MOCK_MODE'] === "true" || (!hasCredentials && process.env.NODE_ENV !== "production");
+    const isMock = process.env['WHATSAPP_MOCK_MODE'] === "true" || (!hasCredentials && process.env['NODE_ENV'] !== "production");
 
     if (isMock) {
       logger.info(`[WhatsApp Mock] 📱 Message simulated to Lead ${leadId} (${recipientPhone})`, { 

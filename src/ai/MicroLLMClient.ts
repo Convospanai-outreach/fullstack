@@ -5,7 +5,7 @@ import { MicroLLMRequest, MicroLLMResponse } from "./MicroLLMTypes";
  * MicroLLMClient - "Stage 0" Directive Implementation
  * 
  * connecting to Local Inference Runtime (e.g. llama.cpp)
- * Address: process.env.MICRO_LLM_URL || "http://localhost:8081"
+ * Address: process.env['MICRO_LLM_URL'] || "http://localhost:8081"
  * 
  * NON-NEGOTIABLE CONSTRAINTS:
  * - No Retries (Fail Fast)

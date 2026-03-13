@@ -8,7 +8,7 @@ type Logger = {
 
 let loggerInstance: Logger;
 
-const isNodeServer = typeof window === 'undefined' && process.env.NEXT_RUNTIME !== 'edge';
+const isNodeServer = typeof window === 'undefined' && process.env['NEXT_RUNTIME'] !== 'edge';
 
 if (isNodeServer) {
   // require at runtime on server only (avoids bundling into Edge)
