@@ -4,5 +4,12 @@
  */
 export class ComputerUseServer {
     constructor() { console.warn("ComputerUseServer is only available on the backend."); }
-    async start() { throw new Error("MCP server start only allowed on backend."); }
+    
+    async initialize(): Promise<any> {
+        throw new Error("ComputerUseServer initialization is only available on the backend.");
+    }
+
+    async start(): Promise<void> { 
+        throw new Error("MCP server start only allowed on backend."); 
+    }
 }
