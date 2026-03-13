@@ -1,11 +1,7 @@
-import { prisma } from "@/lib/db";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export class LearningService {
-
-    /**
-     * Records user rating for an AI message.
-     * If feedback is positive and has a comment, potentially save it as a memory (simplified logic).
-     */
     static async recordFeedback(
         teamId: string,
         userId: string,
@@ -13,56 +9,32 @@ export class LearningService {
         rating: number,
         comment?: string
     ) {
-        // 1. Save Feedback
-        await prisma.agentFeedback.create({
-            data: {
-                messageId,
-                userId,
-                rating,
-                comment: comment ?? null
-            }
-        });
-
-        // 2. Learning Logic (Advanced)
-        // Extract rules from high-rating comments or negative rating feedback.
-        if (rating === 5 && comment) {
-            await prisma.agentMemory.create({
-                data: {
-                    teamId,
-                    key: "positive_preference",
-                    value: comment,
-                    confidence: 1.0
-                }
+        try {
+            const res = await fetch(`${API_URL}/learning/feedback`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId, userId, messageId, rating, comment })
             });
-        } else if (rating === 1 && comment) {
-            await prisma.agentMemory.create({
-                data: {
-                    teamId,
-                    key: "negative_preference",
-                    value: `Avoid: ${comment}`,
-                    confidence: 0.9
-                }
-            });
+            if (!res.ok) throw new Error("Learning feedback failure");
+            return await res.json();
+        } catch (e) {
+            console.error("Learning feedback proxy failed:", e);
         }
     }
 
-    /**
-     * Retrieves relevant memories with weighted decay for recency.
-     */
     static async getMemories(teamId: string) {
-        const memories = await prisma.agentMemory.findMany({
-            where: { teamId },
-            orderBy: { createdAt: 'desc' },
-            take: 10
-        });
-
-        // Decay logic: older memories have lower confidence over time (simulated here)
-        return memories
-            .filter(m => {
-                const ageInDays = (Date.now() - new Date(m.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-                const decay = Math.pow(0.9, ageInDays); // 10% decay per day
-                return m.confidence * decay > 0.3;
-            })
-            .map(m => m.value);
+        try {
+            const res = await fetch(`${API_URL}/learning/memories`, {
+                method: "POST", // Using POST for teamId security or GET with query
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId })
+            });
+            if (!res.ok) throw new Error("Learning memories failure");
+            const data = await res.json();
+            return data.memories || [];
+        } catch (e) {
+            console.error("Learning memories proxy failed:", e);
+            return [];
+        }
     }
 }
