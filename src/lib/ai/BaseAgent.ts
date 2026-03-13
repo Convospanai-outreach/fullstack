@@ -8,7 +8,7 @@ export abstract class BaseAgent {
         console.warn("BaseAgent is only available on the backend.");
     }
 
-    protected async generateJSON<T>(prompt: string, schemaDescription: string, retries = 2): Promise<T> {
+    protected async generateJSON<T>(_prompt: string, _schemaDescription: string, _retries = 2): Promise<T> {
         throw new Error("AI Agent execution is only available on the backend.");
     }
 }
