@@ -17,7 +17,7 @@ export default function OrgGraph() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env.NEXT_PUBLIC_API_URL + '/analytics/graph')
+        fetch(process.env['NEXT_PUBLIC_API_URL'] + '/analytics/graph')
             .then(res => res.json())
             .then(data => {
                 if (data.nodes) setNodes(data.nodes);

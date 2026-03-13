@@ -6,7 +6,7 @@ export default function RunnerPage() {
     const [response, setResponse] = useState<any>(null);
 
     async function run() {
-        const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/linkedin-runner/run", {
+        const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/linkedin-runner/run", {
             method: "POST",
             body: JSON.stringify({
                 profileUrl: "https://linkedin.com/in/example",

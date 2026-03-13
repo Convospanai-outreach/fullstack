@@ -8,7 +8,7 @@ export default function PricingPage() {
     const handleSubscribe = async (planId: string) => {
         setLoading(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/billing/checkout", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ planId }),

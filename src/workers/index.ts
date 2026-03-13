@@ -72,7 +72,7 @@ async function processNextJob() {
                     if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
                     const filename = `export_${Date.now()}.csv`;
                     fs.writeFileSync(path.join(exportDir, filename), csvContent);
-                    result = { filename, url: `${process.env.NEXT_PUBLIC_API_URL}/exports/${filename}` };
+                    result = { filename, url: `${process.env['NEXT_PUBLIC_API_URL']}/exports/${filename}` };
                     break;
 
 

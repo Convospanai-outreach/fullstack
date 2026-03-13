@@ -20,7 +20,7 @@ export default function ProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/user/profile");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/user/profile");
             const data = await res.json();
             setProfile(data);
             setFormData({
@@ -38,7 +38,7 @@ export default function ProfilePage() {
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/user/profile", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/user/profile", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)

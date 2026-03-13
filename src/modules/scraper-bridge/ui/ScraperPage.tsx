@@ -11,7 +11,7 @@ export default function ScraperPage() {
     const handleScrape = async (request: any) => {
         setLoading(true);
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/scraper-bridge/scrape", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/scraper-bridge/scrape", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(request),

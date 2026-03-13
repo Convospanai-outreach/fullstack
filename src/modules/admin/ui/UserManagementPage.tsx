@@ -15,7 +15,7 @@ export default function UserManagementPage() {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/admin/users");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/users");
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -33,7 +33,7 @@ export default function UserManagementPage() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch(process.env.NEXT_PUBLIC_API_URL + "/admin/users", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/users", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newUser)
