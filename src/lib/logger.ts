@@ -3,7 +3,7 @@ type Logger = {
   info: (...args: any[]) => void;
   warn: (...args: any[]) => void;
   error: (...args: any[]) => void;
-  debug?: (...args: any[]) => void;
+  debug: (...args: any[]) => void;
 };
 
 let loggerInstance: Logger;
@@ -18,6 +18,7 @@ if (isNodeServer) {
     format: winston.format.json(),
     transports: [new winston.transports.Console()],
   });
+  loggerInstance.debug = loggerInstance.info; // Map debug to info for winston
 } else {
   // Edge/middleware/browser fallback: no-op logger
   loggerInstance = {
