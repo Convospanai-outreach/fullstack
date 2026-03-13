@@ -19,6 +19,6 @@ export const smtpClient = {
     }
 };
 
-export async function sendViaSMTP(_config: SmtpConfig, _options: any): Promise<{ success: boolean; error?: string }> {
+export async function sendViaSMTP(_config: SmtpConfig, _options: any): Promise<{ success: boolean; error?: string; messageId?: string }> {
     throw new Error("Email sending is only available on the backend.");
 }
