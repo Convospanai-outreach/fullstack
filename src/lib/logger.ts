@@ -31,5 +31,7 @@ if (isNodeServer) {
 
 // Support both named and default exports to prevent build failures
 export const logger = loggerInstance;
-export const logWorker = loggerInstance;
+export const logWorker = (id: string, status: string, meta: Record<string, any> = {}) => {
+  loggerInstance.info(`[Worker] ${id}: ${status}`, { id, status, ...meta, category: "worker" });
+};
 export default loggerInstance;

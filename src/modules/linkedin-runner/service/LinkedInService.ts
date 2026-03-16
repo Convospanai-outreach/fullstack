@@ -1,103 +1,29 @@
-import { HardwareService } from "@/services/HardwareService";
-import { prisma } from "@/lib/db";
-import { LinkedInConstants } from "./LinkedInConstants";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export class LinkedInService {
-    /**
-     * Sends a connection request to a lead via the Physical Edge Node.
-     * Uses the HardwareService to actuate the browser.
-     */
     static async sendConnectionRequest(leadId: string, _teamId: string, _userId: string, message?: string) {
-        // 1. Fetch Lead Data
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId }
-        });
-
-        // 1b. Enterprise Contract Enforcement (Phase 9)
-        if (_teamId) {
-            const { KillSwitch } = await import("@/modules/contract/killSwitch");
-            const { ContractResolver } = await import("@/modules/contract/contractResolver");
-
-            // a. Emergency Stop (Outbound)
-            await KillSwitch.verifyOrDie(_teamId, "OUTBOUND");
-
-            // b. Contract Capability Check (Channel: LINKEDIN)
-            // LinkedIn is usually ADVANCED_OPS or just channel restricted
-            await ContractResolver.resolveOrThrow(_teamId, "ADVANCED_OPS", "LINKEDIN");
-        }
-
-        if (!lead || !lead.linkedIn) {
-            throw new Error("Lead not found or missing LinkedIn URL");
-        }
-
-        // 2. Hardware Execution
         try {
-            console.log(`[LinkedInService] Initiating Connection Request for ${lead.fullName}...`);
-
-            // Execute the hardware action
-            await HardwareService.execute('send_connection', {
-                url: lead.linkedIn,
-                message: message, // Optional note
-                selectors: LinkedInConstants.SELECTORS
+            const res = await fetch(`${API_URL}/linkedin/connect`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId, teamId: _teamId, userId: _userId, message })
             });
-
-            // 3. Update Lead Status
-            await prisma.lead.update({
-                where: { id: leadId },
-                data: {
-                    status: "CONTACTED",
-                    pipelineState: "WARM",
-                    // Also log the activity
-                }
-            });
-
-            // 4. Create Activity Log
-            await prisma.activity.create({
-                data: {
-                    type: "LINKEDIN_CONNECT",
-                    message: `Connection request sent to ${lead.fullName}`,
-                    campaignId: lead.campaignId,
-                    meta: {
-                        leadId,
-                        linkedinUrl: lead.linkedIn,
-                        withNote: !!message
-                    }
-                }
-            });
-
-            return { success: true };
-
-        } catch (error: any) {
-            console.error("[LinkedInService] Connection Failed", error);
-
-            // Log failure but don't crash core flow if possible, or rethrow
-            await prisma.activity.create({
-                data: {
-                    type: "LINKEDIN_CONNECT_FAIL",
-                    message: `Failed to connect with ${lead.fullName}: ${error.message}`,
-                    campaignId: lead.campaignId
-                }
-            });
-
+            if (!res.ok) throw new Error("LinkedIn proxy failure");
+            return await res.json();
+        } catch (error) {
+            console.error("[LinkedInService] Connection proxy failed:", error);
             throw error;
         }
     }
 
-    /**
-     * Checks if a user is connected on LinkedIn via the Edge Node
-     */
     static async checkConnectionStatus(leadId: string): Promise<boolean> {
-        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-        if (!lead || !lead.linkedIn) return false;
-
         try {
-            const connected = await HardwareService.execute('check_connection', {
-                url: lead.linkedIn,
-                selectors: LinkedInConstants.SELECTORS
-            });
-            return connected;
-        } catch (error) {
-            console.warn(`[LinkedInService] Connection status check failed for ${leadId}`, error);
+            const res = await fetch(`${API_URL}/linkedin/status?leadId=${leadId}`);
+            if (!res.ok) return false;
+            const data = await res.json();
+            return !!data.connected;
+        } catch {
             return false;
         }
     }

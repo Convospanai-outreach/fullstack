@@ -5,24 +5,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { predictiveService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
-async function getTeamId(userId: string): Promise<string | null> {
-    const member = await prisma.teamMember.findFirst({
-        where: { userId },
-        select: { teamId: true }
-    });
-    return member?.teamId ?? null;
-}
-
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -36,6 +27,10 @@ export async function POST(req: NextRequest) {
                 if (!leadId) {
                     return NextResponse.json({ error: "leadId required" }, { status: 400 });
                 }
+                const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+                if (!lead || lead.teamId !== ctx.teamId) {
+                    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+                }
                 const prediction = await predictiveService.predictChurn(leadId);
                 return NextResponse.json({ success: true, data: prediction });
             }
@@ -45,16 +40,16 @@ export async function POST(req: NextRequest) {
                 if (!leadId) {
                     return NextResponse.json({ error: "leadId required" }, { status: 400 });
                 }
+                const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+                if (!lead || lead.teamId !== ctx.teamId) {
+                    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+                }
                 const sendTime = await predictiveService.calculateOptimalSendTime(leadId);
                 return NextResponse.json({ success: true, data: sendTime });
             }
 
             case "cluster": {
-                const teamId = await getTeamId(session.user.id);
-                if (!teamId) {
-                    return NextResponse.json({ error: "No team found" }, { status: 400 });
-                }
-                const clusters = await predictiveService.clusterCustomers(teamId);
+                const clusters = await predictiveService.clusterCustomers(ctx.teamId);
                 return NextResponse.json({ success: true, data: clusters });
             }
 
@@ -62,6 +57,10 @@ export async function POST(req: NextRequest) {
                 const { leadId } = body;
                 if (!leadId) {
                     return NextResponse.json({ error: "leadId required" }, { status: 400 });
+                }
+                const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+                if (!lead || lead.teamId !== ctx.teamId) {
+                    return NextResponse.json({ error: "Lead not found" }, { status: 404 });
                 }
 
                 // Get lead features for cluster assignment
@@ -115,18 +114,13 @@ export async function POST(req: NextRequest) {
 
 export async function GET(_req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const teamId = await getTeamId(session.user.id);
-        if (!teamId) {
-            return NextResponse.json({ error: "No team found" }, { status: 400 });
-        }
-
         // Return cluster summary for the team
-        const clusters = await predictiveService.clusterCustomers(teamId);
+        const clusters = await predictiveService.clusterCustomers(ctx.teamId);
 
         return NextResponse.json({
             success: true,

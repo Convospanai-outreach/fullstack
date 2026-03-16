@@ -6,15 +6,18 @@ import { NurtureService } from "@/modules/learning/NurtureService";
 import { authOptions } from "@/lib/auth";
 import { getServerSession } from "next-auth";
 import { NextRequest } from "next/server"; // Added NextRequest import
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(_req: NextRequest) { // Changed type to NextRequest
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { searchParams } = new URL(_req.url);
         const action = searchParams.get("action") || "generate";
-        const teamId = session.user?.image || "team-convo-1"; // Use image as teamId proxy for demo
+        const teamId = ctx.teamId;
 
         if (action === "sync") {
             const data = await NurtureService.syncEvents();
@@ -35,6 +38,8 @@ export async function GET(_req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
         if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const horizon = new Date();
         horizon.setDate(horizon.getDate() + 30); // 30 day window for the UI
@@ -42,6 +47,7 @@ export async function GET(_req: NextRequest) {
         const prisma = (await import("@/lib/db")).prisma;
         const upcoming = await prisma.calendarEvent.findMany({
             where: {
+                teamId: ctx.teamId,
                 eventDate: {
                     gte: new Date(),
                     lte: horizon

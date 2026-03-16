@@ -25,12 +25,14 @@
     "db:archive": "tsx src/scripts/archive-audit-logs.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4.1.17",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/dotenv": "^6.1.1",
     "@types/ioredis": "^4.28.10",
     "@types/jest": "^30.0.0",
+    "@types/nodemailer": "^7.0.11",
     "@types/papaparse": "^5.5.0",
     "@types/react": "19.2.7",
     "@vitejs/plugin-react": "^5.1.2",
@@ -89,6 +91,7 @@
     "lucide-react": "^0.556.0",
     "next": "^16.1.6",
     "next-auth": "^4.24.13",
+    "nodemailer": "^7.0.13",
     "papaparse": "^5.5.3",
     "posthog-js": "^1.313.0",
     "prom-client": "^15.1.3",

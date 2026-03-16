@@ -1,35 +1,19 @@
 
-import { prisma } from "@/lib/db";
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export class EnrichmentService {
     static async enrichLead(leadId: string) {
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId }
-        });
-
-        if (!lead) throw new Error("Lead not found");
-
-        // Use AI to research the company if name exists
-        let companyData: any = {};
-        if (lead.company) {
-            const { aiService } = await import("@/modules/ai-content/service/aiService");
-            companyData = await aiService.researchCompany(lead.company);
+        try {
+            const res = await fetch(`${API_URL}/enrichment/lead`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId })
+            });
+            if (!res.ok) throw new Error("Enrichment proxy failure");
+            return await res.json();
+        } catch (error) {
+            console.error("[EnrichmentService] Enrichment proxy failed:", error);
+            throw error;
         }
-
-        const enrichedData = {
-            industry: companyData.industry || "Unknown",
-            employees: companyData.employees || "Unknown",
-            revenue: companyData.revenue || "Unknown",
-            summary: companyData.summary || "No summary available"
-        };
-
-        return await prisma.lead.update({
-            where: { id: leadId },
-            data: {
-                isEnriched: true,
-                enrichedData,
-                status: lead.status === "NEW" ? "enriched" : lead.status
-            }
-        });
     }
 }

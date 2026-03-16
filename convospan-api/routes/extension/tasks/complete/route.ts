@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 async function validateToken(req: NextRequest) {
+    const requiredKey = process.env['EXTENSION_API_KEY'];
+    const providedKey = req.headers.get("x-extension-key");
+    if (!requiredKey || providedKey !== requiredKey) return null;
     const token = req.headers.get("Authorization");
     if (!token) return null;
     return await prisma.user.findUnique({ where: { id: token } });

@@ -16,16 +16,16 @@ export function JobStatusList() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch jobs (mock for now, or implement API)
-        // In real app, use /api/jobs
         const fetchJobs = async () => {
             try {
-                // Mock data
-                setJobs([
-                    { id: "1", type: "campaign_execution", status: "running", createdAt: new Date().toISOString() },
-                    { id: "2", type: "lead_enrichment", status: "completed", createdAt: new Date(Date.now() - 3600000).toISOString(), completedAt: new Date().toISOString() },
-                    { id: "3", type: "email_send", status: "failed", createdAt: new Date(Date.now() - 7200000).toISOString(), error: "Rate limit exceeded" },
-                ]);
+                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/jobs?limit=10");
+                if (!res.ok) throw new Error("Failed to load jobs");
+                const data = await res.json();
+                if (Array.isArray(data)) {
+                    setJobs(data);
+                } else {
+                    setJobs([]);
+                }
             } finally {
                 setLoading(false);
             }

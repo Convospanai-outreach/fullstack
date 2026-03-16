@@ -83,6 +83,7 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
                     <label className="block text-sm text-gray-400 mb-2">Campaign Name</label>
                     <input
                         type="text"
+                        title="Campaign name"
                         className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -92,6 +93,7 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
                 <div>
                     <label className="block text-sm text-gray-400 mb-2">Status</label>
                     <select
+                        title="Campaign status"
                         className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}

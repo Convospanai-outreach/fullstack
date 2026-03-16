@@ -1,279 +1,132 @@
-/**
- * Case Study Service
- * 
- * RAG-enhanced marketing copy generation using proprietary industry case studies.
- * 
- * Key Features:
- * - Local-first embedding generation (NEVER sends raw content to public LLMs)
- * - Tenant-isolated vector storage with teamId scoping
- * - Retrieves relevant case studies for marketing copy grounding
- * - Full control over data retention
- */
 
-import { prisma } from "@/lib/db";
-import { aiService } from "@/lib/aiService";
-import type {
-    CaseStudyInput,
-    CaseStudyResult,
-    RAGEnhancedCopy
-} from "../types";
+import type { CaseStudyInput, CaseStudyResult, RAGEnhancedCopy } from "../types";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const isServer = typeof window === "undefined";
 
 export class CaseStudyService {
-
-    /**
-     * Ingest a case study and generate embeddings.
-     * 
-     * LOCAL-FIRST: Embeddings are computed by YOUR deployed Gemini API key,
-     * processed in-memory, and stored directly to YOUR database.
-     * No case study content is ever sent to shared/public endpoints.
-     */
-    async ingestCaseStudy(data: CaseStudyInput, teamId: string): Promise<any> {
-        // Generate embedding from content
-        const textForEmbedding = `${data.title}. ${data.industry}. ${data.summary}. ${data.content}`;
-        let embedding: number[] | null = null;
-        try {
-            embedding = await aiService.getEmbeddings(textForEmbedding);
-        } catch (error) {
-            console.error(`[CaseStudy] Embedding generation failed for "${data.title}":`, error);
-            // Fallback: Proceed without embedding (keyword search only or re-process later)
-            // But since this service relies heavily on vector search, we might want to throw or flag it.
-            // For now, allow creation but log error.
+    async ingestCaseStudy(data: any, teamId: string) {
+        if (isServer) {
+            const { prisma } = await import("@/lib/db");
+            const payload = data as CaseStudyInput;
+            const created = await prisma.caseStudy.create({
+                data: {
+                    title: payload.title,
+                    industry: payload.industry,
+                    summary: payload.summary,
+                    content: payload.content,
+                    metrics: payload.metrics ?? {},
+                    teamId
+                }
+            });
+            return created;
         }
-
-        // Store in YOUR Postgres with team isolation
-        const caseStudy = await prisma.caseStudy.create({
-            data: {
-                title: data.title,
-                industry: data.industry,
-                summary: data.summary,
-                content: data.content,
-                metrics: data.metrics || {},
-                embedding: JSON.stringify(embedding || []), // SQL vector or JSON storage
-                teamId
-            }
-        });
-
-        console.log(`[CaseStudy] Ingested: "${data.title}" for team ${teamId}`);
-
-        return caseStudy;
+        try {
+            const res = await fetch(`${API_URL}/scoring/case-study`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ data, teamId })
+            });
+            return await res.json();
+        } catch (error) {
+            console.error("Case study ingestion proxy failed:", error);
+            throw error;
+        }
     }
 
-    /**
-     * Retrieve relevant case studies using vector similarity search.
-     * Only contextual snippets are returned - full content stays in your database.
-     */
-    async retrieveRelevantCaseStudies(
-        query: string,
-        teamId: string,
-        limit: number = 3
-    ): Promise<CaseStudyResult[]> {
-        // Generate query embedding
-        let queryEmbedding: number[] = [];
-        try {
-            queryEmbedding = await aiService.getEmbeddings(query);
-        } catch (error) {
-            console.error('[CaseStudy] Query embedding generation failed:', error);
-            return []; // Fail safe: return no context rather than crashing
+    async retrieveRelevantCaseStudies(query: string, teamId: string, limit: number = 3) {
+        if (isServer) {
+            const { prisma } = await import("@/lib/db");
+            const items = await prisma.caseStudy.findMany({
+                where: {
+                    teamId,
+                    OR: [
+                        { title: { contains: query, mode: "insensitive" } },
+                        { summary: { contains: query, mode: "insensitive" } },
+                        { content: { contains: query, mode: "insensitive" } },
+                        { industry: { contains: query, mode: "insensitive" } }
+                    ]
+                },
+                take: limit,
+                orderBy: { updatedAt: "desc" }
+            });
+            return items.map((item): CaseStudyResult => ({
+                id: item.id,
+                title: item.title,
+                industry: item.industry,
+                summary: item.summary,
+                metrics: (item.metrics as any) || {},
+                similarity: 0.7
+            }));
         }
-
-        if (!queryEmbedding || queryEmbedding.length === 0) {
-            console.log('[CaseStudy] No embedding generated for query');
+        try {
+            const res = await fetch(`${API_URL}/scoring/case-study/retrieve`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query, teamId, limit })
+            });
+            return await res.json();
+        } catch {
             return [];
         }
+    }
 
-        // Cosine similarity search in PostgreSQL
-        // Note: This uses JSON embedding storage - for production, use pgvector type
-        const caseStudies = await prisma.caseStudy.findMany({
-            where: { teamId },
-            select: {
-                id: true,
-                title: true,
-                industry: true,
-                summary: true,
-                metrics: true,
-                embedding: true
-            }
-        });
-
-        // Calculate similarities in memory
-        const results: CaseStudyResult[] = [];
-
-        for (const cs of caseStudies) {
-            if (!cs.embedding) continue;
-
-            // Handle potential string vs array return from Prisma depending on schema
-            const storedEmbedding = typeof cs.embedding === 'string'
-                ? JSON.parse(cs.embedding) as number[]
-                : cs.embedding as unknown as number[];
-
-            const similarity = this.cosineSimilarity(queryEmbedding, storedEmbedding);
-
-            if (similarity >= 0.7) { // Strict threshold for grounding
-                results.push({
-                    id: cs.id,
-                    title: cs.title,
-                    industry: cs.industry,
-                    summary: cs.summary,
-                    metrics: cs.metrics as Record<string, number> || {},
-                    similarity: Math.round(similarity * 100) / 100
-                });
-            }
+    async generateRAGEnhancedCopy(leadContext: string, purpose: string, teamId: string) {
+        if (isServer) {
+            const examples = await this.retrieveRelevantCaseStudies(leadContext, teamId, 3) as CaseStudyResult[];
+            const copy: RAGEnhancedCopy = {
+                copy: `Purpose: ${purpose}\n\nContext: ${leadContext}\n\nRelevant proof points:\n${examples.map((e: CaseStudyResult) => `- ${e.title}: ${e.summary}`).join("\n")}`,
+                usedCaseStudies: examples,
+                confidence: examples.length ? 0.7 : 0.4,
+                groundedClaims: examples.map((e: CaseStudyResult) => e.summary).slice(0, 3)
+            };
+            return copy;
         }
-
-        // Sort by similarity and limit
-        results.sort((a, b) => b.similarity - a.similarity);
-        return results.slice(0, limit);
-    }
-
-    /**
-     * Calculate cosine similarity between two vectors.
-     */
-    private cosineSimilarity(a: number[], b: number[]): number {
-        if (a.length !== b.length) return 0;
-
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-
-        for (let i = 0; i < a.length; i++) {
-            const aVal = a[i];
-            const bVal = b[i];
-            if (aVal !== undefined && bVal !== undefined) {
-                dotProduct += aVal * bVal;
-                normA += aVal * aVal;
-                normB += bVal * bVal;
-            }
+        try {
+            const res = await fetch(`${API_URL}/scoring/case-study/generate-copy`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadContext, purpose, teamId })
+            });
+            return await res.json();
+        } catch (error) {
+            console.error("RAG copy proxy failed:", error);
+            throw error;
         }
-
-        const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
-        return magnitude === 0 ? 0 : dotProduct / magnitude;
     }
 
-    /**
-     * Generate marketing copy with case study context (RAG).
-     * 
-     * RETRIEVAL NEVER EXPOSES RAW CONTENT TO LLM:
-     * Only relevant snippets are injected into prompts,
-     * and the LLM response is grounded against YOUR data.
-     */
-    async generateRAGEnhancedCopy(
-        leadContext: string,
-        purpose: 'email' | 'social' | 'landing_page',
-        teamId: string
-    ): Promise<RAGEnhancedCopy> {
-        // Retrieve relevant case studies
-        const relevantCaseStudies = await this.retrieveRelevantCaseStudies(
-            leadContext,
-            teamId,
-            3
-        );
-
-        // Build grounded context from case study summaries (NOT full content)
-        let caseStudyContext = '';
-        const groundedClaims: string[] = [];
-
-        if (relevantCaseStudies.length > 0) {
-            caseStudyContext = `
-PROPRIETARY CASE STUDY DATA (Use this for credibility):
-${relevantCaseStudies.map((cs, i) => `
-${i + 1}. ${cs.title} (${cs.industry})
-   Summary: ${cs.summary}
-   Metrics: ${Object.entries(cs.metrics).map(([k, v]) => `${k}: ${v}`).join(', ')}
-`).join('')}
-`;
-
-            for (const cs of relevantCaseStudies) {
-                if (cs.metrics['conversionRate']) {
-                    groundedClaims.push(`${Math.round((cs.metrics['conversionRate'] as number) * 100)}% conversion rate achieved for similar ${cs.industry} company`);
-                }
-                if (cs.metrics['roi']) {
-                    groundedClaims.push(`${cs.metrics['roi']}x ROI demonstrated in ${cs.industry} sector`);
-                }
-                if (cs.metrics['timeToClose']) {
-                    groundedClaims.push(`${cs.metrics['timeToClose']}-day sales cycle for comparable profile`);
-                }
-            }
+    async deleteCaseStudy(caseStudyId: string, teamId: string) {
+        if (isServer) {
+            const { prisma } = await import("@/lib/db");
+            const deleted = await prisma.caseStudy.deleteMany({
+                where: { id: caseStudyId, teamId }
+            });
+            return deleted.count > 0;
         }
-
-        // Build purpose-specific prompt
-        const purposeInstructions = {
-            email: 'Write a compelling outreach email. Be concise, personalized, and include a clear CTA.',
-            social: 'Write a LinkedIn post or comment. Be conversational and value-driven.',
-            landing_page: 'Write landing page copy. Focus on benefits, social proof, and conversion.'
-        };
-
-        const prompt = `
-${caseStudyContext}
-
-LEAD CONTEXT:
-${leadContext}
-
-TASK: ${purposeInstructions[purpose]}
-
-RULES:
-1. Use the case study data to add credibility and specific metrics.
-2. Do NOT make up statistics - only use metrics from the case studies above.
-3. If no relevant case study data, focus on the lead context without specific claims.
-4. Maintain a professional yet conversational tone.
-`;
-
-        // Generate copy using AI service
-        const copy = await aiService.askAI(prompt, teamId);
-
-        // Calculate confidence based on case study relevance
-        const avgSimilarity = relevantCaseStudies.length > 0
-            ? relevantCaseStudies.reduce((sum, cs) => sum + cs.similarity, 0) / relevantCaseStudies.length
-            : 0;
-
-        return {
-            copy,
-            usedCaseStudies: relevantCaseStudies,
-            confidence: Math.round(avgSimilarity * 100) / 100,
-            groundedClaims
-        };
+        const res = await fetch(`${API_URL}/scoring/case-study`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ caseStudyId, teamId })
+        });
+        return res.ok;
     }
 
-    /**
-     * Delete case study and its embedding.
-     * Supports Right to Erasure (DPDP Act 2023).
-     */
-    async deleteCaseStudy(caseStudyId: string, teamId: string): Promise<boolean> {
-        const result = await prisma.caseStudy.deleteMany({
-            where: {
-                id: caseStudyId,
-                teamId // Ensure team isolation
-            }
-        });
-
-        return result.count > 0;
-    }
-
-    /**
-     * List all case studies for a team.
-     */
-    async listCaseStudies(teamId: string): Promise<CaseStudyResult[]> {
-        const studies = await prisma.caseStudy.findMany({
-            where: { teamId },
-            select: {
-                id: true,
-                title: true,
-                industry: true,
-                summary: true,
-                metrics: true
-            },
-            orderBy: { createdAt: 'desc' }
-        });
-
-        return studies.map(cs => ({
-            id: cs.id,
-            title: cs.title,
-            industry: cs.industry,
-            summary: cs.summary,
-            metrics: cs.metrics as Record<string, number> || {},
-            similarity: 1.0 // N/A for list
-        }));
+    async listCaseStudies(teamId: string) {
+        if (isServer) {
+            const { prisma } = await import("@/lib/db");
+            const items = await prisma.caseStudy.findMany({
+                where: { teamId },
+                orderBy: { updatedAt: "desc" }
+            });
+            return items;
+        }
+        try {
+            const res = await fetch(`${API_URL}/scoring/case-study/list?teamId=${teamId}`);
+            return await res.json();
+        } catch {
+            return [];
+        }
     }
 }
 
-// Singleton instance
 export const caseStudyService = new CaseStudyService();

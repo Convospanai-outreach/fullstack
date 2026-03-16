@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(_req: NextRequest) {
@@ -19,8 +20,9 @@ export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Check permission (mock)
-    // if (ctx.role !== 'admin') ...
+    if (!ctx.userId || !await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+    }
 
     const { email, role } = await req.json();
 

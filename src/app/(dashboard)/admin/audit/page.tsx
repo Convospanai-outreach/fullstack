@@ -158,6 +158,7 @@ export default function AuditLogPage() {
                         <label className="text-sm font-medium mb-2 block">Action</label>
                         <select
                             className="w-full p-2 border rounded"
+                            title="Filter by action"
                             value={filters.action}
                             onChange={(e) => setFilters({ ...filters, action: e.target.value })}
                         >
@@ -173,6 +174,7 @@ export default function AuditLogPage() {
                         <label className="text-sm font-medium mb-2 block">Entity Type</label>
                         <select
                             className="w-full p-2 border rounded"
+                            title="Filter by entity type"
                             value={filters.entityType}
                             onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
                         >
@@ -187,6 +189,7 @@ export default function AuditLogPage() {
                         <label className="text-sm font-medium mb-2 block">Start Date</label>
                         <input
                             type="date"
+                            title="Start date"
                             className="w-full p-2 border rounded"
                             value={filters.startDate}
                             onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
@@ -196,6 +199,7 @@ export default function AuditLogPage() {
                         <label className="text-sm font-medium mb-2 block">End Date</label>
                         <input
                             type="date"
+                            title="End date"
                             className="w-full p-2 border rounded"
                             value={filters.endDate}
                             onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}

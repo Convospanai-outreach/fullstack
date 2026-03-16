@@ -1,19 +1,23 @@
-
+﻿
 import { logger } from './logger';
 
 export function setupSocket(io: any) {
-    logger.info('🔌 Socket.IO setup initiated');
+    logger.info('ðŸ”Œ Socket.IO setup initiated');
+    const sharedSecret = process.env['SOCKET_SHARED_SECRET'];
 
     io.on('connection', (socket: any) => {
-        logger.info(`📱 Client connected: ${socket.id}`);
+        logger.info(`ðŸ“± Client connected: ${socket.id}`);
 
         socket.on('join_team', (teamId: string) => {
+            if (!sharedSecret) return;
+            const token = socket.handshake?.auth?.token || socket.handshake?.headers?.['x-socket-token'];
+            if (token !== sharedSecret) return;
             socket.join(`team:${teamId}`);
-            logger.info(`👥 Socket ${socket.id} joined team:${teamId}`);
+            logger.info(`ðŸ‘¥ Socket ${socket.id} joined team:${teamId}`);
         });
 
         socket.on('disconnect', () => {
-            logger.info(`📱 Client disconnected: ${socket.id}`);
+            logger.info(`ðŸ“± Client disconnected: ${socket.id}`);
         });
     });
 }

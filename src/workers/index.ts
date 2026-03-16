@@ -1,12 +1,14 @@
-/**
- * Worker Neutralizer
- * The worker process has been migrated to the backend (convospan-api/workers).
- * This file is a placeholder to prevent build errors.
- */
+import { WorkerManager } from "../../convospan-api/workers/worker-manager";
+
+const manager = new WorkerManager();
+
 export async function processNextJob() {
-    console.warn("Worker process is only available on the backend.");
+    await manager.start();
 }
 
-if (typeof process !== 'undefined' && process.env['RUN_WORKER'] === 'true') {
-     console.error("Worker attempted to start in frontend. Please run via convospan-api.");
+if (typeof process !== "undefined" && process.env["RUN_WORKER"] === "true") {
+    manager.start().catch(err => {
+        console.error("Worker failed to start:", err);
+        process.exit(1);
+    });
 }

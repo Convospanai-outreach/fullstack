@@ -6,12 +6,12 @@ export class WorkflowService {
     /**
      * Start a workflow for a specific entity (e.g., Lead)
      */
-    static async startWorkflow(workflowId: string, entityId: string, teamId: string) {
+    static async startWorkflow(workflowId: string, entityId: string, teamId: string): Promise<string | null> {
         const workflow = await prisma.workflow.findUnique({
             where: { id: workflowId, teamId }
         });
 
-        if (!workflow || !workflow.isActive) return;
+        if (!workflow || !workflow.isActive) return null;
 
         // Create a Run record
         const run = await prisma.workflowRun.create({
@@ -30,6 +30,8 @@ export class WorkflowService {
         if (startNode) {
             await this.enqueueNodeProcessing(run.id, startNode.id);
         }
+
+        return run.id;
     }
 
     /**

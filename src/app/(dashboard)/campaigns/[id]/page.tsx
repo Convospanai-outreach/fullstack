@@ -163,6 +163,8 @@ export default function CampaignDetailPage({
                                 <div className="space-y-3">
                                     <input
                                         type="text"
+                                        title="Campaign name"
+                                        placeholder="Campaign name"
                                         value={editData.name}
                                         onChange={(e) =>
                                             setEditData({ ...editData, name: e.target.value })
@@ -170,6 +172,8 @@ export default function CampaignDetailPage({
                                         className="text-3xl font-bold w-full px-3 py-2 border border-gray-300 rounded"
                                     />
                                     <textarea
+                                        title="Campaign description"
+                                        placeholder="Campaign description"
                                         value={editData.description}
                                         onChange={(e) =>
                                             setEditData({ ...editData, description: e.target.value })
@@ -179,6 +183,8 @@ export default function CampaignDetailPage({
                                     />
                                     <input
                                         type="number"
+                                        title="Target lead count"
+                                        placeholder="Target count"
                                         value={editData.targetCount}
                                         onChange={(e) =>
                                             setEditData({
@@ -425,6 +431,7 @@ export default function CampaignDetailPage({
                                 <span className={`text-sm font-medium ${!is3DMode ? "text-blue-600" : "text-gray-400"}`}>2D Charts</span>
                                 <button
                                     onClick={() => setIs3DMode(!is3DMode)}
+                                    aria-label={is3DMode ? "Switch to 2D charts" : "Switch to 3D immersive view"}
                                     className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-gray-200"}`}
                                 >
                                     <span className={`block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${is3DMode ? "translate-x-7" : "translate-x-0"}`} />

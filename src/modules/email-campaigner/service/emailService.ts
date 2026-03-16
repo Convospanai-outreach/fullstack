@@ -33,7 +33,14 @@ class EmailService {
         const teamId = metadata?.teamId;
 
         // Lookup SMTP config
-        const config = teamId ? await getSmtpConfig(teamId) : null;
+        let config = null;
+        try {
+            config = teamId ? await getSmtpConfig(teamId) : null;
+        } catch (error: any) {
+            const errMsg = error?.message || "Failed to load SMTP configuration.";
+            console.error(`[EmailService] ${errMsg}`);
+            return { success: false, error: errMsg };
+        }
         if (!config) {
             const errMsg = teamId
                 ? `No SMTP config found for team ${teamId}. Configure email in Setup → Step 3.`

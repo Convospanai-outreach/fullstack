@@ -1,1 +1,3 @@
-export const dummy = {}; // Logic migrated to backend
+export async function executeCampaign() {
+    throw new Error("Campaign worker is only available on the backend.");
+}

@@ -32,10 +32,21 @@ async function createCustomServer() {
     });
 
     // Setup Socket.IO
+    const allowedOrigins = (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    const isAllowedOrigin = (origin?: string) => {
+      if (!origin) return true;
+      if (allowedOrigins.length === 0) return process.env.NODE_ENV !== 'production';
+      return allowedOrigins.includes(origin);
+    };
+
     const io = new Server(server, {
       path: '/api/socketio',
       cors: {
-        origin: "*",
+        origin: (origin, cb) => cb(null, isAllowedOrigin(origin)),
         methods: ["GET", "POST"]
       }
     });

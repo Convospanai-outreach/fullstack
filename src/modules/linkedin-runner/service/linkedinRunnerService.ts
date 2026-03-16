@@ -1,48 +1,18 @@
-import { browserManager } from "@/modules/scraper-bridge";
-import { executeWithBackoff } from "@/lib/api-resilience";
-import { v4 as uuidv4 } from "uuid";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 class LinkedInRunnerService {
     async runAutomation(input: { profileUrl: string; action: string }) {
-        if (!input.profileUrl) throw new Error("Missing profile URL");
-        if (!input.action) throw new Error("Missing action");
-
-        const pageId = uuidv4();
-
         try {
-            // Use shared browser manager
-            const page = await browserManager.newPage(pageId);
-
-            // Navigate to profile
-            // Navigate to profile with backoff
-            await executeWithBackoff(() => page.goto(input.profileUrl, { waitUntil: "networkidle2" }));
-
-            let result;
-
-            switch (input.action) {
-                case "connect":
-                    // Mock connection logic for now
-                    // In real implementation, click connect button
-                    console.log(`Connecting to ${input.profileUrl}`);
-                    result = { connected: true };
-                    break;
-
-                case "scrape":
-                    // Mock scrape logic or use adapter
-                    // In real implementation, extract data
-                    console.log(`Scraping ${input.profileUrl}`);
-                    const title = await page.title();
-                    result = { title, scraped: true };
-                    break;
-
-                default:
-                    throw new Error("Unknown action");
-            }
-
-            await browserManager.closePage(pageId);
-            return { result };
+            const res = await fetch(`${API_URL}/linkedin/automate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ input })
+            });
+            if (!res.ok) throw new Error("LinkedIn automation proxy failure");
+            return await res.json();
         } catch (error) {
-            await browserManager.closePage(pageId);
+            console.error("[LinkedInRunnerService] Automation proxy failed:", error);
             throw error;
         }
     }

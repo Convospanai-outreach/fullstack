@@ -7,15 +7,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { verificationAgent } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -29,6 +28,10 @@ export async function POST(req: NextRequest) {
 
         // Single lead verification
         if (leadId) {
+            const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+            if (!lead || lead.teamId !== ctx.teamId) {
+                return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+            }
             const result = await verificationAgent.verify(leadId);
             return NextResponse.json({
                 success: true,
@@ -38,7 +41,12 @@ export async function POST(req: NextRequest) {
 
         // Batch verification
         if (leadIds && Array.isArray(leadIds)) {
-            const result = await verificationAgent.verifyBatch(leadIds);
+            const validLeads = await prisma.lead.findMany({
+                where: { id: { in: leadIds }, teamId: ctx.teamId },
+                select: { id: true }
+            });
+            const ids = validLeads.map(l => l.id);
+            const result = await verificationAgent.verifyBatch(ids);
             return NextResponse.json({
                 success: true,
                 data: result
@@ -60,8 +68,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -70,16 +78,7 @@ export async function GET(req: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
 
         // Get team ID
-        const member = await prisma.teamMember.findFirst({
-            where: { userId: session.user.id },
-            select: { teamId: true }
-        });
-
-        if (!member?.teamId) {
-            return NextResponse.json({ error: "No team found" }, { status: 400 });
-        }
-
-        const where: any = { teamId: member.teamId };
+        const where: any = { teamId: ctx.teamId };
         if (leadId) {
             where.leadId = leadId;
         }
@@ -115,8 +114,8 @@ export async function GET(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -131,6 +130,11 @@ export async function DELETE(req: NextRequest) {
         }
 
         // DPDP Act 2023: Right to Erasure
+        const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+        if (!lead || lead.teamId !== ctx.teamId) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
+
         const result = await verificationAgent.purgeLeadData(leadId);
 
         if (result.success) {

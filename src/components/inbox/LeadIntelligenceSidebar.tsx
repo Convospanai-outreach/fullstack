@@ -20,16 +20,23 @@ export function LeadIntelligenceSidebar({ threadId }: LeadIntelligenceSidebarPro
 
         const fetchAnalysis = async () => {
             try {
-                const mockMessages = [
-                    { role: "user", content: "Hi, I'm interested in the enterprise plan." },
-                    { role: "assistant", content: "Great! What features are you looking for?" },
-                    { role: "user", content: "We need SSO and audit logs, but the price is high." }
-                ];
+                const threadRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + `/inbox/${threadId}`);
+                if (!threadRes.ok) throw new Error("Failed to load thread");
+                const threadData = await threadRes.json();
+                const rawMessages = Array.isArray(threadData?.messages) ? threadData.messages : [];
+                const mappedMessages = rawMessages.map((msg: any) => ({
+                    role: (msg.direction || msg.sender) === "INBOUND" || msg.sender === "them" ? "user" : "assistant",
+                    content: msg.content
+                })).filter((msg: any) => msg.content);
+
+                if (!mappedMessages.length) {
+                    throw new Error("No messages to analyze");
+                }
 
                 const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/agents/inbox/analyze", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ messages: mockMessages })
+                    body: JSON.stringify({ messages: mappedMessages, leadId: threadId })
                 });
 
                 if (!res.ok) throw new Error("Analysis failed");

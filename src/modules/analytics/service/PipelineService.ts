@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/db";
+
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export enum PipelineStage {
     NEW = "NEW",
@@ -11,83 +12,63 @@ export enum PipelineStage {
 }
 
 export class PipelineService {
-    /**
-     * Move a lead to a new stage and update relevant timestamps
-     */
     static async moveLead(teamId: string, leadId: string, newStage: PipelineStage, dealValue?: number) {
-        const updateData: any = { status: newStage };
-
-        if (dealValue !== undefined) {
-            updateData.value = dealValue;
+        try {
+            const res = await fetch(`${API_URL}/pipeline/move`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId, leadId, newStage, dealValue })
+            });
+            return await res.json();
+        } catch (error) {
+            console.error("Pipeline move proxy failed:", error);
+            throw error;
         }
-
-        if (newStage === PipelineStage.WON) {
-            updateData.wonAt = new Date();
-        } else if (newStage === PipelineStage.LOST) {
-            updateData.lostAt = new Date();
-        }
-
-        return await prisma.lead.update({
-            where: { id: leadId, teamId },
-            data: updateData
-        });
     }
 
-    /**
-     * Get aggregate stats for the pipeline
-     */
     static async getPipelineStats(teamId: string) {
-        const leads = await prisma.lead.findMany({
-            where: { teamId },
-            select: { status: true, value: true }
-        });
-
-        const stats = leads.reduce((acc: any, lead) => {
-            acc[lead.status] = (acc[lead.status] || 0) + 1;
-            if (lead.status === PipelineStage.WON) {
-                acc.totalValue = (acc.totalValue || 0) + (lead.value || 0);
-            }
-            return acc;
-        }, { totalValue: 0 });
-
-        return stats;
+        try {
+            const res = await fetch(`${API_URL}/pipeline/stats?teamId=${teamId}`);
+            return await res.json();
+        } catch {
+            return { totalValue: 0 };
+        }
     }
 
-    /**
-     * Task Management
-     */
-    static async createTask(data: {
-        teamId: string;
-        userId: string;
-        leadId?: string;
-        title: string;
-        description?: string;
-        dueDate?: Date;
-        priority?: string;
-    }) {
-        return await prisma.task.create({
-            data: {
-                ...data,
-                status: "TODO"
-            }
-        });
+    static async createTask(data: any) {
+        try {
+            const res = await fetch(`${API_URL}/pipeline/task`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            return await res.json();
+        } catch (error) {
+            console.error("Task creation proxy failed:", error);
+            throw error;
+        }
     }
 
     static async updateTask(teamId: string, taskId: string, data: any) {
-        return await prisma.task.update({
-            where: { id: taskId, teamId },
-            data
-        });
+        try {
+            const res = await fetch(`${API_URL}/pipeline/task`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId, taskId, data })
+            });
+            return await res.json();
+        } catch (error) {
+            console.error("Task update proxy failed:", error);
+            throw error;
+        }
     }
 
     static async getTasks(teamId: string, leadId?: string) {
-        return await prisma.task.findMany({
-            where: {
-                teamId,
-                ...(leadId && { leadId })
-            },
-            include: { lead: { select: { fullName: true, company: true } } },
-            orderBy: { dueDate: "asc" }
-        });
+        try {
+            const res = await fetch(`${API_URL}/pipeline/tasks?teamId=${teamId}&leadId=${leadId || ''}`);
+            return await res.json();
+        } catch {
+            return [];
+        }
     }
 }

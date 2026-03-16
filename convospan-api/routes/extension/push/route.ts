@@ -3,6 +3,11 @@ import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     try {
+        const requiredKey = process.env['EXTENSION_API_KEY'];
+        const providedKey = req.headers.get("x-extension-key");
+        if (!requiredKey || providedKey !== requiredKey) {
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
         const token = req.headers.get("Authorization");
         if (!token) {
             return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });

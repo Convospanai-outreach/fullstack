@@ -32,6 +32,7 @@ export async function GET() {
         const branding = (team.branding as any) || {};
         const aiConfig = (team.aiConfig as any) || {};
         if (aiConfig.smtpConfig) {
+            delete aiConfig.smtpConfig.password;
             delete aiConfig.smtpConfig.encryptedPassword;
         }
 

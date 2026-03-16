@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { RAGService } from "@/lib/ragService";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 
 /**
  * GET /api/rag/search
@@ -13,10 +14,14 @@ export async function GET(req: NextRequest) {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         const { searchParams } = new URL(req.url);
         const query = searchParams.get("query");
-        const teamId = searchParams.get("teamId");
+        const teamId = ctx.teamId;
 
         if (!query || !teamId) {
             return NextResponse.json(
@@ -60,9 +65,14 @@ export async function POST(req: NextRequest) {
         if (!session?.user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         const body = await req.json();
-        const { query, teamId, maxTokens, minRelevance, limit } = body;
+        const { query, maxTokens, minRelevance, limit } = body;
+        const teamId = ctx.teamId;
 
         if (!query || !teamId) {
             return NextResponse.json(

@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
 // Helper to validate token (simple User ID check for now, ideally JWT)
 // The extension sends 'Authorization: <userId>' based on current mock auth in extension
 async function validateToken(req: NextRequest) {
+    const requiredKey = process.env['EXTENSION_API_KEY'];
+    const providedKey = req.headers.get("x-extension-key");
+    if (!requiredKey || providedKey !== requiredKey) return null;
     const token = req.headers.get("Authorization");
     if (!token) return null;
 

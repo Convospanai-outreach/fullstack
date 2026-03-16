@@ -7,15 +7,15 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { leadScoringService } from "@/modules/scoring";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -27,6 +27,11 @@ export async function POST(req: NextRequest) {
                 { error: "leadId is required" },
                 { status: 400 }
             );
+        }
+
+        const lead = await prisma.lead.findUnique({ where: { id: leadId }, select: { teamId: true } });
+        if (!lead || lead.teamId !== ctx.teamId) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
 
         const explanation = await leadScoringService.scoreAndPersist(leadId);
@@ -55,8 +60,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -71,11 +76,11 @@ export async function GET(req: NextRequest) {
         }
 
         // For GET, we generate explanation without persisting
-        const { prisma } = await import("@/lib/db");
         const lead = await prisma.lead.findUnique({
             where: { id: leadId },
             select: {
                 id: true,
+                teamId: true,
                 dwellTimeMinutes: true,
                 emailClicks: true,
                 socialMentions: true,
@@ -84,11 +89,11 @@ export async function GET(req: NextRequest) {
             }
         });
 
-        if (!lead) {
+        if (!lead || lead.teamId !== ctx.teamId) {
             return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
 
-        const explanation = leadScoringService.generateExplanation(leadId, {
+        const explanation = await leadScoringService.generateExplanation(leadId, {
             dwellTimeMinutes: lead.dwellTimeMinutes ?? 0,
             emailClicks: lead.emailClicks ?? 0,
             socialMentions: lead.socialMentions ?? 0
@@ -113,8 +118,8 @@ export async function GET(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
