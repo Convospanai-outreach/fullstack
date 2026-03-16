@@ -17,9 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-install specific libraries to avoid huge layer rebuilds
-COPY requirements.txt .
+ARG REQUIREMENTS_FILE=requirements.runtime.txt
+COPY requirements*.txt ./
 # Install packages into a separate directory (~/.local) so we can copy only them to the final image
-RUN pip install --user -r requirements.txt && \
+RUN pip install --user -r ${REQUIREMENTS_FILE} && \
     # Clean up any leftover build files within the local directory if possible
     find /root/.local -name "*.pyc" -delete && \
     find /root/.local -name "__pycache__" -delete
@@ -46,6 +47,7 @@ RUN adduser --system --group appuser && \
 COPY --from=builder /root/.local /home/appuser/.local
 # Copy only necessary application files
 COPY *.py ./
+COPY services/ ./services/
 # Ensure application directory structure is available if needed
 # COPY modules/ ./modules/ 
 

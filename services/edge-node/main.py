@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
 from database import init_db, get_db, SessionLocal
-from services.local_intelligence import LocalIntelligenceService
 
 # Logging
 import contextvars
@@ -25,6 +24,8 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
             return response
         finally:
             CORRELATION_ID_CTX.reset(token)
+
+EDGE_MODE = os.getenv("EDGE_MODE", "disabled").lower() in {"1", "true", "edge", "enabled"}
 
 app = FastAPI(title="ConvoSpan Edge Node")
 app.add_middleware(CorrelationMiddleware)
@@ -47,11 +48,10 @@ logger = logging.getLogger(__name__)
 # Hardware Signature
 HARDWARE_SIGNATURE = os.getenv("HARDWARE_SIGNATURE", "unix-default-sig")
 
-# Initialize Service
-# Pass session factory (get_db is a generator, so we need a way to create sessions inside service)
-# For simplicity in this FastApi app, we'll let the endpoints pass the db session to the service methods usually,
-# OR we pass the SessionLocal factory. Let's pass the factory from database.py if we can import it.
-local_intelligence = LocalIntelligenceService(SessionLocal)
+local_intelligence = None
+if EDGE_MODE:
+    from services.local_intelligence import LocalIntelligenceService
+    local_intelligence = LocalIntelligenceService(SessionLocal)
 
 # --- Schemas ---
 
@@ -90,8 +90,11 @@ class OfflineResponse(BaseModel):
 def startup_event():
     logger.info("Initializing Edge Database...")
     init_db()
-    # Pre-load models (Lazy load trigger)
-    local_intelligence.load_models()
+    if EDGE_MODE and local_intelligence:
+        local_intelligence.load_models()
+        logger.info("Edge mode enabled.")
+    else:
+        logger.info("Edge mode disabled.")
     logger.info("Edge Node Startup Complete.")
 
 @app.get("/health", response_model=StatusResponse)
@@ -99,15 +102,20 @@ def health_check():
     """Hardware Handshake Endpoint"""
     if not HARDWARE_SIGNATURE:
         raise HTTPException(status_code=503, detail="Hardware ID missing")
+    services = ["runtime"]
+    if EDGE_MODE:
+        services.extend(["local_intelligence", "vector-db", "offline-llm"])
     return {
         "status": "ONLINE",
         "hardware_id": HARDWARE_SIGNATURE,
-        "services": ["local_intelligence", "vector-db", "offline-llm"]
+        "services": services
     }
 
 @app.post("/v1/sanitize", response_model=SanitizeResponse)
 def sanitize_text(request: SanitizeRequest):
     """Deep Tech: Semantic Masking with Metadata Injection"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     session_id = request.session_id or str(uuid.uuid4())
     sanitized_text, stats = local_intelligence.sanitize_and_tag(request.text, session_id)
     
@@ -120,6 +128,8 @@ def sanitize_text(request: SanitizeRequest):
 @app.post("/v1/critique", response_model=CritiqueResponse)
 def critique_response(request: CritiqueRequest):
     """Deep Tech: Adversarial Judge"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     result = local_intelligence.critique_response(request.text)
     return {
         "status": result["status"],
@@ -130,6 +140,8 @@ def critique_response(request: CritiqueRequest):
 @app.post("/v1/generate_offline", response_model=OfflineResponse)
 def generate_offline(request: OfflineRequest):
     """Deep Tech: Offline Fallback (Quantized SLM)"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     output = local_intelligence.generate_offline(request.prompt)
     return {"text": output}
 
@@ -140,6 +152,8 @@ class ReidentifyRequest(BaseModel):
 @app.post("/v1/reidentify")
 def reidentify_token(request: ReidentifyRequest):
     """Deep Tech: Protocol Break - Identity Vault Lookup"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     original = local_intelligence.reidentify_token(request.token, request.session_id)
     if not original:
         raise HTTPException(status_code=404, detail="Token not found or session mismatch")
@@ -154,6 +168,8 @@ class ScoreResponse(BaseModel):
 @app.post("/v1/score_intent", response_model=ScoreResponse)
 def score_intent(request: ScoreRequest):
     """Deep Tech: Karmic Friction Analysis (Offline SLM)"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     score = local_intelligence.score_intent(request.text)
     return {"score": score}
 
@@ -170,6 +186,8 @@ class SearchResponse(BaseModel):
 @app.post("/search", response_model=SearchResponse)
 def search_golden_records(request: SearchRequest, db: Session = Depends(get_db)):
     """Semantic Search against Local Golden Records"""
+    if not EDGE_MODE or not local_intelligence:
+        raise HTTPException(status_code=503, detail="Edge features disabled")
     try:
         if not local_intelligence.embedding_model:
              local_intelligence.load_models()
