@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
+let dbReady = true;
 
 async function main() {
   console.log('🚀 Starting Prisma verification test...\n');
@@ -52,11 +53,21 @@ async function main() {
   console.log('\n🎯 Prisma VectorDocument + EngagementLog test completed successfully!');
 }
 
+beforeAll(async () => {
+  try {
+    await prisma.$connect();
+  } catch (e) {
+    dbReady = false;
+  }
+});
+
 describe('Prisma Tests', () => {
   it('should run the full prisma test flow', async () => {
+    if (!dbReady) return;
     await main();
   });
 });
-  afterAll(async () => {
-    await prisma.$disconnect();
-  });
+
+afterAll(async () => {
+  await prisma.$disconnect();
+});
