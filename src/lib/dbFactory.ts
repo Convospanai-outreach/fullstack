@@ -40,16 +40,15 @@ export class DbFactory {
             throw new Error("CRITICAL_COMPLIANCE_ERROR: UAE_DATABASE_URL is not set. Data residency requirements cannot be met for UAE region.");
         }
 
+        const adapter = this.createAdapter(uaeUrl);
         if (process.env['NODE_ENV'] === "production") {
-            return new PrismaClient({
-                datasources: { db: { url: uaeUrl } },
-            });
+            const options: any = { datasources: { db: { url: uaeUrl } }, adapter };
+            return new PrismaClient(options);
         }
 
         if (!globalForPrisma.prismaUAE) {
-            globalForPrisma.prismaUAE = new PrismaClient({
-                datasources: { db: { url: uaeUrl } },
-            });
+            const options: any = { datasources: { db: { url: uaeUrl } }, adapter };
+            globalForPrisma.prismaUAE = new PrismaClient(options);
         }
         return globalForPrisma.prismaUAE;
     }
@@ -62,17 +61,25 @@ export class DbFactory {
             return this.getGlobalClient();
         }
 
+        const adapter = this.createAdapter(euUrl);
         if (process.env['NODE_ENV'] === "production") {
-            return new PrismaClient({
-                datasources: { db: { url: euUrl } },
-            });
+            const options: any = { datasources: { db: { url: euUrl } }, adapter };
+            return new PrismaClient(options);
         }
 
         if (!globalForPrisma.prismaEU) {
-            globalForPrisma.prismaEU = new PrismaClient({
-                datasources: { db: { url: euUrl } },
-            });
+            const options: any = { datasources: { db: { url: euUrl } }, adapter };
+            globalForPrisma.prismaEU = new PrismaClient(options);
         }
         return globalForPrisma.prismaEU;
+    }
+
+    private static createAdapter(databaseUrl: string) {
+        const { Pool } = require("pg");
+        const { PrismaPg } = require("@prisma/adapter-pg");
+        const pool = new Pool({
+            connectionString: databaseUrl,
+        });
+        return new PrismaPg(pool);
     }
 }

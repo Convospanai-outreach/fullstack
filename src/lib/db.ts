@@ -6,20 +6,21 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const createPrismaClient = () => {
-    let adapter: any = undefined;
-    if (process.env["PRISMA_USE_PG_ADAPTER"] === "true") {
-        const { Pool } = require("pg");
-        const { PrismaPg } = require("@prisma/adapter-pg");
-        const pool = new Pool({
-            connectionString: process.env["DATABASE_URL"],
-        });
-        adapter = new PrismaPg(pool);
+    const databaseUrl = process.env["DATABASE_URL"];
+    if (!databaseUrl) {
+        throw new Error("DATABASE_URL is not set.");
     }
 
-    const client = new PrismaClient({
-        log: ["error"],
-        adapter
-    }).$extends({
+    const { Pool } = require("pg");
+    const { PrismaPg } = require("@prisma/adapter-pg");
+    const pool = new Pool({
+        connectionString: databaseUrl,
+    });
+    const adapter = new PrismaPg(pool);
+
+    const options: any = { log: ["error"], adapter };
+
+    const client = new PrismaClient(options).$extends({
         query: {
             $allOperations({ model: _model, operation: _operation, args, query }) {
                 try {

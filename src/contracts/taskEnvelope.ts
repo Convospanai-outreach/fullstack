@@ -11,9 +11,9 @@ export const TaskEnvelopeSchema = z.object({
     idempotency_key: z.string().min(1),
     created_at: z.string().datetime(),
     expires_at: z.string().datetime().optional().nullable(),
-    payload: z.record(z.any()),
-    policy: z.record(z.any()).optional().nullable(),
-    audit_context: z.record(z.any()).optional().nullable(),
+    payload: z.record(z.string(), z.any()),
+    policy: z.record(z.string(), z.any()).optional().nullable(),
+    audit_context: z.record(z.string(), z.any()).optional().nullable(),
     correlation_id: z.string().optional().nullable()
 }).strict();
 
@@ -21,7 +21,7 @@ export type TaskEnvelope = z.infer<typeof TaskEnvelopeSchema>;
 
 export const LegacyJobSchema = z.object({
     type: z.string().min(1),
-    payload: z.record(z.any()),
+    payload: z.record(z.string(), z.any()),
     priority: z.number().int().optional(),
     teamId: z.string().optional().nullable(),
     idempotencyKey: z.string().optional()

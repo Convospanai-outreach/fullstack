@@ -9,11 +9,11 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "cross-env NODE_OPTIONS='--max-old-space-size=8192' prisma generate && cross-env NODE_OPTIONS='--max-old-space-size=8192' next build",
-    "start": "next start",
+    "dev": "cross-env PRISMA_CLIENT_ENGINE_TYPE=client next dev",
+    "build": "cross-env PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS='--max-old-space-size=8192' prisma generate && cross-env PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS='--max-old-space-size=8192' next build",
+    "start": "cross-env PRISMA_CLIENT_ENGINE_TYPE=client next start",
     "typecheck": "cross-env NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
-    "worker": "tsx src/workers/index.ts",
+    "worker": "cross-env PRISMA_CLIENT_ENGINE_TYPE=client tsx src/workers/index.ts",
     "test": "cross-env TEMP=d:\\Convo\\fullstack\\tmp TMP=d:\\Convo\\fullstack\\tmp vitest",
     "test:ui": "cross-env TEMP=d:\\Convo\\fullstack\\tmp TMP=d:\\Convo\\fullstack\\tmp vitest --ui",
     "test:coverage": "cross-env TEMP=d:\\Convo\\fullstack\\tmp TMP=d:\\Convo\\fullstack\\tmp vitest --coverage",
