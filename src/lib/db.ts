@@ -6,8 +6,19 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 const createPrismaClient = () => {
+    let adapter: any = undefined;
+    if (process.env["PRISMA_USE_PG_ADAPTER"] === "true") {
+        const { Pool } = require("pg");
+        const { PrismaPg } = require("@prisma/adapter-pg");
+        const pool = new Pool({
+            connectionString: process.env["DATABASE_URL"],
+        });
+        adapter = new PrismaPg(pool);
+    }
+
     const client = new PrismaClient({
         log: ["error"],
+        adapter
     }).$extends({
         query: {
             $allOperations({ model: _model, operation: _operation, args, query }) {

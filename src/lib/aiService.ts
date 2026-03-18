@@ -9,7 +9,19 @@ import { logger } from "@/lib/logger";
  */
 export class AIService {
     private async callBackend(action: string, data: any) {
-        const apiUrl = process.env['NEXT_PUBLIC_RUNTIME_API_URL'] || process.env['NEXT_PUBLIC_API_URL'] || "http://localhost:3001";
+        let apiUrl = process.env['NEXT_PUBLIC_RUNTIME_API_URL'] || process.env['NEXT_PUBLIC_API_URL'] || "http://localhost:3001";
+        const isServer = typeof window === "undefined";
+        if (isServer && data?.teamId) {
+            try {
+                const { resolveRuntimeEndpoint } = await import("@/domains/runtime-control/dispatchService");
+                const resolved = await resolveRuntimeEndpoint(data.teamId, data.userId);
+                if (resolved.endpoint) {
+                    apiUrl = resolved.endpoint;
+                }
+            } catch {
+                // Fallback to default apiUrl
+            }
+        }
         try {
             const response = await fetch(`${apiUrl}/ai/execute`, {
                 method: "POST",

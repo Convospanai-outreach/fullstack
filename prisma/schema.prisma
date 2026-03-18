@@ -231,7 +231,7 @@ model ICP {
 model Job {
   id             String    @id @default(uuid())
   type           String
-  status         String    @default("pending")
+  status         String    @default("queued")
   priority       Int       @default(0)
   payload        Json
   result         Json?
@@ -245,11 +245,43 @@ model Job {
   teamId         String?
   team           Team?     @relation(fields: [teamId], references: [id])
   idempotencyKey String?   @unique
+  version        Int?      @default(1)
+  taskType       String?
+  executionMode  String?
+  targetRuntime  String?
+  taskId         String?
+  tenantId       String?
+  correlationId  String?
+  expiresAt      DateTime?
+  policy         Json?
+  auditContext   Json?
+  runs          JobRun[]
 
   @@index([status, priority])
   @@index([type])
   @@index([teamId])
   @@index([processAt])
+  @@index([taskType])
+  @@index([tenantId])
+  @@index([targetRuntime])
+}
+
+model JobRun {
+  id            String   @id @default(uuid())
+  jobId         String
+  status        String
+  errorCode     String?
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  retryCount    Int      @default(0)
+  correlationId String?
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([status])
+  @@index([startedAt])
 }
 
 model ScrapingJob {
@@ -962,6 +994,8 @@ model OrganizationPolicy {
   id             String @id @default(cuid())
   organizationId String @unique
   productMode    ProductMode @default(ENTERPRISE_CORE)
+  executionMode  String? @default("saas_only")
+  productSurface String? @default("outreach")
 
   maxDailyActions Int @default(200)
   maxCampaigns    Int @default(10)

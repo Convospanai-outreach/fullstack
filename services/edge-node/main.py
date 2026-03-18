@@ -111,6 +111,21 @@ def health_check():
         "services": services
     }
 
+@app.get("/version")
+def version():
+    return {"version": "1.0.0"}
+
+@app.get("/capabilities")
+def capabilities():
+    return {
+        "capabilities": {
+            "tokenize": bool(EDGE_MODE),
+            "classify": bool(EDGE_MODE),
+            "generate": bool(EDGE_MODE),
+            "execute": True
+        }
+    }
+
 @app.post("/v1/sanitize", response_model=SanitizeResponse)
 def sanitize_text(request: SanitizeRequest):
     """Deep Tech: Semantic Masking with Metadata Injection"""

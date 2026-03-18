@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
+import { TaskEnvelopeSchema, LegacyJobSchema } from "@/contracts/taskEnvelope";
 
 // GET /api/jobs - List all jobs
 export async function GET(req: NextRequest) {
@@ -39,16 +40,41 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { type, payload, priority } = body;
+        const unsafeTypes = new Set([
+            "email_sending",
+            "email_send",
+            "LINKEDIN_ACTION",
+            "SEQUENCE_ACTION",
+            "WEBHOOK_DISPATCH"
+        ]);
 
-        if (!type || !payload) {
-            return NextResponse.json(
-                { error: "type and payload are required" },
-                { status: 400 }
-            );
+        let job;
+
+        if (body && typeof body === "object" && "version" in body) {
+            const envelope = TaskEnvelopeSchema.parse(body);
+            job = await JobQueue.enqueue(envelope.task_type as any, envelope.payload, {
+                priority: body.priority ?? 0,
+                teamId: envelope.tenant_id,
+                idempotencyKey: envelope.idempotency_key,
+                requireIdempotency: unsafeTypes.has(envelope.task_type),
+                version: envelope.version,
+                executionMode: envelope.execution_mode,
+                targetRuntime: envelope.target_runtime,
+                taskId: envelope.task_id,
+                expiresAt: envelope.expires_at ? new Date(envelope.expires_at) : null,
+                policy: envelope.policy ?? null,
+                auditContext: envelope.audit_context ?? null,
+                correlationId: envelope.correlation_id ?? null
+            });
+        } else {
+            const legacy = LegacyJobSchema.parse(body);
+            job = await JobQueue.enqueue(legacy.type as any, legacy.payload, {
+                priority: legacy.priority ?? 0,
+                teamId: legacy.teamId ?? null,
+                idempotencyKey: legacy.idempotencyKey,
+                requireIdempotency: unsafeTypes.has(legacy.type)
+            });
         }
-
-        const job = await JobQueue.enqueue(type, payload, { priority });
 
         return NextResponse.json(job, { status: 201 });
     } catch (error) {

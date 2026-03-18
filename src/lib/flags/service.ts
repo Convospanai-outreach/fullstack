@@ -37,6 +37,15 @@ export class FeatureFlagService {
         });
 
         const mode = (policy?.productMode as ProductMode) || ProductMode.ENTERPRISE_CORE; // Default to safest mode
+        const productSurface = policy?.productSurface || "outreach";
+
+        const runtimeOnlyFeatures = new Set([
+            "autonomous_agents",
+            "linkedin_automation"
+        ]);
+        if (productSurface !== "runtime" && runtimeOnlyFeatures.has(featureKey)) {
+            return false;
+        }
 
         // 2. Layer Restriction based on Mode
         if (!this.isLayerAllowedInMode(definition.layer, mode)) {

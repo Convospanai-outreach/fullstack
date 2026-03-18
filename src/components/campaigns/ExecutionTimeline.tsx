@@ -42,7 +42,9 @@ export default function ExecutionTimeline({ campaignId }: { campaignId: string }
         switch (status) {
             case "completed": return "bg-green-500";
             case "failed":
-            case "dead_letter": return "bg-red-500";
+            case "dead_lettered":
+            case "dead_letter":
+                return "bg-red-500";
             case "processing": return "bg-blue-500 animate-pulse";
             default: return "bg-gray-300";
         }
@@ -78,7 +80,7 @@ export default function ExecutionTimeline({ campaignId }: { campaignId: string }
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                             </svg>
                                         )}
-                                        {(event.status === 'failed' || event.status === 'dead_letter') && (
+                                        {(event.status === 'failed' || event.status === 'dead_letter' || event.status === 'dead_lettered') && (
                                             <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                             </svg>

@@ -100,6 +100,20 @@ export async function middleware(req: NextRequest) {
                 return NextResponse.redirect(new URL("/dashboard", req.url));
             }
         }
+
+        // 4. Product Surface Gate
+        const productSurface = (token?.productSurface as string) || "outreach";
+        const runtimeOnlyPaths = [
+            "/runtime",
+            "/sovereign",
+            "/edge",
+            "/command-center",
+            "/admin/sovereign-stats"
+        ];
+        const isRuntimePath = runtimeOnlyPaths.some(p => path.startsWith(p));
+        if (isRuntimePath && productSurface !== "runtime") {
+            return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
     }
 
     // Apply Correlation ID and Security headers

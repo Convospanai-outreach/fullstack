@@ -11,6 +11,7 @@ declare module "next-auth" {
             id: string
             plan: string
             productMode: string
+            productSurface: string
             enterpriseRole: string
         } & DefaultSession["user"]
     }
@@ -21,6 +22,7 @@ declare module "next-auth/jwt" {
         id: string
         plan: string
         productMode: string
+        productSurface: string
         enterpriseRole: string
     }
 }

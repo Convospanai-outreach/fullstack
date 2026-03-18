@@ -67,8 +67,6 @@ export async function POST(req: NextRequest) {
         const task = await prisma.agentTask.findUnique({ where: { id: taskId } });
 
         return NextResponse.json(task, { status: 201 });
-
-        return NextResponse.json(task, { status: 201 });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 400 });
     }

@@ -71,6 +71,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.image = token.picture ?? null;
                 session.user.plan = token.plan;
                 session.user.productMode = token.productMode;
+                session.user.productSurface = token.productSurface as any;
                 session.user.enterpriseRole = token.enterpriseRole;
             }
             return session;
@@ -126,12 +127,14 @@ export const authOptions: NextAuthOptions = {
 
                     // Default to ENTERPRISE_CORE if no policy set
                     token.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
+                    token.productSurface = membership?.team?.organizationPolicy?.productSurface || "outreach";
                     token.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
 
                 } catch (error) {
                     console.error("Error fetching user plan/mode for JWT:", error);
                     token.plan = "free";
                     token.productMode = "ENTERPRISE_CORE";
+                    token.productSurface = "outreach";
                     token.enterpriseRole = "SALES_USER";
                 }
             }

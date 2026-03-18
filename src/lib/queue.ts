@@ -1,8 +1,40 @@
 
 import { prisma } from "@/lib/db";
 import { Job } from "@prisma/client";
+import { TaskState, canTransition } from "@/contracts/taskState";
+import { EXECUTION_MODES, RUNTIME_TARGETS } from "@/contracts/executionModes";
 
-export type JobType = "campaign_execution" | "lead_enrichment" | "email_sending" | "linkedin_scraping" | "agent_run" | "agent_stop" | "data_export" | "LINKEDIN_ACTION" | "INBOX_SYNC" | "CRM_SYNC" | "WEBHOOK_DISPATCH" | "workflow_step" | "event_processing" | "CSV_IMPORT" | "SEQUENCE_ACTION";
+function normalizeStatus(status: string): TaskState {
+    switch (status) {
+        case "pending":
+            return "queued";
+        case "processing":
+            return "running";
+        case "completed":
+            return "succeeded";
+        case "dead_letter":
+            return "dead_lettered";
+        default:
+            return status as TaskState;
+    }
+}
+
+export type JobType =
+    | "campaign_execution"
+    | "lead_enrichment"
+    | "email_sending"
+    | "linkedin_scraping"
+    | "agent_run"
+    | "agent_stop"
+    | "data_export"
+    | "LINKEDIN_ACTION"
+    | "INBOX_SYNC"
+    | "CRM_SYNC"
+    | "WEBHOOK_DISPATCH"
+    | "workflow_step"
+    | "event_processing"
+    | "CSV_IMPORT"
+    | "SEQUENCE_ACTION";
 
 export interface JobPayload {
     leadId?: string | undefined;
@@ -28,8 +60,21 @@ export class JobQueue {
             processAt?: Date | null;
             teamId?: string | null;
             idempotencyKey?: string;
+            requireIdempotency?: boolean;
+            version?: number;
+            executionMode?: (typeof EXECUTION_MODES)[number];
+            targetRuntime?: (typeof RUNTIME_TARGETS)[number];
+            taskId?: string;
+            expiresAt?: Date | null;
+            policy?: Record<string, any> | null;
+            auditContext?: Record<string, any> | null;
+            correlationId?: string | null;
         } = {}
     ): Promise<Job> {
+        if (options.requireIdempotency && !options.idempotencyKey) {
+            throw new Error("Idempotency key required for this job type");
+        }
+
         // If idempotencyKey is provided, check for existing job
         if (options.idempotencyKey) {
             const existingJob = await prisma.job.findUnique({
@@ -44,7 +89,17 @@ export class JobQueue {
             priority: options.priority ?? 0,
             processAt: options.processAt ?? new Date(),
             teamId: options.teamId ?? null,
-            status: "pending",
+            tenantId: options.teamId ?? null,
+            status: "queued",
+            version: options.version ?? 1,
+            taskType: type,
+            executionMode: options.executionMode ?? "saas_only",
+            targetRuntime: options.targetRuntime ?? "saas_only",
+            taskId: options.taskId ?? `task_${crypto.randomUUID()}`,
+            expiresAt: options.expiresAt ?? null,
+            policy: options.policy ?? null,
+            auditContext: options.auditContext ?? null,
+            correlationId: options.correlationId ?? null
         };
 
         // [Observability] Propagate correlationId to worker
@@ -75,7 +130,7 @@ export class JobQueue {
         // Find next eligible job
         const candidates = await prisma.job.findMany({
             where: {
-                status: "pending",
+                status: { in: ["queued", "pending"] },
                 processAt: { lte: now },
             },
             orderBy: [
@@ -87,19 +142,25 @@ export class JobQueue {
 
         for (const candidate of candidates) {
             try {
-                // Try to claim it
-                const claimed = await prisma.job.update({
-                    where: {
-                        id: candidate.id,
-                        status: "pending" // Optimistic locking
-                    },
-                    data: {
-                        status: "processing",
-                        startedAt: new Date(),
-                        attempts: { increment: 1 }
-                    }
-                });
-                return claimed;
+                // Try to claim it (support legacy "pending")
+                const tryClaim = async (status: "queued" | "pending") => {
+                    return await prisma.job.update({
+                        where: {
+                            id: candidate.id,
+                            status
+                        },
+                        data: {
+                            status: "running",
+                            startedAt: new Date(),
+                            attempts: { increment: 1 }
+                        }
+                    });
+                };
+                try {
+                    return await tryClaim("queued");
+                } catch (e) {
+                    return await tryClaim("pending");
+                }
             } catch (err) {
                 // Concurrency: someone else grabbed it, try next
                 continue;
@@ -113,10 +174,16 @@ export class JobQueue {
      * Mark job as completed
      */
     static async complete(jobId: string, result?: any) {
+        const job = await prisma.job.findUnique({ where: { id: jobId } });
+        if (!job) return;
+        const current = normalizeStatus(job.status);
+        if (!canTransition(current, "succeeded")) {
+            throw new Error(`Invalid state transition from ${job.status} to succeeded`);
+        }
         return await prisma.job.update({
             where: { id: jobId },
             data: {
-                status: "completed",
+                status: "succeeded",
                 completedAt: new Date(),
                 result: result || {},
             },
@@ -140,7 +207,7 @@ export class JobQueue {
             return await prisma.job.update({
                 where: { id: jobId },
                 data: {
-                    status: "pending", // Reset to pending for retry
+                    status: "queued", // Reset to queued for retry
                     error: error,
                     processAt: nextProcessAt,
                 },
@@ -150,7 +217,7 @@ export class JobQueue {
             return await prisma.job.update({
                 where: { id: jobId },
                 data: {
-                    status: "dead_letter",
+                    status: "dead_lettered",
                     completedAt: new Date(),
                     error: error,
                 },
@@ -167,7 +234,7 @@ export class JobQueue {
 
         const staleJobs = await prisma.job.findMany({
             where: {
-                status: "processing",
+                status: { in: ["running", "processing"] },
                 startedAt: { lte: threshold }
             }
         });
@@ -181,7 +248,7 @@ export class JobQueue {
                 id: { in: staleJobs.map(j => j.id) }
             },
             data: {
-                status: "pending",
+                status: "queued",
                 error: "Stale job reset by watchdog."
             }
         });
