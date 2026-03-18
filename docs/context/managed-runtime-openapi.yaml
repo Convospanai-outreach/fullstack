@@ -1,0 +1,144 @@
+openapi: 3.0.3
+info:
+  title: ConvoSpan Managed Runtime API
+  version: "1.0"
+servers:
+  - url: ${MANAGED_RUNTIME_URL}
+paths:
+  /health:
+    get:
+      summary: Liveness
+      responses:
+        "200":
+          description: OK
+  /ready:
+    get:
+      summary: Readiness
+      responses:
+        "200":
+          description: OK
+  /version:
+    get:
+      summary: Version
+      responses:
+        "200":
+          description: OK
+  /capabilities:
+    get:
+      summary: Capabilities
+      responses:
+        "200":
+          description: OK
+  /v1/tokenize:
+    post:
+      summary: Tokenize or mask PII
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEnvelope'
+      responses:
+        "200":
+          description: OK
+  /v1/generate:
+    post:
+      summary: Generate text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEnvelope'
+      responses:
+        "200":
+          description: OK
+  /v1/classify:
+    post:
+      summary: Classify content
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEnvelope'
+      responses:
+        "200":
+          description: OK
+  /v1/execute:
+    post:
+      summary: Execute runtime task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskEnvelope'
+      responses:
+        "200":
+          description: OK
+  /v1/tasks/{id}:
+    get:
+      summary: Task status
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+  /v1/runtime/status:
+    get:
+      summary: Runtime status
+      responses:
+        "200":
+          description: OK
+components:
+  schemas:
+    TaskEnvelope:
+      type: object
+      required:
+        - version
+        - task_type
+        - tenant_id
+        - execution_mode
+        - target_runtime
+        - task_id
+        - idempotency_key
+        - created_at
+        - payload
+      properties:
+        version:
+          type: string
+        task_type:
+          type: string
+        tenant_id:
+          type: string
+        execution_mode:
+          type: string
+        target_runtime:
+          type: string
+        task_id:
+          type: string
+        idempotency_key:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        payload:
+          type: object
+        policy:
+          type: object
+          nullable: true
+        audit_context:
+          type: object
+          nullable: true
+        correlation_id:
+          type: string
+          nullable: true
