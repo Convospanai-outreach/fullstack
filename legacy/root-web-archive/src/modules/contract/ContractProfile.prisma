@@ -1,0 +1,17 @@
+model ContractProfile {
+  id                    String   @id @default(uuid())
+  teamId                String   @unique
+  allowedChannels       String[] // ["EMAIL", "WHATSAPP", "LINKEDIN"]
+  allowedCapabilityLayers String[] // ["CORE", "GOVERNED_AI"]
+  aiUsageLimit          Int      @default(1000) // Monthly limit
+  conversationThreadLimit Int    @default(50)
+  humanHandoffLimit     Int      @default(10)
+  onPremRequired        Boolean  @default(false)
+  dataRetentionDays     Int      @default(90)
+  featureTier           String   @default("CORE") // CORE, ADVANCED, CUSTOM
+  contractStatus        String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED
+  
+  updatedAt             DateTime @updatedAt
+  
+  team                  Team     @relation(fields: [teamId], references: [id])
+}

@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: convospan-postgres-split
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: convospan
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  edge-fastapi:
+    build: ./edge-fastapi
+    image: convospan-edge-fastapi:split
+    container_name: convospan-edge-fastapi-split
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      EDGE_MODE: "false"
+      HARDWARE_SIGNATURE: uuid-550e8400-e29b-41d4-a716-446655440000
+      OFFLINE_MODEL_PATH: /app/models/custom/Phi-3-Custom.gguf
+    volumes:
+      - ../training/models:/app/models/custom
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+
+  api:
+    build: ./api
+    image: convospan-api:split
+    container_name: convospan-api-split
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      EDGE_NODE_URI: http://edge-fastapi:8000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: change-me
+    ports:
+      - "3001:3001"
+    depends_on:
+      - postgres
+      - edge-fastapi
+
+  web:
+    build: ./web
+    image: convospan-web:split
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      NEXT_PUBLIC_API_URL: http://api:3001
+      EDGE_NODE_URI: http://edge-fastapi:8000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: change-me
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

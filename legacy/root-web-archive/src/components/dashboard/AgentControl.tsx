@@ -1,0 +1,34 @@
+"use client";
+import { fetcher } from "@/lib/fetcher";
+import useSWR from "swr";
+
+export default function AgentControl({ agents }: any) {
+    const { mutate } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/orchestrator/agents");
+    async function run(id: string) {
+        await fetcher(`${process.env['NEXT_PUBLIC_API_URL']}/orchestrator/agents/${id}/run`, { method: "POST" });
+        mutate();
+    }
+    async function stop(id: string) {
+        await fetcher(`${process.env['NEXT_PUBLIC_API_URL']}/orchestrator/agents/${id}/stop`, { method: "POST" });
+        mutate();
+    }
+
+    if (!agents || agents.length === 0) return <div className="text-sm text-gray-400">No agents found</div>;
+
+    return (
+        <div className="flex flex-col gap-3">
+            {agents.map((a: any) => (
+                <div key={a.id} className="flex items-center justify-between">
+                    <div>
+                        <div className="font-semibold">{a.name}</div>
+                        <div className="text-xs text-gray-400">{a.status}</div>
+                    </div>
+                    <div className="flex gap-2">
+                        <button onClick={() => run(a.id)} className="px-3 py-1 rounded bg-green-500 text-white text-sm">Run</button>
+                        <button onClick={() => stop(a.id)} className="px-3 py-1 rounded bg-red-500 text-white text-sm">Stop</button>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}

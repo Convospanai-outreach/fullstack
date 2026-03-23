@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ConvoSpan Agent</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    body { 
+        font-family: 'Inter', sans-serif; 
+        padding: 0; 
+        margin: 0;
+        width: 340px;
+        height: 450px;
+        background: #0f172a;
+        color: white;
+        overflow: hidden;
+        position: relative;
+    }
+
+    /* Background Blobs */
+    .blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(60px);
+        opacity: 0.4;
+        z-index: 0;
+    }
+    .blob-1 { top: -50px; left: -50px; width: 200px; height: 200px; background: #3b82f6; }
+    .blob-2 { bottom: -50px; right: -50px; width: 200px; height: 200px; background: #8b5cf6; }
+
+    .container {
+        position: relative;
+        z-index: 10;
+        padding: 24px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    h2 {
+        background: linear-gradient(to right, #60a5fa, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: 0;
+        font-size: 20px;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 4px;
+    }
+
+    p.subtitle {
+        text-align: center;
+        color: #94a3b8;
+        font-size: 12px;
+        margin-bottom: 24px;
+        margin-top: 0;
+    }
+
+    input {
+        width: 100%;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: white;
+        margin-bottom: 12px;
+        box-sizing: border-box;
+        font-size: 13px;
+        transition: all 0.2s;
+    }
+    input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        background: rgba(0, 0, 0, 0.4);
+    }
+
+    button {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.2s;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+    }
+    .btn-primary:active {
+        transform: translateY(0);
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .status {
+        font-size: 11px;
+        text-align: center;
+        margin-top: auto;
+        color: #64748b;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .status.success { color: #4ade80; }
+    .status.error { color: #f87171; }
+
+    .divider {
+        height: 1px;
+        background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+        margin: 16px 0;
+    }
+
+    /* Icons */
+    .icon { width: 16px; height: 16px; fill: currentColor; }
+  </style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="container">
+    <h2>ConvoSpan</h2>
+    <p class="subtitle">AI Agent Command Center</p>
+
+    <div id="loginSection">
+        <input id="tokenInput" placeholder="Paste your API Token here..." />
+        <button id="saveToken" class="btn-primary">
+            <span>Connect Agent</span>
+        </button>
+    </div>
+
+    <div id="actionsSection" style="display: none;">
+        <div style="text-align: center; margin-bottom: 16px;">
+            <span style="background: rgba(74, 222, 128, 0.1); color: #4ade80; padding: 4px 12px; border-radius: 20px; font-size: 11px; border: 1px solid rgba(74, 222, 128, 0.2);">
+                ● Connected
+            </span>
+        </div>
+        
+        <button id="scrapeProfile" class="btn-secondary">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+            Scrape Profile
+        </button>
+        
+        <button id="likePost" class="btn-secondary">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>
+            Like Post
+        </button>
+    </div>
+    
+    <div id="statusMsg" class="status">Ready to deploy</div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
