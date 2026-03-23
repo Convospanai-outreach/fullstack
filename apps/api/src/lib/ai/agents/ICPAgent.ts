@@ -14,6 +14,10 @@ export interface ICPResult {
 }
 
 export class ICPAgent extends BaseAgent {
+    constructor(teamId?: string) {
+        super(teamId);
+    }
+
     async generate(input: ICPInput): Promise<ICPResult> {
         const prompt = `
             Act as an expert B2B Sales Strategist.

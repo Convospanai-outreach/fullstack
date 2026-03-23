@@ -46,8 +46,8 @@ export class AIService {
         return result.text;
     }
 
-    async getEmbeddings(text: string): Promise<number[]> {
-        const result = await this.callBackend("getEmbeddings", { text });
+    async getEmbeddings(text: string, teamId?: string): Promise<number[]> {
+        const result = await this.callBackend("getEmbeddings", { text, teamId });
         return result.embeddings;
     }
 
@@ -55,28 +55,32 @@ export class AIService {
         return await this.callBackend("generateEmailDraft", { lead, icp, teamId });
     }
 
-    async analyzeProfile(profileText: string): Promise<string> {
-        const result = await this.callBackend("analyzeProfile", { profileText });
+    async analyzeProfile(profileText: string, teamId?: string): Promise<string> {
+        const result = await this.callBackend("analyzeProfile", { profileText, teamId });
         return result.text;
     }
 
-    async generateComment(postContent: string, profileContext: string): Promise<string> {
-        const result = await this.callBackend("generateComment", { postContent, profileContext });
+    async generateComment(postContent: string, profileContext: string, teamId?: string): Promise<string> {
+        const result = await this.callBackend("generateComment", { postContent, profileContext, teamId });
         return result.text;
     }
 
-    async generateConnectionMessage(profileContext: string): Promise<string> {
-        const result = await this.callBackend("generateConnectionMessage", { profileContext });
+    async generateConnectionMessage(profileContext: string, teamId?: string): Promise<string> {
+        const result = await this.callBackend("generateConnectionMessage", { profileContext, teamId });
         return result.text;
     }
 
-    async improveEmail(text: string): Promise<string> {
-        const result = await this.callBackend("improveEmail", { text });
+    async improveEmail(text: string, teamId?: string): Promise<string> {
+        const result = await this.callBackend("improveEmail", { text, teamId });
         return result.text;
     }
 
-    async generateSmartReply(context: string, tone: string = "professional", memories: string[] = []): Promise<string[]> {
-        return await this.callBackend("generateSmartReply", { context, tone, memories });
+    async generateSmartReply(context: string, tone: string = "professional", memories: string[] = [], teamId?: string): Promise<string[]> {
+        return await this.callBackend("generateSmartReply", { context, tone, memories, teamId });
+    }
+
+    async researchCompany(companyName: string, teamId?: string) {
+        return await this.callBackend("researchCompany", { companyName, teamId });
     }
 }
 

@@ -8,9 +8,9 @@ import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
 const BUNDLES = [
-    { id: "basic", label: "Starter Pack", credits: 5000, price: 500, desc: "Perfect for testing" },
-    { id: "pro", label: "Growth Pack", credits: 15000, price: 1200, desc: "Best value for small teams", popular: true },
-    { id: "enterprise", label: "Enterprise Pack", credits: 50000, price: 3500, desc: "For high-volume outreach" },
+    { id: "starter", label: "Starter Pack", credits: 500, price: 500, desc: "Perfect for testing" },
+    { id: "pro", label: "Growth Pack", credits: 2000, price: 1800, desc: "Best value for small teams", popular: true },
+    { id: "power", label: "Power Pack", credits: 10000, price: 8000, desc: "For high-volume outreach" },
 ];
 
 export default function CreditsPage() {
@@ -50,7 +50,7 @@ export default function CreditsPage() {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: bundle.price, credits: bundle.credits })
+                body: JSON.stringify({ tierId: bundle.id })
             });
 
             const order = await res.json();

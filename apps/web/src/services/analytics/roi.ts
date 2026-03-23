@@ -1,38 +1,32 @@
-export interface ROIMetrics {
-    mrr: number;
-    arr: number;
-    clv: number;
-    cac: number;
-    churnRate: number;
-    netRevenueRetention: number;
-    paybackPeriodDays: number;
-    healthScore: number; // 0-100
+export interface ROIFunnel {
+    totalLeads: number;
+    totalSent: number;
+    opportunities: number;
+    wins: number;
+    conversionRate: number;
 }
 
-export const MockROIService = {
-    getMetrics: async (): Promise<ROIMetrics> => {
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 500));
+export interface ROIFinancials {
+    spend: number;
+    revenue: number;
+    roi: number;
+    profit: number;
+}
 
-        return {
-            mrr: 12500,
-            arr: 150000,
-            clv: 4200,
-            cac: 350,
-            churnRate: 2.1,
-            netRevenueRetention: 115,
-            paybackPeriodDays: 45,
-            healthScore: 88,
-        };
-    },
+export interface ROIResponse {
+    funnel: ROIFunnel;
+    financials: ROIFinancials;
+    campaigns: Array<{ id: string; name: string; sent: number; openRate: number; replyRate: number; status: string }>;
+    history: Array<{ date: string; revenue: number; spend: number }>;
+}
 
-    getTrends: async (_metric: keyof ROIMetrics) => {
-        // Mock trend data for charts
-        await new Promise(resolve => setTimeout(resolve, 300));
-        const points = 12; // Last 12 months/weeks
-        return Array.from({ length: points }).map((_, i) => ({
-            date: new Date(Date.now() - (points - 1 - i) * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            value: Math.floor(Math.random() * 1000) + 1000 + (i * 100) // Upward trend
-        }));
+export const ROIService = {
+    getSummary: async (): Promise<ROIResponse> => {
+        const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/analytics/roi");
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || "Failed to load ROI metrics");
+        }
+        return res.json();
     }
 };

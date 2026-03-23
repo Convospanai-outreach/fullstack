@@ -23,13 +23,13 @@ export default function BillingSettings() {
         toast.info("Manage subscription via Razorpay Dashboard or contact support.");
     };
 
-    const handleTopUp = async (credits: number, priceINR: number) => {
+    const handleTopUp = async (tierId: string, credits: number) => {
         try {
             // 1. Create Order
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/checkout", {
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount: priceINR, currency: "INR" }), // Amount in rupees, API converts to paise
+                body: JSON.stringify({ tierId }),
             });
             const order = await res.json();
 
@@ -130,20 +130,20 @@ export default function BillingSettings() {
             {/* Top Up Section */}
             <div className="glass p-6 rounded-xl border border-white/10">
                 <h4 className="text-lg font-semibold text-white mb-4">Add Credits</h4>
-                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                     <button
-                        onClick={() => handleTopUp(1000, 100)} // 100 INR
+                        onClick={() => handleTopUp("starter", 500)}
                         className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-left transition"
                     >
-                        <div className="text-purple-400 font-bold text-xl">1,000 Credits</div>
-                        <div className="text-white">₹100</div>
+                        <div className="text-purple-400 font-bold text-xl">500 Credits</div>
+                        <div className="text-white">INR 500</div>
                     </button>
                     <button
-                        onClick={() => handleTopUp(5000, 400)} // 400 INR
+                        onClick={() => handleTopUp("pro", 2000)}
                         className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-left transition"
                     >
-                        <div className="text-purple-400 font-bold text-xl">5,000 Credits</div>
-                        <div className="text-white">₹400 (Save 20%)</div>
+                        <div className="text-purple-400 font-bold text-xl">2,000 Credits</div>
+                        <div className="text-white">INR 1800 (Save 10%)</div>
                     </button>
                 </div>
             </div>
@@ -182,3 +182,4 @@ export default function BillingSettings() {
         </div>
     );
 }
+

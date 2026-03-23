@@ -1,14 +1,43 @@
-/**
- * Frontend shell for BaseAgent.
- * This file is a placeholder to prevent build errors.
- * Logic has been migrated to the backend (convospan-api).
- */
-export abstract class BaseAgent {
-    constructor() {
-        console.warn("BaseAgent is only available on the backend.");
-    }
+import { aiService } from "@/lib/aiService";
 
-    protected async generateJSON<T>(_prompt: string, _schemaDescription: string, _retries = 2): Promise<T> {
-        throw new Error("AI Agent execution is only available on the backend.");
+function extractJsonBlock(text: string): string {
+    const trimmed = text.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) return trimmed;
+    const start = Math.min(
+        ...["{", "["]
+            .map((token) => trimmed.indexOf(token))
+            .filter((idx) => idx !== -1)
+    );
+    if (Number.isFinite(start) && start >= 0) {
+        const endBrace = trimmed.lastIndexOf("}");
+        const endBracket = trimmed.lastIndexOf("]");
+        const end = Math.max(endBrace, endBracket);
+        if (end > start) return trimmed.slice(start, end + 1);
+    }
+    return trimmed;
+}
+
+export abstract class BaseAgent {
+    protected async generateJSON<T>(prompt: string, schemaDescription: string, retries = 2): Promise<T> {
+        const fullPrompt = `
+You must respond with VALID JSON only.
+Schema:
+${schemaDescription}
+
+Task:
+${prompt}
+        `.trim();
+
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt <= retries; attempt += 1) {
+            try {
+                const text = await aiService.askAI(fullPrompt);
+                const json = JSON.parse(extractJsonBlock(text));
+                return json as T;
+            } catch (err) {
+                lastError = err as Error;
+            }
+        }
+        throw lastError || new Error("Failed to generate valid JSON response");
     }
 }

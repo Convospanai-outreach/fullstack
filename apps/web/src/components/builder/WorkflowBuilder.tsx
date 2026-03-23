@@ -13,6 +13,7 @@ import ReactFlow, {
     Connection
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { HardwareService } from "@/services/HardwareService";
 
 const initialNodes: Node[] = [
     { id: '1', position: { x: 250, y: 5 }, data: { label: 'Start: Lead Detected' }, type: 'input' },
@@ -74,16 +75,24 @@ export default function WorkflowBuilder() {
     };
 
     const saveWorkflow = async () => {
-        // In a real implementation we would get the full flow instance object
-        // const flow = reactFlowInstance.toObject();
         const flow = { nodes, edges };
         console.log("Saving to Edge Node...", flow);
 
         try {
-            // Using dynamic import or direct call if HardwareService was available in client.
-            // For now, we mock the alert to show intent as per requirement.
-            // await HardwareService.saveWorkflow(flow);
-            alert("Workflow Saved to Local Edge Node (Sovereign Storage)!");
+            const teamId = document.cookie
+                .split("; ")
+                .find((row) => row.startsWith("convo-workspace-id="))
+                ?.split("=")[1];
+            if (!teamId) {
+                throw new Error("Missing workspace context");
+            }
+
+            await HardwareService.saveWorkflow({
+                name: "Workflow Builder Draft",
+                steps: [{ nodes, edges }],
+                teamId
+            });
+            alert("Workflow saved to local edge node.");
         } catch (e) {
             alert("Failed to save to Edge Node.");
         }

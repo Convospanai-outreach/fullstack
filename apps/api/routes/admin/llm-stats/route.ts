@@ -10,12 +10,7 @@ export async function GET() {
     }
 
     try {
-        // Attempt to get real data
-        const realStats = await AiStatsService.getPerformanceMetrics();
-
-        // Only use mock data when explicitly enabled for demo/dev purposes
-        const useMock = realStats.length === 0 && process.env['ENABLE_LLM_MOCK_DATA'] === 'true';
-        const stats = useMock ? AiStatsService.getMockMetrics() : realStats;
+        const stats = await AiStatsService.getPerformanceMetrics();
 
         return NextResponse.json({
             success: true,

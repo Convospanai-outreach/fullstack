@@ -1,22 +1,67 @@
+import { prisma } from "@/lib/db";
+
+type Variant = "A" | "B";
+type ConversionType = "open" | "click" | "reply";
+
 class ABService {
-    assignVariant(_leadId: string): "A" | "B" {
-        // Simple deterministic assignment based on ID hash or random
-        // For now, let's just use random for simplicity in this mock
-        return Math.random() > 0.5 ? "A" : "B";
+    assignVariant(leadId: string): Variant {
+        const hash = Array.from(leadId).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+        return hash % 2 === 0 ? "A" : "B";
     }
 
-    async trackConversion(variant: "A" | "B", type: "open" | "click" | "reply") {
-        // In a real app, we'd store this event in the DB
-        console.log(`[A/B Testing] Tracked ${type} for variant ${variant}`);
+    async trackAssignment(teamId: string, leadId: string, variant: Variant) {
+        await prisma.systemEvent.create({
+            data: {
+                teamId,
+                type: "USER",
+                name: "AB_SENT",
+                actorId: "SYSTEM",
+                payload: { leadId, variant }
+            }
+        });
+    }
+
+    async trackConversion(teamId: string, variant: Variant, type: ConversionType) {
+        await prisma.systemEvent.create({
+            data: {
+                teamId,
+                type: "USER",
+                name: "AB_CONVERSION",
+                actorId: "SYSTEM",
+                payload: { variant, type }
+            }
+        });
         return true;
     }
 
-    async getStats() {
-        // Mock stats
-        return {
-            A: { sent: 100, opens: 45, clicks: 12, replies: 5 },
-            B: { sent: 100, opens: 55, clicks: 18, replies: 8 },
+    async getStats(teamId: string) {
+        const events = await prisma.systemEvent.findMany({
+            where: { teamId, name: { in: ["AB_SENT", "AB_CONVERSION"] } }
+        });
+
+        const stats = {
+            A: { sent: 0, opens: 0, clicks: 0, replies: 0 },
+            B: { sent: 0, opens: 0, clicks: 0, replies: 0 }
         };
+
+        for (const ev of events) {
+            const payload = ev.payload as any;
+            const variant = payload?.variant as Variant | undefined;
+            if (!variant || (variant !== "A" && variant !== "B")) continue;
+
+            if (ev.name === "AB_SENT") {
+                stats[variant].sent += 1;
+                continue;
+            }
+            if (ev.name === "AB_CONVERSION") {
+                const type = payload?.type as ConversionType | undefined;
+                if (type === "open") stats[variant].opens += 1;
+                if (type === "click") stats[variant].clicks += 1;
+                if (type === "reply") stats[variant].replies += 1;
+            }
+        }
+
+        return stats;
     }
 }
 

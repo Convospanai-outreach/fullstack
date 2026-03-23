@@ -1,14 +1,35 @@
-import { buildRAGContext } from "@/ai/ragEngine";
-import { generateWithGemini } from "@/ai/gemini";
+import { ensureDatabaseUrlEnv, hasTestDatabase } from "./utils/db";
+import { vi, afterEach } from "vitest";
 
-test("RAG context should return string", async () => {
-  // ✅ fix: supply both args to match buildRAGContext(company, email)
+const databaseUrl = ensureDatabaseUrlEnv();
+const shouldRunDb = hasTestDatabase;
+const maybeTest = shouldRunDb ? test : test.skip;
+
+const stubGemini = (text: string) => {
+  const mockFetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ text })
+  });
+  vi.stubGlobal("fetch", mockFetch);
+  return mockFetch;
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+maybeTest("RAG context should return string", async () => {
+  const { buildRAGContext } = await import("@/ai/ragEngine");
   const context = await buildRAGContext("TestCo", "test@example.com");
   expect(typeof context).toBe("string");
 });
 
-test("Gemini mock returns text without API key", async () => {
-  delete process.env['GEMINI_API_KEY'];
+test("Gemini forwards to API backend", async () => {
+  delete process.env["GEMINI_API_KEY"];
+  const mockFetch = stubGemini("Hello from API");
+  const { generateWithGemini } = await import("@/ai/gemini");
   const result = await generateWithGemini("Hello world");
-  expect(result).toContain("Mock Gemini");
+  expect(result).toBe("Hello from API");
+  expect(mockFetch).toHaveBeenCalled();
 });

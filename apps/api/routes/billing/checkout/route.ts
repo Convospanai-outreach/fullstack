@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
+import { prisma } from "@/lib/db";
 
 
 const PRICING_TIERS: Record<string, number> = {
@@ -14,6 +15,12 @@ const PRICING_TIERS: Record<string, number> = {
     "price_enterprise": 299
 };
 
+const PLAN_ALIASES: Record<string, string> = {
+    starter: "PRO",
+    pro: "PRO",
+    enterprise: "ENTERPRISE"
+};
+
 export async function POST(req: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -23,7 +30,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { priceId, amount } = body;
+        const { priceId, planId } = body;
 
         let orderAmount = 0;
 
@@ -38,8 +45,16 @@ export async function POST(req: Request) {
             }
         }
 
-        // 2. Fallback: credits topup (explicit amount)
-        if (amount) orderAmount = amount;
+        // 2. Plan-based pricing (server-side lookup)
+        if (!orderAmount && planId) {
+            const normalized = String(planId).toLowerCase();
+            const planName = PLAN_ALIASES[normalized] || normalized.toUpperCase();
+            const plan = await prisma.plan.findUnique({ where: { name: planName } });
+            if (!plan) {
+                return new NextResponse("Invalid Plan", { status: 400 });
+            }
+            orderAmount = plan.monthlyPrice;
+        }
 
         // Default to PRO if still 0 (Safety net or error?)
         if (orderAmount === 0 && priceId) {

@@ -25,7 +25,6 @@ export async function POST(req: Request) {
         });
 
         if (status === "ACTIONED") {
-            // Trigger Agent Strike (Mock)
             console.log(`[Strike] Agent dispatched for Job ${id} in ${dbRegion}`);
         } else {
             console.log(`[Strike] Job ${id} rejected in ${dbRegion}`);

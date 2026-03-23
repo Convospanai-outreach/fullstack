@@ -16,7 +16,7 @@ export class MarketRoutingMiddleware {
         const forwarded = req.headers.get("x-forwarded-for");
         const ip = forwarded ? forwarded.split(',')[0] : "127.0.0.1";
 
-        // 2. Mock for localhost development
+        // 2. Localhost override for development
         if (ip === "127.0.0.1" || ip === "::1") {
             // Check for a manual override header for testing
             const override = req.headers.get("x-market-override");

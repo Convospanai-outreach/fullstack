@@ -43,13 +43,22 @@ export async function GET() {
             // Check if it's masked
             const isMasked = payload.isMasked || (payload.api_response && payload.api_response.includes("[Masked]"));
 
+            const message = payload.generatedMessage || payload.summary || "";
+            const rawScore = typeof payload.score === "number" ? payload.score : undefined;
+            const intentScore = typeof payload.intentScore === "number" ? payload.intentScore : undefined;
+            const frictionScore = typeof payload.frictionScore === "number" ? payload.frictionScore : undefined;
+            const derivedScore = message
+                ? Math.min(95, Math.max(50, 50 + Math.floor(message.length / 10)))
+                : 60;
+            const score = rawScore ?? intentScore ?? frictionScore ?? derivedScore;
+
             return {
                 id: job.id,
                 lead: payload.leadName || payload.name || payload.title || "Unknown Lead",
                 company: payload.company || payload.organization || "Unknown Company",
                 intent: payload.intent || "Detected Signal",
-                score: payload.score || Math.floor(Math.random() * 40) + 60, // Mock score if missing
-                message: payload.generatedMessage || payload.summary || "No draft message generated yet.",
+                score,
+                message: message || "No draft message generated yet.",
                 status: "PENDING_APPROVAL", // UI expects this
                 platform: payload.platform || "LINKEDIN",
                 isMasked: !!isMasked,

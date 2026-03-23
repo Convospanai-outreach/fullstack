@@ -14,4 +14,4 @@ tests
 e2e
 tmp
 .env*
-! .env.example
+!.env.example

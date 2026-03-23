@@ -20,17 +20,17 @@ const ICONS = {
 };
 
 export function ActivityFeed({ activities = [] }: { activities?: ActivityItem[] }) {
-    // Mock data if none provided
-    const items = activities.length > 0 ? activities : [
-        { id: '1', type: 'email', title: 'Sent "Follow up #2" to Sarah Connor', timestamp: '2 mins ago', details: 'Delivered via Gmail' },
-        { id: '2', type: 'enrichment', title: 'AI Enriched 42 leads from CSV Import', timestamp: '15 mins ago' },
-        { id: '3', type: 'connection', title: 'LinkedIn Connect sent to Mark Zuckerberg', timestamp: '1 hour ago', details: 'Note: Interested in Meta partnership' },
-        { id: '4', type: 'error', title: 'Auto-pilot paused: Insufficient credits', timestamp: '2 hours ago' },
-    ] as ActivityItem[];
+    if (activities.length === 0) {
+        return (
+            <div className="flex items-center justify-center p-8 text-sm text-text-muted border border-dashed border-white/10 rounded-xl">
+                No activity yet.
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
-            {items.map((item) => {
+            {activities.map((item) => {
                 const style = ICONS[item.type];
                 const Icon = style.icon;
 

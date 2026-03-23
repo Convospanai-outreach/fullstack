@@ -41,8 +41,8 @@ export class GraphStore {
         // 1. Graph Retrieval (Structured)
         const graphDocs = this.getGraphContext(entityId);
 
-        // 2. Vector Retrieval (Unstructured - Simulated)
-        const vectorDocs = await this.mockVectorSearch(query);
+        // 2. Vector Retrieval (Unstructured - Edge Search)
+        const vectorDocs = await this.vectorSearch(query);
 
         // 3. Re-ranking (Freshness + Relevance)
         const allDocs = [...graphDocs, ...vectorDocs];
@@ -78,8 +78,8 @@ export class GraphStore {
         return docs;
     }
 
-    private async mockVectorSearch(query: string) {
-        // REAL IMPLEMENTATION: Gateway to Physical Edge Node
+    private async vectorSearch(query: string) {
+        // Real implementation: Gateway to physical edge node
         // Queries the local 'GoldenRecords' via pgvector on the device.
         try {
             const results = await HardwareService.search(query);
@@ -89,8 +89,8 @@ export class GraphStore {
                 timestamp: new Date() // Edge doesn't return TS yet, default to now
             }));
         } catch (e) {
-            console.warn("Edge Search Failed, returning fallback");
-            return [];
+            console.error("Edge Search Failed", e);
+            throw new Error("Edge search failed. Check edge node connectivity.");
         }
     }
 }

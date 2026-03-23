@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CampaignAgent } from "@/lib/ai/agents/CampaignAgent";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
         const { goal, targetAudience, tone } = validation.data;
         const input = { goal, audience: targetAudience, tone };
 
-        const agent = new CampaignAgent();
+        const ctx = await getCurrentContext();
+        const agent = new CampaignAgent(ctx.teamId || undefined);
         const result = await agent.generateSequence(input);
 
         return NextResponse.json({ sequence: result });

@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
     // Verify admin access
     const session = await getServerSession(authOptions);
-    if (!session || !['ADMIN', 'MANAGER'].includes(session.user.enterpriseRole || '')) {
+    const role = session?.user?.enterpriseRole as UserRole | undefined;
+    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN];
+    if (!session || !role || !allowedRoles.includes(role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

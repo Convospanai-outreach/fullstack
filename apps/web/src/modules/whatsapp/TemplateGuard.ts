@@ -118,15 +118,8 @@ export class TemplateGuard {
         const token = process.env['WHATSAPP_API_TOKEN'];
         const wabaId = process.env['WHATSAPP_WABA_ID']; // WhatsApp Business Account ID
         
-        // If no token is configured, fall back to the safe default stubs 
-        // to prevent breaking local development environments that don't have WhatsApp set up
         if (!token || !wabaId) {
-            console.warn("[TemplateGuard] WHATSAPP_API_TOKEN missing. Using fallback templates.");
-            return [
-                "Hello {{1}}, this is {{2}} from {{3}}. We received your inquiry and would like to schedule a call. Are you available?",
-                "Hi {{1}}, thank you for your interest in {{2}}. Our team will reach out to discuss your requirements.",
-                "Hello {{1}}, following up on our previous conversation about {{2}}. Let me know if you have any questions."
-            ];
+            throw new Error("WhatsApp API credentials are not configured");
         }
 
         try {
@@ -140,8 +133,7 @@ export class TemplateGuard {
             });
 
             if (!response.ok) {
-                console.error(`[TemplateGuard] WhatsApp API error: ${response.statusText}`);
-                throw new Error("Failed to fetch WhatsApp templates");
+                throw new Error(`WhatsApp API error: ${response.status} ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -154,10 +146,14 @@ export class TemplateGuard {
                 })
                 .filter(Boolean);
 
-            return templates.length > 0 ? templates : [ "Hi {{1}}, how can we help?" ];
+            if (templates.length === 0) {
+                throw new Error("No approved WhatsApp templates returned");
+            }
+
+            return templates;
         } catch (error) {
             console.error("[TemplateGuard] Error fetching from WhatsApp API", error);
-            return [ "Hi {{1}}, how can we help?" ]; // emergency fallback
+            throw error;
         }
     }
 

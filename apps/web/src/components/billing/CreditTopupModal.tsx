@@ -6,9 +6,9 @@ import { ActionButton } from '../auth/ActionButton';
 import { Coins } from 'lucide-react';
 
 const TOPUP_PACKS = [
-    { credits: 500, price: 10, priceId: "price_500_credits" },
-    { credits: 2500, price: 40, priceId: "price_2500_credits", popular: true },
-    { credits: 10000, price: 150, priceId: "price_10000_credits" }
+    { tierId: "starter", credits: 500, price: 500, popular: false },
+    { tierId: "pro", credits: 2000, price: 1800, popular: true },
+    { tierId: "power", credits: 10000, price: 8000, popular: false }
 ];
 
 export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -16,19 +16,51 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
 
     if (!isOpen) return null;
 
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            if ((window as any).Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handlePurchase = async (pack: typeof TOPUP_PACKS[0]) => {
         try {
             setLoading(true);
+            const isLoaded = await loadRazorpayScript();
+            if (!isLoaded) throw new Error("Failed to load payment gateway");
+
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ priceId: pack.priceId, credits: pack.credits })
+                body: JSON.stringify({ tierId: pack.tierId })
             });
 
             if (!res.ok) throw new Error("Purchase failed");
 
             const data = await res.json();
-            window.location.href = data.url;
+            const options = {
+                key: data.key,
+                amount: data.amount,
+                currency: data.currency,
+                name: "ConvoSpan",
+                description: `Top-up: ${pack.credits} Credits`,
+                order_id: data.id,
+                handler: function (_response: any) {
+                    toast.success("Payment successful! Credits will be added shortly.");
+                    onClose();
+                },
+                theme: { color: "#7c3aed" }
+            };
+
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
         } catch (error) {
             toast.error("Failed to initiate purchase");
             setLoading(false);
@@ -73,7 +105,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                             <div className="text-center space-y-2">
                                 <h3 className="text-xl font-bold text-white">{pack.credits}</h3>
                                 <p className="text-xs text-gray-400 uppercase tracking-wide">Credits</p>
-                                <div className="text-2xl font-bold text-purple-300">${pack.price}</div>
+                                <div className="text-2xl font-bold text-purple-300">â‚¹{pack.price}</div>
                                 <ActionButton
                                     variant={pack.popular ? "primary" : "outline"}
                                     fullWidth
@@ -89,7 +121,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                 </div>
 
                 <p className="text-center text-xs text-gray-500 mt-6">
-                    Secured by Stripe. Credits never expire.
+                    Secured by Razorpay. Credits never expire.
                 </p>
             </div>
         </div>

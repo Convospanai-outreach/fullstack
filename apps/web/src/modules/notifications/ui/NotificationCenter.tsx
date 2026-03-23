@@ -1,26 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { Bell } from "lucide-react";
+
+const API_URL = process.env["NEXT_PUBLIC_API_URL"] || "http://localhost:3001";
+
+type NotificationItem = {
+    id: string;
+    type: "info" | "success" | "warning" | "error";
+    message: string;
+    createdAt: string;
+    read: boolean;
+};
 
 export default function NotificationCenter() {
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
 
-    useEffect(() => {
-        // Mock receiving initial notifications
-        setNotifications([
-            { id: "1", type: "success", message: "Campaign 'Outreach Q1' finished successfully", createdAt: new Date().toISOString(), read: false },
-            { id: "2", type: "warning", message: "Worker queue load is high", createdAt: new Date(Date.now() - 3600000).toISOString(), read: true },
-        ]);
-        setUnreadCount(1);
+    const refreshNotifications = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_URL}/notifications`);
+            if (!res.ok) {
+                throw new Error("Failed to fetch notifications");
+            }
+            const data = await res.json();
+            const items = (data?.notifications || []) as NotificationItem[];
+            setNotifications(items);
+            setUnreadCount(items.filter((n) => !n.read).length);
+        } catch (error) {
+            console.error("Failed to load notifications", error);
+        }
     }, []);
 
-    const toggleOpen = () => {
-        setIsOpen(!isOpen);
-        if (!isOpen) {
-            // Mark all as read
+    const markAllRead = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_URL}/notifications`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ all: true })
+            });
+            if (!res.ok) {
+                throw new Error("Failed to mark notifications as read");
+            }
+            setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
             setUnreadCount(0);
+        } catch (error) {
+            console.error("Failed to mark notifications", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        refreshNotifications();
+    }, [refreshNotifications]);
+
+    const toggleOpen = async () => {
+        const next = !isOpen;
+        setIsOpen(next);
+        if (next && unreadCount > 0) {
+            await markAllRead();
         }
     };
 
@@ -36,7 +74,7 @@ export default function NotificationCenter() {
                     padding: 8
                 }}
             >
-                <span style={{ fontSize: 20 }}>🔔</span>
+                <Bell style={{ width: 20, height: 20, color: "#e5e7eb" }} />
                 {unreadCount > 0 && (
                     <span style={{
                         position: "absolute",
@@ -79,7 +117,7 @@ export default function NotificationCenter() {
                                 No notifications
                             </div>
                         ) : (
-                            notifications.map(n => (
+                            notifications.map((n) => (
                                 <div key={n.id} style={{ padding: "12px 16px", borderBottom: "1px solid #f9fafb", background: n.read ? "#fff" : "#f0f9ff" }}>
                                     <div style={{ fontSize: 14, marginBottom: 4 }}>{n.message}</div>
                                     <div style={{ fontSize: 11, color: "#9ca3af" }}>

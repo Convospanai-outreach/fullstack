@@ -14,102 +14,102 @@ import {
     ResponsiveContainer
 } from "recharts";
 
-// Mock Data for Karmic Debt / ROI
-const roiData = [
-    { time: '00:00', cloudCost: 40, localSavings: 120 },
-    { time: '04:00', cloudCost: 30, localSavings: 90 },
-    { time: '08:00', cloudCost: 20, localSavings: 60 },
-    { time: '12:00', cloudCost: 80, localSavings: 240 },
-    { time: '16:00', cloudCost: 50, localSavings: 150 },
-    { time: '20:00', cloudCost: 90, localSavings: 270 },
-    { time: '23:59', cloudCost: 60, localSavings: 180 },
-];
+const API_URL = process.env["NEXT_PUBLIC_API_URL"] || "http://localhost:3001";
+
+type Signal = {
+    id: string;
+    source: string;
+    friction: number;
+    context: string;
+    time: string;
+};
+
+type AuditEvent = {
+    id: string;
+    score: number;
+    status: string;
+    text: string;
+};
+
+type RoiPoint = {
+    time: string;
+    revenue: number;
+    spend: number;
+};
 
 export function SovereignConsole() {
-    const [piStatus, setPiStatus] = useState<'ONLINE' | 'OFFLINE' | 'BUSY'>('ONLINE');
-
-    const [signals, setSignals] = useState<any[]>([]);
+    const [piStatus, setPiStatus] = useState<"ONLINE" | "OFFLINE">("OFFLINE");
+    const [signals, setSignals] = useState<Signal[]>([]);
+    const [audits, setAudits] = useState<AuditEvent[]>([]);
     const [queueDepth, setQueueDepth] = useState<number>(0);
-    const [rateLimit, setRateLimit] = useState<string>("STABLE");
+    const [rateLimit, setRateLimit] = useState<string>("UNKNOWN");
+    const [roiHistory, setRoiHistory] = useState<RoiPoint[]>([]);
+    const [mounted, setMounted] = useState(false);
 
-    const [events, setEvents] = useState<any[]>([]);
-    const [isSyncing, setIsSyncing] = useState(false);
+    useEffect(() => setMounted(true), []);
 
-    // Poll Real-time Stats
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/admin/sovereign-stats');
+                const res = await fetch(`${API_URL}/admin/sovereign-stats`);
+                if (!res.ok) throw new Error("Failed to fetch sovereign stats");
                 const data = await res.json();
                 if (data.ok) {
                     setSignals(data.signals || []);
+                    setAudits(data.audits || []);
                     setQueueDepth(data.queueDepth || 0);
-                    setRateLimit(data.rateLimitStatus || "STABLE");
-
-                    setPiStatus('ONLINE'); // Assume online if API responds
-                }
-
-                // Fetch upcoming nurture events
-                const nurtureRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger');
-                const nurtureData = await nurtureRes.json();
-                if (nurtureData.ok) {
-                    setEvents(nurtureData.events || []);
+                    setRateLimit(data.rateLimitStatus || "UNKNOWN");
+                    setPiStatus("ONLINE");
                 }
             } catch (e) {
                 console.error("Failed to fetch sovereign stats", e);
-                setPiStatus('OFFLINE');
+                setPiStatus("OFFLINE");
             }
         };
 
         fetchStats();
-        const interval = setInterval(fetchStats, 10000); // 10s for dashboard
+        const interval = setInterval(fetchStats, 10000);
         return () => clearInterval(interval);
     }, []);
 
-    const handleSync = async () => {
-        setIsSyncing(true);
-        try {
-            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger?action=sync', { method: 'POST' });
-            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger?action=generate', { method: 'POST' });
-            // Refresh
-            const nurtureRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/nurture/trigger');
-            const nurtureData = await nurtureRes.json();
-            if (nurtureData.ok) setEvents(nurtureData.events || []);
-        } catch (e) {
-            console.error("Sync failed", e);
-        } finally {
-            setIsSyncing(false);
-        }
-    };
+    useEffect(() => {
+        const fetchRoi = async () => {
+            try {
+                const res = await fetch(`${API_URL}/analytics/roi`);
+                if (!res.ok) throw new Error("Failed to fetch ROI");
+                const data = await res.json();
+                const history = (data?.history || []) as { date: string; revenue: number; spend: number }[];
+                setRoiHistory(
+                    history.map((entry) => ({
+                        time: entry.date,
+                        revenue: entry.revenue || 0,
+                        spend: entry.spend || 0
+                    }))
+                );
+            } catch (e) {
+                console.error("Failed to fetch ROI", e);
+            }
+        };
 
-    const [mounted, setMounted] = useState(false);
-    useEffect(() => setMounted(true), []);
+        fetchRoi();
+    }, []);
 
     return (
         <div className="space-y-8">
             <div className="flex items-center justify-between mb-2">
                 <div>
                     <h2 className="text-4xl font-black tracking-tight text-white mb-2 font-outfit">Sovereign Console</h2>
-                    <p className="text-slate-500 font-medium">Real-time local intelligence & privacy orchestration</p>
+                    <p className="text-slate-500 font-medium">Real-time local intelligence and privacy orchestration</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <button 
-                        onClick={handleSync}
-                        disabled={isSyncing}
-                        className="flex items-center gap-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50"
-                    >
-                        <Radio className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                        {isSyncing ? 'SYNCING...' : 'SYNC EVENT RADAR'}
-                    </button>
-                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === 'ONLINE' ? 'bg-emerald-500/10 border-emerald-500/10 text-emerald-400' : 'bg-red-500/10 border-red-500/10 text-red-400'} shadow-lg backdrop-blur-md`}>
-                        <Cpu className={`w-5 h-5 ${piStatus === 'ONLINE' ? 'animate-pulse' : ''}`} />
+                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === "ONLINE" ? "bg-emerald-500/10 border-emerald-500/10 text-emerald-400" : "bg-red-500/10 border-red-500/10 text-red-400"} shadow-lg backdrop-blur-md`}>
+                        <Cpu className={`w-5 h-5 ${piStatus === "ONLINE" ? "animate-pulse" : ""}`} />
                         <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
                     </div>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {/* 1. Sovereign Firewall Status */}
                 <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
                     <CardHeader className="pb-4 pt-8 px-8">
                         <CardTitle className="flex items-center gap-3 text-emerald-400 font-bold font-outfit text-lg">
@@ -118,7 +118,7 @@ export function SovereignConsole() {
                             </div>
                             Sovereign Firewall
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">PII Masking & Fail-Closed Logic</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">PII masking and fail-closed logic</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-4">
@@ -132,51 +132,44 @@ export function SovereignConsole() {
                             </div>
                             <div className="flex justify-between items-center py-3">
                                 <span className="text-sm font-bold text-slate-400">Last PII Blocked</span>
-                                <span className="text-xs font-mono text-indigo-400">243ms ago</span>
+                                <span className="text-xs font-mono text-indigo-400">Recent</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 2. Autonomous Event Radar */}
                 <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
                     <CardHeader className="pb-4 pt-8 px-8">
                         <CardTitle className="flex items-center gap-3 text-orange-400 font-bold font-outfit text-lg">
                             <div className="p-2 rounded-xl bg-orange-500/10">
                                 <Radio className="w-5 h-5" />
                             </div>
-                            Growth Radar
+                            Sentinel Events
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">Event-Driven Nurture Pipeline</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">Recent security and policy events</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-3">
-                            {events.length === 0 && (
+                            {audits.length === 0 && (
                                 <div className="text-center py-6">
-                                    <p className="text-xs text-slate-500 italic font-medium mb-4">No events in current horizon.</p>
+                                    <p className="text-xs text-slate-500 italic font-medium">No sentinel events recorded.</p>
                                 </div>
                             )}
-                            {events.map((event, i) => (
-                                <div key={i} className="group relative p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all">
+                            {audits.map((event) => (
+                                <div key={event.id} className="group relative p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all">
                                     <div className="flex justify-between items-start mb-1">
                                         <span className="text-[10px] font-black text-orange-500 uppercase tracking-tighter">
-                                            {new Date(event.eventDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                                            {event.status}
                                         </span>
-                                        <Badge variant="outline" className="text-[8px] h-4 border-white/10 text-slate-500 uppercase">{event.category}</Badge>
+                                        <Badge variant="outline" className="text-[8px] h-4 border-white/10 text-slate-500 uppercase">{event.score}</Badge>
                                     </div>
-                                    <h4 className="text-xs font-bold text-white truncate mb-1">{event.eventName}</h4>
-                                    <p className="text-[10px] text-slate-500 line-clamp-1 italic">{event.leadGenAngle}</p>
-                                    
-                                    <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
-                                    </div>
+                                    <h4 className="text-xs font-bold text-white truncate mb-1">{event.text}</h4>
                                 </div>
                             ))}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 3. Shadow Ingestion Live Feed */}
                 <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
                     <CardHeader className="pb-4 pt-8 px-8">
                         <CardTitle className="flex items-center gap-3 text-purple-400 font-bold font-outfit text-lg">
@@ -185,10 +178,15 @@ export function SovereignConsole() {
                             </div>
                             Signal Feed
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">Live Friction Signals (External)</CardDescription>
+                        <CardDescription className="text-slate-500 font-medium pt-1">Live friction signals (external)</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-4">
+                            {signals.length === 0 && (
+                                <div className="text-center py-6">
+                                    <p className="text-xs text-slate-500 italic font-medium">No signals yet.</p>
+                                </div>
+                            )}
                             {signals.map((signal) => (
                                 <div key={signal.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all">
                                     <div className="flex justify-between mb-2">
@@ -209,7 +207,6 @@ export function SovereignConsole() {
                 </Card>
             </div>
 
-            {/* 4. Hardening & Scalability Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                     <CardHeader className="py-4">
@@ -223,7 +220,7 @@ export function SovereignConsole() {
                             <span className="text-5xl font-black text-foreground">{queueDepth}</span>
                             <div className="pb-1">
                                 <p className="text-xs text-muted-foreground uppercase tracking-widest">Pending Tasks</p>
-                                <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-mono">LATENCY: ~2.4s</p>
+                                <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-mono">Latency: live queue</p>
                             </div>
                         </div>
                     </CardContent>
@@ -238,7 +235,7 @@ export function SovereignConsole() {
                     </CardHeader>
                     <CardContent className="pb-4">
                         <div className="flex items-center gap-4">
-                            <Badge variant={rateLimit === 'STABLE' ? 'success' : 'warning'}>
+                            <Badge variant={rateLimit === "STABLE" ? "success" : "warning"}>
                                 {rateLimit}
                             </Badge>
                             <p className="text-[10px] text-muted-foreground font-mono">PROVIDER: MULTI_LLM_GATEWAY</p>
@@ -247,24 +244,23 @@ export function SovereignConsole() {
                 </Card>
             </div>
 
-            {/* 5. Karmic Debt / ROI Chart */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-widest text-gray-500">Karmic ROI (Cost Saved vs Cloud)</CardTitle>
+                    <CardTitle className="text-sm uppercase tracking-widest text-gray-500">Revenue vs Spend (last 6 months)</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[200px] w-full">
                     {mounted && (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <LineChart data={roiData}>
+                            <LineChart data={roiHistory}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
                                 <XAxis dataKey="time" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} unit="$" />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }}
-                                    itemStyle={{ fontSize: '12px' }}
+                                    contentStyle={{ backgroundColor: "#111", border: "1px solid #333" }}
+                                    itemStyle={{ fontSize: "12px" }}
                                 />
-                                <Line type="monotone" dataKey="localSavings" stroke="#10b981" strokeWidth={2} dot={false} name="Local Inference (Saved)" />
-                                <Line type="monotone" dataKey="cloudCost" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Cloud Cost (Avoided)" />
+                                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="Revenue" />
+                                <Line type="monotone" dataKey="spend" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Spend" />
                             </LineChart>
                         </ResponsiveContainer>
                     )}

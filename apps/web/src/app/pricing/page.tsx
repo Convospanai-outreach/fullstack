@@ -13,14 +13,68 @@ export default function PricingPage() {
     const router = useRouter();
     const [isAnnual, setIsAnnual] = useState(true);
 
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            if ((window as any).Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handleCheckout = async (plan: string) => {
+        if (plan === "Enterprise") {
+            router.push("/contact");
+            return;
+        }
+
         if (!session) {
             router.push("/signup");
             return;
         }
 
-        // This would call your Stripe/Razorpay API
-        toast.info(`Initializing checkout for ${plan}...`);
+        try {
+            const isLoaded = await loadRazorpayScript();
+            if (!isLoaded) {
+                toast.error("Failed to load payment gateway");
+                return;
+            }
+
+            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/billing/checkout", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ planId: plan.toLowerCase() })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || "Failed to create order");
+
+            const options = {
+                key: data.key,
+                amount: data.amount,
+                currency: data.currency,
+                name: "ConvoSpan",
+                description: `${plan} Plan Subscription`,
+                order_id: data.orderId,
+                handler: function (_response: any) {
+                    toast.success("Payment successful!");
+                },
+                prefill: {
+                    name: session?.user?.name,
+                    email: session?.user?.email
+                },
+                theme: { color: "#3b82f6" }
+            };
+
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
+        } catch (error: any) {
+            toast.error(error.message || "Checkout failed");
+        }
     };
 
     const plans = [

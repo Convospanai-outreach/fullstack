@@ -1,6 +1,6 @@
 /**
- * Mock Model Context Protocol (MCP) Server for Slack
- * Simulates Anthropic's MCP structure for local development/testing.
+ * Slack MCP Server
+ * Connects to Slack Web API.
  */
 
 export interface HelperTool {
@@ -8,6 +8,16 @@ export interface HelperTool {
     description: string;
     input_schema: any;
     handler: (args: any) => Promise<any>;
+}
+
+const SLACK_API_URL = process.env["SLACK_API_URL"] || "https://slack.com/api";
+
+function getSlackToken() {
+    const token = process.env["SLACK_BOT_TOKEN"];
+    if (!token) {
+        throw new Error("SLACK_BOT_TOKEN is not configured");
+    }
+    return token;
 }
 
 export class SlackMCPServer {
@@ -30,8 +40,22 @@ export class SlackMCPServer {
                 required: ["channel_id", "text"]
             },
             handler: async ({ channel_id, text }) => {
-                console.log(`[MCP:Slack] Posting to ${channel_id}: "${text}"`);
-                return { success: true, ts: Date.now().toString() };
+                const token = getSlackToken();
+                const response = await fetch(`${SLACK_API_URL}/chat.postMessage`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ channel: channel_id, text })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || `Slack API error ${response.status}`);
+                }
+
+                return { success: true, ts: data.ts, channel: data.channel };
             }
         });
 
@@ -47,13 +71,23 @@ export class SlackMCPServer {
                 required: ["channel_id"]
             },
             handler: async ({ channel_id, limit = 10 }) => {
-                console.log(`[MCP:Slack] Reading ${limit} msgs from ${channel_id}`);
-                return {
-                    messages: [
-                        { user: "U123", text: "Latest update on the deal?", ts: "1700000001" },
-                        { user: "U456", text: "Meeting confirmed for Tuesday.", ts: "1700000002" }
-                    ]
-                };
+                const token = getSlackToken();
+                const url = new URL(`${SLACK_API_URL}/conversations.history`);
+                url.searchParams.set("channel", channel_id);
+                url.searchParams.set("limit", String(limit));
+
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || `Slack API error ${response.status}`);
+                }
+
+                return { messages: data.messages || [] };
             }
         });
     }

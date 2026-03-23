@@ -7,7 +7,23 @@ export default function UserManagementPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
-    const [newUser, setNewUser] = useState({ email: "", name: "", role: "user" });
+    const [newUser, setNewUser] = useState({
+        email: "",
+        name: "",
+        role: "user",
+        enterpriseRole: "SALES_USER"
+    });
+    const [roleEdits, setRoleEdits] = useState<Record<string, { role: string; enterpriseRole: string }>>({});
+
+    const roleOptions = ["user", "admin", "superadmin"];
+    const enterpriseRoleOptions = [
+        "SYSTEM_ADMIN",
+        "ORG_ADMIN",
+        "SALES_MANAGER",
+        "SALES_USER",
+        "CALLER",
+        "COMPLIANCE_OFFICER"
+    ];
 
     useEffect(() => {
         fetchUsers();
@@ -19,6 +35,14 @@ export default function UserManagementPage() {
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
+                const mapped = data.reduce((acc: any, user: any) => {
+                    acc[user.id] = {
+                        role: user.role || "user",
+                        enterpriseRole: user.enterpriseRole || "SALES_USER"
+                    };
+                    return acc;
+                }, {});
+                setRoleEdits(mapped);
             } else {
                 // Handle non-admin access gracefully
                 console.error("Failed to fetch users");
@@ -40,10 +64,34 @@ export default function UserManagementPage() {
             });
             if (res.ok) {
                 setShowCreate(false);
-                setNewUser({ email: "", name: "", role: "user" });
+                setNewUser({ email: "", name: "", role: "user", enterpriseRole: "SALES_USER" });
                 fetchUsers();
             } else {
                 alert("Failed to create user");
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
+    const handleRoleUpdate = async (userId: string) => {
+        const update = roleEdits[userId];
+        if (!update) return;
+
+        try {
+            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/admin/users", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: userId,
+                    role: update.role,
+                    enterpriseRole: update.enterpriseRole
+                })
+            });
+            if (!res.ok) {
+                alert("Failed to update user roles");
+            } else {
+                fetchUsers();
             }
         } catch (error) {
             console.error(error);
@@ -103,8 +151,25 @@ export default function UserManagementPage() {
                                         onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
                                     >
-                                        <option value="user">User</option>
-                                        <option value="admin">Admin</option>
+                                        {roleOptions.map((role) => (
+                                            <option key={role} value={role}>
+                                                {role}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-400 mb-1">Enterprise Role</label>
+                                    <select
+                                        value={newUser.enterpriseRole}
+                                        onChange={(e) => setNewUser({ ...newUser, enterpriseRole: e.target.value })}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
+                                    >
+                                        {enterpriseRoleOptions.map((role) => (
+                                            <option key={role} value={role}>
+                                                {role}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="flex gap-4 mt-6">
@@ -134,8 +199,10 @@ export default function UserManagementPage() {
                             <tr>
                                 <th className="px-6 py-4">User</th>
                                 <th className="px-6 py-4">Role</th>
+                                <th className="px-6 py-4">Enterprise Role</th>
                                 <th className="px-6 py-4">Joined</th>
                                 <th className="px-6 py-4 text-right">Teams</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/10">
@@ -146,16 +213,60 @@ export default function UserManagementPage() {
                                         <div className="text-gray-400 text-sm">{user.email}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${user.role === 'admin' || user.role === 'superadmin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'
-                                            }`}>
-                                            {user.role}
-                                        </span>
+                                        <select
+                                            value={roleEdits[user.id]?.role || user.role || "user"}
+                                            onChange={(e) =>
+                                                setRoleEdits((prev) => ({
+                                                    ...prev,
+                                                    [user.id]: {
+                                                        role: e.target.value,
+                                                        enterpriseRole: prev[user.id]?.enterpriseRole || user.enterpriseRole || "SALES_USER"
+                                                    }
+                                                }))
+                                            }
+                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                                        >
+                                            {roleOptions.map((role) => (
+                                                <option key={role} value={role}>
+                                                    {role}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <select
+                                            value={roleEdits[user.id]?.enterpriseRole || user.enterpriseRole || "SALES_USER"}
+                                            onChange={(e) =>
+                                                setRoleEdits((prev) => ({
+                                                    ...prev,
+                                                    [user.id]: {
+                                                        role: prev[user.id]?.role || user.role || "user",
+                                                        enterpriseRole: e.target.value
+                                                    }
+                                                }))
+                                            }
+                                            className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                                        >
+                                            {enterpriseRoleOptions.map((role) => (
+                                                <option key={role} value={role}>
+                                                    {role}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </td>
                                     <td className="px-6 py-4 text-gray-400 text-sm">
                                         {new Date(user.createdAt).toLocaleDateString()}
                                     </td>
                                     <td className="px-6 py-4 text-right text-gray-400 text-sm">
                                         {user.memberships?.length || 0}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button
+                                            onClick={() => handleRoleUpdate(user.id)}
+                                            className="px-3 py-1.5 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20"
+                                        >
+                                            Save
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

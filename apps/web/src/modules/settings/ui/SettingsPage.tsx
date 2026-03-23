@@ -4,97 +4,196 @@ import { useEffect, useState } from "react";
 
 export default function SettingsPage() {
     const [settings, setSettings] = useState<any>({
-        hunterApiKey: "",
-        openaiApiKey: "",
-        notifications: { email: true, slack: false },
+        apiKeyOpenAI: "",
+        apiKeyGemini: "",
+        hubspotApiKey: "",
+        liCookie: "",
+        notifications: { emailGlobal: true, emailCampaign: true, emailLeads: true, inAppGlobal: true }
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
     useEffect(() => {
-        // Mock fetch
-        setTimeout(() => {
-            setSettings({
-                hunterApiKey: "hunter_...",
-                openaiApiKey: "sk-...",
-                notifications: { email: true, slack: false },
-            });
-            setLoading(false);
-        }, 500);
+        const load = async () => {
+            try {
+                const [settingsRes, notificationsRes] = await Promise.all([
+                    fetch(process.env["NEXT_PUBLIC_API_URL"] + "/settings"),
+                    fetch(process.env["NEXT_PUBLIC_API_URL"] + "/settings/notifications")
+                ]);
+
+                if (!settingsRes.ok) throw new Error("Failed to load settings");
+                const settingsData = await settingsRes.json();
+                const notificationsData = notificationsRes.ok ? await notificationsRes.json() : {};
+
+                setSettings((prev: any) => ({
+                    ...prev,
+                    apiKeyOpenAI: settingsData.apiKeyOpenAI || "",
+                    apiKeyGemini: settingsData.apiKeyGemini || "",
+                    hubspotApiKey: settingsData.hubspotApiKey || "",
+                    liCookie: settingsData.liCookie || "",
+                    notifications: {
+                        emailGlobal: notificationsData.emailGlobal ?? true,
+                        emailCampaign: notificationsData.emailCampaign ?? true,
+                        emailLeads: notificationsData.emailLeads ?? true,
+                        inAppGlobal: notificationsData.inAppGlobal ?? true
+                    }
+                }));
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        load();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        // Mock save
-        setTimeout(() => {
-            setSaving(false);
+        try {
+            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKeyOpenAI: settings.apiKeyOpenAI,
+                    apiKeyGemini: settings.apiKeyGemini,
+                    hubspotApiKey: settings.hubspotApiKey,
+                    liCookie: settings.liCookie
+                })
+            });
+            if (!res.ok) throw new Error("Failed to save settings");
+
+            const notifRes = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/settings/notifications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(settings.notifications)
+            });
+            if (!notifRes.ok) throw new Error("Failed to save notification settings");
             alert("Settings saved!");
-        }, 1000);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to save settings");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    if (loading) return <div style={{ padding: 24 }}>Loading settings...</div>;
+    if (loading) return <div className="p-6 text-white">Loading settings...</div>;
 
     return (
-        <div style={{ padding: 24, maxWidth: 600 }}>
-            <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Settings</h1>
+        <div className="p-6 max-w-2xl">
+            <h1 className="text-2xl font-bold text-white mb-6">Settings</h1>
 
-            <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 24, borderRadius: 8, boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }}>
-                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>API Keys</h3>
+            <form onSubmit={handleSubmit} className="glass p-6 rounded-xl border border-white/10">
+                <h3 className="text-lg font-semibold text-white mb-4">API Keys</h3>
 
-                <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500 }}>Hunter.io API Key</label>
+                <div className="mb-4">
+                    <label htmlFor="settings-openai-key" className="block mb-2 text-sm font-medium text-gray-300">
+                        OpenAI API Key
+                    </label>
                     <input
+                        id="settings-openai-key"
                         type="password"
-                        value={settings.hunterApiKey}
-                        onChange={(e) => setSettings({ ...settings, hunterApiKey: e.target.value })}
-                        style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                        value={settings.apiKeyOpenAI}
+                        onChange={(e) => setSettings({ ...settings, apiKeyOpenAI: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
                     />
                 </div>
 
-                <div style={{ marginBottom: 24 }}>
-                    <label style={{ display: "block", marginBottom: 8, fontSize: 14, fontWeight: 500 }}>OpenAI API Key</label>
+                <div className="mb-6">
+                    <label htmlFor="settings-gemini-key" className="block mb-2 text-sm font-medium text-gray-300">
+                        Gemini API Key
+                    </label>
                     <input
+                        id="settings-gemini-key"
                         type="password"
-                        value={settings.openaiApiKey}
-                        onChange={(e) => setSettings({ ...settings, openaiApiKey: e.target.value })}
-                        style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                        value={settings.apiKeyGemini}
+                        onChange={(e) => setSettings({ ...settings, apiKeyGemini: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
                     />
                 </div>
 
-                <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Notifications</h3>
-
-                <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="mb-6">
+                    <label htmlFor="settings-hubspot-key" className="block mb-2 text-sm font-medium text-gray-300">
+                        HubSpot API Key
+                    </label>
                     <input
-                        type="checkbox"
-                        checked={settings.notifications.email}
-                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, email: e.target.checked } })}
+                        id="settings-hubspot-key"
+                        type="password"
+                        value={settings.hubspotApiKey}
+                        onChange={(e) => setSettings({ ...settings, hubspotApiKey: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
                     />
-                    <label style={{ fontSize: 14 }}>Email Notifications</label>
                 </div>
 
-                <div style={{ marginBottom: 24, display: "flex", alignItems: "center", gap: 8 }}>
+                <div className="mb-6">
+                    <label htmlFor="settings-linkedin-cookie" className="block mb-2 text-sm font-medium text-gray-300">
+                        LinkedIn Cookie
+                    </label>
                     <input
-                        type="checkbox"
-                        checked={settings.notifications.slack}
-                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, slack: e.target.checked } })}
+                        id="settings-linkedin-cookie"
+                        type="password"
+                        value={settings.liCookie}
+                        onChange={(e) => setSettings({ ...settings, liCookie: e.target.value })}
+                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white"
                     />
-                    <label style={{ fontSize: 14 }}>Slack Notifications</label>
+                </div>
+
+                <h3 className="text-lg font-semibold text-white mb-4">Notifications</h3>
+
+                <div className="mb-3 flex items-center gap-2">
+                    <input
+                        id="settings-email-global"
+                        type="checkbox"
+                        checked={settings.notifications.emailGlobal}
+                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailGlobal: e.target.checked } })}
+                    />
+                    <label htmlFor="settings-email-global" className="text-sm text-gray-300">
+                        Email Notifications (Global)
+                    </label>
+                </div>
+
+                <div className="mb-3 flex items-center gap-2">
+                    <input
+                        id="settings-email-campaign"
+                        type="checkbox"
+                        checked={settings.notifications.emailCampaign}
+                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailCampaign: e.target.checked } })}
+                    />
+                    <label htmlFor="settings-email-campaign" className="text-sm text-gray-300">
+                        Email Notifications (Campaigns)
+                    </label>
+                </div>
+
+                <div className="mb-3 flex items-center gap-2">
+                    <input
+                        id="settings-email-leads"
+                        type="checkbox"
+                        checked={settings.notifications.emailLeads}
+                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, emailLeads: e.target.checked } })}
+                    />
+                    <label htmlFor="settings-email-leads" className="text-sm text-gray-300">
+                        Email Notifications (Leads)
+                    </label>
+                </div>
+
+                <div className="mb-6 flex items-center gap-2">
+                    <input
+                        id="settings-inapp-global"
+                        type="checkbox"
+                        checked={settings.notifications.inAppGlobal}
+                        onChange={(e) => setSettings({ ...settings, notifications: { ...settings.notifications, inAppGlobal: e.target.checked } })}
+                    />
+                    <label htmlFor="settings-inapp-global" className="text-sm text-gray-300">
+                        In-App Notifications
+                    </label>
                 </div>
 
                 <button
                     type="submit"
                     disabled={saving}
-                    style={{
-                        padding: "10px 20px",
-                        background: "#0ea5e9",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 6,
-                        cursor: saving ? "not-allowed" : "pointer",
-                        fontWeight: 600,
-                        opacity: saving ? 0.7 : 1
-                    }}
+                    className="px-4 py-2 rounded-lg bg-sky-500 text-white font-semibold disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                     {saving ? "Saving..." : "Save Changes"}
                 </button>

@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.enterpriseRole !== 'ADMIN') {
+    const role = session?.user?.enterpriseRole as UserRole | undefined;
+    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN];
+    if (!session || !role || !allowedRoles.includes(role)) {
         return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }
 

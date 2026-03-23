@@ -27,11 +27,52 @@ class CRMService {
 
             let accessToken = config.accessToken;
 
-            // Token refresh logic mockup
+            // Refresh token if expired
             if (config.refreshToken && config.expiresAt && config.expiresAt < new Date()) {
+                const clientId = process.env["HUBSPOT_CLIENT_ID"];
+                const clientSecret = process.env["HUBSPOT_CLIENT_SECRET"];
+                if (!clientId || !clientSecret) {
+                    throw new Error("HubSpot OAuth credentials are not configured");
+                }
+
                 logger.info(`[CRM Service] Refreshing HubSpot token for team ${teamId}`);
-                // In actual implementation, call HubSpot OAuth API here
-                // For now, we log it. Real implementation would update config.accessToken/expiresAt
+                const params = new URLSearchParams();
+                params.set("grant_type", "refresh_token");
+                params.set("refresh_token", config.refreshToken);
+                params.set("client_id", clientId);
+                params.set("client_secret", clientSecret);
+
+                const tokenRes = await fetch("https://api.hubapi.com/oauth/v1/token", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: params.toString()
+                });
+
+                if (!tokenRes.ok) {
+                    const errorText = await tokenRes.text();
+                    throw new Error(`HubSpot token refresh failed: ${errorText}`);
+                }
+
+                const tokenJson: any = await tokenRes.json();
+                const nextAccessToken = tokenJson.access_token as string | undefined;
+                const nextRefreshToken = tokenJson.refresh_token as string | undefined;
+                const expiresIn = tokenJson.expires_in as number | undefined;
+
+                if (!nextAccessToken || !expiresIn) {
+                    throw new Error("HubSpot token refresh returned invalid payload");
+                }
+
+                const nextExpiry = new Date(Date.now() + expiresIn * 1000);
+                await prisma.crmIntegration.update({
+                    where: { teamId_provider: { teamId, provider: "HUBSPOT" } },
+                    data: {
+                        accessToken: nextAccessToken,
+                        refreshToken: nextRefreshToken || config.refreshToken,
+                        expiresAt: nextExpiry
+                    }
+                });
+
+                accessToken = nextAccessToken;
             }
 
             const hubspotClient = new Client({ accessToken });

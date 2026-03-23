@@ -562,7 +562,7 @@ function MessagingEditor({ mode }: { mode: ExecutionMode }) {
                     <div className="p-3 border-b border-white/10 bg-white/5 flex justify-between items-center">
                         <span className="text-xs font-medium text-gray-400">Preview: Lead #1 (Top Priority)</span>
                         <div className="flex gap-1">
-                            {/* Strength Meter (Mock) */}
+                            {/* Strength Meter */}
                             <div className="flex items-center gap-2 mr-2">
                                 <span className="text-[10px] uppercase text-gray-500 font-bold">Message Strength</span>
                                 <div className="flex gap-0.5">

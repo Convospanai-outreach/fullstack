@@ -176,7 +176,7 @@ export class McpClient {
     }
 
     /**
-     * For internal/mock servers to register tools directly
+     * For internal or local servers to register tools directly
      * (used by ComputerUseServer which is an embedded server)
      */
     registerTool(tool: McpTool) {

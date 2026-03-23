@@ -1,34 +1,56 @@
 // @vitest-environment node
-import { PrismaClient } from "@prisma/client";
-import { buildRAGContext, extractKeyInsights } from "@/ai/ragEngine";
-import { generateWithGemini } from "@/ai/gemini";
+import type { PrismaClient } from "@prisma/client";
+import { ensureDatabaseUrlEnv, hasTestDatabase } from "./utils/db";
+import { vi, afterEach } from "vitest";
 
-const prisma = new PrismaClient();
-let dbReady = true;
+const databaseUrl = ensureDatabaseUrlEnv();
+const shouldRunDb = hasTestDatabase;
+const maybeTest = shouldRunDb ? test : test.skip;
+let prisma: PrismaClient | null = null;
+
+const stubGemini = (text: string) => {
+  const mockFetch = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ text })
+  });
+  vi.stubGlobal("fetch", mockFetch);
+  return mockFetch;
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
 
 beforeAll(async () => {
-  try {
-    await prisma.$connect();
-    await prisma.vectorDocument.deleteMany({});
-    await prisma.engagementLog.deleteMany({});
-  } catch {
-    dbReady = false;
-  }
+  if (!shouldRunDb) return;
+  const { PrismaClient } = await import("@prisma/client");
+  prisma = new PrismaClient({
+    datasources: {
+      db: { url: databaseUrl }
+    }
+  });
+  await prisma.$connect();
+  await prisma.vectorDocument.deleteMany({});
+  await prisma.engagementLog.deleteMany({});
 });
 
 afterAll(async () => {
+  if (!prisma) return;
   await prisma.$disconnect();
 });
 
-describe("🔗 Full AI + RAG + Analytics pipeline", () => {
-  test("1️⃣ Inserts VectorDocument and retrieves via RAG", async () => {
-    if (!dbReady) return;
+describe("Full AI + RAG + Analytics pipeline", () => {
+  maybeTest("1: Inserts VectorDocument and retrieves via RAG", async () => {
+    if (!prisma) throw new Error("Prisma client not initialized");
+    const { buildRAGContext } = await import("@/ai/ragEngine");
+
     const doc = await prisma.vectorDocument.create({
       data: {
         type: "company",
         content: "Acme Corp focuses on optimizing marketing automation using AI-driven insights.",
-        metadata: JSON.stringify({ industry: "SaaS", size: "200-500 employees" }),
-      },
+        metadata: JSON.stringify({ industry: "SaaS", size: "200-500 employees" })
+      }
     });
 
     expect(doc).toHaveProperty("id");
@@ -37,18 +59,18 @@ describe("🔗 Full AI + RAG + Analytics pipeline", () => {
     expect(context).toContain("Acme Corp");
   });
 
-  test("2️⃣ Generates insights using Gemini (mock-safe)", async () => {
-    delete process.env['GEMINI_API_KEY']; // Ensure mock mode works
-    const insights = await extractKeyInsights(
-      "Acme Corp focuses on optimizing marketing automation using AI."
-    );
-
-    expect(typeof insights).toBe("string");
-    expect(insights.length).toBeGreaterThan(10);
+  test("2: Gemini forwards to API backend", async () => {
+    delete process.env["GEMINI_API_KEY"];
+    const mockFetch = stubGemini("Summary from API");
+    const { generateWithGemini } = await import("@/ai/gemini");
+    const response = await generateWithGemini("Summarize this: test input");
+    expect(response).toBe("Summary from API");
+    expect(mockFetch).toHaveBeenCalled();
   });
 
-  test("3️⃣ Creates EngagementLog entry after email send", async () => {
-    if (!dbReady) return;
+  maybeTest("3: Creates EngagementLog entry after email send", async () => {
+    if (!prisma) throw new Error("Prisma client not initialized");
+
     const log = await prisma.engagementLog.create({
       data: {
         email: "john.doe@acme.com",
@@ -57,15 +79,15 @@ describe("🔗 Full AI + RAG + Analytics pipeline", () => {
         result: JSON.stringify({
           status: "sent",
           subject: "AI Automation Opportunities for Acme",
-          timestamp: new Date().toISOString(),
-        }),
-      },
+          timestamp: new Date().toISOString()
+        })
+      }
     });
 
     expect(log.email).toBe("john.doe@acme.com");
 
     const retrievedLogs = await prisma.engagementLog.findMany({
-      where: { email: "john.doe@acme.com" },
+      where: { email: "john.doe@acme.com" }
     });
 
     expect(retrievedLogs.length).toBeGreaterThan(0);
@@ -74,9 +96,13 @@ describe("🔗 Full AI + RAG + Analytics pipeline", () => {
     expect(firstLog.result).toContain("AI Automation");
   });
 
-  test("4️⃣ RAG + Gemini combined response integrity", async () => {
-    if (!dbReady) return;
+  maybeTest("4: RAG + Gemini combined response integrity", async () => {
+    if (!prisma) throw new Error("Prisma client not initialized");
+    const { buildRAGContext } = await import("@/ai/ragEngine");
+    const { generateWithGemini } = await import("@/ai/gemini");
+
     const context = await buildRAGContext("Acme Corp", "AI automation");
+    stubGemini("Summary from API");
     const response = await generateWithGemini(`Summarize this: ${context}`);
 
     expect(typeof response).toBe("string");

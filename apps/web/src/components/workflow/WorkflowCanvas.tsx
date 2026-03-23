@@ -5,7 +5,7 @@ import { WorkflowNode } from "./WorkflowNode";
 export function WorkflowCanvas() {
     return (
         <div className="relative w-full h-[600px] bg-black/20 rounded-xl border border-white/10 overflow-hidden bg-[radial-gradient(#ffffff10_1px,transparent_1px)] [background-size:16px_16px]">
-            {/* Mock Connections */}
+            {/* Connections */}
             <svg className="absolute inset-0 w-full h-full pointer-events-none">
                 <path
                     d="M 350 130 C 450 130, 450 280, 550 280"

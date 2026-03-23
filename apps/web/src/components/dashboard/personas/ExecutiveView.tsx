@@ -1,56 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { MockROIService, ROIMetrics } from "@/services/analytics/roi";
+import { useEffect, useMemo, useState } from "react";
+import { ROIService, ROIResponse } from "@/services/analytics/roi";
 import { ROICard } from "@/components/dashboard/widgets/ROICard";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { ArrowUpRight } from "lucide-react";
 
 export default function ExecutiveView() {
-    const [metrics, setMetrics] = useState<ROIMetrics | null>(null);
-    const [trends, setTrends] = useState<any[]>([]);
+    const [data, setData] = useState<ROIResponse | null>(null);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
         setMounted(true);
-        MockROIService.getMetrics().then(setMetrics);
-        MockROIService.getTrends('mrr').then(setTrends);
+        ROIService.getSummary().then(setData).catch(() => setData(null));
     }, []);
 
-    if (!mounted || !metrics) return <div className="p-10 text-center animate-pulse">Loading Strategic Insights...</div>;
+    const trends = useMemo(() => {
+        if (!data) return [];
+        return data.history.map((row) => ({ date: row.date, value: row.revenue }));
+    }, [data]);
+
+    if (!mounted || !data) return <div className="p-10 text-center animate-pulse">Loading Strategic Insights...</div>;
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* 1. North Star Metrics (F-Pattern Top Left) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <ROICard
-                    title="Recurring Revenue (MRR)"
-                    value={metrics.mrr.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                    trend={{ value: 12.5, isUp: true }}
+                    title="Revenue (Closed Won)"
+                    value={data.financials.revenue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    trend={{ value: data.funnel.conversionRate, isUp: true }}
                     status="success"
-                    description="On track to beat Q3 targets."
+                    description="Closed-won revenue tracked from CRM pipeline."
                 />
                 <ROICard
-                    title="Customer Lifetime Value (CLV)"
-                    value={metrics.clv.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                    trend={{ value: 5.2, isUp: true }}
-                    status="success"
-                    description="Upsell campaigns performing well."
-                />
-                <ROICard
-                    title="Acquisition Cost (CAC)"
-                    value={metrics.cac.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
-                    trend={{ value: -2.1, isUp: true }} // Down is good for CAC usually, but let's keep green for good
-                    status="success" // Manually set status
-                    description="Efficiency improved by 2%."
-                />
-                <ROICard
-                    title="Churn Rate"
-                    value={metrics.churnRate + '%'}
-                    trend={{ value: 0.5, isUp: false }} // Up is bad for churn
+                    title="Spend (LLM Usage)"
+                    value={data.financials.spend.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    trend={{ value: data.financials.spend > 0 ? 1 : 0, isUp: false }}
                     status="warning"
-                    description="Slight uptick in SMB segment."
+                    description="Calculated from recorded model usage."
+                />
+                <ROICard
+                    title="ROI"
+                    value={`${data.financials.roi.toFixed(2)}%`}
+                    trend={{ value: data.financials.roi, isUp: data.financials.roi >= 0 }}
+                    status={data.financials.roi >= 0 ? "success" : "warning"}
+                    description="Profit relative to AI spend."
+                />
+                <ROICard
+                    title="Closed Wins"
+                    value={data.funnel.wins.toLocaleString()}
+                    trend={{ value: data.funnel.conversionRate, isUp: data.funnel.conversionRate >= 0 }}
+                    status="success"
+                    description="Deals marked as Closed Won."
                 />
             </div>
 
@@ -102,11 +105,11 @@ export default function ExecutiveView() {
                         </CardHeader>
                         <CardContent>
                             <div className="flex items-end gap-2 mb-2">
-                                <span className="text-6xl font-black">{metrics.healthScore}</span>
+                                <span className="text-6xl font-black">{Math.min(100, Math.max(0, Math.round(data.financials.roi)))}</span>
                                 <span className="text-muted-foreground pb-2">/ 100</span>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                Your account is healthy. Usage is up 15% across all teams.
+                                Health score derived from ROI and conversion signals.
                             </p>
                         </CardContent>
                     </Card>

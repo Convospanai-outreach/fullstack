@@ -29,16 +29,17 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingPage() {
     const { data: subscription, isLoading, error } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/billing/subscription", fetcher);
+    const { data: usage } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/billing/usage", fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
 
-    const handleTopUp = async (amount: number) => {
+    const handleTopUp = async (tierId: string) => {
         setTopUpLoading(true);
         try {
             // Create Razorpay order
             const response = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/billing/topup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ amount, credits: amount / 10 }) // Example: ₹10 = 1 credit
+                body: JSON.stringify({ tierId })
             });
 
             const data = await response.json();
@@ -50,11 +51,11 @@ export default function BillingPage() {
             // Open Razorpay checkout
             const options = {
                 key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'],
-                amount: data.order.amount,
-                currency: data.order.currency,
+                amount: data.amount,
+                currency: data.currency,
                 name: 'ConvoSpan',
                 description: 'Credit Top-up',
-                order_id: data.order.id,
+                order_id: data.id,
                 handler: function (_response: any) {
                     // Payment successful
                     window.location.reload(); // Refresh to show updated credits
@@ -183,13 +184,13 @@ export default function BillingPage() {
                                 <div className="space-y-6">
                                     <UsageLimitMeter
                                         label="Monthly Campaign Credits"
-                                        used={1840}
-                                        total={2500}
+                                        used={Math.max(0, (usage?.history || []).reduce((acc: number, tx: any) => acc + (tx.amount < 0 ? Math.abs(tx.amount) : 0), 0))}
+                                        total={subscription?.credits || 0}
                                     />
                                     <div className="space-y-1">
                                         <div className="flex justify-between text-[10px] font-bold text-text-muted uppercase">
                                             <span>Current Balance</span>
-                                            <span className="text-accent-mint">660 remaining</span>
+                                            <span className="text-accent-mint">{usage?.balance ?? 0} remaining</span>
                                         </div>
                                         <p className="text-xs text-text-secondary leading-relaxed">
                                             Credits refresh automatically on your billing anniversary. Unused base credits do not roll over.
@@ -205,13 +206,13 @@ export default function BillingPage() {
                                         <Badge className="bg-accent-gold/10 text-accent-gold border-none">Reserve Pool</Badge>
                                     </div>
                                     <div className="mt-6">
-                                        <h5 className="text-3xl font-black text-white">4,200</h5>
+                                        <h5 className="text-3xl font-black text-white">{usage?.balance ?? 0}</h5>
                                         <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-1">Non-Expiring Top-Up Credits</p>
                                     </div>
                                     <Button
                                         variant="default"
                                         className="mt-6 bg-accent-gold hover:bg-accent-gold/90 text-slate-950 shadow-glow-gold"
-                                        onClick={() => handleTopUp(1000)}
+                                        onClick={() => handleTopUp("starter")}
                                         disabled={topUpLoading}
                                     >
                                         <PlusCircle className="w-4 h-4 mr-2" />
@@ -226,11 +227,7 @@ export default function BillingPage() {
                                     Recent Credit Activity
                                 </h5>
                                 <div className="space-y-3">
-                                    {[
-                                        { type: 'Usage', detail: 'Bulk Enrichment: "Q4 Leads Import"', amount: -420, date: '2 hours ago' },
-                                        { type: 'Top-up', detail: 'Purchased 5,000 Credits', amount: 5000, date: '1 day ago' },
-                                        { type: 'Usage', detail: 'Email Campaign: "Follow-up #1"', amount: -15, date: '2 days ago' },
-                                    ].map((row, i) => (
+                                    {(usage?.history || []).map((row: any, i: number) => (
                                         <div key={i} className="flex items-center justify-between p-4 rounded-xl glass-strong border border-white/5">
                                             <div className="flex items-center gap-4">
                                                 <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-text-muted'}`}>
@@ -238,17 +235,22 @@ export default function BillingPage() {
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-white">{row.type}</p>
-                                                    <p className="text-xs text-text-muted">{row.detail}</p>
+                                                    <p className="text-xs text-text-muted">{row.description}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
                                                 <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-emerald-400' : 'text-white'}`}>
                                                     {row.amount > 0 ? '+' : ''}{row.amount.toLocaleString()}
                                                 </p>
-                                                <p className="text-[10px] text-text-muted font-medium">{row.date}</p>
+                                                <p className="text-[10px] text-text-muted font-medium">
+                                                    {new Date(row.createdAt).toLocaleString()}
+                                                </p>
                                             </div>
                                         </div>
                                     ))}
+                                    {(usage?.history || []).length === 0 && (
+                                        <div className="text-xs text-text-muted">No credit activity yet.</div>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -274,3 +276,4 @@ export default function BillingPage() {
         </AppShell>
     );
 }
+

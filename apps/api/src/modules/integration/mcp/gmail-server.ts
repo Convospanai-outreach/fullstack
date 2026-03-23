@@ -1,25 +1,33 @@
 /**
- * Gmail Model Context Protocol (MCP) Server
- * Connects to Google's Gmail API to perform actions on behalf of the user.
+ * Gmail MCP Server
+ * Connects to Gmail REST API using an OAuth access token.
  */
 
-// import { google } from "googleapis";
 import { HelperTool } from "./slack-server";
+
+const GMAIL_API_URL = process.env["GMAIL_API_URL"] || "https://gmail.googleapis.com/gmail/v1";
+const GMAIL_SENDER_ADDRESS = process.env["GMAIL_SENDER_ADDRESS"] || "";
+
+function getGmailToken() {
+    const token = process.env["GMAIL_OAUTH_ACCESS_TOKEN"];
+    if (!token) {
+        throw new Error("GMAIL_OAUTH_ACCESS_TOKEN is not configured");
+    }
+    return token;
+}
+
+function encodeMessage(message: string) {
+    return Buffer.from(message)
+        .toString("base64")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_")
+        .replace(/=+$/, "");
+}
 
 export class GmailMCPServer {
     private tools: HelperTool[] = [];
-    // private oauth2Client;
 
     constructor() {
-        // this.oauth2Client = new google.auth.OAuth2(
-        //     process.env['GOOGLE_CLIENT_ID'],
-        //     process.env['GOOGLE_CLIENT_SECRET'],
-        //     process.env['GOOGLE_REDIRECT_URI']
-        // );
-
-        // In a real scenario, we'd set credentials here from the user's session
-        // this.oauth2Client.setCredentials({ refresh_token: ... });
-
         this.registerTools();
     }
 
@@ -36,35 +44,39 @@ export class GmailMCPServer {
                 },
                 required: ["to", "subject", "body"]
             },
-            handler: async ({ to, subject: _subject, body: _body }) => {
-                try {
-                    console.log(`[MCP:Gmail] Composing email to ${to}...`);
+            handler: async ({ to, subject, body }) => {
+                const token = getGmailToken();
+                const headers = [
+                    "Content-Type: text/plain; charset=\"UTF-8\"",
+                    "MIME-Version: 1.0",
+                    "Content-Transfer-Encoding: 7bit",
+                    `To: ${to}`,
+                    `Subject: ${subject}`
+                ];
 
-                    // const _message = [
-                    //     'Content-Type: text/plain; charset="UTF-8"\n',
-                    //     'MIME-Version: 1.0\n',
-                    //     'Content-Transfer-Encoding: 7bit\n',
-                    //     `to: ${to}\n`,
-                    //     `subject: ${subject}\n\n`,
-                    //     body
-                    // ].join('');
-
-                    // const gmail = this.getGmailClient();
-                    // const encodedMessage = Buffer.from(message).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-                    // const res = await gmail.users.messages.send({
-                    //     userId: 'me',
-                    //     requestBody: {
-                    //         raw: encodedMessage,
-                    //     },
-                    // });
-
-                    // Mock success for now
-                    console.log(`[MCP:Gmail] Sent successfully (Mock).`);
-                    return { success: true, id: `msg_${Date.now()}` };
-                } catch (error: any) {
-                    console.error("[MCP:Gmail] Send failed:", error);
-                    return { success: false, error: error.message };
+                if (GMAIL_SENDER_ADDRESS) {
+                    headers.unshift(`From: ${GMAIL_SENDER_ADDRESS}`);
                 }
+
+                const message = `${headers.join("\n")}\n\n${body}`;
+                const raw = encodeMessage(message);
+
+                const response = await fetch(`${GMAIL_API_URL}/users/me/messages/send`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ raw })
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const errorMessage = data?.error?.message || `Gmail API error ${response.status}`;
+                    throw new Error(errorMessage);
+                }
+
+                return { success: true, id: data.id, threadId: data.threadId };
             }
         });
 
@@ -79,27 +91,25 @@ export class GmailMCPServer {
                 },
                 required: ["query"]
             },
-            handler: async ({ query, limit: _limit = 5 }) => {
-                try {
-                    console.log(`[MCP:Gmail] Searching: "${query}"`);
-                    // const gmail = this.getGmailClient();
-                    // const res = await gmail.users.threads.list({
-                    //     userId: 'me',
-                    //     q: query,
-                    //     maxResults: limit
-                    // });
-                    // return { threads: res.data.threads || [] };
+            handler: async ({ query, limit = 5 }) => {
+                const token = getGmailToken();
+                const url = new URL(`${GMAIL_API_URL}/users/me/threads`);
+                url.searchParams.set("q", query);
+                url.searchParams.set("maxResults", String(limit));
 
-                    // Mock response
-                    return {
-                        threads: [
-                            { id: "thread_1", snippet: `Result for ${query}...` },
-                        ]
-                    };
-                } catch (error: any) {
-                    console.error("[MCP:Gmail] Search failed:", error);
-                    return { success: false, error: error.message };
+                const response = await fetch(url.toString(), {
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    const errorMessage = data?.error?.message || `Gmail API error ${response.status}`;
+                    throw new Error(errorMessage);
                 }
+
+                return { threads: data.threads || [] };
             }
         });
     }

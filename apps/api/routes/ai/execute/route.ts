@@ -35,7 +35,7 @@ export async function POST(req: Request) {
                 break;
             
             case "getEmbeddings":
-                const embeddings = await aiService.getEmbeddings(params.text);
+                const embeddings = await aiService.getEmbeddings(params.text, params.teamId);
                 result = { embeddings };
                 break;
 
@@ -44,28 +44,32 @@ export async function POST(req: Request) {
                 break;
 
             case "analyzeProfile":
-                const analysis = await aiService.analyzeProfile(params.profileText);
+                const analysis = await aiService.analyzeProfile(params.profileText, params.teamId);
                 result = { text: analysis };
                 break;
 
             case "generateComment":
-                const comment = await aiService.generateComment(params.postContent, params.profileContext);
+                const comment = await aiService.generateComment(params.postContent, params.profileContext, params.teamId);
                 result = { text: comment };
                 break;
 
             case "generateConnectionMessage":
-                const connectionMsg = await aiService.generateConnectionMessage(params.profileContext);
+                const connectionMsg = await aiService.generateConnectionMessage(params.profileContext, params.teamId);
                 result = { text: connectionMsg };
                 break;
 
             case "improveEmail":
-                const improved = await aiService.improveEmail(params.text);
+                const improved = await aiService.improveEmail(params.text, params.teamId);
                 result = { text: improved };
                 break;
 
             case "generateSmartReply":
-                const replies = await aiService.generateSmartReply(params.context, params.tone, params.memories);
+                const replies = await aiService.generateSmartReply(params.context, params.tone, params.memories, params.teamId);
                 result = replies;
+                break;
+            case "researchCompany":
+                const research = await aiService.researchCompany(params.companyName, params.teamId);
+                result = research;
                 break;
 
             default:

@@ -1,13 +1,18 @@
 // @vitest-environment node
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-let dbReady = true;
+import type { PrismaClient } from "@prisma/client";
+import { ensureDatabaseUrlEnv, hasTestDatabase } from "./utils/db";
 
-async function main() {
+const databaseUrl = ensureDatabaseUrlEnv();
+const shouldRunDb = hasTestDatabase;
+const maybeTest = shouldRunDb ? test : test.skip;
+let prisma: PrismaClient | null = null;
+let dbReady = false;
+
+async function main(client: PrismaClient) {
   console.log('🚀 Starting Prisma verification test...\n');
 
   // 1️⃣ Insert mock VectorDocument
-  const vectorDoc = await prisma.vectorDocument.create({
+  const vectorDoc = await client.vectorDocument.create({
     data: {
       type: 'linkedin',
       content: 'John Doe is Head of Operations at Acme Corp.',
@@ -19,7 +24,7 @@ async function main() {
   console.log('✅ VectorDocument inserted:', vectorDoc);
 
   // 2️⃣ Query recently added vector
-  const foundVectors = await prisma.vectorDocument.findMany({
+  const foundVectors = await client.vectorDocument.findMany({
     where: { type: 'linkedin' },
     orderBy: { created_at: 'desc' },
     take: 1,
@@ -28,7 +33,7 @@ async function main() {
   console.log('\n🔍 Retrieved latest vector doc:', foundVectors[0]);
 
   // 3️⃣ Insert mock EngagementLog
-  const engagementLog = await prisma.engagementLog.create({
+  const engagementLog = await client.engagementLog.create({
     data: {
       email: 'john.doe@acmecorp.com',
       event: 'email_sent',
@@ -44,7 +49,7 @@ async function main() {
   console.log('\n✅ EngagementLog inserted:', engagementLog);
 
   // 4️⃣ Query engagement logs
-  const logs = await prisma.engagementLog.findMany({
+  const logs = await client.engagementLog.findMany({
     where: { email: 'john.doe@acmecorp.com' },
   });
 
@@ -54,20 +59,25 @@ async function main() {
 }
 
 beforeAll(async () => {
-  try {
-    await prisma.$connect();
-  } catch (e) {
-    dbReady = false;
-  }
+  if (!shouldRunDb) return;
+  const { PrismaClient } = await import("@prisma/client");
+  prisma = new PrismaClient({
+    datasources: {
+      db: { url: databaseUrl }
+    }
+  });
+  await prisma.$connect();
+  dbReady = true;
 });
 
-describe('Prisma Tests', () => {
-  it('should run the full prisma test flow', async () => {
-    if (!dbReady) return;
-    await main();
+describe("Prisma Tests", () => {
+  maybeTest("should run the full prisma test flow", async () => {
+    if (!dbReady || !prisma) return;
+    await main(prisma);
   });
 });
 
 afterAll(async () => {
+  if (!prisma) return;
   await prisma.$disconnect();
 });

@@ -3,11 +3,13 @@
  * Generates visual assets for outreach campaigns (Images, Slide Decks).
  * Integrates as a sub-agent for the OutreachAgent.
  */
-// Context Cache
-const contentCache = new Map<string, string>(); // Key: Prompt, Value: URL
+const contentCache = new Map<string, string>();
+const CONTENT_ASSET_API_URL = process.env["CONTENT_ASSET_API_URL"] || "";
+
+type AssetResponse = { url?: string };
 
 export class ContentAgent {
-    static async generateAsset(type: 'IMAGE' | 'SLIDE_DECK', prompt: string): Promise<string> {
+    static async generateAsset(type: "IMAGE" | "SLIDE_DECK", prompt: string): Promise<string> {
         const cacheKey = `${type}:${prompt}`;
 
         if (contentCache.has(cacheKey)) {
@@ -15,31 +17,55 @@ export class ContentAgent {
             return contentCache.get(cacheKey)!;
         }
 
-        console.log(`[ContentAgent] Generating ${type} with prompt: "${prompt}"`);
-
-        // Simulate processing time
-        await new Promise(r => setTimeout(r, 1000));
-
-        let result = "";
-        if (type === 'IMAGE') {
-            // Mock DALL-E/Midjourney URL
-            result = `https://assets.convospan.com/generated/${crypto.randomUUID()}.png`;
-        } else {
-            // Mock Canva/Figma URL
-            result = `https://canva.com/design/${crypto.randomUUID()}/view`;
+        if (!CONTENT_ASSET_API_URL) {
+            throw new Error("CONTENT_ASSET_API_URL is not configured");
         }
 
-        contentCache.set(cacheKey, result);
-        return result;
+        const response = await fetch(`${CONTENT_ASSET_API_URL}/assets/generate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type, prompt })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Asset generation failed: ${errorText || response.status}`);
+        }
+
+        const payload = (await response.json()) as AssetResponse;
+        if (!payload.url) {
+            throw new Error("Asset generation returned no URL");
+        }
+
+        contentCache.set(cacheKey, payload.url);
+        return payload.url;
     }
 
     static async personalizeDeck(baseDeckId: string, leadContext: any): Promise<string> {
         const cacheKey = `DECK:${baseDeckId}:${leadContext.companyName}`;
         if (contentCache.has(cacheKey)) return contentCache.get(cacheKey)!;
 
-        console.log(`[ContentAgent] Personalizing Deck ${baseDeckId} for ${leadContext.companyName}`);
-        const result = `https://canva.com/design/${baseDeckId}_personalized/view`;
-        contentCache.set(cacheKey, result);
-        return result;
+        if (!CONTENT_ASSET_API_URL) {
+            throw new Error("CONTENT_ASSET_API_URL is not configured");
+        }
+
+        const response = await fetch(`${CONTENT_ASSET_API_URL}/assets/personalize`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ baseDeckId, leadContext })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Deck personalization failed: ${errorText || response.status}`);
+        }
+
+        const payload = (await response.json()) as AssetResponse;
+        if (!payload.url) {
+            throw new Error("Deck personalization returned no URL");
+        }
+
+        contentCache.set(cacheKey, payload.url);
+        return payload.url;
     }
 }

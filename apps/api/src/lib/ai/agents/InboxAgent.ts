@@ -13,6 +13,10 @@ export interface InboxAnalysis {
 }
 
 export class InboxAgent extends BaseAgent {
+    constructor(teamId?: string) {
+        super(teamId);
+    }
+
     async analyzeThread(context: ThreadContext): Promise<InboxAnalysis> {
         const conversationText = context.messages.map(m => `${m.role}: ${m.content}`).join("\n");
 

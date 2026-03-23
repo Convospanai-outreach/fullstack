@@ -42,7 +42,7 @@ async function testCallerFlow() {
         }
     });
 
-    // Test Queue Fetching (Mock User ID)
+    // Test Queue Fetching (Test User ID)
     const queue = await CallerService.getQueue(userId);
     console.log(`Queue fetched. Pool size: ${queue.pool.length}, Assigned: ${queue.assigned.length}`);
 

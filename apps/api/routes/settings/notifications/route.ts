@@ -18,3 +18,17 @@ export async function POST(req: Request) {
         return new NextResponse(error.message, { status: 500 });
     }
 }
+
+export async function GET(_req: Request) {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user?.id) {
+        return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    try {
+        const settings = await settingsService.getSettings(session.user.id);
+        return NextResponse.json(settings.notifications || {});
+    } catch (error: any) {
+        return new NextResponse(error.message, { status: 500 });
+    }
+}

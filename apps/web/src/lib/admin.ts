@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { UserRole } from "@prisma/client";
 
 export async function checkAdmin() {
     const session = await getServerSession(authOptions);
@@ -10,8 +11,15 @@ export async function checkAdmin() {
 
     const user = await prisma.user.findUnique({
         where: { email: session.user.email },
-        select: { role: true }
+        select: { role: true, enterpriseRole: true }
     });
 
-    return user?.role === "admin";
+    if (!user) return false;
+
+    const legacyAdmin = user.role === "admin" || user.role === "superadmin";
+    const enterpriseAdmin =
+        user.enterpriseRole === UserRole.SYSTEM_ADMIN ||
+        user.enterpriseRole === UserRole.ORG_ADMIN;
+
+    return legacyAdmin || enterpriseAdmin;
 }

@@ -25,10 +25,6 @@ export function WorkspaceSwitcher() {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/user/teams");
             const data = await res.json();
 
-            // Mocking for now if endpoint structure is unknown, but let's assume standard structure
-            // If endpoint doesn't exist yet, we might need to create it or similar.
-            // Assuming we rely on cookie for active team.
-
             if (data.teams) {
                 setTeams(data.teams);
 

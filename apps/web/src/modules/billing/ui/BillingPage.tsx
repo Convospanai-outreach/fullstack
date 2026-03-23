@@ -107,7 +107,7 @@ export default function BillingPage() {
         }
     };
 
-    const handleTopUp = async (amount: number, credits: number) => {
+    const handleTopUp = async (tierId: string) => {
         setLoading("topup");
         try {
             const isLoaded = await loadRazorpayScript();
@@ -119,7 +119,7 @@ export default function BillingPage() {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ amount, credits }),
+                body: JSON.stringify({ tierId }),
             });
             const data = await res.json();
 
@@ -183,13 +183,13 @@ export default function BillingPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {[
-                            { credits: 500, amount: 500, label: "Starter Pack" },   // 500 INR ~ $6
-                            { credits: 2000, amount: 1800, label: "Pro Pack", save: "Save 10%" },
-                            { credits: 10000, amount: 8000, label: "Power Pack", save: "Save 20%" }
+                            { tierId: "starter", credits: 500, amount: 500, label: "Starter Pack" },
+                            { tierId: "pro", credits: 2000, amount: 1800, label: "Pro Pack", save: "Save 10%" },
+                            { tierId: "power", credits: 10000, amount: 8000, label: "Power Pack", save: "Save 20%" }
                         ].map(pack => (
                             <button
                                 key={pack.credits}
-                                onClick={() => handleTopUp(pack.amount, pack.credits)}
+                                onClick={() => handleTopUp(pack.tierId)}
                                 disabled={!!loading}
                                 className="relative group p-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 hover:border-green-500/50 transition-all text-left"
                             >

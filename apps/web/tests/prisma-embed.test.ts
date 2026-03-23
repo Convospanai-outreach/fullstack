@@ -1,7 +1,12 @@
 // @vitest-environment node
-import { PrismaClient } from '@prisma/client';
-const prisma = new PrismaClient();
-let dbReady = true;
+import type { PrismaClient } from "@prisma/client";
+import { ensureDatabaseUrlEnv, hasTestDatabase } from "./utils/db";
+
+const databaseUrl = ensureDatabaseUrlEnv();
+const shouldRunDb = hasTestDatabase;
+const maybeTest = shouldRunDb ? test : test.skip;
+let prisma: PrismaClient | null = null;
+let dbReady = false;
 
 // 🔹 Mock local embedding generator
 function generateMockEmbedding(text: string, dim: number = 1536): number[] {
@@ -10,21 +15,27 @@ function generateMockEmbedding(text: string, dim: number = 1536): number[] {
   return Array.from({ length: dim }, (_, i) => ((hash * (i + 1)) % 997) / 997);
 }
 
-describe('Prisma Vector Storage Tests', () => {
+describe("Prisma Vector Storage Tests", () => {
   beforeAll(async () => {
-    try {
-      await prisma.$connect();
-    } catch {
-      dbReady = false;
-    }
+    if (!shouldRunDb) return;
+    const { PrismaClient } = await import("@prisma/client");
+    prisma = new PrismaClient({
+      datasources: {
+        db: { url: databaseUrl }
+      }
+    });
+    await prisma.$connect();
+    dbReady = true;
   });
 
   afterAll(async () => {
+    if (!prisma) return;
     await prisma.$disconnect();
   });
 
-  it('should store and compare vector embeddings', async () => {
-    if (!dbReady) return;
+  maybeTest("should store and compare vector embeddings", async () => {
+    if (!dbReady || !prisma) return;
+    const client = prisma;
     const textContent =
       "ConvoSpan is an AI automation platform that integrates LinkedIn scraping, Gemini-based personalization, and SendPulse outreach.";
 
@@ -33,7 +44,7 @@ describe('Prisma Vector Storage Tests', () => {
     expect(mockEmbedding).toHaveLength(1536);
 
     // Insert into VectorDocument
-    const vectorDoc = await prisma.vectorDocument.create({
+    const vectorDoc = await client.vectorDocument.create({
       data: {
         type: 'company',
         content: textContent,
@@ -48,7 +59,7 @@ describe('Prisma Vector Storage Tests', () => {
     expect(vectorDoc.content).toBe(textContent);
 
     // Query all vectors and verify count
-    const allVectors = await prisma.vectorDocument.findMany();
+    const allVectors = await client.vectorDocument.findMany();
     expect(allVectors.length).toBeGreaterThan(0);
 
     // Test similarity comparison

@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
         const { messages, leadId } = validation.data;
 
-        const agent = new InboxAgent();
+        const agent = new InboxAgent(ctx.teamId || undefined);
         const context: ThreadContext = { messages };
         const analysis = await agent.analyzeThread(context);
 

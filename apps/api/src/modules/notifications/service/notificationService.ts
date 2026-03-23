@@ -1,32 +1,39 @@
+import { prisma } from "@/lib/db";
+
 type NotificationType = "info" | "success" | "warning" | "error";
 
 class NotificationService {
-    private subscribers: ((notification: any) => void)[] = [];
+    async sendAlert(userId: string, type: NotificationType, message: string, meta?: any) {
+        if (!userId) {
+            throw new Error("Notification requires userId");
+        }
 
-    async sendAlert(type: NotificationType, message: string) {
-        // Mock sending alert to external channels (Email, Slack)
-        console.log(`[Notification] ${type.toUpperCase()}: ${message}`);
-
-        // In a real app, we'd persist this to DB and push via Websockets
-        const notification = {
-            id: Math.random().toString(36).substr(2, 9),
-            type,
-            message,
-            createdAt: new Date().toISOString(),
-            read: false,
-        };
-
-        // Notify in-memory subscribers (mock websocket)
-        this.subscribers.forEach(cb => cb(notification));
+        const notification = await prisma.notification.create({
+            data: {
+                userId,
+                type,
+                message,
+                meta: meta || {},
+                read: false
+            }
+        });
 
         return notification;
     }
 
-    subscribe(callback: (notification: any) => void) {
-        this.subscribers.push(callback);
-        return () => {
-            this.subscribers = this.subscribers.filter(cb => cb !== callback);
-        };
+    async list(userId: string, limit: number = 20) {
+        return prisma.notification.findMany({
+            where: { userId },
+            orderBy: { createdAt: "desc" },
+            take: limit
+        });
+    }
+
+    async markRead(userId: string, notificationId: string) {
+        return prisma.notification.update({
+            where: { id: notificationId, userId },
+            data: { read: true }
+        });
     }
 }
 

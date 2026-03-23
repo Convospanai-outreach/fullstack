@@ -13,6 +13,10 @@ export interface EmailStep {
 }
 
 export class CampaignAgent extends BaseAgent {
+    constructor(teamId?: string) {
+        super(teamId);
+    }
+
     async generateSequence(input: CampaignInput): Promise<EmailStep[]> {
         const prompt = `
             Act as a world-class Copywriter.

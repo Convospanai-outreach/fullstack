@@ -87,7 +87,6 @@ export class AiStatsService {
                 const rate = COST_PER_1K_TOKENS[model] || COST_PER_1K_TOKENS["unknown"] || 0.001;
                 s.cost += (t.tokens / 1000) * rate;
 
-                // Reliability (Mock logic)
                 s.count_success++;
 
                 // Add trace point for chart (sample if too many?)
@@ -115,49 +114,7 @@ export class AiStatsService {
         return "text-slate-400";
     }
 
-    /**
-     * Mock data for UI development if no real data exists
-     */
-    static getMockMetrics() {
-        return [
-            {
-                name: "Gemini 1.5 Pro",
-                count: 1240,
-                avgLatency: 1.2,
-                totalTokens: 850000,
-                cost: 2.97,
-                reliability: 99.8,
-                color: "text-blue-400"
-            },
-            {
-                name: "GPT-4o",
-                count: 850,
-                avgLatency: 2.1,
-                totalTokens: 420000,
-                cost: 8.40,
-                reliability: 99.2,
-                color: "text-green-400"
-            },
-            {
-                name: "Claude 3 Opus",
-                count: 120,
-                avgLatency: 4.5,
-                totalTokens: 150000,
-                cost: 11.25,
-                reliability: 98.5,
-                color: "text-orange-400"
-            },
-            {
-                name: "Local Mistral",
-                count: 4500,
-                avgLatency: 0.4,
-                totalTokens: 2100000,
-                cost: 0.00,
-                reliability: 100,
-                color: "text-slate-400"
-            }
-        ];
-    }
+    
 }
 
 export const aiStatsService = new AiStatsService();

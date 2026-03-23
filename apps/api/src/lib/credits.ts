@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db";
  * Checks if a team has enough credits for an operation.
  */
 export async function checkCredits(teamId: string, amount: number): Promise<boolean> {
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Credit check amount must be a positive number");
+    }
     const team = await prisma.team.findUnique({
         where: { id: teamId },
         select: { credits: true }
@@ -23,6 +26,9 @@ export async function deductCredits(
     description: string,
     meta?: any
 ): Promise<boolean> {
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Deduct amount must be a positive number");
+    }
     return await prisma.$transaction(async (tx) => {
         const team = await tx.team.findUnique({
             where: { id: teamId },
@@ -63,6 +69,9 @@ export async function addCredits(
     description: string,
     meta?: any
 ): Promise<void> {
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Add amount must be a positive number");
+    }
     await prisma.$transaction([
         prisma.team.update({
             where: { id: teamId },

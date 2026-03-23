@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ICPAgent } from "@/lib/ai/agents/ICPAgent";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
             painPoints
         };
 
-        const agent = new ICPAgent();
+        const ctx = await getCurrentContext();
+        const agent = new ICPAgent(ctx.teamId || undefined);
         const result = await agent.generate(input);
 
         return NextResponse.json(result);

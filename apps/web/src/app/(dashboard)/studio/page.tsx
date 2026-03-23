@@ -141,7 +141,7 @@ export default function MessageControlStudio() {
                         </div>
                     </div>
 
-                    {/* Email UI Mockup */}
+                    {/* Email UI */}
                     <div className="flex-1 bg-bg-base rounded-lg border border-border-subtle p-6 shadow-inner font-mono text-sm leading-relaxed text-text-primary opacity-90 whitespace-pre-wrap overflow-y-auto">
                         {loading ? (
                             <div className="flex items-center justify-center h-full">

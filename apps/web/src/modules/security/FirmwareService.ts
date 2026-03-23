@@ -6,21 +6,23 @@ import crypto from 'crypto';
  * Ensures that only code signed by the "Covospan Developer Key" is running.
  */
 export class FirmwareService {
-    // In production, these would be loaded from a secure HSM or KMS
-    private static PRIVATE_KEY = process.env['DEV_PRIVATE_KEY'] || "mock-private-key";
-    // private static _PUBLIC_KEY = process.env['DEV_PUBLIC_KEY'] || "mock-public-key";
+    // In production, these should be loaded from a secure HSM or KMS
+    private static PRIVATE_KEY = process.env['FIRMWARE_PRIVATE_KEY'];
+    private static PUBLIC_KEY = process.env['FIRMWARE_PUBLIC_KEY'];
+    private static EXPECTED_HASH = process.env['FIRMWARE_EXPECTED_HASH'];
 
     /**
      * Signs a firmware payload or configuration blob.
      */
     static signPayload(data: object): string {
+        if (!this.PRIVATE_KEY) {
+            throw new Error("Firmware signing key is not configured");
+        }
         const payload = JSON.stringify(data);
         const sign = crypto.createSign('SHA256');
         sign.update(payload);
         sign.end();
-        // For mock purposes with invalid keys, we just return a hash
-        // In real secure boot, this returns signature = sign.sign(this.PRIVATE_KEY, 'hex');
-        return crypto.createHmac('sha256', this.PRIVATE_KEY).update(payload).digest('hex');
+        return sign.sign(this.PRIVATE_KEY, 'hex');
     }
 
     /**
@@ -28,13 +30,13 @@ export class FirmwareService {
      * The node sends a hash of its running software stack (TPM PCR values).
      */
     static verifyAttestation(nodeId: string, measuredBootHash: string): boolean {
-        // 1. Database Lookup: Get the expected measurements for the assigned fleet version
-        // Mocking the "Gold Standard" hash
-        const expectedHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"; // Empty SHA-256 for demo
+        if (!this.EXPECTED_HASH) {
+            throw new Error("Firmware expected hash is not configured");
+        }
 
         console.log(`[FirmwareService] Verifying Node ${nodeId}. Received: ${measuredBootHash}`);
 
-        if (measuredBootHash === expectedHash) {
+        if (measuredBootHash === this.EXPECTED_HASH) {
             return true;
         }
 

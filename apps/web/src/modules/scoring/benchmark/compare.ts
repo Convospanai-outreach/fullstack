@@ -24,8 +24,7 @@ export async function runBenchmark() {
         if (event.type === "PAGE_VIEW") legacyScore += 5;
         if (event.type === "CLICK") legacyScore += 10;
 
-        // Velocity Update (Mocking the service call structure)
-        // In real app, we'd persist to DB, here we simulate the stateless math
+        // Velocity update using simulated parameters for benchmark purposes
         // Assuming calculateVelocity returns the new posterior
         const timeDelta = (event.timestamp.getTime() - startTime) / (1000 * 60 * 60); // hours
 
@@ -33,7 +32,7 @@ export async function runBenchmark() {
         const decayed = velocityScore * Math.pow(0.9, timeDelta);
 
         // Update
-        velocityScore = velocityService.calculateVelocity(decayed + 0.1, 0.8, 1); // Mock params
+        velocityScore = velocityService.calculateVelocity(decayed + 0.1, 0.8, 1); // Simulated params
 
         const offsetMins = Math.floor((event.timestamp.getTime() - startTime) / 60000);
         console.log(`${offsetMins}m | ${event.type} | ${legacyScore} | ${velocityScore.toFixed(4)}`);

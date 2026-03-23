@@ -23,11 +23,6 @@ export default function SsoLoginPage() {
                 return;
             }
 
-            // In a real implementation:
-            // 1. Fetch from /api/auth/sso/check?domain=...
-            // 2. If configured, redirect to IDP
-            // 3. For now, we will mock the redirect or show "Not Configured"
-
             const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/auth/sso/check?email=${encodeURIComponent(email)}`);
             const data = await res.json();
 

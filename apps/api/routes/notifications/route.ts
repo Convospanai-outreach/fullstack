@@ -1,39 +1,49 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
+import { notificationService } from "@/modules/notifications/service/notificationService";
 import { prisma } from "@/lib/db";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const ctx = await getCurrentContext();
+    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return new NextResponse("User not found", { status: 404 });
-
-    const notifications = await prisma.notification.findMany({
-        where: { userId: user.id },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-    });
-
-    return NextResponse.json(notifications);
+    const notifications = await notificationService.list(ctx.userId);
+    return NextResponse.json({ notifications });
 }
 
-// Internal use primarily, but exposed for testing or manual triggers
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+    const ctx = await getCurrentContext();
+    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
-    const { userId, type, message, meta } = body;
+    const { type, message, meta } = body || {};
+    if (!message) {
+        return NextResponse.json({ error: "Message required" }, { status: 400 });
+    }
 
-    const notification = await prisma.notification.create({
-        data: { userId, type, message, meta },
+    const notification = await notificationService.sendAlert(ctx.userId, type || "info", message, meta);
+    return NextResponse.json({ notification });
+}
+
+export async function PATCH(req: Request) {
+    const ctx = await getCurrentContext();
+    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await req.json().catch(() => ({}));
+    const ids = Array.isArray(body?.ids) ? body.ids : [];
+    const markAll = body?.all === true;
+
+    if (!markAll && ids.length === 0) {
+        return NextResponse.json({ error: "No notifications specified" }, { status: 400 });
+    }
+
+    const result = await prisma.notification.updateMany({
+        where: {
+            userId: ctx.userId,
+            ...(markAll ? { read: false } : { id: { in: ids } })
+        },
+        data: { read: true }
     });
 
-    return NextResponse.json(notification);
+    return NextResponse.json({ updated: result.count });
 }

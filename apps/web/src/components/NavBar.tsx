@@ -21,6 +21,8 @@ import {
     Activity,
     Gauge,
     Heart,
+    BarChart3,
+    Cpu,
 } from "lucide-react";
 
 export function NavBar() {
@@ -48,6 +50,8 @@ export function NavBar() {
         { href: "/profile", label: "Profile" },
         { href: "/team", label: "Team" },
         { href: "/admin/users", label: "Users" },
+        { href: "/admin/usage", label: "Usage" },
+        { href: "/admin/ai-config", label: "AI Config" },
         { href: "/admin/audit", label: "Audit" },
         { href: "/admin/rate-limits", label: "Rate Limits" },
         { href: "/admin/health", label: "Health" },
@@ -76,6 +80,8 @@ export function NavBar() {
 
     const adminItems: NavItem[] = [
         { href: "/admin/users", label: "Users", icon: Users },
+        { href: "/admin/usage", label: "Usage", icon: BarChart3 },
+        { href: "/admin/ai-config", label: "AI Config", icon: Cpu },
         { href: "/admin/audit", label: "Audit", icon: Activity },
         { href: "/admin/rate-limits", label: "Rate Limits", icon: Gauge },
         { href: "/admin/health", label: "Health", icon: Heart },

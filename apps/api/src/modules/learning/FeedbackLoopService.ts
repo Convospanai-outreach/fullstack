@@ -99,12 +99,10 @@ export class FeedbackLoopService {
     // --- Helpers ---
 
     private calculateSimilarity(s1: string, s2: string): number {
-        // Mock Jaccard/Levenshtein for now
-        // 1.0 = Identical, 0.0 = Different
-        const longer = s1.length > s2.length ? s1.length : s2.length;
-        if (longer === 0) return 1.0;
-        const editDistance = Math.abs(s1.length - s2.length); // Simplified
-        return (longer - editDistance) / longer;
+        const maxLen = Math.max(s1.length, s2.length);
+        if (maxLen === 0) return 1.0;
+        const distance = this.levenshteinDistance(s1, s2);
+        return (maxLen - distance) / maxLen;
     }
 
     private calculateSlope(y: number[]): number {
@@ -118,6 +116,33 @@ export class FeedbackLoopService {
         const sumXX = x.reduce((acc, curr) => acc + curr * curr, 0);
 
         return (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+    }
+
+    private levenshteinDistance(a: string, b: string): number {
+        const aLen = a.length;
+        const bLen = b.length;
+        if (aLen === 0) return bLen;
+        if (bLen === 0) return aLen;
+
+        const row: number[] = new Array(bLen + 1);
+        for (let j = 0; j <= bLen; j += 1) row[j] = j;
+
+        for (let i = 1; i <= aLen; i += 1) {
+            let prev = row[0];
+            row[0] = i;
+            for (let j = 1; j <= bLen; j += 1) {
+                const temp = row[j];
+                const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                row[j] = Math.min(
+                    row[j] + 1,
+                    row[j - 1] + 1,
+                    prev + cost
+                );
+                prev = temp;
+            }
+        }
+
+        return row[bLen];
     }
 }
 

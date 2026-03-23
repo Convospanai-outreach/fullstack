@@ -284,8 +284,7 @@ function FolderItem({ label, icon: Icon, active, count, onClick }: any) {
 }
 
 function ConversationView({ threadId }: { threadId: string }) {
-    // Note: In a real app we'd fetch specific messages, but our mock service returns messages directly on the thread object or via a separate call.
-    // Here let's assume valid mock messages are returned for the demo.
+    // Messages are fetched from the inbox API for the active thread.
     const { data, isLoading } = useSWR(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`, fetcher);
     const [reply, setReply] = useState("");
     const [sending, setSending] = useState(false);

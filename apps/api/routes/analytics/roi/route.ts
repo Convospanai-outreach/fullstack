@@ -24,7 +24,7 @@ export async function GET() {
         // Fetch overall lead stats
         const leads = await prisma.lead.findMany({
             where: { teamId },
-            select: { status: true, value: true }
+            select: { status: true, value: true, wonAt: true, updatedAt: true }
         });
 
         // 1. Calculate Funnel Metrics
@@ -33,12 +33,13 @@ export async function GET() {
         const opportunities = leads.filter(l => ['INTERESTED', 'MEETING_BOOKED', 'NEGOTIATION'].includes(l.status)).length;
         const wins = leads.filter(l => l.status === 'CLOSED_WON').length;
 
-        // Mock Cost Calculation (e.g., $0.05 per email, $100 platform fee)
-        const costPerEmail = 0.05;
-        const platformFee = 100;
-        const marketingSpend = (totalSent * costPerEmail) + platformFee;
+        // Marketing Spend based on recorded LLM usage costs
+        const usageLogs = await prisma.lLMUsageLog.findMany({
+            where: { teamId }
+        });
+        const marketingSpend = usageLogs.reduce((acc, u) => acc + (u.cost || 0), 0);
 
-        // Revenue Calculation
+        // Revenue Calculation (Closed Won)
         const revenue = leads.reduce((acc, l) => acc + (l.status === 'CLOSED_WON' ? (l.value || 0) : 0), 0);
 
         // ROI
@@ -61,15 +62,34 @@ export async function GET() {
             };
         });
 
-        // 3. Mock Pipeline History (for charts)
-        const pipelineHistory = [
-            { date: '2025-01', revenue: 12000, spend: 4000 },
-            { date: '2025-02', revenue: 18000, spend: 4500 },
-            { date: '2025-03', revenue: 15000, spend: 4200 },
-            { date: '2025-04', revenue: 24000, spend: 5000 },
-            { date: '2025-05', revenue: 32000, spend: 5500 },
-            { date: '2025-06', revenue: 45000, spend: 6000 }, // Projected current/future
-        ];
+        // 3. Pipeline History (last 6 months)
+        const now = new Date();
+        const months: { key: string; start: Date; end: Date }[] = [];
+        for (let i = 5; i >= 0; i -= 1) {
+            const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+            const key = start.toISOString().slice(0, 7);
+            months.push({ key, start, end });
+        }
+
+        const pipelineHistory = months.map((m) => {
+            const revenueForMonth = leads.reduce((acc, l) => {
+                const wonAt = l.wonAt || l.updatedAt;
+                if (l.status === "CLOSED_WON" && wonAt && wonAt >= m.start && wonAt <= m.end) {
+                    return acc + (l.value || 0);
+                }
+                return acc;
+            }, 0);
+
+            const spendForMonth = usageLogs.reduce((acc, u) => {
+                if (u.createdAt >= m.start && u.createdAt <= m.end) {
+                    return acc + (u.cost || 0);
+                }
+                return acc;
+            }, 0);
+
+            return { date: m.key, revenue: revenueForMonth, spend: spendForMonth };
+        });
 
         return NextResponse.json({
             funnel: {

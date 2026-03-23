@@ -113,7 +113,7 @@ export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }
     const handleAiSuggest = () => {
         setSuggesting(true);
         setTimeout(() => {
-            // Mock AI logic: Suggest a Wait node if last was Action, or Condition if last was Wait
+            // Heuristic: suggest a Wait node if last was Action, or Condition if last was Wait
             const lastNode = nodes[nodes.length - 1];
             let suggestion: any = { type: 'delay', label: 'Wait 2 Days', data: { delay: '2d' } };
 

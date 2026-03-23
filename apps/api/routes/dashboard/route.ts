@@ -44,16 +44,36 @@ export async function GET() {
             { id: "s3", title: "Meetings", value: meetingsCount.toString(), change: 0, icon: "📅" },
         ];
 
-        // Mock revenue series
-        const revenueSeries = Array.from({ length: 30 }).map((_, i) => ({
-            day: `D${i + 1}`,
-            value: Math.round(200 + Math.sin(i / 3) * 80 + Math.random() * 50),
-        }));
+        // Revenue series (last 30 days) based on closed-won leads
+        const leads = await prisma.lead.findMany({
+            where: { teamId, status: "CLOSED_WON" },
+            select: { value: true, wonAt: true, updatedAt: true }
+        });
+
+        const today = new Date();
+        const revenueSeries = Array.from({ length: 30 }).map((_, i) => {
+            const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - (29 - i));
+            const dayKey = day.toISOString().slice(0, 10);
+            const total = leads.reduce((acc, lead) => {
+                const date = lead.wonAt || lead.updatedAt;
+                if (!date) return acc;
+                const leadKey = new Date(date).toISOString().slice(0, 10);
+                if (leadKey === dayKey) {
+                    return acc + (lead.value || 0);
+                }
+                return acc;
+            }, 0);
+
+            return {
+                day: dayKey,
+                value: Math.round(total)
+            };
+        });
 
         const mappedCampaigns = campaigns.map((c) => ({
             id: c.id,
             name: c.name,
-            audience: "Target Audience",
+            audience: c.audience || "Unspecified",
             leads: c._count.leadList,
             status: c.status,
         }));

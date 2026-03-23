@@ -1,11 +1,10 @@
 /**
  * Netjana MCP Server
- * 
  * Handles ingestion of customer intent data from the Netjana Signal Scraper.
  * Exposes tools for the Agentic Engine to fetch real-time market signals.
  */
 
-import axios from 'axios';
+import axios from "axios";
 
 export interface HelperTool {
     name: string;
@@ -36,39 +35,20 @@ export class NetjanaMCPServer {
             },
             handler: async ({ query, lookback_days = 7 }) => {
                 console.log(`[MCP:Netjana] Ingesting intent for: ${query}`);
-                
+
                 try {
-                    // Actual ingestion logic from Netjana
                     const response = await axios.get(`${this.NETJANA_URL}/signals`, {
                         params: { q: query, days: lookback_days }
                     });
-                    
+
                     return {
                         source: "Netjana",
                         signals: response.data.signals || [],
                         timestamp: new Date().toISOString()
                     };
-                } catch (e) {
-                    // Mock data for development if Netjana is offline
-                    return {
-                        source: "Netjana (Mock)",
-                        signals: [
-                            { 
-                                type: "intent", 
-                                company: "Acme Corp", 
-                                signal: "Explicitly searching for Cloud Security solutions",
-                                confidence: 0.92,
-                                url: "https://linkedin.com/posts/acme-cloud"
-                            },
-                            {
-                                type: "expansion",
-                                company: "Stark Ind",
-                                signal: "Hiring 50+ DevOps engineers",
-                                confidence: 0.85
-                            }
-                        ],
-                        timestamp: new Date().toISOString()
-                    };
+                } catch (e: any) {
+                    const message = e?.message || "Netjana request failed";
+                    throw new Error(message);
                 }
             }
         });

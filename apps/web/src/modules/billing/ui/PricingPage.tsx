@@ -5,21 +5,51 @@ import { useState } from "react";
 export default function PricingPage() {
     const [loading, setLoading] = useState(false);
 
+    const loadRazorpayScript = () => {
+        return new Promise((resolve) => {
+            if ((window as any).Razorpay) {
+                resolve(true);
+                return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
     const handleSubscribe = async (planId: string) => {
         setLoading(true);
         try {
+            const isLoaded = await loadRazorpayScript();
+            if (!isLoaded) {
+                alert("Failed to load payment gateway");
+                return;
+            }
+
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ planId }),
             });
             const json = await res.json();
-            if (json.ok && json.url) {
-                alert(`Redirecting to: ${json.url}`);
-                // window.location.href = json.url;
-            } else {
-                alert("Failed to start checkout");
-            }
+            if (!res.ok) throw new Error(json.error || "Failed to start checkout");
+
+            const options = {
+                key: json.key,
+                amount: json.amount,
+                currency: json.currency,
+                name: "ConvoSpan",
+                description: `${planId} Plan Subscription`,
+                order_id: json.orderId,
+                handler: function (_response: any) {
+                    alert("Payment successful!");
+                },
+            };
+
+            const rzp = new (window as any).Razorpay(options);
+            rzp.open();
         } catch (e) {
             alert("Error starting checkout");
         } finally {

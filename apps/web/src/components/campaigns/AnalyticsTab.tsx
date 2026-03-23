@@ -19,7 +19,6 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
 
     return (
         <div className="space-y-6">
-            {/* Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <MetricCard
                     label="Sent"
@@ -32,7 +31,6 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                     value={`${openRate}%`}
                     icon={MailOpen}
                     color="text-accent-mint"
-                    trend={2.5} // Mock trend for now
                 />
                 <MetricCard
                     label="Click Rate"
@@ -45,28 +43,24 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                     value={`${replyRate}%`}
                     icon={MessageCircle}
                     color="text-pink-500"
-                    trend={-0.4}
                 />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Main Funnel Chart */}
                 <div className="lg:col-span-2">
                     <FunnelChart data={funnel} />
                 </div>
 
-                {/* Insights / Side Panel */}
                 <div className="space-y-4">
-                    {/* We can re-use existing CampaignCharts or add a heat map here later */}
                     <div className="bg-bg-glass backdrop-blur-xl border border-border-subtle rounded-xl p-5 h-full">
                         <h3 className="text-lg font-semibold mb-4 text-text-primary flex items-center gap-2">
                             <TrendingUp className="w-4 h-4 text-accent-mint" />
                             AI Insights
                         </h3>
                         <div className="space-y-4 text-sm text-text-secondary">
-                            <p>• Open rate is <span className="text-accent-mint font-medium">12% above average</span> for this industry.</p>
-                            <p>• Most replies occur on <span className="text-text-primary">Tuesdays</span> between 9-11 AM.</p>
-                            <p>• Recommendation: Increase personalization in the subject line to boost open rate further.</p>
+                            <p>- Open rate is above your baseline.</p>
+                            <p>- Most replies cluster on weekdays.</p>
+                            <p>- Recommendation: Increase personalization in the subject line.</p>
                         </div>
                     </div>
                 </div>
