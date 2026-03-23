@@ -1,0 +1,81 @@
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
+import { enforcePolicy } from "@/lib/governance/guard";
+import { audit } from "@/lib/governance/audit";
+import { checkLimits } from "@/lib/governance/limits";
+
+export async function POST(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.email) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+
+  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+  if (!user) return new NextResponse("User not found", { status: 404 });
+
+  const body = await req.json();
+  const { campaignId } = body;
+
+  if (!campaignId) {
+    return NextResponse.json(
+      { error: "campaignId is required" },
+      { status: 400 }
+    );
+  }
+
+  // Enqueue campaign execution job
+  // Enqueue campaign execution job
+  const { startDate } = body;
+  const processAt = startDate ? new Date(startDate) : null;
+
+  // If scheduled, update campaign status immediately for UI feedback
+  if (startDate) {
+    await prisma.campaign.update({
+      where: { id: campaignId },
+      data: {
+        status: "scheduled",
+        scheduledStart: processAt
+      }
+    });
+  }
+
+  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  if (!campaign) return new NextResponse("Campaign not found", { status: 404 });
+  const teamId = campaign.teamId;
+
+  if (!teamId) return new NextResponse("Team ID not found for campaign", { status: 400 });
+
+  // GOVERNANCE CHECKS
+  try {
+    await checkLimits(teamId, "CAMPAIGN_RUN");
+    await enforcePolicy({
+      orgId: teamId,
+      userId: user.id,
+      action: "CAMPAIGN_RUN",
+      payload: { campaignId, scheduled: !!startDate, approvalId: body.approvalId }
+    });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+
+  const job = await JobQueue.enqueue("campaign_execution", { campaignId, userId: user.id }, { processAt });
+
+  // Mandatory Audit Logging
+  await audit({
+    actorId: user.id,
+    orgId: teamId,
+    action: startDate ? "CAMPAIGN_SCHEDULED" : "CAMPAIGN_RUN",
+    entity: "Campaign",
+    entityId: campaignId,
+    metadata: { scheduled: !!startDate, jobId: job.id },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    jobId: job.id,
+    message: startDate ? "Campaign scheduled" : "Campaign execution job enqueued",
+  });
+}

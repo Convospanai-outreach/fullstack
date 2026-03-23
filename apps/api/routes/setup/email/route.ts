@@ -1,0 +1,62 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContext } from "@/lib/auth";
+import { getSmtpConfigRedacted, saveSmtpConfig, deleteSmtpConfig } from "@/modules/email-campaigner/service/smtpConfigService";
+import { z } from "zod";
+
+const SmtpSchema = z.object({
+    host: z.string().min(1),
+    port: z.number().int().min(1),
+    secure: z.boolean(),
+    user: z.string().email(),
+    password: z.string().min(1),
+    fromName: z.string().min(1),
+    fromEmail: z.string().email(),
+});
+
+export async function GET() {
+    try {
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const config = await getSmtpConfigRedacted(ctx.teamId);
+        return NextResponse.json({ config });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const parsed = SmtpSchema.safeParse(body);
+        if (!parsed.success) {
+            return NextResponse.json({ error: "Invalid payload", details: parsed.error.issues }, { status: 400 });
+        }
+
+        await saveSmtpConfig(ctx.teamId, parsed.data);
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}
+
+export async function DELETE() {
+    try {
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        await deleteSmtpConfig(ctx.teamId);
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+}

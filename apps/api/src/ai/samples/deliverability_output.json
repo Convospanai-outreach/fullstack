@@ -1,0 +1,96 @@
+{
+    "placementSummary": {
+        "isps": [
+            {
+                "name": "Gmail",
+                "inbox": 58,
+                "promotions": 27,
+                "spam": 15
+            },
+            {
+                "name": "Outlook",
+                "inbox": 71,
+                "promotions": 0,
+                "spam": 29
+            },
+            {
+                "name": "Yahoo",
+                "inbox": 90,
+                "promotions": 0,
+                "spam": 10
+            }
+        ],
+        "disclaimer": "Placement results are based on monitored test inboxes and represent directional behavior, not guarantees."
+    },
+    "deliverySignals": {
+        "analysis": "Delivery rates are high (99.2%), but a 3% bounce rate at Gmail suggests list hygiene issues. No global blocklistings detected.",
+        "keyObservations": [
+            "Hard bounce rate at Gmail (3%) exceeds recommended 2% threshold.",
+            "No critical SMTP error codes (5xx) observed.",
+            "Spam complaint rate (0.05%) is within healthy limits."
+        ]
+    },
+    "engagementSignals": {
+        "analysis": "Open rates are healthy (35%), but 'glance time' is low (<2s), indicating testing fatigue or low relevance.",
+        "proxyStatement": "Engagement is a commonly observed proxy used by mailbox providers, but not a direct placement signal."
+    },
+    "contentRisk": {
+        "factors": [
+            {
+                "name": "Subject Line Aggressiveness",
+                "riskLevel": "High",
+                "observation": "Use of 'Urgent', 'Last Chance', and all-caps.",
+                "reasoning": "High-pressure urgency markers are often associated with promotional tab classification."
+            },
+            {
+                "name": "Link Density",
+                "riskLevel": "Medium",
+                "observation": "5+ links to different domains.",
+                "reasoning": "Multiple unverified domains can dilute reputation alignment."
+            }
+        ],
+        "overallRiskProfile": "Medium"
+    },
+    "topContributingFactors": [
+        {
+            "signalType": "Content",
+            "observation": "Aggressive Subject Line ('URGENT: Your Invite')",
+            "whyItMatters": "Correlates with Gmail Promotions tab placement in 27% of seeds.",
+            "confidence": "High"
+        },
+        {
+            "signalType": "Delivery",
+            "observation": "Elevated Hard Bounce Rate (3% @ Gmail)",
+            "whyItMatters": "Sustained bounces >2% can degrade domain reputation over time.",
+            "confidence": "Medium"
+        }
+    ],
+    "healthySignals": [
+        "SPF and DKIM authentication passed on all seeds.",
+        "Domain age (>1 year) is a positive trust signal.",
+        "Body copy text-to-image ratio is healthy."
+    ],
+    "recommendations": [
+        {
+            "element": "Subject Line: 'URGENT: Your Invite...'",
+            "alternative": "Your invitation to [Event Name]",
+            "expectedImpact": "Reduced probability of Promotions tab; improved professional perception.",
+            "testRecommendation": "A/B Test: Aggressive vs. Neutral Subject Line."
+        },
+        {
+            "element": "List Segment: 'Unverified Gmail Users'",
+            "alternative": "Remove or re-verify contacts inactive >6 months.",
+            "expectedImpact": "Lower bounce rate, potentially improving Inbox placement.",
+            "testRecommendation": "Suppress inactive cohort for next send."
+        }
+    ],
+    "testingGuidance": {
+        "proposedTest": "Subject Line Neutrality Test",
+        "metricsToObserve": [
+            "Gmail Promotions Tab Rate",
+            "Open Rate (Unique)",
+            "Spam Complaint Rate"
+        ]
+    },
+    "userExplanation": "We observed that emails to Gmail are frequently landing in the Promotions or Spam folders. This behavior correlates strongly with the 'urgent' language used in your subject line and a slightly elevated bounce rate. While technical authentication (SPF/DKIM) is perfect, the aggressive tone may be triggering filters. We recommend testing a more neutral subject line to see if inbox placement improves."
+}

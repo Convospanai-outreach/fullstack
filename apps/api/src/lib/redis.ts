@@ -1,0 +1,108 @@
+
+let redisClient: any = null;
+
+export async function getRedisClient() {
+    if (process.env['NEXT_RUNTIME'] !== 'nodejs') {
+        return null;
+    }
+
+    if (redisClient && redisClient.isOpen) {
+        return redisClient;
+    }
+
+    const { createClient } = await import("redis");
+    const redisUrl = process.env['REDIS_URL'] || "redis://localhost:6379";
+
+    redisClient = createClient({
+        url: redisUrl,
+        socket: {
+            reconnectStrategy: (retries: number) => {
+                if (retries > 10) {
+                    console.error("Redis: Max reconnection attempts reached");
+                    return new Error("Max reconnection attempts reached");
+                }
+                return Math.min(retries * 100, 3000);
+            }
+        }
+    });
+
+
+
+    redisClient.on("error", (err: Error) => {
+        console.error("Redis Client Error:", err);
+    });
+
+    redisClient.on("connect", () => {
+        console.log("✅ Redis connected");
+    });
+
+    try {
+        if (!redisClient.isOpen) {
+            const connectPromise = redisClient.connect();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 2000));
+            await Promise.race([connectPromise, timeoutPromise]);
+        }
+    } catch (error) {
+        console.error("Failed to connect to Redis:", error);
+        // Do not throw, allow app to start without Redis
+    }
+    return redisClient;
+}
+
+export async function closeRedis() {
+    if (redisClient && redisClient.isOpen) {
+        await redisClient.quit();
+        redisClient = null;
+    }
+}
+
+/**
+ * Safe wrapper for Redis GET operation
+ * Returns null if Redis is unavailable or key doesn't exist
+ */
+export async function safeGet(key: string): Promise<string | null> {
+    try {
+        const client = await getRedisClient();
+        if (!client || !client.isOpen) return null;
+        return await client.get(key);
+    } catch (error) {
+        console.warn(`[Redis] safeGet failed for key ${key}:`, error);
+        return null;
+    }
+}
+
+/**
+ * Safe wrapper for Redis SET operation
+ * Returns false on failure, true on success
+ */
+export async function safeSet(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
+    try {
+        const client = await getRedisClient();
+        if (!client || !client.isOpen) return false;
+
+        if (ttlSeconds) {
+            await client.set(key, value, { EX: ttlSeconds });
+        } else {
+            await client.set(key, value);
+        }
+        return true;
+    } catch (error) {
+        console.warn(`[Redis] safeSet failed for key ${key}:`, error);
+        return false;
+    }
+}
+
+/**
+ * Safe wrapper for Redis DEL operation
+ */
+export async function safeDel(key: string): Promise<boolean> {
+    try {
+        const client = await getRedisClient();
+        if (!client || !client.isOpen) return false;
+        await client.del(key);
+        return true;
+    } catch (error) {
+        console.warn(`[Redis] safeDel failed for key ${key}:`, error);
+        return false;
+    }
+}

@@ -1,0 +1,1727 @@
+generator client {
+  provider        = "prisma-client-js"
+  engineType      = "library"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+
+enum Region {
+  GLOBAL
+  UAE
+  EU
+}
+
+model Lead {
+  id           String    @id @default(uuid())
+  fullName     String?
+  email        String?
+  phone        String? // <-- Added field for Audit Remediation
+  linkedIn     String?
+  company      String?
+  jobTitle     String?
+  location     String?
+  status       String    @default("NEW")
+  tags         String[]
+  isEnriched   Boolean   @default(false)
+  
+  // Data Sharding & Market Context
+  regionId      Region    @default(GLOBAL)
+  marketContext Json?     // Stores { detectedCountry: "AE", frictionScore: 0.8 }
+
+  enrichedData Json?
+  embedding    String? // Temporarily String to match DB state and unblock push
+  value        Float?    @default(0.0) // Potential Deal Value
+  wonAt        DateTime? // When it was marked CLOSED_WON
+  lostAt       DateTime? // When it was marked CLOSED_LOST
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  campaignId   String?
+  teamId       String?
+
+  // CRM Sync
+  crmId       String? // External ID in HubSpot/Salesforce
+  crmSyncedAt DateTime?
+
+  // Lead Intent Scoring (Weighted Algorithm)
+  intentScore      Float?    @default(0.0) // 0.0 - 1.0 weighted intent score
+  leadScore        Int       @default(0) // Integer score based on successful generations
+  dwellTimeMinutes Float?    @default(0.0) // Website dwell time in minutes
+  emailClicks      Int?      @default(0) // Email click count
+  socialMentions   Int?      @default(0) // Social media mention count
+  lastScoredAt     DateTime? // When intent was last calculated
+
+  // Predictive Analytics
+  clusterLabel    String? // HIGH_VALUE, AT_RISK, NEW, DORMANT (from K-means)
+  churnRisk       Float? // 0.0 - 1.0 churn probability
+  optimalSendHour Int? // 0-23 optimal email send hour
+
+  // DPDP Act 2023 Compliance
+  consentObtained Boolean @default(false)
+
+  emails      Email[]
+  campaign    Campaign?    @relation(fields: [campaignId], references: [id])
+  team        Team?        @relation(fields: [teamId], references: [id])
+  meetings    Meeting[]
+  messages    Message[]
+  tasks       Task[]
+  generations Generation[]
+
+  // Pipeline State (COLD â†’ WARM â†’ HOT â†’ COORDINATING â†’ MEETING_CONFIRMED â†’ COMPLETED)
+  pipelineState        String    @default("COLD")
+  pipelineStateChangedAt DateTime?
+  hotAt                DateTime? // When lead became HOT
+
+  // WhatsApp Consent & Contact
+  whatsappConsent      Boolean   @default(false)
+  whatsappConsentAt    DateTime?
+  whatsappConsentBy    String?   // User who recorded consent
+  whatsappNumber       String?
+
+  // Meeting Preferences  
+  preferredMeetingType String?   // virtual, in_person
+  meetingLocation      String?
+
+  // Conversation Thread
+  conversationEntries  ConversationEntry[]
+  threads              ConversationThread[] // Added for Conversation System Spine
+  coordinationQueue    MeetingCoordinationQueue?
+  whatsappMessages     WhatsAppMessage[]
+
+  @@index([teamId])
+  @@index([email])
+  @@index([company])
+  @@index([status])
+  @@index([intentScore])
+  @@index([leadScore])
+  @@index([pipelineState])
+  // Optimization for dashboard filters
+  @@index([teamId, status])
+  @@index([teamId, pipelineState])
+  @@index([teamId, email]) // For faster duplicate checks
+  consentLedger ConsentLedger[]
+  replies       ReplyTracker[]
+  shadowSignals ShadowSignal[]
+}
+
+model Generation {
+  id              String   @id @default(cuid())
+  leadId          String
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  promptPayload   Json // Store the specific traits used (e.g., industry, pain point)
+  generatedText   String
+  status          String   @default("PENDING") // SENT, CLICKED, REPLIED
+  conversionValue Float    @default(0.0)
+  createdAt       DateTime @default(now())
+
+  @@index([leadId])
+  @@index([status])
+}
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      String    @default("TODO") // TODO, DONE
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  leadId      String?
+  userId      String
+  teamId      String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  lead Lead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  user User  @relation(fields: [userId], references: [id])
+  team Team  @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@index([userId])
+  @@index([leadId])
+  @@index([status])
+}
+
+model Campaign {
+  id                  String            @id @default(uuid())
+  name                String
+  description         String?
+  audience            String?
+  status              String            @default("draft")
+  type                String            @default("standard") // standard, smart
+  aiConfig            Json? // Stores { tone, goal, context, prompt }
+  targetCount         Int               @default(0)
+  completedCount      Int               @default(0)
+  leads               Int               @default(0) // User requested Int field for count
+  consecutiveFailures Int               @default(0) // Track sequential job failures
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  teamId              String?
+  ownerId             String?
+  team                Team?             @relation(fields: [teamId], references: [id])
+  owner               User?             @relation("owner_campaigns", fields: [ownerId], references: [id])
+  variants            CampaignVariant[]
+  emails              Email[]
+
+  scheduledStart DateTime? // <-- Added field
+
+  // Relations
+  leadList Lead[] // Renamed relation to avoid conflict with 'leads' Int
+
+  activities Activity[]
+
+  @@index([status])
+  @@index([teamId])
+  @@index([createdAt])
+  // Optimization for multi-tenant campaign lists
+  @@index([teamId, status])
+}
+
+model CampaignVariant {
+  id         String   @id @default(uuid())
+  campaignId String
+  subject    String
+  body       String
+  weight     Int      @default(50)
+  sentCount  Int      @default(0)
+  openCount  Int      @default(0)
+  replyCount Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+}
+
+model Activity {
+  id         String    @id @default(uuid())
+  type       String
+  message    String?
+  meta       Json?
+  createdAt  DateTime  @default(now())
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaignId String?
+  agentId    String?
+}
+
+model Agent {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  status      String   @default("idle")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ICP {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  criteria    Json
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model Job {
+  id             String    @id @default(uuid())
+  type           String
+  status         String    @default("queued")
+  priority       Int       @default(0)
+  payload        Json
+  result         Json?
+  error          String?
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(3)
+  processAt      DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  startedAt      DateTime?
+  completedAt    DateTime?
+  teamId         String?
+  team           Team?     @relation(fields: [teamId], references: [id])
+  idempotencyKey String?   @unique
+  version        Int?      @default(1)
+  taskType       String?
+  executionMode  String?
+  targetRuntime  String?
+  taskId         String?
+  tenantId       String?
+  correlationId  String?
+  expiresAt      DateTime?
+  policy         Json?
+  auditContext   Json?
+  runs          JobRun[]
+
+  @@index([status, priority])
+  @@index([type])
+  @@index([teamId])
+  @@index([processAt])
+  @@index([taskType])
+  @@index([tenantId])
+  @@index([targetRuntime])
+}
+
+model JobRun {
+  id            String   @id @default(uuid())
+  jobId         String
+  status        String
+  errorCode     String?
+  errorMessage  String?
+  startedAt     DateTime @default(now())
+  finishedAt    DateTime?
+  retryCount    Int      @default(0)
+  correlationId String?
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ScrapingJob {
+  id          String   @id @default(uuid())
+  url         String
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  region      Region   @default(GLOBAL)
+  payload     Json?
+  tokenMap    Json?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id])
+
+  @@index([status])
+  @@index([region])
+}
+
+
+model Email {
+  id         String    @id @default(uuid())
+  leadId     String
+  campaignId String
+  subject    String
+  body       String
+  status     String    @default("sent")
+  providerId String?
+  openedAt   DateTime?
+  clickedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  campaign   Campaign  @relation(fields: [campaignId], references: [id])
+  lead       Lead      @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([openedAt])
+  @@index([clickedAt])
+}
+
+model Settings {
+  id            String                @id @default(uuid())
+  userId        String                @unique
+  name          String?
+  email         String?
+  theme         String                @default("dark")
+  apiKeyOpenAI  String?
+  apiKeyGemini  String?
+  hubspotApiKey String?
+  crmConfig     Json? // Stores mapping rules, sync status
+  liCookie      String?
+  updatedAt     DateTime              @updatedAt
+  user          User                  @relation(fields: [userId], references: [id])
+  notifications NotificationSettings?
+}
+
+model NotificationSettings {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  settingsId    String   @unique
+  emailGlobal   Boolean  @default(true)
+  emailCampaign Boolean  @default(true)
+  emailLeads    Boolean  @default(true)
+  inAppGlobal   Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  settings Settings @relation(fields: [settingsId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  message   String
+  meta      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model ManualReview {
+  id             String   @id @default(uuid())
+  source         String   // "Sentinel", "Scraper"
+  payload        Json     // The raw data that was quarantined
+  reason         String   // "Low Quality", "Schema Mismatch", "Honeypot Suspected"
+  severity       String   // "WARN", "CRITICAL"
+  region         String   @default("GLOBAL")
+  status         String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  
+  reviewedBy     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime @default(now())
+
+  @@index([status])
+  @@index([severity])
+}
+
+model Team {
+  id              String              @id @default(uuid())
+  name            String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  credits         Int                 @default(100)
+  campaigns       Campaign[]
+  templates       EmailTemplate[]
+  jobs            Job[]
+  scrapingJobs    ScrapingJob[]
+  leads           Lead[]
+  meetings        Meeting[]
+  // subscription Subscription? // Moved to User
+  members         TeamMember[]
+  webhooks        Webhook[]
+  automations     Automation[]
+  schedules       Schedule[]
+  workflows       Workflow[]
+  guardrailPolicy GuardrailPolicy?
+  transactions    CreditTransaction[]
+  auditLogs       AuditLog[]
+  memories        AgentMemory[]
+  apiKeys         ApiKey[]
+  tasks           Task[]
+
+  branding           Json? // { logoUrl, primaryColor, portalTitle }
+  aiConfig           Json? // Global agent settings (voice, tone, constraints)
+  domains            CustomDomain[]
+  knowledgeBases     KnowledgeBase[]
+  playbooks          Playbook[]
+  organizationPolicy OrganizationPolicy?
+  ssoConfiguration   SsoConfiguration?
+  userQuotas         UserQuota[]
+  crmIntegrations    CrmIntegration[]
+  approvalRequests   ApprovalRequest[]
+  caseStudies        CaseStudy[]
+  agentTasks         AgentTask[]
+  agentFeedbackLoops AgentFeedbackLoop[]
+  Experiment         Experiment[]
+  ImmutableAudit     ImmutableAudit[]
+  contractProfile    ContractProfile?
+  shadowSignals     ShadowSignal[]
+}
+
+model CrmIntegration {
+  id       String @id @default(cuid())
+  teamId   String
+  provider String // HUBSPOT, SALESFORCE
+
+  // Auth
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  expiresAt    DateTime?
+
+  // Config
+  isActive     Boolean @default(true)
+  fieldMapping Json? // { "fullName": "firstname", "email": "email", ... }
+  syncSettings Json? // { "autoSync": true, "syncOnWon": true }
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, provider])
+}
+
+model SsoConfiguration {
+  id           String @id @default(cuid())
+  teamId       String @unique
+  providerType String @default("SAML") // SAML, OIDC
+
+  // SAML Specifics
+  metadataUrl String? // URL to IdP metadata
+  issuer      String? // Entity ID / Issuer
+  entryPoint  String? // SSO URL
+  certificate String? @db.Text // Public Cert
+
+  // OIDC Specifics
+  clientId     String?
+  clientSecret String?
+  wellKnownUrl String?
+
+  enforced       Boolean  @default(false) // If true, password login is disabled for domain
+  allowedDomains String[] @default([]) // ["enterprise.com", "sub.enterprise.com"]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+}
+
+model CreditTransaction {
+  id          String   @id @default(uuid())
+  teamId      String
+  amount      Int // Negative for usage, positive for top-up
+  description String
+  type        String // "usage", "topup", "bonus"
+  meta        Json? // Store jobId or paymentId
+  createdAt   DateTime @default(now())
+  team        Team     @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String    @unique
+  planId           String
+  status           String // active, trialing, canceled
+  currentPeriodEnd DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id])
+  plan             Plan      @relation(fields: [planId], references: [id])
+  invoices         Invoice[]
+}
+
+model Plan {
+  id              String         @id @default(uuid())
+  name            String         @unique // FREE, PRO, ENTERPRISE
+  monthlyPrice    Int
+  creditsPerMonth Int
+  maxAgents       Int
+  features        Json
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  subscriptions   Subscription[]
+}
+
+model CreditLedger {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int // Positive for added credits, negative for deducted
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model Invoice {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  amount         Int
+  status         String
+  invoiceUrl     String?
+  createdAt      DateTime     @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Webhook {
+  id        String       @id @default(uuid())
+  url       String
+  events    String[]
+  secret    String?
+  isActive  Boolean      @default(true)
+  teamId    String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  team      Team         @relation(fields: [teamId], references: [id])
+  logs      WebhookLog[]
+
+  @@index([teamId])
+}
+
+model WebhookLog {
+  id        String   @id @default(uuid())
+  webhookId String
+  event     String
+  status    Int // HTTP status code
+  payload   Json
+  response  Json?
+  error     String?
+  duration  Int // Dispatch duration in ms
+  createdAt DateTime @default(now())
+  webhook   Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([createdAt])
+}
+
+model Meeting {
+  id        String   @id @default(uuid())
+  title     String
+  startTime DateTime
+  endTime   DateTime
+  notes     String?
+  leadId    String?
+  teamId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  team      Team     @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@index([leadId])
+}
+
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  subject   String
+  body      String
+  teamId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  team      Team     @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+model TeamMember {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String?
+  email     String
+  role      String   @default("member")
+  status    String   @default("invited")
+  createdAt DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([teamId])
+  @@index([userId])
+}
+
+model User {
+  id            String       @id @default(uuid())
+  email         String       @unique
+  password      String? // <-- Add this line
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  address       String?
+  role          String       @default("user") // Legacy
+  enterpriseRole UserRole    @default(SALES_USER) // Enterprise RBAC
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  settings      Settings?
+  memberships   TeamMember[]
+  accounts      Account[]
+  sessions      Session[]
+  campaigns     Campaign[]   @relation("owner_campaigns")
+
+  // Billing
+  credits            Int               @default(0)
+  subscription       Subscription?
+  creditLedger       CreditLedger[]
+  auditLogs          AuditLog[]
+  tasks              Task[]
+  userQuotas         UserQuota[]
+  requestedApprovals ApprovalRequest[] @relation("requester")
+  reviewedApprovals  ApprovalRequest[] @relation("reviewer")
+  agentTasks         AgentTask[]
+  datasetReviews     DatasetReview[]
+
+  // Caller Role (Part 4)
+  isCaller           Boolean   @default(false)
+  callerTeamId       String?   // Which team this caller works for
+  callerMaxQueueSize Int       @default(10) // Max assigned items at once
+  callerActiveAt     DateTime? // Last activity timestamp
+  callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
+  edgeNodeUri        String? // Individual Phi-3 Edge Node binding
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Message {
+  id        String          @id @default(uuid())
+  leadId    String
+  content   String
+  direction String // INBOUND, OUTBOUND
+  platform  String // LINKEDIN, EMAIL
+  sender    String? // Name of sender
+  status    String          @default("received") // received, sent, draft
+  isRead    Boolean         @default(false)
+  sentimentScore Float?     // -1.0 to 1.0
+  createdAt DateTime        @default(now())
+  lead      Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  feedback  AgentFeedback[]
+
+  @@index([leadId])
+}
+
+model Automation {
+  id               String          @id @default(uuid())
+  name             String
+  trigger          String // "lead.replied", "ai.suggestion"
+  action           String // "campaign.stop", "email.reply", "webhook.call"
+  config           Json? // { "templateId": "...", "model": "gemini-pro" }
+  isActive         Boolean         @default(true)
+  requiresApproval Boolean         @default(false)
+  teamId           String
+  team             Team            @relation(fields: [teamId], references: [id])
+  logs             AutomationLog[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([teamId])
+}
+
+model AutomationLog {
+  id           String     @id @default(uuid())
+  automationId String
+  status       String // "pending_approval", "success", "failed", "rejected"
+  tokensUsed   Int        @default(0)
+  cost         Float      @default(0.0)
+  input        Json? // Added for human review context
+  output       Json? // AI response or Action result
+  reasoning    String?    @db.Text // CoT explanation
+  metadata     Json? // Added for implementation details
+  executedAt   DateTime? // When the task was executed by the extension
+  durationMs   Int?       @default(0) // Execution duration
+  createdAt    DateTime   @default(now())
+  automation   Automation @relation(fields: [automationId], references: [id])
+
+  @@index([automationId])
+  @@index([status])
+}
+
+model Schedule {
+  id        String    @id @default(uuid())
+  name      String
+  cron      String // e.g., "0 9 * * 1-5" (Weekdays at 9am)
+  timezone  String    @default("UTC")
+  isActive  Boolean   @default(true)
+  nextRunAt DateTime?
+  lastRunAt DateTime?
+
+  // Configuration
+  batchSize       Int   @default(50)
+  groundingConfig Json? // { useRag: true, collectionId: "..." }
+
+  // Relations
+  teamId     String
+  campaignId String? // Optional: specific campaign to run
+  agentId    String? // Optional: specific agent to run
+  team       Team          @relation(fields: [teamId], references: [id])
+  logs       ScheduleLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teamId])
+  @@index([isActive, nextRunAt])
+}
+
+model ScheduleLog {
+  id            String   @id @default(uuid())
+  scheduleId    String
+  status        String // "success", "failed"
+  message       String?
+  tokensUsed    Int      @default(0)
+  creditsUsed   Int      @default(0)
+  itemsVariable Int      @default(0) // How many items processed
+  createdAt     DateTime @default(now())
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id])
+
+  @@index([scheduleId])
+}
+
+model Workflow {
+  id            String   @id @default(uuid())
+  name          String
+  description   String?
+  triggerType   String   @default("MANUAL") // MANUAL, EVENT (e.g. lead.created)
+  triggerConfig Json? // Configuration for the trigger
+  nodes         Json // ReactFlow nodes
+  edges         Json // ReactFlow edges
+  isActive      Boolean  @default(false)
+  teamId        String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  team Team          @relation(fields: [teamId], references: [id])
+  runs WorkflowRun[]
+
+  @@index([teamId])
+}
+
+model WorkflowRun {
+  id            String    @id @default(uuid())
+  workflowId    String
+  status        String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  currentStepId String? // ID of the current node in the graph
+  context       Json? // Variables and state
+  entityId      String? // ID of the Lead or object this is running for
+  startedAt     DateTime  @default(now())
+  completedAt   DateTime?
+  error         String?
+
+  // AI Audit
+  tokensUsed Int       @default(0)
+  reasoning  String?   @db.Text
+  traces     AiTrace[]
+
+  workflow Workflow @relation(fields: [workflowId], references: [id])
+
+  @@index([workflowId])
+  @@index([status])
+}
+
+model AiTrace {
+  id        String   @id @default(uuid())
+  runId     String?
+  stepName  String
+  input     String?  @db.Text
+  output    String?  @db.Text
+  reasoning String?  @db.Text // CoT thought process
+  model     String?
+  latency   Int
+  tokens    Int      @default(0)
+  createdAt DateTime @default(now())
+
+  workflowRun WorkflowRun? @relation(fields: [runId], references: [id])
+
+  @@index([runId])
+}
+
+model GuardrailPolicy {
+  id                 String   @id @default(uuid())
+  teamId             String   @unique
+  blocklist          String[] // Blocked keywords
+  allowlist          String[] // Explicitly allowed domains/words
+  regexRules         String[] // Custom regex patterns to block
+  competitorMentions String[] // Competitor names to flag
+  maxDailyMsgs       Int      @default(100)
+  detectPII          Boolean  @default(true)
+  strictness         String   @default("medium") // low, medium, high
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+}
+
+model GuardrailLog {
+  id            String   @id @default(uuid())
+  teamId        String
+  userId        String?
+  action        String // "blocked", "flagged"
+  violationType String // "pii", "toxic", "competitor", "custom_regex"
+  reason        String // Specific rule triggered
+  content       String?  @db.Text // The blocked content (snippet)
+  metadata      Json? // Context about the violation
+  createdAt     DateTime @default(now())
+
+  @@index([teamId])
+}
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  actorId       String?  @map("userId")
+  orgId         String   @map("teamId")
+  correlationId String?
+  action        String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
+  entity    String   @map("resource")
+  entityId  String?  @map("resourceId")
+  metadata  Json?    @map("details") // Metadata
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  team Team  @relation(fields: [orgId], references: [id])
+  user User? @relation(fields: [actorId], references: [id])
+
+  @@index([orgId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  // Optimization for recent activity feeds
+  @@index([orgId, createdAt])
+}
+
+model MarketplaceTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  type        String // AGENT, WORKFLOW, PLAYBOOK, CAMPAIGN
+  category    String // Sales, Support, Recruiting
+  icon        String?
+  config      Json // The JSON config (Workflow structure or Campaign steps)
+  metrics     Json? // e.g. { "avgOpenRate": 0.45, "users": 1000 }
+  isOfficial  Boolean  @default(true)
+  author      String   @default("ConvoSpan")
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([category])
+}
+
+model AgentFeedback {
+  id        String   @id @default(uuid())
+  messageId String // The AI message being rated
+  userId    String // Who rated it
+  rating    Int // 1 (bad) or 5 (good), or binary -1/1
+  comment   String? // Optional explanation
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id])
+}
+
+model AgentMemory {
+  id         String   @id @default(uuid())
+  teamId     String
+  key        String // e.g. "tone_preference", "forbidden_phrase"
+  value      String // e.g. "Always use emojis", "Never mention 'cheap'"
+  confidence Float    @default(1.0)
+  createdAt  DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  name       String
+  key        String    @unique
+  scopes     String[] // e.g. ["leads:read", "campaigns:write"]
+  lastUsedAt DateTime?
+  isActive   Boolean   @default(true)
+  teamId     String
+  createdAt  DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@index([key])
+}
+
+model KnowledgeBase {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  teamId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team  Team            @relation(fields: [teamId], references: [id])
+  items KnowledgeItem[]
+
+  @@index([teamId])
+}
+
+model KnowledgeItem {
+  id              String   @id @default(uuid())
+  content         String   @db.Text
+  embedding       String? // Temporarily String
+  embeddingModel  String?  @default("gemini-1.5-flash")
+  version         Int?     @default(1)
+  metadata        Json? // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
+  knowledgeBaseId String
+  createdAt       DateTime @default(now())
+
+  knowledgeBase        KnowledgeBase         @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  KnowledgePerformance KnowledgePerformance?
+
+  @@index([knowledgeBaseId])
+}
+
+model CustomDomain {
+  id        String   @id @default(uuid())
+  domain    String   @unique
+  teamId    String
+  status    String   @default("pending") // pending, active, invalid
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+model OrganizationPolicy {
+  id             String @id @default(cuid())
+  organizationId String @unique
+  productMode    ProductMode @default(ENTERPRISE_CORE)
+  executionMode  String? @default("saas_only")
+  productSurface String? @default("outreach")
+
+  maxDailyActions Int @default(200)
+  maxCampaigns    Int @default(10)
+  maxAgents       Int @default(5)
+
+  allowInMail   Boolean @default(false)
+  allowScraping Boolean @default(false)
+  allowUploads  Boolean @default(true)
+
+  requiresApprovalForCampaign Boolean @default(false)
+
+  // Compliance Settings
+  blockedKeywords String[] @default([])
+  detectPII       Boolean  @default(false)
+  restrictedTone  String? // aggregated tone constraint
+
+  // Budgeting & Quotas
+  maxCreditsPerUser          Int     @default(50)
+  requiresApprovalForOverage Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [organizationId], references: [id])
+}
+
+model UserQuota {
+  id           String   @id @default(cuid())
+  userId       String
+  teamId       String
+  monthlyLimit Int
+  currentSpend Int      @default(0)
+  lastReset    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([userId, teamId])
+}
+
+model ApprovalRequest {
+  id          String @id @default(uuid())
+  teamId      String
+  requesterId String
+  actionType  String // "CAMPAIGN_START", "LIMIT_INCREASE"
+  entityType  String // "Campaign"
+  entityId    String
+  status      String @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  reason  String? // Why is this requested?
+  payload Json? // Data needed to execute the action
+
+  reviewerId String?
+  reviewNote String?
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team      Team  @relation(fields: [teamId], references: [id])
+  requester User  @relation("requester", fields: [requesterId], references: [id])
+  reviewer  User? @relation("reviewer", fields: [reviewerId], references: [id])
+
+  @@index([teamId])
+  @@index([status])
+}
+
+model Playbook {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  teamId      String
+  config      Json // The campaign template (messages, steps)
+  parameters  Json? // e.g. ["companyName", "offer"]
+  isLocked    Boolean  @default(false)
+  visibility  String   @default("INTERNAL") // INTERNAL, PUBLIC
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+// Industry Case Studies for RAG-Enhanced Marketing Copy
+model CaseStudy {
+  id             String   @id @default(uuid())
+  title          String
+  industry       String // e.g., "SaaS", "Healthcare", "Finance"
+  summary        String   @db.Text
+  content        String   @db.Text
+  metrics        Json? // { conversionRate: 0.42, roi: 3.5, timeToClose: 14 }
+  embedding      String? // Temporarily String
+  embeddingModel String?  @default("embedding-001")
+  teamId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+  @@index([industry])
+}
+
+// Verification Agent Audit Log
+model VerificationLog {
+  id             String   @id @default(uuid())
+  leadId         String
+  teamId         String
+  passed         Boolean
+  score          Float
+  threshold      Float
+  recommendation String // PROCESS, REVIEW, REJECT
+  violations     Json? // Array of violations
+  explanation    Json? // Full score explanation
+  createdAt      DateTime @default(now())
+
+  @@index([leadId])
+  @@index([teamId])
+  @@index([createdAt])
+}
+
+// --- Agent System (ReAct Architecture) ---
+
+model AgentTask {
+  id      String  @id @default(uuid())
+  teamId  String
+  userId  String?
+  goal    String  @db.Text // The high-level objective
+  plan    Json? // The current state of the plan
+  status  String  @default("PENDING") // PENDING, RUNNING, PAUSED, COMPLETED, FAILED
+  context Json? // External context (e.g. leadId, campaignId)
+
+  logs      AgentLog[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  team Team  @relation(fields: [teamId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([teamId])
+  @@index([status])
+}
+
+model AgentLog {
+  id         String   @id @default(uuid())
+  taskId     String
+  stepNumber Int // Sequence number
+  type       String // THOUGHT, ACTION, OBSERVATION, SYSTEM
+  content    String   @db.Text
+  metadata   Json? // Tool name, duration, cost
+  createdAt  DateTime @default(now())
+
+  task AgentTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([taskId, createdAt])
+  @@index([taskId, type])
+}
+
+// Proprietary Data Flywheel
+model AgentFeedbackLoop {
+  id           String   @id @default(uuid())
+  teamId       String
+  originalText String   @db.Text
+  editedText   String   @db.Text
+  diff         Json? // Structured diff
+  context      Json? // Prompt, model used, temperature
+  createdAt    DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
+}
+
+// LLM Usage Tracking for Cost Analytics and Provider Monitoring
+model LLMUsageLog {
+  id        String   @id @default(uuid())
+  teamId    String
+  provider  String // "openai", "groq", "gemini", "anthropic"
+  model     String // "gpt-4o", "llama-3.1-70b", "gemini-1.5-flash"
+  taskType  String // "ROUTINE", "STRATEGIC"
+  tokensIn  Int
+  tokensOut Int
+  cost      Float
+  latency   Int // milliseconds
+  success   Boolean
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([teamId, createdAt])
+  @@index([provider, createdAt])
+  @@index([taskType])
+}
+
+// 1. Hardware Binding (Grant Requirement: Proof of Physical Device)
+model EdgeNode {
+  id         String   @id @default(cuid())
+  teamId     String   @unique
+  hardwareId String   @unique // Matches the HARDWARE_SIGNATURE env var
+  ipAddress  String // e.g., "http://192.168.1.50:8000"
+  status     String   @default("OFFLINE") // Heartbeat check
+  lastSync   DateTime @updatedAt
+}
+
+// 2. FTO (Freedom to Operate) Guardrails
+model PatentGuardrail {
+  id        String                       @id @default(cuid())
+  claimText String                       @db.Text // Patent claim text to check against
+  patentId  String
+  riskLevel String                       @default("HIGH")
+  vector    Unsupported("vector(1536)")? // For similarity search
+
+  @@map("patent_guardrails")
+}
+
+// 3. Local Feedback Loop (Federated Learning)
+model LocalFeedbackLoop {
+  id             String  @id @default(cuid())
+  originalPrompt String
+  agentOutput    String
+  userCorrection String // The "Golden Data" for local fine-tuning
+  sourceTool     String // e.g., "SendPulse", "LinkedIn"
+  isSynced       Boolean @default(false)
+  teamId         String
+}
+
+model LLMCache {
+  id         String                       @id @default(uuid())
+  prompt     String                       @db.Text
+  promptHash String                       @unique // Optimized lookup
+  response   String                       @db.Text
+  embedding  Unsupported("vector(1536)")? // Using vector type for semantic search
+  tokensIn   Int                          @default(0)
+  tokensOut  Int                          @default(0)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+
+  // Cleanup policy
+  expiresAt DateTime?
+
+  @@index([createdAt])
+}
+
+// --- Advanced System Architecture (Tasks 1, 2, 3, 6, 7) ---
+
+// Task 2: Event-Sourced Learning Loop (Append-Only)
+model SystemEvent {
+  id            String   @id @default(uuid())
+  correlationId String?
+  type          String // USER, AI, ESP, SYSTEM
+  name      String // e.g., "DRAFT_SENT", "REPLY_RECEIVED", "BOUNCE", "ACTION_REJECTED"
+  actorId   String? // User ID or "SYSTEM"
+  teamId    String
+  payload   Json // Full context snapshot
+  timestamp DateTime @default(now())
+
+  @@index([teamId, timestamp])
+  @@index([name])
+  @@index([teamId, name])
+  @@index([timestamp])
+  @@index([type])
+}
+
+// Task 1: Outcome-Weighted Knowledge
+model KnowledgePerformance {
+  id              String    @id @default(uuid())
+  knowledgeItemId String    @unique
+  rewardScore     Float     @default(0.0) // Aggregated weighted rewards
+  usageCount      Int       @default(0)
+  replies         Int       @default(0)
+  clicks          Int       @default(0)
+  bounces         Int       @default(0)
+  lastSuccessAt   DateTime?
+
+  knowledgeItem KnowledgeItem @relation(fields: [knowledgeItemId], references: [id], onDelete: Cascade)
+}
+
+// Task 6: Causal Testing (Experimentation Engine)
+model Experiment {
+  id        String   @id @default(uuid())
+  teamId    String
+  name      String
+  goal      String // e.g., "Increase reply rate"
+  status    String   @default("RUNNING") // RUNNING, COMPLETED, ARCHIVED
+  controlId String? // Reference to control variant
+  createdAt DateTime @default(now())
+
+  variants ExperimentVariant[]
+  team     Team                @relation(fields: [teamId], references: [id])
+}
+
+model ExperimentVariant {
+  id           String @id @default(uuid())
+  experimentId String
+  name         String // e.g., "A", "B"
+  config       Json // Overrides for AI generation (tone, length, etc.)
+  sampleCount  Int    @default(0)
+  successCount Int    @default(0) // Weighted success
+
+  experiment Experiment @relation(fields: [experimentId], references: [id])
+}
+
+// Task 7: Immutable Audit Trail
+model ImmutableAudit {
+  id        String   @id @default(uuid())
+  sequence  BigInt   @default(autoincrement())
+  eventId   String   @unique
+  teamId    String
+  narrative String   @db.Text // Human-readable explanation
+  hash      String // Cryptographic integrity check
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id])
+}
+
+// Extension to existing Team model
+// Note: In a real migration we'd add relations to Team here
+// But since we can't edit the middle of the file easily with replace_file_content 
+// without major context, we rely on the implicit relations if possible or just store IDs.
+// I will append the back-relations to KnowledgeItem as well if needed.
+
+model ConversationEntry {
+  id                   String              @id @default(uuid())
+  leadId               String
+  role                 String // user, assistant, system
+  content              String // @db.Text if supported, default String for now
+  createdAt            DateTime            @default(now())
+  conversationThreadId String?
+  
+  lead                 Lead                @relation(fields: [leadId], references: [id])
+  thread               ConversationThread? @relation(fields: [conversationThreadId], references: [id])
+
+  @@index([leadId])
+  @@index([conversationThreadId])
+}
+
+enum ConversationState {
+  INITIATED
+  ENGAGED
+  QUALIFIED
+  HANDOFF_REQUIRED
+  COORDINATING
+  MEETING_CONFIRMED
+  CLOSED
+}
+
+model ConversationThread {
+  id      String            @id @default(uuid())
+  leadId  String
+  state   ConversationState @default(INITIATED)
+  channel String? // EMAIL, WHATSAPP, etc.
+
+  lead    Lead              @relation(fields: [leadId], references: [id])
+  entries ConversationEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+  @@index([state])
+}
+
+model WhatsAppMessage {
+  id        String   @id @default(uuid())
+  leadId    String
+  body      String
+  direction String   // INBOUND, OUTBOUND
+  status    String   @default("sent")
+  createdAt DateTime @default(now())
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+}
+
+model MeetingCoordinationQueue {
+  id             String   @id @default(uuid())
+  leadId         String   @unique
+  assignedUserId String?
+  status         String   @default("PENDING")
+  priority       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  lead Lead @relation(fields: [leadId], references: [id])
+  assignedUser User? @relation("caller_assignments", fields: [assignedUserId], references: [id])
+
+  @@index([assignedUserId])
+  @@index([status])
+}
+// --- ENTERPRISE GOVERNANCE START ---
+
+enum CapabilityLayer {
+  CORE
+  GOVERNED_AI
+  ADVANCED_OPS
+  EXPERIMENTAL
+}
+
+enum ProductMode {
+  ENTERPRISE_CORE
+  GROWTH
+  ALL_FEATURES
+}
+
+enum UserRole {
+  SYSTEM_ADMIN
+  ORG_ADMIN
+  SALES_MANAGER
+  SALES_USER
+  CALLER
+  COMPLIANCE_OFFICER
+}
+
+model FeatureFlag {
+  id          String          @id @default(uuid())
+  key         String          @unique // e.g. "linkedin_automation"
+  isEnabled   Boolean         @default(false)
+  layer       CapabilityLayer @default(EXPERIMENTAL)
+  description String?
+  
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+// --- ENTERPRISE GOVERNANCE END ---
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+  EXPIRED
+}
+
+model ConsentLedger {
+  id        String   @id @default(uuid())
+  leadId    String
+  userId    String?  // Who recorded it
+  channel   String   // WHATSAPP, EMAIL, PHONE
+  purpose   String   // "Marketing", "Support", "Transactions"
+  status    ConsentStatus @default(GRANTED)
+  proof     String?  // URL to screenshot, chat ID, form ID
+  notes     String?
+  grantedAt DateTime @default(now())
+  revokedAt DateTime?
+  ipAddress String?
+
+  lead      Lead     @relation(fields: [leadId], references: [id])
+
+  @@index([leadId])
+  @@index([channel, status])
+}
+
+model ContractProfile {
+  id                    String   @id @default(uuid())
+  teamId                String   @unique
+  allowedChannels       String[] // ["EMAIL", "WHATSAPP", "LINKEDIN"]
+  allowedCapabilityLayers String[] // ["CORE", "GOVERNED_AI"]
+  aiUsageLimit          Int      @default(1000) // Monthly limit
+  conversationThreadLimit Int    @default(50)
+  humanHandoffLimit     Int      @default(10)
+  onPremRequired        Boolean  @default(false)
+  dataRetentionDays     Int      @default(90)
+  featureTier           String   @default("CORE") // CORE, ADVANCED, CUSTOM
+  contractStatus        String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED
+  
+  updatedAt             DateTime @updatedAt
+  
+  team                  Team     @relation(fields: [teamId], references: [id])
+}
+
+// --- ENTERPRISE MICRO-LLM TRAINING INFRASTRUCTURE ---
+
+enum TrainingTaskType {
+  TONE_NORMALIZATION
+  GRAMMAR_REPAIR
+  BRAND_ENFORCEMENT
+  POLICY_CLASSIFICATION
+  POLICY_REWRITE
+  CONVERSATION_SUMMARY
+  OBJECTION_EXTRACTION
+  REFUSAL_GENERATION
+}
+
+enum DatasetStatus {
+  DRAFT
+  IN_REVIEW
+  REVIEWED
+  TRAINING
+  DEPLOYED
+}
+
+enum ModelStatus {
+  TRAINING
+  VALIDATION
+  DEPLOYED
+  ROLLED_BACK
+  DEPRECATED
+}
+
+model TrainingDataset {
+  id            String   @id @default(uuid())
+  version       String   @unique
+  taskType      TrainingTaskType
+  recordCount   Int      @default(0)
+  datasetHash   String
+  configHash    String
+  status        DatasetStatus @default(DRAFT)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  records       TrainingRecord[]
+  reviews       DatasetReview[]
+  modelVersions ModelVersion[]
+  
+  @@index([status])
+  @@index([taskType])
+}
+
+model TrainingRecord {
+  id                  String   @id @default(uuid())
+  datasetId           String
+  taskType            TrainingTaskType
+  inputText           String   @db.Text
+  brandRules          Json
+  policyRules         Json
+  expectedOutput      String   @db.Text
+  rejectionConditions Json
+  reviewScore         Float?
+  reviewedBy          String?
+  reviewedAt          DateTime?
+  approved            Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  
+  dataset             TrainingDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  
+  @@index([datasetId])
+  @@index([approved])
+  @@index([reviewScore])
+}
+
+model DatasetReview {
+  id                String   @id @default(uuid())
+  datasetId         String
+  reviewerId        String
+  sampleSize        Int
+  avgScore          Float
+  policyCorrectness Float
+  toneQuality       Float
+  clarity           Float
+  realism           Float
+  refusalQuality    Float?
+  notes             String?  @db.Text
+  approved          Boolean
+  createdAt         DateTime @default(now())
+  
+  dataset   TrainingDataset @relation(fields: [datasetId], references: [id])
+  reviewer  User            @relation(fields: [reviewerId], references: [id])
+  
+  @@index([datasetId])
+  @@index([reviewerId])
+}
+
+model ModelVersion {
+  id                  String   @id @default(uuid())
+  version             String   @unique
+  baseModel           String
+  datasetId           String
+  configHash          String
+  changelog           String   @db.Text
+  status              ModelStatus @default(TRAINING)
+  refusalAccuracy     Float?
+  policyViolationRate Float?
+  driftScore          Float?
+  verbosityScore      Float?
+  deployedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  dataset             TrainingDataset @relation(fields: [datasetId], references: [id])
+  metrics             EvaluationMetric[]
+  
+  @@index([status])
+  @@index([version])
+}
+
+model EvaluationMetric {
+  id              String   @id @default(uuid())
+  modelVersionId  String
+  metricType      String   // REFUSAL_ACC, POLICY_VIOLATION, DRIFT, VERBOSITY
+  value           Float
+  threshold       Float
+  passed          Boolean
+  metadata        Json?
+  timestamp       DateTime @default(now())
+  
+  modelVersion    ModelVersion @relation(fields: [modelVersionId], references: [id])
+  
+  @@index([modelVersionId])
+  @@index([metricType])
+  @@index([passed])
+}
+
+// --- END ML TRAINING INFRASTRUCTURE ---
+
+// --- CLIENT ERROR LOGGING ---
+
+model ClientError {
+  id             String   @id @default(uuid())
+  message        String   @db.VarChar(500)
+  stack          String?  @db.Text
+  componentStack String?  @db.Text
+  url            String
+  userAgent      String
+  userId         String?
+  ip             String
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  
+  @@index([createdAt])
+  @@index([userId])
+  @@index([url])
+}
+
+// --- REPLY DECISION TREE TRACKER ---
+
+model ReplyTracker {
+  id              String   @id @default(uuid())
+  leadId          String
+  emailId         String?  // Original outbound email ID if available
+  receivedAt      DateTime @default(now())
+  
+  senderEmail     String
+  subject         String
+  body            String   @db.Text
+  
+  // AI Classification
+  aiClassification String  // INTERESTED, NOT_INTERESTED, OOO, QUESTION, DNC
+  aiConfidence     Float   // 0.0 - 1.0 confidence score
+  aiReasoning      String? @db.Text
+  sentimentScore   Float?  // -1.0 to 1.0
+  
+  // HITL State
+  status          String   @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, AUTO_HANDLED
+  humanCorrection String?  // Stores correct classification if AI was wrong
+  reviewedBy      String?  // User ID of operator
+  reviewedAt      DateTime?
+  
+  // Action taken
+  actionTaken     String?  // PAUSED_CAMPAIGN, SENT_REPLY, SCHEDULED_MEETING
+  replyDraft      String?  @db.Text // The AI suggested reply
+  
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  
+  @@index([status])
+  @@index([leadId])
+  @@index([aiClassification])
+}
+
+model CalendarEvent {
+  id             String      @id @default(cuid())
+  eventName      String
+  eventDate      DateTime
+  category       String
+  leadGenAngle   String
+  newsletterId   String?     @unique
+  newsletter     Newsletter? @relation(fields: [newsletterId], references: [id])
+
+  @@unique([eventName, eventDate])
+}
+
+model Newsletter {
+  id             String         @id @default(cuid())
+  subjectLine    String
+  emailBodyHtml  String
+  cta            String
+  event          CalendarEvent?
+}
+
+model ShadowSignal {
+  id            String   @id @default(uuid())
+  source        String   // "reddit", "glassdoor", etc.
+  url           String
+  content       String   @db.Text
+  frictionScore Float
+  detectedICPs  String[]
+  isWarmLead    Boolean  @default(false)
+  metadata      Json?
+  
+  leadId        String?
+  lead          Lead?    @relation(fields: [leadId], references: [id])
+  
+  teamId        String?
+  team          Team?    @relation(fields: [teamId], references: [id])
+  
+  createdAt     DateTime @default(now())
+
+  @@index([teamId])
+  @@index([leadId])
+  @@index([source])
+  @@index([isWarmLead])
+}
+
+// Foundation Models for RAG and Analytics
+model VectorDocument {
+  id        String   @id @default(uuid())
+  type      String
+  content   String   @db.Text
+  metadata  String?  @db.Text // JSON string
+  embedding String?  @db.Text // JSON string
+  created_at DateTime @default(now())
+
+  @@index([type])
+}
+
+model EngagementLog {
+  id        String   @id @default(uuid())
+  email     String
+  event     String
+  context   String?  @db.Text
+  result    String?  @db.Text // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([event])
+}
+
