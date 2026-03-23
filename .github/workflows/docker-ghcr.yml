@@ -47,8 +47,8 @@ jobs:
       - name: Build Web image (no push)
         uses: docker/build-push-action@v5
         with:
-          context: .
-          target: runner-web
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web:test
           cache-from: type=gha
@@ -67,47 +67,48 @@ jobs:
       - name: Build and push Web image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          target: runner-web
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
           push: true
           tags: ${{ steps.meta-web.outputs.tags }}
           labels: ${{ steps.meta-web.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract metadata (tags, labels) for Worker
-        id: meta-worker
+      - name: Extract metadata (tags, labels) for API
+        id: meta-api
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/worker
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/api
           tags: |
             type=raw,value=latest
             type=sha,format=short
 
-      - name: Build and push Worker image
+      - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          target: runner-worker
+          context: ./apps/api
+          file: ./apps/api/Dockerfile
           push: true
-          tags: ${{ steps.meta-worker.outputs.tags }}
-          labels: ${{ steps.meta-worker.outputs.labels }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Extract metadata (tags, labels) for Edge Node
+      - name: Extract metadata (tags, labels) for Edge FastAPI
         id: meta-edge
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/edge-node
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/edge-fastapi
           tags: |
             type=raw,value=latest
             type=sha,format=short
 
-      - name: Build and push Edge Node image
+      - name: Build and push Edge FastAPI image
         uses: docker/build-push-action@v5
         with:
-          context: ./services/edge-node
+          context: ./apps/edge-fastapi
+          file: ./apps/edge-fastapi/Dockerfile
           push: true
           tags: ${{ steps.meta-edge.outputs.tags }}
           labels: ${{ steps.meta-edge.outputs.labels }}
