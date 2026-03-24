@@ -22,6 +22,10 @@ export function NotificationBell() {
         }
     }, [status]);
 
+    if (status !== "authenticated") {
+        return null;
+    }
+
     return (
         <Link href="/notifications" aria-label={`View notifications${count > 0 ? `, ${count} unread` : ''}`}>
             <div className="relative p-2 text-gray-400 hover:text-white transition-colors cursor-pointer">

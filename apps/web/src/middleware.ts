@@ -6,6 +6,11 @@ import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
+    const authApiPrefixes = ["/api/auth", "/api/register"];
+    const webhookApiPrefixes = ["/api/webhooks"];
+    const clientErrorLogPrefixes = ["/api/errors/client"];
+    const adminApiPrefixes = ["/api/admin"];
+    const publicApiPrefixes = ["/api/test-auth", "/api/contact"];
     // Get token early for rate limiting
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     const token = await getToken({ req, secret });
@@ -16,19 +21,19 @@ export async function middleware(req: NextRequest) {
         let rateLimitResponse: NextResponse | null = null;
         
         // 1. Authentication endpoints (strictest)
-        if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/auth") || path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/register")) {
+        if (authApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
         // 2. Webhook endpoints
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/webhooks")) {
+        else if (webhookApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
         // 3. Error logging endpoint
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/errors/client")) {
+        else if (clientErrorLogPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
         }
         // 4. Admin endpoints (high limit, but tracked)
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/admin")) {
+        else if (adminApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
         }
         // 5. Authenticated endpoints (requires valid token)
@@ -68,12 +73,12 @@ export async function middleware(req: NextRequest) {
     // 2. Authentication Check
     const publicPaths = ["/", "/login", "/signup", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
     const isPublic = publicPaths.some(p => path === p) ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/auth") ||
+        authApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
         path.startsWith("/_next") ||
         path.startsWith("/static") ||
         path.startsWith("/images") ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/webhooks") ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/test-auth");
+        webhookApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
+        publicApiPrefixes.some((prefix) => path.startsWith(prefix));
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting
@@ -156,8 +161,11 @@ export async function middleware(req: NextRequest) {
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        "upgrade-insecure-requests"
     ];
+
+    if (process.env['NODE_ENV'] === 'production') {
+        cspValues.push("upgrade-insecure-requests");
+    }
 
     if (process.env['NODE_ENV'] !== 'production') {
         // Dev friendliness

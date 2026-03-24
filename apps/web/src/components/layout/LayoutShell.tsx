@@ -13,6 +13,7 @@ const DASHBOARD_PREFIXES = [
 ];
 
 const MARKETING_PREFIXES = [
+    "/", "/about", "/pricing", "/contact",
     "/login", "/signup", "/forgot-password", "/magic-link",
     "/verify-email", "/privacy", "/terms",
 ];

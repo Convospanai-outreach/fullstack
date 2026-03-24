@@ -12,12 +12,23 @@ export default function ContactPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            // In production, this would POST to /api/contact
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            const response = await fetch("/api/contact", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(form),
+            });
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                const message = typeof data?.error === "string" ? data.error : "Failed to send message. Please try again.";
+                throw new Error(message);
+            }
+
             toast.success("Message sent! We'll get back to you within 24 hours.");
             setForm({ name: "", email: "", subject: "", message: "" });
-        } catch {
-            toast.error("Failed to send message. Please try again.");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Failed to send message. Please try again.";
+            toast.error(message);
         } finally {
             setLoading(false);
         }
@@ -92,8 +103,9 @@ export default function ContactPage() {
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                                        <label htmlFor="contact-name" className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
                                         <input
+                                            id="contact-name"
                                             type="text"
                                             required
                                             value={form.name}
@@ -103,8 +115,9 @@ export default function ContactPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">Work Email</label>
+                                        <label htmlFor="contact-email" className="block text-sm font-medium text-gray-300 mb-2">Work Email</label>
                                         <input
+                                            id="contact-email"
                                             type="email"
                                             required
                                             value={form.email}
@@ -116,8 +129,9 @@ export default function ContactPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                                    <label htmlFor="contact-subject" className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
                                     <select
+                                        id="contact-subject"
                                         required
                                         title="Select a contact subject"
                                         value={form.subject}
@@ -134,8 +148,9 @@ export default function ContactPage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                                    <label htmlFor="contact-message" className="block text-sm font-medium text-gray-300 mb-2">Message</label>
                                     <textarea
+                                        id="contact-message"
                                         required
                                         rows={5}
                                         value={form.message}

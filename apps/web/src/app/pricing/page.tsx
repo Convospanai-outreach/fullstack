@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Check, Zap, Rocket, Shield, Crown, Star, ArrowRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +8,16 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
 export default function PricingPage() {
-    const { data: session } = useSession();
     const router = useRouter();
     const [isAnnual, setIsAnnual] = useState(true);
+
+    const hasSessionCookie = () => {
+        if (typeof document === "undefined") {
+            return false;
+        }
+        return document.cookie.includes("next-auth.session-token=") ||
+            document.cookie.includes("__Secure-next-auth.session-token=");
+    };
 
     const loadRazorpayScript = () => {
         return new Promise((resolve) => {
@@ -33,7 +39,7 @@ export default function PricingPage() {
             return;
         }
 
-        if (!session) {
+        if (!hasSessionCookie()) {
             router.push("/signup");
             return;
         }
@@ -62,10 +68,6 @@ export default function PricingPage() {
                 order_id: data.orderId,
                 handler: function (_response: any) {
                     toast.success("Payment successful!");
-                },
-                prefill: {
-                    name: session?.user?.name,
-                    email: session?.user?.email
                 },
                 theme: { color: "#3b82f6" }
             };
