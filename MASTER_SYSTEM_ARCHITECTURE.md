@@ -288,20 +288,25 @@ Scraping and automation respect legal and platform policies.
 
 # Infrastructure Stack
 
-### Frontend
+**Monorepo Structure (`apps/`)**:
+- `apps/web`: Next.js frontend (static export)
+- `apps/api`: Fastify API server
+- `apps/edge-fastapi`: Python FastAPI edge node
+
+### Frontend (`apps/web`)
 
 ```
-React / Next.js
+React / Next.js (Static Export)
 Tailwind
 Framer Motion
 ```
 
 ---
 
-### Backend
+### Backend API (`apps/api`)
 
 ```
-Node.js
+Node.js / Fastify
 Redis / BullMQ
 PostgreSQL / Prisma
 ```

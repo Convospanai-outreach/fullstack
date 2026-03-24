@@ -34,10 +34,10 @@
 
 ## Technology Stack
 
-### Frontend
+### Frontend (`apps/web`)
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Next.js** | 16.0.10 | React framework with App Router |
+| **Next.js** | 16.0.10 | Static export frontend |
 | **React** | 19.2.0 | UI library |
 | **TypeScript** | 5.9.3 | Type safety |
 | **Tailwind CSS** | 4.1.17 | Styling framework |
@@ -46,11 +46,11 @@
 | **Recharts** | 3.5.1 | Data visualization |
 | **Three.js** | 0.182.0 | 3D graphics |
 
-### Backend
+### Backend API (`apps/api`)
 | Technology | Version | Purpose |
 |------------|---------|---------|
 | **Node.js** | 18+ | Runtime environment |
-| **Next.js API Routes** | 16.0.10 | API layer |
+| **Fastify** | 4.x | Fast API server layer |
 | **Prisma** | 5.22.0 | ORM and database toolkit |
 | **PostgreSQL** | 14+ | Primary database |
 | **Redis** | 5.10.0 | Caching and job queue |
@@ -112,18 +112,18 @@
 ### Layer Responsibilities
 
 #### 1. Presentation Layer
-- **Location**: `src/app/`, `src/components/`
+- **Location**: `apps/web/src/app/`, `apps/web/src/components/`
 - **Responsibilities**:
-  - Server-side rendering (SSR) and static generation (SSG)
+  - Static generation (SSG) and client-rendering
   - Client-side routing and navigation
   - UI component composition
   - State management with SWR
   - Form handling and validation
 
 #### 2. API Layer
-- **Location**: `src/app/api/`
+- **Location**: `apps/api/routes/`, `apps/api/src/`
 - **Responsibilities**:
-  - RESTful endpoint definitions
+  - Fastify RESTful endpoint definitions
   - Request/response handling
   - Authentication and authorization
   - Input validation with Zod
@@ -131,7 +131,7 @@
   - Error handling
 
 #### 3. Business Logic Layer
-- **Location**: `src/modules/`, `src/lib/`
+- **Location**: `apps/api/src/modules/`, `apps/api/src/lib/`
 - **Responsibilities**:
   - Domain-specific business rules
   - Service orchestration
@@ -140,7 +140,7 @@
   - Data transformation
 
 #### 4. Data Access Layer
-- **Location**: `prisma/`, `src/lib/db.ts` (Enforced `server-only`)
+- **Location**: `apps/api/prisma/`, `apps/api/src/lib/db.ts`
 - **Responsibilities**:
   - Database schema management
   - Query optimization
@@ -538,8 +538,7 @@ The platform implements a unified **Correlation ID** system for distributed obse
 - FEATURE_FLAG_TOGGLED
 
 ### Codebase Safety
-- **Server-Only Enforcement**: `src/lib/db.ts` uses `import 'server-only'` to prevent accidental bundling of Prisma Client in client-side code.
-- **Client Component Isolation**: Service modules (`src/modules/*`) are restricted from being imported into Client Components (`"use client"`).
+- **Isolating Backend/Frontend**: Now that `apps/api` and `apps/web` are physically separated, frontend cannot accidentally bundle backend code. Service modules are restricted to `apps/api`.
 
 
 ---
