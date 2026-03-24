@@ -1,0 +1,219 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 819B 0.1s done
+#1 DONE 0.8s
+
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+#2 DONE 0.5s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 137B 0.1s done
+#3 DONE 0.2s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [deps 1/4] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+#5 resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+#5 resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa 0.4s done
+#5 DONE 0.4s
+
+#6 [deps 2/4] WORKDIR /app
+#6 CACHED
+
+#4 [internal] load build context
+#4 ...
+
+#7 [runner 3/8] RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+#7 CACHED
+
+#4 [internal] load build context
+#4 transferring context: 61.06kB 0.8s done
+#4 DONE 0.9s
+
+#8 [deps 3/4] COPY package.json package-lock.json ./
+#8 CACHED
+
+#9 [deps 4/4] RUN npm ci
+#9 CACHED
+
+#10 [builder 3/5] COPY --from=deps /app/node_modules ./node_modules
+#10 CACHED
+
+#11 [builder 4/5] COPY . .
+#11 DONE 2.4s
+
+#12 [builder 5/5] RUN npx prisma generate && npm run build
+#12 29.20 Prisma schema loaded from prisma/schema.prisma.
+#12 48.54 
+#12 48.54 ✔ Generated Prisma Client (v7.5.0) to ./node_modules/@prisma/client in 12.63s
+#12 48.54 
+#12 48.54 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#12 48.54 
+#12 48.54 
+#12 48.84 npm notice
+#12 48.84 npm notice New major version of npm available! 10.8.2 -> 11.12.0
+#12 48.84 npm notice Changelog: https://github.com/npm/cli/releases/tag/v11.12.0
+#12 48.84 npm notice To update run: npm install -g npm@11.12.0
+#12 48.84 npm notice
+#12 50.34 
+#12 50.34 > build
+#12 50.34 > cross-env PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS='--max-old-space-size=8192' prisma generate && cross-env PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS='--max-old-space-size=8192' next build
+#12 50.34 
+#12 63.68 Prisma schema loaded from prisma/schema.prisma.
+#12 95.76 
+#12 95.76 ✔ Generated Prisma Client (v7.5.0) to ./node_modules/@prisma/client in 25.53s
+#12 95.76 
+#12 95.76 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#12 95.76 
+#12 95.76 
+#12 106.1 ▲ Next.js 16.1.6 (Turbopack)
+#12 106.1 - Experiments (use with caution):
+#12 106.1   · optimizePackageImports
+#12 106.2 
+#12 106.2 ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+#12 106.8   Creating an optimized production build ...
+#12 400.9 ✓ Compiled successfully in 4.8min
+#12 401.1   Running TypeScript ...
+#12 712.4   Collecting page data using 3 workers ...
+#12 730.0   Generating static pages using 3 workers (0/86) ...
+#12 744.3   Generating static pages using 3 workers (21/86) 
+#12 749.8   Generating static pages using 3 workers (42/86) 
+#12 752.3   Generating static pages using 3 workers (64/86) 
+#12 756.3 ✓ Generating static pages using 3 workers (86/86) in 26.3s
+#12 756.4   Finalizing page optimization ...
+#12 771.7 
+#12 771.8 Route (app)
+#12 771.8 ┌ ○ /
+#12 771.8 ├ ○ /_not-found
+#12 771.8 ├ ○ /about
+#12 771.8 ├ ○ /admin/audit
+#12 771.8 ├ ○ /admin/client-errors
+#12 771.8 ├ ○ /admin/observability
+#12 771.8 ├ ○ /agents/builder
+#12 771.8 ├ ○ /analytics
+#12 771.8 ├ ○ /analytics/ai
+#12 771.8 ├ ○ /analytics/roi
+#12 771.8 ├ ƒ /api/auth/verify-email
+#12 771.8 ├ ○ /approvals
+#12 771.8 ├ ○ /audit-logs
+#12 771.8 ├ ○ /automations
+#12 771.8 ├ ○ /automations/approvals
+#12 771.8 ├ ○ /billing
+#12 771.8 ├ ○ /calendar
+#12 771.8 ├ ○ /caller
+#12 771.8 ├ ○ /campaigns
+#12 771.8 ├ ƒ /campaigns/[id]
+#12 771.8 ├ ƒ /campaigns/[id]/edit
+#12 771.8 ├ ○ /campaigns/new
+#12 771.8 ├ ○ /command-center
+#12 771.8 ├ ○ /contact
+#12 771.8 ├ ○ /credits
+#12 771.8 ├ ○ /crm
+#12 771.8 ├ ○ /csv-ingestion
+#12 771.8 ├ ○ /dashboard
+#12 771.8 ├ ○ /dashboard/settings/compliance
+#12 771.8 ├ ○ /docs/api
+#12 771.8 ├ ○ /faq
+#12 771.8 ├ ○ /forgot-password
+#12 771.8 ├ ○ /governance
+#12 771.8 ├ ○ /governance/access
+#12 771.8 ├ ○ /governance/audit
+#12 771.8 ├ ○ /governance/firewall
+#12 771.8 ├ ○ /governance/guardrails
+#12 771.8 ├ ○ /governance/keys
+#12 771.8 ├ ○ /help
+#12 771.8 ├ ○ /hunter-email-finder
+#12 771.8 ├ ○ /icp-builder
+#12 771.8 ├ ○ /inbox
+#12 771.8 ├ ○ /jobs
+#12 771.8 ├ ƒ /jobs/[id]
+#12 771.8 ├ ○ /knowledge
+#12 771.8 ├ ○ /leads
+#12 771.8 ├ ƒ /leads/[id]
+#12 771.8 ├ ○ /leads/import
+#12 771.8 ├ ○ /linkedin-runner
+#12 771.8 ├ ○ /login
+#12 771.8 ├ ○ /login/sso
+#12 771.8 ├ ○ /magic-link
+#12 771.8 ├ ○ /marketplace
+#12 771.8 ├ ○ /monitoring
+#12 771.8 ├ ○ /notifications
+#12 771.8 ├ ○ /onboarding
+#12 771.8 ├ ○ /pipeline
+#12 771.8 ├ ○ /playbooks
+#12 771.8 ├ ○ /pricing
+#12 771.8 ├ ○ /privacy
+#12 771.8 ├ ○ /profile
+#12 771.8 ├ ○ /robots.txt
+#12 771.8 ├ ○ /scraper-bridge
+#12 771.8 ├ ○ /settings
+#12 771.8 ├ ○ /settings/agent
+#12 771.8 ├ ○ /settings/approvals
+#12 771.8 ├ ○ /settings/audit
+#12 771.8 ├ ○ /settings/branding
+#12 771.8 ├ ○ /settings/budgeting
+#12 771.8 ├ ○ /settings/governance
+#12 771.8 ├ ○ /settings/governance/analytics
+#12 771.8 ├ ○ /settings/guardrails
+#12 771.8 ├ ○ /settings/hitl
+#12 771.8 ├ ○ /settings/keys
+#12 771.8 ├ ○ /settings/notifications
+#12 771.8 ├ ○ /settings/sso
+#12 771.8 ├ ○ /settings/team
+#12 771.8 ├ ○ /settings/webhooks
+#12 771.8 ├ ○ /setup
+#12 771.8 ├ ○ /signup
+#12 771.8 ├ ○ /sitemap.xml
+#12 771.8 ├ ○ /studio
+#12 771.8 ├ ○ /team
+#12 771.8 ├ ○ /templates
+#12 771.8 ├ ○ /terms
+#12 771.8 ├ ○ /test-crash
+#12 771.8 ├ ○ /test-error-logging
+#12 771.8 ├ ○ /verify-email
+#12 771.8 ├ ○ /workflows
+#12 771.8 └ ƒ /workflows/[id]
+#12 771.8 
+#12 771.8 
+#12 771.8 ƒ Proxy (Middleware)
+#12 771.8 
+#12 771.8 ○  (Static)   prerendered as static content
+#12 771.8 ƒ  (Dynamic)  server-rendered on demand
+#12 771.8 
+#12 DONE 773.5s
+
+#13 [runner 4/8] COPY --from=builder /app/package.json ./package.json
+#13 DONE 0.6s
+
+#14 [runner 5/8] COPY --from=builder /app/node_modules ./node_modules
+#14 DONE 567.4s
+
+#15 [runner 6/8] COPY --from=builder /app/.next ./.next
+#15 DONE 77.5s
+
+#16 [runner 7/8] COPY --from=builder /app/public ./public
+#16 DONE 1.1s
+
+#17 [runner 8/8] COPY --from=builder /app/prisma ./prisma
+#17 DONE 0.5s
+
+#18 exporting to image
+#18 exporting layers
+#18 exporting layers 1063.7s done
+#18 exporting manifest sha256:ea4ba438c799575b619b9462d43dacd29a6f1b76746a891a11195a3a775ad677
+#18 exporting manifest sha256:ea4ba438c799575b619b9462d43dacd29a6f1b76746a891a11195a3a775ad677 0.2s done
+#18 exporting config sha256:646acf3fa76a7c2688199ea8c2d9912b39943104ee7f008748746b1497ef29d2
+#18 exporting config sha256:646acf3fa76a7c2688199ea8c2d9912b39943104ee7f008748746b1497ef29d2 0.1s done
+#18 exporting attestation manifest sha256:034e91bc7083df33e7fb1bb466393d01af035b8976a28852ec5a18bb9311e855
+#18 exporting attestation manifest sha256:034e91bc7083df33e7fb1bb466393d01af035b8976a28852ec5a18bb9311e855 0.3s done
+#18 exporting manifest list sha256:995219ac6f2e01d5db6a920e95ac20b697545770dd9dedb84a0eb005c2dfb6b1
+#18 exporting manifest list sha256:995219ac6f2e01d5db6a920e95ac20b697545770dd9dedb84a0eb005c2dfb6b1 0.1s done
+#18 naming to docker.io/library/convospan-web:split 0.1s done
+#18 unpacking to docker.io/library/convospan-web:split
+#18 unpacking to docker.io/library/convospan-web:split 841.0s done
+#18 DONE 1908.8s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/u3mhojvz7e8xuhtpj658pjmlu

@@ -7,5 +7,7 @@
         "PLAYWRIGHT_COMPILE_CACHE": "${workspaceFolder}/.playwright-cache",
         "TEMP": "${workspaceFolder}/.playwright-cache",
         "TMP": "${workspaceFolder}/.playwright-cache"
-    }
+    },
+    "chatgpt.runCodexInWindowsSubsystemForLinux": true,
+    "chatgpt.openOnStartup": true
 }

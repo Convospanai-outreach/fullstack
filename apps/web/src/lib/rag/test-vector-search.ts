@@ -1,6 +1,5 @@
 import { vectorStore } from "../../modules/rag/service/vectorStore";
 import { prisma } from "../db";
-import { aiService } from "../aiService";
 
 if (!process.env["GEMINI_API_KEY"]) {
     throw new Error("GEMINI_API_KEY is required to run test-vector-search");

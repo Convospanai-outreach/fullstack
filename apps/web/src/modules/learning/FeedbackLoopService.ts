@@ -128,21 +128,23 @@ export class FeedbackLoopService {
         for (let j = 0; j <= bLen; j += 1) row[j] = j;
 
         for (let i = 1; i <= aLen; i += 1) {
-            let prev = row[0];
+            let prev = row[0] ?? 0;
             row[0] = i;
             for (let j = 1; j <= bLen; j += 1) {
-                const temp = row[j];
+                const temp = row[j] ?? 0;
                 const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                const current = row[j] ?? Number.MAX_SAFE_INTEGER;
+                const left = row[j - 1] ?? Number.MAX_SAFE_INTEGER;
                 row[j] = Math.min(
-                    row[j] + 1,
-                    row[j - 1] + 1,
+                    current + 1,
+                    left + 1,
                     prev + cost
                 );
                 prev = temp;
             }
         }
 
-        return row[bLen];
+        return row[bLen] ?? bLen;
     }
 }
 

@@ -41,7 +41,8 @@ Critical values:
 - `DATABASE_URL`
 - `NEXTAUTH_SECRET`
 - `NEXTAUTH_URL`
-- `NEXT_PUBLIC_API_URL`
+- `NEXT_PUBLIC_API_URL` (recommended: `https://app.<domain>/api/proxy`)
+- `API_INTERNAL_ORIGIN` (recommended: `https://api.<domain>`)
 - `WORKSPACE_COOKIE_SECRET`
 
 Build log validation:
@@ -49,6 +50,7 @@ Build log validation:
 - Build runs from `apps/web`.
 - Prisma line must show `prisma/schema.prisma` from app root.
 - Build must not reference root-level `next.config.mjs` or root app scripts.
+- Proxy route exists at `apps/web/src/app/api/proxy/[...path]/route.ts`.
 
 ## 3) API Deployment (Docker on DigitalOcean)
 
@@ -84,6 +86,11 @@ Health checks:
 curl -i http://127.0.0.1:3001/health
 curl -i http://127.0.0.1:3001/v1/system/health
 ```
+
+Expected behavior:
+
+- `/health` returns `healthy` or `degraded` with component checks (`database`, `edge`).
+- `/v1/system/health` may return `503` for environment-sensitive checks and should not be used as container liveness.
 
 ## 4) Edge Deployment (Docker on DigitalOcean, Optional)
 

@@ -1,0 +1,167 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile:
+#1 transferring dockerfile: 2.28kB 0.2s done
+#1 DONE 0.5s
+
+#2 [internal] load metadata for docker.io/library/python:3.11-slim
+#2 DONE 0.7s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 209B 0.1s done
+#3 DONE 0.4s
+
+#4 [builder 1/5] FROM docker.io/library/python:3.11-slim@sha256:9358444059ed78e2975ada2c189f1c1a3144a5dab6f35bff8c981afb38946634
+#4 resolve docker.io/library/python:3.11-slim@sha256:9358444059ed78e2975ada2c189f1c1a3144a5dab6f35bff8c981afb38946634 0.4s done
+#4 DONE 0.5s
+
+#5 [builder 2/5] WORKDIR /app
+#5 CACHED
+
+#6 [runner 3/7] RUN adduser --system --group --home /home/appuser appuser &&     mkdir -p /home/appuser &&     apt-get update && apt-get install -y --no-install-recommends     libssl3     libgomp1     libpq-dev     && rm -rf /var/lib/apt/lists/*
+#6 5.606 Hit:1 http://deb.debian.org/debian trixie InRelease
+#6 5.693 Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+#6 6.039 Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+#6 6.125 Get:4 http://deb.debian.org/debian trixie/main amd64 Packages [9671 kB]
+#6 15.28 Get:5 http://deb.debian.org/debian trixie-updates/main amd64 Packages [5412 B]
+#6 15.31 Get:6 http://deb.debian.org/debian-security trixie-security/main amd64 Packages [114 kB]
+#6 27.70 Fetched 9881 kB in 22s (439 kB/s)
+#6 27.70 Reading package lists...
+#6 33.87 Reading package lists...
+#6 41.33 Building dependency tree...
+#6 42.71 Reading state information...
+#6 45.63 libssl3t64 is already the newest version (3.5.5-1~deb13u1).
+#6 45.63 The following additional packages will be installed:
+#6 45.63   libcom-err2 libgssapi-krb5-2 libk5crypto3 libkeyutils1 libkrb5-3
+#6 45.65   libkrb5support0 libldap2 libpq5 libsasl2-2 libsasl2-modules-db libssl-dev
+#6 45.68 Suggested packages:
+#6 45.68   krb5-doc krb5-user postgresql-doc-17 libssl-doc
+#6 45.68 Recommended packages:
+#6 45.68   krb5-locales libldap-common libsasl2-modules
+#6 46.43 The following NEW packages will be installed:
+#6 46.44   libcom-err2 libgomp1 libgssapi-krb5-2 libk5crypto3 libkeyutils1 libkrb5-3
+#6 46.45   libkrb5support0 libldap2 libpq-dev libpq5 libsasl2-2 libsasl2-modules-db
+#6 46.45   libssl-dev
+#6 46.91 0 upgraded, 13 newly installed, 0 to remove and 0 not upgraded.
+#6 46.91 Need to get 4355 kB of archives.
+#6 46.91 After this operation, 21.3 MB of additional disk space will be used.
+#6 46.91 Get:1 http://deb.debian.org/debian trixie/main amd64 libcom-err2 amd64 1.47.2-3+b10 [25.0 kB]
+#6 46.96 Get:2 http://deb.debian.org/debian trixie/main amd64 libgomp1 amd64 14.2.0-19 [137 kB]
+#6 47.19 Get:3 http://deb.debian.org/debian trixie/main amd64 libkrb5support0 amd64 1.21.3-5 [33.0 kB]
+#6 47.30 Get:4 http://deb.debian.org/debian trixie/main amd64 libk5crypto3 amd64 1.21.3-5 [81.5 kB]
+#6 47.48 Get:5 http://deb.debian.org/debian trixie/main amd64 libkeyutils1 amd64 1.6.3-6 [9456 B]
+#6 47.49 Get:6 http://deb.debian.org/debian trixie/main amd64 libkrb5-3 amd64 1.21.3-5 [326 kB]
+#6 47.83 Get:7 http://deb.debian.org/debian trixie/main amd64 libgssapi-krb5-2 amd64 1.21.3-5 [138 kB]
+#6 47.95 Get:8 http://deb.debian.org/debian trixie/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg1-9 [19.8 kB]
+#6 47.96 Get:9 http://deb.debian.org/debian trixie/main amd64 libsasl2-2 amd64 2.1.28+dfsg1-9 [57.5 kB]
+#6 48.00 Get:10 http://deb.debian.org/debian trixie/main amd64 libldap2 amd64 2.6.10+dfsg-1 [194 kB]
+#6 48.11 Get:11 http://deb.debian.org/debian trixie/main amd64 libpq5 amd64 17.9-0+deb13u1 [228 kB]
+#6 48.30 Get:12 http://deb.debian.org/debian trixie/main amd64 libssl-dev amd64 3.5.5-1~deb13u1 [2953 kB]
+#6 50.49 Get:13 http://deb.debian.org/debian trixie/main amd64 libpq-dev amd64 17.9-0+deb13u1 [152 kB]
+#6 52.01 debconf: unable to initialize frontend: Dialog
+#6 52.01 debconf: (TERM is not set, so the dialog frontend is not usable.)
+#6 52.01 debconf: falling back to frontend: Readline
+#6 52.01 debconf: unable to initialize frontend: Readline
+#6 52.01 debconf: (Can't locate Term/ReadLine.pm in @INC (you may need to install the Term::ReadLine module) (@INC entries checked: /etc/perl /usr/local/lib/x86_64-linux-gnu/perl/5.40.1 /usr/local/share/perl/5.40.1 /usr/lib/x86_64-linux-gnu/perl5/5.40 /usr/share/perl5 /usr/lib/x86_64-linux-gnu/perl-base /usr/lib/x86_64-linux-gnu/perl/5.40 /usr/share/perl/5.40 /usr/local/lib/site_perl) at /usr/share/perl5/Debconf/FrontEnd/Readline.pm line 8, <STDIN> line 13.)
+#6 52.01 debconf: falling back to frontend: Teletype
+#6 52.12 debconf: unable to initialize frontend: Teletype
+#6 52.12 debconf: (This frontend requires a controlling tty.)
+#6 52.12 debconf: falling back to frontend: Noninteractive
+#6 59.28 Fetched 4355 kB in 4s (1110 kB/s)
+#6 59.64 Selecting previously unselected package libcom-err2:amd64.
+#6 59.64 (Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 5645 files and directories currently installed.)
+#6 59.83 Preparing to unpack .../00-libcom-err2_1.47.2-3+b10_amd64.deb ...
+#6 60.25 Unpacking libcom-err2:amd64 (1.47.2-3+b10) ...
+#6 60.77 Selecting previously unselected package libgomp1:amd64.
+#6 60.78 Preparing to unpack .../01-libgomp1_14.2.0-19_amd64.deb ...
+#6 60.82 Unpacking libgomp1:amd64 (14.2.0-19) ...
+#6 61.19 Selecting previously unselected package libkrb5support0:amd64.
+#6 61.19 Preparing to unpack .../02-libkrb5support0_1.21.3-5_amd64.deb ...
+#6 61.24 Unpacking libkrb5support0:amd64 (1.21.3-5) ...
+#6 61.53 Selecting previously unselected package libk5crypto3:amd64.
+#6 61.54 Preparing to unpack .../03-libk5crypto3_1.21.3-5_amd64.deb ...
+#6 61.61 Unpacking libk5crypto3:amd64 (1.21.3-5) ...
+#6 62.00 Selecting previously unselected package libkeyutils1:amd64.
+#6 62.00 Preparing to unpack .../04-libkeyutils1_1.6.3-6_amd64.deb ...
+#6 62.07 Unpacking libkeyutils1:amd64 (1.6.3-6) ...
+#6 62.40 Selecting previously unselected package libkrb5-3:amd64.
+#6 62.41 Preparing to unpack .../05-libkrb5-3_1.21.3-5_amd64.deb ...
+#6 62.45 Unpacking libkrb5-3:amd64 (1.21.3-5) ...
+#6 62.98 Selecting previously unselected package libgssapi-krb5-2:amd64.
+#6 62.99 Preparing to unpack .../06-libgssapi-krb5-2_1.21.3-5_amd64.deb ...
+#6 63.08 Unpacking libgssapi-krb5-2:amd64 (1.21.3-5) ...
+#6 63.38 Selecting previously unselected package libsasl2-modules-db:amd64.
+#6 63.39 Preparing to unpack .../07-libsasl2-modules-db_2.1.28+dfsg1-9_amd64.deb ...
+#6 63.43 Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg1-9) ...
+#6 63.84 Selecting previously unselected package libsasl2-2:amd64.
+#6 63.85 Preparing to unpack .../08-libsasl2-2_2.1.28+dfsg1-9_amd64.deb ...
+#6 63.89 Unpacking libsasl2-2:amd64 (2.1.28+dfsg1-9) ...
+#6 64.43 Selecting previously unselected package libldap2:amd64.
+#6 64.44 Preparing to unpack .../09-libldap2_2.6.10+dfsg-1_amd64.deb ...
+#6 64.60 Unpacking libldap2:amd64 (2.6.10+dfsg-1) ...
+#6 65.42 Selecting previously unselected package libpq5:amd64.
+#6 65.43 Preparing to unpack .../10-libpq5_17.9-0+deb13u1_amd64.deb ...
+#6 65.50 Unpacking libpq5:amd64 (17.9-0+deb13u1) ...
+#6 66.27 Selecting previously unselected package libssl-dev:amd64.
+#6 66.27 Preparing to unpack .../11-libssl-dev_3.5.5-1~deb13u1_amd64.deb ...
+#6 66.34 Unpacking libssl-dev:amd64 (3.5.5-1~deb13u1) ...
+#6 69.40 Selecting previously unselected package libpq-dev.
+#6 69.41 Preparing to unpack .../12-libpq-dev_17.9-0+deb13u1_amd64.deb ...
+#6 69.54 Unpacking libpq-dev (17.9-0+deb13u1) ...
+#6 70.16 Setting up libkeyutils1:amd64 (1.6.3-6) ...
+#6 70.35 Setting up libcom-err2:amd64 (1.47.2-3+b10) ...
+#6 70.51 Setting up libgomp1:amd64 (14.2.0-19) ...
+#6 70.67 Setting up libkrb5support0:amd64 (1.21.3-5) ...
+#6 70.84 Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg1-9) ...
+#6 70.99 Setting up libssl-dev:amd64 (3.5.5-1~deb13u1) ...
+#6 71.19 Setting up libk5crypto3:amd64 (1.21.3-5) ...
+#6 71.52 Setting up libsasl2-2:amd64 (2.1.28+dfsg1-9) ...
+#6 71.73 Setting up libkrb5-3:amd64 (1.21.3-5) ...
+#6 71.93 Setting up libldap2:amd64 (2.6.10+dfsg-1) ...
+#6 72.14 Setting up libgssapi-krb5-2:amd64 (1.21.3-5) ...
+#6 72.34 Setting up libpq5:amd64 (17.9-0+deb13u1) ...
+#6 72.56 Setting up libpq-dev (17.9-0+deb13u1) ...
+#6 72.80 Processing triggers for libc-bin (2.41-12+deb13u2) ...
+#6 DONE 73.9s
+
+#7 [internal] load build context
+#7 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 332B 0.1s done
+#7 DONE 0.4s
+
+#8 [builder 5/5] RUN pip install --user -r requirements.runtime.txt &&     find /root/.local -name "*.pyc" -delete &&     find /root/.local -name "__pycache__" -delete
+#8 CACHED
+
+#9 [runner 4/7] COPY --from=builder /root/.local /home/appuser/.local
+#9 DONE 9.1s
+
+#10 [runner 5/7] COPY *.py ./
+#10 DONE 0.6s
+
+#11 [runner 6/7] COPY services/ ./services/
+#11 DONE 0.6s
+
+#12 [runner 7/7] RUN chown -R appuser:appuser /app /home/appuser
+#12 DONE 46.8s
+
+#13 exporting to image
+#13 exporting layers
+#13 exporting layers 0.1s done
+#13 exporting manifest sha256:a89da718e4792809ff5334900886c7076672ae178179ef487864bb99ab5a236a
+#13 exporting manifest sha256:a89da718e4792809ff5334900886c7076672ae178179ef487864bb99ab5a236a 0.1s done
+#13 exporting config sha256:959efdb1689c1ba5c5c9fc5603f55b9d27a7c6bb87ee9c7f2a82fcf70621e64c 0.1s done
+#13 exporting attestation manifest sha256:3da1a960622e0ce95665988b11689e4f976fe2faa2cbe031c5e3bf1c102e1ab7
+#13 exporting attestation manifest sha256:3da1a960622e0ce95665988b11689e4f976fe2faa2cbe031c5e3bf1c102e1ab7 1.5s done
+#13 exporting manifest list sha256:8e17f7924fc992419208a798781480dc57668b07995cffd54600067cedd469a5
+#13 exporting manifest list sha256:8e17f7924fc992419208a798781480dc57668b07995cffd54600067cedd469a5 0.4s done
+#13 naming to docker.io/library/convospan-edge-fastapi:split
+#13 naming to docker.io/library/convospan-edge-fastapi:split 0.1s done
+#13 unpacking to docker.io/library/convospan-edge-fastapi:split
+#13 unpacking to docker.io/library/convospan-edge-fastapi:split 79.3s done
+#13 DONE 83.0s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/y2p4qeqkb5s2xz64mku6swzas

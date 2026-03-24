@@ -1,0 +1,67 @@
+#0 building with "desktop-linux" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 30B 0.1s
+#1 transferring dockerfile: 349B 0.2s done
+#1 DONE 0.6s
+
+#2 [internal] load metadata for docker.io/library/node:20-alpine
+#2 DONE 0.9s
+
+#3 [internal] load .dockerignore
+#3 transferring context:
+#3 transferring context: 137B 0.4s done
+#3 DONE 0.9s
+
+#4 [internal] load build context
+#4 DONE 0.0s
+
+#5 [1/6] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+#5 resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa
+#5 resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab9617de04142dde7315e3bc0afa 0.5s done
+#5 DONE 0.6s
+
+#4 [internal] load build context
+#4 transferring context: 55.57kB 1.5s done
+#4 DONE 1.9s
+
+#6 [2/6] WORKDIR /app
+#6 CACHED
+
+#7 [3/6] COPY package.json ./
+#7 CACHED
+
+#8 [4/6] RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps
+#8 CACHED
+
+#9 [5/6] COPY . .
+#9 DONE 6.3s
+
+#10 [6/6] RUN npx prisma generate
+#10 29.23 Prisma schema loaded from prisma/schema.prisma.
+#10 52.44 
+#10 52.44 ✔ Generated Prisma Client (v7.5.0) to ./node_modules/@prisma/client in 15.01s
+#10 52.44 
+#10 52.44 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#10 52.44 
+#10 52.44 
+#10 DONE 53.1s
+
+#11 exporting to image
+#11 exporting layers
+#11 exporting layers 5.9s done
+#11 exporting manifest sha256:16f2a330a2167056584b9982a86b383f816f9590c5bef71b7c15d57f1d4b9bda
+#11 exporting manifest sha256:16f2a330a2167056584b9982a86b383f816f9590c5bef71b7c15d57f1d4b9bda 0.2s done
+#11 exporting config sha256:261aad8a98b107a70e2709de845266a0ab68e32b5f7456c45f07c7e6b59915f0
+#11 exporting config sha256:261aad8a98b107a70e2709de845266a0ab68e32b5f7456c45f07c7e6b59915f0 0.1s done
+#11 exporting attestation manifest sha256:74e8a3b771c02d319284981b5d14d4166454023ee6ff446a033c9b27387cc2c7
+#11 exporting attestation manifest sha256:74e8a3b771c02d319284981b5d14d4166454023ee6ff446a033c9b27387cc2c7 0.8s done
+#11 exporting manifest list sha256:3539aab7e0eb1872bac59607f11e4e1d49ee279a7a8ef29af0485b5766bbc80e
+#11 exporting manifest list sha256:3539aab7e0eb1872bac59607f11e4e1d49ee279a7a8ef29af0485b5766bbc80e 0.5s done
+#11 naming to docker.io/library/convospan-api:split
+#11 naming to docker.io/library/convospan-api:split 0.1s done
+#11 unpacking to docker.io/library/convospan-api:split
+#11 unpacking to docker.io/library/convospan-api:split 4.4s done
+#11 DONE 12.9s
+
+View build details: docker-desktop://dashboard/build/desktop-linux/desktop-linux/9yf51g99qovybcmf9nr5jxpyy

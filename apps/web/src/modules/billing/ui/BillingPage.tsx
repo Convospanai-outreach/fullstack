@@ -130,7 +130,7 @@ export default function BillingPage() {
                 amount: data.amount,
                 currency: data.currency,
                 name: "ConvoSpan AI",
-                description: `${credits} Credits Top-up`,
+                description: "Credits Top-up",
                 order_id: data.id, // ID from backend is order_id
                 handler: function (response: any) {
                     alert(`Top-up Successful! Payment ID: ${response.razorpay_payment_id}`);

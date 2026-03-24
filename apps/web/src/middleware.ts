@@ -6,11 +6,11 @@ import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
-    const authApiPrefixes = ["/api/auth", "/api/register"];
-    const webhookApiPrefixes = ["/api/webhooks"];
-    const clientErrorLogPrefixes = ["/api/errors/client"];
-    const adminApiPrefixes = ["/api/admin"];
-    const publicApiPrefixes = ["/api/test-auth", "/api/contact"];
+    const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
+    const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
+    const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
+    const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
+    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/proxy"];
     // Get token early for rate limiting
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     const token = await getToken({ req, secret });
