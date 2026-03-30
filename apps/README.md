@@ -1,24 +1,26 @@
-# ConvoSpan Split Apps
+# Apps Folder
 
-This folder contains a hard split into three standalone app folders:
+This directory contains the three deployable applications in this monorepo:
 
-- `web` - Next.js application
-- `api` - Fastify API server
-- `edge-fastapi` - FastAPI edge runtime
+- `web` - Next.js app (public UI)
+- `api` - Fastify app (public API)
+- `edge-fastapi` - FastAPI app (private optional edge runtime)
 
-## Docker images
+## Independent deploy model
 
-- `convospan-web:split`
-- `convospan-api:split`
-- `convospan-edge-fastapi:split`
+Each app is deployed separately, even though they live in one git repository.
 
-## Build all images
+- web service uses `apps/web` as its deploy root
+- api service uses `apps/api` as its deploy root
+- edge service uses `apps/edge-fastapi` as its deploy root
 
-```bash
-docker compose -f docker-compose.split.yml build
-```
+## Why keep them in one repo
 
-## Run all apps
+- one source of truth for contracts and schemas
+- one PR can change all required layers safely
+- CI can still deploy services independently using path filters
+
+## Local split runtime
 
 ```bash
 docker compose -f docker-compose.split.yml up -d

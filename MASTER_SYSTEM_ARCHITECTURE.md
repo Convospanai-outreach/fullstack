@@ -1,420 +1,146 @@
-# ConvoSpan Sovereign Alpha
+# ConvoSpan Master System Architecture (Current)
 
-## Master System Architecture
+## 1) Scope
 
-## Overview
+This document describes the current architecture used for the startup launch path:
 
-ConvoSpan is a distributed autonomous outreach platform designed to generate high-veracity B2B opportunities using signal intelligence and sovereign automation.
-
-The system is built around three tightly integrated layers:
-
-1. **ConvoSpan Intel (NetJana)**
-   Signal discovery and intelligence extraction.
-
-2. **ConvoSpan SaaS Platform**
-   Campaign orchestration and AI decision-making.
-
-3. **ConvoSpan Edge Nodes**
-   Physical automation and data sovereignty.
-
-This layered architecture enables scalable outreach while preserving security, compliance, and behavioral realism.
+- email-first private beta
+- monorepo with independently deployable apps
+- edge runtime optional and private
 
 ---
 
-# System Architecture
+## 2) Deployable apps
+
+ConvoSpan has 3 deployable apps under `apps/`:
+
+1. `apps/web` (Next.js): public web app
+2. `apps/api` (Fastify): public backend API
+3. `apps/edge-fastapi` (FastAPI): optional private edge execution service
+
+Single git repo does not mean single deployment unit. It means shared code ownership with split deployment pipelines.
+
+---
+
+## 3) Runtime topology
 
 ```mermaid
-graph TB
-
-subgraph "Signal Intelligence Layer"
-INTEL["ConvoSpan Intel / NetJana"]
-SCRAPER["Stealth Scrapers"]
-SIGNALS["Signal Extraction"]
-GRAPH["Signal Graph"]
-end
-
-subgraph "Control Layer"
-SAAS["ConvoSpan SaaS Platform"]
-CAMPAIGN["Campaign Engine"]
-AI["AI Messaging Engine"]
-QUEUE["Redis Task Queue"]
-end
-
-subgraph "Execution Layer"
-EDGE["Edge Node Runtime"]
-BEHAVIOR["Behavior Engine"]
-BROWSER["Browser Automation"]
-FIREWALL["Sovereign Firewall"]
-end
-
-SCRAPER --> SIGNALS
-SIGNALS --> GRAPH
-GRAPH --> SAAS
-
-SAAS --> CAMPAIGN
-CAMPAIGN --> AI
-AI --> QUEUE
-
-QUEUE --> EDGE
-EDGE --> BEHAVIOR
-BEHAVIOR --> BROWSER
-EDGE --> FIREWALL
+flowchart LR
+    U[User Browser] --> W[apps/web]
+    W --> A[apps/api]
+    A --> P[(Postgres)]
+    A --> R[(Redis)]
+    A --> E[apps/edge-fastapi private optional]
 ```
+
+### Public services
+
+- `web`
+- `api`
+
+### Private/internal services
+
+- `postgres`
+- `redis`
+- `edge-fastapi` (recommended private by default)
 
 ---
 
-# Layer 1: Signal Intelligence (NetJana)
+## 4) Responsibilities by app
 
-The intelligence layer identifies early signals indicating potential business opportunities.
+### `apps/web`
 
-### Responsibilities
+- onboarding, dashboard, marketing, pricing, setup UI
+- authenticated user flows
+- calls API for business operations
+- beta feature gating at route/UI level
 
-* scrape B2B websites
-* detect hiring expansions
-* detect facility growth
-* detect technology adoption
-* detect operational friction
+### `apps/api`
 
-### Key Components
+- campaign, lead, approval, billing, analytics APIs
+- database access via Prisma
+- queue/task handling
+- system health and operational endpoints
 
-**Stealth Scrapers**
+### `apps/edge-fastapi` (optional)
 
-Playwright-based crawlers using proxy mesh and anti-detection behavior.
-
-**Signal Extraction**
-
-AI models extract operational signals and business events.
-
-**Signal Graph**
-
-Signals are converted into a structured graph connecting:
-
-* companies
-* people
-* technologies
-* events
-
-This graph produces **intent scores** used to trigger campaigns.
+- edge execution endpoints
+- hardware/edge-specific operations when enabled
+- kept private for beta unless explicitly required
 
 ---
 
-# Layer 2: SaaS Control Platform
+## 5) Data boundaries
 
-The SaaS platform acts as the system’s decision-making brain.
-
-### Responsibilities
-
-* campaign orchestration
-* lead management
-* AI messaging
-* analytics
-* billing
-* task dispatching
-
-### Core Services
-
-**Campaign Engine**
-
-Creates outreach workflows using DAG-based sequences.
-
-Example workflow:
-
-```
-visit profile
-→ send connection
-→ message
-→ follow-up
-```
+- primary system state: Postgres
+- transient queue/cache: Redis
+- API owns database writes for core workflows
+- web should treat API as system boundary for business operations
 
 ---
 
-**AI Messaging Engine**
+## 6) Monorepo and separate hosting
 
-Generates context-aware messages using:
+### Why one repo
 
-* lead profile
-* company signals
-* RAG knowledge base
-* historical campaign learning
+- atomic cross-app changes (UI + API + schema in one PR)
+- single CI policy surface (quality/security checks)
+- shared scripts and dependency management
+- lower coordination overhead for early-stage team
 
----
+### How to host separately from one repo
 
-**Task Dispatch System**
+Define one service per app with independent root paths:
 
-Automation tasks are placed in a Redis queue.
+- web service root: `apps/web`
+- api service root: `apps/api`
+- edge service root: `apps/edge-fastapi`
 
-Edge Nodes poll this queue to execute actions.
+Use path-based deploy triggers:
 
----
+- `apps/web/**` -> deploy web
+- `apps/api/**` -> deploy api
+- `apps/edge-fastapi/**` -> deploy edge
 
-# Layer 3: Edge Execution Layer
-
-Edge Nodes perform platform-facing automation locally.
-
-### Responsibilities
-
-* execute browser automation
-* simulate human behavior
-* protect PII
-* maintain browser sessions
+For shared files (`package-lock.json`, root scripts, shared schema/config), trigger deploys for impacted services.
 
 ---
 
-## Edge Node Components
+## 7) Environments
 
-### Edge Runtime
+Use at least:
 
-Handles:
+- `staging`
+- `production`
 
-* node registration
-* heartbeat monitoring
-* task polling
-* result reporting
+Recommended environment variables by service:
 
----
-
-### Behavior Engine
-
-Simulates realistic browsing patterns.
-
-Examples:
-
-```
-scroll feed
-pause
-visit profile
-send connection
-```
-
-Noise actions are inserted to prevent automation detection.
+- web: `NEXT_PUBLIC_API_URL`, auth/public keys
+- api: `DATABASE_URL`, `REDIS_URL`, provider secrets, edge URI (if used)
+- edge: runtime/hardware variables only when edge is enabled
 
 ---
 
-### Browser Automation
+## 8) Startup beta mode
 
-Uses Playwright or Puppeteer to perform actions such as:
+Current launch mode prioritizes reliability:
 
-* visiting profiles
-* sending connection requests
-* sending messages
+- web + api + postgres + redis required
+- edge optional
+- linked automation surfaces gated for beta where required
 
-Sessions persist locally using cookies.
+Local fast path:
+
+```bash
+npm run beta:start
+```
+
+This command starts infra, syncs schema, and starts/reuses web and API services.
 
 ---
 
-### Sovereign Firewall
-
-Protects sensitive data.
-
-Process:
-
-```
-detect PII
-→ replace with token
-→ store mapping locally
-```
-
-Example:
-
-```
-Rahul Mehta → PERSON_1
-```
-
-The SaaS platform only receives tokenized identifiers.
-
----
-
-# Data Flow
-
-Typical system lifecycle:
-
-```
-scraper detects signal
-→ signal graph updated
-→ intent score calculated
-→ lead qualifies
-→ campaign engine generates workflow
-→ tasks dispatched
-→ edge node executes actions
-→ replies classified
-→ meeting scheduled
-```
-
----
-
-# AI Agent System
-
-ConvoSpan operates as a multi-agent architecture.
-
-Key agents include:
-
-* Signal Discovery Agent
-* Pain Point Analyst
-* Lead Qualification Agent
-* Campaign Planner
-* Message Composer
-* Reply Intelligence Agent
-* Meeting Conversion Agent
-* Safety Sentinel
-* Edge Task Executor
-
-These agents collaborate through event-driven workflows.
-
----
-
-# Security Model
-
-The platform enforces strict sovereignty principles.
-
-### Key Safeguards
-
-**PII Tokenization**
-
-Sensitive data remains on Edge Nodes.
-
-**HMAC Request Signing**
-
-All node communication is verified.
-
-**Multi-Tenant Isolation**
-
-Each organization’s data is partitioned by `organization_id`.
-
-**Compliance Sentinel**
-
-Scraping and automation respect legal and platform policies.
-
----
-
-# Infrastructure Stack
-
-**Monorepo Structure (`apps/`)**:
-- `apps/web`: Next.js frontend (static export)
-- `apps/api`: Fastify API server
-- `apps/edge-fastapi`: Python FastAPI edge node
-
-### Frontend (`apps/web`)
-
-```
-React / Next.js (Static Export)
-Tailwind
-Framer Motion
-```
-
----
-
-### Backend API (`apps/api`)
-
-```
-Node.js / Fastify
-Redis / BullMQ
-PostgreSQL / Prisma
-```
-
----
-
-### Intelligence
-
-```
-Playwright
-Gemini AI
-Vector RAG
-Signal Graph
-```
-
----
-
-### Edge Nodes
-
-```
-Python FastAPI
-llama.cpp
-Presidio
-Playwright
-Docker
-```
-
----
-
-# Deployment Architecture
-
-```
-GitHub
-  ↓
-GitHub Actions
-  ↓
-Docker Images
-  ↓
-Runtime Environments
-```
-
-SaaS deployment:
-
-```
-Vercel
-```
-
-Edge Node deployment:
-
-```
-Docker on local hardware
-```
-
-Intel workers:
-
-```
-Cloud worker clusters
-```
-
----
-
-# Competitive Advantage
-
-The platform differentiates itself through:
-
-### Signal-Driven Outreach
-
-Campaigns are triggered by real operational signals.
-
----
-
-### Sovereign Automation
-
-Execution occurs on Edge Nodes rather than centralized servers.
-
----
-
-### Behavioral Simulation
-
-Automation mimics human browsing patterns.
-
----
-
-### Intelligence Feedback Loop
-
-Campaign results improve signal detection and messaging strategies.
-
----
-
-# Future Roadmap
-
-Planned improvements include:
-
-* buyer committee graph modeling
-* reinforcement learning for campaigns
-* predictive intent modeling
-* autonomous opportunity discovery
-* distributed edge node fleets
-
----
-
-# System Vision
-
-ConvoSpan aims to create a fully autonomous B2B opportunity discovery and outreach platform capable of:
-
-* detecting business expansion signals
-* identifying relevant decision makers
-* initiating conversations
-* converting interest into meetings
-
-All while maintaining compliance, security, and human-like interaction patterns.
+## 9) Decision summary
+
+There are 3 apps because responsibilities are different and deploy cadence is different.
+There is 1 repo because coordination speed and consistency matter more than repo count at startup stage.
+They are hosted separately by using app-level service roots and path-filtered deploy pipelines.

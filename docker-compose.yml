@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   # Service 0: Database (The Sovereignty Layer Persistence)
   db:
