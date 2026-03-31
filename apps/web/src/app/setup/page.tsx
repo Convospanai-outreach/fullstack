@@ -4,9 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   CheckCircle2, Circle, ChevronRight, Palette, Mail, 
-  Linkedin, MessageSquare, Bot, Users, Target, FileText, 
-  CreditCard, LayoutGrid, Loader2
+  Linkedin, MessageSquare, Bot, Users, Target, FileText,
+  CreditCard, LayoutGrid, Loader2, Chrome, ExternalLink
 } from "lucide-react";
+import { PRODUCT_FLAGS } from "@/lib/productFlags";
 
 interface SetupStatus {
   // Same TS interface from backend...
@@ -20,6 +21,8 @@ interface SetupStatus {
   canSendEmail: boolean;
   hasCustomSender: boolean;
   hasLinkedInSession: boolean;
+  hasExtensionApiKey: boolean;
+  extensionApiBase: string;
   emailVoiceComplete: boolean;
   hasGeminiKey: boolean;
   canGenerateMessage: boolean;
@@ -53,14 +56,14 @@ const STEPS = [
   { id: 1, title: "Account & Team", icon: Users, description: "Verify your identity and team role." },
   { id: 2, title: "Brand Identity", icon: Palette, description: "Set your company name, logo, and colors." },
   { id: 3, title: "Email Integration", icon: Mail, description: "Connect your sending infrastructure." },
-  { id: 4, title: "LinkedIn Connection", icon: Linkedin, description: "Enable social outreach." },
+  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep email-first launch as default and optionally add LinkedIn via Chrome extension." },
   { id: 5, title: "Email Voice", icon: MessageSquare, description: "Define your tone and writing style." },
-  { id: 6, title: "AI Configuration", icon: Bot, description: "Set up Gemini API keys." },
+  { id: 6, title: "AI Configuration", icon: Bot, description: "Set up the provider key used for drafting and assistance." },
   { id: 7, title: "Lead Import", icon: Users, description: "Bring in your target audience." },
   { id: 8, title: "Campaign Setup", icon: Target, description: "Create your first sequence." },
   { id: 9, title: "Attachments", icon: FileText, description: "Upload brochures and case studies." },
   { id: 10, title: "Billing & Credits", icon: CreditCard, description: "Ensure sufficient balance." },
-  { id: 11, title: "Advanced", icon: LayoutGrid, description: "Optional webhooks & routing." },
+  { id: 11, title: "Advanced", icon: LayoutGrid, description: "Optional integrations that are not required for beta launch." },
 ];
 
 export default function SetupWizardPage() {
@@ -199,7 +202,7 @@ export default function SetupWizardPage() {
             ConvoSpan Setup
           </h1>
           <p className="text-slate-400 text-sm mt-2">
-            Complete these 11 steps to launch your first autonomous campaign.
+            Complete the core email launch steps first. Optional channels and advanced integrations can wait until after beta.
           </p>
           <div className="mt-4 bg-slate-800 rounded-full h-2 overflow-hidden">
             <div 
@@ -220,14 +223,14 @@ export default function SetupWizardPage() {
             if (step.id === 1) isPassed = status.hasAccount && status.isEmailVerified;
             if (step.id === 2) isPassed = status.brandingComplete;
             if (step.id === 3) isPassed = status.canSendEmail;
-            if (step.id === 4) isPassed = status.hasLinkedInSession;
+            if (step.id === 4) isPassed = PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
             if (step.id === 5) isPassed = status.emailVoiceComplete;
             if (step.id === 6) isPassed = status.hasGeminiKey;
             if (step.id === 7) isPassed = status.leadCount > 0;
             if (step.id === 8) isPassed = status.campaignCount > 0;
             if (step.id === 9) isPassed = status.uploadedDocCount > 0;
             if (step.id === 10) isPassed = status.teamCredits > 0;
-            if (step.id === 11) isPassed = status.hasWhatsApp; // Just an example for advanced
+            if (step.id === 11) isPassed = PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
 
             return (
               <button
@@ -275,7 +278,8 @@ export default function SetupWizardPage() {
                 <ChecklistItem label="Team Workspace Created" passed={status.hasTeamRole !== null} />
                 
                 <div className="mt-8">
-                  <p className="text-slate-400 text-sm">Account foundation is strictly managed globally. No further action needed here.</p>
+                  <p className="text-slate-400 text-sm">This step confirms the workspace foundation is in place before you move on to branding, channels, and launch controls.</p>
+                  <p className="mt-2 text-slate-500 text-sm">For beta, the launch path is email, leads, billing, approvals, and support.</p>
                 </div>
               </div>
             )}
@@ -358,7 +362,7 @@ export default function SetupWizardPage() {
                     <Mail className="w-4 h-4" /> Google Business SMTP (Gmail)
                   </h3>
                   <p className="text-sky-300/80 text-sm mb-2">
-                    Connect your team's email account. For Google Workspace or Gmail accounts with 2-Step Verification, you must use an App Password.
+                    Connect your team's sending account. For Google Workspace or Gmail accounts with 2-Step Verification, use an App Password.
                   </p>
                   <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">
                     How to create a Google App Password
@@ -480,16 +484,55 @@ export default function SetupWizardPage() {
               </div>
             )}
 
-            {/* --- STEP 4: LinkedIn Connection --- */}
+            {/* --- STEP 4: Optional Channels --- */}
             {activeStep === 4 && (
-              <div className="space-y-4">
-                <ChecklistItem label={`Operating Mode: ${status?.linkedInMode || "EDGE"}`} passed={true} />
-                <ChecklistItem label="Browser WebSocket Node Available" passed={!!status?.hasBrowserNode} />
-                <ChecklistItem label="Active LinkedIn Session Cookie" passed={!!status?.hasLinkedInSession} />
-                
-                <div className="mt-8 p-4 bg-slate-800/50 border border-white/5 rounded-xl">
-                  <p className="text-sm text-slate-400 text-center">
-                    To connect your LinkedIn account securely via the edge extension, navigate to the LinkedIn runner page after setup.
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <ChecklistItem label="Email-first beta mode active" passed={PRODUCT_FLAGS.emailFirstBeta} />
+                  <ChecklistItem label="LinkedIn autonomous runner held back" passed={!PRODUCT_FLAGS.enableLinkedInAutomation} />
+                  <ChecklistItem label="Chrome extension gateway configured" passed={status.hasExtensionApiKey} />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-900/20 p-4">
+                    <p className="text-xs uppercase tracking-[0.16em] text-emerald-300">Recommended</p>
+                    <h3 className="mt-2 text-lg font-semibold text-white">Email-first launch path</h3>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Launch campaigns with SMTP + approvals first. Add extra channels only after email workflow is stable.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-sky-500/30 bg-sky-900/20 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-sky-300">Optional Method</p>
+                        <h3 className="mt-2 text-lg font-semibold text-white">LinkedIn via Chrome Extension</h3>
+                      </div>
+                      <Chrome className="h-5 w-5 text-sky-300" />
+                    </div>
+                    <p className="mt-2 text-sm text-slate-300">
+                      Use the local browser extension for assisted LinkedIn tasks. This keeps session handling on the operator machine.
+                    </p>
+                    <ol className="mt-3 space-y-1 text-sm text-slate-300 list-decimal list-inside">
+                      <li>Set <code className="text-slate-200">EXTENSION_API_KEY</code> in API env.</li>
+                      <li>Load extension from <code className="text-slate-200">apps/web/src/extension</code>.</li>
+                      <li>Configure API URL and key inside extension popup.</li>
+                    </ol>
+                    <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-300">
+                      API Base: <span className="text-slate-100 break-all">{status.extensionApiBase || "http://localhost:3000/api/proxy/extension"}</span>
+                    </div>
+                    <a
+                      href="/faq"
+                      className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-sky-300 hover:text-sky-200"
+                    >
+                      View extension setup FAQ <ExternalLink className="h-3.5 w-3.5" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 bg-slate-800/40 p-4">
+                  <p className="text-sm text-slate-300">
+                    Keep <code>linkedin-runner</code> automation disabled in beta. Chrome extension remains the approved optional LinkedIn method.
                   </p>
                 </div>
               </div>
@@ -556,18 +599,18 @@ export default function SetupWizardPage() {
               <div className="space-y-6">
                 {status.hasGeminiKey ? (
                   <div className="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl mb-6">
-                    <h3 className="text-emerald-400 font-semibold mb-2">Gemini API Active</h3>
+                    <h3 className="text-emerald-400 font-semibold mb-2">AI Provider Key Active</h3>
                     <p className="text-emerald-300/80 text-sm">
-                      A global API key is active via the environment. You can optionally override it for this team below.
+                      A global provider key is active via the environment. You can optionally override it for this team below.
                     </p>
                   </div>
                 ) : null}
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Tenant Override Gemini API Key (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Tenant Override Provider Key (Optional)</label>
                   <input 
                     type="password"
-                    title="Gemini API Key"
+                    title="AI Provider API Key"
                     value={formData.step6.geminiKey}
                     onChange={e => setFormData({...formData, step6: {...formData.step6, geminiKey: e.target.value}})}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
@@ -582,10 +625,10 @@ export default function SetupWizardPage() {
               <div className="space-y-4">
                 <ChecklistItem label={`${status.leadCount} Total Leads in Database`} passed={status.leadCount > 0} />
                 <ChecklistItem label={`${status.leadsWithEmail} Leads with Email Addresses`} passed={status.leadsWithEmail > 0} />
-                <ChecklistItem label={`${status.leadsWithLinkedIn} Leads with LinkedIn Profiles`} passed={status.leadsWithLinkedIn > 0} />
+                <ChecklistItem label="At least one email segment ready for launch" passed={status.leadsWithEmail > 0} />
                 
                 <div className="mt-8 flex justify-center">
-                  <button type="button" onClick={() => router.push("/dashboard/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
+                  <button type="button" onClick={() => router.push("/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
                     Import More Leads (CSV)
                   </button>
                 </div>
@@ -600,7 +643,7 @@ export default function SetupWizardPage() {
                 <ChecklistItem label={`Leads Assigned to Campaigns`} passed={status.hasAssignedLeads} />
                 
                 <div className="mt-8 flex justify-center">
-                  <button type="button" onClick={() => router.push("/dashboard/campaigns/new")} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50">
+                  <button type="button" onClick={() => router.push("/campaigns/new")} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50">
                     Create New Campaign
                   </button>
                 </div>
@@ -635,9 +678,9 @@ export default function SetupWizardPage() {
                 </div>
 
                 <div className="p-4 border border-dashed border-white/20 rounded-xl bg-slate-900/50 text-center">
-                  <p className="text-sm text-slate-400 mb-3">Upload brochures or case studies (PDF) in the Knowledge Base area to make them available to agents.</p>
-                  <button type="button" onClick={() => router.push("/dashboard/governance/playbooks")} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
-                    Manage PDFs
+                  <p className="text-sm text-slate-400 mb-3">Keep this optional for beta. A calendar link and one proof asset are enough to support the first email campaigns.</p>
+                  <button type="button" onClick={() => router.push("/contact")} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
+                    Ask support for asset help
                   </button>
                 </div>
               </div>
@@ -660,14 +703,13 @@ export default function SetupWizardPage() {
             {/* --- STEP 11: Advanced --- */}
             {activeStep === 11 && (
               <div className="space-y-4">
-                <ChecklistItem label="WhatsApp Channel Configured" passed={status.hasWhatsApp} />
+                <ChecklistItem label="Advanced channels deferred for beta" passed={PRODUCT_FLAGS.emailFirstBeta} />
                 <ChecklistItem label="Google OAuth SSO" passed={status.hasGoogleOAuth} />
                 <ChecklistItem label="Redis Queue Active" passed={status.hasRedis} />
-                <ChecklistItem label="On-Prem AI Edge Node" passed={status.hasEdgeNode} />
                 <ChecklistItem label="Slack Alert Hooks" passed={status.hasSlackAlerts} />
                 
                 <div className="mt-8 flex justify-center">
-                  <p className="text-slate-400 text-sm italic">You have reached the end of the technical audit.</p>
+                  <p className="text-slate-400 text-sm italic">You have reached the end of the beta readiness checklist.</p>
                 </div>
               </div>
             )}
@@ -706,3 +748,4 @@ export default function SetupWizardPage() {
     </div>
   );
 }
+

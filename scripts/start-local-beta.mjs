@@ -6,6 +6,7 @@ const rootDir = process.cwd();
 const prismaCli = path.join(rootDir, "node_modules", "prisma", "build", "index.js");
 const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5433/convospan?schema=public";
 const isWindows = process.platform === "win32";
+const withEdge = process.argv.includes("--with-edge") || process.env.START_EDGE === "true";
 
 const childProcesses = [];
 let shuttingDown = false;
@@ -84,10 +85,56 @@ async function isWebReachable() {
             redirect: "manual",
             signal: AbortSignal.timeout(3500),
         });
-        return response.status >= 200 && response.status < 500;
+        if (response.status < 200 || response.status >= 400) {
+            return false;
+        }
+
+        const html = await response.text().catch(() => "");
+        const cssPaths = Array.from(
+            new Set(
+                [...html.matchAll(/href="(\/_next\/static\/css\/[^"]+\.css)"/g)].map((match) => match[1])
+            )
+        );
+
+        for (const cssPath of cssPaths.slice(0, 5)) {
+            const cssResponse = await fetch(`http://127.0.0.1:3000${cssPath}`, {
+                redirect: "manual",
+                signal: AbortSignal.timeout(3500),
+            });
+            if (!cssResponse.ok) {
+                return false;
+            }
+        }
+
+        return true;
     } catch {
         return false;
     }
+}
+
+async function isEdgeHealthy() {
+    try {
+        const response = await fetch("http://127.0.0.1:8000/health", {
+            signal: AbortSignal.timeout(3500),
+        });
+        if (!response.ok) {
+            return false;
+        }
+        const json = await response.json().catch(() => null);
+        return json?.status === "ONLINE";
+    } catch {
+        return false;
+    }
+}
+
+async function waitForEdgeHealth(maxAttempts = 60, delayMs = 1500) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        if (await isEdgeHealthy()) {
+            return true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return false;
 }
 
 function shutdown(code = 0) {
@@ -150,7 +197,7 @@ async function main() {
         if (await isWebReachable()) {
             console.log("[beta:start] Web is already running on port 3000. Reusing it.");
         } else {
-            throw new Error("Port 3000 is in use by another process. Stop that process and rerun beta:start.");
+            throw new Error("Port 3000 is in use by an unhealthy web process (likely stale CSS chunks). Stop that process and rerun beta:start.");
         }
     } else {
         const web = spawnCommand("npm", ["run", "start:web"]);
@@ -160,17 +207,50 @@ async function main() {
 
     if (startedServices.length === 0) {
         console.log("[beta:start] API and Web are already running. Nothing to launch.");
+    } else {
+        for (const service of startedServices) {
+            service.process.on("exit", (code) => {
+                if (!shuttingDown) {
+                    console.error(`[beta:start] ${service.name} exited (${code ?? "unknown"}). Stopping stack.`);
+                    shutdown(code ?? 1);
+                }
+            });
+        }
+    }
+
+    if (!withEdge) {
         return;
     }
 
-    for (const service of startedServices) {
-        service.process.on("exit", (code) => {
-            if (!shuttingDown) {
-                console.error(`[beta:start] ${service.name} exited (${code ?? "unknown"}). Stopping stack.`);
-                shutdown(code ?? 1);
-            }
-        });
+    console.log("\n[beta:start] Ensuring Edge FastAPI is running");
+    const edgePortBusy = await isPortListening(8000);
+    if (edgePortBusy) {
+        if (await isEdgeHealthy()) {
+            console.log("[beta:start] Edge FastAPI is already running on port 8000. Reusing it.");
+            return;
+        }
+        throw new Error("Port 8000 is in use by another process. Stop that process and rerun beta:start:all.");
     }
+
+    await runStep(
+        "Starting edge-fastapi container",
+        "docker",
+        ["compose", "-f", "apps/docker-compose.split.yml", "up", "-d", "--no-deps", "edge-fastapi"],
+        {
+            env: {
+                ...process.env,
+                EDGE_DATABASE_URL:
+                    process.env.EDGE_DATABASE_URL ||
+                    "postgresql://postgres:postgres@host.docker.internal:5433/convospan",
+            },
+        }
+    );
+
+    const edgeHealthy = await waitForEdgeHealth();
+    if (!edgeHealthy) {
+        throw new Error("edge-fastapi did not become healthy on port 8000.");
+    }
+    console.log("[beta:start] Edge FastAPI is healthy on port 8000.");
 }
 
 main().catch((error) => {

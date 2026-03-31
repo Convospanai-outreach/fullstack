@@ -1,20 +1,38 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
+import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
+import { isPathEnabled, PRODUCT_FLAGS } from './lib/productFlags';
 
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
+    const isDevelopment = process.env['NODE_ENV'] !== 'production';
     const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/proxy"];
-    // Get token early for rate limiting
-    const secret = process.env['NEXTAUTH_SECRET'] || "";
-    const token = await getToken({ req, secret });
-    const userId = token?.sub as string | undefined;
+    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/help", "/api/support/contact"];
+    let token: Record<string, unknown> | null = null;
+    let userId: string | undefined;
+
+    if (PRODUCT_FLAGS.betaMode && !isPathEnabled(path)) {
+        if (path.startsWith("/api")) {
+            return NextResponse.json({ error: "This feature is disabled for the email-first beta." }, { status: 404 });
+        }
+
+        const url = req.nextUrl.clone();
+        url.pathname = path.startsWith("/settings") ? "/settings" : "/dashboard";
+        return NextResponse.redirect(url);
+    }
+
+    // Avoid bundling the auth runtime into local dev middleware. This keeps public page
+    // renders responsive enough for frontend testing while preserving the production path.
+    if (!isDevelopment) {
+        const { getToken } = await import("next-auth/jwt");
+        const secret = process.env['NEXTAUTH_SECRET'] || "";
+        token = (await getToken({ req, secret })) as Record<string, unknown> | null;
+        userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
+    }
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
@@ -71,7 +89,22 @@ export async function middleware(req: NextRequest) {
     }
 
     // 2. Authentication Check
-    const publicPaths = ["/", "/login", "/signup", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
+    const publicPaths = [
+        "/",
+        "/login",
+        "/signup",
+        "/forgot-password",
+        "/magic-link",
+        "/verify-email",
+        "/favicon.ico",
+        "/favicon.svg",
+        "/about",
+        "/contact",
+        "/pricing",
+        "/terms",
+        "/privacy",
+        "/help",
+    ];
     const isPublic = publicPaths.some(p => path === p) ||
         authApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
         path.startsWith("/_next") ||
@@ -80,7 +113,7 @@ export async function middleware(req: NextRequest) {
         webhookApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
         publicApiPrefixes.some((prefix) => path.startsWith(prefix));
 
-    if (!isPublic) {
+    if (!isPublic && !isDevelopment) {
         // Token already fetched at the top for rate limiting
 
 
@@ -97,7 +130,7 @@ export async function middleware(req: NextRequest) {
 
         // 3. Caller Page Protection (RBAC)
         if (path.startsWith("/caller")) {
-            const role = token?.enterpriseRole as string;
+            const role = token?.['enterpriseRole'] as string;
             // Strict RBAC: Caller UI is for Callers only. Managers use Dashboard.
             const allowed = ["CALLER"];
 
@@ -107,7 +140,7 @@ export async function middleware(req: NextRequest) {
         }
 
         // 4. Product Surface Gate
-        const productSurface = (token?.productSurface as string) || "outreach";
+        const productSurface = (token?.['productSurface'] as string) || "outreach";
         const runtimeOnlyPaths = [
             "/runtime",
             "/sovereign",
@@ -192,6 +225,6 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
     matcher: [
-        '/((?!_next/static|_next/image|favicon.ico).*)',
+        '/((?!_next/static|_next/image|favicon.ico|favicon.svg).*)',
     ],
 };

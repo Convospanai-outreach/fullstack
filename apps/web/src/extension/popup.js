@@ -1,44 +1,70 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener("DOMContentLoaded", () => {
+    const apiUrlInput = document.getElementById("apiUrlInput");
+    const keyInput = document.getElementById("keyInput");
     const tokenInput = document.getElementById("tokenInput");
     const saveTokenBtn = document.getElementById("saveToken");
     const loginSection = document.getElementById("loginSection");
     const actionsSection = document.getElementById("actionsSection");
     const statusMsg = document.getElementById("statusMsg");
 
-    // Check for existing token
-    chrome.runtime.sendMessage({ type: "GET_TOKEN" }, (response) => {
-        if (response && response.token) {
-            showActions();
-        }
-    });
-
     function showActions() {
         loginSection.style.display = "none";
         actionsSection.style.display = "block";
     }
 
-    function showStatus(msg, type = 'info') {
+    function showStatus(msg, type = "info") {
         statusMsg.innerText = msg;
-        statusMsg.className = 'status'; // Reset
-        if (type === 'success') statusMsg.classList.add('success');
-        if (type === 'error') statusMsg.classList.add('error');
+        statusMsg.className = "status";
+        if (type === "success") statusMsg.classList.add("success");
+        if (type === "error") statusMsg.classList.add("error");
 
         setTimeout(() => {
-            statusMsg.innerText = "Ready to deploy";
-            statusMsg.className = 'status';
+            statusMsg.innerText = "Ready";
+            statusMsg.className = "status";
         }, 3000);
     }
 
+    function validateConnection() {
+        chrome.runtime.sendMessage({ type: "VALIDATE_AUTH" }, (response) => {
+            if (response?.ok) {
+                showActions();
+                showStatus("Connected and validated", "success");
+            } else {
+                showStatus(response?.error || "Validation failed", "error");
+            }
+        });
+    }
+
+    chrome.runtime.sendMessage({ type: "GET_CONFIG" }, (response) => {
+        if (!response) return;
+        apiUrlInput.value = response.apiUrl || "http://localhost:3000/api/proxy/extension";
+        keyInput.value = response.extensionKey || "";
+        tokenInput.value = response.token || "";
+
+        if (response.token && response.extensionKey) {
+            validateConnection();
+        }
+    });
+
     saveTokenBtn.onclick = () => {
-        let token = tokenInput.value.trim();
+        const token = tokenInput.value.trim();
+        const extensionKey = keyInput.value.trim();
+        const apiUrl = apiUrlInput.value.trim() || "http://localhost:3000/api/proxy/extension";
+
         if (!token) {
-            showStatus("Please enter a token", "error");
+            showStatus("Enter token", "error");
             return;
         }
-        chrome.runtime.sendMessage({ type: "SET_TOKEN", token }, (response) => {
-            if (response && response.ok) {
-                showActions();
-                showStatus("Token saved!", "success");
+        if (!extensionKey) {
+            showStatus("Enter extension key", "error");
+            return;
+        }
+
+        chrome.runtime.sendMessage({ type: "SET_CONFIG", token, extensionKey, apiUrl }, (response) => {
+            if (response?.ok) {
+                validateConnection();
+            } else {
+                showStatus("Failed to save configuration", "error");
             }
         });
     };
@@ -46,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById("scrapeProfile").onclick = () => {
         showStatus("Scraping...");
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0].url.includes("linkedin.com")) {
+            if (!tabs[0]?.url?.includes("linkedin.com")) {
                 showStatus("Not a LinkedIn page", "error");
                 return;
             }
@@ -58,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (profile) {
                     chrome.runtime.sendMessage({ type: "SCRAPE_PROFILE", data: profile }, (res) => {
                         if (res && res.ok) {
-                            showStatus("Profile saved to Dashboard!", "success");
+                            showStatus("Profile saved to dashboard", "success");
                         } else {
                             showStatus("Failed to save: " + (res?.error || "Unknown"), "error");
                         }
@@ -73,19 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById("likePost").onclick = () => {
         showStatus("Liking...");
         chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (!tabs[0].url.includes("linkedin.com")) {
+            if (!tabs[0]?.url?.includes("linkedin.com")) {
                 showStatus("Not a LinkedIn page", "error");
                 return;
             }
             chrome.tabs.sendMessage(tabs[0].id, { type: "LIKE_POST" }, (res) => {
                 if (res && res.ok) {
-                    // Notify backend
                     chrome.runtime.sendMessage({
-                        type: "EXEC_ACTION",
+                        type: "TASK_COMPLETE",
                         data: { action: "LIKE", url: tabs[0].url, status: "SUCCESS" }
-                    }, (backendRes) => {
-                        showStatus("Post Liked & Logged!", "success");
-                    });
+                    }, () => showStatus("Post liked and logged", "success"));
                 } else {
                     showStatus("Failed to like: " + (res?.error || "Unknown"), "error");
                 }

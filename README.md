@@ -32,6 +32,31 @@ What this does:
 3. starts API and web
 4. if API/web are already running, it reuses them instead of crashing on port conflicts
 
+To start web + api + edge-fastapi together:
+
+```bash
+npm run beta:start:all
+```
+
+## Optional LinkedIn outreach via Chrome extension
+
+Email-first remains the default launch path. LinkedIn is available as an optional operator-assisted channel using the local Chrome extension.
+
+1. Set `EXTENSION_API_KEY` in API env and restart.
+2. Load unpacked extension from `apps/web/src/extension` in Chrome.
+3. In extension popup set:
+   - API URL: `http://localhost:3000/api/proxy/extension`
+   - Extension key: value of `EXTENSION_API_KEY`
+   - User token/user id
+
+## Frontend troubleshooting (text-only UI)
+
+If pages render as plain text, a stale `next start` process is usually serving missing CSS chunk references.
+
+1. Stop process on port `3000`.
+2. Restart with `npm run beta:start`.
+3. The startup script now validates CSS chunk URLs before reusing an existing web process.
+
 ## Build commands
 
 ```bash

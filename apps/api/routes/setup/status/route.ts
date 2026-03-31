@@ -55,10 +55,13 @@ export async function GET() {
         const hasCustomSender = hasSmtpConfig;
 
         // Step 4: LinkedIn
-        const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || "EDGE";
+        const hasExtensionApiKey = !!process.env['EXTENSION_API_KEY'];
+        const webBaseUrl = process.env['WEB_BASE_URL'] || process.env['NEXTAUTH_URL'] || "http://localhost:3000";
+        const extensionApiBase = `${webBaseUrl.replace(/\/$/, "")}/api/proxy/extension`;
+        const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || (hasExtensionApiKey ? "EXTENSION" : "EDGE");
         const hasBrowserNode = !!process.env['BROWSER_NODE_URL'] || !!process.env['BROWSER_WS_ENDPOINT'];
         // The actual session is checked via the hardware service or client in the frontend, mock for status:
-        const hasLinkedInSession = false; // Requires actual extension/edge ping
+        const hasLinkedInSession = linkedInMode === "EXTENSION" ? hasExtensionApiKey : false;
 
         // Step 5: Email Voice
         const hasToneSet = !!aiConfig.tone;
@@ -135,7 +138,7 @@ export async function GET() {
             hasAccount, isEmailVerified, hasTeam: true, hasTeamRole,
             hasCompanyName, hasLogo, hasPrimaryColor, brandingComplete,
             hasSmtpConfig, canSendEmail, hasCustomSender,
-            hasLinkedInSession, hasBrowserNode, linkedInMode,
+            hasLinkedInSession, hasBrowserNode, linkedInMode, hasExtensionApiKey, extensionApiBase,
             hasToneSet, hasVoiceDescription, hasEmailSignature, hasGreetingStyle, emailVoiceComplete,
             hasGeminiKey, canGenerateMessage,
             leadCount, leadsWithEmail, leadsWithLinkedIn, hasHunterKey,
