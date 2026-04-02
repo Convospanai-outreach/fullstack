@@ -12,7 +12,7 @@ from sentence_transformers import SentenceTransformer
 
 # Database
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text as sql_text
 from database import GoldenRecord, PIITokenMap
 
 logger = logging.getLogger(__name__)
@@ -153,7 +153,7 @@ class LocalIntelligenceService:
             db.close()
 
     # --- Task 2: Adversarial Judge (Vector Scoring) ---
-    def critique_response(self, text: str) -> Dict:
+    def critique_response(self, input_text: str) -> Dict:
         """
         Vectorizes text and compares against Golden Records.
         Returns { status, score, reason }
@@ -163,7 +163,7 @@ class LocalIntelligenceService:
              return {"status": "APPROVED", "score": 1.0, "reason": "System Offline (Fail Open)"}
 
         # 1. Vectorize
-        vector = self.embedding_model.encode(text).tolist()
+        vector = self.embedding_model.encode(input_text).tolist()
         
         db = self.db_session_factory()
         try:
@@ -175,7 +175,7 @@ class LocalIntelligenceService:
             # 3. Similarity Search (pgvector)
             # 1 - (embedding <=> :vector) is Cosine Similarity
             vector_str = str(vector)
-            sql = text("SELECT quality_score, 1 - (embedding <=> :vector) as similarity FROM golden_records ORDER BY embedding <=> :vector LIMIT 1")
+            sql = sql_text("SELECT quality_score, 1 - (embedding <=> :vector) as similarity FROM golden_records ORDER BY embedding <=> :vector LIMIT 1")
             result = db.execute(sql, {"vector": vector_str}).fetchone()
 
             if not result:

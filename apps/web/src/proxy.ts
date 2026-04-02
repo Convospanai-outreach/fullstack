@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
 import { isPathEnabled, PRODUCT_FLAGS } from './lib/productFlags';
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';

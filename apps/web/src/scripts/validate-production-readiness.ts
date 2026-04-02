@@ -266,8 +266,10 @@ async function validateSecurityHardening() {
     try {
         const fs = await import("fs");
         const path = await import("path");
-        const middlewarePath = path.join(process.cwd(), "src/middleware.ts");
-        const content = fs.readFileSync(middlewarePath, "utf-8");
+        const proxyPath = path.join(process.cwd(), "src/proxy.ts");
+        const legacyMiddlewarePath = path.join(process.cwd(), "src/middleware.ts");
+        const hardeningSourcePath = fs.existsSync(proxyPath) ? proxyPath : legacyMiddlewarePath;
+        const content = fs.readFileSync(hardeningSourcePath, "utf-8");
 
         const hasCSP = content.includes("Content-Security-Policy");
         const hasHSTS = content.includes("Strict-Transport-Security");
@@ -280,7 +282,7 @@ async function validateSecurityHardening() {
         addResult("Security", "Permissions Policy", hasPermissions, "Hardware access restricted by policy");
 
     } catch (e) {
-        addResult("Security", "Hardening Check", false, "Failed to read middleware: " + (e as Error).message);
+        addResult("Security", "Hardening Check", false, "Failed to read proxy/middleware: " + (e as Error).message);
     }
 }
 

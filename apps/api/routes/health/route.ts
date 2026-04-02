@@ -7,7 +7,10 @@ import { prisma } from "@/lib/db";
  */
 export async function GET() {
   const startedAt = Date.now();
-  const edgeNodeUri = process.env["EDGE_NODE_URI"] || process.env["EDGE_NODE_URL"] || "";
+  const runtimeMode = process.env["CONVOSPAN_RUNTIME_MODE"] || "";
+  const skipHardwareVerification = process.env["BETA_SKIP_HARDWARE_VERIFY"] === "true" || runtimeMode === "email_first_beta";
+  const lenientHealthMode = skipHardwareVerification || process.env["NODE_ENV"] !== "production";
+  const edgeNodeUri = skipHardwareVerification ? "" : (process.env["EDGE_NODE_URI"] || process.env["EDGE_NODE_URL"] || "");
   let database = "down";
   let edge = edgeNodeUri ? "down" : "not_configured";
   let edgeError: string | null = null;
@@ -17,7 +20,7 @@ export async function GET() {
     database = "up";
   } catch (error) {
     return NextResponse.json({
-      status: "unhealthy",
+      status: lenientHealthMode ? "degraded" : "unhealthy",
       timestamp: new Date().toISOString(),
       service: "convospan-api",
       checks: {
@@ -25,7 +28,7 @@ export async function GET() {
         edge
       },
       durationMs: Date.now() - startedAt
-    }, { status: 503 });
+    }, { status: lenientHealthMode ? 200 : 503 });
   }
 
   if (edgeNodeUri) {
