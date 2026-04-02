@@ -30,7 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 showActions();
                 showStatus("Connected and validated", "success");
             } else {
-                showStatus(response?.error || "Validation failed", "error");
+                showStatus(response?.error || response?.data?.error || "Validation failed", "error");
             }
         });
     }
@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const apiUrl = apiUrlInput.value.trim() || "http://localhost:3000/api/proxy/extension";
 
         if (!token) {
-            showStatus("Enter token", "error");
+            showStatus("Enter token (user id or session token)", "error");
             return;
         }
         if (!extensionKey) {
@@ -106,8 +106,12 @@ document.addEventListener("DOMContentLoaded", () => {
             chrome.tabs.sendMessage(tabs[0].id, { type: "LIKE_POST" }, (res) => {
                 if (res && res.ok) {
                     chrome.runtime.sendMessage({
-                        type: "TASK_COMPLETE",
-                        data: { action: "LIKE", url: tabs[0].url, status: "SUCCESS" }
+                        type: "EXTENSION_ACTION",
+                        data: {
+                            action: "LIKE_POST",
+                            profileUrl: tabs[0].url,
+                            success: true
+                        }
                     }, () => showStatus("Post liked and logged", "success"));
                 } else {
                     showStatus("Failed to like: " + (res?.error || "Unknown"), "error");

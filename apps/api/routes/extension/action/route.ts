@@ -1,16 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { AuditService } from "@/modules/audit/auditService";
-import { getCurrentContext } from "@/lib/auth";
+import { validateExtensionAuth } from "../_lib/auth";
 
 export async function POST(req: NextRequest) {
     try {
-        const requiredKey = process.env['EXTENSION_API_KEY'];
-        const providedKey = req.headers.get("x-extension-key");
-        if (!requiredKey || providedKey !== requiredKey) {
-            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        const auth = await validateExtensionAuth(req);
+        if (!auth.ok) {
+            return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
         }
-        const { userId, teamId } = await getCurrentContext();
+        const teamId = auth.teamIds[0];
+        if (!teamId) {
+            return NextResponse.json({ ok: false, error: "User has no team membership" }, { status: 403 });
+        }
+        const userId = auth.user.id;
 
         const body = await req.json();
         logger.info("[Extension Action] Received action result:", { teamId, userId, ...body });

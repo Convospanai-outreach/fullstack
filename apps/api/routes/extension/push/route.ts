@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { validateExtensionAuth } from "../_lib/auth";
 
 export async function POST(req: NextRequest) {
     try {
-        const requiredKey = process.env['EXTENSION_API_KEY'];
-        const providedKey = req.headers.get("x-extension-key");
-        if (!requiredKey || providedKey !== requiredKey) {
-            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        const auth = await validateExtensionAuth(req);
+        if (!auth.ok) {
+            return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
         }
-        const token = req.headers.get("Authorization");
-        if (!token) {
-            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        const primaryTeamId = auth.teamIds[0];
+        if (!primaryTeamId) {
+            return NextResponse.json({ ok: false, error: "User has no team membership" }, { status: 403 });
         }
 
         const body = await req.json();
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
         // Upsert Lead based on LinkedIn URL
         if (url) {
             const existingLead = await prisma.lead.findFirst({
-                where: { linkedIn: url }
+                where: { linkedIn: url, teamId: primaryTeamId }
             });
 
             if (existingLead) {
@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
                         jobTitle: headline,
                         location: location,
                         status: "NEW",
+                        teamId: primaryTeamId,
                         enrichedData: { about, source: "extension_scrape" }
                     }
                 });

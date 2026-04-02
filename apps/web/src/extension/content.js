@@ -28,6 +28,56 @@ const waitFor = (selector, timeout = 3000) => {
     });
 };
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function findButtonByText(text) {
+    const buttons = Array.from(document.querySelectorAll("button, div[role='button']"));
+    const lowered = text.toLowerCase();
+    return buttons.find((el) => (el.innerText || "").trim().toLowerCase().includes(lowered)) || null;
+}
+
+async function performLike() {
+    const likeBtn = await waitFor("button[aria-label*='Like'], button[aria-label*='like']");
+    if (!likeBtn) {
+        return { success: false, error: "Like button not found" };
+    }
+    likeBtn.click();
+    return { success: true };
+}
+
+async function performConnect(taskPayload = {}) {
+    const directButton =
+        document.querySelector("button[aria-label*='Invite']") ||
+        document.querySelector("button[aria-label*='Connect']") ||
+        findButtonByText("Connect");
+
+    if (!directButton) {
+        return { success: false, error: "Connect button not found" };
+    }
+
+    directButton.click();
+    await sleep(600);
+
+    // LinkedIn modal variants: Send / Send now.
+    const sendButton =
+        document.querySelector("button[aria-label*='Send']") ||
+        findButtonByText("Send");
+
+    if (sendButton) {
+        sendButton.click();
+        return { success: true, data: { action: "CONNECT_SENT" } };
+    }
+
+    // Some variants open a chooser; mark as partial success for operator follow-up.
+    return {
+        success: true,
+        data: {
+            action: "CONNECT_CLICKED",
+            note: taskPayload?.message ? "Message provided; manual final send may be required." : "Connect dialog opened."
+        }
+    };
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     console.log("Context Script received:", msg);
 
@@ -41,10 +91,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                     taskId: task.id,
                     success: result.success,
                     result: result.data,
-                    error: result.error
+                    error: result.error,
+                    pending: result.pending,
+                    navigateTo: result.navigateTo
                 }
             });
+            sendResponse(result);
         });
+        return true;
+    }
+
+    if (msg.type === "LIKE_POST") {
+        performLike().then((result) => sendResponse({ ok: result.success, ...result }));
+        return true;
     }
 
     // Legacy manual triggers
@@ -61,11 +120,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function handleTask(task) {
     // 1. Navigation Check
     if (task.payload?.url && window.location.href !== task.payload.url) {
-        window.location.href = task.payload.url;
-        // The script will reload on new page, background needs to re-send task? 
-        // Simple/Naive: return, let background retry or rely on 'tabs.onUpdated' in background to re-inject.
-        // For V2, we assume user might be on the page or we just return "Loading page" status.
-        return { success: false, error: "Navigating to target URL..." };
+        return {
+            success: false,
+            pending: true,
+            navigateTo: task.payload.url,
+            error: "Navigating to target URL"
+        };
     }
 
     try {
@@ -76,13 +136,11 @@ async function handleTask(task) {
         }
 
         if (task.type === "LIKE_POST") {
-            const likeBtn = await waitFor("button[aria-label*='Like']");
-            if (likeBtn) {
-                likeBtn.click();
-                return { success: true };
-            } else {
-                return { success: false, error: "Like button not found" };
-            }
+            return await performLike();
+        }
+
+        if (task.type === "CONNECT") {
+            return await performConnect(task.payload || {});
         }
 
         return { success: false, error: "Unknown task type" };

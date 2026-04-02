@@ -1,25 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { validateExtensionAuth } from "../../_lib/auth";
 
 export async function GET(req: NextRequest) {
-    const requiredKey = process.env['EXTENSION_API_KEY'];
-    const providedKey = req.headers.get("x-extension-key");
-    if (!requiredKey || providedKey !== requiredKey) {
-        return NextResponse.json({ valid: false }, { status: 401 });
+    const auth = await validateExtensionAuth(req);
+    if (!auth.ok) {
+        return NextResponse.json({ valid: false, error: auth.error }, { status: auth.status });
     }
-    const token = req.headers.get("Authorization");
-    if (!token) {
-        return NextResponse.json({ valid: false }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-        where: { id: token },
-        select: { id: true, email: true, name: true }
+    return NextResponse.json({
+        valid: true,
+        user: {
+            id: auth.user.id,
+            email: auth.user.email,
+            name: auth.user.name
+        },
+        teamIds: auth.teamIds
     });
-
-    if (user) {
-        return NextResponse.json({ valid: true, user });
-    } else {
-        return NextResponse.json({ valid: false }, { status: 401 });
-    }
 }
