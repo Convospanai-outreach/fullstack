@@ -1,59 +1,284 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import {
+    Bot,
+    CheckCircle2,
+    ChevronRight,
     LayoutTemplate,
-    Mail,
     Linkedin,
+    Mail,
+    PenTool,
+    Search,
     Share2,
     ShieldCheck,
-    Zap,
-    Bot,
-    Users,
     Upload,
-    Search,
-    PenTool,
-    ChevronRight,
-    CheckCircle2
+    Users,
+    Zap
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
 
 export type WizardStep = "channel" | "autonomy" | "audience" | "messaging" | "review";
-
 export type ChannelType = "linkedin" | "email" | "omnichannel";
 export type ExecutionMode = "saferun" | "hybrid" | "autonomous";
+type AudienceSource = "csv" | "hunter" | "manual";
+type ToneOption = "Professional" | "Friendly" | "Consultative" | "Direct";
+type VoiceOption = "Founder" | "Operator" | "Advisor" | "Peer" | "Analyst";
+type FormulationOption = "Problem-Solution" | "Proof-first" | "Narrative" | "Executive Brief" | "Bullet-light";
+
+interface CampaignWizardConfig {
+    channel: ChannelType;
+    executionMode: ExecutionMode;
+    audienceSource: AudienceSource;
+    campaignName: string;
+    customMessage: string;
+    tone: ToneOption;
+    voice: VoiceOption;
+    formulation: FormulationOption;
+}
+
+const DEFAULT_CONFIG: CampaignWizardConfig = {
+    channel: "linkedin",
+    executionMode: "saferun",
+    audienceSource: "csv",
+    campaignName: "",
+    customMessage: "",
+    tone: "Professional",
+    voice: "Operator",
+    formulation: "Problem-Solution"
+};
+
+const WIZARD_STEPS: {
+    id: WizardStep;
+    label: string;
+    title: string;
+    description: string;
+    helper: string;
+    icon: typeof Share2;
+}[] = [
+    {
+        id: "channel",
+        label: "Channel",
+        title: "Choose where outreach starts",
+        description: "Pick the channel that best matches how buyers prefer to hear from you.",
+        helper: "This decides the delivery surface and the sequence preview shown later.",
+        icon: Share2
+    },
+    {
+        id: "autonomy",
+        label: "Control",
+        title: "Set the approval level",
+        description: "Define how much the system can do on its own before a human review step.",
+        helper: "SafeRun is best for first launches and regulated teams.",
+        icon: ShieldCheck
+    },
+    {
+        id: "audience",
+        label: "Audience",
+        title: "Tell the system where leads come from",
+        description: "Select the source so the campaign can launch with the right assumptions.",
+        helper: "You can change the source later from the campaign detail page.",
+        icon: Users
+    },
+    {
+        id: "messaging",
+        label: "Message",
+        title: "Add the campaign brief users will understand",
+        description: "Give the campaign a clear name and a short message brief before launch.",
+        helper: "The review step uses this brief to explain what will happen next.",
+        icon: PenTool
+    },
+    {
+        id: "review",
+        label: "Review",
+        title: "Confirm the launch plan",
+        description: "Check the campaign summary, safety mode, and next actions before creating it.",
+        helper: "Launching creates the campaign and opens the detail page for follow-up setup.",
+        icon: CheckCircle2
+    }
+];
+
+const CHANNEL_OPTIONS: {
+    id: ChannelType;
+    label: string;
+    desc: string;
+    detail: string;
+    icon: typeof Linkedin;
+    iconClassName: string;
+    selectedClassName: string;
+}[] = [
+    {
+        id: "linkedin",
+        label: "LinkedIn Outreach",
+        desc: "Best when warm introductions and profile context matter.",
+        detail: "Use this when your team wants high-context, relationship-led outreach.",
+        icon: Linkedin,
+        iconClassName: "text-sky-400",
+        selectedClassName: "border-sky-500 bg-sky-500/10 ring-1 ring-sky-500/30"
+    },
+    {
+        id: "email",
+        label: "Email Outreach",
+        desc: "Best for direct outreach with a connected inbox and deliverability controls.",
+        detail: "Use this when speed, volume, and follow-up sequencing matter most.",
+        icon: Mail,
+        iconClassName: "text-violet-400",
+        selectedClassName: "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/30"
+    },
+    {
+        id: "omnichannel",
+        label: "Omnichannel",
+        desc: "Start in one channel and follow up in another for better coverage.",
+        detail: "Use this when the team wants wider reach with a single campaign brief.",
+        icon: Share2,
+        iconClassName: "text-emerald-400",
+        selectedClassName: "border-emerald-500 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+    }
+];
+
+const EXECUTION_MODES: {
+    id: ExecutionMode;
+    label: string;
+    desc: string;
+    detail: string;
+    icon: typeof ShieldCheck;
+    iconClassName: string;
+    badge?: string;
+}[] = [
+    {
+        id: "saferun",
+        label: "SafeRun Assisted",
+        desc: "Your team reviews every message before anything sends.",
+        detail: "Recommended for first launches, new messaging, and sensitive accounts.",
+        icon: ShieldCheck,
+        iconClassName: "text-emerald-400",
+        badge: "Recommended"
+    },
+    {
+        id: "hybrid",
+        label: "Hybrid Autonomy",
+        desc: "The system drafts and routes low-confidence items back for review.",
+        detail: "Best when you want speed while keeping a clear approval fallback.",
+        icon: Zap,
+        iconClassName: "text-amber-400"
+    },
+    {
+        id: "autonomous",
+        label: "Autonomous",
+        desc: "The system runs with minimal human involvement after launch.",
+        detail: "Best for mature playbooks with proven guardrails and messaging.",
+        icon: Bot,
+        iconClassName: "text-rose-400",
+        badge: "Advanced"
+    }
+];
+
+const AUDIENCE_OPTIONS: {
+    id: AudienceSource;
+    label: string;
+    desc: string;
+    detail: string;
+    icon: typeof Upload;
+    iconClassName: string;
+    selectedClassName: string;
+}[] = [
+    {
+        id: "csv",
+        label: "CSV Import",
+        desc: "Bring in a prepared list of leads from your team or CRM export.",
+        detail: "Best when your team already knows which accounts or contacts to target.",
+        icon: Upload,
+        iconClassName: "text-sky-400",
+        selectedClassName: "border-sky-500 bg-sky-500/10"
+    },
+    {
+        id: "hunter",
+        label: "Hunter Search",
+        desc: "Start with domains and enrich email contacts before outreach begins.",
+        detail: "Best when you know the accounts but still need verified contact data.",
+        icon: Search,
+        iconClassName: "text-amber-400",
+        selectedClassName: "border-amber-500 bg-amber-500/10"
+    },
+    {
+        id: "manual",
+        label: "Manual Entry",
+        desc: "Paste a short list of names, emails, or profile URLs for a focused launch.",
+        detail: "Best for small pilots, executive outreach, and hand-picked accounts.",
+        icon: PenTool,
+        iconClassName: "text-fuchsia-400",
+        selectedClassName: "border-fuchsia-500 bg-fuchsia-500/10"
+    }
+];
+
+const CHANNEL_SEQUENCE: Record<ChannelType, string[]> = {
+    linkedin: ["Connection request", "Follow-up note after acceptance"],
+    email: ["Intro email", "Follow-up email two days later"],
+    omnichannel: ["LinkedIn touch", "Email follow-up", "Final reminder"],
+};
+
+const DEFAULT_PREVIEW = "Hi {firstName},\n\nI noticed your team is scaling quickly. We help teams remove manual work from outbound execution without losing control.\n\nWould a short conversation next week be useful?\n\nBest,\n[Your Name]";
+function getDisabledReason(step: WizardStep, config: CampaignWizardConfig) {
+    if (step === "audience" && !config.audienceSource) {
+        return "Choose an audience source before moving on.";
+    }
+
+    if (step === "messaging") {
+        if (!config.campaignName.trim()) {
+            return "Add a campaign name so the team can identify this launch later.";
+        }
+
+        if (!config.customMessage.trim()) {
+            return "Add a short campaign brief so the messaging preview is clear.";
+        }
+    }
+
+    return "";
+}
+
+function formatAudience(source: AudienceSource) {
+    return AUDIENCE_OPTIONS.find((option) => option.id === source)?.label ?? "Not selected";
+}
+
+function buildPreview(config: CampaignWizardConfig) {
+    if (!config.customMessage.trim()) {
+        return DEFAULT_PREVIEW;
+    }
+
+    return [
+        "Hi {firstName},",
+        "",
+        config.customMessage.trim(),
+        "",
+        "Would you be open to a short conversation next week?",
+        "",
+        "Best,",
+        "[Your Name]"
+    ].join("\n");
+}
 
 export default function StrategyWizard({ onClose }: { onClose: () => void }) {
     const [step, setStep] = useState<WizardStep>("channel");
-    const [config, setConfig] = useState({
-        channel: "linkedin" as ChannelType,
-        executionMode: "saferun" as ExecutionMode,
-        audienceSource: "",
-        campaignName: "",
-        customMessage: "",
-    });
+    const [config, setConfig] = useState<CampaignWizardConfig>(DEFAULT_CONFIG);
+    const [loading, setLoading] = useState(false);
+    const router = useRouter();
 
-    const steps = [
-        { id: "channel", label: "Channel", icon: Share2 },
-        { id: "autonomy", label: "Autonomy", icon: ShieldCheck },
-        { id: "audience", label: "Audience", icon: Users },
-        { id: "messaging", label: "Messaging", icon: PenTool },
-    ];
-
-    // Resilience: Auto-save draft to localStorage
     useEffect(() => {
         const saved = localStorage.getItem("campaign_wizard_draft");
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                setConfig(parsed);
-                toast.info("Restored your previous draft");
-            } catch (e) { console.error("Failed to restore draft", e); }
+        if (!saved) {
+            return;
+        }
+
+        try {
+            const parsed = JSON.parse(saved) as Partial<CampaignWizardConfig>;
+            setConfig({ ...DEFAULT_CONFIG, ...parsed });
+            toast.info("Restored your draft.");
+        } catch (error) {
+            console.error("Failed to restore draft", error);
         }
     }, []);
 
@@ -61,52 +286,67 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
         localStorage.setItem("campaign_wizard_draft", JSON.stringify(config));
     }, [config]);
 
+    const currentStepIndex = WIZARD_STEPS.findIndex((item) => item.id === step);
+    const activeStep = WIZARD_STEPS[currentStepIndex] ?? WIZARD_STEPS[0]!;
+    const progress = Math.round(((currentStepIndex + 1) / WIZARD_STEPS.length) * 100);
+    const nextDisabledReason = getDisabledReason(step, config);
+    const canContinue = !nextDisabledReason;
+
+    const updateConfig = (updates: Partial<CampaignWizardConfig>) => {
+        setConfig((current) => ({ ...current, ...updates }));
+    };
+
     const handleNext = () => {
-        const order: WizardStep[] = ["channel", "autonomy", "audience", "messaging", "review"];
-        const currentIndex = order.indexOf(step);
-        if (currentIndex < order.length - 1) {
-            const next = order[currentIndex + 1];
-            if (next) setStep(next);
+        if (!canContinue) {
+            toast.error(nextDisabledReason);
+            return;
+        }
+
+        const nextStep = WIZARD_STEPS[currentStepIndex + 1];
+        if (nextStep) {
+            setStep(nextStep.id);
         }
     };
 
     const handleBack = () => {
-        const order: WizardStep[] = ["channel", "autonomy", "audience", "messaging", "review"];
-        const currentIndex = order.indexOf(step);
-        if (currentIndex > 0) {
-            const prev = order[currentIndex - 1];
-            if (prev) setStep(prev);
+        const previousStep = WIZARD_STEPS[currentStepIndex - 1];
+        if (previousStep) {
+            setStep(previousStep.id);
+            return;
         }
-    };
 
-    const [loading, setLoading] = useState(false);
-    const router = useRouter();
+        onClose();
+    };
 
     const handleLaunch = async () => {
         setLoading(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/campaigns", {
+            const response = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/campaigns", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: config.campaignName || `Campaign ${new Date().toLocaleDateString()}`,
-                    status: "active", // Immediate launch
+                    name: config.campaignName.trim() || `Campaign ${new Date().toLocaleDateString()}`,
+                    status: "active",
                     type: "standard",
-                    audience: config.audienceSource || "manual", // Store the source type
+                    audience: config.audienceSource,
                     aiConfig: {
                         executionMode: config.executionMode,
-                        context: config.customMessage, // Using custom message as context
-                        tone: "Professional", // Could be dynamic if added to config state
+                        context: config.customMessage.trim(),
+                        tone: config.tone,
+                        voice: config.voice,
+                        formulation: config.formulation,
                         goal: "Outreach"
                     },
-                    targetCount: 0 // Will be updated when leads are added
+                    targetCount: 0
                 })
             });
 
-            if (!res.ok) throw new Error("Failed to create campaign");
+            if (!response.ok) {
+                throw new Error("Failed to create campaign");
+            }
 
-            const data = await res.json();
-            toast.success("Campaign launched successfully!");
+            const data = await response.json();
+            toast.success("Campaign created. Opening details...");
             localStorage.removeItem("campaign_wizard_draft");
             onClose();
             router.push(`/campaigns/${data.data.id}`);
@@ -119,511 +359,526 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <GlassCard className="w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden border-2 border-white/10 m-0 p-0 relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+            <GlassCard className="relative m-0 flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden border-2 border-white/10 p-0">
+                <div className="space-y-4 border-b border-white/10 bg-black/20 p-6">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-2">
+                            <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+                                <LayoutTemplate className="h-5 w-5 text-blue-400" />
+                                Campaign launch plan
+                            </h2>
+                            <p className="max-w-2xl text-sm text-gray-400">
+                                Build a campaign in five clear steps. Every choice below updates the launch summary before anything is created.
+                            </p>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-300">
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Draft saves automatically while you work
+                            </div>
+                        </div>
 
-                {/* Header / Progress */}
-                <div className="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
-                    <div>
-                        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                            <LayoutTemplate className="w-5 h-5 text-blue-400" />
-                            Campaign Strategy Wizard
-                        </h2>
-                        <div className="flex items-center gap-3">
-                            <p className="text-sm text-gray-400">Design your outreach execution flow</p>
-                            <span className="text-xs text-emerald-400/80 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 animate-pulse">
-                                Draft Saved
-                            </span>
+                        <div className="w-full rounded-2xl border border-white/10 bg-white/5 p-4 lg:max-w-sm">
+                            <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-gray-500">
+                                <span>Step {currentStepIndex + 1} of {WIZARD_STEPS.length}</span>
+                                <span>{progress}% complete</span>
+                            </div>
+                            <div className="mb-3 h-2 overflow-hidden rounded-full bg-white/10">
+                                <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300" style={{ width: `${progress}%` }} />
+                            </div>
+                            <p className="text-sm font-semibold text-white">{activeStep.title}</p>
+                            <p className="mt-1 text-sm text-gray-400">{activeStep.helper}</p>
                         </div>
                     </div>
 
-                    {/* Step Indicators */}
-                    <div className="flex items-center gap-2">
-                        {steps.map((s, idx) => (
-                            <div key={s.id} className="flex items-center">
-                                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${step === s.id
-                                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
-                                    : steps.indexOf(s) < steps.findIndex(x => x.id === step)
-                                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                                        : "bg-white/5 text-gray-500 border border-white/5"
-                                    }`}>
-                                    <s.icon className="w-3 h-3" />
-                                    {s.label}
+                    <div className="grid gap-2 md:grid-cols-5">
+                        {WIZARD_STEPS.map((wizardStep, index) => {
+                            const Icon = wizardStep.icon;
+                            const isActive = wizardStep.id === step;
+                            const isComplete = index < currentStepIndex;
+
+                            return (
+                                <div
+                                    key={wizardStep.id}
+                                    className={`rounded-2xl border px-4 py-3 transition-all ${
+                                        isActive
+                                            ? "border-blue-500/40 bg-blue-500/15 text-white"
+                                            : isComplete
+                                                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200"
+                                                : "border-white/10 bg-white/[0.03] text-gray-500"
+                                    }`}
+                                >
+                                    <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.18em]">
+                                        <Icon className="h-3.5 w-3.5" />
+                                        <span>{wizardStep.label}</span>
+                                    </div>
+                                    <p className="text-sm font-medium">{wizardStep.title}</p>
                                 </div>
-                                {idx < steps.length - 1 && (
-                                    <div className="w-4 h-px bg-white/10 mx-1" />
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
-
-                {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-8 relative">
+                <div className="flex-1 overflow-y-auto p-8">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={step}
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
+                            transition={{ duration: 0.2 }}
                             className="space-y-6"
                         >
+                            <div className="space-y-2">
+                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">{activeStep.label}</p>
+                                <h3 className="text-3xl font-bold text-white">{activeStep.title}</h3>
+                                <p className="max-w-3xl text-base text-gray-400">{activeStep.description}</p>
+                            </div>
+
                             {step === "channel" && (
-                                <ChannelSelector
-                                    selected={config.channel}
-                                    onSelect={(c) => setConfig({ ...config, channel: c })}
-                                />
+                                <ChannelSelector selected={config.channel} onSelect={(channel) => updateConfig({ channel })} />
                             )}
                             {step === "autonomy" && (
-                                <AutonomySelector
-                                    selected={config.executionMode}
-                                    onSelect={(m) => setConfig({ ...config, executionMode: m })}
-                                />
+                                <AutonomySelector selected={config.executionMode} onSelect={(executionMode) => updateConfig({ executionMode })} />
                             )}
                             {step === "audience" && (
-                                <AudienceSelector />
+                                <AudienceSelector selected={config.audienceSource} onSelect={(audienceSource) => updateConfig({ audienceSource })} />
                             )}
                             {step === "messaging" && (
-                                <MessagingEditor mode={config.executionMode} />
+                                <MessagingEditor
+                                    channel={config.channel}
+                                    mode={config.executionMode}
+                                    campaignName={config.campaignName}
+                                    customMessage={config.customMessage}
+                                    tone={config.tone}
+                                    voice={config.voice}
+                                    formulation={config.formulation}
+                                    onChange={updateConfig}
+                                />
                             )}
-                            {step === "review" && (
-                                <ReviewStep config={config} />
-                            )}
+                            {step === "review" && <ReviewStep config={config} />}
                         </motion.div>
                     </AnimatePresence>
                 </div>
 
-                {/* Footer Controls */}
-                <div className="p-6 border-t border-white/10 bg-black/20 flex justify-between items-center">
-                    <button
-                        onClick={step === "channel" ? onClose : handleBack}
-                        className="text-sm text-gray-400 hover:text-white px-4 py-2 hover:bg-white/5 rounded-lg transition-colors"
-                        disabled={loading}
-                    >
-                        {step === "channel" ? "Cancel" : "Back"}
-                    </button>
+                <div className="flex flex-col gap-4 border-t border-white/10 bg-black/20 p-6 md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-white">
+                            {step === "review"
+                                ? "Launching now will create the campaign and take you to its detail page."
+                                : nextDisabledReason || `Next: ${WIZARD_STEPS[currentStepIndex + 1]?.title ?? "Launch campaign"}`}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                            {step === "review"
+                                ? "You can still edit targeting, approvals, and creative after launch."
+                                : "You can move backward at any time without losing the draft."}
+                        </p>
+                    </div>
 
-                    <button
-                        onClick={step === "review" ? handleLaunch : handleNext}
-                        disabled={loading}
-                        className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-medium shadow-lg transition-all ${step === "review"
-                            ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/20"
-                            : "bg-blue-600 hover:bg-blue-500 text-white shadow-blue-500/20"
-                            } disabled:opacity-50`}
-                    >
-                        {loading ? "Launching..." : (step === "review" ? "Launch Campaign" : "Continue")}
-                        {!loading && (step === "review" ? <Zap className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />)}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={currentStepIndex === 0 ? onClose : handleBack}
+                            disabled={loading}
+                            className="rounded-xl px-4 py-2 text-sm text-gray-400 transition-colors hover:bg-white/5 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            {currentStepIndex === 0 ? "Close" : "Back"}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={step === "review" ? handleLaunch : handleNext}
+                            disabled={loading || (step !== "review" && !canContinue)}
+                            className={`flex items-center gap-2 rounded-xl px-6 py-2.5 font-medium text-white shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
+                                step === "review"
+                                    ? "bg-emerald-600 shadow-emerald-500/20 hover:bg-emerald-500"
+                                    : "bg-blue-600 shadow-blue-500/20 hover:bg-blue-500"
+                            }`}
+                        >
+                            {loading ? "Launching..." : step === "review" ? "Launch campaign" : "Continue"}
+                            {!loading && (step === "review" ? <Zap className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />)}
+                        </button>
+                    </div>
                 </div>
-
             </GlassCard>
         </div>
     );
 }
+function ReviewStep({ config }: { config: CampaignWizardConfig }) {
+    const selectedChannel = CHANNEL_OPTIONS.find((option) => option.id === config.channel);
+    const selectedMode = EXECUTION_MODES.find((mode) => mode.id === config.executionMode);
+    const preview = buildPreview(config);
 
-// --- Step Components ---
-
-function ReviewStep({ config }: { config: any }) {
     return (
-        <div className="space-y-8 max-w-2xl mx-auto">
-            <div className="text-center space-y-2">
-                <h3 className="text-2xl font-bold text-white">Ready to Launch?</h3>
-                <p className="text-gray-400">Review your campaign configuration below.</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-1">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider">Channel</span>
-                    <div className="font-bold text-white text-lg capitalize flex items-center gap-2">
-                        {config.channel === 'linkedin' && <Linkedin className="w-4 h-4 text-blue-400" />}
-                        {config.channel === 'email' && <Mail className="w-4 h-4 text-purple-400" />}
-                        {config.channel}
-                    </div>
-                </div>
-                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-1">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider">Autonomy</span>
-                    <div className="font-bold text-white text-lg capitalize flex items-center gap-2">
-                        {config.executionMode === 'saferun' && <ShieldCheck className="w-4 h-4 text-emerald-400" />}
-                        {config.executionMode === 'autonomous' && <Bot className="w-4 h-4 text-red-400" />}
-                        {config.executionMode.replace('_', ' ')}
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-6 rounded-xl bg-black/40 border border-white/10 space-y-4">
-                <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
-                        <Users className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">Target Audience</h4>
-                        <p className="text-sm text-gray-400">Importing from CSV / 250 Leads</p>
-                    </div>
+        <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+            <div className="space-y-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <SummaryCard label="Campaign name" value={config.campaignName} fallback="Untitled campaign" />
+                    <SummaryCard label="Audience source" value={formatAudience(config.audienceSource)} />
+                    <SummaryCard label="Primary channel" value={selectedChannel?.label ?? "Not selected"} />
+                    <SummaryCard label="Approval mode" value={selectedMode?.label ?? "Not selected"} />
                 </div>
 
-                <div className="w-full h-px bg-white/10" />
-
-                <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-400 border border-purple-500/20">
-                        <PenTool className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-white">Messaging Strategy</h4>
-                        <p className="text-sm text-gray-400">
-                            {config.executionMode === 'saferun' ? 'Manual Verification Required' : 'AI Assisted Drafting'}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 flex gap-3 text-sm text-emerald-200">
-                <ShieldCheck className="w-5 h-5 shrink-0" />
-                <p>
-                    <strong>Safety Check Passed:</strong> Sovereign Firewall is active. PII detection will run on all {config.channel} messages before sending.
-                </p>
-            </div>
-        </div>
-    );
-}
-
-function ChannelSelector({ selected, onSelect }: { selected: ChannelType, onSelect: (c: ChannelType) => void }) {
-    const options = [
-        {
-            id: "linkedin",
-            label: "LinkedIn Professional",
-            desc: "Network-first approach. Best for B2B relationship building.",
-            icon: Linkedin,
-            color: "text-blue-400",
-            border: "group-hover:border-blue-500/50"
-        },
-        {
-            id: "email",
-            label: "Cold Email",
-            desc: "High-volume outreach via your connected inboxes.",
-            icon: Mail,
-            color: "text-purple-400",
-            border: "group-hover:border-purple-500/50"
-        },
-        {
-            id: "omnichannel",
-            label: "Omnichannel Mix",
-            desc: "Adaptive sequence. Start on LinkedIn, fallback to Email.",
-            icon: Share2,
-            color: "text-emerald-400",
-            border: "group-hover:border-emerald-500/50"
-        }
-    ];
-
-    return (
-        <div className="space-y-6">
-            <div className="text-center space-y-2 mb-8">
-                <h3 className="text-2xl font-bold text-white">Choose your Outreach Channel</h3>
-                <p className="text-gray-400">Where should this campaign execute?</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {options.map((opt) => (
-                    <button
-                        key={opt.id}
-                        onClick={() => onSelect(opt.id as ChannelType)}
-                        className={`relative p-6 rounded-2xl border text-left transition-all duration-300 group hover:bg-white/5 ${selected === opt.id
-                            ? `bg-white/5 border-${opt.color.split("-")[1]}-500 ring-2 ring-${opt.color.split("-")[1]}-500/20`
-                            : "border-white/10 hover:border-white/20"
-                            }`}
-                    >
-                        <div className={`p-3 rounded-xl bg-white/5 w-fit mb-4 ${opt.color}`}>
-                            <opt.icon className="w-6 h-6" />
-                        </div>
-                        <h4 className="text-lg font-bold text-white mb-2">{opt.label}</h4>
-                        <p className="text-sm text-gray-400">{opt.desc}</p>
-
-                        {selected === opt.id && (
-                            <div className="absolute top-4 right-4 text-emerald-400">
-                                <CheckCircle2 className="w-5 h-5" />
-                            </div>
-                        )}
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
-
-function AutonomySelector({ selected, onSelect }: { selected: ExecutionMode, onSelect: (m: ExecutionMode) => void }) {
-    const modes = [
-        {
-            id: "saferun",
-            label: "SafeRun™ Assisted",
-            desc: "100% Human Verification. You review every message before it sends.",
-            icon: ShieldCheck,
-            color: "text-emerald-400",
-            badge: "Recommended"
-        },
-        {
-            id: "hybrid",
-            label: "Hybrid Autonomy",
-            desc: "Auto-pilot with safety brakes. Falls back to human review if AI confidence < 90%.",
-            icon: Zap,
-            color: "text-orange-400"
-        },
-        {
-            id: "autonomous",
-            label: "Fully Autonomous",
-            desc: "Hands-free execution. AI handles finding, drafting, and sending.",
-            icon: Bot,
-            color: "text-red-400",
-            badge: "Pro"
-        }
-    ];
-
-    return (
-        <div className="space-y-6">
-            <div className="text-center space-y-2 mb-8">
-                <h3 className="text-2xl font-bold text-white">Select Autonomy Level</h3>
-                <p className="text-gray-400">How much control do you want over execution?</p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 max-w-2xl mx-auto">
-                {modes.map((mode) => (
-                    <button
-                        key={mode.id}
-                        onClick={() => onSelect(mode.id as ExecutionMode)}
-                        className={`flex items-start gap-5 p-6 rounded-2xl border text-left transition-all hover:bg-white/5 ${selected === mode.id
-                            ? "bg-white/5 border-blue-500/50 ring-1 ring-blue-500/20"
-                            : "border-white/10 hover:border-white/20"
-                            }`}
-                    >
-                        <div className={`p-3 rounded-xl bg-white/5 mt-1 ${mode.color}`}>
-                            <mode.icon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-1">
-                                <h4 className="text-lg font-bold text-white">{mode.label}</h4>
-                                {mode.badge && (
-                                    <Badge variant="default" className="text-xs">{mode.badge}</Badge>
-                                )}
-                            </div>
-                            <p className="text-sm text-gray-400">{mode.desc}</p>
-                        </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-2 ${selected === mode.id ? "border-blue-500" : "border-gray-600"
-                            }`}>
-                            {selected === mode.id && <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />}
-                        </div>
-                    </button>
-                ))}
-            </div>
-
-            {/* Disclaimer */}
-            <div className="max-w-2xl mx-auto bg-blue-500/5 border border-blue-500/10 rounded-xl p-4 flex gap-3 text-sm text-blue-200/80">
-                <ShieldCheck className="w-5 h-5 shrink-0" />
-                <p>
-                    Regardless of your choice, the <span className="font-bold text-blue-300">Sovereign Firewall</span> remains active, blocking PII leaks and checking compliance policies locally.
-                </p>
-            </div>
-        </div>
-    );
-}
-
-// --- Step 3: Audience ---
-
-function AudienceSelector() {
-    const [source, setSource] = useState<"csv" | "hunter" | "manual" | null>(null);
-
-    return (
-        <div className="space-y-6">
-            <div className="text-center space-y-2 mb-8">
-                <h3 className="text-2xl font-bold text-white">Select Audience Source</h3>
-                <p className="text-gray-400">Who are we targeting today?</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <button
-                    onClick={() => setSource("csv")}
-                    className={`p-6 rounded-2xl border text-center hover:bg-white/5 transition-all ${source === "csv" ? "border-blue-500 bg-white/5" : "border-white/10"
-                        }`}
-                >
-                    <Upload className="w-8 h-8 mx-auto mb-4 text-blue-400" />
-                    <h4 className="font-bold text-white mb-2">Import CSV</h4>
-                    <p className="text-xs text-gray-400">Upload a list of leads with LinkedIn URLs or Emails.</p>
-                </button>
-
-                <button
-                    onClick={() => setSource("hunter")}
-                    className={`p-6 rounded-2xl border text-center hover:bg-white/5 transition-all ${source === "hunter" ? "border-orange-500 bg-white/5" : "border-white/10"
-                        }`}
-                >
-                    <Search className="w-8 h-8 mx-auto mb-4 text-orange-400" />
-                    <h4 className="font-bold text-white mb-2">Hunter.io</h4>
-                    <p className="text-xs text-gray-400">Find professional emails by company domain.</p>
-                    <Badge variant="warning" className="mt-2 text-[10px] border-orange-500/30 text-orange-300">New Integration</Badge>
-                </button>
-
-                <button
-                    onClick={() => setSource("manual")}
-                    className={`p-6 rounded-2xl border text-center hover:bg-white/5 transition-all ${source === "manual" ? "border-purple-500 bg-white/5" : "border-white/10"
-                        }`}
-                >
-                    <PenTool className="w-8 h-8 mx-auto mb-4 text-purple-400" />
-                    <h4 className="font-bold text-white mb-2">Manual Entry</h4>
-                    <p className="text-xs text-gray-400">Type or paste a list of prospects manually.</p>
-                </button>
-            </div>
-
-            {/* Dynamic Content based on source */}
-            <div className="min-h-[150px] flex items-center justify-center border border-dashed border-white/20 rounded-xl bg-black/20">
-                {source === "csv" && (
-                    <div className="text-center">
-                        <Button variant="outline" className="gap-2">
-                            <Upload className="w-4 h-4" /> Select File
-                        </Button>
-                        <p className="text-xs text-gray-500 mt-2">Target: 250 Leads</p>
-                    </div>
-                )}
-                {source === "hunter" && (
-                    <div className="w-full max-w-sm space-y-3 p-4">
-                        <input type="text" placeholder="e.g. acme.com" className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2 text-white" />
-                        <Button className="w-full bg-orange-600 hover:bg-orange-500">Find Emails</Button>
-                    </div>
-                )}
-                {source === "manual" && (
-                    <textarea
-                        className="w-full h-[120px] bg-transparent border-none text-sm text-white p-4 focus:ring-0 resize-none"
-                        placeholder="Paste LinkedIn URLs or Emails here (one per line)..."
-                    />
-                )}
-                {!source && <p className="text-gray-500 text-sm">Select a source to begin</p>}
-            </div>
-        </div>
-    );
-}
-
-// --- Step 4: Messaging ---
-
-function MessagingEditor({ mode }: { mode: ExecutionMode }) {
-    return (
-        <div className="space-y-6 h-full flex flex-col">
-            <div className="flex justify-between items-end mb-2">
-                <div>
-                    <h3 className="text-2xl font-bold text-white">Craft your Message</h3>
-                    <p className="text-gray-400 text-sm mt-1">
-                        {mode === "saferun"
-                            ? "You are in SafeRun™ Mode. You can customize every message."
-                            : "AI will generate drafts based on this context."}
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Message brief</p>
+                    <p className="mt-3 text-sm leading-7 text-gray-300">
+                        {config.customMessage.trim() || "No campaign brief added yet."}
                     </p>
                 </div>
-                {mode === "saferun" && (
-                    <Badge variant="success" className="gap-1">
-                        <PenTool className="w-3 h-3" /> Human-Led Customization
-                    </Badge>
-                )}
+
+                <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-5 text-sm text-emerald-100">
+                    <div className="mb-2 flex items-center gap-2 font-semibold">
+                        <ShieldCheck className="h-4 w-4" />
+                        Safety summary
+                    </div>
+                    <p>
+                        The Sovereign Firewall remains active in every mode. Message review, PII checks, and policy checks still run before sending.
+                    </p>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-                {/* Left: Configuration */}
-                <div className="space-y-4 overflow-y-auto pr-2">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Campaign Goal / Context</label>
-                        <textarea
-                            className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all min-h-[100px]"
-                            placeholder="e.g. We are offering a free audit of their cloud infrastructure..."
-                            onChange={() => { /* Real implementation would update AI context */ }}
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Tone</label>
-                        <div className="flex gap-2">
-                            {["Professional", "Casual", "Urgent", "Friendly"].map(t => (
-                                <button key={t} className="px-3 py-1.5 rounded-lg border border-white/10 text-xs text-gray-300 hover:bg-white/5">
-                                    {t}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-white/10">
-                        <h4 className="font-bold text-white mb-2 text-sm">Sequence Steps</h4>
-                        <div className="space-y-2">
-                            <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
-                                <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs border border-blue-500/30">1</div>
-                                <span className="text-sm text-gray-300">Connection Request</span>
-                            </div>
-                            <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
-                                <div className="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center text-xs border border-purple-500/30">2</div>
-                                <span className="text-sm text-gray-300">Follow-up Email (2 days later)</span>
-                            </div>
-                        </div>
-                        <Button variant="ghost" className="w-full mt-2 text-blue-400 text-xs">+ Add Step</Button>
+            <div className="space-y-6">
+                <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">What happens next</p>
+                    <div className="mt-4 space-y-3">
+                        <ReviewStepItem number="1" title="Campaign is created" description="The campaign opens immediately so the team can continue with targeting and approvals." />
+                        <ReviewStepItem number="2" title="Leads are connected" description="Use the selected audience source to attach or import leads into the campaign." />
+                        <ReviewStepItem number="3" title="Execution rules stay visible" description="The selected approval mode stays visible on the campaign detail page for future edits." />
                     </div>
                 </div>
 
-                {/* Right: Preview / Editor */}
-                <div className="bg-black/40 rounded-xl border border-white/10 flex flex-col overflow-hidden">
-                    <div className="p-3 border-b border-white/10 bg-white/5 flex justify-between items-center">
-                        <span className="text-xs font-medium text-gray-400">Preview: Lead #1 (Top Priority)</span>
-                        <div className="flex gap-1">
-                            {/* Strength Meter */}
-                            <div className="flex items-center gap-2 mr-2">
-                                <span className="text-[10px] uppercase text-gray-500 font-bold">Message Strength</span>
-                                <div className="flex gap-0.5">
-                                    <div className="w-1.5 h-3 rounded-sm bg-emerald-500" />
-                                    <div className="w-1.5 h-3 rounded-sm bg-emerald-500" />
-                                    <div className="w-1.5 h-3 rounded-sm bg-emerald-500" />
-                                    <div className="w-1.5 h-3 rounded-sm bg-gray-700" />
-                                </div>
-                            </div>
+                <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                    <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Launch preview</p>
+                        <div className="flex flex-wrap gap-2">
+                            <Badge variant="secondary" className="border-white/10 bg-white/5 text-gray-300">
+                                Tone: {config.tone}
+                            </Badge>
+                            <Badge variant="secondary" className="border-white/10 bg-white/5 text-gray-300">
+                                Voice: {config.voice}
+                            </Badge>
+                            <Badge variant="secondary" className="border-white/10 bg-white/5 text-gray-300">
+                                Formulation: {config.formulation}
+                            </Badge>
                         </div>
                     </div>
-
-                    <div className="p-4 flex-1 overflow-y-auto">
-                        <div className="flex gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-full bg-gray-600" />
-                            <div className="space-y-1">
-                                <div className="h-3 w-24 bg-gray-700 rounded animate-pulse" />
-                                <div className="h-2 w-16 bg-gray-800 rounded animate-pulse" />
-                            </div>
-                        </div>
-
-                        {/* The Editable Message Area */}
-                        <div className="relative group">
-                            <textarea
-                                className={`w-full bg-transparent text-sm text-gray-300 resize-none min-h-[200px] focus:outline-none ${mode === "saferun" ? "cursor-text" : "cursor-not-allowed opacity-70"
-                                    }`}
-                                readOnly={mode !== "saferun"}
-                                defaultValue="Hi {firstName},&#10;&#10;I noticed you're leading engineering at {company}. Many leaders I talk to are struggling with cloud costs...&#10;&#10;Would you be open to a 15-min chat?&#10;&#10;Best,&#10;[Your Name]"
-                            />
-
-                            {mode !== "saferun" ? (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="text-xs font-medium text-white bg-black/80 px-3 py-1.5 rounded-full border border-white/20">
-                                        Editing disabled in Autonomous Mode
-                                    </span>
-                                </div>
-                            ) : (
-                                <div className="absolute bottom-2 right-2">
-                                    <button className="flex items-center gap-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-lg text-xs border border-purple-500/20 transition-all">
-                                        <Bot className="w-3 h-3" /> AI Improve
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="p-3 border-t border-white/10 bg-white/5 flex justify-between items-center text-xs text-gray-500">
-                        <span>~450 characters</span>
-                        <div className="flex items-center gap-2">
-                            <span>Estimated Read Time: 30s</span>
-                            {/* Suggestion Badge */}
-                            <span className="text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded border border-orange-500/20">
-                                Tip: Keep it under 50 words
-                            </span>
-                        </div>
-                    </div>
+                    <pre className="whitespace-pre-wrap rounded-2xl border border-white/10 bg-black/40 p-4 text-sm leading-7 text-gray-300">{preview}</pre>
                 </div>
             </div>
         </div>
     );
 }
 
+function SummaryCard({ label, value, fallback = "Not provided" }: { label: string; value?: string; fallback?: string }) {
+    return (
+        <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">{label}</p>
+            <p className="mt-2 text-base font-semibold text-white">{value?.trim() ? value : fallback}</p>
+        </div>
+    );
+}
 
+function ReviewStepItem({ number, title, description }: { number: string; title: string; description: string }) {
+    return (
+        <div className="flex items-start gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-sm font-semibold text-blue-300">
+                {number}
+            </div>
+            <div>
+                <p className="font-semibold text-white">{title}</p>
+                <p className="mt-1 text-sm text-gray-400">{description}</p>
+            </div>
+        </div>
+    );
+}
+function ChannelSelector({ selected, onSelect }: { selected: ChannelType; onSelect: (channel: ChannelType) => void }) {
+    return (
+        <div className="grid gap-6 lg:grid-cols-3">
+            {CHANNEL_OPTIONS.map((option) => {
+                const Icon = option.icon;
+                const isSelected = option.id === selected;
 
+                return (
+                    <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => onSelect(option.id)}
+                        className={`rounded-3xl border p-6 text-left transition-all duration-200 ${
+                            isSelected ? option.selectedClassName : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                        }`}
+                    >
+                        <div className="flex items-start justify-between gap-4">
+                            <div className={`rounded-2xl bg-white/5 p-3 ${option.iconClassName}`}>
+                                <Icon className="h-6 w-6" />
+                            </div>
+                            {isSelected && <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                        </div>
+                        <h4 className="mt-5 text-xl font-semibold text-white">{option.label}</h4>
+                        <p className="mt-2 text-sm text-gray-300">{option.desc}</p>
+                        <p className="mt-4 text-sm text-gray-500">{option.detail}</p>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function AutonomySelector({ selected, onSelect }: { selected: ExecutionMode; onSelect: (mode: ExecutionMode) => void }) {
+    return (
+        <div className="space-y-4">
+            {EXECUTION_MODES.map((mode) => {
+                const Icon = mode.icon;
+                const isSelected = mode.id === selected;
+
+                return (
+                    <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => onSelect(mode.id)}
+                        className={`flex w-full items-start gap-5 rounded-3xl border p-6 text-left transition-all ${
+                            isSelected ? "border-blue-500/40 bg-blue-500/10 ring-1 ring-blue-500/20" : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                        }`}
+                    >
+                        <div className={`rounded-2xl bg-white/5 p-3 ${mode.iconClassName}`}>
+                            <Icon className="h-6 w-6" />
+                        </div>
+                        <div className="flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h4 className="text-xl font-semibold text-white">{mode.label}</h4>
+                                {mode.badge && <Badge variant="secondary">{mode.badge}</Badge>}
+                            </div>
+                            <p className="mt-2 text-sm text-gray-300">{mode.desc}</p>
+                            <p className="mt-3 text-sm text-gray-500">{mode.detail}</p>
+                        </div>
+                        <div className={`mt-1 h-5 w-5 rounded-full border-2 ${isSelected ? "border-blue-400 bg-blue-400" : "border-gray-600"}`} />
+                    </button>
+                );
+            })}
+
+            <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 p-4 text-sm text-blue-100">
+                The firewall, policy checks, and message review trace remain active in every execution mode.
+            </div>
+        </div>
+    );
+}
+
+function AudienceSelector({ selected, onSelect }: { selected: AudienceSource; onSelect: (source: AudienceSource) => void }) {
+    const selectedOption = AUDIENCE_OPTIONS.find((option) => option.id === selected);
+
+    return (
+        <div className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+                {AUDIENCE_OPTIONS.map((option) => {
+                    const Icon = option.icon;
+                    const isSelected = option.id === selected;
+
+                    return (
+                        <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => onSelect(option.id)}
+                            className={`rounded-3xl border p-6 text-left transition-all ${
+                                isSelected ? option.selectedClassName : "border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]"
+                            }`}
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className={`rounded-2xl bg-white/5 p-3 ${option.iconClassName}`}>
+                                    <Icon className="h-6 w-6" />
+                                </div>
+                                {isSelected && <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                            </div>
+                            <h4 className="mt-5 text-xl font-semibold text-white">{option.label}</h4>
+                            <p className="mt-2 text-sm text-gray-300">{option.desc}</p>
+                            <p className="mt-4 text-sm text-gray-500">{option.detail}</p>
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div className="rounded-3xl border border-dashed border-white/15 bg-black/20 p-6">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Selected source</p>
+                <h4 className="mt-2 text-xl font-semibold text-white">{selectedOption?.label ?? "Choose a source"}</h4>
+                <p className="mt-2 text-sm text-gray-400">
+                    {selectedOption?.detail ?? "Select the lead source that matches how this campaign should begin."}
+                </p>
+                <p className="mt-4 text-sm text-gray-500">
+                    After launch, you can still attach a CSV, enrich contacts, or adjust the audience before messages send.
+                </p>
+            </div>
+        </div>
+    );
+}
+function MessagingEditor({
+    channel,
+    mode,
+    campaignName,
+    customMessage,
+    tone,
+    voice,
+    formulation,
+    onChange,
+}: {
+    channel: ChannelType;
+    mode: ExecutionMode;
+    campaignName: string;
+    customMessage: string;
+    tone: ToneOption;
+    voice: VoiceOption;
+    formulation: FormulationOption;
+    onChange: (updates: Partial<CampaignWizardConfig>) => void;
+}) {
+    const preview = buildPreview({
+        ...DEFAULT_CONFIG,
+        channel,
+        executionMode: mode,
+        campaignName,
+        customMessage,
+        tone,
+        voice,
+        formulation,
+        audienceSource: "csv"
+    });
+
+    const handleFieldChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = event.target;
+        onChange({ [name]: value } as Partial<CampaignWizardConfig>);
+    };
+
+    return (
+        <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
+            <div className="space-y-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <label className="block text-sm font-medium text-gray-200" htmlFor="campaignName">
+                        Campaign name
+                    </label>
+                    <input
+                        id="campaignName"
+                        name="campaignName"
+                        value={campaignName}
+                        onChange={handleFieldChange}
+                        className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30"
+                        placeholder="Q2 cloud efficiency outreach"
+                    />
+                    <p className="mt-2 text-sm text-gray-500">Use a name the team can recognize later in reports, approvals, and handoffs.</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <label className="block text-sm font-medium text-gray-200" htmlFor="customMessage">
+                        Campaign brief
+                    </label>
+                    <textarea
+                        id="customMessage"
+                        name="customMessage"
+                        value={customMessage}
+                        onChange={handleFieldChange}
+                        className="mt-2 min-h-[180px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30"
+                        placeholder="Explain the offer, the problem you solve, and the CTA the team should expect in the first message."
+                    />
+                    <p className="mt-2 text-sm text-gray-500">Write this the way you would brief an SDR: what to say, who it is for, and what response you want.</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <p className="text-sm font-medium text-gray-200">Tone</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {(["Professional", "Friendly", "Consultative", "Direct"] as ToneOption[]).map((toneOption) => (
+                            <button
+                                key={toneOption}
+                                type="button"
+                                onClick={() => onChange({ tone: toneOption })}
+                                className={`rounded-full border px-4 py-2 text-sm transition-all ${
+                                    tone === toneOption
+                                        ? "border-blue-500/40 bg-blue-500/15 text-white"
+                                        : "border-white/10 bg-white/5 text-gray-300 hover:border-white/20 hover:bg-white/10"
+                                }`}
+                            >
+                                {toneOption}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <label className="block text-sm font-medium text-gray-200" htmlFor="campaignVoice">
+                        Voice persona
+                    </label>
+                    <select
+                        id="campaignVoice"
+                        name="voice"
+                        value={voice}
+                        onChange={handleFieldChange}
+                        className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30"
+                    >
+                        {(["Founder", "Operator", "Advisor", "Peer", "Analyst"] as VoiceOption[]).map((voiceOption) => (
+                            <option key={voiceOption} value={voiceOption}>{voiceOption}</option>
+                        ))}
+                    </select>
+                    <p className="mt-2 text-sm text-gray-500">Defines the persona behind the outreach, independent of the tone selection.</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <label className="block text-sm font-medium text-gray-200" htmlFor="campaignFormulation">
+                        Formulation style
+                    </label>
+                    <select
+                        id="campaignFormulation"
+                        name="formulation"
+                        value={formulation}
+                        onChange={handleFieldChange}
+                        className="mt-3 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-blue-500/40 focus:ring-1 focus:ring-blue-500/30"
+                    >
+                        {(["Problem-Solution", "Proof-first", "Narrative", "Executive Brief", "Bullet-light"] as FormulationOption[]).map((formulationOption) => (
+                            <option key={formulationOption} value={formulationOption}>{formulationOption}</option>
+                        ))}
+                    </select>
+                    <p className="mt-2 text-sm text-gray-500">Controls the structure used to present the signal, hypothesis, and CTA.</p>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-sm font-medium text-white">Sequence preview</p>
+                            <p className="mt-1 text-sm text-gray-500">Based on the selected {channel} launch path.</p>
+                        </div>
+                        {mode === "saferun" && <Badge variant="secondary">Human review before send</Badge>}
+                    </div>
+                    <div className="mt-4 space-y-3">
+                        {CHANNEL_SEQUENCE[channel].map((sequenceStep, index) => (
+                            <div key={sequenceStep} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/15 text-sm font-semibold text-blue-300">
+                                    {index + 1}
+                                </div>
+                                <span className="text-sm text-gray-200">{sequenceStep}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-col rounded-3xl border border-white/10 bg-black/30">
+                <div className="border-b border-white/10 p-5">
+                    <div className="flex items-center justify-between gap-4">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">Live preview</p>
+                            <p className="mt-1 text-sm text-gray-300">This preview updates from the campaign brief as you type.</p>
+                        </div>
+                        <Badge variant="secondary">{tone}</Badge>
+                    </div>
+                </div>
+
+                <div className="flex-1 p-5">
+                    <pre className="min-h-[320px] whitespace-pre-wrap rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm leading-7 text-gray-300">{preview}</pre>
+                </div>
+
+                <div className="border-t border-white/10 p-5 text-sm text-gray-400">
+                    <div className="flex items-center justify-between gap-4">
+                        <span>{preview.length} characters</span>
+                        <span>{Math.max(1, Math.round(preview.split(/\s+/).filter(Boolean).length / 160))} min read</span>
+                    </div>
+                    <p className="mt-3 text-xs text-gray-500">
+                        {mode === "saferun"
+                            ? "SafeRun keeps this editable and routes every message through review."
+                            : "Autonomous modes use this brief as the instruction source for generated drafts."}
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+}

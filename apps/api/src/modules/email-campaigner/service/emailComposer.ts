@@ -27,6 +27,13 @@ export interface NodeAInput {
     extracted_signal: string;
     sender_name: string;
     sender_email: string;
+    tone?: string;
+    voice?: string;
+    formulation?: string;
+    greeting_style?: string;
+    sign_off?: string;
+    cta_style?: string;
+    constraints?: string;
     knowledge_context?: string;
     memories?: string[];
 }
@@ -47,6 +54,13 @@ export interface NodeBInput {
     hypothesis: string;
     pain_context: string;
     days_since_send: number; // always 3
+    tone?: string;
+    voice?: string;
+    formulation?: string;
+    greeting_style?: string;
+    sign_off?: string;
+    cta_style?: string;
+    constraints?: string;
     memories?: string[];
 }
 
@@ -65,6 +79,13 @@ export interface NodeCInput {
     original_body: string;
     hypothesis: string;
     signal_type: string;
+    tone?: string;
+    voice?: string;
+    formulation?: string;
+    greeting_style?: string;
+    sign_off?: string;
+    cta_style?: string;
+    constraints?: string;
     memories?: string[];
 }
 
@@ -75,6 +96,32 @@ export interface NodeCOutput {
 }
 
 // ─── Prompt builders ──────────────────────────────────────────────────────────
+
+function buildStyleGuidance(input: {
+    tone?: string;
+    voice?: string;
+    formulation?: string;
+    greeting_style?: string;
+    sign_off?: string;
+    cta_style?: string;
+    constraints?: string;
+}) {
+    const guidance = [
+        input.tone ? `Tone: ${input.tone}` : null,
+        input.voice ? `Voice: ${input.voice}` : null,
+        input.formulation ? `Formulation: ${input.formulation}` : null,
+        input.greeting_style ? `Greeting: ${input.greeting_style}` : null,
+        input.sign_off ? `Sign-off: ${input.sign_off}` : null,
+        input.cta_style ? `CTA style: ${input.cta_style}` : null,
+        input.constraints ? `Constraints: ${input.constraints}` : null,
+    ].filter(Boolean);
+
+    if (guidance.length === 0) {
+        return "Use the default ConvoSpan voice: concise, respectful, and buyer-first.";
+    }
+
+    return guidance.join("\n");
+}
 
 function buildNodeAPrompt(input: NodeAInput): string {
     return `You write B2B cold emails that feel like they came from a brilliant peer, not a vendor.
@@ -98,6 +145,9 @@ The prospect must feel, within the first sentence, that you read something *spec
 ## TONE
 Peer-to-peer. No: "I hope this finds you well", "I came across your profile", "I'd love to", "just wanted to". No feature lists. Plain language.
 
+## STYLE SETTINGS
+${buildStyleGuidance(input)}
+
 ## AVOID TOPICS
 Do not reference or imply: ${input.avoid_topics.join(", ") || "none specified"}
 
@@ -112,6 +162,10 @@ Sender: ${input.sender_name} <${input.sender_email}>
 ## KNOWLEDGE_CONTEXT (TOON FORMAT)
 ${input.knowledge_context || "None available."}
 
+## OUTPUT REQUIREMENTS
+- Include the greeting style and sign-off if provided in STYLE SETTINGS.
+- Honor the CTA style guidance (direct vs soft, link-first vs question-first).
+
 ## OUTPUT FORMAT
 Respond ONLY with valid JSON in this exact structure:
 {
@@ -124,7 +178,7 @@ Respond ONLY with valid JSON in this exact structure:
 ${input.memories?.join("\n") || "No specific team patterns recorded yet."}`;
 }
 
-function buildCritiquePrompt(_input: any, draft: any): string {
+function buildCritiquePrompt(input: any, draft: any): string {
     return `You are a Senior Copy Editor reviewing a cold email.
     
     ## DRAFT
@@ -138,6 +192,9 @@ function buildCritiquePrompt(_input: any, draft: any): string {
     4. Friction: Is the CTA too aggressive? (Must be low-friction)
     5. Hallucination: Does it mention things NOT in the provided signal/context?
     6. Masking Violation: Does it contain raw emails/phones? (Tokens like [EMAIL_HASH] are OK).
+
+    ## STYLE REQUIREMENTS
+    ${buildStyleGuidance(input)}
     
     ## TASK
     If the email is perfect, respond ONLY with "PASS".
@@ -180,6 +237,9 @@ ${input.original_body}
 Hypothesis: ${input.hypothesis}
 Pain context: ${input.pain_context}
 
+## STYLE SETTINGS
+${buildStyleGuidance(input)}
+
 ## OUTPUT FORMAT
 Respond ONLY with valid JSON:
 {
@@ -216,6 +276,9 @@ Prospect: ${input.prospect_name}, ${input.prospect_title} at ${input.prospect_co
 Original subject: ${input.original_subject}
 Hypothesis: ${input.hypothesis}
 Signal type: ${input.signal_type}
+
+## STYLE SETTINGS
+${buildStyleGuidance(input)}
 
 ## OUTPUT FORMAT
 Respond ONLY with valid JSON:
@@ -254,12 +317,12 @@ export async function composeNodeA(
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeAPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT" });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE" });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
     
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);
@@ -288,12 +351,12 @@ export async function composeNodeB(
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeBPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT" });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeBOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE" });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
 
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);
@@ -320,12 +383,12 @@ export async function composeNodeC(
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeCPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT" });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeCOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE" });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
 
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);

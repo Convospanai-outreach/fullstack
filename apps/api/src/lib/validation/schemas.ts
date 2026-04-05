@@ -27,6 +27,8 @@ export const createCampaignSchema = z.object({
     scheduledStart: z.string().datetime().optional().nullable(),
     aiConfig: z.object({
         tone: z.string().optional(),
+        voice: z.string().optional(),
+        formulation: z.string().optional(),
         goal: z.string().optional(),
         context: z.string().optional(),
         executionMode: z.enum(["saferun", "hybrid", "autonomous"]).default("saferun")

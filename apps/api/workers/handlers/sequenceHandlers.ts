@@ -6,6 +6,25 @@ import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
 import { EmailService } from "@/lib/emailService";
 
+function toRecord(value: unknown): Record<string, unknown> {
+    return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
+}
+
+function resolveEmailStyle(campaign: any) {
+    const campaignConfig = toRecord(campaign?.aiConfig);
+    const teamConfig = toRecord(campaign?.team?.aiConfig);
+
+    return {
+        tone: (campaignConfig.tone ?? teamConfig.tone) as string | undefined,
+        voice: (campaignConfig.voice ?? teamConfig.voice) as string | undefined,
+        formulation: (campaignConfig.formulation ?? teamConfig.formulation) as string | undefined,
+        greeting_style: (campaignConfig.greetingStyle ?? teamConfig.greetingStyle) as string | undefined,
+        sign_off: (campaignConfig.signOff ?? teamConfig.signOff) as string | undefined,
+        cta_style: (campaignConfig.ctaStyle ?? teamConfig.ctaStyle) as string | undefined,
+        constraints: (campaignConfig.constraints ?? teamConfig.constraints) as string | undefined,
+    };
+}
+
 export async function handleSequenceAction(payload: JobPayload) {
     const leadId = payload['leadId'];
     const url = payload['url'];
@@ -63,24 +82,43 @@ export async function handleSequenceAction(payload: JobPayload) {
 
             if (lead && lead.email && lead.campaign) {
                 const campaign = lead.campaign;
+                const netjanaIntel = typeof lead.enrichedData === "object" && lead.enrichedData !== null
+                    ? (lead.enrichedData as any)["netjana"]
+                    : null;
+                const trustedNetjanaIntel = netjanaIntel
+                    && netjanaIntel.signatureVerified
+                    && netjanaIntel.matchConfidence !== "NONE"
+                    ? netjanaIntel
+                    : null;
+                const automationReadyNetjanaIntel = trustedNetjanaIntel?.safeForAutomation
+                    ? trustedNetjanaIntel
+                    : null;
 
                 let emailSubject = "Checking in";
                 let emailBody = "Hi, I'm following up on our LinkedIn connection request. Would love to chat about your sales motion.";
 
                 try {
+                    const style = resolveEmailStyle(campaign);
                     // 1. Prepare Node A Input
                     const nodeAInput = {
                         prospect_name: lead.fullName || "Prospect",
                         prospect_title: lead.jobTitle || "Professional",
-                        prospect_company: lead.company || "Your Company",
-                        pain_context: (campaign.aiConfig as any)?.painContext || "Improving sales efficiency",
+                        prospect_company: lead.company || trustedNetjanaIntel?.companyName || "Your Company",
+                        pain_context: automationReadyNetjanaIntel?.whatTheyNeed || (campaign.aiConfig as any)?.painContext || "Improving sales efficiency",
                         outreach_timing: "Post-LinkedIn interaction",
                         avoid_topics: (campaign.aiConfig as any)?.avoidTopics || [],
-                        hypothesis: (campaign.aiConfig as any)?.hypothesis || "Your team is looking for automation",
-                        signal_type: "LinkedIn Activity",
-                        extracted_signal: `Recent profile visit at ${url}`,
+                        hypothesis: automationReadyNetjanaIntel?.whyNow || (campaign.aiConfig as any)?.hypothesis || "Your team is looking for automation",
+                        signal_type: automationReadyNetjanaIntel ? "Verified Netjana Buyer Intent" : "LinkedIn Activity",
+                        extracted_signal: automationReadyNetjanaIntel?.whyNow || automationReadyNetjanaIntel?.whatTheyNeed || `Recent profile visit at ${url}`,
                         sender_name: campaign.team?.name || "ConvoSpan Team",
-                        sender_email: "outbound@convospan.ai"
+                        sender_email: "outbound@convospan.ai",
+                        tone: style.tone,
+                        voice: style.voice,
+                        formulation: style.formulation,
+                        greeting_style: style.greeting_style,
+                        sign_off: style.sign_off,
+                        cta_style: style.cta_style,
+                        constraints: style.constraints
                     };
 
                     // 2. Compose via Autonomous Knowledge Engine

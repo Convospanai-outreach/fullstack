@@ -49,11 +49,12 @@ export async function POST(req: NextRequest) {
                 break;
 
             case 5: // Email Voice & Signature
-                // data should contain { tone, voice, constraints, emailSignature, greetingStyle, signOff, ctaStyle }
+                // data should contain { tone, voice, formulation, constraints, emailSignature, greetingStyle, signOff, ctaStyle }
                 const newAiConfigVoice = {
                     ...currentAiConfig,
                     tone: data.tone ?? currentAiConfig.tone,
                     voice: data.voice ?? currentAiConfig.voice,
+                    formulation: data.formulation ?? currentAiConfig.formulation,
                     constraints: data.constraints ?? currentAiConfig.constraints,
                     emailSignature: data.emailSignature ?? currentAiConfig.emailSignature,
                     greetingStyle: data.greetingStyle ?? currentAiConfig.greetingStyle,

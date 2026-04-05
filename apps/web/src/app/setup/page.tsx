@@ -43,6 +43,10 @@ interface SetupStatus {
   hasRedis: boolean;
   hasEdgeNode: boolean;
   hasSlackAlerts: boolean;
+  edgeNodeAvailable: boolean;
+  edgeNodeOptional: boolean;
+  edgeNodeStatus: "UP" | "DOWN" | "NOT_CONFIGURED";
+  edgeNodeMessage: string;
   readyToLaunch: boolean;
   completionPercent: number;
   
@@ -104,6 +108,7 @@ export default function SetupWizardPage() {
           step5: {
             tone: data.aiConfig?.tone || "Professional",
             voice: data.aiConfig?.voice || "",
+            formulation: data.aiConfig?.formulation || "Problem-Solution",
             constraints: data.aiConfig?.constraints || "",
             emailSignature: data.aiConfig?.emailSignature || "",
             greetingStyle: data.aiConfig?.greetingStyle || "Hi {firstName},",
@@ -515,7 +520,7 @@ export default function SetupWizardPage() {
                     </p>
                     <ol className="mt-3 space-y-1 text-sm text-slate-300 list-decimal list-inside">
                       <li>Set <code className="text-slate-200">EXTENSION_API_KEY</code> in API env.</li>
-                      <li>Load extension from <code className="text-slate-200">apps/web/src/extension</code>.</li>
+                      <li>Load the current LinkedIn extension package in Chrome.</li>
                       <li>Configure API URL and key inside extension popup.</li>
                     </ol>
                     <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-300">
@@ -570,6 +575,23 @@ export default function SetupWizardPage() {
                       <option>No greeting</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Formulation Style</label>
+                  <select
+                    title="Formulation Style"
+                    value={formData.step5.formulation}
+                    onChange={e => setFormData({...formData, step5: {...formData.step5, formulation: e.target.value}})}
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white outline-none"
+                  >
+                    <option>Problem-Solution</option>
+                    <option>Proof-first</option>
+                    <option>Narrative</option>
+                    <option>Executive Brief</option>
+                    <option>Bullet-light</option>
+                  </select>
+                  <p className="mt-2 text-xs text-slate-400">Controls the structure and pacing of how the message is framed.</p>
                 </div>
 
                 <div>
@@ -707,6 +729,28 @@ export default function SetupWizardPage() {
                 <ChecklistItem label="Google OAuth SSO" passed={status.hasGoogleOAuth} />
                 <ChecklistItem label="Redis Queue Active" passed={status.hasRedis} />
                 <ChecklistItem label="Slack Alert Hooks" passed={status.hasSlackAlerts} />
+                <ChecklistItem
+                  label={`Edge Runtime ${status.edgeNodeOptional ? "(Optional)" : "(Required)"}`}
+                  passed={status.edgeNodeAvailable || status.edgeNodeOptional}
+                />
+
+                <div className={`rounded-xl border p-4 ${
+                  status.edgeNodeAvailable
+                    ? "border-emerald-500/30 bg-emerald-900/10"
+                    : status.edgeNodeOptional
+                      ? "border-amber-500/30 bg-amber-900/10"
+                      : "border-red-500/30 bg-red-900/10"
+                }`}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white">Edge runtime status</p>
+                    <span className="text-xs uppercase tracking-[0.18em] text-slate-300">{status.edgeNodeStatus}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-300">{status.edgeNodeMessage}</p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Core email and cloud AI workflows continue without the edge node. Edge is only required for strict sovereignty,
+                    residential-IP automation, and hardware-backed actions.
+                  </p>
+                </div>
                 
                 <div className="mt-8 flex justify-center">
                   <p className="text-slate-400 text-sm italic">You have reached the end of the beta readiness checklist.</p>
