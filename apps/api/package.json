@@ -3,10 +3,11 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "dev": "tsx --watch server.ts",
-        "start": "tsx server.ts",
+        "dev": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs --watch server.ts",
+        "start": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs server.ts",
         "build": "tsc -p tsconfig.json",
-        "typecheck": "tsc -p tsconfig.json --noEmit"
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "readiness:audit": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- node -r dotenv/config ../../node_modules/tsx/dist/cli.mjs src/scripts/validate-production-readiness.ts"
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.71.2",
@@ -21,17 +22,12 @@
         "@google/generative-ai": "^0.24.1",
         "@hubspot/api-client": "^13.4.0",
         "@next-auth/prisma-adapter": "^1.0.7",
-        "@opentelemetry/core": "^1.25.1",
-        "@opentelemetry/resources": "^1.25.1",
-        "@opentelemetry/sdk-trace-base": "^1.25.1",
         "@prisma/adapter-pg": "^7.5.0",
         "@prisma/client": "^7.5.0",
         "axios": "^1.13.2",
         "bcryptjs": "^3.0.3",
         "cron-parser": "^5.4.0",
         "date-fns": "^4.1.0",
-        "docker-modem": "5.0.6",
-        "dockerode": "^4.0.9",
         "dotenv": "^17.0.0",
         "eventsource": "^4.1.0",
         "fastify": "^5.0.0",
@@ -53,7 +49,6 @@
         "puppeteer": "^23.11.1",
         "puppeteer-extra": "^3.3.6",
         "puppeteer-extra-plugin-stealth": "^2.11.2",
-        "qs": "^6.15.0",
         "razorpay": "^2.9.6",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
@@ -66,11 +61,9 @@
         "zod": "^4.3.6"
     },
     "devDependencies": {
-        "@types/bcryptjs": "^2.4.6",
         "@types/node": "^20.0.0",
         "@types/nodemailer": "^7.0.11",
         "@types/papaparse": "^5.5.2",
-        "@types/uuid": "^10.0.0",
         "typescript": "5.9.3"
     }
 }
