@@ -37,7 +37,7 @@
 ### Frontend (`apps/web`)
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Next.js** | 16.0.10 | Static export frontend |
+| **Next.js** | 16.1.x | Web UI + route handlers |
 | **React** | 19.2.0 | UI library |
 | **TypeScript** | 5.9.3 | Type safety |
 | **Tailwind CSS** | 4.1.17 | Styling framework |
@@ -49,9 +49,9 @@
 ### Backend API (`apps/api`)
 | Technology | Version | Purpose |
 |------------|---------|---------|
-| **Node.js** | 18+ | Runtime environment |
-| **Fastify** | 4.x | Fast API server layer |
-| **Prisma** | 5.22.0 | ORM and database toolkit |
+| **Node.js** | 20+ | Runtime environment |
+| **Fastify** | 5.x | Fast API server layer |
+| **Prisma** | 7.5.x | ORM and database toolkit |
 | **PostgreSQL** | 14+ | Primary database |
 | **Redis** | 5.10.0 | Caching and job queue |
 | **NextAuth.js** | 4.24.13 | Authentication |

@@ -125,7 +125,8 @@ Recommended environment variables by service:
 
 Current launch mode prioritizes reliability:
 
-- web + api + postgres + redis required
+- web + api + postgres required
+- redis recommended (cache/queue), but the system should boot without it
 - edge optional
 - linked automation surfaces gated for beta where required
 
@@ -136,6 +137,23 @@ npm run beta:start
 ```
 
 This command starts infra, syncs schema, and starts/reuses web and API services.
+
+All three apps locally:
+
+```bash
+npm run beta:start:all
+```
+
+This also ensures `edge-fastapi` is up on port `8000`.
+
+---
+
+## 10) CI / Build environments
+
+Build/test runners (GitHub Actions, preview deploys) should not assume Postgres/Redis exist unless the pipeline provisions them.
+
+- Workflows that need Postgres/Redis should use service containers and run `prisma db push` before executing integration steps.
+- Redis-backed features should degrade gracefully when `REDIS_URL` is not set.
 
 ---
 

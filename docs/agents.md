@@ -18,6 +18,10 @@ Execution modes:
 - `managed_runtime` (cloud FastAPI)
 - `edge_runtime` (local FastAPI edge)
 
+Infra expectations:
+- Postgres is the system-of-record (required).
+- Redis is recommended for cache/queues but remains optional (features must degrade gracefully when `REDIS_URL` is unset).
+
 ---
 
 # Layer 1: Intel Agents (NetJana)

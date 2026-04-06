@@ -1,19 +1,21 @@
-# How to Run ConvoSpan Locally with Docker
+# How to Run ConvoSpan Locally
 
-Now that Docker is configured, you can easily run the entire application (Database, App, and Worker) with a single command.
+This repo is a monorepo. The recommended local fast path is the beta orchestrator script, which starts Postgres + Redis (Docker) and then starts/reuses `apps/api` + `apps/web`.
 
 ## Prerequisites
 - Docker Desktop installed and running.
 
 ## 1. Start the Application
-Open your terminal in the project root (`d:\Convo\extracted\convospan-final`) and run:
+Open your terminal in the project root (`d:\\Convo\\fullstack`) and run:
 
-```powershell
-docker compose up --build
+```bash
+npm run beta:start
 ```
 
-- **--build**: Ensures the images are rebuilt with your latest code changes.
-- The first time you run this, it may take a few minutes to download images and install dependencies.
+This will:
+1. start `db` and `redis` containers (from `docker-compose.yml`)
+2. push Prisma schema to the local DB
+3. start API (`:3001`) and web (`:3000`)
 
 ## 2. Access the Application
 Once the logs show that the server is running (you'll see a message like `Ready in ...`), open your web browser and go to:
@@ -21,10 +23,10 @@ Once the logs show that the server is running (you'll see a message like `Ready 
 **[http://localhost:3000](http://localhost:3000)**
 
 ## 3. Stop the Application
-To stop the application, press `Ctrl+C` in the terminal where it's running.
+To stop the Node processes, press `Ctrl+C` in the terminal where it's running.
 
 To remove the containers and network (clean up), run:
-```powershell
+```bash
 docker compose down
 ```
 

@@ -1,20 +1,27 @@
-﻿Postgres quick start (docker):
+# Deployment Quick Start (Monorepo)
 
-1) Start Postgres:
-   docker run --name convospan-postgres -e POSTGRES_PASSWORD=pass -e POSTGRES_DB=convospan_dev -p 5432:5432 -d postgres:15
+This repository contains multiple deployable apps:
 
-2) Set DATABASE_URL in .env:
-   postgresql://postgres:pass@localhost:5432/convospan_dev
+- `apps/web` (Next.js)
+- `apps/api` (Fastify)
+- `apps/edge-fastapi` (optional/private)
 
-3) Install deps:
-   npm ci --legacy-peer-deps
+For a production-first hosting plan, see `hosting-plan.md`.
 
-4) Generate Prisma client:
-   npx prisma generate
+## Local (Docker infra + Node apps)
 
-5) Create initial migration:
-   npx prisma migrate dev --name init
+Start Postgres + Redis (Docker) and then start/reuse API + Web:
 
-6) Build and run:
-   npm run build
-   npm run start
+```bash
+npm run beta:start
+```
+
+## CI / GitHub Actions (Prisma/Redis)
+
+GitHub runners do not include Postgres/Redis. If a workflow needs them:
+
+1. Add workflow `services:` for Postgres/Redis
+2. Run `prisma db push` (ephemeral DB) before integration steps
+
+See `.github/workflows/ci.yml` and `.github/workflows/playwright.yml`.
+

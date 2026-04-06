@@ -43,8 +43,8 @@ npm run beta:start:all
 Email-first remains the default launch path. LinkedIn is available as an optional operator-assisted channel using the local Chrome extension.
 
 1. Set `EXTENSION_API_KEY` in API env and restart.
-2. Load unpacked extension from `apps/web/src/extension` in Chrome.
-3. In extension popup set:
+2. Load the current LinkedIn extension package in Chrome.
+3. In the extension popup set:
    - API URL: `http://localhost:3000/api/proxy/extension`
    - Extension key: value of `EXTENSION_API_KEY`
    - User token/user id
@@ -92,6 +92,10 @@ For startup speed and fewer moving parts:
 
 See:
 
-- [Architecture](/d:/Convo/fullstack/MASTER_SYSTEM_ARCHITECTURE.md)
-- [Hosting plan](/d:/Convo/fullstack/hosting-plan.md)
-- [Simple repo tree](/d:/Convo/fullstack/docs/SIMPLE_REPO_TREE.md)
+- [Architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
+- [Hosting plan](./hosting-plan.md)
+- [Simple repo tree](./docs/SIMPLE_REPO_TREE.md)
+
+## CI note (GitHub Actions) — Prisma/Redis availability
+
+GitHub runners do not have Postgres/Redis by default. Workflows that need them must provision service containers and run `prisma db push` before integration steps (see `.github/workflows/ci.yml`, `.github/workflows/playwright.yml`).

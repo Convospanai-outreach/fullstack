@@ -1,17 +1,26 @@
-
 let redisClient: any = null;
 
-export async function getRedisClient() {
-    if (process.env['NEXT_RUNTIME'] !== 'nodejs') {
-        return null;
-    }
+function resolveRedisUrl(): string | null {
+    const explicit = (process.env["REDIS_URL"] || "").trim();
+    if (explicit) return explicit;
 
+    const inCi = process.env["CI"] === "true" || process.env["GITHUB_ACTIONS"] === "true";
+    const isProd = process.env["NODE_ENV"] === "production";
+    const disabled = process.env["DISABLE_REDIS"] === "true";
+
+    if (disabled || inCi || isProd) return null;
+    return "redis://localhost:6379";
+}
+
+export async function getRedisClient() {
     if (redisClient && redisClient.isOpen) {
         return redisClient;
     }
 
+    const redisUrl = resolveRedisUrl();
+    if (!redisUrl) return null;
+
     const { createClient } = await import("redis");
-    const redisUrl = process.env['REDIS_URL'] || "redis://localhost:6379";
 
     redisClient = createClient({
         url: redisUrl,
@@ -22,30 +31,37 @@ export async function getRedisClient() {
                     return new Error("Max reconnection attempts reached");
                 }
                 return Math.min(retries * 100, 3000);
-            }
+            },
+        },
+    });
+
+    redisClient.on("error", (err: Error) => {
+        if (process.env["NODE_ENV"] !== "test") {
+            console.error("Redis Client Error:", err);
         }
     });
 
-
-
-    redisClient.on("error", (err: Error) => {
-        console.error("Redis Client Error:", err);
-    });
-
     redisClient.on("connect", () => {
-        console.log("✅ Redis connected");
+        if (process.env["NODE_ENV"] !== "test") {
+            console.log("Redis connected");
+        }
     });
 
     try {
         if (!redisClient.isOpen) {
             const connectPromise = redisClient.connect();
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Redis connection timeout')), 2000));
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Redis connection timeout")), 2000)
+            );
             await Promise.race([connectPromise, timeoutPromise]);
         }
     } catch (error) {
-        console.error("Failed to connect to Redis:", error);
+        if (process.env["NODE_ENV"] !== "test") {
+            console.error("Failed to connect to Redis:", error);
+        }
         // Do not throw, allow app to start without Redis
     }
+
     return redisClient;
 }
 
@@ -56,10 +72,6 @@ export async function closeRedis() {
     }
 }
 
-/**
- * Safe wrapper for Redis GET operation
- * Returns null if Redis is unavailable or key doesn't exist
- */
 export async function safeGet(key: string): Promise<string | null> {
     try {
         const client = await getRedisClient();
@@ -71,10 +83,6 @@ export async function safeGet(key: string): Promise<string | null> {
     }
 }
 
-/**
- * Safe wrapper for Redis SET operation
- * Returns false on failure, true on success
- */
 export async function safeSet(key: string, value: string, ttlSeconds?: number): Promise<boolean> {
     try {
         const client = await getRedisClient();
@@ -92,9 +100,6 @@ export async function safeSet(key: string, value: string, ttlSeconds?: number): 
     }
 }
 
-/**
- * Safe wrapper for Redis DEL operation
- */
 export async function safeDel(key: string): Promise<boolean> {
     try {
         const client = await getRedisClient();
@@ -106,3 +111,4 @@ export async function safeDel(key: string): Promise<boolean> {
         return false;
     }
 }
+
