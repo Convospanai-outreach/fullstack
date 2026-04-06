@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 
 export async function GET() {
     try {
@@ -96,10 +97,11 @@ export async function GET() {
         const hasPaymentMethod = !!process.env['RAZORPAY_KEY_ID'];
 
         // Step 11: Advanced
+        const edgeAvailability = await getEdgeRuntimeAvailability();
         const hasWhatsApp = !!process.env['WHATSAPP_ACCESS_TOKEN'];
         const hasGoogleOAuth = !!process.env['GOOGLE_CLIENT_ID'];
         const hasRedis = !!process.env['REDIS_URL'];
-        const hasEdgeNode = !!process.env['EDGE_NODE_URI'];
+        const hasEdgeNode = edgeAvailability.configured;
         const hasSlackAlerts = !!process.env['SLACK_WEBHOOK_URL'];
 
         // Overall
@@ -146,6 +148,10 @@ export async function GET() {
             hasCalendarLink, uploadedDocCount, hasBrochure, hasCaseStudy,
             teamCredits, hasPaymentMethod,
             hasWhatsApp, hasGoogleOAuth, hasRedis, hasEdgeNode, hasSlackAlerts,
+            edgeNodeAvailable: edgeAvailability.available,
+            edgeNodeOptional: edgeAvailability.optional,
+            edgeNodeStatus: edgeAvailability.status,
+            edgeNodeMessage: edgeAvailability.message,
             readyToLaunch, completionPercent,
 
             // Raw config data so the UI can prefill forms

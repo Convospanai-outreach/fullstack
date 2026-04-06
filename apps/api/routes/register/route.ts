@@ -16,8 +16,19 @@ import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
     try {
+        const rawBody = await req.text();
+        if (!rawBody) {
+            return NextResponse.json({ error: "Missing request body" }, { status: 400 });
+        }
 
-        const { name, email, password } = await req.json();
+        let parsedBody: { name?: string; email?: string; password?: string } = {};
+        try {
+            parsedBody = JSON.parse(rawBody);
+        } catch {
+            return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
+
+        const { name, email, password } = parsedBody;
 
         if (!email || !password) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });

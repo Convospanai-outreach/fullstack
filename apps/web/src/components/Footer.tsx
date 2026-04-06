@@ -10,13 +10,13 @@ export default function Footer() {
                     {/* Brand Column */}
                     <div className="col-span-2 md:col-span-1 space-y-4">
                         <Link href="/" className="flex items-center gap-2 group">
-                            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center">
+                            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-400 to-cyan-500 flex items-center justify-center">
                                 <Sparkles className="w-4 h-4 text-white" />
                             </div>
                             <span className="text-lg font-black font-outfit text-white">ConvoSpan</span>
                         </Link>
                         <p className="text-sm text-gray-500 leading-relaxed">
-                            AI-powered growth infrastructure for autonomous sales teams.
+                            Email-first outbound built for teams that want control, approvals, and clear launch readiness.
                         </p>
                         <div className="flex gap-2">
                             <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" title="Twitter" className="w-8 h-8 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all hover:scale-110 group/social">
@@ -36,8 +36,8 @@ export default function Footer() {
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Product</h4>
                         <ul className="space-y-2 text-sm text-gray-500">
                             <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
-                            <li><Link href="/campaigns" className="hover:text-white transition-colors">Campaigns</Link></li>
-                            <li><Link href="/workflows" className="hover:text-white transition-colors">Workflows</Link></li>
+                            <li><Link href="/signup" className="hover:text-white transition-colors">Start free</Link></li>
+                            <li><Link href="/login" className="hover:text-white transition-colors">Sign in</Link></li>
                         </ul>
                     </div>
 
@@ -69,7 +69,7 @@ export default function Footer() {
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Sovereign Growth Infrastructure</p>
                     </div>
                     <p className="text-xs font-medium text-slate-600">
-                        © {new Date().getFullYear()} <span className="text-slate-400">ConvoSpan</span>. Engineering Excellence for Autonomous Teams.
+                        © {new Date().getFullYear()} <span className="text-slate-400">ConvoSpan</span>. Built for operators, not demos.
                     </p>
                 </div>
             </div>

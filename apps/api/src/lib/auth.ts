@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
+import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 
 import CredentialsProviderImport from "next-auth/providers/credentials";
@@ -14,6 +14,8 @@ const googleClientId = process.env['GOOGLE_CLIENT_ID'];
 const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
 
 const providers = [];
+const GoogleProvider: typeof import("next-auth/providers/google").default =
+    ((GoogleProviderImport as any).default ?? GoogleProviderImport) as any;
 const CredentialsProvider: typeof import("next-auth/providers/credentials").default =
     ((CredentialsProviderImport as any).default ?? CredentialsProviderImport) as any;
 

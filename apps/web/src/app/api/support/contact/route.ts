@@ -1,0 +1,124 @@
+import { NextResponse } from "next/server";
+import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { randomUUID } from "crypto";
+
+type SupportPayload = {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function sanitize(value: string): string {
+    return value
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+}
+
+function validatePayload(payload: SupportPayload): string | null {
+    if (!payload.name?.trim()) return "Name is required";
+    if (!EMAIL_REGEX.test(payload.email ?? "")) return "A valid email is required";
+    if (!payload.subject?.trim()) return "Subject is required";
+    if (!payload.message?.trim()) return "Message is required";
+    if (payload.message.trim().length > 4000) return "Message is too long";
+    return null;
+}
+
+function getSmtpConfig() {
+    const host = process.env["SMTP_HOST"];
+    const user = process.env["SMTP_USER"];
+    const password = process.env["SMTP_PASSWORD"];
+    const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
+
+    if (!host || !user || !password || !fromEmail) {
+        return null;
+    }
+
+    const port = Number(process.env["SMTP_PORT"] || 587);
+    return {
+        host,
+        port,
+        secure: (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465,
+        user,
+        password,
+        fromName: process.env["SMTP_FROM_NAME"] || "ConvoSpan Support",
+        fromEmail,
+    };
+}
+
+function generateTicketId(): string {
+    const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+    const suffix = randomUUID().slice(0, 8).toUpperCase();
+    return `SUP-${stamp}-${suffix}`;
+}
+
+export async function POST(req: Request) {
+    let payload: SupportPayload;
+
+    try {
+        payload = (await req.json()) as SupportPayload;
+    } catch {
+        return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const validationError = validatePayload(payload);
+    if (validationError) {
+        return NextResponse.json({ error: validationError }, { status: 400 });
+    }
+
+    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@convospan.com";
+    const ticketId = generateTicketId();
+    const safeName = sanitize(payload.name.trim());
+    const safeEmail = sanitize(payload.email.trim());
+    const safeSubject = sanitize(payload.subject.trim());
+    const safeMessage = sanitize(payload.message.trim()).replaceAll("\n", "<br/>");
+
+    const smtpConfig = getSmtpConfig();
+    if (!smtpConfig) {
+        console.info("Support ticket queued without SMTP delivery", {
+            name: safeName,
+            email: safeEmail,
+            subject: safeSubject,
+        });
+
+        return NextResponse.json({
+            success: true,
+            ticketId,
+            status: "queued",
+            delivery: "queued",
+            message: "Support request captured. SMTP is not configured in this environment.",
+        });
+    }
+
+    const html = `
+        <h2>New Support Request</h2>
+        <p><strong>Name:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Subject:</strong> ${safeSubject}</p>
+        <hr />
+        <p>${safeMessage}</p>
+    `;
+
+    const result = await sendViaSMTP(smtpConfig, {
+        to: recipient,
+        subject: `[Support] ${payload.subject.trim()}`,
+        html,
+        replyTo: payload.email.trim(),
+    });
+
+    if (!result.success) {
+        return NextResponse.json({ error: "Failed to deliver message", ticketId, status: "failed" }, { status: 502 });
+    }
+
+    return NextResponse.json({
+        success: true,
+        ticketId,
+        status: "submitted",
+        delivery: "sent",
+        message: "Support request submitted successfully."
+    });
+}

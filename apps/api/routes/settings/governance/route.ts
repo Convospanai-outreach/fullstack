@@ -2,14 +2,18 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
+import { APIError, handleAPIError } from "@/lib/apiResponse";
 
 export async function GET() {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return handleAPIError(new APIError("Unauthorized", 401, "UNAUTHORIZED"));
     }
 
     try {
+        const { Permission, authorizePermission } = await import("@/lib/permissions");
+        await authorizePermission(userId, teamId, Permission.MANAGE_POLICY);
+
         let policy = await prisma.organizationPolicy.findUnique({
             where: { organizationId: teamId }
         });
@@ -22,16 +26,16 @@ export async function GET() {
         }
 
         return NextResponse.json(policy);
-    } catch (error) {
+    } catch (error: any) {
         console.error("[Governance API] GET error:", error);
-        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+        return handleAPIError(error);
     }
 }
 
 export async function PUT(req: Request) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return handleAPIError(new APIError("Unauthorized", 401, "UNAUTHORIZED"));
     }
 
     // RBAC: Granular Permission Check
@@ -84,9 +88,6 @@ export async function PUT(req: Request) {
         return NextResponse.json(updatedPolicy);
     } catch (error: any) {
         console.error("[Governance API] PUT error:", error);
-        if (error.message === "INSUFFICIENT_PERMISSIONS") {
-            return NextResponse.json({ error: "Only admins can change policies" }, { status: 403 });
-        }
-        return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+        return handleAPIError(error);
     }
 }

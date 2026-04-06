@@ -37,7 +37,7 @@ export class BullsEyeRAG {
         `;
 
         try {
-            const result = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS" });
+            const result = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS", groundingContext: context, expectsJson: true, disableGuardrails: true });
             if (result.trim().toUpperCase() === "NULL") return null;
 
             const parsed = JSON.parse(result.trim().replace(/```json/g, "").replace(/```/g, ""));

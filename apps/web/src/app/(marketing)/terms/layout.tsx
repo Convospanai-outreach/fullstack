@@ -1,6 +1,4 @@
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
+export const metadata = {
     title: "Terms of Service | ConvoSpan",
     description: "Terms and conditions for using the ConvoSpan platform.",
 };

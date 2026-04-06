@@ -18,27 +18,71 @@ export async function POST(req: NextRequest) {
 
         const job = await prisma.job.findFirst({
             where: { id: taskId, teamId: { in: auth.teamIds } },
-            select: { id: true }
+            select: {
+                id: true,
+                status: true,
+                result: true,
+                error: true
+            }
         });
         if (!job) {
             return NextResponse.json({ error: "Task not found for current user/team" }, { status: 404 });
         }
 
-        // Update job status for team-authorized task
-        const updated = await prisma.job.update({
-            where: { id: job.id },
+        if (job.status === "completed" || job.status === "failed") {
+            return NextResponse.json({
+                success: true,
+                jobId: job.id,
+                status: job.status
+            });
+        }
+
+        const terminalStatus = success ? "completed" : "failed";
+        const updateResult = await prisma.job.updateMany({
+            where: {
+                id: job.id,
+                teamId: { in: auth.teamIds },
+                status: "processing"
+            },
             data: {
-                status: success ? "completed" : "failed",
+                status: terminalStatus,
                 result: result || undefined,
                 error: error || undefined,
                 completedAt: new Date()
             }
         });
 
+        if (updateResult.count === 0) {
+            const latest = await prisma.job.findFirst({
+                where: { id: job.id, teamId: { in: auth.teamIds } },
+                select: { id: true, status: true }
+            });
+            if (!latest) {
+                return NextResponse.json({ error: "Task not found for current user/team" }, { status: 404 });
+            }
+
+            if (latest.status === "completed" || latest.status === "failed") {
+                return NextResponse.json({
+                    success: true,
+                    jobId: latest.id,
+                    status: latest.status
+                });
+            }
+
+            return NextResponse.json(
+                { error: "Task is no longer claimable" },
+                { status: 409 }
+            );
+        }
+
         // Trigger side-effects if needed? (e.g. if VIEW_PROFILE success, enrich lead)
         // This is handled by Orchestrator usually, but here we just update DB.
 
-        return NextResponse.json({ success: true, jobId: updated.id });
+        return NextResponse.json({
+            success: true,
+            jobId: job.id,
+            status: terminalStatus
+        });
 
     } catch (error: any) {
         console.error("Error completing extension task:", error);

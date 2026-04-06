@@ -1,16 +1,46 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import {
+  getConfiguredEdgeRuntimeEndpoint,
+  getEdgeRuntimeAvailability,
+  isEdgeRuntimeRequired,
+} from "@/lib/edgeRuntime";
 
 /**
  * Example Route Module compatible with Next.js signatures
  * Handled by the Fastify auto-loader
  */
-export async function GET() {
+type HealthProbeMode = "liveness" | "readiness";
+
+function resolveProbeMode(req: Request): HealthProbeMode {
+  const probe = new URL(req.url).searchParams.get("probe")?.toLowerCase();
+  if (probe === "live" || probe === "liveness") {
+    return "liveness";
+  }
+  if (probe === "ready" || probe === "readiness") {
+    return "readiness";
+  }
+  return process.env["NODE_ENV"] === "production" ? "readiness" : "liveness";
+}
+
+export async function GET(req: Request) {
   const startedAt = Date.now();
+  const probe = resolveProbeMode(req);
+  if (probe === "liveness") {
+    return NextResponse.json({
+      status: "alive",
+      probe,
+      timestamp: new Date().toISOString(),
+      service: "convospan-api",
+      durationMs: Date.now() - startedAt
+    }, { status: 200 });
+  }
+
   const runtimeMode = process.env["CONVOSPAN_RUNTIME_MODE"] || "";
   const skipHardwareVerification = process.env["BETA_SKIP_HARDWARE_VERIFY"] === "true" || runtimeMode === "email_first_beta";
-  const lenientHealthMode = skipHardwareVerification || process.env["NODE_ENV"] !== "production";
-  const edgeNodeUri = skipHardwareVerification ? "" : (process.env["EDGE_NODE_URI"] || process.env["EDGE_NODE_URL"] || "");
+  const edgeRequired = !skipHardwareVerification && isEdgeRuntimeRequired();
+  const strictReadiness = process.env["NODE_ENV"] === "production" && edgeRequired;
+  const edgeNodeUri = skipHardwareVerification ? undefined : getConfiguredEdgeRuntimeEndpoint();
   let database = "down";
   let edge = edgeNodeUri ? "down" : "not_configured";
   let edgeError: string | null = null;
@@ -20,7 +50,8 @@ export async function GET() {
     database = "up";
   } catch (error) {
     return NextResponse.json({
-      status: lenientHealthMode ? "degraded" : "unhealthy",
+      status: "unhealthy",
+      probe,
       timestamp: new Date().toISOString(),
       service: "convospan-api",
       checks: {
@@ -28,34 +59,39 @@ export async function GET() {
         edge
       },
       durationMs: Date.now() - startedAt
-    }, { status: lenientHealthMode ? 200 : 503 });
+    }, { status: 503 });
   }
 
-  if (edgeNodeUri) {
-    try {
-      const response = await fetch(`${edgeNodeUri}/health`, {
-        method: "GET",
-        signal: AbortSignal.timeout(2500),
-      });
-      edge = response.ok ? "up" : "degraded";
-    } catch (error: any) {
-      edge = "degraded";
-      edgeError = error?.message || "edge check failed";
+  if (!skipHardwareVerification) {
+    const edgeAvailability = await getEdgeRuntimeAvailability();
+    edge =
+      edgeAvailability.status === "UP"
+        ? "up"
+        : edgeAvailability.status === "NOT_CONFIGURED"
+          ? "not_configured"
+          : "degraded";
+    edgeError = edgeAvailability.available ? null : edgeAvailability.message;
+
+    if (!edgeAvailability.configured && edgeRequired) {
+      edge = "missing";
     }
   }
 
-  const status = edge === "degraded" ? "degraded" : "healthy";
+  const edgeIsFailure = edge === "degraded" || edge === "down" || edge === "missing";
+  const status = edgeIsFailure ? (strictReadiness ? "unhealthy" : "degraded") : "healthy";
   return NextResponse.json({
     status,
+    probe,
     timestamp: new Date().toISOString(),
     service: "convospan-api",
     checks: {
       database,
       edge,
-      edgeError
+      edgeError,
+      edgeRequired
     },
     durationMs: Date.now() - startedAt
-  }, { status: 200 });
+  }, { status: strictReadiness && edgeIsFailure ? 503 : 200 });
 }
 
 export async function POST(req: Request) {

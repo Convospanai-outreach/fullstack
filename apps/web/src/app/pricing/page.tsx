@@ -51,7 +51,9 @@ export default function PricingPage() {
                 return;
             }
 
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/billing/checkout", {
+            const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+            const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
+            const res = await fetch(`${base}/billing/checkout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ planId: plan.toLowerCase() })
@@ -82,15 +84,15 @@ export default function PricingPage() {
     const plans = [
         {
             name: "Starter",
-            description: "Perfect for individual prospectors and testing",
+            description: "For founders and early operators validating the first outreach loop",
             monthlyPrice: 49,
             annualPrice: 39,
             credits: 500,
             features: [
-                "Basic AI Enrichment",
-                "Email Sequencing",
-                "Community Support",
-                "Standard Lead Export"
+                "Email campaign drafting",
+                "Lead import and mapping",
+                "Approval-first sending flow",
+                "Standard support response"
             ],
             icon: Zap,
             color: "text-accent-silver",
@@ -98,16 +100,16 @@ export default function PricingPage() {
         },
         {
             name: "Growth",
-            description: "For teams scaling their outbound velocity",
+            description: "For teams shipping repeatable email campaigns with tighter controls",
             monthlyPrice: 99,
             annualPrice: 79,
             credits: 2500,
             features: [
-                "Advanced Agent Intelligence",
-                "LinkedIn Multi-step Playbooks",
-                "Priority Support Response",
-                "Custom ICP Builder",
-                "A/B Testing Suites"
+                "Higher monthly send capacity",
+                "Campaign templates and variants",
+                "Priority support response",
+                "Approval and governance controls",
+                "Reporting and ROI views"
             ],
             icon: Rocket,
             color: "text-accent-blue",
@@ -116,17 +118,17 @@ export default function PricingPage() {
         },
         {
             name: "Enterprise",
-            description: "Custom governance and infinite scale",
+            description: "For teams that need governance, SSO, and rollout support",
             monthlyPrice: 499,
             annualPrice: 399,
             credits: 15000,
             features: [
-                "Full Governance Console",
+                "Advanced governance console",
                 "SSO & Directory Sync",
                 "Dedicated Success Manager",
-                "Custom Model Fine-tuning",
-                "Infinite Export Volume",
-                "Audit Log Persistence"
+                "Custom rollout planning",
+                "Expanded usage controls",
+                "Audit log persistence"
             ],
             icon: Crown,
             color: "text-accent-gold",
@@ -147,11 +149,10 @@ export default function PricingPage() {
                         Pricing & Plans
                     </Badge>
                     <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-                        Fuel your <span className="bg-gradient-to-r from-accent-blue to-accent-violet bg-clip-text text-transparent">Outbound Engine</span>
+                        Yes, you can start with what you need.
                     </h1>
                     <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-                        Predictable pricing for high-performance teams. Switch plans at any time,
-                        scale your credits as you grow.
+                        Start simple. Add more when the work asks for it.
                     </p>
 
                     {/* Billing Toggle */}
@@ -252,22 +253,22 @@ export default function PricingPage() {
                         <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue w-fit">
                             <Shield className="w-6 h-6" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Bank-Grade Security</h4>
-                        <p className="text-sm text-text-secondary">AES-256 encryption at rest, SOC2 compliant infrastructure, and dedicated private VPC for enterprise.</p>
+                        <h4 className="text-lg font-bold text-white">Secure by default</h4>
+                        <p className="text-sm text-text-secondary">Approval-first workflows and a narrower beta surface that reduce operational risk.</p>
                     </div>
                     <div className="space-y-4">
                         <div className="p-3 bg-accent-violet/10 rounded-xl text-accent-violet w-fit">
                             <Star className="w-6 h-6" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Priority Support</h4>
-                        <p className="text-sm text-text-secondary">Our Growth and Enterprise plans get 1-hour response times and a dedicated WhatsApp tunnel for emergencies.</p>
+                        <h4 className="text-lg font-bold text-white">Support when it matters</h4>
+                        <p className="text-sm text-text-secondary">Help for setup, billing, sending issues, and launch readiness when you need it.</p>
                     </div>
                     <div className="space-y-4">
                         <div className="p-3 bg-accent-mint/10 rounded-xl text-accent-mint w-fit">
                             <ArrowRight className="w-6 h-6" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Frictionless Migration</h4>
-                        <p className="text-sm text-text-secondary">Import thousands of leads from Apollo, Hunter, or your custom CRM with 100% data integrity check.</p>
+                        <h4 className="text-lg font-bold text-white">Bring your data</h4>
+                        <p className="text-sm text-text-secondary">Import leads from CSV or your CRM and move from raw list to reviewed campaign.</p>
                     </div>
                 </div>
             </div>

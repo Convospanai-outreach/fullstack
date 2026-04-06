@@ -9,19 +9,16 @@ import {
     FileText,
     Inbox,
     Users,
+    Activity,
+    Bot,
     Settings,
     LogOut,
     CreditCard,
-    Workflow,
-    Store,
-    Database,
-    BookOpen,
     CheckSquare,
-    GitBranch,
-    Bot,
     X,
 } from "lucide-react";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { PRODUCT_FLAGS } from "@/lib/productFlags";
 
 const sidebarGroups = [
     {
@@ -30,24 +27,15 @@ const sidebarGroups = [
             { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
             { href: "/inbox", label: "Inbox", icon: Inbox },
             { href: "/leads", label: "Leads", icon: Users },
+            { href: "/intel", label: "Intel", icon: Activity },
         ],
     },
     {
         label: "Outreach",
         items: [
             { href: "/campaigns", label: "Campaigns", icon: Megaphone },
-            { href: "/workflows", label: "Workflows", icon: Workflow },
-            { href: "/playbooks", label: "Playbooks", icon: BookOpen },
             { href: "/templates", label: "Templates", icon: FileText },
-            { href: "/pipeline", label: "Pipeline", icon: GitBranch },
-        ],
-    },
-    {
-        label: "Intelligence",
-        items: [
-            { href: "/agents", label: "Agents", icon: Bot },
-            { href: "/knowledge", label: "Knowledge Base", icon: Database },
-            { href: "/marketplace", label: "Marketplace", icon: Store },
+            { href: "/agents/swarm", label: "Agent Swarm", icon: Bot },
             { href: "/approvals", label: "Approvals", icon: CheckSquare },
         ],
     },
@@ -58,7 +46,13 @@ const sidebarGroups = [
             { href: "/settings", label: "Settings", icon: Settings },
         ],
     },
-];
+].filter((group) => {
+    if (group.label === "Intelligence") {
+        return !PRODUCT_FLAGS.emailFirstBeta;
+    }
+
+    return true;
+});
 
 interface DashboardSidebarProps {
     isOpen?: boolean;

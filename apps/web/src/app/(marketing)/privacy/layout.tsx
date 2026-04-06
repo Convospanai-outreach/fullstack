@@ -1,6 +1,4 @@
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
+export const metadata = {
     title: "Privacy Policy | ConvoSpan",
     description: "Our commitment to data sovereignty and your privacy.",
 };

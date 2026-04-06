@@ -6,7 +6,8 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund --legacy-peer-deps
+COPY package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund --legacy-peer-deps
 
 COPY . .
 RUN npx prisma generate

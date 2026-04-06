@@ -13,36 +13,48 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ tasks: [] });
         }
 
-        // Fetch pending jobs for these teams
-        // We limit to specific types relevant for extension
-        const tasks = await prisma.job.findMany({
+        const claimedAt = new Date();
+
+        // Fetch a small candidate set, then atomically claim jobs one-by-one.
+        // This avoids returning tasks that another poller already grabbed.
+        const candidates = await prisma.job.findMany({
             where: {
                 teamId: { in: auth.teamIds },
                 status: { in: ["pending", "queued"] },
                 type: { in: ["VIEW_PROFILE", "LIKE_POST", "CONNECT"] }
             },
             take: 5, // Batch size
-            orderBy: { priority: "desc" }
+            orderBy: [
+                { priority: "desc" },
+                { createdAt: "asc" }
+            ]
         });
 
-        if (tasks.length > 0) {
-            await prisma.job.updateMany({
-                where: { id: { in: tasks.map((t) => t.id) } },
+        const claimedTasks: Array<{ id: string; type: string; payload: unknown }> = [];
+
+        for (const candidate of candidates) {
+            const claim = await prisma.job.updateMany({
+                where: {
+                    id: candidate.id,
+                    teamId: { in: auth.teamIds },
+                    status: { in: ["pending", "queued"] }
+                },
                 data: {
                     status: "processing",
-                    startedAt: new Date()
+                    startedAt: claimedAt
                 }
             });
+
+            if (claim.count === 1) {
+                claimedTasks.push({
+                    id: candidate.id,
+                    type: candidate.type,
+                    payload: candidate.payload
+                });
+            }
         }
 
-        // Map to Extension Task format
-        const formattedTasks = tasks.map(job => ({
-            id: job.id,
-            type: job.type,
-            payload: job.payload
-        }));
-
-        return NextResponse.json({ tasks: formattedTasks });
+        return NextResponse.json({ tasks: claimedTasks });
 
     } catch (error: any) {
         console.error("Error fetching extension tasks:", error);

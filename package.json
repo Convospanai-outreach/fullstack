@@ -16,7 +16,9 @@
     "dev:api": "npm run dev --workspace apps/api",
     "start:web": "npm run start --workspace apps/web",
     "start:api": "npm run start --workspace apps/api",
+    "preflight:runtime-files": "node scripts/check-critical-runtime-files.mjs",
     "beta:start": "node scripts/start-local-beta.mjs",
+    "beta:start:all": "node scripts/start-local-beta.mjs --with-edge",
     "docker:api": "docker build -t convospan-api:latest -f apps/api/Dockerfile apps/api",
     "docker:edge": "docker build -t convospan-edge-fastapi:latest -f apps/edge-fastapi/Dockerfile apps/edge-fastapi"
   }

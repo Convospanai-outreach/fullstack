@@ -82,7 +82,7 @@ export class ReplyAnalyzerAgent {
         try {
             // 2. Call AI Service
             // Using a high-level "askAI" call. Ideally, we'd use a more structured output mode if available.
-            const resultText = await aiService.askAI(prompt, undefined, { taskType: "CLASSIFICATION" });
+            const resultText = await aiService.askAI(prompt, undefined, { taskType: "CLASSIFICATION", expectsJson: true, disableGuardrails: true });
             
             // Clean Markdown code blocks if present
             const cleanedJson = resultText.replace(/```json/g, "").replace(/```/g, "").trim();

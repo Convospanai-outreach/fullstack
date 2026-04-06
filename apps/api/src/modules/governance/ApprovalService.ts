@@ -10,22 +10,63 @@ export enum ApprovalStatus {
 export class ApprovalService {
 
     /**
-     * Creates an approval request for a specific task and action.
+     * Creates or reuses an approval request for any entity/action pair.
+     * This is idempotent for the same entity/action combination.
      */
-    static async requestApproval(taskId: string, teamId: string, actionType: string, payload: any, requesterId: string = "system-agent"): Promise<string> {
+    static async requestEntityApproval(
+        entityType: string,
+        entityId: string,
+        teamId: string,
+        actionType: string,
+        payload: any,
+        requesterId: string,
+        options: { reason?: string; requestId?: string } = {}
+    ): Promise<{ id: string; created: boolean }> {
+        const existing = await prisma.approvalRequest.findFirst({
+            where: {
+                teamId,
+                entityType,
+                entityId,
+                actionType
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        if (existing) {
+            return { id: existing.id, created: false };
+        }
+
         const request = await prisma.approvalRequest.create({
             data: {
-                entityId: taskId,
-                entityType: "AgentTask",
+                id: options.requestId,
+                entityId,
+                entityType,
                 requesterId,
                 teamId,
                 actionType,
                 payload: payload || {},
+                reason: options.reason,
                 status: ApprovalStatus.PENDING
             }
         });
 
-        console.log(`[ApprovalService] Request ${request.id} created for Task ${taskId}: ${actionType}`);
+        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType}`);
+        return { id: request.id, created: true };
+    }
+
+    /**
+     * Creates an approval request for a specific task and action.
+     */
+    static async requestApproval(taskId: string, teamId: string, actionType: string, payload: any, requesterId: string = "system-agent"): Promise<string> {
+        const request = await this.requestEntityApproval(
+            "AgentTask",
+            taskId,
+            teamId,
+            actionType,
+            payload,
+            requesterId
+        );
+
         return request.id;
     }
 

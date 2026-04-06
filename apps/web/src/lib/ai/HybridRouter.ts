@@ -1,5 +1,6 @@
 import { ProductMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
+import { isEdgeRuntimeOptional } from "@/lib/edgeRuntime";
 
 export enum AIDestination {
     CLOUD = "CLOUD",
@@ -26,6 +27,9 @@ export interface AIContext {
 }
 
 export class HybridRouter {
+    static isEdgeOptionalMode(): boolean {
+        return isEdgeRuntimeOptional();
+    }
 
     /**
      * Core routing logic: Determines if task should run on Cloud or On-Prem
@@ -33,6 +37,7 @@ export class HybridRouter {
     static async route(context: AIContext): Promise<{ destination: AIDestination; model: string; endpoint?: string }> {
         const endpoint = await this.getEndpoint(AIDestination.ON_PREM, context.userId);
         const isEdgeHealthy = await this.checkEdgeNodeHealth(endpoint);
+        const edgeOptional = this.isEdgeOptionalMode();
         
         // Rule 1: ENTERPRISE_CORE mode forces on-prem for everything sensitive
         if (context.productMode === ProductMode.ENTERPRISE_CORE && context.isComplianceSensitive) {
@@ -45,7 +50,15 @@ export class HybridRouter {
 
         // Rule 2: Any PII must stay on-prem (DPDP Act compliance)
         if (context.containsPII) {
-            if (!isEdgeHealthy) throw new Error("Sovereign Protection: PII detected but no healthy Edge Node assigned. Blocking cloud egress.");
+            if (!isEdgeHealthy && !edgeOptional) {
+                throw new Error("Sovereign Protection: PII detected but no healthy Edge Node assigned. Blocking cloud egress.");
+            }
+            if (!isEdgeHealthy) {
+                return {
+                    destination: AIDestination.CLOUD,
+                    model: context.taskType === AITaskType.EMAIL_DRAFT ? "gemini-1.5-pro" : "gemini-1.5-flash"
+                };
+            }
             return { destination: AIDestination.ON_PREM, model: "phi-3-mini", endpoint };
         }
 

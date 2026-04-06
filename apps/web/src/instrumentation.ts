@@ -1,6 +1,15 @@
 
 export async function register() {
     if (process.env['NEXT_RUNTIME'] === 'nodejs') {
+        const runtimeMode = process.env['CONVOSPAN_RUNTIME_MODE'];
+        const skipHardwareVerification = process.env['BETA_SKIP_HARDWARE_VERIFY'] === 'true'
+            || runtimeMode === 'email_first_beta';
+
+        if (skipHardwareVerification) {
+            console.log('Skipping hardware verification for email-first beta runtime.');
+            return;
+        }
+
         const { HardwareService } = await import('./services/HardwareService');
         // Only run on the server side
         try {

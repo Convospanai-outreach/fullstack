@@ -5,7 +5,9 @@ import { handleEmailSend } from "./handlers/email-worker";
 import { handleLinkedInScrape } from "./handlers/linkedin-worker";
 import { handleCsvImport } from "./handlers/csv-worker";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
+import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleLinkedInAction } from "./handlers/linkedin";
+import { handleAgentRun } from "./handlers/agent-worker";
 import { WorkflowService } from "@/lib/workflowService";
 import { EventStore } from "@/modules/learning/EventStore";
 import { exportService } from "@/modules/data-export/service/exportService";
@@ -94,6 +96,9 @@ export class WorkerManager {
                 case "SEQUENCE_ACTION":
                     result = await handleSequenceAction(job.payload);
                     break;
+                case "INTEL_FOLLOWUP_REFRESH":
+                    result = await handleIntelFollowupRefresh(job.payload);
+                    break;
                 case "LINKEDIN_ACTION":
                     result = await handleLinkedInAction({
                         action: job.payload.action || "VISIT_PROFILE",
@@ -103,13 +108,7 @@ export class WorkerManager {
                     } as any);
                     break;
                 case "agent_run": {
-                    const { prisma } = await import("@/lib/db");
-                    if (!job.payload.agentId) throw new Error("Missing agentId");
-                    await prisma.agent.update({
-                        where: { id: job.payload.agentId },
-                        data: { status: "running" }
-                    });
-                    result = { success: true };
+                    result = await handleAgentRun(job.payload);
                     break;
                 }
                 case "agent_stop": {
@@ -119,6 +118,14 @@ export class WorkerManager {
                         where: { id: job.payload.agentId },
                         data: { status: "idle" }
                     });
+
+                    if (job.payload.taskId) {
+                        await prisma.agentTask.updateMany({
+                            where: { id: job.payload.taskId },
+                            data: { status: "PAUSED" }
+                        });
+                    }
+
                     result = { success: true };
                     break;
                 }

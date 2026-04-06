@@ -66,11 +66,7 @@ describe("Prisma Tests", () => {
   beforeAll(async () => {
     if (!shouldRunDb) return;
     const { PrismaClient } = await import("@prisma/client");
-    prisma = new PrismaClient({
-      datasources: {
-        db: { url: databaseUrl }
-      }
-    });
+    prisma = new PrismaClient();
     await prisma.$connect();
     dbReady = true;
   });

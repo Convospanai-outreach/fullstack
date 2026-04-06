@@ -1,6 +1,4 @@
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
+export const metadata = {
     title: "Forgot Password | ConvoSpan",
     description: "Reset your ConvoSpan account password.",
 };

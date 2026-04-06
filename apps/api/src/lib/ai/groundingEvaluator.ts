@@ -32,7 +32,7 @@ OUTPUT FORMAT (JSON ONLY):
 `;
 
         try {
-            const rawResult = await aiService.askAI(prompt);
+            const rawResult = await aiService.askAI(prompt, undefined, { expectsJson: true, disableGuardrails: true });
             const cleaned = rawResult.replace(/```json/g, "").replace(/```/g, "").trim();
             const result = JSON.parse(cleaned);
 

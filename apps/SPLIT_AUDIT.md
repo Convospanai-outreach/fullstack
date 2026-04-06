@@ -22,13 +22,13 @@
    - File: `services/edge-node/main.py`
 
 5. API split is not truly independent in current original structure.
-   - `convospan-api/tsconfig.json` uses `baseUrl: ".."` and imports `@/*` from root `src`.
+   - `apps/api/tsconfig.json` now uses `baseUrl: "src"` and imports `@/*` from the app-local `src`.
    - This means API cannot be moved without carrying shared code.
-   - File: `convospan-api/tsconfig.json`
+   - File: `apps/api/tsconfig.json`
 
 ## Build-time shortcomings observed
 
-1. `npm --prefix convospan-api run build` currently fails with many strict type errors and missing module/type issues.
+1. `npm run build --workspace apps/api` is the current build entrypoint for the split API app.
 2. Root repo has mixed runtime patterns (Next.js API, Fastify API, Edge FastAPI, Managed FastAPI) which increases drift risk.
 3. Docker and runtime configs are duplicated across multiple compose files with inconsistent env names.
 

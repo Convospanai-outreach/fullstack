@@ -1,6 +1,6 @@
 # ConvoSpan API App
 
-Standalone Fastify API extracted from `convospan-api` and the required shared `src/` modules.
+Standalone Fastify API extracted from the legacy monolith and the required shared `src/` modules.
 
 ## Run locally
 

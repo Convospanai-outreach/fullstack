@@ -1,1 +1,1 @@
-export { WorkerManager } from "../../convospan-api/workers/worker-manager";
+export { WorkerManager } from "../../workers/worker-manager";

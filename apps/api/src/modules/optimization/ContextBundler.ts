@@ -44,7 +44,7 @@ export class ContextBundler {
                 if (combined.length > 4000) { 
                     const prompt = `Please summarize the following conversation context into a dense, highly factual summary. Preserve all names, dates, key decisions, and constraints. Omit pleasantries.\n\nCONTEXT:\n${combined}`;
                     // We use aiService with a systemic "system" teamId or bypass if internal
-                    const summary = await aiService.askAI(prompt, "system-optimization");
+                    const summary = await aiService.askAI(prompt, "system-optimization", { groundingContext: combined });
                     
                     return {
                         ...request,

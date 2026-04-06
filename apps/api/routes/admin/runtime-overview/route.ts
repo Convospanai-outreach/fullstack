@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import Redis from "ioredis";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
+import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 
 type ServiceStatus = "UP" | "DOWN" | "DEGRADED" | "NOT_CONFIGURED";
 
@@ -10,6 +11,7 @@ type ServiceHealth = {
     message: string;
     latencyMs?: number;
     endpoint?: string;
+    optional?: boolean;
 };
 
 const parseRangeStart = (range: string) => {
@@ -126,7 +128,6 @@ export async function GET(req: Request) {
         const startDate = parseRangeStart(range);
 
         const webOrigin = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000";
-        const edgeNodeUri = process.env["EDGE_NODE_URI"] || process.env["EDGE_NODE_URL"] || "http://localhost:8000";
         const extensionGateway = `${webOrigin.replace(/\/$/, "")}/api/proxy/extension`;
         const extension: ServiceHealth = process.env["EXTENSION_API_KEY"]
             ? {
@@ -140,12 +141,20 @@ export async function GET(req: Request) {
                 endpoint: extensionGateway,
             };
 
-        const [web, database, redis, edge] = await Promise.all([
+        const [web, database, redis, edgeAvailability] = await Promise.all([
             checkHttp(webOrigin),
             checkDatabase(),
             checkRedis(),
-            checkHttp(`${edgeNodeUri.replace(/\/$/, "")}/health`),
+            getEdgeRuntimeAvailability(3000),
         ]);
+
+        const edge: ServiceHealth = {
+            status: edgeAvailability.status,
+            message: edgeAvailability.message,
+            latencyMs: edgeAvailability.latencyMs,
+            endpoint: edgeAvailability.endpoint,
+            optional: edgeAvailability.optional,
+        };
 
         const [
             leadsCreated,

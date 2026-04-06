@@ -12,7 +12,7 @@ export default function ContactPage() {
         e.preventDefault();
         setLoading(true);
         try {
-            const response = await fetch("/api/contact", {
+            const response = await fetch("/api/support/contact", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(form),
@@ -24,7 +24,7 @@ export default function ContactPage() {
                 throw new Error(message);
             }
 
-            toast.success("Message sent! We'll get back to you within 24 hours.");
+            toast.success("Message sent. We'll get back to you as soon as we can.");
             setForm({ name: "", email: "", subject: "", message: "" });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to send message. Please try again.";
@@ -44,13 +44,12 @@ export default function ContactPage() {
 
                 {/* Header */}
                 <section className="text-center space-y-6">
-                    <p className="text-sm uppercase tracking-widest text-indigo-400 font-semibold">Get in Touch</p>
+                    <p className="text-sm uppercase tracking-widest text-indigo-400 font-semibold">Contact</p>
                     <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-                        We'd Love to{" "}
-                        <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">Hear From You</span>
+                        Yes, we are here.
                     </h1>
                     <p className="text-xl text-gray-400 max-w-2xl mx-auto leading-relaxed">
-                        Whether you have a question about our platform, need help with your account, or want to explore an enterprise partnership — our team is ready to assist.
+                        Tell us what is blocking you. We will help you move forward.
                     </p>
                 </section>
 
@@ -59,51 +58,51 @@ export default function ContactPage() {
 
                     {/* Contact Info */}
                     <div className="lg:col-span-2 space-y-6">
-                        <h2 className="text-2xl font-bold mb-6">Quick Channels</h2>
+                        <h2 className="text-2xl font-bold mb-6">Quick channels</h2>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/20 transition-colors space-y-2">
                             <div className="flex items-center gap-3 text-indigo-400">
                                 <Mail className="w-5 h-5" />
-                                <span className="font-semibold">Email Support</span>
+                                <span className="font-semibold">Email support</span>
                             </div>
-                            <p className="text-gray-400 text-sm">For general inquiries and account help</p>
+                            <p className="text-gray-400 text-sm">General questions and account help</p>
                             <a href="mailto:support@convospan.com" className="text-white font-medium hover:text-indigo-400 transition-colors">support@convospan.com</a>
                         </div>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/20 transition-colors space-y-2">
                             <div className="flex items-center gap-3 text-purple-400">
                                 <Building2 className="w-5 h-5" />
-                                <span className="font-semibold">Enterprise Sales</span>
+                                <span className="font-semibold">Enterprise sales</span>
                             </div>
-                            <p className="text-gray-400 text-sm">Custom plans, SSO, and volume licensing</p>
+                            <p className="text-gray-400 text-sm">Custom plans, SSO, and rollout support</p>
                             <a href="mailto:enterprise@convospan.com" className="text-white font-medium hover:text-purple-400 transition-colors">enterprise@convospan.com</a>
                         </div>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors space-y-2">
                             <div className="flex items-center gap-3 text-emerald-400">
                                 <Headphones className="w-5 h-5" />
-                                <span className="font-semibold">Live Chat</span>
+                                <span className="font-semibold">In-product help</span>
                             </div>
-                            <p className="text-gray-400 text-sm">Available Monday–Friday, 9 AM – 6 PM IST</p>
-                            <p className="text-white font-medium">Use the chat widget in the dashboard</p>
+                            <p className="text-gray-400 text-sm">Use the floating help assistant anywhere in the app</p>
+                            <p className="text-white font-medium">If you still need help, use this form.</p>
                         </div>
 
                         <div className="flex items-start gap-3 mt-6 text-gray-500 text-sm">
                             <Clock className="w-4 h-4 mt-0.5 shrink-0" />
-                            <p>Typical response time: under 4 hours for Growth plans, under 1 hour for Enterprise.</p>
+                            <p>We will reply as soon as we can.</p>
                         </div>
                     </div>
 
                     {/* Contact Form */}
                     <div className="lg:col-span-3">
                         <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 backdrop-blur-md">
-                            <h2 className="text-2xl font-bold mb-2">Send Us a Message</h2>
-                            <p className="text-sm text-gray-500 mb-8">Fill out the form below and we'll respond within one business day.</p>
+                            <h2 className="text-2xl font-bold mb-2">Send a message</h2>
+                            <p className="text-sm text-gray-500 mb-8">Short is fine. Tell us what happened and what you expected.</p>
 
                             <form onSubmit={handleSubmit} className="space-y-5">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                     <div>
-                                        <label htmlFor="contact-name" className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                                        <label htmlFor="contact-name" className="block text-sm font-medium text-gray-300 mb-2">Your name</label>
                                         <input
                                             id="contact-name"
                                             type="text"
@@ -115,7 +114,7 @@ export default function ContactPage() {
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="contact-email" className="block text-sm font-medium text-gray-300 mb-2">Work Email</label>
+                                        <label htmlFor="contact-email" className="block text-sm font-medium text-gray-300 mb-2">Work email</label>
                                         <input
                                             id="contact-email"
                                             type="email"
@@ -129,7 +128,7 @@ export default function ContactPage() {
                                 </div>
 
                                 <div>
-                                    <label htmlFor="contact-subject" className="block text-sm font-medium text-gray-300 mb-2">Subject</label>
+                                    <label htmlFor="contact-subject" className="block text-sm font-medium text-gray-300 mb-2">What do you need help with?</label>
                                     <select
                                         id="contact-subject"
                                         required
@@ -139,16 +138,16 @@ export default function ContactPage() {
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
                                     >
                                         <option value="" className="bg-slate-900">Select a topic...</option>
-                                        <option value="general" className="bg-slate-900">General Inquiry</option>
-                                        <option value="support" className="bg-slate-900">Technical Support</option>
-                                        <option value="enterprise" className="bg-slate-900">Enterprise Partnership</option>
-                                        <option value="billing" className="bg-slate-900">Billing & Plans</option>
-                                        <option value="feature" className="bg-slate-900">Feature Request</option>
+                                        <option value="general" className="bg-slate-900">General question</option>
+                                        <option value="support" className="bg-slate-900">Technical support</option>
+                                        <option value="enterprise" className="bg-slate-900">Enterprise partnership</option>
+                                        <option value="billing" className="bg-slate-900">Billing & plans</option>
+                                        <option value="feature" className="bg-slate-900">Feature request</option>
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label htmlFor="contact-message" className="block text-sm font-medium text-gray-300 mb-2">Message</label>
+                                    <label htmlFor="contact-message" className="block text-sm font-medium text-gray-300 mb-2">Tell us what happened</label>
                                     <textarea
                                         id="contact-message"
                                         required
@@ -156,7 +155,7 @@ export default function ContactPage() {
                                         value={form.message}
                                         onChange={(e) => setForm({ ...form, message: e.target.value })}
                                         className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-gray-600 resize-none"
-                                        placeholder="Tell us how we can help..."
+                                        placeholder="Where were you, and what did you expect?"
                                     />
                                 </div>
 
@@ -165,7 +164,7 @@ export default function ContactPage() {
                                     disabled={loading}
                                     className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl py-4 text-base font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center justify-center gap-2 disabled:opacity-50"
                                 >
-                                    {loading ? "Sending..." : "Send Message"}
+                                    {loading ? "Sending..." : "Send message"}
                                     {!loading && <Send className="w-4 h-4" />}
                                 </button>
                             </form>

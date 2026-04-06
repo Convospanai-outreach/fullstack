@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { ArrowRight, CheckCircle2, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { SectionHeader } from "@/components/ui/SectionHeader";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
-import { toast } from "sonner";
-import Link from "next/link";
-import { ShieldCheck, ArrowRight, Users } from "lucide-react";
 
 function getPasswordStrength(password: string): { level: number; label: string; color: string } {
     if (!password) return { level: 0, label: "", color: "bg-gray-700" };
@@ -26,6 +26,12 @@ function getPasswordStrength(password: string): { level: number; label: string; 
     return { level: 5, label: "Excellent", color: "bg-emerald-400" };
 }
 
+const setupSteps = [
+    "Create your workspace",
+    "Connect sending",
+    "Review before launch",
+];
+
 export default function SignupPage() {
     const router = useRouter();
     const [formData, setFormData] = useState({
@@ -34,29 +40,40 @@ export default function SignupPage() {
         password: ""
     });
     const [loading, setLoading] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password]);
 
-    const handleSignup = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSignup = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setErrorMessage(null);
         setLoading(true);
 
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/register", {
+            const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+            const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
+            const response = await fetch(`${base}/register`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
             });
 
-            const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || "Something went wrong");
+            const raw = await response.text();
+            let data: any = {};
+            if (raw) {
+                try {
+                    data = JSON.parse(raw);
+                } catch {
+                    data = {};
+                }
             }
 
-            toast.success("Account created! Logging you in...");
+            if (!response.ok) {
+                throw new Error(data.error || "Unable to create workspace right now.");
+            }
 
-            // Auto login
+            toast.success("Account created. Signing you in...");
+
             const loginResult = await signIn("credentials", {
                 redirect: false,
                 email: formData.email,
@@ -64,144 +81,172 @@ export default function SignupPage() {
             });
 
             if (loginResult?.error) {
-                toast.error("Account created, but failed to log in automatically. Please sign in.");
+                toast.error("Account created, but automatic sign-in failed. Please sign in manually.");
                 router.push("/login");
             } else {
                 router.push("/dashboard");
                 router.refresh();
             }
         } catch (error: any) {
-            toast.error(error.message);
+            const message = error instanceof Error ? error.message : "Unable to create workspace.";
+            setErrorMessage(message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center p-4">
-            {/* Decorative Background */}
+        <main className="min-h-screen p-4">
             <div className="fixed inset-0 pointer-events-none opacity-30">
-                <div className="absolute top-[20%] left-[30%] w-[400px] h-[400px] bg-purple-600/20 rounded-full blur-[120px]" />
-                <div className="absolute bottom-[20%] right-[20%] w-[300px] h-[300px] bg-indigo-600/15 rounded-full blur-[120px]" />
+                <div className="absolute left-[24%] top-[18%] h-[420px] w-[420px] rounded-full bg-cyan-600/15 blur-[140px]" />
+                <div className="absolute bottom-[16%] right-[18%] h-[320px] w-[320px] rounded-full bg-blue-700/15 blur-[120px]" />
             </div>
 
-            <div className="w-full max-w-md relative z-10 animate-[fadeSlideUp_0.5s_ease-out]">
-                <SectionHeader title="Create Account" subtitle="Join the AI Agent Army" />
+            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-5xl items-center justify-center py-10">
+                <div className="grid w-full gap-8 lg:grid-cols-[1.05fr,0.95fr]">
+                    <div className="space-y-6 self-center">
+                        <SectionHeader
+                            title="Create your workspace"
+                            subtitle="Set up sending, voice, leads, and approvals in one place."
+                        />
 
-                {/* Social Proof */}
-                <div className="flex items-center justify-center gap-2 mb-6 text-sm text-gray-400">
-                    <Users className="w-4 h-4 text-indigo-400" />
-                    <span>Join <strong className="text-white">2,400+</strong> growth teams using ConvoSpan</span>
-                </div>
+                        <p className="max-w-xl text-base text-gray-400">
+                            You will start with the core steps so your workspace is ready for review.
+                        </p>
 
-                <GlassCard>
-                    <form onSubmit={handleSignup} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
-                            <input
-                                type="text"
-                                required
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
-                                placeholder="John Doe"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
-                            <input
-                                type="email"
-                                required
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
-                                placeholder="you@example.com"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                            <input
-                                type="password"
-                                required
-                                minLength={6}
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all duration-300 placeholder:text-gray-500"
-                                placeholder="••••••••"
-                            />
-                            {/* Password Strength Indicator */}
-                            {formData.password && (
-                                <div className="mt-3 space-y-1.5">
-                                    <div className="flex gap-1">
-                                        {[1, 2, 3, 4, 5].map((i) => (
-                                            <div
-                                                key={i}
-                                                className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                                                    i <= passwordStrength.level ? passwordStrength.color : "bg-white/10"
-                                                }`}
-                                            />
-                                        ))}
-                                    </div>
-                                    <p className={`text-xs font-medium ${
-                                        passwordStrength.level <= 1 ? "text-red-400" :
-                                        passwordStrength.level <= 2 ? "text-orange-400" :
-                                        passwordStrength.level <= 3 ? "text-yellow-400" :
-                                        "text-emerald-400"
-                                    }`}>
-                                        {passwordStrength.label}
-                                    </p>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            {setupSteps.map((step, index) => (
+                                <div key={step} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Step {index + 1}</p>
+                                    <p className="mt-2 text-sm font-medium text-white">{step}</p>
                                 </div>
-                            )}
+                            ))}
                         </div>
-
-                        <Button
-                            disabled={loading}
-                            type="submit"
-                            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 border-0 rounded-xl py-3 text-base font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all duration-300 gap-2"
-                        >
-                            {loading ? "Creating Account..." : "Create Account"}
-                            {!loading && <ArrowRight className="w-4 h-4" />}
-                        </Button>
-
-                        <div className="relative my-6">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-white/10"></div>
-                            </div>
-                            <div className="relative flex justify-center text-sm">
-                                <span className="px-3 bg-[#0f172a] text-gray-500 text-xs uppercase tracking-wider font-medium">Or sign up with</span>
-                            </div>
-                        </div>
-
-                        <button
-                            type="button"
-                            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                            className="w-full bg-white/5 border border-white/10 py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-white/10 hover:border-white/20 transition-all duration-200"
-                        >
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4"/>
-                                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                            </svg>
-                            <span className="text-white text-sm font-medium">Continue with Google</span>
-                        </button>
-                    </form>
-
-                    {/* Trust Badge */}
-                    <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/70" />
-                        <span>14-day free trial · No credit card required</span>
                     </div>
 
-                    <p className="mt-4 text-center text-gray-400">
-                        Already have an account?{" "}
-                        <Link href="/login" className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">Sign in</Link>
-                    </p>
-                </GlassCard>
+                    <div className="animate-[fadeSlideUp_0.5s_ease-out]">
+                        <GlassCard>
+                            <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+                                <div className="flex items-center gap-2 font-medium">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                    Yes, setup continues after signup
+                                </div>
+                                <p className="mt-2 text-emerald-50/90">
+                                    Connect email, define writing style, import leads, and review launch readiness.
+                                </p>
+                            </div>
+
+                            <form onSubmit={handleSignup} className="space-y-6">
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-300">Full name</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={formData.name}
+                                        onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-300 placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                        placeholder="Avery Chen"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-300">Work email</label>
+                                    <input
+                                        type="email"
+                                        required
+                                        value={formData.email}
+                                        onChange={(event) => setFormData({ ...formData, email: event.target.value })}
+                                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-300 placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                        placeholder="you@company.com"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-300">Password</label>
+                                    <input
+                                        type="password"
+                                        required
+                                        minLength={6}
+                                        value={formData.password}
+                                        onChange={(event) => setFormData({ ...formData, password: event.target.value })}
+                                        className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-300 placeholder:text-gray-500 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
+                                        placeholder="Create a secure password"
+                                    />
+                                    {formData.password && (
+                                        <div className="mt-3 space-y-1.5">
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3, 4, 5].map((index) => (
+                                                    <div
+                                                        key={index}
+                                                        className={`h-1 flex-1 rounded-full transition-all duration-300 ${index <= passwordStrength.level ? passwordStrength.color : "bg-white/10"}`}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <p className={`text-xs font-medium ${
+                                                passwordStrength.level <= 1 ? "text-red-400" :
+                                                passwordStrength.level <= 2 ? "text-orange-400" :
+                                                passwordStrength.level <= 3 ? "text-yellow-400" :
+                                                "text-emerald-400"
+                                            }`}>
+                                                Password strength: {passwordStrength.label}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <Button
+                                    disabled={loading}
+                                    type="submit"
+                                    className="w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-cyan-600 to-blue-600 py-3 text-base font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-300 hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-500/30"
+                                >
+                                    {loading ? "Creating workspace..." : "Create workspace"}
+                                    {!loading && <ArrowRight className="h-4 w-4" />}
+                                </Button>
+                                {errorMessage && (
+                                    <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100" role="alert">
+                                        {errorMessage}
+                                    </div>
+                                )}
+
+                                <div className="relative my-6">
+                                    <div className="absolute inset-0 flex items-center">
+                                        <div className="w-full border-t border-white/10" />
+                                    </div>
+                                    <div className="relative flex justify-center text-sm">
+                                        <span className="bg-[#0f172a] px-3 text-xs font-medium uppercase tracking-wider text-gray-500">Or continue with</span>
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                                    className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 transition-all duration-200 hover:border-white/20 hover:bg-white/10"
+                                >
+                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+                                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z" fill="#4285F4"/>
+                                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                                    </svg>
+                                    <span className="text-sm font-medium text-white">Continue with Google</span>
+                                </button>
+                            </form>
+
+                            <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-500">
+                                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/70" />
+                                <span>14-day trial, no credit card required, with review controls before send</span>
+                            </div>
+
+                            <p className="mt-4 text-center text-gray-400">
+                                Already have an account?{" "}
+                                <Link href="/login" className="font-medium text-cyan-400 transition-colors hover:text-cyan-300">
+                                    Sign in
+                                </Link>
+                            </p>
+                        </GlassCard>
+                    </div>
+                </div>
             </div>
         </main>
     );
 }
-

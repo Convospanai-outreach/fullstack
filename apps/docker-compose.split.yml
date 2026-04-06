@@ -16,12 +16,14 @@ services:
     image: convospan-edge-fastapi:split
     container_name: convospan-edge-fastapi-split
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
-      EDGE_MODE: "false"
+      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@host.docker.internal:5433/convospan}
+      EDGE_MODE: ${EDGE_MODE:-false}
       HARDWARE_SIGNATURE: uuid-550e8400-e29b-41d4-a716-446655440000
       OFFLINE_MODEL_PATH: /app/models/custom/Phi-3-Custom.gguf
     volumes:
       - ../training/models:/app/models/custom
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     depends_on:

@@ -280,7 +280,10 @@ RESPONSE:
                 await this.log(taskId, "ACTION", "Generating content/action using MASKED context and TOOLS...");
 
                 // Real LLM Call
-                const generatedRaw = await aiService.askAI(prompt, task.teamId);
+                const generatedRaw = await aiService.askAI(prompt, task.teamId, {
+                    groundingContext: `${JSON.stringify(safePayload)}\n${ragContext}`,
+                    taskType: "AGENT_GENERATION"
+                });
 
                 // Check for Tool Call (Simple JSON extraction)
                 let toolCall: ToolCall | null = null;

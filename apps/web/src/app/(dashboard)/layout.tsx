@@ -43,12 +43,12 @@ export default function DashboardLayout({
                 
                 {/* Setup Wizard Banner — sits above the header */}
                 {showSetupBanner && (
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-3 flex items-center justify-between z-50 fixed top-0 left-0 right-0 h-12">
+                    <div className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-3 flex items-center justify-between z-50 fixed top-0 left-0 right-0 h-12">
                         <div className="flex items-center space-x-4">
-                            <span className="font-medium text-sm">Action Required: Complete your workspace setup to launch campaigns. ({setupPercent}% complete)</span>
+                            <span className="font-medium text-sm">Workspace setup is still in progress. Finish the required steps before launching campaigns. ({setupPercent}% complete)</span>
                         </div>
                         <Link href="/setup" className="px-4 py-1.5 bg-white/20 hover:bg-white/30 rounded text-sm font-semibold transition-colors shrink-0">
-                            Resume Setup
+                            Open Setup
                         </Link>
                     </div>
                 )}
@@ -77,3 +77,4 @@ export default function DashboardLayout({
         </div>
     );
 }
+

@@ -37,8 +37,9 @@ services:
 
   # Service 1: The "Brain" (Next.js Cloud Interface)
   convospan-web:
-    build: .
-    image: convospan-app:latest
+    build:
+      context: ./apps/web
+    image: convospan-web:latest
     container_name: convospan-web
     env_file: .env
     environment:
@@ -58,7 +59,6 @@ services:
       edge-node-sim:
         condition: service_started
     restart: always
-    command: node server.js
 
   # Service 2: The "Physical Node" (Python/FastAPI)
   # This represents the code running inside the physical box in the client's office.

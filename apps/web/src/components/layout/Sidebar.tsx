@@ -5,17 +5,17 @@ import { usePathname } from 'next/navigation';
 import {
     LayoutDashboard,
     Megaphone,
-    Wand2,
-    Bot,
     CreditCard,
     Settings,
-    ShieldCheck,
     Zap,
     Mail,
+    Activity,
     ArrowRightLeft,
     TrendingUp,
-    Cpu
+    ShieldCheck,
+    Bot,
 } from 'lucide-react';
+import { PRODUCT_FLAGS } from "@/lib/productFlags";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -23,17 +23,21 @@ export function Sidebar() {
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
         { name: 'Unified Inbox', href: '/inbox', icon: Mail },
+        { name: 'Intel', href: '/intel', icon: Activity },
         { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
+        { name: 'Agent Swarm', href: '/agents/swarm', icon: Bot },
         { name: 'CRM Bridge', href: '/crm', icon: ArrowRightLeft },
-        { name: 'Agent Builder', href: '/agents/builder', icon: Bot },
-        { name: 'Studio', href: '/studio', icon: Wand2 },
-        // { name: 'Playbooks', href: '/playbooks', icon: BookOpen },
         { name: 'Campaign ROI', href: '/analytics/roi', icon: TrendingUp },
-        { name: 'AI Fleet', href: '/analytics/ai', icon: Cpu },
         { name: 'Governance', href: '/governance', icon: ShieldCheck },
         { name: 'Billing', href: '/billing', icon: CreditCard },
         { name: 'Settings', href: '/settings', icon: Settings },
-    ];
+    ].filter((item) => {
+        if (item.href === '/crm') {
+            return !PRODUCT_FLAGS.emailFirstBeta;
+        }
+
+        return true;
+    });
 
     return (
         <aside className="w-72 glass-strong h-screen flex flex-col p-6 sticky top-0 border-r border-white/5">
@@ -69,16 +73,16 @@ export function Sidebar() {
                 <div className="bg-white/5 rounded-2xl p-4">
                     <div className="flex justify-between items-center mb-2">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Plan</span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-accent-mint">Pro</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-accent-mint">Beta</span>
                     </div>
                     <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                         <div className="h-full bg-accent-mint w-3/4" />
                     </div>
-                    <p className="text-[10px] text-text-muted mt-2">75% of monthly credits used</p>
+                    <p className="text-[10px] text-text-muted mt-2">Email-first private beta rollout</p>
                 </div>
 
                 <div className="mt-4 flex items-center justify-between px-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">v2.0.4 - Canary</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Email-first beta</span>
                     <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 </div>
             </div>

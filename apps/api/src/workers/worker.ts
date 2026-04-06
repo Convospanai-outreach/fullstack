@@ -1,4 +1,4 @@
-import { WorkerManager } from "../../convospan-api/workers/worker-manager";
+import { WorkerManager } from "../../workers/worker-manager";
 import { logger } from "@/lib/logger";
 
 export async function startWorker() {

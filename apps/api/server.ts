@@ -4,7 +4,7 @@ import helmet from '@fastify/helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 dotenv.config();
 
@@ -108,37 +108,60 @@ const nextAdapter = (handler: any) => async (request: any, reply: any) => {
   }
 };
 
-/**
- * Recursively loads routes from the routes directory
- */
-const loadRoutes = async (dir: string, prefix = '') => {
+type RouteModule = Record<string, unknown>;
+
+const HTTP_METHODS = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as const;
+
+function collectRouteFiles(dir: string, prefix = ''): Array<{ fullPath: string; routePath: string }> {
   const entries = fs.readdirSync(dir, { withFileTypes: true });
+  const files: Array<{ fullPath: string; routePath: string }> = [];
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     const routePath = path.join(prefix, entry.name === 'route.ts' ? '' : entry.name).replace(/\\/g, '/');
 
     if (entry.isDirectory()) {
-      await loadRoutes(fullPath, routePath);
-    } else if (entry.name === 'route.ts') {
-      const module = await import(`file://${fullPath}`);
-      const methods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
+      files.push(...collectRouteFiles(fullPath, routePath));
+      continue;
+    }
 
-      for (const method of methods) {
-        if (module[method]) {
-          const registeredPath = `/${routePath}`.replace(/\/$/, '') || '/';
-          fastify.log.info(`Registering [${method}] ${registeredPath}`);
-          
-          fastify.route({
-            method: method as any,
-            url: registeredPath,
-            handler: nextAdapter(module[method])
-          });
-        }
-      }
+    if (entry.name === 'route.ts') {
+      files.push({ fullPath, routePath });
     }
   }
-};
+
+  return files;
+}
+
+async function loadRoutes(dir: string) {
+  const routeFiles = collectRouteFiles(dir);
+
+  const modules = await Promise.all(
+    routeFiles.map(async ({ fullPath, routePath }) => ({
+      fullPath,
+      routePath,
+      module: (await import(pathToFileURL(fullPath).href)) as RouteModule,
+    }))
+  );
+
+  for (const { routePath, module } of modules) {
+    for (const method of HTTP_METHODS) {
+      const handler = module[method];
+      if (!handler || typeof handler !== 'function') {
+        continue;
+      }
+
+      const registeredPath = `/${routePath}`.replace(/\/$/, '') || '/';
+      fastify.log.info(`Registering [${method}] ${registeredPath}`);
+
+      fastify.route({
+        method: method as any,
+        url: registeredPath,
+        handler: nextAdapter(handler)
+      });
+    }
+  }
+}
 
 const start = async () => {
   try {

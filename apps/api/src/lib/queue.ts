@@ -34,7 +34,8 @@ export type JobType =
     | "workflow_step"
     | "event_processing"
     | "CSV_IMPORT"
-    | "SEQUENCE_ACTION";
+    | "SEQUENCE_ACTION"
+    | "INTEL_FOLLOWUP_REFRESH";
 
 export interface JobPayload {
     leadId?: string | undefined;
@@ -142,24 +143,30 @@ export class JobQueue {
 
         for (const candidate of candidates) {
             try {
-                // Try to claim it (support legacy "pending")
-                const tryClaim = async (status: "queued" | "pending") => {
-                    return await prisma.job.update({
-                        where: {
-                            id: candidate.id,
-                            status
-                        },
-                        data: {
-                            status: "running",
-                            startedAt: new Date(),
-                            attempts: { increment: 1 }
-                        }
-                    });
-                };
-                try {
-                    return await tryClaim("queued");
-                } catch (e) {
-                    return await tryClaim("pending");
+                // Claim atomically: only return the job if the row is still eligible.
+                const claim = await prisma.job.updateMany({
+                    where: {
+                        id: candidate.id,
+                        status: { in: ["queued", "pending"] },
+                        processAt: { lte: now }
+                    },
+                    data: {
+                        status: "running",
+                        startedAt: new Date(),
+                        attempts: { increment: 1 }
+                    }
+                });
+
+                if (claim.count === 0) {
+                    continue;
+                }
+
+                const claimedJob = await prisma.job.findUnique({
+                    where: { id: candidate.id }
+                });
+
+                if (claimedJob) {
+                    return claimedJob;
                 }
             } catch (err) {
                 // Concurrency: someone else grabbed it, try next

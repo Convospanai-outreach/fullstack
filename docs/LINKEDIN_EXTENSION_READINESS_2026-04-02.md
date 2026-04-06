@@ -1,7 +1,7 @@
 # LinkedIn Extension Readiness (2026-04-02)
 
 ## Scope
-- Extension UI/runtime: `apps/web/src/extension`
+- Extension UI/runtime: external Chrome extension package, not checked in here
 - Web proxy bridge: `apps/web/src/app/api/proxy/[...path]/route.ts`
 - API integration routes: `apps/api/routes/extension/**`
 
@@ -71,10 +71,8 @@
 - Result: PASS
 
 2. Extension script syntax checks:
-- `node --check apps/web/src/extension/background.js`
-- `node --check apps/web/src/extension/content.js`
-- `node --check apps/web/src/extension/popup.js`
-- Result: PASS
+- No checked-in extension runtime files remain in this repository.
+- Result: N/A
 
 ## Remaining Hosting Checklist
 

@@ -53,12 +53,9 @@ const ROLE_PERMISSIONS: Record<TeamRole, Permission[]> = {
         Permission.MANAGE_SSO
     ],
     [TeamRole.MEMBER]: [
-        Permission.VIEW_AUDIT,
         Permission.MANAGE_PLAYBOOKS
     ],
-    [TeamRole.VIEWER]: [
-        Permission.VIEW_AUDIT
-    ]
+    [TeamRole.VIEWER]: []
 };
 
 export async function hasPermission(userId: string, teamId: string, permission: Permission): Promise<boolean> {

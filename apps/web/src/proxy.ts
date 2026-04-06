@@ -1,10 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
-import { isPathEnabled, PRODUCT_FLAGS } from './lib/productFlags';
+import {
+    getDefaultEnabledHiddenFeatureKeys,
+    getHiddenFeatureForPath,
+    HIDDEN_FEATURES_COOKIE,
+    isPathEnabled,
+    mergeEnabledHiddenFeatureKeys,
+    parseEnabledHiddenFeatureKeys,
+    PRODUCT_FLAGS,
+} from './lib/productFlags';
 
 export async function proxy(req: NextRequest) {
     const path = req.nextUrl.pathname;
+    const hiddenFeature = getHiddenFeatureForPath(path);
+    const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
+        getDefaultEnabledHiddenFeatureKeys(),
+        parseEnabledHiddenFeatureKeys(req.cookies.get(HIDDEN_FEATURES_COOKIE)?.value)
+    );
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
     const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
@@ -15,13 +28,19 @@ export async function proxy(req: NextRequest) {
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
 
-    if (PRODUCT_FLAGS.betaMode && !isPathEnabled(path)) {
+    if (PRODUCT_FLAGS.betaMode && !isPathEnabled(path, enabledHiddenFeatures)) {
         if (path.startsWith("/api")) {
-            return NextResponse.json({ error: "This feature is disabled for the email-first beta." }, { status: 404 });
+            return NextResponse.json({
+                error: "This feature is disabled for the email-first beta.",
+                feature: hiddenFeature?.key ?? null,
+            }, { status: 404 });
         }
 
         const url = req.nextUrl.clone();
-        url.pathname = path.startsWith("/settings") ? "/settings" : "/dashboard";
+        url.pathname = "/settings/features";
+        if (hiddenFeature) {
+            url.searchParams.set("feature", hiddenFeature.key);
+        }
         return NextResponse.redirect(url);
     }
 
@@ -101,6 +120,7 @@ export async function proxy(req: NextRequest) {
         "/about",
         "/contact",
         "/pricing",
+        "/faq",
         "/terms",
         "/privacy",
         "/help",

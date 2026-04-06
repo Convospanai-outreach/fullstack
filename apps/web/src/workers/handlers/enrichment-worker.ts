@@ -62,7 +62,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
       });
 
       if (result.success) {
-        enrichmentData.linkedInProfile = result.data;
+        enrichmentData["linkedInProfile"] = result.data;
       }
     } catch (error) {
       logger.warn("Failed to scrape LinkedIn:", {
@@ -100,7 +100,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
         });
 
         if (result.email) {
-          enrichmentData.email = result.email;
+          enrichmentData["email"] = result.email;
         }
       }
     } catch (error) {
@@ -116,7 +116,7 @@ export async function handleLeadEnrichment(payload: JobPayload) {
     data: { status: "enriched" }
   });
 
-  if (campaignId && (lead.email || enrichmentData.email)) {
+  if (campaignId && (lead.email || enrichmentData["email"])) {
     await JobQueue.enqueue("email_sending", {
       leadId,
       campaignId,

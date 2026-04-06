@@ -1,6 +1,4 @@
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
+export const metadata = {
     title: "Sign In | ConvoSpan",
     description: "Sign in to your ConvoSpan account to manage your AI agents and growth workflows.",
 };

@@ -1,4 +1,11 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
+
+function generateTicketId(): string {
+    const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+    const suffix = randomUUID().slice(0, 8).toUpperCase();
+    return `SUP-${stamp}-${suffix}`;
+}
 
 export async function POST(req: Request) {
     try {
@@ -15,7 +22,12 @@ export async function POST(req: Request) {
 
         await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
 
-        return NextResponse.json({ success: true, message: "Ticket submitted successfully" });
+        return NextResponse.json({
+            success: true,
+            ticketId: generateTicketId(),
+            status: "submitted",
+            message: "Ticket submitted successfully"
+        });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

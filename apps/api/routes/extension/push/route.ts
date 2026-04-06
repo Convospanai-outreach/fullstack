@@ -6,11 +6,11 @@ export async function POST(req: NextRequest) {
     try {
         const auth = await validateExtensionAuth(req);
         if (!auth.ok) {
-            return NextResponse.json({ ok: false, error: auth.error }, { status: auth.status });
+            return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
         }
         const primaryTeamId = auth.teamIds[0];
         if (!primaryTeamId) {
-            return NextResponse.json({ ok: false, error: "User has no team membership" }, { status: 403 });
+            return NextResponse.json({ ok: false, error: "User has no team membership", code: "NO_TEAM_MEMBERSHIP" }, { status: 403 });
         }
 
         const body = await req.json();

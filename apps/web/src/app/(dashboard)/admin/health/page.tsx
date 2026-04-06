@@ -21,6 +21,7 @@ type ServiceHealth = {
   message: string;
   latencyMs?: number;
   endpoint?: string;
+  optional?: boolean;
 };
 
 type RuntimeOverview = {
@@ -164,8 +165,15 @@ export default function AdminHealthPage() {
                     <div>
                       <div className="text-xs uppercase tracking-[0.18em] text-gray-400">{serviceName}</div>
                       <div className="mt-2 flex items-center gap-2">
-                        <span className={`h-2.5 w-2.5 rounded-full ${statusClass[service.status]}`} />
+                        <span className={`h-2.5 w-2.5 rounded-full ${
+                          service.optional && service.status !== "UP" ? "bg-amber-400" : statusClass[service.status]
+                        }`} />
                         <span className="text-sm font-semibold text-white">{service.status}</span>
+                        {service.optional && (
+                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                            optional
+                          </span>
+                        )}
                       </div>
                     </div>
                     <Server className="h-4 w-4 text-gray-400" />

@@ -41,8 +41,9 @@ export async function getPendingApprovals(teamId: string) {
         },
         orderBy: { createdAt: 'desc' }
     });
+    type ApprovalRequestRecord = (typeof requests)[number];
 
-    return requests.map(r => {
+    return requests.map((r: ApprovalRequestRecord) => {
         let detail = "Approval Required";
         try {
             const p = r.payload ? JSON.parse(r.payload as string) : {};

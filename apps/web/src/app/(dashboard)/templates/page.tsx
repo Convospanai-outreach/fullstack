@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import TemplateList from "@/components/templates/TemplateList";
 import TemplateEditor from "@/components/templates/TemplateEditor";
@@ -61,8 +62,18 @@ export default function TemplatesPage() {
         <div className="p-8 max-w-6xl mx-auto space-y-8">
             <SectionHeader
                 title="Email Templates"
-                subtitle="Manage your reusable email templates for campaigns."
+                subtitle="Manage reusable campaign templates, then refine language, audience fit, and PPT narrative in Studio."
             />
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm text-slate-300">
+                Need an international campaign brief or editable presentation outline?
+                {" "}
+                <Link href="/studio" className="text-cyan-300 hover:text-cyan-200 transition">
+                    Open International Campaign Studio
+                </Link>
+                {" "}
+                to adjust language, target audience, regional tone, and slide structure.
+            </div>
 
             {isEditing ? (
                 <div className="max-w-2xl">

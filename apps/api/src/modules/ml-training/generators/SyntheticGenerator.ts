@@ -28,7 +28,8 @@ export class SyntheticDataGenerator {
         // Call Gemini to generate synthetic data
         const response = await aiService.askAI(
             `${prompt}\n\nGenerate exactly ${count} examples in valid JSON format.`,
-            teamId
+            teamId,
+            { expectsJson: true, disableGuardrails: true }
         );
 
         // Parse response

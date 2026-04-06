@@ -4,7 +4,7 @@ import { validateExtensionAuth } from "../../_lib/auth";
 export async function GET(req: NextRequest) {
     const auth = await validateExtensionAuth(req);
     if (!auth.ok) {
-        return NextResponse.json({ valid: false, error: auth.error }, { status: auth.status });
+        return NextResponse.json({ valid: false, error: auth.error, code: auth.code }, { status: auth.status });
     }
     return NextResponse.json({
         valid: true,

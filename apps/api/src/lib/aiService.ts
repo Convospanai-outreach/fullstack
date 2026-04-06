@@ -5,6 +5,10 @@ import { LLMProvider, TaskComplexity } from "@/ai/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import {
+    enforceAgentOutputGuardrails,
+    GuardrailOptions
+} from "./ai/agentOutputGuardrails";
 
 type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -234,9 +238,32 @@ async function callLLM(prompt: string, options: { teamId?: string; complexity?: 
 }
 
 export class AIService {
-    public async askAI(prompt: string, teamId?: string, _taskContext?: any) {
+    public async askAI(
+        prompt: string,
+        teamId?: string,
+        taskContext?: {
+            expectsJson?: boolean;
+            disableGuardrails?: boolean;
+            groundingContext?: string;
+            taskType?: string;
+        }
+    ) {
         const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.STRATEGIC });
-        return result.text;
+
+        const expectsJson = !!taskContext?.expectsJson;
+        const disableGuardrails = !!taskContext?.disableGuardrails;
+        const groundingContext = taskContext?.groundingContext || "";
+
+        if (expectsJson || disableGuardrails) {
+            return result.text;
+        }
+
+        const guardrailOptions: GuardrailOptions = {
+            sourceContext: groundingContext,
+            strictGrounding: true
+        };
+        const guarded = enforceAgentOutputGuardrails(result.text, guardrailOptions);
+        return guarded.text;
     }
 
     async getEmbeddings(text: string, teamId?: string): Promise<number[]> {

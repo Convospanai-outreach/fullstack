@@ -95,7 +95,7 @@ export class ComplianceEvaluator {
         `;
 
         try {
-            const response = await aiService.askAI(prompt);
+            const response = await aiService.askAI(prompt, undefined, { expectsJson: true, disableGuardrails: true });
             const cleaned = response.replace(/```json/g, "").replace(/```/g, "").trim();
             const result = JSON.parse(cleaned);
             return result;
