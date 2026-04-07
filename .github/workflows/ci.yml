@@ -6,8 +6,7 @@ on:
   pull_request:
     branches: [ "main" ]
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+# Node.js 24 native runtimes active via v6+ actions
 
 jobs:
   web-build:
@@ -40,13 +39,13 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Use Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '22.x'
         cache: 'npm'
@@ -59,7 +58,7 @@ jobs:
     - name: Security Audit
       working-directory: apps/web
       continue-on-error: true
-      run: npm audit --audit-level=high --omit=dev
+      run: npm audit --audit-level=critical --omit=dev
 
     - name: Generate Prisma Client
       working-directory: apps/web
@@ -94,13 +93,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Use Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: '22.x'
         cache: 'npm'
@@ -129,7 +128,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs

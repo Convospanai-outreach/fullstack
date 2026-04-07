@@ -2,7 +2,8 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 
-const NETJANA_SOURCE = "NetJana.AI / ConvoSpan Intel";
+const NETJANA_SOURCES = ["netjana-intel"] as const;
+const NETJANA_SOURCE = "netjana-intel";
 const NETJANA_EVENTS = ["LEAD_CARD_READY", "SIGNAL_INGESTED", "INTENT_UPDATED"] as const;
 const BUYING_STAGES = ["AWARENESS", "CONSIDERATION", "DECISION", "UNKNOWN"] as const;
 const VERITY_TIERS = ["TIER_1", "TIER_2"] as const;
@@ -23,9 +24,11 @@ export interface NetjanaLeadPayload {
     source_id?: string;
     buying_stage?: NetjanaBuyingStage;
     procurement_category?: string;
+    procurement_timeline?: string;
     intent_score: number;
     verity_tier?: NetjanaVerityTier;
     is_triangulated?: boolean;
+    card_company?: string;
     card_why_now?: string;
     card_what_they_need?: string;
     card_do_this?: string;
@@ -79,6 +82,8 @@ export interface NormalizedNetjanaSignal {
 type NetjanaIngestOptions = {
     signatureVerified?: boolean;
     rawBody?: string;
+    nonce?: string | null;
+    timestamp?: string | null;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -91,7 +96,7 @@ function isIsoDateTime(value: unknown) {
     }
 
     const parsed = new Date(value);
-    return !Number.isNaN(parsed.getTime()) && parsed.toISOString() === value;
+    return !Number.isNaN(parsed.getTime());
 }
 
 function isUuid(value: unknown) {
@@ -182,13 +187,22 @@ export function shouldQueueNetjanaFollowup(signal: NormalizedNetjanaSignal) {
     return signal.temperatureBand === "HOT" || signal.strengthPercent >= 75;
 }
 
-export function verifyNetjanaSignature(rawBody: string, signature: string | null, secret: string) {
+export function verifyNetjanaSignature(
+    rawBody: string,
+    signature: string | null,
+    secret: string,
+    timestamp?: string | null,
+    nonce?: string | null
+) {
     if (!signature) {
         return false;
     }
 
-    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
     const received = signature.trim();
+    const payload = timestamp && nonce
+        ? [timestamp, nonce, rawBody].join(".")
+        : rawBody;
+    const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
 
     if (!/^[0-9a-f]{64}$/i.test(received) || expected.length !== received.length) {
         return false;
@@ -210,7 +224,8 @@ export function validateNetjanaPayload(payload: unknown): payload is NetjanaInte
 
     const leadData = lead as Record<string, unknown>;
     const validEvent = NETJANA_EVENTS.includes(String(data["event"]) as NetjanaEventType);
-    const validSource = data["source"] === NETJANA_SOURCE;
+    const sourceValue = typeof data["source"] === "string" ? data["source"] : "";
+    const validSource = NETJANA_SOURCES.includes(sourceValue);
     const validTimestamp = isIsoDateTime(data["timestamp"]);
     const validLeadId = isUuid(leadData["lead_id"]);
     const validCompany = isNonEmptyString(leadData["company_name"], 160);
@@ -236,6 +251,8 @@ export function validateNetjanaPayload(payload: unknown): payload is NetjanaInte
         && isOptionalString(leadData["sector"], 120)
         && isOptionalString(leadData["source_id"], 120)
         && isOptionalString(leadData["procurement_category"], 160)
+        && isOptionalString(leadData["procurement_timeline"], 160)
+        && isOptionalString(leadData["card_company"], 320)
         && isOptionalString(leadData["card_why_now"], 400)
         && isOptionalString(leadData["card_what_they_need"], 300)
         && isOptionalString(leadData["card_do_this"], 240)
@@ -255,10 +272,18 @@ export function validateNetjanaPayload(payload: unknown): payload is NetjanaInte
         );
 }
 
-export function createNetjanaSignalId(teamId: string, payload: NetjanaIntelPayload) {
+export function createNetjanaSignalId(teamId: string, payload: NetjanaIntelPayload, nonce?: string | null) {
+    const components = [teamId, payload.lead.lead_id];
+    // If a nonce is provided, it serves as the idempotency anchor for retries.
+    // We include it in the hash to allow multiple distinct signals for the same lead_id
+    // while still deduplicating retries of the SAME signal.
+    if (nonce) {
+        components.push(nonce);
+    }
+
     const hash = crypto
         .createHash("sha256")
-        .update([teamId, payload.lead.lead_id].join("|"))
+        .update(components.join("|"))
         .digest("hex")
         .slice(0, 24);
 
@@ -269,7 +294,7 @@ export function normalizeNetjanaSignal(
     teamId: string,
     payload: NetjanaIntelPayload,
     options: NetjanaIngestOptions = {}
-): NormalizedNetjanaSignal {
+): NormalizedNetjanaSignal & { nonce?: string | null; externalTimestamp?: string | null } {
     const { timestamp, intentScore, signalStrength, strengthPercent } = computeSignalStrength(payload);
     const buyingStage = payload.lead.buying_stage || "UNKNOWN";
     const temperatureBand = strengthPercent >= 75
@@ -279,7 +304,7 @@ export function normalizeNetjanaSignal(
             : "COLD";
     const signatureVerified = Boolean(options.signatureVerified);
     const signal: NormalizedNetjanaSignal = {
-        signalId: createNetjanaSignalId(teamId, payload),
+        signalId: createNetjanaSignalId(teamId, payload, options.nonce),
         event: payload.event,
         externalLeadId: payload.lead.lead_id,
         companyName: sanitizeExternalText(payload.lead.company_name, 160),
@@ -309,6 +334,8 @@ export function normalizeNetjanaSignal(
         trustedForKnowledge: false,
         signatureVerified,
         verificationMode: signatureVerified ? "HMAC_VERIFIED" : "SHARED_KEY_ONLY",
+        nonce: options.nonce || null,
+        externalTimestamp: options.timestamp || null,
     };
 
     const trust = computeBaseTrust(signal);
@@ -713,6 +740,8 @@ export async function ingestNetjanaSignal(
                         trustedForKnowledge: signal.trustedForKnowledge,
                         campaignId: signal.campaignId,
                         receivedAt: signal.timestamp,
+                        externalTimestamp: signal.externalTimestamp,
+                        nonce: signal.nonce,
                         automation: buildAutomationState(signal, {
                             status: followup.queued ? "queued" : "review_required",
                             followupJobId: followup.queued ? followup.jobId : null,

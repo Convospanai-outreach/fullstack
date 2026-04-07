@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
     let signatureVerified = false;
     if (hmacSecret) {
         const signature = req.headers.get("x-netjana-signature");
-        const isValidSignature = verifyNetjanaSignature(rawBody, signature, hmacSecret);
+        const timestamp = req.headers.get("x-netjana-timestamp");
+        const nonce = req.headers.get("x-netjana-nonce");
+        
+        const isValidSignature = verifyNetjanaSignature(rawBody, signature, hmacSecret, timestamp, nonce);
 
         if (!isValidSignature) {
             return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
@@ -44,7 +47,12 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const result = await ingestNetjanaSignal(auth.teamId, payload, { signatureVerified, rawBody });
+        const result = await ingestNetjanaSignal(auth.teamId, payload as any, {
+            signatureVerified,
+            rawBody,
+            nonce: req.headers.get("x-netjana-nonce"),
+            timestamp: req.headers.get("x-netjana-timestamp"),
+        });
 
         return NextResponse.json({
             ok: true,
