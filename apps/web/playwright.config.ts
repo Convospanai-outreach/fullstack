@@ -26,6 +26,18 @@ export default defineConfig({
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
+    webServer: process.env.CI
+        ? {
+            command: 'npm run start',
+            port: 3000,
+            timeout: 180_000,
+            reuseExistingServer: false,
+            env: {
+                ...process.env,
+                PORT: '3000',
+            },
+        }
+        : undefined,
     use: {
         baseURL: 'http://localhost:3000',
         trace: 'on-first-retry',

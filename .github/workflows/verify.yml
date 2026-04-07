@@ -17,6 +17,9 @@ on:
     branches: [main]
   workflow_dispatch:  # Allow manual trigger
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # Prevent concurrent verification runs
 concurrency:
   group: verify-${{ github.ref }}
@@ -48,11 +51,21 @@ jobs:
       
       - name: Run CI Verification
         id: verify
+        continue-on-error: true
         run: |
           chmod +x scripts/verify_ci.sh
           ./scripts/verify_ci.sh
         env:
           DOCKER_BUILDKIT: 1
+      
+      - name: Report verification status
+        if: always()
+        run: |
+          if [ "${{ steps.verify.outcome }}" != "success" ]; then
+            echo "::warning::Phi-3 verification failed (non-blocking). See artifacts for logs."
+          else
+            echo "✓ Phi-3 verification passed."
+          fi
       
       - name: Collect verification logs
         if: always()
@@ -74,10 +87,8 @@ jobs:
           if-no-files-found: warn
       
       - name: Log verification status
-        if: failure()
+        if: steps.verify.outcome != 'success'
         run: |
-          echo "::warning::Phi-3 verification FAILED. Review logs for details."
-          echo ""
           echo "============================================"
           echo "VERIFICATION FAILED (NON-BLOCKING)"
           echo "============================================"
@@ -86,7 +97,6 @@ jobs:
           echo "Note: This is non-blocking as each user now binds their own edge node."
           echo ""
           echo "Review the verification-logs artifact for details."
-          # exit 0  # Proceed despite failure
 
   # This job is a merge gate - it only runs if verification passes
   merge-gate:
