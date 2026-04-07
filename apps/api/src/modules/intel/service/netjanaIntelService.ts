@@ -78,6 +78,7 @@ export interface NormalizedNetjanaSignal {
 
 type NetjanaIngestOptions = {
     signatureVerified?: boolean;
+    rawBody?: string;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -111,6 +112,10 @@ function sanitizeExternalText(value: string | undefined, maxLength: number) {
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, maxLength);
+}
+
+function capsuleText(value: string | undefined, maxLength: number) {
+    return sanitizeExternalText(value, maxLength);
 }
 
 function normalizeCompanyName(value: string) {
@@ -286,9 +291,11 @@ export function normalizeNetjanaSignal(
         strengthPercent,
         verityTier: payload.lead.verity_tier || null,
         isTriangulated: Boolean(payload.lead.is_triangulated),
-        whyNow: sanitizeExternalText(payload.lead.card_why_now, 400),
-        whatTheyNeed: sanitizeExternalText(payload.lead.card_what_they_need, 300),
-        recommendedAction: sanitizeExternalText(payload.lead.card_do_this, 240),
+        // Keep "capsule-sized" by default to avoid DB bloat.
+        // Full report retrieval is user-initiated (enterprise/top tiers) via a pull endpoint.
+        whyNow: capsuleText(payload.lead.card_why_now, 180),
+        whatTheyNeed: capsuleText(payload.lead.card_what_they_need, 160),
+        recommendedAction: capsuleText(payload.lead.card_do_this, 160),
         campaignId: payload.campaign_id || null,
         timestamp,
         temperatureBand,
@@ -341,13 +348,17 @@ function buildWikiContent(signal: NormalizedNetjanaSignal) {
 }
 
 function buildSignalContent(signal: NormalizedNetjanaSignal) {
-    return [
-        signal.whyNow,
-        signal.whatTheyNeed,
+    const capsule = [
+        signal.companyName,
+        signal.buyingStage && signal.buyingStage !== "UNKNOWN" ? signal.buyingStage : null,
+        Number.isFinite(signal.intentScore) ? `${signal.intentScore}/100 intent` : null,
+        signal.whyNow || null,
     ]
         .filter(Boolean)
-        .join(" | ")
-        .trim() || `${signal.companyName} buyer-intent signal`;
+        .join(" • ")
+        .trim();
+
+    return sanitizeExternalText(capsule || `${signal.companyName} buyer-intent signal`, 500);
 }
 
 function buildFollowupReason(signal: NormalizedNetjanaSignal) {
@@ -563,6 +574,11 @@ export async function ingestNetjanaSignal(
     signal.safeForAutomation = trust.safeForAutomation;
 
     const rawPayload = payload as unknown as Record<string, unknown>;
+    const rawBody = options.rawBody;
+    const payloadHash = rawBody
+        ? crypto.createHash("sha256").update(rawBody, "utf8").digest("hex")
+        : crypto.createHash("sha256").update(JSON.stringify(rawPayload), "utf8").digest("hex");
+    const storeRaw = process.env["STORE_RAW_NETJANA_PAYLOAD"] === "true";
     const marketContext = {
         source: "netjana-intel",
         companyName: signal.companyName,
@@ -599,7 +615,9 @@ export async function ingestNetjanaSignal(
             payload: {
                 provider: "netjana-intel",
                 normalized: signal,
-                raw: rawPayload,
+                payloadHash,
+                rawStored: storeRaw,
+                raw: storeRaw ? rawPayload : undefined,
             },
             updatedAt: new Date(),
             teamId,
@@ -611,7 +629,9 @@ export async function ingestNetjanaSignal(
             payload: {
                 provider: "netjana-intel",
                 normalized: signal,
-                raw: rawPayload,
+                payloadHash,
+                rawStored: storeRaw,
+                raw: storeRaw ? rawPayload : undefined,
             },
             teamId,
         },
@@ -704,7 +724,10 @@ export async function ingestNetjanaSignal(
         });
     }
 
-    await upsertIntelKnowledgeItem(teamId, signal);
+    // Knowledge base should only include signals trusted enough to be used as context.
+    if (signal.trustedForKnowledge) {
+        await upsertIntelKnowledgeItem(teamId, signal);
+    }
 
     return {
         signal,

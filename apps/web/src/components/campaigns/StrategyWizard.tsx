@@ -19,8 +19,9 @@ import {
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { IntelCapsule, IntelSignal } from "@/components/intel/IntelCapsule";
 
 export type WizardStep = "channel" | "autonomy" | "audience" | "messaging" | "review";
 export type ChannelType = "linkedin" | "email" | "omnichannel";
@@ -39,6 +40,9 @@ interface CampaignWizardConfig {
     tone: ToneOption;
     voice: VoiceOption;
     formulation: FormulationOption;
+    intelSignalId: string;
+    variantSubject: string;
+    variantBody: string;
 }
 
 const DEFAULT_CONFIG: CampaignWizardConfig = {
@@ -49,7 +53,10 @@ const DEFAULT_CONFIG: CampaignWizardConfig = {
     customMessage: "",
     tone: "Professional",
     voice: "Operator",
-    formulation: "Problem-Solution"
+    formulation: "Problem-Solution",
+    intelSignalId: "",
+    variantSubject: "",
+    variantBody: ""
 };
 
 const WIZARD_STEPS: {
@@ -266,6 +273,7 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
     const [config, setConfig] = useState<CampaignWizardConfig>(DEFAULT_CONFIG);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         const saved = localStorage.getItem("campaign_wizard_draft");
@@ -280,6 +288,16 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
         } catch (error) {
             console.error("Failed to restore draft", error);
         }
+    }, []);
+
+    useEffect(() => {
+        const intelSignalId = searchParams.get("intelSignalId")?.trim();
+        if (!intelSignalId) {
+            return;
+        }
+
+        setConfig((current) => (current.intelSignalId ? current : { ...current, intelSignalId }));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -321,7 +339,7 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
     const handleLaunch = async () => {
         setLoading(true);
         try {
-            const response = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/campaigns", {
+            const response = await fetch("/api/proxy/campaigns", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -346,10 +364,33 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
             }
 
             const data = await response.json();
+            const campaignId = data?.data?.id as string | undefined;
+            if (!campaignId) {
+                throw new Error("Campaign created but response was missing an id");
+            }
+
+            if (campaignId && config.variantSubject?.trim() && config.variantBody?.trim()) {
+                const variantsRes = await fetch(`/api/proxy/campaigns/${campaignId}/variants`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify([
+                        {
+                            subject: config.variantSubject.trim(),
+                            body: config.variantBody.trim(),
+                            weight: 100,
+                        },
+                    ]),
+                });
+
+                if (!variantsRes.ok) {
+                    toast.warning("Campaign created, but the draft variant could not be attached.");
+                }
+            }
+
             toast.success("Campaign created. Opening details...");
             localStorage.removeItem("campaign_wizard_draft");
             onClose();
-            router.push(`/campaigns/${data.data.id}`);
+            router.push(`/campaigns/${campaignId}`);
         } catch (error) {
             toast.error("Failed to launch campaign");
             console.error(error);
@@ -451,6 +492,9 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
                                     tone={config.tone}
                                     voice={config.voice}
                                     formulation={config.formulation}
+                                    intelSignalId={config.intelSignalId}
+                                    variantSubject={config.variantSubject}
+                                    variantBody={config.variantBody}
                                     onChange={updateConfig}
                                 />
                             )}
@@ -714,6 +758,9 @@ function MessagingEditor({
     tone,
     voice,
     formulation,
+    intelSignalId,
+    variantSubject,
+    variantBody,
     onChange,
 }: {
     channel: ChannelType;
@@ -723,8 +770,50 @@ function MessagingEditor({
     tone: ToneOption;
     voice: VoiceOption;
     formulation: FormulationOption;
+    intelSignalId: string;
+    variantSubject: string;
+    variantBody: string;
     onChange: (updates: Partial<CampaignWizardConfig>) => void;
 }) {
+    const [signals, setSignals] = useState<IntelSignal[]>([]);
+    const [intelLoading, setIntelLoading] = useState(false);
+    const [intelError, setIntelError] = useState<string | null>(null);
+    const [generatingCopy, setGeneratingCopy] = useState(false);
+    const [unlockingIntel, setUnlockingIntel] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
+            setIntelLoading(true);
+            try {
+                const res = await fetch("/api/proxy/intel/summary", { cache: "no-store" });
+                if (!res.ok) {
+                    throw new Error("Failed to load Intel feed");
+                }
+                const json = await res.json();
+                const recentSignals = Array.isArray(json?.recentSignals) ? (json.recentSignals as IntelSignal[]) : [];
+                if (!cancelled) {
+                    setSignals(recentSignals);
+                    setIntelError(null);
+                }
+            } catch (err: any) {
+                if (!cancelled) {
+                    setIntelError(err.message || "Failed to load Intel feed");
+                }
+            } finally {
+                if (!cancelled) {
+                    setIntelLoading(false);
+                }
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     const preview = buildPreview({
         ...DEFAULT_CONFIG,
         channel,
@@ -742,9 +831,221 @@ function MessagingEditor({
         onChange({ [name]: value } as Partial<CampaignWizardConfig>);
     };
 
+    const selectedSignal = intelSignalId ? signals.find((s) => s.id === intelSignalId) : undefined;
+    const canGenerateEmailCopy = channel === "email" || channel === "omnichannel";
+
+    const handleInsertIntelBrief = () => {
+        if (!selectedSignal) return;
+
+        const brief = [
+            `Intel capsule: ${selectedSignal.companyName} (${selectedSignal.buyingStage}, ${selectedSignal.intentScore}/100 intent)`,
+            selectedSignal.whyNow ? `Why now: ${selectedSignal.whyNow}` : "",
+            selectedSignal.whatTheyNeed ? `Need: ${selectedSignal.whatTheyNeed}` : "",
+            selectedSignal.recommendedAction ? `Suggested angle: ${selectedSignal.recommendedAction}` : "",
+            "",
+            "Write outreach that references this signal without over-claiming. Keep it concrete, short, and ask for a specific next step.",
+        ]
+            .filter(Boolean)
+            .join("\n");
+
+        onChange({ customMessage: brief });
+        toast.success("Intel capsule added to campaign brief.");
+    };
+
+    const handleGenerateCopy = async () => {
+        if (!selectedSignal) return;
+        if (!canGenerateEmailCopy) {
+            toast.error("Email copy generation is available only for Email or Omnichannel campaigns.");
+            return;
+        }
+
+        setGeneratingCopy(true);
+        try {
+            const nodeAInput = {
+                prospect_name: "{firstName}",
+                prospect_title: "{title}",
+                prospect_company: selectedSignal.companyName,
+                pain_context: selectedSignal.whatTheyNeed || selectedSignal.whyNow || "Operational need detected from buyer-intent signal",
+                outreach_timing: `Signal received ${new Date(selectedSignal.receivedAt).toLocaleDateString()}`,
+                avoid_topics: [],
+                hypothesis: selectedSignal.recommendedAction || "Offer a fast, relevant next step tied to the detected intent.",
+                signal_type: "Netjana Buyer Intent",
+                extracted_signal: selectedSignal.whyNow || selectedSignal.whatTheyNeed || "High-intent buyer signal detected",
+                sender_name: "[Your Name]",
+                sender_email: "you@company.com",
+                tone,
+                voice,
+                formulation,
+                greeting_style: "first_name",
+                sign_off: "Best",
+                cta_style: "short_meeting",
+            };
+
+            const res = await fetch("/api/proxy/email/compose", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ node: "A", input: nodeAInput }),
+            });
+
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err?.error || "Failed to generate draft copy");
+            }
+
+            const json = await res.json();
+            const subject = json?.data?.subject || "";
+            const body = json?.data?.body || "";
+
+            onChange({ variantSubject: subject, variantBody: body });
+            toast.success("Draft email copy generated. Edit it before launch.");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to generate copy");
+        } finally {
+            setGeneratingCopy(false);
+        }
+    };
+
+    const handleUnlockFullIntel = async () => {
+        if (!selectedSignal) return;
+        setUnlockingIntel(true);
+        try {
+            const res = await fetch("/api/proxy/intel/detail", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ signalId: selectedSignal.id }),
+            });
+
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                if (res.status === 403 && json?.code === "UPGRADE_REQUIRED") {
+                    throw new Error("Full Intel reports require a top-tier plan.");
+                }
+                throw new Error(json?.error || "Failed to unlock full Intel report");
+            }
+
+            const lead = json?.lead || {};
+            const whyNow = String(lead.card_why_now || "").trim();
+            const need = String(lead.card_what_they_need || "").trim();
+            const action = String(lead.card_do_this || "").trim();
+
+            const fullIntelBlock = [
+                `Intel report: ${selectedSignal.companyName}`,
+                `Buying stage: ${selectedSignal.buyingStage} • Intent: ${selectedSignal.intentScore}/100`,
+                whyNow ? `Why now: ${whyNow}` : "",
+                need ? `What they need: ${need}` : "",
+                action ? `Suggested action: ${action}` : "",
+                "",
+                "Use this intel as context. Do not over-claim; keep the outreach grounded and specific.",
+            ]
+                .filter(Boolean)
+                .join("\n");
+
+            setSignals((current) =>
+                current.map((s) =>
+                    s.id === selectedSignal.id
+                        ? {
+                              ...s,
+                              whyNow: whyNow || s.whyNow,
+                              whatTheyNeed: need || s.whatTheyNeed,
+                              recommendedAction: action || s.recommendedAction,
+                          }
+                        : s
+                )
+            );
+
+            toast.success("Full Intel report unlocked for this signal.");
+
+            const apply = window.confirm(
+                "Full Intel report unlocked.\n\nAdd the long-format intel details into the campaign brief for more customized content?"
+            );
+            if (apply) {
+                const mergedBrief = customMessage.trim()
+                    ? `${customMessage.trim()}\n\n---\n\n${fullIntelBlock}`
+                    : fullIntelBlock;
+                onChange({ customMessage: mergedBrief });
+                toast.success("Full Intel report added to campaign brief.");
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Failed to unlock full Intel");
+        } finally {
+            setUnlockingIntel(false);
+        }
+    };
+
     return (
         <div className="grid gap-6 xl:grid-cols-[1.05fr,0.95fr]">
             <div className="space-y-6 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-200">Netjana Intel capsule (optional)</p>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Pick a buyer-intent signal as a pre-launch intelligence unit. Optionally convert it into editable email copy.
+                            </p>
+                        </div>
+                        {intelLoading && <Badge variant="secondary">Loading…</Badge>}
+                    </div>
+
+                    {intelError && <p className="mt-3 text-sm text-red-300">{intelError}</p>}
+
+                    {!intelLoading && !intelError && signals.length === 0 && (
+                        <p className="mt-3 text-sm text-gray-400">No signals received yet.</p>
+                    )}
+
+                    {signals.length > 0 && (
+                        <div className="mt-4 space-y-3">
+                            {signals.slice(0, 4).map((signal) => (
+                                <IntelCapsule
+                                    key={signal.id}
+                                    signal={signal}
+                                    selected={signal.id === intelSignalId}
+                                    onSelect={(id) => onChange({ intelSignalId: id })}
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    {selectedSignal && (
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="text-sm text-gray-400">
+                                Selected: <span className="font-medium text-white">{selectedSignal.companyName}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={handleUnlockFullIntel}
+                                    disabled={unlockingIntel}
+                                    className="rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {unlockingIntel ? "Unlocking…" : "Unlock full report"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleInsertIntelBrief}
+                                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                                >
+                                    Insert into brief
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleGenerateCopy}
+                                    disabled={!canGenerateEmailCopy || generatingCopy}
+                                    className="rounded-xl bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {generatingCopy ? "Generating…" : "Generate email copy"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onChange({ intelSignalId: "" })}
+                                    className="rounded-xl px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
                     <label className="block text-sm font-medium text-gray-200" htmlFor="campaignName">
                         Campaign name
@@ -774,6 +1075,53 @@ function MessagingEditor({
                     />
                     <p className="mt-2 text-sm text-gray-500">Write this the way you would brief an SDR: what to say, who it is for, and what response you want.</p>
                 </div>
+
+                {(variantSubject?.trim() || variantBody?.trim()) && (
+                    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <p className="text-sm font-medium text-white">Draft copy (Campaign Variant)</p>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    This will be saved as the initial campaign variant when you launch.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => onChange({ variantSubject: "", variantBody: "" })}
+                                className="rounded-xl px-4 py-2 text-sm text-gray-300 transition hover:bg-white/5 hover:text-white"
+                            >
+                                Remove draft
+                            </button>
+                        </div>
+
+                        <div className="mt-4 space-y-3">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-200" htmlFor="variantSubject">
+                                    Subject
+                                </label>
+                                <input
+                                    id="variantSubject"
+                                    name="variantSubject"
+                                    value={variantSubject || ""}
+                                    onChange={handleFieldChange}
+                                    className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/20"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-200" htmlFor="variantBody">
+                                    Body
+                                </label>
+                                <textarea
+                                    id="variantBody"
+                                    name="variantBody"
+                                    value={variantBody || ""}
+                                    onChange={handleFieldChange}
+                                    className="mt-2 min-h-[180px] w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/20"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="rounded-2xl border border-white/10 bg-black/20 p-5">
                     <p className="text-sm font-medium text-gray-200">Tone</p>

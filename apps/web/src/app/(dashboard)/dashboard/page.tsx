@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Bot, CheckCircle2, Megaphone, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { DashboardController } from "@/components/dashboard/DashboardController";
 import { Button } from "@/components/ui/button";
+import { IntelCapsule, IntelSignal } from "@/components/intel/IntelCapsule";
 
 const launchSteps = [
     {
@@ -25,6 +27,40 @@ const launchSteps = [
 ];
 
 export default function DashboardPage() {
+    const [signals, setSignals] = useState<IntelSignal[]>([]);
+    const [intelLoading, setIntelLoading] = useState(true);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const load = async () => {
+            try {
+                const res = await fetch("/api/proxy/intel/summary", { cache: "no-store" });
+                if (!res.ok) {
+                    throw new Error("intel unavailable");
+                }
+                const json = await res.json();
+                const recentSignals = Array.isArray(json?.recentSignals) ? (json.recentSignals as IntelSignal[]) : [];
+                if (!cancelled) {
+                    setSignals(recentSignals.slice(0, 3));
+                }
+            } catch {
+                if (!cancelled) {
+                    setSignals([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setIntelLoading(false);
+                }
+            }
+        };
+
+        load();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
     return (
         <AppShell>
             <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -95,6 +131,54 @@ export default function DashboardPage() {
                     <p>
                         TOON optimization is active. Prompt sterilization and token compression are running in the background for AI workflows.
                     </p>
+                </div>
+            </section>
+
+            <section className="mb-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">Buyer Intent</p>
+                        <h2 className="mt-2 text-2xl font-semibold text-white">Intel capsules before you launch</h2>
+                        <p className="mt-2 max-w-2xl text-sm text-gray-400">
+                            Review Netjana signals as a compact intelligence unit, then optionally convert them into editable campaign copy.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                        <Link
+                            href="/intel"
+                            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 py-2 text-sm text-gray-200 transition hover:bg-black/30"
+                        >
+                            Open Intel
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                        <Link href="/campaigns/new" className="inline-flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-cyan-500">
+                            Launch from Intel
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                    {intelLoading && <div className="text-sm text-gray-400">Loading intel…</div>}
+                    {!intelLoading && signals.length === 0 && (
+                        <div className="rounded-2xl border border-white/10 bg-black/20 p-5 text-sm text-gray-400">
+                            No intel signals yet. When Netjana pushes buyer intent, you’ll see capsules here.
+                        </div>
+                    )}
+                    {signals.map((signal) => (
+                        <div key={signal.id} className="space-y-2">
+                            <IntelCapsule signal={signal} />
+                            <div className="flex flex-wrap gap-2">
+                                <Link
+                                    href={`/campaigns/new?intelSignalId=${encodeURIComponent(signal.id)}`}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+                                >
+                                    Use in new campaign
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </section>
 

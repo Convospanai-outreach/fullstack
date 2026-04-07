@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const result = await ingestNetjanaSignal(auth.teamId, payload, { signatureVerified });
+        const result = await ingestNetjanaSignal(auth.teamId, payload, { signatureVerified, rawBody });
 
         return NextResponse.json({
             ok: true,
