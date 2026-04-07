@@ -63,7 +63,7 @@ jobs:
 
       - name: Setup Database
         working-directory: apps/web
-        run: npx prisma db push --skip-generate
+        run: npx prisma db push --accept-data-loss
         env:
           DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
 
