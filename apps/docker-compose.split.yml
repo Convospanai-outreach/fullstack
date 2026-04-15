@@ -1,7 +1,12 @@
 services:
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL with pgvector extension
+  # ─────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
     container_name: convospan-postgres-split
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -16,10 +21,31 @@ services:
       timeout: 5s
       retries: 5
 
+  # ─────────────────────────────────────────────
+  # Redis (distributed rate-limiting / BullMQ)
+  # ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: convospan-redis-split
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
+  # Edge FastAPI — Sovereign AI / PII Firewall
+  # ─────────────────────────────────────────────
   edge-fastapi:
     build: ./edge-fastapi
     image: convospan-edge-fastapi:split
     container_name: convospan-edge-fastapi-split
+    restart: unless-stopped
     environment:
       DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/convospan}
       EDGE_MODE: ${EDGE_MODE:-false}
@@ -34,12 +60,23 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
+  # ─────────────────────────────────────────────
+  # API — Fastify + Prisma
+  # ─────────────────────────────────────────────
   api:
     build: ./api
     image: convospan-api:split
     container_name: convospan-api-split
+    restart: unless-stopped
     environment:
       PORT: 3001
       NODE_ENV: production
@@ -47,14 +84,19 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
       REDIS_URL: redis://redis:6379
       EDGE_NODE_URI: http://edge-fastapi:8000
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      SCRAPER_SECRET: ${SCRAPER_SECRET:?SCRAPER_SECRET is required}
+      COMPLIANCE_LIABILITY_PER_RECORD: ${COMPLIANCE_LIABILITY_PER_RECORD:-165}
     ports:
       - "3001:3001"
     depends_on:
-      - postgres
-      - edge-fastapi
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      edge-fastapi:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
       interval: 30s
@@ -62,39 +104,33 @@ services:
       retries: 3
       start_period: 20s
 
+  # ─────────────────────────────────────────────
+  # Web — Next.js Frontend
+  # ─────────────────────────────────────────────
   web:
     build: ./web
     image: convospan-web:split
+    container_name: convospan-web-split
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://api:3001
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3001}
       EDGE_NODE_URI: http://edge-fastapi:8000
-      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
     ports:
       - "3000:3000"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s
-
-  redis:
-    image: redis:7-alpine
-    container_name: convospan-redis-split
-    ports:
-      - "6380:6379"
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
 volumes:
   pgdata:

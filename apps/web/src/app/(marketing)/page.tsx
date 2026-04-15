@@ -1,186 +1,281 @@
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, LifeBuoy, Lock, Sparkles, Wand2 } from "lucide-react";
+import { ArrowRight, BarChart3, Bot, CheckCircle, Globe, Lock, Mail, Sparkles, Star, TrendingUp, Users, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const proofPoints = [
-    "Email-first launch with clear approvals and review.",
-    "LinkedIn and extra channels when your team is ready.",
-    "Support and trust signals visible before and after launch.",
+const stats = [
+    { number: "3.2×", label: "avg reply rate lift" },
+    { number: "94%", label: "deliverability score" },
+    { number: "< 4 hrs", label: "avg time to first reply" },
+    { number: "40K+", label: "campaigns launched" },
 ];
 
-const posterCards = [
+const features = [
     {
-        title: "Signal-rich buy-in",
-        copy: "See intent signals and campaign readiness in one glance.",
-        image: "/images/analytics-preview.png",
+        icon: Bot,
+        color: "from-violet-500/20 to-violet-600/5 border-violet-500/20 text-violet-400",
+        title: "AI that writes like you",
+        description: "Train on your best-performing emails and product voice. ConvoSpan adapts, learns, and improves with every campaign.",
     },
     {
-        title: "Operator clarity",
-        copy: "Setup, approvals, and launch status stay visible while you work.",
-        image: "/images/workflow-preview.png",
+        icon: TrendingUp,
+        color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
+        title: "Intent signals in real time",
+        description: "See which leads are in buying mode before you send. Prioritize the warm ones. Stop guessing.",
     },
     {
-        title: "Trust before checkout",
-        copy: "Review controls and support remain present before you send.",
-        image: "/images/dashboard-preview.png",
+        icon: Lock,
+        color: "from-amber-500/20 to-amber-600/5 border-amber-500/20 text-amber-400",
+        title: "Approvals before every send",
+        description: "No rogue emails. Every campaign goes through your review flow — human-in-the-loop by design.",
+    },
+    {
+        icon: Globe,
+        color: "from-cyan-500/20 to-cyan-600/5 border-cyan-500/20 text-cyan-400",
+        title: "Multi-channel, one workspace",
+        description: "Email, LinkedIn, and more — all in one place. One thread per lead. One team view.",
+    },
+    {
+        icon: BarChart3,
+        color: "from-pink-500/20 to-pink-600/5 border-pink-500/20 text-pink-400",
+        title: "ROI you can actually see",
+        description: "Live revenue attribution, reply tracking, and pipeline contribution. Not vanity metrics.",
+    },
+    {
+        icon: Zap,
+        color: "from-orange-500/20 to-orange-600/5 border-orange-500/20 text-orange-400",
+        title: "Launches in under an hour",
+        description: "Connect your tools, import your leads, define your voice — and you're live. No sales call required.",
     },
 ];
+
+const testimonials = [
+    {
+        quote: "ConvoSpan helped us go from 12 reply rate to 31% in 3 weeks. The AI actually sounds like us.",
+        author: "Priya Menon",
+        role: "Head of Growth, Leapfin",
+        avatar: "PM",
+        stars: 5,
+    },
+    {
+        quote: "Finally an outbound tool that doesn't embarrass you. The approval flow alone saved us from a compliance nightmare.",
+        author: "Marcus Wei",
+        role: "VP Sales, Growthly",
+        avatar: "MW",
+        stars: 5,
+    },
+    {
+        quote: "We replaced three tools with ConvoSpan. And our BDR team actually loves it — that never happens.",
+        author: "Salma Rashid",
+        role: "RevOps Lead, Stackerflow",
+        avatar: "SR",
+        stars: 5,
+    },
+];
+
+const trustedBy = ["Leapfin", "Growthly", "Stackerflow", "Velora", "NovaSales", "TeamLift"];
 
 export default function Home() {
     return (
         <div className="min-h-screen overflow-hidden bg-[#050d17] text-slate-100">
-            <section className="relative overflow-hidden border-b border-white/10">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.16),transparent_34%),radial-gradient(circle_at_78%_24%,rgba(52,211,153,0.18),transparent_28%),linear-gradient(180deg,rgba(5,13,23,0.96),rgba(5,13,23,1))]" />
-                <div className="relative mx-auto grid max-w-7xl gap-14 px-6 py-20 lg:grid-cols-[0.95fr,1.05fr] lg:items-center lg:py-24">
-                    <div>
-                        <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-4 py-2 text-xs uppercase tracking-[0.26em] text-amber-100">
-                            <Sparkles className="h-3.5 w-3.5" />
-                            ConvoSpan
-                        </div>
-                        <h1 className="mt-7 max-w-3xl text-5xl font-semibold tracking-tight text-white sm:text-6xl lg:text-7xl">
-                            Yes, launch outbound with more control.
-                        </h1>
-                        <p className="mt-6 max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-                            Set up email, define voice, review approvals, and launch from one workspace built for real teams.
-                        </p>
 
-                        <div className="mt-10 flex flex-col gap-4 sm:flex-row">
-                            <Link href="/signup">
-                                <Button className="h-auto rounded-full bg-amber-300 px-8 py-4 text-base font-semibold text-slate-950 hover:bg-amber-200">
-                                    Start free
-                                </Button>
-                            </Link>
-                            <Link href="/help">
-                                <Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.03] px-8 py-4 text-base text-white hover:bg-white/[0.06]">
-                                    Explore the help flow
-                                </Button>
-                            </Link>
-                        </div>
-
-                        <div className="mt-10 space-y-3">
-                            {proofPoints.map((point) => (
-                                <div key={point} className="flex items-start gap-3 text-sm text-slate-200 sm:text-base">
-                                    <span className="mt-1 h-2.5 w-2.5 rounded-full bg-amber-300" />
-                                    <span>{point}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2 rounded-[32px] border border-white/10 bg-white/[0.04] p-4 shadow-[0_28px_120px_rgba(2,6,23,0.45)]">
-                            <div className="relative aspect-[16/10] overflow-hidden rounded-[26px] border border-white/10 bg-[#09111b]">
-                                <Image
-                                    src="/images/dashboard-preview.png"
-                                    alt="ConvoSpan workspace preview"
-                                    fill
-                                    priority
-                                    className="object-cover"
-                                />
-                            </div>
-                        </div>
-                        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-3">
-                            <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] border border-white/10 bg-[#09111b]">
-                                <Image src="/images/analytics-preview.png" alt="Signal and analytics preview" fill className="object-cover" />
-                            </div>
-                        </div>
-                        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-3">
-                            <div className="relative aspect-[4/5] overflow-hidden rounded-[22px] border border-white/10 bg-[#09111b]">
-                                <Image src="/images/workflow-preview.png" alt="Workflow and approvals preview" fill className="object-cover" />
-                            </div>
-                        </div>
-                    </div>
+            {/* ── HERO ──────────────────────────────────────── */}
+            <section className="relative overflow-hidden">
+                {/* Background glow blobs */}
+                <div className="pointer-events-none absolute inset-0">
+                    <div className="absolute left-1/4 top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[120px]" />
+                    <div className="absolute right-1/4 top-1/3 h-[400px] w-[400px] rounded-full bg-cyan-600/8 blur-[100px]" />
+                    <div className="absolute bottom-0 left-1/2 h-[300px] w-[800px] -translate-x-1/2 rounded-full bg-indigo-600/6 blur-[120px]" />
                 </div>
-            </section>
 
-            <section className="mx-auto grid max-w-7xl gap-8 px-6 py-16 lg:grid-cols-3">
-                {posterCards.map((card) => (
-                    <div key={card.title} className="overflow-hidden rounded-[32px] border border-white/10 bg-white/[0.03]">
-                        <div className="relative aspect-[5/6] border-b border-white/10">
-                            <Image src={card.image} alt={card.title} fill className="object-cover" />
-                        </div>
-                        <div className="space-y-3 p-6">
-                            <h2 className="text-2xl font-semibold text-white">{card.title}</h2>
-                            <p className="text-sm leading-7 text-slate-300">{card.copy}</p>
-                        </div>
+                <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 text-center">
+                    {/* Badge */}
+                    <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-5 py-2 text-sm text-violet-200 backdrop-blur-sm">
+                        <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                        <span className="font-medium">AI-powered outbound for B2B growth teams</span>
+                        <span className="ml-1 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">New ✦</span>
                     </div>
-                ))}
-            </section>
 
-            <section className="mx-auto grid max-w-7xl gap-8 px-6 py-8 lg:grid-cols-[1fr,0.9fr]">
-                <div className="rounded-[32px] border border-white/10 bg-gradient-to-br from-amber-300/12 via-orange-500/10 to-transparent p-8">
-                    <div className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-amber-100/80">
-                        <LifeBuoy className="h-4 w-4" />
-                        Help Before Handoff
-                    </div>
-                    <h2 className="mt-5 text-3xl font-semibold text-white sm:text-4xl">
-                        Yes, every public and signed-in screen has a support path.
-                    </h2>
-                    <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                        The floating assistant answers setup, billing, imports, approvals, and API-key questions using the help
-                        center, then hands off to contact support when the issue needs a human.
+                    {/* Headline */}
+                    <h1 className="mx-auto max-w-5xl text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
+                        Turn cold outreach into{" "}
+                        <span className="relative inline-block">
+                            <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
+                                warm pipeline
+                            </span>
+                            {/* underline accent */}
+                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-60" />
+                        </span>
+                    </h1>
+
+                    {/* Subheadline */}
+                    <p className="mx-auto mt-8 max-w-2xl text-xl leading-8 text-slate-300">
+                        ConvoSpan gives your growth team an AI agent army — trained on your voice, restrained by your approvals, and focused on the leads most likely to reply.
                     </p>
-                    <div className="mt-8 flex flex-wrap gap-3">
-                        <Link href="/help" className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm text-white transition hover:border-amber-300/40 hover:bg-white/[0.04]">
-                            Open help center
-                            <ArrowRight className="h-4 w-4" />
-                        </Link>
-                        <Link href="/contact" className="inline-flex items-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm text-white transition hover:border-amber-300/40 hover:bg-white/[0.04]">
-                            Contact support
-                            <ArrowRight className="h-4 w-4" />
-                        </Link>
-                    </div>
-                </div>
 
-                <div className="grid gap-4">
-                    <div className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6">
-                        <div className="flex items-start gap-4">
-                            <div className="rounded-2xl bg-amber-300/10 p-3 text-amber-200">
-                                <Wand2 className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-white">Product-first walkthrough</h3>
-                                <p className="mt-2 text-sm leading-7 text-slate-300">
-                                    See the real workflow, approvals, and launch readiness before you create an account.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="rounded-[32px] border border-white/10 bg-white/[0.03] p-6">
-                        <div className="flex items-start gap-4">
-                            <div className="rounded-2xl bg-emerald-300/10 p-3 text-emerald-200">
-                                <Lock className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-semibold text-white">Same-origin support flows</h3>
-                                <p className="mt-2 text-sm leading-7 text-slate-300">
-                                    Core help and support routes stay inside the app so users focus on launch instead of setup gaps.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section className="mx-auto max-w-7xl px-6 py-16">
-                <div className="rounded-[36px] border border-white/10 bg-white/[0.04] px-8 py-12 text-center">
-                    <h2 className="text-3xl font-semibold text-white sm:text-4xl">Yes, start with the essentials. Add the rest when you need it.</h2>
-                    <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-300">
-                        Create a workspace, connect sending, import leads, and get your first campaign ready.
-                    </p>
-                    <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+                    {/* CTAs */}
+                    <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link href="/signup">
-                            <Button className="h-auto rounded-full bg-amber-300 px-8 py-4 text-base font-semibold text-slate-950 hover:bg-amber-200">
-                                Create a free account
+                            <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 hover:-translate-y-0.5">
+                                Start for free — no card needed
+                                <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
-                        <Link href="/pricing">
-                            <Button variant="ghost" className="h-auto rounded-full px-8 py-4 text-base text-slate-200 hover:bg-white/[0.04] hover:text-white">
-                                Compare plans
+                        <Link href="/help">
+                            <Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.03] px-8 py-4 text-base text-white backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/25">
+                                See how it works
                             </Button>
                         </Link>
+                    </div>
+
+                    {/* Microcopy trust line */}
+                    <p className="mt-5 text-sm text-slate-400">
+                        14-day free trial · No onboarding call · Setup in &lt; 1 hour
+                    </p>
+
+                    {/* Stats bar */}
+                    <div className="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                        {stats.map((stat) => (
+                            <div key={stat.label} className="rounded-2xl border border-white/8 bg-white/[0.03] py-5 px-4 backdrop-blur-sm">
+                                <p className="text-3xl font-black text-white">{stat.number}</p>
+                                <p className="mt-1 text-sm text-slate-400">{stat.label}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── TRUSTED BY ──────────────────────────────────── */}
+            <section className="border-y border-white/8 bg-white/[0.015] py-8">
+                <div className="mx-auto max-w-7xl px-6">
+                    <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Trusted by fast-growing teams at</p>
+                    <div className="flex flex-wrap items-center justify-center gap-8">
+                        {trustedBy.map((company) => (
+                            <span key={company} className="text-base font-semibold text-slate-400 opacity-60 transition hover:opacity-100">
+                                {company}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── FEATURES GRID ───────────────────────────────── */}
+            <section className="mx-auto max-w-7xl px-6 py-24">
+                <div className="mb-16 text-center">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-violet-400">Everything you need</p>
+                    <h2 className="text-4xl font-black text-white sm:text-5xl">Built for teams who care about pipeline</h2>
+                    <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
+                        Not just another outbound tool. A complete system that learns, respects, and scales your outreach.
+                    </p>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {features.map((f) => (
+                        <div
+                            key={f.title}
+                            className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 ${f.color}`}
+                        >
+                            <div className="mb-5 inline-flex rounded-2xl bg-white/10 p-3">
+                                <f.icon className="h-5 w-5" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white">{f.title}</h3>
+                            <p className="mt-2 text-sm leading-7 text-slate-300">{f.description}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* ── SOCIAL PROOF ─────────────────────────────────── */}
+            <section className="mx-auto max-w-7xl px-6 py-8 pb-24">
+                <div className="mb-12 text-center">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-emerald-400">What customers say</p>
+                    <h2 className="text-4xl font-black text-white sm:text-5xl">Real teams. Real results.</h2>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-3">
+                    {testimonials.map((t) => (
+                        <div key={t.author} className="rounded-3xl border border-white/8 bg-white/[0.03] p-7 transition-all duration-300 hover:border-violet-500/20 hover:bg-white/[0.05]">
+                            {/* Stars */}
+                            <div className="mb-4 flex gap-1">
+                                {Array.from({ length: t.stars }).map((_, i) => (
+                                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                                ))}
+                            </div>
+                            <p className="text-base leading-8 text-slate-200">&ldquo;{t.quote}&rdquo;</p>
+                            <div className="mt-6 flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-sm font-bold text-white">
+                                    {t.avatar}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-white">{t.author}</p>
+                                    <p className="text-xs text-slate-400">{t.role}</p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* ── HOW IT WORKS ─────────────────────────────────── */}
+            <section className="bg-white/[0.015] py-24 border-y border-white/8">
+                <div className="mx-auto max-w-4xl px-6 text-center">
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-cyan-400">Dead simple setup</p>
+                    <h2 className="text-4xl font-black text-white sm:text-5xl">Live in 4 steps</h2>
+
+                    <div className="mt-14 grid gap-6 sm:grid-cols-2 text-left">
+                        {[
+                            { n: "01", title: "Connect your sending", desc: "Link your email domain or SMTP. We warm it up automatically." },
+                            { n: "02", title: "Train your AI voice", desc: "Paste 3 subject lines you love. ConvoSpan learns your tone." },
+                            { n: "03", title: "Import your leads", desc: "CSV, CRM sync, or let our scraper find them for you." },
+                            { n: "04", title: "Review and launch", desc: "Approve the campaign. Watch replies flow in the inbox." },
+                        ].map((step) => (
+                            <div key={step.n} className="flex gap-5 rounded-2xl border border-white/8 bg-white/[0.03] p-6">
+                                <span className="text-4xl font-black text-white/10">{step.n}</span>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white">{step.title}</h3>
+                                    <p className="mt-1 text-sm leading-7 text-slate-400">{step.desc}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── FINAL CTA ─────────────────────────────────── */}
+            <section className="mx-auto max-w-4xl px-6 py-28 text-center">
+                <div className="relative overflow-hidden rounded-[40px] border border-violet-500/20 bg-gradient-to-br from-violet-900/30 via-indigo-900/20 to-transparent p-14 shadow-2xl shadow-violet-900/20">
+                    {/* glow */}
+                    <div className="pointer-events-none absolute inset-0">
+                        <div className="absolute left-1/2 top-0 h-48 w-72 -translate-x-1/2 rounded-full bg-violet-500/15 blur-[80px]" />
+                    </div>
+
+                    <div className="relative">
+                        <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-5 py-2 text-sm text-emerald-300">
+                            <CheckCircle className="h-4 w-4" />
+                            14-day free trial · Cancel anytime
+                        </div>
+                        <h2 className="text-4xl font-black text-white sm:text-5xl">Start your first campaign today</h2>
+                        <p className="mx-auto mt-5 max-w-xl text-lg text-slate-300">
+                            Join 2,000+ growth teams who&apos;ve replaced guesswork with AI-powered precision outreach.
+                        </p>
+                        <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                            <Link href="/signup">
+                                <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:-translate-y-0.5">
+                                    Create free account
+                                    <ArrowRight className="h-4 w-4" />
+                                </Button>
+                            </Link>
+                            <Link href="/pricing">
+                                <Button variant="ghost" className="h-auto rounded-full px-8 py-4 text-base text-slate-300 hover:bg-white/[0.06] hover:text-white">
+                                    Compare plans →
+                                </Button>
+                            </Link>
+                        </div>
+                        <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500">
+                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> No credit card</span>
+                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Setup in &lt; 1 hr</span>
+                            <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-emerald-500" /> Human support</span>
+                            <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-emerald-500" /> Team collaboration</span>
+                        </div>
                     </div>
                 </div>
             </section>

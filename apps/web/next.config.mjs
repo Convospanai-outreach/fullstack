@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const useStandaloneOutput = process.env.NEXT_OUTPUT_MODE === 'standalone';
+// Always use standalone in production for optimized Docker images
+const useStandaloneOutput = !isDevelopment || process.env.NEXT_OUTPUT_MODE === 'standalone';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

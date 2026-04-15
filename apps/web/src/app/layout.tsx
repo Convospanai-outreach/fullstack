@@ -5,11 +5,22 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { SupportAssistant } from "@/components/support/SupportAssistant";
 
 export const metadata = {
-  title: "ConvoSpan - AI Agent Army for Growth Teams",
-  description: "Launch email campaigns with approvals, lead import, billing, and in-app support.",
+  title: "ConvoSpan — AI-Powered Outbound for B2B Growth Teams",
+  description: "Launch personalized AI email campaigns, track buyer intent, and close more pipeline. Set up in under an hour. No credit card needed.",
+  keywords: "AI outbound, B2B email campaigns, sales automation, LinkedIn outreach, lead generation, AI sales tool",
   icons: {
     icon: "/favicon.svg",
     apple: "/favicon.svg",
+  },
+  openGraph: {
+    title: "ConvoSpan — Turn Cold Outreach into Warm Pipeline",
+    description: "AI that sounds like you. Approvals built in. Replies up 3.2×. Start free.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ConvoSpan — AI Outbound for B2B Teams",
+    description: "Launch AI email campaigns in under an hour. No credit card needed.",
   },
 };
 
