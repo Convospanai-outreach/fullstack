@@ -21,10 +21,9 @@ const nextConfig = {
     },
     images: {
         remotePatterns: [
-            {
-                protocol: 'https',
-                hostname: '**',
-            },
+            { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+            { protocol: 'https', hostname: '*.google.com' },
+            { protocol: 'https', hostname: 'media.licdn.com' },
         ],
     },
 };

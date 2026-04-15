@@ -1,4 +1,3 @@
-
 import { ScoringSimulator } from "./simulator";
 import { RevenueVelocityService } from "../service/RevenueVelocityService";
 
@@ -40,4 +39,9 @@ export async function runBenchmark() {
     }
 }
 
-// runBenchmark();
+// Execution entry point
+if (process.env.RUN_BENCHMARK === "true") {
+    runBenchmark().catch(console.error);
+}
+
+export { runBenchmark };

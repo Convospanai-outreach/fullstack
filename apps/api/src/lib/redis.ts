@@ -8,7 +8,13 @@ function resolveRedisUrl(): string | null {
     const isProd = process.env["NODE_ENV"] === "production";
     const disabled = process.env["DISABLE_REDIS"] === "true";
 
-    if (disabled || inCi || isProd) return null;
+    if (disabled || inCi) return null;
+
+    if (isProd) {
+        console.error("CRITICAL: REDIS_URL is missing in production! Distributed features will be disabled.");
+        return null;
+    }
+
     return "redis://localhost:6379";
 }
 
@@ -111,4 +117,3 @@ export async function safeDel(key: string): Promise<boolean> {
         return false;
     }
 }
-

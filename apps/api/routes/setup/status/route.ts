@@ -61,8 +61,11 @@ export async function GET() {
         const extensionApiBase = `${webBaseUrl.replace(/\/$/, "")}/api/proxy/extension`;
         const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || (hasExtensionApiKey ? "EXTENSION" : "EDGE");
         const hasBrowserNode = !!process.env['BROWSER_NODE_URL'] || !!process.env['BROWSER_WS_ENDPOINT'];
-        // The actual session is checked via the hardware service or client in the frontend, mock for status:
-        const hasLinkedInSession = linkedInMode === "EXTENSION" ? hasExtensionApiKey : false;
+        // Task: Check real session status from user settings
+        const userSettings = await prisma.settings.findUnique({ where: { userId: session.user.id } });
+        const hasLinkedInSession = linkedInMode === "EXTENSION" 
+            ? !!userSettings?.liCookie 
+            : false;
 
         // Step 5: Email Voice
         const hasToneSet = !!aiConfig.tone;

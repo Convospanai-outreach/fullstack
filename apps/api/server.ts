@@ -83,6 +83,20 @@ const nextAdapter = (handler: any) => async (request: any, reply: any) => {
       });
     }
 
+    if (response.body && response.body instanceof ReadableStream) {
+      reply.status(status);
+      const reader = response.body.getReader();
+      const stream = new (await import('stream')).Readable({
+        async read() {
+          const { done, value } = await reader.read();
+          if (done) this.push(null);
+          else this.push(Buffer.from(value));
+        }
+      });
+      reply.send(stream);
+      return;
+    }
+
     if (contentType.includes('application/json')) {
       const data = await response.json();
       reply.status(status).send(data);

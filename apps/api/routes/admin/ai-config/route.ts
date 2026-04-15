@@ -3,15 +3,9 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { UserRole } from "@prisma/client";
+import { checkAdmin } from "@/lib/admin";
 
-const isAdminUser = (user: { role?: string | null; enterpriseRole?: UserRole | null } | null) => {
-    if (!user) return false;
-    const legacyAdmin = user.role === "admin" || user.role === "superadmin";
-    const enterpriseAdmin =
-        user.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-        user.enterpriseRole === UserRole.ORG_ADMIN;
-    return legacyAdmin || enterpriseAdmin;
-};
+
 
 const maskKey = (value?: string | null) => {
     if (!value) return null;
@@ -21,14 +15,9 @@ const maskKey = (value?: string | null) => {
 
 export async function GET() {
     try {
-        const { userId, teamId } = await getCurrentContext();
-        if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-
-        const currentUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true, enterpriseRole: true }
-        });
-        if (!isAdminUser(currentUser)) {
+        const { teamId } = await getCurrentContext();
+        const isAdmin = await checkAdmin();
+        if (!teamId || !isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -63,14 +52,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const { userId, teamId } = await getCurrentContext();
-        if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-
-        const currentUser = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { role: true, enterpriseRole: true }
-        });
-        if (!isAdminUser(currentUser)) {
+        const { teamId } = await getCurrentContext();
+        const isAdmin = await checkAdmin();
+        if (!teamId || !isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 

@@ -88,3 +88,32 @@ export async function addCredits(
         })
     ]);
 }
+
+/**
+ * Refunds credits to a team.
+ */
+export async function refundCredits(
+    teamId: string,
+    amount: number,
+    description: string,
+    meta?: any
+): Promise<void> {
+    if (!Number.isFinite(amount) || amount <= 0) {
+        throw new Error("Refund amount must be a positive number");
+    }
+    await prisma.$transaction([
+        prisma.team.update({
+            where: { id: teamId },
+            data: { credits: { increment: amount } }
+        }),
+        prisma.creditTransaction.create({
+            data: {
+                teamId,
+                amount,
+                description,
+                type: "refund",
+                meta: meta || {}
+            }
+        })
+    ]);
+}

@@ -1,21 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { UserRole } from "@prisma/client";
+import { checkAdmin } from "@/lib/admin";
 
 // GET: List all users (Admin only)
 export async function GET() {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-
-        const currentUser = await prisma.user.findUnique({ where: { id: userId } }) as any;
-        const legacyAdmin = currentUser?.role === "admin" || currentUser?.role === "superadmin";
-        const enterpriseAdmin =
-            currentUser?.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-            currentUser?.enterpriseRole === UserRole.ORG_ADMIN;
-        if (!currentUser || (!legacyAdmin && !enterpriseAdmin)) {
+        const isAdmin = await checkAdmin();
+        if (!isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -37,15 +30,8 @@ export async function GET() {
 // POST: Create a new user (Admin only)
 export async function POST(req: Request) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-
-        const currentUser = await prisma.user.findUnique({ where: { id: userId } }) as any;
-        const legacyAdmin = currentUser?.role === "admin" || currentUser?.role === "superadmin";
-        const enterpriseAdmin =
-            currentUser?.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-            currentUser?.enterpriseRole === UserRole.ORG_ADMIN;
-        if (!currentUser || (!legacyAdmin && !enterpriseAdmin)) {
+        const isAdmin = await checkAdmin();
+        if (!isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -57,7 +43,7 @@ export async function POST(req: Request) {
         const existingUser = await prisma.user.findUnique({ where: { email } });
         if (existingUser) throw new APIError("User already exists", 409, "CONFLICT");
 
-        if (role && !["user", "admin", "superadmin"].includes(role)) {
+        if (role && !["user", "admin"].includes(role)) {
             throw new APIError("Invalid role", 400, "BAD_REQUEST");
         }
 
@@ -67,7 +53,7 @@ export async function POST(req: Request) {
 
         const derivedEnterpriseRole =
             enterpriseRole ||
-            (role === "superadmin" ? UserRole.SYSTEM_ADMIN : UserRole.SALES_USER);
+            (role === "admin" ? UserRole.SYSTEM_ADMIN : UserRole.SALES_USER);
 
         const newUser = await prisma.user.create({
             data: {
@@ -75,9 +61,6 @@ export async function POST(req: Request) {
                 name,
                 role: role || "user",
                 enterpriseRole: derivedEnterpriseRole,
-                // Note: We aren't storing passwords directly in this schema as we use NextAuth providers.
-                // If we wanted credentials auth, we'd need a password field and hashing.
-                // For now, this creates the user record so they can log in via provider or we can link them.
             }
         });
 
@@ -90,15 +73,8 @@ export async function POST(req: Request) {
 // PATCH: Update user roles (Admin only)
 export async function PATCH(req: Request) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
-
-        const currentUser = await prisma.user.findUnique({ where: { id: userId } }) as any;
-        const legacyAdmin = currentUser?.role === "admin" || currentUser?.role === "superadmin";
-        const enterpriseAdmin =
-            currentUser?.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-            currentUser?.enterpriseRole === UserRole.ORG_ADMIN;
-        if (!currentUser || (!legacyAdmin && !enterpriseAdmin)) {
+        const isAdmin = await checkAdmin();
+        if (!isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -109,7 +85,7 @@ export async function PATCH(req: Request) {
 
         const data: Record<string, any> = {};
         if (role) {
-            if (!["user", "admin", "superadmin"].includes(role)) {
+            if (!["user", "admin"].includes(role)) {
                 throw new APIError("Invalid role", 400, "BAD_REQUEST");
             }
             data.role = role;
@@ -119,9 +95,6 @@ export async function PATCH(req: Request) {
                 throw new APIError("Invalid enterpriseRole", 400, "BAD_REQUEST");
             }
             data.enterpriseRole = enterpriseRole;
-        }
-        if (role === "superadmin" && !enterpriseRole) {
-            data.enterpriseRole = UserRole.SYSTEM_ADMIN;
         }
 
         if (Object.keys(data).length === 0) {

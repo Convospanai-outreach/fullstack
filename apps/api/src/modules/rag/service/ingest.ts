@@ -29,13 +29,32 @@ class IngestService {
      * Ingest content from a URL (Scraping)
      */
     async ingestUrl(url: string, knowledgeBaseId: string) {
-        console.log(`[Ingest] Extracting content from: ${url}`);
+        console.log(`[Ingest] Crawling: ${url}`);
 
-        // In a real environment, use Puppeteer or a scraping service
-        // For this implementation, we'll simulate the extraction
-        const simulatedText = `Content from ${url}: This document explains the core principles of ${url.split('/')[2] || 'the target site'}. It covers pricing, features, and implementation details necessary for sales outreach.`;
+        try {
+            const response = await fetch(url, { headers: { "User-Agent": "ConvoSpan-Bot/1.0" } });
+            if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
+            
+            const html = await response.text();
+            
+            // Simple extraction: strip scripts, styles, and tags
+            const text = html
+                .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gm, "")
+                .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gm, "")
+                .replace(/<[^>]+>/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
 
-        return await this.ingestText(simulatedText, knowledgeBaseId, { source: url, type: "URL" });
+            if (text.length < 100) {
+                throw new Error("Extracted text is too short or empty.");
+            }
+
+            return await this.ingestText(text, knowledgeBaseId, { source: url, type: "URL" });
+        } catch (error: any) {
+            console.error(`[Ingest] Crawl failed for ${url}: ${error.message}`);
+            // Fallback for demo continuity if network is isolated, but marked as failed
+            throw error;
+        }
     }
 
     /**

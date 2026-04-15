@@ -4,56 +4,73 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { checkAdmin } from "@/lib/admin";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
+import { logger } from "@/lib/logger";
 
 export async function POST(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: { action: string } }
 ) {
-    const session = await getServerSession(authOptions);
+    const isAdmin = await checkAdmin();
 
     // Strict RBAC: Only Admin or Operator
-    if (!session) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isAdmin) {
+        return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
     const { action } = params;
 
     try {
-        // Retrieve Team for context (assuming first team for MVP)
-        const teamMember = await prisma.teamMember.findFirst({
-            where: { userId: session.user.id }
-        });
-        const teamId = teamMember?.teamId;
+        // REG-6 Fix: Use getServerSession directly with first-team fallback.
+        // Avoids getCurrentContext() which throws 409 for multi-tenant admins
+        // who have no workspace cookie set — a common scenario for operators.
+        const session = await getServerSession(authOptions);
+        const userId = session?.user?.id;
+
+        // Allow an optional teamId in request body for scoped operations
+        let teamId: string | null = null;
+        try {
+            const body = await req.json();
+            teamId = body?.teamId ?? null;
+        } catch { /* no body is fine, teamId stays null */ }
+
+        // If teamId not provided in body, fall back to the admin's first team
+        if (!teamId && userId) {
+            const membership = await prisma.teamMember.findFirst({
+                where: { userId },
+                select: { teamId: true }
+            });
+            teamId = membership?.teamId ?? null;
+        }
 
         switch (action) {
             case "start-scrapers":
-                console.log("[Admin] Starting all scrapers...");
-                await JobQueue.enqueue("linkedin_scraping", { action: "FULL_SURVEY" }, { teamId: teamId ?? null });
+                logger.info("[Admin] Starting all scrapers...");
+                await JobQueue.enqueue("linkedin_scraping", { action: "FULL_SURVEY" }, { teamId });
                 return NextResponse.json({ success: true, message: "Scrapers job enqueued" });
 
             case "pause-outreach":
-                console.log("[Admin] Pausing outreach campaigns...");
+                logger.info("[Admin] Pausing outreach campaigns...");
                 const result = await prisma.campaign.updateMany({
-                    where: { teamId: teamId ?? null, status: "active" },
+                    where: { teamId: teamId ?? undefined, status: "active" },
                     data: { status: "paused" }
                 });
                 return NextResponse.json({ success: true, message: `Paused ${result.count} campaigns` });
 
             case "sync-crm":
-                console.log("[Admin] Syncing CRM...");
-                await JobQueue.enqueue("CRM_SYNC", { provider: "HUBSPOT" }, { teamId: teamId ?? null });
+                logger.info("[Admin] Syncing CRM...");
+                await JobQueue.enqueue("CRM_SYNC", { provider: "HUBSPOT" }, { teamId });
                 return NextResponse.json({ success: true, message: "CRM sync job enqueued" });
 
             default:
                 return NextResponse.json({ error: "Invalid action" }, { status: 400 });
         }
     } catch (error: any) {
-        console.error(`[Admin] Action ${action} failed:`, error);
+        logger.error(`[Admin] Action ${action} failed: ${error.message}`);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

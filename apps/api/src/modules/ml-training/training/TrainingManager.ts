@@ -11,6 +11,7 @@
 
 import { prisma } from "@/lib/db";
 import { evaluationService } from "../evaluation/EvaluationService";
+import * as crypto from "crypto";
 
 export class TrainingManager {
 
@@ -48,7 +49,6 @@ export class TrainingManager {
                 baseModel: baseModel,
                 datasetId: datasetId,
                 configHash: (() => {
-                    const crypto = require('crypto');
                     return crypto.createHash('sha256')
                         .update(JSON.stringify({ baseModel, datasetVersion: dataset.version, recordCount: dataset.records.length }))
                         .digest('hex').substring(0, 16);
@@ -109,16 +109,23 @@ export class TrainingManager {
                     // });
 
                     // Simulate the asynchronous nature of fine-tuning jobs (which take minutes/hours)
-                    // For demo/V1 purpose, we resolve successfully after a delay
+                    // For demo purpose, we use a accelerated simulation with chance of failure.
                     let progress = 0;
-                    const interval = setInterval(() => {
-                        progress += 25;
+                    const interval = setInterval(async () => {
+                        progress += Math.floor(Math.random() * 15) + 5; // non-linear progress
                         console.log(`[TrainingManager] Fine-Tuning Job ${_id} Progress: ${progress}%`);
+                        
                         if (progress >= 100) {
                             clearInterval(interval);
-                            hooks.onComplete();
+                            
+                            // Chance of failure for demo realism (e.g. poor dataset quality)
+                            if (records.length < 15 && Math.random() > 0.8) {
+                                hooks.onError(new Error("Convergence failure: Model loss diverged during second epoch. Check dataset diversity."));
+                            } else {
+                                hooks.onComplete();
+                            }
                         }
-                    }, 5000); // Totals 20 seconds for the simulation
+                    }, 2500);
 
                 } catch (error: any) {
                     hooks.onError(error);

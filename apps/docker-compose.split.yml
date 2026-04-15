@@ -10,16 +10,23 @@ services:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   edge-fastapi:
     build: ./edge-fastapi
     image: convospan-edge-fastapi:split
     container_name: convospan-edge-fastapi-split
     environment:
-      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@host.docker.internal:5433/convospan}
+      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/convospan}
       EDGE_MODE: ${EDGE_MODE:-false}
       HARDWARE_SIGNATURE: uuid-550e8400-e29b-41d4-a716-446655440000
       OFFLINE_MODEL_PATH: /app/models/custom/Phi-3-Custom.gguf
+      EDGE_API_KEY: ${EDGE_API_KEY:?EDGE_API_KEY is required}
+      EDGE_EXECUTE_ENABLED: ${EDGE_EXECUTE_ENABLED:-false}
     volumes:
       - ../training/models:/app/models/custom
     extra_hosts:
@@ -35,29 +42,60 @@ services:
     container_name: convospan-api-split
     environment:
       PORT: 3001
+      NODE_ENV: production
+      CRON_SECRET: ${CRON_SECRET:-change-me}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      REDIS_URL: redis://redis:6379
       EDGE_NODE_URI: http://edge-fastapi:8000
       NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: change-me
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
     ports:
       - "3001:3001"
     depends_on:
       - postgres
       - edge-fastapi
+      - redis
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   web:
     build: ./web
     image: convospan-web:split
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://api:3001
       EDGE_NODE_URI: http://edge-fastapi:8000
       NEXTAUTH_URL: http://localhost:3000
-      NEXTAUTH_SECRET: change-me
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
     ports:
       - "3000:3000"
     depends_on:
       - api
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    container_name: convospan-redis-split
+    ports:
+      - "6380:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
+  redisdata:

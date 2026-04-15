@@ -69,6 +69,6 @@ export async function GET() {
         return NextResponse.json({ results });
 
     } catch (e: any) {
-        return NextResponse.json({ error: e.message, stack: e.stack });
+        return NextResponse.json({ error: e.message });
     }
 }

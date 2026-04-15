@@ -4,6 +4,50 @@ import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
 
 class WebhookService {
+    private readonly WEBHOOK_SCHEMAS: Record<string, (data: any) => object> = {
+        'lead.created': (d) => ({
+            id: d.id,
+            email: d.email,
+            fullName: d.fullName,
+            company: d.company,
+            status: d.status,
+            createdAt: d.createdAt
+        }),
+        'lead.enriched': (d) => ({
+            id: d.id,
+            email: d.email,
+            company: d.company,
+            jobTitle: d.jobTitle,
+            location: d.location,
+            enrichedAt: new Date().toISOString()
+        }),
+        'campaign.completed': (d) => ({
+            id: d.id,
+            name: d.name,
+            totalLeads: d.leads,
+            completedAt: new Date().toISOString()
+        }),
+        'JOB_DEAD_LETTERED': (d) => ({
+            jobId: d.jobId,
+            jobType: d.jobType,
+            attempts: d.attempts,
+            error: d.error
+        })
+    };
+
+    private filterPayload(event: string, payload: any) {
+        const schema = this.WEBHOOK_SCHEMAS[event];
+        if (schema) {
+            try {
+                return schema(payload);
+            } catch (e) {
+                logger.warn(`[WebhookService] Schema serialization failed for ${event}, using raw payload`, { error: e });
+            }
+        }
+        // For unknown events, we return the payload as-is for now (extensibility)
+        return payload;
+    }
+
     /**
      * Entry point to trigger webhooks for a team
      */
@@ -40,10 +84,12 @@ class WebhookService {
 
         if (!webhook || !webhook.isActive) return;
 
+        const filteredPayload = this.filterPayload(event, payload);
+
         const body = JSON.stringify({
             event,
             timestamp: new Date().toISOString(),
-            data: payload
+            data: filteredPayload
         });
 
         const headers: Record<string, string> = {

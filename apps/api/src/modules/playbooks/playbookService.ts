@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/db";
 
 export const playbookService = {
     /**
@@ -63,11 +63,9 @@ export const playbookService = {
 
         // If the template defines emails/steps
         if (config.emails && Array.isArray(config.emails)) {
-            // Need a dummy lead to attach emails to? 
-            // Or in this system, emails are instantiated *per lead*.
-            // So we likely store these as "CampaignVariants" or "EmailTemplates".
-
-            // Let's assume we create CampaignVariants for the 'steps'
+            // Remediation [STUB-7]: In this architecture, emails are instantiated per lead,
+            // but the Campaign structure defines the sequence via CampaignVariants.
+            // We map template emails to CampaignVariants so they can be dispatched later.
             const variants = config.emails.map((email: any) => ({
                 campaignId: campaign.id,
                 subject: email.subject || "No Subject",
@@ -75,7 +73,7 @@ export const playbookService = {
                 weight: 100
             }));
 
-            await prisma.campaignVariant.createMany({ data: variants });
+            await (prisma as any).campaignVariant.createMany({ data: variants });
         }
 
         return campaign;

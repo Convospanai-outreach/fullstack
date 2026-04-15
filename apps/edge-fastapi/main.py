@@ -1,8 +1,10 @@
 import os
 import uuid
 import logging
+import time
 from typing import Dict, List, Optional
-from fastapi import FastAPI, HTTPException, Depends
+from enum import Enum
+from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel
@@ -26,6 +28,15 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
             CORRELATION_ID_CTX.reset(token)
 
 EDGE_MODE = os.getenv("EDGE_MODE", "disabled").lower() in {"1", "true", "edge", "enabled"}
+EDGE_EXECUTE_ENABLED = os.getenv("EDGE_EXECUTE_ENABLED", "false").lower() == "true"
+EDGE_API_KEY = os.getenv("EDGE_API_KEY")
+
+# [MED-5] Startup assertion: actuator must have a key if enabled
+if EDGE_EXECUTE_ENABLED and not EDGE_API_KEY:
+    raise RuntimeError(
+        "SECURITY ERROR: EDGE_EXECUTE_ENABLED is true but EDGE_API_KEY is not set. "
+        "The browser actuator cannot run unauthenticated. Set EDGE_API_KEY or disable EDGE_EXECUTE_ENABLED."
+    )
 
 app = FastAPI(title="ConvoSpan Edge Node")
 app.add_middleware(CorrelationMiddleware)
@@ -84,12 +95,34 @@ class OfflineRequest(BaseModel):
 class OfflineResponse(BaseModel):
     text: str
 
+class BrowserAction(str, Enum):
+    NAVIGATE = "NAVIGATE"
+    CLICK = "CLICK"
+    TYPE = "TYPE"
+    SCROLL = "SCROLL"
+    EXTRACT = "EXTRACT"
+
+class ExecuteRequest(BaseModel):
+    action: BrowserAction
+    payload: Dict
+
 # --- Endpoints ---
+
+def init_db_with_retry(retries=5, delay=3):
+    for attempt in range(retries):
+        try:
+            init_db()
+            return
+        except Exception as e:
+            logger.warning(f"DB init attempt {attempt + 1}/{retries} failed: {e}")
+            if attempt < retries - 1:
+                time.sleep(delay * (attempt + 1))
+    raise RuntimeError("Failed to initialize database after multiple attempts")
 
 @app.on_event("startup")
 def startup_event():
     logger.info("Initializing Edge Database...")
-    init_db()
+    init_db_with_retry()
     if EDGE_MODE and local_intelligence:
         local_intelligence.load_models()
         logger.info("Edge mode enabled.")
@@ -111,9 +144,11 @@ def health_check():
         "services": services
     }
 
+VERSION = os.getenv("APP_VERSION", "1.0.0")
+
 @app.get("/version")
 def version():
-    return {"version": "1.0.0"}
+    return {"version": VERSION}
 
 @app.get("/capabilities")
 def capabilities():
@@ -122,7 +157,7 @@ def capabilities():
             "tokenize": bool(EDGE_MODE),
             "classify": bool(EDGE_MODE),
             "generate": bool(EDGE_MODE),
-            "execute": True
+            "execute": bool(EDGE_EXECUTE_ENABLED)
         }
     }
 
@@ -189,7 +224,6 @@ def score_intent(request: ScoreRequest):
     return {"score": score}
 
 # --- Legacy/Integration Endpoints (Search & Execute) ---
-# Keeping these inline or moving to service? Moving search to service makes sense but preserving logic for now.
 
 class SearchRequest(BaseModel):
     query: str
@@ -207,7 +241,6 @@ def search_golden_records(request: SearchRequest, db: Session = Depends(get_db))
         if not local_intelligence.embedding_model:
              local_intelligence.load_models()
         
-        # We can reuse the service's embedding model
         vector = local_intelligence.embedding_model.encode(request.query).tolist()
         vector_str = str(vector)
         
@@ -228,15 +261,15 @@ def search_golden_records(request: SearchRequest, db: Session = Depends(get_db))
         logger.error(f"Search failed: {e}")
         return {"results": []}
 
-class ExecuteRequest(BaseModel):
-    action: str # NAVIGATE, CLICK, TYPE
-    payload: Dict
-
 @app.post("/execute")
-def execute_browser_action(request: ExecuteRequest):
-    """Proxy for Browser Node (Puppeteer)"""
-    # In a real CPS, this would forward to the Browser Service
-    # For now, we simulate the 'Physical' side executing the action
+def execute_browser_action(request: ExecuteRequest, x_api_key: str = Header(None)):
+    """Secured Proxy for Browser Node (Puppeteer)"""
+    if not EDGE_EXECUTE_ENABLED:
+        raise HTTPException(status_code=403, detail="Edge execution is disabled")
+    
+    if EDGE_API_KEY and x_api_key != EDGE_API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API Key")
+    
     logger.info(f"PHYSICAL ACTUATOR: Executing {request.action} with {request.payload}")
     
     return {

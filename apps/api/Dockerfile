@@ -13,4 +13,4 @@ COPY . .
 RUN npx prisma generate
 
 EXPOSE 3001
-CMD ["npm", "run", "start"]
+CMD ["node_modules/.bin/tsx", "server.ts"]

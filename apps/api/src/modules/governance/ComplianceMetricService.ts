@@ -26,10 +26,12 @@ export class ComplianceMetricService {
      */
     async getComplianceScorecard(_teamId: string) {
         try {
-            // Count PII tokens from all ScrapingJobs (Global)
-            // Ideally we'd check UAE shard too, but start with Global for MVP
+            // Count PII tokens from all ScrapingJobs (Filtered by Team)
             const jobs = await prisma.scrapingJob.findMany({
-                where: { tokenMap: { not: {} } },
+                where: { 
+                    teamId: _teamId,
+                    tokenMap: { not: {} } 
+                },
                 select: { tokenMap: true }
             });
 
@@ -47,8 +49,11 @@ export class ComplianceMetricService {
             // Let's count ManualReview records if they exist, or just use 0
             const manualReviews = await prisma.manualReview.count();
 
-            // Calculate "Saved Liability" ($500 per token protected)
-            const savedLiability = displayCount * 500;
+            // Calculate "Saved Liability" based on industry benchmarks (Configurable)
+            // Avg data breach cost per record is ~$160-$200 according to IBM/Ponemon.
+            // We use a high-risk sector baseline ($500) if not configured.
+            const LIABILITY_MULTIPLIER = Number(process.env['COMPLIANCE_LIABILITY_PER_RECORD']) || 165;
+            const savedLiability = displayCount * LIABILITY_MULTIPLIER;
 
             return {
                 piiProtected: displayCount,

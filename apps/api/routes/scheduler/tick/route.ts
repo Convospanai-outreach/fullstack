@@ -4,7 +4,11 @@ import { schedulerService } from "@/modules/scheduler/schedulerService";
 export async function POST(req: NextRequest) {
     // Simple security check
     const authHeader = req.headers.get("authorization");
-    if (process.env['CRON_SECRET'] && authHeader !== `Bearer ${process.env['CRON_SECRET']}`) {
+    const secret = process.env['CRON_SECRET'];
+    if (!secret) {
+        return new NextResponse("CRON_SECRET is not configured", { status: 500 });
+    }
+    if (authHeader !== `Bearer ${secret}`) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 

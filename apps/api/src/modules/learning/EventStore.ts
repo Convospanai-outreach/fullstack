@@ -142,8 +142,11 @@ export class EventStore {
         }
 
         // Integrity Hash (Task 7)
-        // We simulate cryptographic chaining by hashing prev sequence + narrative
-        const hash = "hash_" + event.id.substring(0, 8); // simplified
+        // Implements cryptographic chaining of the audit trail
+        const crypto = await import("crypto");
+        const hash = crypto.createHash('sha256')
+            .update(`${event.id}:${narrative}`)
+            .digest('hex');
 
         await prisma.immutableAudit.create({
             data: {

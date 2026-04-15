@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
 import { prisma } from "@/lib/db";
 
-
 const PRICING_TIERS: Record<string, number> = {
     // Pro Plan
     "price_1Q": 29,
@@ -58,8 +57,6 @@ export async function POST(req: Request) {
 
         // Default to PRO if still 0 (Safety net or error?)
         if (orderAmount === 0 && priceId) {
-            // If priceId exists but unknown, maybe default to 29? Or error?
-            // Error is safer.
             return new NextResponse("Invalid Price Configuration", { status: 400 });
         }
 
@@ -67,14 +64,20 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid Amount", { status: 400 });
         }
 
+        const currency = process.env['APP_CURRENCY'] || "USD";
         const order = await billingService.createOrder(
             orderAmount,
-            "USD",
+            currency,
             `receipt_${Date.now()}`,
             { userId: session.user.id, priceId }
         );
 
-        return NextResponse.json({ orderId: order.id, amount: order.amount, currency: order.currency, key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'] });
+        return NextResponse.json({ 
+            orderId: order.id, 
+            amount: order.amount, 
+            currency: order.currency, 
+            key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'] 
+        });
     } catch (error) {
         console.error("[RAZORPAY_CHECKOUT]", error);
         return new NextResponse("Internal Error", { status: 500 });

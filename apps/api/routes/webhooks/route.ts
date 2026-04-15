@@ -41,11 +41,12 @@ export async function POST(req: NextRequest) {
             throw new APIError("Invalid input", 400, "VALIDATION_ERROR");
         }
 
+        const { randomBytes } = await import('crypto');
         const webhook = await prisma.webhook.create({
             data: {
                 ...validation.data,
                 teamId,
-                secret: crypto.randomUUID() // Generate a secret for signature verification
+                secret: randomBytes(32).toString('hex') // Strong secret for signature verification
             }
         });
 

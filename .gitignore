@@ -18,3 +18,6 @@ tmp/
 .tmp/
 __pycache__/
 *.pyc
+apps/tmp-*.log
+audit-report.json
+audit-screenshots/

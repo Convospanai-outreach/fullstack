@@ -16,10 +16,9 @@ export async function checkAdmin() {
 
     if (!user) return false;
 
-    const legacyAdmin = user.role === "admin" || user.role === "superadmin";
-    const enterpriseAdmin =
+    // Standardize on enterpriseRole for all admin capabilities
+    return (
         user.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-        user.enterpriseRole === UserRole.ORG_ADMIN;
-
-    return legacyAdmin || enterpriseAdmin;
+        user.enterpriseRole === UserRole.ORG_ADMIN
+    );
 }

@@ -1,11 +1,9 @@
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
-
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
-
 import CredentialsProviderImport from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 
@@ -49,13 +47,13 @@ export const authOptions: NextAuthOptions = {
                     });
 
                     if (!user || !user.password) {
-                        throw new Error("User not found or password not set");
+                        throw new Error("Invalid credentials");
                     }
 
                     const isValid = await compare(credentials.password, user.password);
 
                     if (!isValid) {
-                        throw new Error("Invalid password");
+                        throw new Error("Invalid credentials");
                     }
 
                     return user;
@@ -85,58 +83,53 @@ export const authOptions: NextAuthOptions = {
                 token.id = user.id;
             }
 
-            // Fetch Plan with Redis caching
             if (token.id) {
                 try {
                     const { safeGet, safeSet } = await import("@/lib/redis");
-                    const cacheKey = `user:plan:${token.id}`;
+                    const cacheKey = `user:context:${token.id}`;
 
                     // Try cache first
-                    let planName = await safeGet(cacheKey);
-
-                    if (!planName) {
-                        // Cache miss - query DB
-                        const user = await prisma.user.findUnique({
-                            where: { id: token.id as string },
-                            include: {
-                                subscription: {
-                                    include: { plan: true }
-                                }
-                            }
-                        });
-
-                        planName = user?.subscription?.plan?.name || "FREE";
-
-                        // Cache for 5 minutes
-                        await safeSet(cacheKey, planName, 300);
+                    const cached = await safeGet(cacheKey);
+                    if (cached) {
+                        const validated = JSON.parse(cached);
+                        token.plan = validated.plan;
+                        token.productMode = validated.productMode;
+                        token.productSurface = validated.productSurface;
+                        token.enterpriseRole = validated.enterpriseRole;
+                        return token;
                     }
 
-                    token.plan = planName;
-
-                    // Fetch Product Mode and Enterprise Role
-                    const membership = await prisma.teamMember.findFirst({
-                        where: { userId: token.id as string },
-                        include: {
-                            team: {
-                                include: { organizationPolicy: true }
-                            },
+                    // Cache miss - [P0-3] Combined Prisma Query
+                    const userWithContext = await prisma.user.findUnique({
+                        where: { id: token.id as string },
+                        select: {
+                            enterpriseRole: true,
+                            subscription: { include: { plan: true } },
+                            memberships: {
+                                take: 1,
+                                include: { team: { include: { organizationPolicy: true } } }
+                            }
                         }
                     });
 
-                    // Fetch User's enterprise role directly
-                    const fullUser = await prisma.user.findUnique({
-                        where: { id: token.id as string },
-                        select: { enterpriseRole: true }
-                    });
+                    const context = {
+                        plan: userWithContext?.subscription?.plan?.name || "FREE",
+                        productMode: userWithContext?.memberships[0]?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE",
+                        productSurface: userWithContext?.memberships[0]?.team?.organizationPolicy?.productSurface || "outreach",
+                        enterpriseRole: userWithContext?.enterpriseRole || "SALES_USER",
+                    };
 
-                    // Default to ENTERPRISE_CORE if no policy set
-                    token.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
-                    token.productSurface = membership?.team?.organizationPolicy?.productSurface || "outreach";
-                    token.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
+                    token.plan = context.plan;
+                    token.productMode = context.productMode;
+                    token.productSurface = context.productSurface;
+                    token.enterpriseRole = context.enterpriseRole;
+
+                    // Cache for 5 minutes
+                    await safeSet(cacheKey, JSON.stringify(context), 300);
 
                 } catch (error) {
-                    console.error("Error fetching user plan/mode for JWT:", error);
-                    token.plan = "free";
+                    console.error("Error fetching user context for JWT:", error);
+                    token.plan = "FREE";
                     token.productMode = "ENTERPRISE_CORE";
                     token.productSurface = "outreach";
                     token.enterpriseRole = "SALES_USER";
@@ -244,18 +237,28 @@ export async function getCurrentContext() {
         }
     }
 
-    // Fallback: Get user's first active team
-    const membership = await prisma.teamMember.findFirst({
+    // Fallback: Check if user has multiple teams to avoid silent misrouting
+    const memberships = await prisma.teamMember.findMany({
         where: { userId },
-        select: { teamId: true }
+        select: { teamId: true },
+        take: 2
     });
 
-    // If no team, create a default one (onboarding logic)
-    if (!membership) {
+    if (memberships.length === 0) {
         return { userId, teamId: null };
     }
 
-    return { userId, teamId: membership.teamId };
+    if (memberships.length > 1) {
+        // [P2-8] Multi-team user but no workspace cookie set - forcing a choice
+        const { APIError } = await import("./apiResponse");
+        throw new APIError(
+            "Multiple teams found. Please specify a workspace in 'convo-workspace-id' cookie.",
+            409,
+            "WORKSPACE_SELECTION_REQUIRED"
+        );
+    }
+
+    return { userId, teamId: memberships[0].teamId };
 }
 
 export const auth = () => getServerSession(authOptions);

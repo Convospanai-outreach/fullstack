@@ -41,5 +41,19 @@ export async function POST(req: NextRequest) {
         }
     });
 
+    // Task: Record event for notification/email worker
+    const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
+    await EventStore.record({
+        type: SystemEventType.SYSTEM,
+        name: "TEAM_INVITE_SENT",
+        teamId: ctx.teamId,
+        actorId: ctx.userId,
+        payload: {
+            inviteeEmail: email,
+            role: role || 'member',
+            memberId: member.id
+        }
+    });
+
     return NextResponse.json(member);
 }

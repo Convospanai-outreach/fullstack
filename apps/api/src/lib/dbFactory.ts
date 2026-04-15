@@ -1,5 +1,6 @@
-
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 // Global cache for Prisma clients to prevent connection exhaustion in serverless/dev
 const globalForPrisma = globalThis as unknown as {
@@ -24,9 +25,6 @@ export class DbFactory {
     }
 
     private static getGlobalClient(): PrismaClient {
-        if (process.env['NODE_ENV'] === "production") {
-            return new PrismaClient();
-        }
         if (!globalForPrisma.prismaGlobal) {
             globalForPrisma.prismaGlobal = new PrismaClient();
         }
@@ -40,13 +38,8 @@ export class DbFactory {
             throw new Error("CRITICAL_COMPLIANCE_ERROR: UAE_DATABASE_URL is not set. Data residency requirements cannot be met for UAE region.");
         }
 
-        const adapter = this.createAdapter(uaeUrl);
-        if (process.env['NODE_ENV'] === "production") {
-            const options: any = { datasources: { db: { url: uaeUrl } }, adapter };
-            return new PrismaClient(options);
-        }
-
         if (!globalForPrisma.prismaUAE) {
+            const adapter = this.createAdapter(uaeUrl);
             const options: any = { datasources: { db: { url: uaeUrl } }, adapter };
             globalForPrisma.prismaUAE = new PrismaClient(options);
         }
@@ -57,17 +50,15 @@ export class DbFactory {
         const euUrl = process.env['EU_DATABASE_URL'];
 
         if (!euUrl) {
-            console.warn("⚠️ EU_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
-            return this.getGlobalClient();
-        }
-
-        const adapter = this.createAdapter(euUrl);
-        if (process.env['NODE_ENV'] === "production") {
-            const options: any = { datasources: { db: { url: euUrl } }, adapter };
-            return new PrismaClient(options);
+            if (process.env['EU_ALLOW_GLOBAL_FALLBACK'] === 'true') {
+                console.warn("⚠️ EU_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
+                return this.getGlobalClient();
+            }
+            throw new Error("CRITICAL_COMPLIANCE_ERROR: EU_DATABASE_URL is not set. GDPR data residency requirements cannot be met for EU region.");
         }
 
         if (!globalForPrisma.prismaEU) {
+            const adapter = this.createAdapter(euUrl);
             const options: any = { datasources: { db: { url: euUrl } }, adapter };
             globalForPrisma.prismaEU = new PrismaClient(options);
         }
@@ -75,11 +66,9 @@ export class DbFactory {
     }
 
     private static createAdapter(databaseUrl: string) {
-        const { Pool } = require("pg");
-        const { PrismaPg } = require("@prisma/adapter-pg");
         const pool = new Pool({
             connectionString: databaseUrl,
         });
-        return new PrismaPg(pool);
+        return new PrismaPg(pool as any);
     }
 }

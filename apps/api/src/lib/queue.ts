@@ -221,7 +221,7 @@ export class JobQueue {
             });
         } else {
             // Permanent failure -> Dead Letter
-            return await prisma.job.update({
+            const updatedJob = await prisma.job.update({
                 where: { id: jobId },
                 data: {
                     status: "dead_lettered",
@@ -229,6 +229,20 @@ export class JobQueue {
                     error: error,
                 },
             });
+            
+            const payload = job.payload as any;
+            if (payload && payload.userId) {
+                await prisma.notification.create({
+                    data: {
+                        userId: payload.userId,
+                        type: 'JOB_DEAD_LETTERED',
+                        message: `Job ${job.type} permanently failed after ${job.attempts} attempts`,
+                        meta: { jobId: job.id, error }
+                    }
+                });
+            }
+            
+            return updatedJob;
         }
     }
 

@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { scraperService } from "@/modules/scraper-bridge";
 import { hunterService } from "@/modules/hunter-email-finder";
 import { JobQueue, JobPayload } from "@/lib/queue";
-import { deductCredits } from "@/lib/credits";
+import { deductCredits, refundCredits } from "@/lib/credits";
 import { logger, logWorker } from "@/lib/logger";
 
 /**
@@ -123,5 +123,11 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             .catch(err => logger.error(`[Worker] Failed to dispatch enrichment webhook`, { error: err.message }));
     }
 
-    return enrichmentData;
+        return enrichmentData;
+    } catch (err) {
+        if (teamId) {
+            await refundCredits(teamId, ENRICHMENT_COST, "Refund: enrichment failed for ${leadId}");
+        }
+        throw err;
+    }
 }

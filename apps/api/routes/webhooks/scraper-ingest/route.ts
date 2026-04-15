@@ -4,41 +4,44 @@ import { intentScoringService } from "@/services/IntentScoring";
 import { v4 as uuidv4 } from "uuid";
 import { SentinelService } from "@/modules/audit/SentinelService";
 import { DbFactory } from "@/lib/dbFactory";
+import * as cryptoNode from "crypto";
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const bodyText = await req.text();
+        const body = JSON.parse(bodyText);
 
         // 1. Security Check
         const secret = req.headers.get("X-Scraper-Secret");
         const timestamp = req.headers.get("X-Timestamp");
-
-        const validSecret = process.env['SCRAPER_SECRET'] || "dev-secret";
-
-        if (secret !== validSecret) {
-            return NextResponse.json({ error: "Unauthorized: Invalid Secret" }, { status: 401 });
-        }
-
-        // Compliance Hash Check (Integrity)
         const complianceHash = req.headers.get("X-Compliance-Hash");
-        if (!complianceHash) {
-            return NextResponse.json({ error: "Unauthorized: Missing Compliance Hash" }, { status: 401 });
+
+        const hmacSecret = process.env['SCRAPER_SECRET'] || "";
+        if (!hmacSecret && process.env['NODE_ENV'] === 'production') {
+            throw new Error("CRITICAL: SCRAPER_SECRET is not configured. Webhook cannot verify signatures.");
+        }
+        const effectiveSecret = hmacSecret || "dev-secret-key-32-chars-long-####"; // Allow fallback ONLY in local dev if explicitly empty
+
+        if (!timestamp || !complianceHash) {
+            return NextResponse.json({ error: "Unauthorized: Missing security headers" }, { status: 401 });
         }
 
-        // In a real system, we'd verify HMAC(body + region + secret). 
-        // For MVP, we check presence and could check length/format.
-        if (complianceHash.length < 32) {
-            return NextResponse.json({ error: "Unauthorized: Invalid Compliance Hash Format" }, { status: 401 });
-        }
-
-        if (!timestamp) {
-            return NextResponse.json({ error: "Unauthorized: Missing Timestamp" }, { status: 401 });
-        }
-
-        // Prevent Replay (allow 5 minute window data might be slightly old)
+        // Prevent Replay (allow 5 minute window)
         const requestTime = parseInt(timestamp, 10);
         if (isNaN(requestTime) || Math.abs(Date.now() - requestTime) > 5 * 60 * 1000) {
             return NextResponse.json({ error: "Unauthorized: Timestamp limit exceeded" }, { status: 401 });
+        }
+
+        // Fix [HIGH-3]: Real HMAC Validation
+        const expectedHash = cryptoNode
+            .createHmac("sha256", hmacSecret)
+            .update(`${bodyText}.${timestamp}`)
+            .digest("hex");
+
+        if (complianceHash !== expectedHash) {
+            // Log attempt for audit
+            console.error(`[Security] HMAC Mismatch for scraper webhook. Expected prefix: ${expectedHash.substring(0, 8)}`);
+            return NextResponse.json({ error: "Unauthorized: Invalid Compliance Hash" }, { status: 401 });
         }
 
         // 2. Sentinel Audit (Data Quality & Health)
@@ -53,22 +56,21 @@ export async function POST(req: Request) {
         const sentinelReport = await SentinelService.evaluate(body, metrics);
 
         if (sentinelReport.status === "FAIL") {
-            console.warn("[Webhook] Sentinel Blocked Ingestion:", sentinelReport);
             return NextResponse.json({ ok: false, error: "Sentinel Validation Failed", report: sentinelReport }, { status: 400 });
         }
 
         if (sentinelReport.action_taken === "QUARANTINED") {
-            console.warn("[Webhook] Payload Quarantined by Sentinel:", sentinelReport);
             return NextResponse.json({ ok: true, status: "QUARANTINED", report: sentinelReport });
         }
 
         // 3. Residency Lock & Sovereign Firewall Masking
         const { ResidencyLockService } = await import("@/modules/compliance/ResidencyLockService");
+        // We use headers.get() here as ResidencyLockService expects original headers
         const region = ResidencyLockService.getRegionFromContext(req.headers);
         const firewallRegion: 'UAE' | 'GLOBAL' = (region === 'UAE') ? 'UAE' : 'GLOBAL';
         const { safeContext, tokenMap } = await SovereignFirewall.mask(body, firewallRegion);
 
-        // 3. Database Update (Upsert ScrapingJob)
+        // 4. Database Update (Upsert ScrapingJob)
         const jobId = body.jobId || uuidv4();
         let safePayload;
         try {
@@ -77,7 +79,6 @@ export async function POST(req: Request) {
             safePayload = {}; 
         }
 
-        // Use DbFactory to respect Data Residency (UAE vs EU vs Global)
         const targetPrisma = DbFactory.getClient(region);
 
         const job = await targetPrisma.scrapingJob.upsert({
@@ -85,9 +86,8 @@ export async function POST(req: Request) {
             update: {
                 status: "COMPLETED",
                 payload: safePayload,
-                tokenMap: Object.fromEntries(tokenMap), // Save for detokenization
+                tokenMap: Object.fromEntries(tokenMap),
                 updatedAt: new Date(),
-                // region might not change but we can update it
             },
             create: {
                 id: jobId,
@@ -95,11 +95,11 @@ export async function POST(req: Request) {
                 status: "COMPLETED",
                 region: region,
                 payload: safePayload,
-                tokenMap: Object.fromEntries(tokenMap), // Save for detokenization
+                tokenMap: Object.fromEntries(tokenMap),
             }
         });
 
-        // 4. Action Logic (Intent Scoring)
+        // 5. Action Logic (Intent Scoring)
         await intentScoringService.processWebhookData(safePayload);
 
         // [SERVICE-WATCHER] Record Step 2 Signal Heartbeat

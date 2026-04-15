@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
+import { prisma } from "@/lib/db";
 
 function generateTicketId(): string {
     const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
@@ -16,11 +17,20 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "All fields are required" }, { status: 400 });
         }
 
-        // In a real app, we would send an email via SendGrid/AWS SES here.
-        // For now, we'll just log it and simulate a delay.
-        console.log("Support Ticket Received:", { name, email, subject, message });
+        // Improved Security: Avoid logging PII to console.
+        // Persistence: Save to ManualReview table for operator processing instead of discarding.
+        await (prisma as any).manualReview.create({
+            data: {
+                source: "Support Contact",
+                payload: { name, email, subject, message },
+                reason: "User Support Request",
+                severity: "INFO",
+                status: "PENDING"
+            }
+        });
 
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+        // Simulate a small processing overhead for UX (reduced to 200ms)
+        await new Promise(resolve => setTimeout(resolve, 200));
 
         return NextResponse.json({
             success: true,

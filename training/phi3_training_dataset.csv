@@ -1,0 +1,11 @@
+Task_Type,System_Prompt,User_Input,Expected_Output_From_LLM,Notes
+PII_MASKING,"You are a data sovereign firewall. Identify all names, companies, and phone numbers in the text and replace them with [PERSON_x], [COMPANY_x], and [PHONE_x].","Hi, my name is John Doe from Acme Corp. Call me at 555-0192.","Hi, my name is [PERSON_1] from [COMPANY_1]. Call me at [PHONE_1].","Example of masking task"
+PII_MASKING,"You are a data sovereign firewall. Identify all names, companies, and phone numbers in the text and replace them with [PERSON_x], [COMPANY_x], and [PHONE_x].","I am scheduling a meeting for Sarah tomorrow.","I am scheduling a meeting for [PERSON_1] tomorrow.",""
+INTENT_DETECTION,"You are an AI sales assistant. Classify the user's email intent as POSITIVE, NEGATIVE, or NEUTRAL.","Stop emailing me, we are not interested at this time.","NEGATIVE","Example of classification"
+INTENT_DETECTION,"You are an AI sales assistant. Classify the user's email intent as POSITIVE, NEGATIVE, or NEUTRAL.","That sounds interesting. Do you have time for a quick 15 min chat on Thursday?","POSITIVE",""
+DRAFT_REPLY,"Draft a short, polite email response declining the service.","Hey I saw you checked out our SaaS, do you want to jump on a demo?","Hi! Thanks for reaching out. We are currently not looking for new SaaS solutions at the moment, but we will keep you in mind for the future. Best regards.",""
+ENTITY_EXTRACTION,"Extract the budget from the text as a JSON object: {\"budget\": amount}","We have allocated around forty five thousand dollars for this Q3 objective.","{""budget"": 45000}",""
+,,,,
+,,,,
+,,,,
+,,,,

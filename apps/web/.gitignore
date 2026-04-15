@@ -9,3 +9,5 @@ playwright-report/
 .playwright-cache/
 *.log
 tsconfig.tsbuildinfo
+audit-report.json
+audit-screenshots/

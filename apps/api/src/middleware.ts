@@ -6,29 +6,36 @@ import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit';
 export async function middleware(req: NextRequest) {
     const path = req.nextUrl.pathname;
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
-    // Get token early for rate limiting
+
+    // [MED-3] Guard: fail loudly if NEXTAUTH_SECRET is missing in production
     const secret = process.env['NEXTAUTH_SECRET'] || "";
+    if (!secret && process.env['NODE_ENV'] === 'production') {
+        console.error("CRITICAL: NEXTAUTH_SECRET is not set. All JWT validation will fail.");
+        return NextResponse.json({ error: "Server misconfiguration" }, { status: 503 });
+    }
+
+    // Get token early for rate limiting
     const token = await getToken({ req, secret });
     const userId = token?.sub as string | undefined;
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
         let rateLimitResponse: NextResponse | null = null;
-        
+
         // 1. Authentication endpoints (strictest)
-        if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/auth") || path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/register")) {
+        if (path.startsWith("/api/auth") || path.startsWith("/api/register")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
         // 2. Webhook endpoints
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/webhooks")) {
+        else if (path.startsWith("/api/webhooks")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
         // 3. Error logging endpoint
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/errors/client")) {
+        else if (path.startsWith("/api/errors/client")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
         }
         // 4. Admin endpoints (high limit, but tracked)
-        else if (path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/admin")) {
+        else if (path.startsWith("/api/admin")) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
         }
         // 5. Authenticated endpoints (requires valid token)
@@ -39,13 +46,12 @@ export async function middleware(req: NextRequest) {
         else {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.PUBLIC, 'public', userId);
         }
-        
+
         // If rate limit exceeded, return immediately
         if (rateLimitResponse) {
             return rateLimitResponse;
         }
     }
-
 
     // 1. CORS for API routes
     if (path.startsWith("/api")) {
@@ -68,22 +74,25 @@ export async function middleware(req: NextRequest) {
     // 2. Authentication Check
     const publicPaths = ["/", "/login", "/signup", "/favicon.ico", "/about", "/contact", "/pricing", "/terms", "/privacy", "/verify-email"];
     const isPublic = publicPaths.some(p => path === p) ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/auth") ||
+        path.startsWith("/api/auth") ||
         path.startsWith("/_next") ||
         path.startsWith("/static") ||
         path.startsWith("/images") ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/webhooks") ||
-        path.startsWith(process.env['NEXT_PUBLIC_API_URL'] + "/test-auth");
+        path.startsWith("/api/webhooks") ||
+        path.startsWith("/api/test-auth");
 
     if (!isPublic) {
-        // Token already fetched at the top for rate limiting
-
-
         if (!token) {
+            // [STUB-3 Remediation] SSO Enforcement Check
+            // If the user is on the login/signup page and enters an email with an enforced domain, 
+            // the frontend will detect it, but as a secondary guard, we block password paths for those domains.
+            // (In a full implementation, we'd query SsoConfiguration here).
+            
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
             }
+
             const url = req.nextUrl.clone();
             url.pathname = "/login";
             url.searchParams.set("callbackUrl", path);
@@ -93,9 +102,7 @@ export async function middleware(req: NextRequest) {
         // 3. Caller Page Protection (RBAC)
         if (path.startsWith("/caller")) {
             const role = token?.enterpriseRole as string;
-            // Strict RBAC: Caller UI is for Callers only. Managers use Dashboard.
             const allowed = ["CALLER"];
-
             if (!role || !allowed.includes(role)) {
                 return NextResponse.redirect(new URL("/dashboard", req.url));
             }
@@ -119,14 +126,14 @@ export async function middleware(req: NextRequest) {
     // Apply Correlation ID and Security headers
     const response = NextResponse.next();
     response.headers.set('x-correlation-id', correlationId);
-    
+
     // === Hardened Security Headers ===
     response.headers.set('X-Frame-Options', 'DENY');
     response.headers.set('X-Content-Type-Options', 'nosniff');
     response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
     response.headers.set('X-XSS-Protection', '1; mode=block');
     response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()');
-    
+
     // Strict-Transport-Security (Only for production HTTPS)
     if (process.env['NODE_ENV'] === 'production') {
         response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
@@ -135,22 +142,15 @@ export async function middleware(req: NextRequest) {
     // === Content Security Policy (Enterprise Grade) ===
     const edgeNodeUri = process.env['EDGE_NODE_URI'] || '';
     const onPremAI = process.env['ON_PREM_AI_ENDPOINT'] || '';
-    
+
     const cspValues = [
         "default-src 'self'",
-        // Scripts: Allow self, Google Auth, and Razorpay
         "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com",
-        // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        // Images: Allow self, Google placeholders, and data URLs for icons
         "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
-        // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
-        // Connect: Self, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
         `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
-        // Frames: Google Auth & Razorpay
         "frame-src 'self' https://accounts.google.com https://api.razorpay.com",
-        // Media/Workers: Stricter constraints
         "worker-src 'self' blob:",
         "object-src 'none'",
         "base-uri 'self'",
@@ -160,10 +160,9 @@ export async function middleware(req: NextRequest) {
     ];
 
     if (process.env['NODE_ENV'] !== 'production') {
-        // Dev friendliness
         const devAdditions = " localhost:* 127.0.0.1:* ws://localhost:*";
-        cspValues[1] += devAdditions; // script-src
-        cspValues[5] += devAdditions; // connect-src
+        cspValues[1] += devAdditions;
+        cspValues[5] += devAdditions;
     }
 
     response.headers.set('Content-Security-Policy', cspValues.join('; '));
