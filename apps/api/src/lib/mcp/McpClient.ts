@@ -13,9 +13,12 @@ export class McpClient {
     private tools: Map<string, McpTool> = new Map();
     private requestId: number = 0;
     private pendingRequests: Map<number, { resolve: (v: any) => void; reject: (e: any) => void }> = new Map();
+    private requestTimeoutMs: number;
 
     constructor(config: McpServerConfig) {
         this.config = config;
+        const timeout = Number(process.env["MCP_REQUEST_TIMEOUT_MS"] || 30000);
+        this.requestTimeoutMs = Number.isFinite(timeout) && timeout > 0 ? timeout : 30000;
     }
 
     async connect(): Promise<void> {
@@ -28,6 +31,7 @@ export class McpClient {
             if (this.config.args) transportConfig.args = this.config.args;
             if (this.config.env) transportConfig.env = this.config.env;
             if (this.config.url) transportConfig.url = this.config.url;
+            if (this.config.messageUrl) transportConfig.messageUrl = this.config.messageUrl;
             if (this.config.headers) transportConfig.headers = this.config.headers;
 
             this.transport = createTransport(transportConfig);
@@ -103,13 +107,12 @@ export class McpClient {
                 reject(error);
             });
 
-            // Timeout after 30 seconds
             setTimeout(() => {
                 if (this.pendingRequests.has(id)) {
                     this.pendingRequests.delete(id);
                     reject(new Error(`Request timeout: ${method}`));
                 }
-            }, 30000);
+            }, this.requestTimeoutMs);
         });
     }
 

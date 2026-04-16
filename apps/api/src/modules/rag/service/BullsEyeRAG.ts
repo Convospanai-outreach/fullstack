@@ -2,7 +2,6 @@ import { mcpManager } from "@/lib/mcp/McpManager";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { aiService } from "@/lib/aiService";
 import { TOON } from "@/lib/ai/TOON";
-import { netjanaServer } from "@/modules/integration/mcp/netjana-server";
 
 export interface Signal {
     id: string;
@@ -64,14 +63,23 @@ export class BullsEyeRAG {
     static async syncMarketIntelligence(query: string, teamId: string) {
         console.log(`[BullsEye:Agentic] Syncing market intelligence for "${query}"...`);
 
-        // 1. Fetch Ingress Signal from Netjana MCP
-        const intentData = await netjanaServer.callTool("fetch_customer_intent", { query });
+        // 1. Fetch ingress signal through managed MCP path (classified low risk)
+        await mcpManager.initialize();
+        const intentData = await mcpManager.callTool(
+            "fetch_customer_intent",
+            { query },
+            {
+                teamId,
+                source: "service",
+                approved: true
+            }
+        );
 
         // 2. Process each signal
-        for (const signal of intentData.signals) {
+        for (const signal of intentData.signals || []) {
             // Sterilize via TOON before logic processing
             const { optimizedPrompt: safeSignal } = await TOON.process(signal.signal, teamId);
-            
+
             console.log(`[BullsEye] Processed safe signal for ${signal.company}: ${safeSignal}`);
 
             // Logic to update Lead or Campaign based on intent
@@ -103,25 +111,45 @@ export class BullsEyeRAG {
                 return;
             }
 
-            // 2. Trigger Computer Use to update CRM
+            // 2. High-risk MCP automation is disabled by default to avoid governance bypass.
+            const allowAutonomousMcp = process.env["ENABLE_BULLSEYE_AUTONOMOUS_MCP"] === "true";
+            const allowUnsafeBypass = process.env["ALLOW_UNSAFE_MCP_BYPASS"] === "true";
+            if (!allowAutonomousMcp || !allowUnsafeBypass) {
+                console.warn("[BullsEye] High-risk MCP automation skipped. Enable both ENABLE_BULLSEYE_AUTONOMOUS_MCP=true and ALLOW_UNSAFE_MCP_BYPASS=true only for controlled environments.");
+                return;
+            }
+
+            // 3. Trigger Computer Use to update CRM
             try {
-                // Ensure MCP is initialized
                 await mcpManager.initialize();
 
                 // Selectors should be moved to a configuration file or environment variables
                 const CRM_TAB_SELECTOR = process.env['CRM_TAB_SELECTOR'] || "#crm-tab";
                 const NOTE_FIELD_SELECTOR = process.env['NOTE_FIELD_SELECTOR'] || "#note-field";
                 const SAVE_BUTTON_SELECTOR = process.env['SAVE_BUTTON_SELECTOR'] || "#save-button";
+                const signalTeamId = typeof signal.metadata["teamId"] === "string" ? signal.metadata["teamId"] : undefined;
 
                 // 1. "Click CRM Tab" (Using MCP)
-                await mcpManager.callTool("computer_click", { selector: CRM_TAB_SELECTOR });
+                await mcpManager.callTool("computer_click", { selector: CRM_TAB_SELECTOR }, {
+                    teamId: signalTeamId,
+                    source: "service",
+                    bypassGovernance: true
+                });
 
                 // 2. Type the update note
                 const note = `[Auto-Log] Detected high intent signal from Conversation ${signal.metadata['conversationId']}.`;
-                await mcpManager.callTool("computer_type", { selector: NOTE_FIELD_SELECTOR, text: note });
+                await mcpManager.callTool("computer_type", { selector: NOTE_FIELD_SELECTOR, text: note }, {
+                    teamId: signalTeamId,
+                    source: "service",
+                    bypassGovernance: true
+                });
 
                 // 3. "Save Button"
-                await mcpManager.callTool("computer_click", { selector: SAVE_BUTTON_SELECTOR });
+                await mcpManager.callTool("computer_click", { selector: SAVE_BUTTON_SELECTOR }, {
+                    teamId: signalTeamId,
+                    source: "service",
+                    bypassGovernance: true
+                });
 
                 console.log("[BullsEye] CRM successfully updated via MCP Computer Use Server.");
             } catch (e: any) {

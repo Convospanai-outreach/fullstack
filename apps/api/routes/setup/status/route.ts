@@ -62,7 +62,7 @@ export async function GET() {
         const linkedInMode = process.env['LINKEDIN_EXECUTION_MODE'] || (hasExtensionApiKey ? "EXTENSION" : "EDGE");
         const hasBrowserNode = !!process.env['BROWSER_NODE_URL'] || !!process.env['BROWSER_WS_ENDPOINT'];
         // Task: Check real session status from user settings
-        const userSettings = await prisma.settings.findUnique({ where: { userId: session.user.id } });
+        const userSettings = await prisma.settings.findUnique({ where: { userId: ctx.userId } });
         const hasLinkedInSession = linkedInMode === "EXTENSION" 
             ? !!userSettings?.liCookie 
             : false;
@@ -168,3 +168,4 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+

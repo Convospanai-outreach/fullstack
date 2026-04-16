@@ -9,13 +9,15 @@ import axios from "axios";
 export interface HelperTool {
     name: string;
     description: string;
-    input_schema: any;
+    inputSchema: any;
     handler: (args: any) => Promise<any>;
 }
 
 export class NetjanaMCPServer {
     private tools: HelperTool[] = [];
     private readonly NETJANA_URL = process.env["NETJANA_URL"] || "http://netjana-api.internal";
+    private readonly MAX_QUERY_LENGTH = Number(process.env["NETJANA_MAX_QUERY_LENGTH"] || 200);
+    private readonly MAX_LOOKBACK_DAYS = Number(process.env["NETJANA_MAX_LOOKBACK_DAYS"] || 30);
 
     constructor() {
         this.registerTools();
@@ -25,7 +27,7 @@ export class NetjanaMCPServer {
         this.tools.push({
             name: "fetch_customer_intent",
             description: "Fetch real-time customer intent signals from Netjana for a specific domain or keyword",
-            input_schema: {
+            inputSchema: {
                 type: "object",
                 properties: {
                     query: { type: "string", description: "Companies, keywords or domains to search for" },
@@ -34,11 +36,23 @@ export class NetjanaMCPServer {
                 required: ["query"]
             },
             handler: async ({ query, lookback_days = 7 }) => {
+                if (typeof query !== "string" || query.trim().length === 0) {
+                    throw new Error("query is required");
+                }
+                if (query.length > this.MAX_QUERY_LENGTH) {
+                    throw new Error(`query exceeds max length of ${this.MAX_QUERY_LENGTH}`);
+                }
+
+                const lookback = Number(lookback_days);
+                if (!Number.isFinite(lookback) || lookback < 1 || lookback > this.MAX_LOOKBACK_DAYS) {
+                    throw new Error(`lookback_days must be between 1 and ${this.MAX_LOOKBACK_DAYS}`);
+                }
+
                 console.log(`[MCP:Netjana] Ingesting intent for: ${query}`);
 
                 try {
                     const response = await axios.get(`${this.NETJANA_URL}/signals`, {
-                        params: { q: query, days: lookback_days }
+                        params: { q: query, days: lookback }
                     });
 
                     return {
@@ -58,7 +72,7 @@ export class NetjanaMCPServer {
         return this.tools.map(t => ({
             name: t.name,
             description: t.description,
-            input_schema: t.input_schema
+            inputSchema: t.inputSchema
         }));
     }
 

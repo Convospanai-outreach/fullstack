@@ -6,11 +6,22 @@
 export interface HelperTool {
     name: string;
     description: string;
-    input_schema: any;
+    inputSchema: any;
     handler: (args: any) => Promise<any>;
 }
 
 const SLACK_API_URL = process.env["SLACK_API_URL"] || "https://slack.com/api";
+const MAX_SLACK_MESSAGE_LENGTH = Number(process.env["SLACK_MAX_MESSAGE_LENGTH"] || 4000);
+
+function parseCsvEnv(key: string): Set<string> {
+    const value = process.env[key];
+    if (!value) {
+        return new Set();
+    }
+    return new Set(value.split(",").map(item => item.trim()).filter(Boolean));
+}
+
+const SLACK_ALLOWED_CHANNELS = parseCsvEnv("SLACK_ALLOWED_CHANNELS");
 
 function getSlackToken() {
     const token = process.env["SLACK_BOT_TOKEN"];
@@ -18,6 +29,15 @@ function getSlackToken() {
         throw new Error("SLACK_BOT_TOKEN is not configured");
     }
     return token;
+}
+
+function assertAllowedChannel(channelId: string) {
+    if (SLACK_ALLOWED_CHANNELS.size === 0) {
+        return;
+    }
+    if (!SLACK_ALLOWED_CHANNELS.has(channelId)) {
+        throw new Error(`Channel '${channelId}' is not in SLACK_ALLOWED_CHANNELS.`);
+    }
 }
 
 export class SlackMCPServer {
@@ -31,7 +51,7 @@ export class SlackMCPServer {
         this.tools.push({
             name: "post_message",
             description: "Post a message to a Slack channel",
-            input_schema: {
+            inputSchema: {
                 type: "object",
                 properties: {
                     channel_id: { type: "string" },
@@ -40,6 +60,15 @@ export class SlackMCPServer {
                 required: ["channel_id", "text"]
             },
             handler: async ({ channel_id, text }) => {
+                assertAllowedChannel(channel_id);
+
+                if (typeof text !== "string" || text.length === 0) {
+                    throw new Error("Slack message text is required.");
+                }
+                if (text.length > MAX_SLACK_MESSAGE_LENGTH) {
+                    throw new Error(`Slack message exceeds max length of ${MAX_SLACK_MESSAGE_LENGTH}.`);
+                }
+
                 const token = getSlackToken();
                 const response = await fetch(`${SLACK_API_URL}/chat.postMessage`, {
                     method: "POST",
@@ -62,7 +91,7 @@ export class SlackMCPServer {
         this.tools.push({
             name: "read_channel",
             description: "Read recent messages from a channel",
-            input_schema: {
+            inputSchema: {
                 type: "object",
                 properties: {
                     channel_id: { type: "string" },
@@ -71,6 +100,8 @@ export class SlackMCPServer {
                 required: ["channel_id"]
             },
             handler: async ({ channel_id, limit = 10 }) => {
+                assertAllowedChannel(channel_id);
+
                 const token = getSlackToken();
                 const url = new URL(`${SLACK_API_URL}/conversations.history`);
                 url.searchParams.set("channel", channel_id);
@@ -96,7 +127,7 @@ export class SlackMCPServer {
         return this.tools.map(t => ({
             name: t.name,
             description: t.description,
-            input_schema: t.input_schema
+            inputSchema: t.inputSchema
         }));
     }
 

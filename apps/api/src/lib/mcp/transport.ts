@@ -16,6 +16,7 @@ export interface TransportConfig {
     env?: Record<string, string>;
     // SSE config
     url?: string;
+    messageUrl?: string;
     headers?: Record<string, string>;
 }
 
@@ -224,9 +225,10 @@ export class SseTransport extends Transport {
             throw new Error("Not connected to SSE server");
         }
 
-        // For SSE, we typically need a separate POST endpoint to send messages
-        // This is a limitation of SSE (unidirectional)
-        const endpoint = this.config.url!.replace("/events", "/send");
+        // For SSE we allow explicit configuration; fallback keeps backward compatibility.
+        const endpoint = this.config.messageUrl || (this.config.url!.endsWith("/events")
+            ? this.config.url!.replace(/\/events$/, "/send")
+            : `${this.config.url!.replace(/\/$/, "")}/send`);
 
         const response = await fetch(endpoint, {
             method: "POST",

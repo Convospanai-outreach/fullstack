@@ -7,6 +7,18 @@ import { HelperTool } from "./slack-server";
 
 const GMAIL_API_URL = process.env["GMAIL_API_URL"] || "https://gmail.googleapis.com/gmail/v1";
 const GMAIL_SENDER_ADDRESS = process.env["GMAIL_SENDER_ADDRESS"] || "";
+const MAX_GMAIL_SUBJECT_LENGTH = Number(process.env["GMAIL_MAX_SUBJECT_LENGTH"] || 200);
+const MAX_GMAIL_BODY_LENGTH = Number(process.env["GMAIL_MAX_BODY_LENGTH"] || 20000);
+
+function parseCsvEnv(key: string): Set<string> {
+    const value = process.env[key];
+    if (!value) {
+        return new Set();
+    }
+    return new Set(value.split(",").map(item => item.trim().toLowerCase()).filter(Boolean));
+}
+
+const GMAIL_ALLOWED_RECIPIENT_DOMAINS = parseCsvEnv("GMAIL_ALLOWED_RECIPIENT_DOMAINS");
 
 function getGmailToken() {
     const token = process.env["GMAIL_OAUTH_ACCESS_TOKEN"];
@@ -24,6 +36,24 @@ function encodeMessage(message: string) {
         .replace(/=+$/, "");
 }
 
+function assertNoHeaderInjection(value: string, field: string) {
+    if (/\r|\n/.test(value)) {
+        throw new Error(`${field} contains invalid newline characters.`);
+    }
+}
+
+function assertAllowedRecipient(to: string) {
+    if (GMAIL_ALLOWED_RECIPIENT_DOMAINS.size === 0) {
+        return;
+    }
+
+    const match = to.match(/@([^>\s]+)$/);
+    const domain = match?.[1]?.toLowerCase();
+    if (!domain || !GMAIL_ALLOWED_RECIPIENT_DOMAINS.has(domain)) {
+        throw new Error(`Recipient domain '${domain || "unknown"}' is not in GMAIL_ALLOWED_RECIPIENT_DOMAINS.`);
+    }
+}
+
 export class GmailMCPServer {
     private tools: HelperTool[] = [];
 
@@ -35,7 +65,7 @@ export class GmailMCPServer {
         this.tools.push({
             name: "send_email",
             description: "Send an email via Gmail API",
-            input_schema: {
+            inputSchema: {
                 type: "object",
                 properties: {
                     to: { type: "string" },
@@ -45,6 +75,21 @@ export class GmailMCPServer {
                 required: ["to", "subject", "body"]
             },
             handler: async ({ to, subject, body }) => {
+                if (typeof to !== "string" || typeof subject !== "string" || typeof body !== "string") {
+                    throw new Error("Invalid email payload. Expected string fields: to, subject, body.");
+                }
+
+                assertNoHeaderInjection(to, "to");
+                assertNoHeaderInjection(subject, "subject");
+                assertAllowedRecipient(to);
+
+                if (subject.length > MAX_GMAIL_SUBJECT_LENGTH) {
+                    throw new Error(`Subject exceeds max length of ${MAX_GMAIL_SUBJECT_LENGTH}.`);
+                }
+                if (body.length > MAX_GMAIL_BODY_LENGTH) {
+                    throw new Error(`Body exceeds max length of ${MAX_GMAIL_BODY_LENGTH}.`);
+                }
+
                 const token = getGmailToken();
                 const headers = [
                     "Content-Type: text/plain; charset=\"UTF-8\"",
@@ -55,6 +100,7 @@ export class GmailMCPServer {
                 ];
 
                 if (GMAIL_SENDER_ADDRESS) {
+                    assertNoHeaderInjection(GMAIL_SENDER_ADDRESS, "from");
                     headers.unshift(`From: ${GMAIL_SENDER_ADDRESS}`);
                 }
 
@@ -83,7 +129,7 @@ export class GmailMCPServer {
         this.tools.push({
             name: "search_threads",
             description: "Search email threads",
-            input_schema: {
+            inputSchema: {
                 type: "object",
                 properties: {
                     query: { type: "string" },
@@ -118,7 +164,7 @@ export class GmailMCPServer {
         return this.tools.map(t => ({
             name: t.name,
             description: t.description,
-            input_schema: t.input_schema
+            inputSchema: t.inputSchema
         }));
     }
 

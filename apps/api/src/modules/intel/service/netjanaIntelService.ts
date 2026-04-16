@@ -225,7 +225,7 @@ export function validateNetjanaPayload(payload: unknown): payload is NetjanaInte
     const leadData = lead as Record<string, unknown>;
     const validEvent = NETJANA_EVENTS.includes(String(data["event"]) as NetjanaEventType);
     const sourceValue = typeof data["source"] === "string" ? data["source"] : "";
-    const validSource = NETJANA_SOURCES.includes(sourceValue);
+    const validSource = NETJANA_SOURCES.includes(sourceValue as (typeof NETJANA_SOURCES)[number]);
     const validTimestamp = isIsoDateTime(data["timestamp"]);
     const validLeadId = isUuid(leadData["lead_id"]);
     const validCompany = isNonEmptyString(leadData["company_name"], 160);
@@ -303,7 +303,7 @@ export function normalizeNetjanaSignal(
             ? "WARM"
             : "COLD";
     const signatureVerified = Boolean(options.signatureVerified);
-    const signal: NormalizedNetjanaSignal = {
+    const signal: NormalizedNetjanaSignal & { nonce?: string | null; externalTimestamp?: string | null } = {
         signalId: createNetjanaSignalId(teamId, payload, options.nonce),
         event: payload.event,
         externalLeadId: payload.lead.lead_id,
@@ -766,3 +766,4 @@ export async function ingestNetjanaSignal(
         followup,
     };
 }
+

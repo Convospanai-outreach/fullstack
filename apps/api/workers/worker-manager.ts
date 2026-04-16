@@ -1,6 +1,6 @@
 import { JobQueue } from "@/lib/queue";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
-import { worker } from "./worker";
+import { worker } from "./job-processor";
 
 export class WorkerManager {
     private isRunning: boolean = false;
@@ -92,3 +92,4 @@ export class WorkerManager {
 }
 
 export const workerManager = new WorkerManager();
+

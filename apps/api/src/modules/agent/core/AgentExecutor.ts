@@ -248,7 +248,7 @@ export class AgentExecutor {
                 // DISCOVER TOOLS
                 const tools = await mcpManager.getAllTools();
                 const toolsDesc = tools.map(t =>
-                    `- ${t.name}: ${t.description} (Schema: ${JSON.stringify(t.inputSchema)})`
+                    `- ${t.name}: ${t.description} (Schema: ${JSON.stringify(t.inputSchema)}, Risk: ${t.riskLevel ?? "high"})`
                 ).join("\n");
 
                 // AGENTIC RAG: Retrieve campaign context
@@ -299,11 +299,23 @@ RESPONSE:
 
                 if (toolCall) {
                     await this.log(taskId, "DECISION", `Agent selected tool: ${toolCall.tool}`);
+
+                    try {
+                        mcpManager.validateToolArgs(toolCall.tool, toolCall.args);
+                    } catch (validationError: any) {
+                        await this.log(taskId, "ERROR", `Invalid MCP tool arguments: ${validationError.message}`);
+                        return await this.transition(taskId, AgentState.FAILED);
+                    }
+
+                    const riskLevel = mcpManager.getToolRiskLevel(toolCall.tool) || "high";
                     const newContext = { ...ctx, tool_call: toolCall };
                     await prisma.agentTask.update({ where: { id: taskId }, data: { context: newContext } });
 
-                    // GOVERNANCE: High-Risk Action Check
-                    // For now, ALL tool calls are considered high risk and require approval
+                    if (riskLevel === "low") {
+                        await this.log(taskId, "GOVERNANCE", `Low-risk MCP tool '${toolCall.tool}' auto-approved for execution.`);
+                        return await this.transition(taskId, AgentState.EXECUTION);
+                    }
+
                     const { ApprovalService } = await import("@/modules/governance/ApprovalService");
                     await ApprovalService.requestApproval(taskId, task.teamId, "MCP_TOOL_EXECUTION", toolCall, task.userId || "agent-autonomous");
 
@@ -321,7 +333,7 @@ RESPONSE:
                         }
                     });
 
-                    await this.log(taskId, "GOVERNANCE", "Transitioning to AWAITING_APPROVAL for Tool Execution.");
+                    await this.log(taskId, "GOVERNANCE", "Transitioning to AWAITING_APPROVAL for high-risk tool execution.");
                     return await this.transition(taskId, AgentState.AWAITING_APPROVAL);
                 }
 
@@ -360,7 +372,12 @@ RESPONSE:
                             
                             // If it was a tool call, the edits might be the new args
                             if (currentCtx.tool_call && edits.args) {
-                                updatedCtx.tool_call = { ...currentCtx.tool_call, args: edits.args };
+                                try {
+                                    mcpManager.validateToolArgs(currentCtx.tool_call.tool, edits.args);
+                                    updatedCtx.tool_call = { ...currentCtx.tool_call, args: edits.args };
+                                } catch (validationError: any) {
+                                    throw new Error(`Rejected edited tool args: ${validationError.message}`);
+                                }
                             }
 
                             await prisma.agentTask.update({
@@ -484,8 +501,25 @@ RESPONSE:
                     await this.log(taskId, "ACTION", `Executing MCP Tool: ${tool} with args ${JSON.stringify(args)}`);
 
                     try {
-                        // Use McpManager's discovery logic
-                        const result = await mcpManager.callTool(tool, args);
+                        // Require explicit approval context for high-risk tools before execution
+                        const riskLevel = mcpManager.getToolRiskLevel(tool) || "high";
+                        let approvedForExecution = riskLevel === "low";
+
+                        if (!approvedForExecution) {
+                            const { ApprovalService, ApprovalStatus } = await import("@/modules/governance/ApprovalService");
+                            const approvalStatus = await ApprovalService.checkStatus(taskId);
+                            approvedForExecution = approvalStatus === ApprovalStatus.APPROVED;
+                            if (!approvedForExecution) {
+                                throw new Error(`High-risk MCP tool '${tool}' attempted without approved status.`);
+                            }
+                        }
+
+                        const result = await mcpManager.callTool(tool, args, {
+                            teamId: task.teamId,
+                            userId: task.userId || undefined,
+                            source: "agent",
+                            approved: approvedForExecution
+                        });
                         await this.log(taskId, "OBSERVATION", `Tool Execution Result: ${JSON.stringify(result)}`);
 
                         // AUDIT: Tool execution success
@@ -619,3 +653,4 @@ RESPONSE:
 }
 
 export const agentExecutor = new AgentExecutor();
+
