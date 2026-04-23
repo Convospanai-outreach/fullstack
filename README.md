@@ -1,101 +1,143 @@
-# ConvoSpan Monorepo
+# ConvoSpan
 
-ConvoSpan is a multi-app monorepo with three deployable applications under `apps/`.
+ConvoSpan is a multi-app monorepo for AI-assisted outbound, campaign operations, landing-page funnels, governance, and launch-readiness workflows.
 
-- `apps/web` - Next.js web app (UI + web route handlers)
-- `apps/api` - Fastify API app (core backend + workers)
-- `apps/edge-fastapi` - optional FastAPI edge runtime
+The repository is organized as one codebase with multiple deployable services. The root is orchestration only: scripts, shared config, CI, and documentation.
 
-Root is orchestration only (scripts, shared config, CI, docs). It is not a deployable app.
+## What This Repo Contains
 
-## Why 3 apps in 1 repo
+| Path | Service | Purpose |
+| --- | --- | --- |
+| `apps/web` | Next.js web app | Marketing pages, authenticated dashboard, setup wizard, public landing pages, and web route handlers |
+| `apps/api` | Fastify API app | Core backend APIs, workers, Prisma access, auth-aware route adapter, landing-agent APIs |
+| `apps/edge-fastapi` | FastAPI edge runtime | Optional private edge execution service |
+| `packages/*` | Shared packages | Shared contracts, helpers, and cross-app code |
+| `docs/*` | Documentation | Architecture, setup, runbooks, diagrams, and implementation notes |
 
-Single repo is intentional. It lets you:
+## System Architecture
 
-- ship cross-app changes atomically (web + api + schema + docs in one PR)
-- keep one CI pipeline with path-based deploy triggers
-- share standards (TypeScript config, security policies, scripts)
-- avoid version drift between API contracts and frontend usage
+For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md).
 
-This is a standard monorepo model: one git repo, multiple independently deployed apps.
+```mermaid
+flowchart LR
+    Browser[User Browser] --> Web[apps/web - Next.js]
+    Visitor[Public Landing Visitor] --> Web
+    Web --> Proxy["/api/proxy/*"]
+    Proxy --> API[apps/api - Fastify]
+    API --> Postgres[(Postgres)]
+    API -. optional .-> Redis[(Redis)]
+    API -. private optional .-> Edge[apps/edge-fastapi]
+    API --> Providers[LLM, Email, CRM, Payments]
+```
 
-## Local startup (fast path)
+## Product Surfaces
+
+- Outreach campaigns, leads, analytics, approvals, and inbox workflows.
+- Landing Agent funnel builder with prompt intake, brief generation, wireframes, constrained editor, public publish path, lead capture, and event tracking.
+- Setup wizard for brand, email, AI, LinkedIn extension, readiness, and launch configuration.
+- Governance, audit, feature gating, team settings, and approval controls.
+- Optional private edge runtime for hardware or browser-backed execution.
+
+## Local Development
+
+Install dependencies from the repository root:
+
+```bash
+npm install
+```
+
+Start the local beta stack:
 
 ```bash
 npm run beta:start
 ```
 
-What this does:
+This starts or reuses Postgres, Redis, `apps/web`, and `apps/api`, then pushes the API Prisma schema to the local database.
 
-1. starts `db` and `redis` containers
-2. pushes API Prisma schema to local DB
-3. starts API and web
-4. if API/web are already running, it reuses them instead of crashing on port conflicts
-
-To start web + api + edge-fastapi together:
+Start web, API, and optional edge runtime:
 
 ```bash
 npm run beta:start:all
 ```
 
-## Optional LinkedIn outreach via Chrome extension
-
-Email-first remains the default launch path. LinkedIn is available as an optional operator-assisted channel using the local Chrome extension.
-
-1. Set `EXTENSION_API_KEY` in API env and restart.
-2. Load the current LinkedIn extension package in Chrome.
-3. In the extension popup set:
-   - API URL: `http://localhost:3000/api/proxy/extension`
-   - Extension key: value of `EXTENSION_API_KEY`
-   - User token/user id
-
-## Frontend troubleshooting (text-only UI)
-
-If pages render as plain text, a stale `next start` process is usually serving missing CSS chunk references.
-
-1. Stop process on port `3000`.
-2. Restart with `npm run beta:start`.
-3. The startup script now validates CSS chunk URLs before reusing an existing web process.
-
-## Build commands
+## Build And Verification
 
 ```bash
 npm run build:web
 npm run build:api
+npm run typecheck:web
+npm run typecheck:api
 ```
 
-## Deploy separately from one repo
+App-level checks are available from each workspace:
 
-Deploy each app as its own service, still from this single repository:
+```bash
+cd apps/web
+npm run test:unit
+npm run test:e2e
 
-- Service A (`web`): root directory `apps/web`
-- Service B (`api`): root directory `apps/api`
-- Service C (`edge-fastapi`): root directory `apps/edge-fastapi` (optional/private)
+cd ../api
+npm run typecheck
+```
 
-Use path filters in CI/CD so each service deploys only when its own folder changes.
+## Repository Structure
 
-Example trigger mapping:
+```text
+fullstack/
+|-- apps/
+|   |-- web/                 # Next.js web app
+|   |-- api/                 # Fastify API service
+|   |-- edge-fastapi/        # Optional private edge runtime
+|
+|-- packages/                # Shared packages and contracts
+|-- docs/                    # Documentation, diagrams, runbooks
+|-- scripts/                 # Repository orchestration scripts
+|-- docker/                  # Docker support files
+|-- .github/                 # GitHub Actions workflows
+|
+|-- docker-compose.yml       # Local infrastructure and services
+|-- MASTER_SYSTEM_ARCHITECTURE.md
+|-- README.md
+|-- package.json             # Workspace scripts
+|-- package-lock.json
+```
 
-- changes in `apps/web/**` -> deploy web
-- changes in `apps/api/**` -> deploy api
-- changes in `apps/edge-fastapi/**` -> deploy edge
-- shared changes (`package-lock.json`, shared schemas, root scripts) -> deploy affected services
+See [docs/SIMPLE_REPO_TREE.md](./docs/SIMPLE_REPO_TREE.md) for the expanded service map.
 
-## Recommended hosting topology
+## Deployment Model
 
-For startup speed and fewer moving parts:
+Deploy each app as a separate service from this single repository:
 
-- `web` public
-- `api` public
-- `edge-fastapi` private/internal (optional in email-first beta)
-- Postgres + Redis private
+| Service | Root directory | Visibility |
+| --- | --- | --- |
+| Web | `apps/web` | Public |
+| API | `apps/api` | Public |
+| Edge | `apps/edge-fastapi` | Private/internal, optional |
+| Postgres | Managed database | Private |
+| Redis | Managed cache/queue | Private, optional |
 
-See:
+Use path-based deploy triggers:
 
-- [Architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
-- [Hosting plan](./hosting-plan.md)
-- [Simple repo tree](./docs/SIMPLE_REPO_TREE.md)
+- `apps/web/**` deploys web.
+- `apps/api/**` deploys API.
+- `apps/edge-fastapi/**` deploys edge.
+- Shared changes such as `package-lock.json`, root scripts, or Prisma schema changes deploy affected services.
 
-## CI note (GitHub Actions) — Prisma/Redis availability
+## Documentation Map
 
-GitHub runners do not have Postgres/Redis by default. Workflows that need them must provision service containers and run `prisma db push` before integration steps (see `.github/workflows/ci.yml`, `.github/workflows/playwright.yml`).
+- [Master system architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
+- [Mermaid architecture diagram](./docs/architecture-diagram.md)
+- [Landing Agent architecture](./docs/landing-agent-architecture.md)
+- [Landing Agent API examples](./docs/landing-agent-api-examples.md)
+- [Repository structure](./docs/SIMPLE_REPO_TREE.md)
+- [Deployment runbook](./docs/DEPLOYMENT_RUNBOOK.md)
+- [CI verification](./docs/CI_VERIFICATION.md)
+- [Setup guide](./docs/SETUP.md)
+
+## Infrastructure Expectations
+
+- Postgres is required for real runtime functionality.
+- Redis is optional for cache and queue features; the app should boot without Redis unless a specific workflow provisions it.
+- CI jobs that need Postgres or Redis should define GitHub Actions `services:` containers and run `prisma db push` before integration tests.
+- Edge runtime is optional for the email-first beta and should remain private unless explicitly exposed.
+

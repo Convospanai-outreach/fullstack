@@ -1,6 +1,6 @@
 # ConvoSpan Master System Architecture (Current)
 
-## 1) Scope
+## Scope
 
 This document describes the current architecture used for the startup launch path:
 
@@ -10,7 +10,7 @@ This document describes the current architecture used for the startup launch pat
 
 ---
 
-## 2) Deployable apps
+## Deployable Apps
 
 ConvoSpan has 3 deployable apps under `apps/`:
 
@@ -22,7 +22,7 @@ Single git repo does not mean single deployment unit. It means shared code owner
 
 ---
 
-## 3) Runtime topology
+## Runtime Topology
 
 Full GitHub-renderable Mermaid diagrams are maintained in [`docs/architecture-diagram.md`](docs/architecture-diagram.md).
 
@@ -48,7 +48,7 @@ flowchart LR
 
 ---
 
-## 4) Responsibilities by app
+## Responsibilities By App
 
 ### `apps/web`
 
@@ -72,7 +72,7 @@ flowchart LR
 
 ---
 
-## 5) Data boundaries
+## Data Boundaries
 
 - primary system state: Postgres
 - transient queue/cache: Redis
@@ -81,16 +81,16 @@ flowchart LR
 
 ---
 
-## 6) Monorepo and separate hosting
+## Monorepo And Separate Hosting
 
-### Why one repo
+### Why One Repo
 
 - atomic cross-app changes (UI + API + schema in one PR)
 - single CI policy surface (quality/security checks)
 - shared scripts and dependency management
 - lower coordination overhead for early-stage team
 
-### How to host separately from one repo
+### How To Host Separately From One Repo
 
 Define one service per app with independent root paths:
 
@@ -108,7 +108,7 @@ For shared files (`package-lock.json`, root scripts, shared schema/config), trig
 
 ---
 
-## 7) Environments
+## Environments
 
 Use at least:
 
@@ -123,7 +123,7 @@ Recommended environment variables by service:
 
 ---
 
-## 8) Startup beta mode
+## Startup Beta Mode
 
 Current launch mode prioritizes reliability:
 
@@ -150,7 +150,7 @@ This also ensures `edge-fastapi` is up on port `8000`.
 
 ---
 
-## 10) CI / Build environments
+## CI And Build Environments
 
 Build/test runners (GitHub Actions, preview deploys) should not assume Postgres/Redis exist unless the pipeline provisions them.
 
@@ -159,7 +159,7 @@ Build/test runners (GitHub Actions, preview deploys) should not assume Postgres/
 
 ---
 
-## 9) Decision summary
+## Decision Summary
 
 There are 3 apps because responsibilities are different and deploy cadence is different.
 There is 1 repo because coordination speed and consistency matter more than repo count at startup stage.
