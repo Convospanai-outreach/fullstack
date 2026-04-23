@@ -1,0 +1,552 @@
+(node:11700) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+⨯ ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  [90m8471 |[0m   }
+  [90m8472 |[0m }
+[31m[1m>[0m [90m8473 |[0m @[36mimport[0m url([32m'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...[0m
+  [90m     |[0m        [31m[1m^[0m
+  [90m8474 |[0m @layer base {
+  [90m8475 |[0m   :root {
+  [90m8476 |[0m     --background: [35m224[0m [35m71.4[0m% [35m3[0m%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  [90m8471 |[0m   }
+  [90m8472 |[0m }
+[31m[1m>[0m [90m8473 |[0m @[36mimport[0m url([32m'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...[0m
+  [90m     |[0m        [31m[1m^[0m
+  [90m8474 |[0m @layer base {
+  [90m8475 |[0m   :root {
+  [90m8476 |[0m     --background: [35m224[0m [35m71.4[0m% [35m3[0m%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component]
+
+
+[browser] Uncaught Error: ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component]
+
+
+    at <unknown> (Error: ./apps/web/src/app/globals.css:8473:8)
+    at <unknown> (./apps/web/src/app/globals.css:8473:8)
+    at <unknown> (Error: (./apps/web/src/app/globals.css:8473:8)
+    at <unknown> (./apps/web/src/app/globals.css:8473:8)
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css:8473:8
+Parsing CSS source code failed
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+@import rules must precede all rules aside from @charset and @layer statements
+
+Generated code of PostCSS transform of file content of apps/web/src/app/globals.css:
+./apps/web/src/app/globals.css:8473:8
+  8471 |   }
+  8472 | }
+> 8473 | @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900...
+       |        ^
+  8474 | @layer base {
+  8475 |   :root {
+  8476 |     --background: 224 71.4% 3%;
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+[browser] ./apps/web/src/app/globals.css
+Error evaluating Node.js code
+CssSyntaxError: D:\Convo\fullstack\apps\web\src\app\globals.css:1:151: Unknown word `r`n
+    [at Input.error (turbopack:///[project]/node_modules/postcss/lib/input.js:135:16)]
+    [at Parser.unknownWord (turbopack:///[project]/node_modules/postcss/lib/parser.js:595:22)]
+    [at Parser.other (turbopack:///[project]/node_modules/postcss/lib/parser.js:437:12)]
+    [at Parser.parse (turbopack:///[project]/node_modules/postcss/lib/parser.js:472:16)]
+    [at parser (turbopack:///[project]/node_modules/postcss/lib/parse.js:11:12)]
+    [at new LazyResult (turbopack:///[project]/node_modules/postcss/lib/lazy-result.js:165:16)]
+    [at Processor.process (turbopack:///[project]/node_modules/postcss/lib/processor.js:53:14)]
+    [at transform (turbopack:///[turbopack-node]/transforms/postcss.ts:70:51)]
+    [at run (turbopack:///[turbopack-node]/child_process/evaluate.ts:89:29)]
+    [at run (turbopack:///[turbopack-node]/child_process/evaluate.ts:112:11)]
+
+Import trace:
+  Client Component Browser:
+    ./apps/web/src/app/globals.css [Client Component Browser]
+    ./apps/web/src/app/layout.tsx [Server Component] 
+⨯ ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  [90m77 |[0m ...ing, setSaving] = useState([36mfalse[0m);
+  [90m78 |[0m ...iveStep, setActiveStep] = useState([35m1[0m);
+[31m[1m>[0m [90m79 |[0m ...mData, setFormData] = useState<any>({});[32m`r`[0mn  [36mconst[0m [loadError, setLoadError] = useStat...
+  [90m   |[0m                                               [31m[1m^[0m
+  [90m80 |[0m ...
+  [90m81 |[0m ...[90mtatus on load[0m
+  [90m82 |[0m ...Status = [36masync[0m () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+⨯ ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  [90m77 |[0m ...ing, setSaving] = useState([36mfalse[0m);
+  [90m78 |[0m ...iveStep, setActiveStep] = useState([35m1[0m);
+[31m[1m>[0m [90m79 |[0m ...mData, setFormData] = useState<any>({});[32m`r`[0mn  [36mconst[0m [loadError, setLoadError] = useStat...
+  [90m   |[0m                                               [31m[1m^[0m
+  [90m80 |[0m ...
+  [90m81 |[0m ...[90mtatus on load[0m
+  [90m82 |[0m ...Status = [36masync[0m () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+⨯ ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  [90m77 |[0m ...ing, setSaving] = useState([36mfalse[0m);
+  [90m78 |[0m ...iveStep, setActiveStep] = useState([35m1[0m);
+[31m[1m>[0m [90m79 |[0m ...mData, setFormData] = useState<any>({});[32m`r`[0mn  [36mconst[0m [loadError, setLoadError] = useStat...
+  [90m   |[0m                                               [31m[1m^[0m
+  [90m80 |[0m ...
+  [90m81 |[0m ...[90mtatus on load[0m
+  [90m82 |[0m ...Status = [36masync[0m () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+
+⨯ ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  [90m77 |[0m ...ing, setSaving] = useState([36mfalse[0m);
+  [90m78 |[0m ...iveStep, setActiveStep] = useState([35m1[0m);
+[31m[1m>[0m [90m79 |[0m ...mData, setFormData] = useState<any>({});[32m`r`[0mn  [36mconst[0m [loadError, setLoadError] = useStat...
+  [90m   |[0m                                               [31m[1m^[0m
+  [90m80 |[0m ...
+  [90m81 |[0m ...[90mtatus on load[0m
+  [90m82 |[0m ...Status = [36masync[0m () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] Uncaught Error: ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+
+    at <unknown> (Error: ./apps/web/src/app/setup/page.tsx:79:56)
+    at <unknown> (Error: (./apps/web/src/app/setup/page.tsx:79:56)
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] ./apps/web/src/app/setup/page.tsx:79:56
+Expected ';', '}' or <eof>
+  77 | ...ing, setSaving] = useState(false);
+  78 | ...iveStep, setActiveStep] = useState(1);
+> 79 | ...mData, setFormData] = useState<any>({});`r`n  const [loadError, setLoadError] = useStat...
+     |                                               ^
+  80 | ...
+  81 | ...tatus on load
+  82 | ...Status = async () => {
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./apps/web/src/app/setup/page.tsx [Client Component Browser]
+    ./apps/web/src/app/setup/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./apps/web/src/app/setup/page.tsx [Client Component SSR]
+    ./apps/web/src/app/setup/page.tsx [Server Component] 
+[browser] Error: Unable to load setup status (500).
+    at loadStatus (src/app/setup/page.tsx:97:15)
+   95 |           }
+   96 |         } catch {}
+>  97 |         throw new Error(message);
+      |               ^
+   98 |       }
+   99 |
+  100 |       const data = await res.json(); (src/app/setup/page.tsx:141:15)
+[browser] Error: Unable to load setup status (500).
+    at loadStatus (src/app/setup/page.tsx:97:15)
+   95 |           }
+   96 |         } catch {}
+>  97 |         throw new Error(message);
+      |               ^
+   98 |       }
+   99 |
+  100 |       const data = await res.json(); (src/app/setup/page.tsx:141:15)

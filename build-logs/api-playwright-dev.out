@@ -1,0 +1,1697 @@
+
+> dev
+> node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs --watch server.ts
+
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[17:43:49.377] [32mINFO[39m (15612): [36mRegistering [GET] /ab-testing/track[39m
+[17:43:49.440] [32mINFO[39m (15612): [36mRegistering [POST] /ab-testing/track[39m
+[17:43:49.444] [32mINFO[39m (15612): [36mRegistering [POST] /admin/actions/[action][39m
+[17:43:49.448] [32mINFO[39m (15612): [36mRegistering [GET] /admin/agent-audit[39m
+[17:43:49.460] [32mINFO[39m (15612): [36mRegistering [POST] /admin/agent-audit[39m
+[17:43:49.465] [32mINFO[39m (15612): [36mRegistering [GET] /admin/ai-config[39m
+[17:43:49.490] [32mINFO[39m (15612): [36mRegistering [POST] /admin/ai-config[39m
+[17:43:49.492] [32mINFO[39m (15612): [36mRegistering [GET] /admin/audit[39m
+[17:43:49.495] [32mINFO[39m (15612): [36mRegistering [POST] /admin/client-errors/export[39m
+[17:43:49.497] [32mINFO[39m (15612): [36mRegistering [GET] /admin/client-errors[39m
+[17:43:49.508] [32mINFO[39m (15612): [36mRegistering [GET] /admin/jobs/dead-letters[39m
+[17:43:49.514] [32mINFO[39m (15612): [36mRegistering [POST] /admin/jobs/replay/[id][39m
+[17:43:49.516] [32mINFO[39m (15612): [36mRegistering [GET] /admin/llm-stats[39m
+[17:43:49.525] [32mINFO[39m (15612): [36mRegistering [GET] /admin/observability[39m
+[17:43:49.531] [32mINFO[39m (15612): [36mRegistering [GET] /admin/rate-limits[39m
+[17:43:49.542] [32mINFO[39m (15612): [36mRegistering [POST] /admin/rate-limits[39m
+[17:43:49.544] [32mINFO[39m (15612): [36mRegistering [GET] /admin/runtime-overview[39m
+[17:43:49.557] [32mINFO[39m (15612): [36mRegistering [GET] /admin/service-health[39m
+[17:43:49.562] [32mINFO[39m (15612): [36mRegistering [GET] /admin/sovereign-stats[39m
+[17:43:49.581] [32mINFO[39m (15612): [36mRegistering [GET] /admin/stats[39m
+[17:43:49.589] [32mINFO[39m (15612): [36mRegistering [GET] /admin/usage[39m
+[17:43:49.592] [32mINFO[39m (15612): [36mRegistering [GET] /admin/users[39m
+[17:43:49.596] [32mINFO[39m (15612): [36mRegistering [POST] /admin/users[39m
+[17:43:49.606] [32mINFO[39m (15612): [36mRegistering [PATCH] /admin/users[39m
+[17:43:49.609] [32mINFO[39m (15612): [36mRegistering [POST] /agent/outreach/approve[39m
+[17:43:49.610] [32mINFO[39m (15612): [36mRegistering [GET] /agent/outreach/drafts[39m
+[17:43:49.613] [32mINFO[39m (15612): [36mRegistering [POST] /agents/campaign[39m
+[17:43:49.616] [32mINFO[39m (15612): [36mRegistering [POST] /agents/icp[39m
+[17:43:49.622] [32mINFO[39m (15612): [36mRegistering [POST] /agents/inbox/analyze[39m
+[17:43:49.624] [32mINFO[39m (15612): [36mRegistering [POST] /ai/compose[39m
+[17:43:49.626] [32mINFO[39m (15612): [36mRegistering [POST] /ai/execute[39m
+[17:43:49.629] [32mINFO[39m (15612): [36mRegistering [POST] /ai/improve[39m
+[17:43:49.631] [32mINFO[39m (15612): [36mRegistering [POST] /ai/preview[39m
+[17:43:49.633] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/campaigns/[id][39m
+[17:43:49.644] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/cohorts[39m
+[17:43:49.648] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/export[39m
+[17:43:49.655] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/funnel[39m
+[17:43:49.659] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/graph[39m
+[17:43:49.662] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/roi[39m
+[17:43:49.664] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/stats[39m
+[17:43:49.671] [32mINFO[39m (15612): [36mRegistering [GET] /analytics/variants/[id][39m
+[17:43:49.674] [32mINFO[39m (15612): [36mRegistering [GET] /approvals[39m
+[17:43:49.676] [32mINFO[39m (15612): [36mRegistering [POST] /approvals/[id][39m
+[17:43:49.678] [32mINFO[39m (15612): [36mRegistering [GET] /audit[39m
+[17:43:49.679] [32mINFO[39m (15612): [36mRegistering [POST] /auth/resend-verification[39m
+[17:43:49.680] [32mINFO[39m (15612): [36mRegistering [GET] /auth/sso/check[39m
+[17:43:49.684] [32mINFO[39m (15612): [36mRegistering [GET] /auth/verify-email[39m
+[17:43:49.692] [32mINFO[39m (15612): [36mRegistering [GET] /auth/[...nextauth][39m
+[17:43:49.694] [32mINFO[39m (15612): [36mRegistering [POST] /auth/[...nextauth][39m
+[17:43:49.696] [32mINFO[39m (15612): [36mRegistering [POST] /automations/approve[39m
+[17:43:49.708] [32mINFO[39m (15612): [36mRegistering [POST] /automations/evaluate[39m
+[17:43:49.711] [32mINFO[39m (15612): [36mRegistering [POST] /billing/checkout[39m
+[17:43:49.712] [32mINFO[39m (15612): [36mRegistering [GET] /billing/history[39m
+[17:43:49.715] [32mINFO[39m (15612): [36mRegistering [POST] /billing/portal[39m
+[17:43:49.717] [32mINFO[39m (15612): [36mRegistering [GET] /billing/subscription[39m
+[17:43:49.731] [32mINFO[39m (15612): [36mRegistering [POST] /billing/topup[39m
+[17:43:49.732] [32mINFO[39m (15612): [36mRegistering [GET] /billing/usage[39m
+[17:43:49.734] [32mINFO[39m (15612): [36mRegistering [POST] /bulk/action[39m
+[17:43:49.740] [32mINFO[39m (15612): [36mRegistering [GET] /caller/queue[39m
+[17:43:49.744] [32mINFO[39m (15612): [36mRegistering [POST] /caller/queue[39m
+[17:43:49.745] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns[39m
+[17:43:49.749] [32mINFO[39m (15612): [36mRegistering [POST] /campaigns[39m
+[17:43:49.750] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns/[id]/activity[39m
+[17:43:49.757] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns/[id]/analytics[39m
+[17:43:49.761] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns/[id]/analytics/v2[39m
+[17:43:49.763] [32mINFO[39m (15612): [36mRegistering [POST] /campaigns/[id]/leads[39m
+[17:43:49.764] [32mINFO[39m (15612): [36mRegistering [DELETE] /campaigns/[id]/leads[39m
+[17:43:49.766] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns/[id][39m
+[17:43:49.771] [32mINFO[39m (15612): [36mRegistering [DELETE] /campaigns/[id][39m
+[17:43:49.773] [32mINFO[39m (15612): [36mRegistering [PATCH] /campaigns/[id][39m
+[17:43:49.775] [32mINFO[39m (15612): [36mRegistering [GET] /campaigns/[id]/variants[39m
+[17:43:49.777] [32mINFO[39m (15612): [36mRegistering [POST] /campaigns/[id]/variants[39m
+[17:43:49.783] [32mINFO[39m (15612): [36mRegistering [POST] /crm/sync[39m
+[17:43:49.788] [32mINFO[39m (15612): [36mRegistering [POST] /csv-ingestion/upload[39m
+[17:43:49.790] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard/activities[39m
+[17:43:49.793] [32mINFO[39m (15612): [36mRegistering [POST] /dashboard/activities[39m
+[17:43:49.794] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard/analytics[39m
+[17:43:49.800] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard/briefing[39m
+[17:43:49.811] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard/campaigns[39m
+[17:43:49.813] [32mINFO[39m (15612): [36mRegistering [POST] /dashboard/campaigns[39m
+[17:43:49.815] [32mINFO[39m (15612): [36mRegistering [DELETE] /dashboard/campaigns/[id][39m
+[17:43:49.817] [32mINFO[39m (15612): [36mRegistering [PATCH] /dashboard/campaigns/[id][39m
+[17:43:49.822] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard[39m
+[17:43:49.824] [32mINFO[39m (15612): [36mRegistering [GET] /dashboard/stats[39m
+[17:43:49.826] [32mINFO[39m (15612): [36mRegistering [GET] /data-export/download[39m
+[17:43:49.832] [32mINFO[39m (15612): [36mRegistering [POST] /edge/attest[39m
+[17:43:49.833] [32mINFO[39m (15612): [36mRegistering [POST] /email/compose[39m
+[17:43:49.840] [32mINFO[39m (15612): [36mRegistering [POST] /email/send[39m
+[17:43:49.842] [32mINFO[39m (15612): [36mRegistering [POST] /email/send-verification[39m
+[17:43:49.843] [32mINFO[39m (15612): [36mRegistering [POST] /email/verification-token[39m
+[17:43:49.844] [32mINFO[39m (15612): [36mRegistering [POST] /email/verify[39m
+[17:43:49.847] [32mINFO[39m (15612): [36mRegistering [POST] /email/verify-token[39m
+[17:43:49.848] [32mINFO[39m (15612): [36mRegistering [POST] /enrichment/lead[39m
+[17:43:49.850] [32mINFO[39m (15612): [36mRegistering [POST] /errors/client[39m
+[17:43:49.859] [32mINFO[39m (15612): [36mRegistering [POST] /exports[39m
+[17:43:49.861] [32mINFO[39m (15612): [36mRegistering [GET] /exports/[filename][39m
+[17:43:49.864] [32mINFO[39m (15612): [36mRegistering [POST] /extension/action[39m
+[17:43:49.865] [32mINFO[39m (15612): [36mRegistering [GET] /extension/auth/validate[39m
+[17:43:49.873] [32mINFO[39m (15612): [36mRegistering [POST] /extension/push[39m
+[17:43:49.875] [32mINFO[39m (15612): [36mRegistering [POST] /extension/tasks/complete[39m
+[17:43:49.876] [32mINFO[39m (15612): [36mRegistering [GET] /extension/tasks[39m
+[17:43:49.880] [32mINFO[39m (15612): [36mRegistering [GET] /governance/audit[39m
+[17:43:49.883] [32mINFO[39m (15612): [36mRegistering [GET] /governance/guardrails[39m
+[17:43:49.896] [32mINFO[39m (15612): [36mRegistering [POST] /governance/guardrails[39m
+[17:43:49.898] [32mINFO[39m (15612): [36mRegistering [GET] /governance/keys[39m
+[17:43:49.907] [32mINFO[39m (15612): [36mRegistering [POST] /governance/keys[39m
+[17:43:49.909] [32mINFO[39m (15612): [36mRegistering [GET] /governance/members[39m
+[17:43:49.912] [32mINFO[39m (15612): [36mRegistering [GET] /governance[39m
+[17:43:49.914] [32mINFO[39m (15612): [36mRegistering [GET] /health[39m
+[17:43:49.916] [32mINFO[39m (15612): [36mRegistering [POST] /health[39m
+[17:43:49.917] [32mINFO[39m (15612): [36mRegistering [GET] /help/search[39m
+[17:43:49.925] [32mINFO[39m (15612): [36mRegistering [GET] /hunter-email-finder/domain-search[39m
+[17:43:49.929] [32mINFO[39m (15612): [36mRegistering [POST] /hunter-email-finder/find-email[39m
+[17:43:49.931] [32mINFO[39m (15612): [36mRegistering [POST] /hunter-email-finder/verify-email[39m
+[17:43:49.933] [32mINFO[39m (15612): [36mRegistering [POST] /icp-builder/create[39m
+[17:43:49.938] [32mINFO[39m (15612): [36mRegistering [GET] /icp-builder/list[39m
+[17:43:49.944] [32mINFO[39m (15612): [36mRegistering [POST] /icp-builder/score[39m
+[17:43:49.947] [32mINFO[39m (15612): [36mRegistering [GET] /icp-builder/[id][39m
+[17:43:49.957] [32mINFO[39m (15612): [36mRegistering [PUT] /icp-builder/[id][39m
+[17:43:49.959] [32mINFO[39m (15612): [36mRegistering [DELETE] /icp-builder/[id][39m
+[17:43:49.961] [32mINFO[39m (15612): [36mRegistering [POST] /import/suggest-mapping[39m
+[17:43:49.963] [32mINFO[39m (15612): [36mRegistering [POST] /inbox/drafts[39m
+[17:43:49.965] [32mINFO[39m (15612): [36mRegistering [DELETE] /inbox/drafts[39m
+[17:43:49.967] [32mINFO[39m (15612): [36mRegistering [POST] /inbox/reply[39m
+[17:43:49.972] [32mINFO[39m (15612): [36mRegistering [GET] /inbox[39m
+[17:43:49.975] [32mINFO[39m (15612): [36mRegistering [POST] /inbox/suggest[39m
+[17:43:49.977] [32mINFO[39m (15612): [36mRegistering [GET] /inbox/[id][39m
+[17:43:49.981] [32mINFO[39m (15612): [36mRegistering [GET] /inbox/[id]/suggest[39m
+[17:43:49.987] [32mINFO[39m (15612): [36mRegistering [POST] /intel/detail[39m
+[17:43:49.990] [32mINFO[39m (15612): [36mRegistering [GET] /intel/summary[39m
+[17:43:49.993] [32mINFO[39m (15612): [36mRegistering [GET] /jobs[39m
+[17:43:49.996] [32mINFO[39m (15612): [36mRegistering [POST] /jobs[39m
+[17:43:49.998] [32mINFO[39m (15612): [36mRegistering [POST] /jobs/[id]/retry[39m
+[17:43:50.000] [32mINFO[39m (15612): [36mRegistering [GET] /jobs/[id][39m
+[17:43:50.005] [32mINFO[39m (15612): [36mRegistering [DELETE] /jobs/[id][39m
+[17:43:50.007] [32mINFO[39m (15612): [36mRegistering [POST] /knowledge/campaign-context[39m
+[17:43:50.008] [32mINFO[39m (15612): [36mRegistering [GET] /knowledge[39m
+[17:43:50.011] [32mINFO[39m (15612): [36mRegistering [POST] /knowledge[39m
+[17:43:50.013] [32mINFO[39m (15612): [36mRegistering [GET] /knowledge/[id][39m
+[17:43:50.014] [32mINFO[39m (15612): [36mRegistering [POST] /knowledge/[id][39m
+[17:43:50.016] [32mINFO[39m (15612): [36mRegistering [DELETE] /knowledge/[id][39m
+[17:43:50.022] [32mINFO[39m (15612): [36mRegistering [GET] /knowledge/[id]/upload[39m
+[17:43:50.025] [32mINFO[39m (15612): [36mRegistering [POST] /knowledge/[id]/upload[39m
+[17:43:50.026] [32mINFO[39m (15612): [36mRegistering [DELETE] /leads/bulk[39m
+[17:43:50.031] [32mINFO[39m (15612): [36mRegistering [GET] /leads/export[39m
+[17:43:50.039] [32mINFO[39m (15612): [36mRegistering [POST] /leads/import[39m
+[17:43:50.040] [32mINFO[39m (15612): [36mRegistering [GET] /leads[39m
+[17:43:50.046] [32mINFO[39m (15612): [36mRegistering [POST] /leads[39m
+[17:43:50.050] [32mINFO[39m (15612): [36mRegistering [POST] /leads/[id]/action[39m
+[17:43:50.058] [32mINFO[39m (15612): [36mRegistering [POST] /leads/[id]/enrich[39m
+[17:43:50.063] [32mINFO[39m (15612): [36mRegistering [GET] /leads/[id]/identity[39m
+[17:43:50.065] [32mINFO[39m (15612): [36mRegistering [GET] /leads/[id][39m
+[17:43:50.071] [32mINFO[39m (15612): [36mRegistering [PATCH] /leads/[id][39m
+[17:43:50.072] [32mINFO[39m (15612): [36mRegistering [POST] /learning/enrich-lead[39m
+[17:43:50.075] [32mINFO[39m (15612): [36mRegistering [POST] /learning/feedback[39m
+[17:43:50.078] [32mINFO[39m (15612): [36mRegistering [POST] /learning/ingest-file[39m
+[17:43:50.079] [32mINFO[39m (15612): [36mRegistering [GET] /learning/memories[39m
+[17:43:50.082] [32mINFO[39m (15612): [36mRegistering [POST] /learning/memories[39m
+[17:43:50.084] [32mINFO[39m (15612): [36mRegistering [POST] /learning/record-feedback[39m
+[17:43:50.089] [32mINFO[39m (15612): [36mRegistering [POST] /linkedin-runner/run[39m
+[17:43:50.090] [32mINFO[39m (15612): [36mRegistering [POST] /marketplace/install[39m
+[17:43:50.091] [32mINFO[39m (15612): [36mRegistering [GET] /marketplace[39m
+[17:43:50.094] [32mINFO[39m (15612): [36mRegistering [GET] /meetings[39m
+[17:43:50.100] [32mINFO[39m (15612): [36mRegistering [POST] /meetings[39m
+[17:43:50.106] [32mINFO[39m (15612): [36mRegistering [GET] /metrics[39m
+[17:43:50.111] [32mINFO[39m (15612): [36mRegistering [POST] /ml-training/generate[39m
+[17:43:50.112] [32mINFO[39m (15612): [36mRegistering [GET] /ml-training/metrics/[version][39m
+[17:43:50.115] [32mINFO[39m (15612): [36mRegistering [GET] /ml-training/review[39m
+[17:43:50.125] [32mINFO[39m (15612): [36mRegistering [POST] /ml-training/review[39m
+[17:43:50.127] [32mINFO[39m (15612): [36mRegistering [GET] /monitoring/health[39m
+[17:43:50.132] [32mINFO[39m (15612): [36mRegistering [GET] /notifications[39m
+[17:43:50.141] [32mINFO[39m (15612): [36mRegistering [POST] /notifications[39m
+[17:43:50.142] [32mINFO[39m (15612): [36mRegistering [PATCH] /notifications[39m
+[17:43:50.144] [32mINFO[39m (15612): [36mRegistering [POST] /notifications/send-test[39m
+[17:43:50.145] [32mINFO[39m (15612): [36mRegistering [PATCH] /notifications/[id][39m
+[17:43:50.146] [32mINFO[39m (15612): [36mRegistering [GET] /nurture/trigger[39m
+[17:43:50.150] [32mINFO[39m (15612): [36mRegistering [POST] /nurture/trigger[39m
+[17:43:50.155] [32mINFO[39m (15612): [36mRegistering [GET] /onboarding/progress[39m
+[17:43:50.159] [32mINFO[39m (15612): [36mRegistering [GET] /onboarding/status[39m
+[17:43:50.163] [32mINFO[39m (15612): [36mRegistering [GET] /orchestrator/agents[39m
+[17:43:50.172] [32mINFO[39m (15612): [36mRegistering [POST] /orchestrator/agents/[id]/run[39m
+[17:43:50.174] [32mINFO[39m (15612): [36mRegistering [POST] /orchestrator/agents/[id]/stop[39m
+[17:43:50.177] [32mINFO[39m (15612): [36mRegistering [POST] /orchestrator/run[39m
+[17:43:50.179] [32mINFO[39m (15612): [36mRegistering [POST] /orchestrator/swarm/run[39m
+[17:43:50.180] [32mINFO[39m (15612): [36mRegistering [GET] /orchestrator/swarm/status[39m
+[17:43:50.187] [32mINFO[39m (15612): [36mRegistering [GET] /orchestrator/timeline[39m
+[17:43:50.196] [32mINFO[39m (15612): [36mRegistering [POST] /pipeline/ai/analyze[39m
+[17:43:50.200] [32mINFO[39m (15612): [36mRegistering [PATCH] /pipeline/leads/[leadId][39m
+[17:43:50.205] [32mINFO[39m (15612): [36mRegistering [GET] /pipeline/stats[39m
+[17:43:50.207] [32mINFO[39m (15612): [36mRegistering [GET] /pipeline/tasks[39m
+[17:43:50.210] [32mINFO[39m (15612): [36mRegistering [POST] /pipeline/tasks[39m
+[17:43:50.212] [32mINFO[39m (15612): [36mRegistering [PATCH] /pipeline/tasks/[id][39m
+[17:43:50.214] [32mINFO[39m (15612): [36mRegistering [GET] /playbooks[39m
+[17:43:50.224] [32mINFO[39m (15612): [36mRegistering [POST] /playbooks[39m
+[17:43:50.225] [32mINFO[39m (15612): [36mRegistering [POST] /playbooks/[id]/fork[39m
+[17:43:50.227] [32mINFO[39m (15612): [36mRegistering [POST] /playbooks/[id]/instantiate[39m
+[17:43:50.229] [32mINFO[39m (15612): [36mRegistering [POST] /playbooks/[id]/publish[39m
+[17:43:50.231] [32mINFO[39m (15612): [36mRegistering [GET] /queue/pending[39m
+[17:43:50.234] [32mINFO[39m (15612): [36mRegistering [POST] /queue/result[39m
+[17:43:50.238] [32mINFO[39m (15612): [36mRegistering [POST] /rag/query[39m
+[17:43:50.240] [32mINFO[39m (15612): [36mRegistering [GET] /rag/search[39m
+[17:43:50.242] [32mINFO[39m (15612): [36mRegistering [POST] /rag/search[39m
+[17:43:50.244] [32mINFO[39m (15612): [36mRegistering [POST] /register[39m
+[17:43:50.246] [32mINFO[39m (15612): [36mRegistering [POST] /scheduler/tick[39m
+[17:43:50.248] [32mINFO[39m (15612): [36mRegistering [GET] /schedules[39m
+[17:43:50.250] [32mINFO[39m (15612): [36mRegistering [POST] /schedules[39m
+[17:43:50.255] [32mINFO[39m (15612): [36mRegistering [DELETE] /schedules/[id][39m
+[17:43:50.256] [32mINFO[39m (15612): [36mRegistering [PATCH] /schedules/[id][39m
+[17:43:50.258] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/batch[39m
+[17:43:50.259] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/calculate[39m
+[17:43:50.262] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/case-studies[39m
+[17:43:50.276] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/case-studies[39m
+[17:43:50.278] [32mINFO[39m (15612): [36mRegistering [DELETE] /scoring/case-studies[39m
+[17:43:50.280] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/case-study/generate-copy[39m
+[17:43:50.282] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/case-study/list[39m
+[17:43:50.289] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/case-study/retrieve[39m
+[17:43:50.291] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/case-study[39m
+[17:43:50.295] [32mINFO[39m (15612): [36mRegistering [DELETE] /scoring/case-study[39m
+[17:43:50.297] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/cluster[39m
+[17:43:50.298] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/explain[39m
+[17:43:50.300] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/explain/[leadId][39m
+[17:43:50.312] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/lead-intent[39m
+[17:43:50.314] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/lead-intent[39m
+[17:43:50.315] [32mINFO[39m (15612): [36mRegistering [PUT] /scoring/lead-intent[39m
+[17:43:50.317] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/optimal-send-time[39m
+[17:43:50.322] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/persist[39m
+[17:43:50.323] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/predict[39m
+[17:43:50.326] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/predict[39m
+[17:43:50.328] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/predict-churn[39m
+[17:43:50.329] [32mINFO[39m (15612): [36mRegistering [GET] /scoring/verify[39m
+[17:43:50.332] [32mINFO[39m (15612): [36mRegistering [POST] /scoring/verify[39m
+[17:43:50.338] [32mINFO[39m (15612): [36mRegistering [DELETE] /scoring/verify[39m
+[17:43:50.340] [32mINFO[39m (15612): [36mRegistering [POST] /scraper-bridge/batch-scrape[39m
+[17:43:50.342] [32mINFO[39m (15612): [36mRegistering [POST] /scraper-bridge/scrape[39m
+[17:43:50.345] [32mINFO[39m (15612): [36mRegistering [GET] /search/global[39m
+[17:43:50.349] [32mINFO[39m (15612): [36mRegistering [GET] /settings/agent[39m
+[17:43:50.356] [32mINFO[39m (15612): [36mRegistering [POST] /settings/agent[39m
+[17:43:50.358] [32mINFO[39m (15612): [36mRegistering [GET] /settings/approvals[39m
+[17:43:50.362] [32mINFO[39m (15612): [36mRegistering [GET] /settings/audit[39m
+[17:43:50.364] [32mINFO[39m (15612): [36mRegistering [POST] /settings/branding[39m
+[17:43:50.374] [32mINFO[39m (15612): [36mRegistering [GET] /settings/budgeting[39m
+[17:43:50.377] [32mINFO[39m (15612): [36mRegistering [PUT] /settings/budgeting[39m
+[17:43:50.380] [32mINFO[39m (15612): [36mRegistering [GET] /settings/crm[39m
+[17:43:50.382] [32mINFO[39m (15612): [36mRegistering [POST] /settings/crm[39m
+[17:43:50.383] [32mINFO[39m (15612): [36mRegistering [PUT] /settings/crm[39m
+[17:43:50.389] [32mINFO[39m (15612): [36mRegistering [GET] /settings/governance/analytics[39m
+[17:43:50.392] [32mINFO[39m (15612): [36mRegistering [GET] /settings/governance[39m
+[17:43:50.401] [32mINFO[39m (15612): [36mRegistering [PUT] /settings/governance[39m
+[17:43:50.405] [32mINFO[39m (15612): [36mRegistering [GET] /settings/guardrails[39m
+[17:43:50.409] [32mINFO[39m (15612): [36mRegistering [PUT] /settings/guardrails[39m
+[17:43:50.410] [32mINFO[39m (15612): [36mRegistering [GET] /settings/keys[39m
+[17:43:50.412] [32mINFO[39m (15612): [36mRegistering [POST] /settings/keys[39m
+[17:43:50.414] [32mINFO[39m (15612): [36mRegistering [DELETE] /settings/keys/[id][39m
+[17:43:50.415] [32mINFO[39m (15612): [36mRegistering [GET] /settings/notifications[39m
+[17:43:50.417] [32mINFO[39m (15612): [36mRegistering [POST] /settings/notifications[39m
+[17:43:50.422] [32mINFO[39m (15612): [36mRegistering [GET] /settings[39m
+[17:43:50.425] [32mINFO[39m (15612): [36mRegistering [POST] /settings[39m
+[17:43:50.426] [32mINFO[39m (15612): [36mRegistering [GET] /settings/sso[39m
+[17:43:50.429] [32mINFO[39m (15612): [36mRegistering [PUT] /settings/sso[39m
+[17:43:50.430] [32mINFO[39m (15612): [36mRegistering [DELETE] /settings/sso[39m
+[17:43:50.432] [32mINFO[39m (15612): [36mRegistering [GET] /settings/webhooks/logs[39m
+[17:43:50.438] [32mINFO[39m (15612): [36mRegistering [GET] /settings/webhooks[39m
+[17:43:50.445] [32mINFO[39m (15612): [36mRegistering [POST] /settings/webhooks[39m
+[17:43:50.446] [32mINFO[39m (15612): [36mRegistering [DELETE] /settings/webhooks[39m
+[17:43:50.448] [32mINFO[39m (15612): [36mRegistering [POST] /settings/webhooks/secret[39m
+[17:43:50.449] [32mINFO[39m (15612): [36mRegistering [POST] /settings/webhooks/test[39m
+[17:43:50.455] [32mINFO[39m (15612): [36mRegistering [GET] /setup/email[39m
+[17:43:50.462] [32mINFO[39m (15612): [36mRegistering [POST] /setup/email[39m
+[17:43:50.464] [32mINFO[39m (15612): [36mRegistering [DELETE] /setup/email[39m
+[17:43:50.465] [32mINFO[39m (15612): [36mRegistering [POST] /setup/save[39m
+[17:43:50.467] [32mINFO[39m (15612): [36mRegistering [GET] /setup/status[39m
+[17:43:50.473] [32mINFO[39m (15612): [36mRegistering [GET] /smtp/config/redacted[39m
+[17:43:50.477] [32mINFO[39m (15612): [36mRegistering [GET] /smtp/config[39m
+[17:43:50.482] [32mINFO[39m (15612): [36mRegistering [POST] /smtp/config[39m
+[17:43:50.483] [32mINFO[39m (15612): [36mRegistering [DELETE] /smtp/config[39m
+[17:43:50.484] [32mINFO[39m (15612): [36mRegistering [GET] /studio/config[39m
+[17:43:50.490] [32mINFO[39m (15612): [36mRegistering [POST] /studio/config[39m
+[17:43:50.491] [32mINFO[39m (15612): [36mRegistering [POST] /studio/preview[39m
+[17:43:50.493] [32mINFO[39m (15612): [36mRegistering [POST] /support/contact[39m
+[17:43:50.495] [32mINFO[39m (15612): [36mRegistering [GET] /system/status[39m
+[17:43:50.499] [32mINFO[39m (15612): [36mRegistering [POST] /team/invite[39m
+[17:43:50.503] [32mINFO[39m (15612): [36mRegistering [GET] /team/members[39m
+[17:43:50.506] [32mINFO[39m (15612): [36mRegistering [POST] /team/members[39m
+[17:43:50.508] [32mINFO[39m (15612): [36mRegistering [DELETE] /team/members/[memberId][39m
+[17:43:50.509] [32mINFO[39m (15612): [36mRegistering [PATCH] /team/members/[memberId][39m
+[17:43:50.511] [32mINFO[39m (15612): [36mRegistering [GET] /team/policy[39m
+[17:43:50.522] [32mINFO[39m (15612): [36mRegistering [PATCH] /team/policy[39m
+[17:43:50.525] [32mINFO[39m (15612): [36mRegistering [GET] /team[39m
+[17:43:50.528] [32mINFO[39m (15612): [36mRegistering [DELETE] /team/[id][39m
+[17:43:50.530] [32mINFO[39m (15612): [36mRegistering [GET] /templates[39m
+[17:43:50.538] [32mINFO[39m (15612): [36mRegistering [POST] /templates[39m
+[17:43:50.540] [32mINFO[39m (15612): [36mRegistering [PUT] /templates/[id][39m
+[17:43:50.541] [32mINFO[39m (15612): [36mRegistering [DELETE] /templates/[id][39m
+[17:43:50.545] [32mINFO[39m (15612): [36mRegistering [POST] /test-auth[39m
+[17:43:50.547] [32mINFO[39m (15612): [36mRegistering [GET] /traces/[runId][39m
+[17:43:50.551] [32mINFO[39m (15612): [36mRegistering [GET] /training/dataset/list[39m
+[17:43:50.560] [32mINFO[39m (15612): [36mRegistering [POST] /training/dataset[39m
+[17:43:50.563] [32mINFO[39m (15612): [36mRegistering [POST] /training/record[39m
+[17:43:50.566] [32mINFO[39m (15612): [36mRegistering [POST] /training/start[39m
+[17:43:50.571] [32mINFO[39m (15612): [36mRegistering [GET] /training/status[39m
+[17:43:50.575] [32mINFO[39m (15612): [36mRegistering [POST] /upload/csv[39m
+[17:43:50.576] [32mINFO[39m (15612): [36mRegistering [POST] /upload/pdf[39m
+[17:43:50.582] [32mINFO[39m (15612): [36mRegistering [GET] /usage[39m
+[17:43:50.589] [32mINFO[39m (15612): [36mRegistering [GET] /user/profile[39m
+[17:43:50.593] [32mINFO[39m (15612): [36mRegistering [PUT] /user/profile[39m
+[17:43:50.595] [32mINFO[39m (15612): [36mRegistering [GET] /user/teams[39m
+[17:43:50.609] [32mINFO[39m (15612): [36mRegistering [GET] /v1/agents[39m
+[17:43:50.612] [32mINFO[39m (15612): [36mRegistering [POST] /v1/agents[39m
+[17:43:50.613] [32mINFO[39m (15612): [36mRegistering [GET] /v1/campaigns[39m
+[17:43:50.622] [32mINFO[39m (15612): [36mRegistering [POST] /v1/intelligence/sync[39m
+[17:43:50.625] [32mINFO[39m (15612): [36mRegistering [GET] /v1/knowledge[39m
+[17:43:50.627] [32mINFO[39m (15612): [36mRegistering [POST] /v1/knowledge[39m
+[17:43:50.628] [32mINFO[39m (15612): [36mRegistering [GET] /v1/leads[39m
+[17:43:50.629] [32mINFO[39m (15612): [36mRegistering [POST] /v1/leads[39m
+[17:43:50.631] [32mINFO[39m (15612): [36mRegistering [GET] /v1/leads/[id]/messages[39m
+[17:43:50.633] [32mINFO[39m (15612): [36mRegistering [POST] /v1/leads/[id]/messages[39m
+[17:43:50.644] [32mINFO[39m (15612): [36mRegistering [GET] /v1/leads/[id][39m
+[17:43:50.657] [32mINFO[39m (15612): [36mRegistering [DELETE] /v1/leads/[id][39m
+[17:43:50.661] [32mINFO[39m (15612): [36mRegistering [PATCH] /v1/leads/[id][39m
+[17:43:50.665] [32mINFO[39m (15612): [36mRegistering [GET] /v1/system/health[39m
+[17:43:50.672] [32mINFO[39m (15612): [36mRegistering [GET] /v1/tasks[39m
+[17:43:50.674] [32mINFO[39m (15612): [36mRegistering [POST] /v1/tasks[39m
+[17:43:50.675] [32mINFO[39m (15612): [36mRegistering [GET] /v1/workflows[39m
+[17:43:50.678] [32mINFO[39m (15612): [36mRegistering [POST] /v1/workflows[39m
+[17:43:50.679] [32mINFO[39m (15612): [36mRegistering [POST] /v1/workflows/[id]/run[39m
+[17:43:50.681] [32mINFO[39m (15612): [36mRegistering [GET] /verify-logic[39m
+[17:43:50.684] [32mINFO[39m (15612): [36mRegistering [GET] /verify-strategy[39m
+[17:43:50.692] [32mINFO[39m (15612): [36mRegistering [POST] /webhooks/ingress[39m
+[17:43:50.697] [32mINFO[39m (15612): [36mRegistering [POST] /webhooks/netjana-intel[39m
+[17:43:50.700] [32mINFO[39m (15612): [36mRegistering [POST] /webhooks/razorpay[39m
+[17:43:50.705] [32mINFO[39m (15612): [36mRegistering [GET] /webhooks[39m
+[17:43:50.707] [32mINFO[39m (15612): [36mRegistering [POST] /webhooks[39m
+[17:43:50.708] [32mINFO[39m (15612): [36mRegistering [POST] /webhooks/scraper-ingest[39m
+[17:43:50.710] [32mINFO[39m (15612): [36mRegistering [DELETE] /webhooks/[id][39m
+[17:43:50.711] [32mINFO[39m (15612): [36mRegistering [GET] /whatsapp/send[39m
+[17:43:50.724] [32mINFO[39m (15612): [36mRegistering [POST] /whatsapp/send[39m
+[17:43:50.726] [32mINFO[39m (15612): [36mRegistering [POST] /workflow/execute[39m
+[17:43:50.728] [32mINFO[39m (15612): [36mRegistering [GET] /workflow/status[39m
+[17:43:50.731] [32mINFO[39m (15612): [36mRegistering [GET] /workflows[39m
+[17:43:50.734] [32mINFO[39m (15612): [36mRegistering [POST] /workflows[39m
+[17:43:50.739] [32mINFO[39m (15612): [36mRegistering [GET] /workflows/[id][39m
+[17:43:50.745] [32mINFO[39m (15612): [36mRegistering [PUT] /workflows/[id][39m
+[17:43:50.747] [32mINFO[39m (15612): [36mRegistering [DELETE] /workflows/[id][39m
+[17:43:50.754] [32mINFO[39m (15612): [36mRegistering [POST] /workflows/[id]/run[39m
+[17:43:51.242] [31mERROR[39m (15612): [36mlisten EADDRINUSE: address already in use 0.0.0.0:3001[39m
+    err: {
+      "type": "Error",
+      "message": "listen EADDRINUSE: address already in use 0.0.0.0:3001",
+      "stack":
+          Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+              at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+              at listenInCluster (node:net:1997:12)
+              at node:net:2206:7
+              at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      "code": "EADDRINUSE",
+      "errno": -4091,
+      "syscall": "listen",
+      "address": "0.0.0.0",
+      "port": 3001
+    }
+Failed running 'server.ts'. Waiting for file changes before restarting...
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  suppress all logs with { quiet: true }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 📡 add observability to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+[19:02:55.869] [32mINFO[39m (10032): [36mRegistering [GET] /ab-testing/track[39m
+[19:02:55.915] [32mINFO[39m (10032): [36mRegistering [POST] /ab-testing/track[39m
+[19:02:55.919] [32mINFO[39m (10032): [36mRegistering [POST] /admin/actions/[action][39m
+[19:02:55.930] [32mINFO[39m (10032): [36mRegistering [GET] /admin/agent-audit[39m
+[19:02:55.953] [32mINFO[39m (10032): [36mRegistering [POST] /admin/agent-audit[39m
+[19:02:55.957] [32mINFO[39m (10032): [36mRegistering [GET] /admin/ai-config[39m
+[19:02:55.980] [32mINFO[39m (10032): [36mRegistering [POST] /admin/ai-config[39m
+[19:02:55.982] [32mINFO[39m (10032): [36mRegistering [GET] /admin/audit[39m
+[19:02:55.985] [32mINFO[39m (10032): [36mRegistering [POST] /admin/client-errors/export[39m
+[19:02:55.990] [32mINFO[39m (10032): [36mRegistering [GET] /admin/client-errors[39m
+[19:02:55.996] [32mINFO[39m (10032): [36mRegistering [GET] /admin/jobs/dead-letters[39m
+[19:02:56.000] [32mINFO[39m (10032): [36mRegistering [POST] /admin/jobs/replay/[id][39m
+[19:02:56.002] [32mINFO[39m (10032): [36mRegistering [GET] /admin/llm-stats[39m
+[19:02:56.016] [32mINFO[39m (10032): [36mRegistering [GET] /admin/observability[39m
+[19:02:56.018] [32mINFO[39m (10032): [36mRegistering [GET] /admin/rate-limits[39m
+[19:02:56.020] [32mINFO[39m (10032): [36mRegistering [POST] /admin/rate-limits[39m
+[19:02:56.021] [32mINFO[39m (10032): [36mRegistering [GET] /admin/runtime-overview[39m
+[19:02:56.024] [32mINFO[39m (10032): [36mRegistering [GET] /admin/service-health[39m
+[19:02:56.026] [32mINFO[39m (10032): [36mRegistering [GET] /admin/sovereign-stats[39m
+[19:02:56.037] [32mINFO[39m (10032): [36mRegistering [GET] /admin/stats[39m
+[19:02:56.040] [32mINFO[39m (10032): [36mRegistering [GET] /admin/usage[39m
+[19:02:56.042] [32mINFO[39m (10032): [36mRegistering [GET] /admin/users[39m
+[19:02:56.050] [32mINFO[39m (10032): [36mRegistering [POST] /admin/users[39m
+[19:02:56.051] [32mINFO[39m (10032): [36mRegistering [PATCH] /admin/users[39m
+[19:02:56.053] [32mINFO[39m (10032): [36mRegistering [POST] /agent/outreach/approve[39m
+[19:02:56.054] [32mINFO[39m (10032): [36mRegistering [GET] /agent/outreach/drafts[39m
+[19:02:56.056] [32mINFO[39m (10032): [36mRegistering [POST] /agents/campaign[39m
+[19:02:56.059] [32mINFO[39m (10032): [36mRegistering [POST] /agents/icp[39m
+[19:02:56.065] [32mINFO[39m (10032): [36mRegistering [POST] /agents/inbox/analyze[39m
+[19:02:56.067] [32mINFO[39m (10032): [36mRegistering [POST] /ai/compose[39m
+[19:02:56.068] [32mINFO[39m (10032): [36mRegistering [POST] /ai/execute[39m
+[19:02:56.071] [32mINFO[39m (10032): [36mRegistering [POST] /ai/improve[39m
+[19:02:56.073] [32mINFO[39m (10032): [36mRegistering [POST] /ai/preview[39m
+[19:02:56.074] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/campaigns/[id][39m
+[19:02:56.086] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/cohorts[39m
+[19:02:56.099] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/export[39m
+[19:02:56.109] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/funnel[39m
+[19:02:56.117] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/graph[39m
+[19:02:56.139] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/roi[39m
+[19:02:56.142] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/stats[39m
+[19:02:56.149] [32mINFO[39m (10032): [36mRegistering [GET] /analytics/variants/[id][39m
+[19:02:56.151] [32mINFO[39m (10032): [36mRegistering [GET] /approvals[39m
+[19:02:56.154] [32mINFO[39m (10032): [36mRegistering [POST] /approvals/[id][39m
+[19:02:56.155] [32mINFO[39m (10032): [36mRegistering [GET] /audit[39m
+[19:02:56.157] [32mINFO[39m (10032): [36mRegistering [POST] /auth/resend-verification[39m
+[19:02:56.163] [32mINFO[39m (10032): [36mRegistering [GET] /auth/sso/check[39m
+[19:02:56.170] [32mINFO[39m (10032): [36mRegistering [GET] /auth/verify-email[39m
+[19:02:56.173] [32mINFO[39m (10032): [36mRegistering [GET] /auth/[...nextauth][39m
+[19:02:56.175] [32mINFO[39m (10032): [36mRegistering [POST] /auth/[...nextauth][39m
+[19:02:56.176] [32mINFO[39m (10032): [36mRegistering [POST] /automations/approve[39m
+[19:02:56.191] [32mINFO[39m (10032): [36mRegistering [POST] /automations/evaluate[39m
+[19:02:56.220] [32mINFO[39m (10032): [36mRegistering [POST] /billing/checkout[39m
+[19:02:56.221] [32mINFO[39m (10032): [36mRegistering [GET] /billing/history[39m
+[19:02:56.226] [32mINFO[39m (10032): [36mRegistering [POST] /billing/portal[39m
+[19:02:56.242] [32mINFO[39m (10032): [36mRegistering [GET] /billing/subscription[39m
+[19:02:56.256] [32mINFO[39m (10032): [36mRegistering [POST] /billing/topup[39m
+[19:02:56.271] [32mINFO[39m (10032): [36mRegistering [GET] /billing/usage[39m
+[19:02:56.273] [32mINFO[39m (10032): [36mRegistering [POST] /bulk/action[39m
+[19:02:56.274] [32mINFO[39m (10032): [36mRegistering [GET] /caller/queue[39m
+[19:02:56.278] [32mINFO[39m (10032): [36mRegistering [POST] /caller/queue[39m
+[19:02:56.281] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns[39m
+[19:02:56.299] [32mINFO[39m (10032): [36mRegistering [POST] /campaigns[39m
+[19:02:56.300] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns/[id]/activity[39m
+[19:02:56.333] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns/[id]/analytics[39m
+[19:02:56.336] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns/[id]/analytics/v2[39m
+[19:02:56.338] [32mINFO[39m (10032): [36mRegistering [POST] /campaigns/[id]/leads[39m
+[19:02:56.339] [32mINFO[39m (10032): [36mRegistering [DELETE] /campaigns/[id]/leads[39m
+[19:02:56.340] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns/[id][39m
+[19:02:56.347] [32mINFO[39m (10032): [36mRegistering [DELETE] /campaigns/[id][39m
+[19:02:56.350] [32mINFO[39m (10032): [36mRegistering [PATCH] /campaigns/[id][39m
+[19:02:56.351] [32mINFO[39m (10032): [36mRegistering [GET] /campaigns/[id]/variants[39m
+[19:02:56.354] [32mINFO[39m (10032): [36mRegistering [POST] /campaigns/[id]/variants[39m
+[19:02:56.356] [32mINFO[39m (10032): [36mRegistering [POST] /crm/sync[39m
+[19:02:56.357] [32mINFO[39m (10032): [36mRegistering [POST] /csv-ingestion/upload[39m
+[19:02:56.358] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard/activities[39m
+[19:02:56.365] [32mINFO[39m (10032): [36mRegistering [POST] /dashboard/activities[39m
+[19:02:56.366] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard/analytics[39m
+[19:02:56.371] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard/briefing[39m
+[19:02:56.375] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard/campaigns[39m
+[19:02:56.387] [32mINFO[39m (10032): [36mRegistering [POST] /dashboard/campaigns[39m
+[19:02:56.388] [32mINFO[39m (10032): [36mRegistering [DELETE] /dashboard/campaigns/[id][39m
+[19:02:56.389] [32mINFO[39m (10032): [36mRegistering [PATCH] /dashboard/campaigns/[id][39m
+[19:02:56.391] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard[39m
+[19:02:56.403] [32mINFO[39m (10032): [36mRegistering [GET] /dashboard/stats[39m
+[19:02:56.405] [32mINFO[39m (10032): [36mRegistering [GET] /data-export/download[39m
+[19:02:56.409] [32mINFO[39m (10032): [36mRegistering [POST] /edge/attest[39m
+[19:02:56.417] [32mINFO[39m (10032): [36mRegistering [POST] /email/compose[39m
+[19:02:56.419] [32mINFO[39m (10032): [36mRegistering [POST] /email/send[39m
+[19:02:56.421] [32mINFO[39m (10032): [36mRegistering [POST] /email/send-verification[39m
+[19:02:56.422] [32mINFO[39m (10032): [36mRegistering [POST] /email/verification-token[39m
+[19:02:56.423] [32mINFO[39m (10032): [36mRegistering [POST] /email/verify[39m
+[19:02:56.425] [32mINFO[39m (10032): [36mRegistering [POST] /email/verify-token[39m
+[19:02:56.431] [32mINFO[39m (10032): [36mRegistering [POST] /enrichment/lead[39m
+[19:02:56.438] [32mINFO[39m (10032): [36mRegistering [POST] /errors/client[39m
+[19:02:56.439] [32mINFO[39m (10032): [36mRegistering [POST] /exports[39m
+[19:02:56.440] [32mINFO[39m (10032): [36mRegistering [GET] /exports/[filename][39m
+[19:02:56.448] [32mINFO[39m (10032): [36mRegistering [POST] /extension/action[39m
+[19:02:56.449] [32mINFO[39m (10032): [36mRegistering [GET] /extension/auth/validate[39m
+[19:02:56.454] [32mINFO[39m (10032): [36mRegistering [POST] /extension/push[39m
+[19:02:56.455] [32mINFO[39m (10032): [36mRegistering [POST] /extension/tasks/complete[39m
+[19:02:56.457] [32mINFO[39m (10032): [36mRegistering [GET] /extension/tasks[39m
+[19:02:56.466] [32mINFO[39m (10032): [36mRegistering [GET] /governance/audit[39m
+[19:02:56.471] [32mINFO[39m (10032): [36mRegistering [GET] /governance/guardrails[39m
+[19:02:56.483] [32mINFO[39m (10032): [36mRegistering [POST] /governance/guardrails[39m
+[19:02:56.484] [32mINFO[39m (10032): [36mRegistering [GET] /governance/keys[39m
+[19:02:56.487] [32mINFO[39m (10032): [36mRegistering [POST] /governance/keys[39m
+[19:02:56.488] [32mINFO[39m (10032): [36mRegistering [GET] /governance/members[39m
+[19:02:56.492] [32mINFO[39m (10032): [36mRegistering [GET] /governance[39m
+[19:02:56.501] [32mINFO[39m (10032): [36mRegistering [GET] /health[39m
+[19:02:56.505] [32mINFO[39m (10032): [36mRegistering [POST] /health[39m
+[19:02:56.506] [32mINFO[39m (10032): [36mRegistering [GET] /help/search[39m
+[19:02:56.517] [32mINFO[39m (10032): [36mRegistering [GET] /hunter-email-finder/domain-search[39m
+[19:02:56.521] [32mINFO[39m (10032): [36mRegistering [POST] /hunter-email-finder/find-email[39m
+[19:02:56.522] [32mINFO[39m (10032): [36mRegistering [POST] /hunter-email-finder/verify-email[39m
+[19:02:56.525] [32mINFO[39m (10032): [36mRegistering [POST] /icp-builder/create[39m
+[19:02:56.530] [32mINFO[39m (10032): [36mRegistering [GET] /icp-builder/list[39m
+[19:02:56.533] [32mINFO[39m (10032): [36mRegistering [POST] /icp-builder/score[39m
+[19:02:56.534] [32mINFO[39m (10032): [36mRegistering [GET] /icp-builder/[id][39m
+[19:02:56.538] [32mINFO[39m (10032): [36mRegistering [PUT] /icp-builder/[id][39m
+[19:02:56.540] [32mINFO[39m (10032): [36mRegistering [DELETE] /icp-builder/[id][39m
+[19:02:56.542] [32mINFO[39m (10032): [36mRegistering [POST] /import/suggest-mapping[39m
+[19:02:56.546] [32mINFO[39m (10032): [36mRegistering [POST] /inbox/drafts[39m
+[19:02:56.549] [32mINFO[39m (10032): [36mRegistering [DELETE] /inbox/drafts[39m
+[19:02:56.551] [32mINFO[39m (10032): [36mRegistering [POST] /inbox/reply[39m
+[19:02:56.556] [32mINFO[39m (10032): [36mRegistering [GET] /inbox[39m
+[19:02:56.559] [32mINFO[39m (10032): [36mRegistering [POST] /inbox/suggest[39m
+[19:02:56.563] [32mINFO[39m (10032): [36mRegistering [GET] /inbox/[id][39m
+[19:02:56.566] [32mINFO[39m (10032): [36mRegistering [GET] /inbox/[id]/suggest[39m
+[19:02:56.570] [32mINFO[39m (10032): [36mRegistering [POST] /intel/detail[39m
+[19:02:56.572] [32mINFO[39m (10032): [36mRegistering [GET] /intel/summary[39m
+[19:02:56.577] [32mINFO[39m (10032): [36mRegistering [GET] /jobs[39m
+[19:02:56.583] [32mINFO[39m (10032): [36mRegistering [POST] /jobs[39m
+[19:02:56.584] [32mINFO[39m (10032): [36mRegistering [POST] /jobs/[id]/retry[39m
+[19:02:56.585] [32mINFO[39m (10032): [36mRegistering [GET] /jobs/[id][39m
+[19:02:56.587] [32mINFO[39m (10032): [36mRegistering [DELETE] /jobs/[id][39m
+[19:02:56.589] [32mINFO[39m (10032): [36mRegistering [POST] /knowledge/campaign-context[39m
+[19:02:56.591] [32mINFO[39m (10032): [36mRegistering [GET] /knowledge[39m
+[19:02:56.593] [32mINFO[39m (10032): [36mRegistering [POST] /knowledge[39m
+[19:02:56.596] [32mINFO[39m (10032): [36mRegistering [GET] /knowledge/[id][39m
+[19:02:56.598] [32mINFO[39m (10032): [36mRegistering [POST] /knowledge/[id][39m
+[19:02:56.599] [32mINFO[39m (10032): [36mRegistering [DELETE] /knowledge/[id][39m
+[19:02:56.600] [32mINFO[39m (10032): [36mRegistering [GET] /knowledge/[id]/upload[39m
+[19:02:56.602] [32mINFO[39m (10032): [36mRegistering [POST] /knowledge/[id]/upload[39m
+[19:02:56.603] [32mINFO[39m (10032): [36mRegistering [DELETE] /leads/bulk[39m
+[19:02:56.604] [32mINFO[39m (10032): [36mRegistering [GET] /leads/export[39m
+[19:02:56.607] [32mINFO[39m (10032): [36mRegistering [POST] /leads/import[39m
+[19:02:56.608] [32mINFO[39m (10032): [36mRegistering [GET] /leads[39m
+[19:02:56.612] [32mINFO[39m (10032): [36mRegistering [POST] /leads[39m
+[19:02:56.614] [32mINFO[39m (10032): [36mRegistering [POST] /leads/[id]/action[39m
+[19:02:56.617] [32mINFO[39m (10032): [36mRegistering [POST] /leads/[id]/enrich[39m
+[19:02:56.621] [32mINFO[39m (10032): [36mRegistering [GET] /leads/[id]/identity[39m
+[19:02:56.625] [32mINFO[39m (10032): [36mRegistering [GET] /leads/[id][39m
+[19:02:56.629] [32mINFO[39m (10032): [36mRegistering [PATCH] /leads/[id][39m
+[19:02:56.631] [32mINFO[39m (10032): [36mRegistering [POST] /learning/enrich-lead[39m
+[19:02:56.633] [32mINFO[39m (10032): [36mRegistering [POST] /learning/feedback[39m
+[19:02:56.636] [32mINFO[39m (10032): [36mRegistering [POST] /learning/ingest-file[39m
+[19:02:56.639] [32mINFO[39m (10032): [36mRegistering [GET] /learning/memories[39m
+[19:02:56.645] [32mINFO[39m (10032): [36mRegistering [POST] /learning/memories[39m
+[19:02:56.646] [32mINFO[39m (10032): [36mRegistering [POST] /learning/record-feedback[39m
+[19:02:56.648] [32mINFO[39m (10032): [36mRegistering [POST] /linkedin-runner/run[39m
+[19:02:56.649] [32mINFO[39m (10032): [36mRegistering [POST] /marketplace/install[39m
+[19:02:56.651] [32mINFO[39m (10032): [36mRegistering [GET] /marketplace[39m
+[19:02:56.655] [32mINFO[39m (10032): [36mRegistering [GET] /meetings[39m
+[19:02:56.659] [32mINFO[39m (10032): [36mRegistering [POST] /meetings[39m
+[19:02:56.664] [32mINFO[39m (10032): [36mRegistering [GET] /metrics[39m
+[19:02:56.673] [32mINFO[39m (10032): [36mRegistering [POST] /ml-training/generate[39m
+[19:02:56.675] [32mINFO[39m (10032): [36mRegistering [GET] /ml-training/metrics/[version][39m
+[19:02:56.679] [32mINFO[39m (10032): [36mRegistering [GET] /ml-training/review[39m
+[19:02:56.690] [32mINFO[39m (10032): [36mRegistering [POST] /ml-training/review[39m
+[19:02:56.692] [32mINFO[39m (10032): [36mRegistering [GET] /monitoring/health[39m
+[19:02:56.696] [32mINFO[39m (10032): [36mRegistering [GET] /notifications[39m
+[19:02:56.699] [32mINFO[39m (10032): [36mRegistering [POST] /notifications[39m
+[19:02:56.700] [32mINFO[39m (10032): [36mRegistering [PATCH] /notifications[39m
+[19:02:56.702] [32mINFO[39m (10032): [36mRegistering [POST] /notifications/send-test[39m
+[19:02:56.704] [32mINFO[39m (10032): [36mRegistering [PATCH] /notifications/[id][39m
+[19:02:56.705] [32mINFO[39m (10032): [36mRegistering [GET] /nurture/trigger[39m
+[19:02:56.719] [32mINFO[39m (10032): [36mRegistering [POST] /nurture/trigger[39m
+[19:02:56.720] [32mINFO[39m (10032): [36mRegistering [GET] /onboarding/progress[39m
+[19:02:56.723] [32mINFO[39m (10032): [36mRegistering [GET] /onboarding/status[39m
+[19:02:56.730] [32mINFO[39m (10032): [36mRegistering [GET] /orchestrator/agents[39m
+[19:02:56.734] [32mINFO[39m (10032): [36mRegistering [POST] /orchestrator/agents/[id]/run[39m
+[19:02:56.735] [32mINFO[39m (10032): [36mRegistering [POST] /orchestrator/agents/[id]/stop[39m
+[19:02:56.737] [32mINFO[39m (10032): [36mRegistering [POST] /orchestrator/run[39m
+[19:02:56.739] [32mINFO[39m (10032): [36mRegistering [POST] /orchestrator/swarm/run[39m
+[19:02:56.741] [32mINFO[39m (10032): [36mRegistering [GET] /orchestrator/swarm/status[39m
+[19:02:56.749] [32mINFO[39m (10032): [36mRegistering [GET] /orchestrator/timeline[39m
+[19:02:56.753] [32mINFO[39m (10032): [36mRegistering [POST] /pipeline/ai/analyze[39m
+[19:02:56.755] [32mINFO[39m (10032): [36mRegistering [PATCH] /pipeline/leads/[leadId][39m
+[19:02:56.756] [32mINFO[39m (10032): [36mRegistering [GET] /pipeline/stats[39m
+[19:02:56.759] [32mINFO[39m (10032): [36mRegistering [GET] /pipeline/tasks[39m
+[19:02:56.763] [32mINFO[39m (10032): [36mRegistering [POST] /pipeline/tasks[39m
+[19:02:56.764] [32mINFO[39m (10032): [36mRegistering [PATCH] /pipeline/tasks/[id][39m
+[19:02:56.766] [32mINFO[39m (10032): [36mRegistering [GET] /playbooks[39m
+[19:02:56.769] [32mINFO[39m (10032): [36mRegistering [POST] /playbooks[39m
+[19:02:56.770] [32mINFO[39m (10032): [36mRegistering [POST] /playbooks/[id]/fork[39m
+[19:02:56.771] [32mINFO[39m (10032): [36mRegistering [POST] /playbooks/[id]/instantiate[39m
+[19:02:56.784] [32mINFO[39m (10032): [36mRegistering [POST] /playbooks/[id]/publish[39m
+[19:02:56.786] [32mINFO[39m (10032): [36mRegistering [GET] /queue/pending[39m
+[19:02:56.788] [32mINFO[39m (10032): [36mRegistering [POST] /queue/result[39m
+[19:02:56.790] [32mINFO[39m (10032): [36mRegistering [POST] /rag/query[39m
+[19:02:56.792] [32mINFO[39m (10032): [36mRegistering [GET] /rag/search[39m
+[19:02:56.799] [32mINFO[39m (10032): [36mRegistering [POST] /rag/search[39m
+[19:02:56.801] [32mINFO[39m (10032): [36mRegistering [POST] /register[39m
+[19:02:56.802] [32mINFO[39m (10032): [36mRegistering [POST] /scheduler/tick[39m
+[19:02:56.803] [32mINFO[39m (10032): [36mRegistering [GET] /schedules[39m
+[19:02:56.809] [32mINFO[39m (10032): [36mRegistering [POST] /schedules[39m
+[19:02:56.814] [32mINFO[39m (10032): [36mRegistering [DELETE] /schedules/[id][39m
+[19:02:56.815] [32mINFO[39m (10032): [36mRegistering [PATCH] /schedules/[id][39m
+[19:02:56.816] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/batch[39m
+[19:02:56.818] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/calculate[39m
+[19:02:56.821] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/case-studies[39m
+[19:02:56.824] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/case-studies[39m
+[19:02:56.830] [32mINFO[39m (10032): [36mRegistering [DELETE] /scoring/case-studies[39m
+[19:02:56.832] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/case-study/generate-copy[39m
+[19:02:56.834] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/case-study/list[39m
+[19:02:56.837] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/case-study/retrieve[39m
+[19:02:56.839] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/case-study[39m
+[19:02:56.859] [32mINFO[39m (10032): [36mRegistering [DELETE] /scoring/case-study[39m
+[19:02:56.863] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/cluster[39m
+[19:02:56.864] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/explain[39m
+[19:02:56.865] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/explain/[leadId][39m
+[19:02:56.870] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/lead-intent[39m
+[19:02:56.873] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/lead-intent[39m
+[19:02:56.874] [32mINFO[39m (10032): [36mRegistering [PUT] /scoring/lead-intent[39m
+[19:02:56.876] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/optimal-send-time[39m
+[19:02:56.879] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/persist[39m
+[19:02:56.887] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/predict[39m
+[19:02:56.889] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/predict[39m
+[19:02:56.891] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/predict-churn[39m
+[19:02:56.892] [32mINFO[39m (10032): [36mRegistering [GET] /scoring/verify[39m
+[19:02:56.896] [32mINFO[39m (10032): [36mRegistering [POST] /scoring/verify[39m
+[19:02:56.897] [32mINFO[39m (10032): [36mRegistering [DELETE] /scoring/verify[39m
+[19:02:56.898] [32mINFO[39m (10032): [36mRegistering [POST] /scraper-bridge/batch-scrape[39m
+[19:02:56.899] [32mINFO[39m (10032): [36mRegistering [POST] /scraper-bridge/scrape[39m
+[19:02:56.901] [32mINFO[39m (10032): [36mRegistering [GET] /search/global[39m
+[19:02:56.905] [32mINFO[39m (10032): [36mRegistering [GET] /settings/agent[39m
+[19:02:56.916] [32mINFO[39m (10032): [36mRegistering [POST] /settings/agent[39m
+[19:02:56.918] [32mINFO[39m (10032): [36mRegistering [GET] /settings/approvals[39m
+[19:02:56.922] [32mINFO[39m (10032): [36mRegistering [GET] /settings/audit[39m
+[19:02:56.923] [32mINFO[39m (10032): [36mRegistering [POST] /settings/branding[39m
+[19:02:56.925] [32mINFO[39m (10032): [36mRegistering [GET] /settings/budgeting[39m
+[19:02:56.932] [32mINFO[39m (10032): [36mRegistering [PUT] /settings/budgeting[39m
+[19:02:56.934] [32mINFO[39m (10032): [36mRegistering [GET] /settings/crm[39m
+[19:02:56.937] [32mINFO[39m (10032): [36mRegistering [POST] /settings/crm[39m
+[19:02:56.939] [32mINFO[39m (10032): [36mRegistering [PUT] /settings/crm[39m
+[19:02:56.942] [32mINFO[39m (10032): [36mRegistering [GET] /settings/governance/analytics[39m
+[19:02:56.948] [32mINFO[39m (10032): [36mRegistering [GET] /settings/governance[39m
+[19:02:56.951] [32mINFO[39m (10032): [36mRegistering [PUT] /settings/governance[39m
+[19:02:56.953] [32mINFO[39m (10032): [36mRegistering [GET] /settings/guardrails[39m
+[19:02:56.965] [32mINFO[39m (10032): [36mRegistering [PUT] /settings/guardrails[39m
+[19:02:56.966] [32mINFO[39m (10032): [36mRegistering [GET] /settings/keys[39m
+[19:02:56.968] [32mINFO[39m (10032): [36mRegistering [POST] /settings/keys[39m
+[19:02:56.970] [32mINFO[39m (10032): [36mRegistering [DELETE] /settings/keys/[id][39m
+[19:02:56.972] [32mINFO[39m (10032): [36mRegistering [GET] /settings/notifications[39m
+[19:02:56.973] [32mINFO[39m (10032): [36mRegistering [POST] /settings/notifications[39m
+[19:02:56.974] [32mINFO[39m (10032): [36mRegistering [GET] /settings[39m
+[19:02:56.976] [32mINFO[39m (10032): [36mRegistering [POST] /settings[39m
+[19:02:56.979] [32mINFO[39m (10032): [36mRegistering [GET] /settings/sso[39m
+[19:02:56.981] [32mINFO[39m (10032): [36mRegistering [PUT] /settings/sso[39m
+[19:02:56.982] [32mINFO[39m (10032): [36mRegistering [DELETE] /settings/sso[39m
+[19:02:56.984] [32mINFO[39m (10032): [36mRegistering [GET] /settings/webhooks/logs[39m
+[19:02:56.987] [32mINFO[39m (10032): [36mRegistering [GET] /settings/webhooks[39m
+[19:02:56.990] [32mINFO[39m (10032): [36mRegistering [POST] /settings/webhooks[39m
+[19:02:56.991] [32mINFO[39m (10032): [36mRegistering [DELETE] /settings/webhooks[39m
+[19:02:56.992] [32mINFO[39m (10032): [36mRegistering [POST] /settings/webhooks/secret[39m
+[19:02:56.998] [32mINFO[39m (10032): [36mRegistering [POST] /settings/webhooks/test[39m
+[19:02:57.005] [32mINFO[39m (10032): [36mRegistering [GET] /setup/email[39m
+[19:02:57.017] [32mINFO[39m (10032): [36mRegistering [POST] /setup/email[39m
+[19:02:57.019] [32mINFO[39m (10032): [36mRegistering [DELETE] /setup/email[39m
+[19:02:57.020] [32mINFO[39m (10032): [36mRegistering [POST] /setup/save[39m
+[19:02:57.022] [32mINFO[39m (10032): [36mRegistering [GET] /setup/status[39m
+[19:02:57.025] [32mINFO[39m (10032): [36mRegistering [GET] /smtp/config/redacted[39m
+[19:02:57.034] [32mINFO[39m (10032): [36mRegistering [GET] /smtp/config[39m
+[19:02:57.038] [32mINFO[39m (10032): [36mRegistering [POST] /smtp/config[39m
+[19:02:57.039] [32mINFO[39m (10032): [36mRegistering [DELETE] /smtp/config[39m
+[19:02:57.040] [32mINFO[39m (10032): [36mRegistering [GET] /studio/config[39m
+[19:02:57.043] [32mINFO[39m (10032): [36mRegistering [POST] /studio/config[39m
+[19:02:57.046] [32mINFO[39m (10032): [36mRegistering [POST] /studio/preview[39m
+[19:02:57.048] [32mINFO[39m (10032): [36mRegistering [POST] /support/contact[39m
+[19:02:57.049] [32mINFO[39m (10032): [36mRegistering [GET] /system/status[39m
+[19:02:57.052] [32mINFO[39m (10032): [36mRegistering [POST] /team/invite[39m
+[19:02:57.053] [32mINFO[39m (10032): [36mRegistering [GET] /team/members[39m
+[19:02:57.058] [32mINFO[39m (10032): [36mRegistering [POST] /team/members[39m
+[19:02:57.062] [32mINFO[39m (10032): [36mRegistering [DELETE] /team/members/[memberId][39m
+[19:02:57.067] [32mINFO[39m (10032): [36mRegistering [PATCH] /team/members/[memberId][39m
+[19:02:57.069] [32mINFO[39m (10032): [36mRegistering [GET] /team/policy[39m
+[19:02:57.072] [32mINFO[39m (10032): [36mRegistering [PATCH] /team/policy[39m
+[19:02:57.075] [32mINFO[39m (10032): [36mRegistering [GET] /team[39m
+[19:02:57.079] [32mINFO[39m (10032): [36mRegistering [DELETE] /team/[id][39m
+[19:02:57.083] [32mINFO[39m (10032): [36mRegistering [GET] /templates[39m
+[19:02:57.086] [32mINFO[39m (10032): [36mRegistering [POST] /templates[39m
+[19:02:57.088] [32mINFO[39m (10032): [36mRegistering [PUT] /templates/[id][39m
+[19:02:57.090] [32mINFO[39m (10032): [36mRegistering [DELETE] /templates/[id][39m
+[19:02:57.099] [32mINFO[39m (10032): [36mRegistering [POST] /test-auth[39m
+[19:02:57.102] [32mINFO[39m (10032): [36mRegistering [GET] /traces/[runId][39m
+[19:02:57.107] [32mINFO[39m (10032): [36mRegistering [GET] /training/dataset/list[39m
+[19:02:57.118] [32mINFO[39m (10032): [36mRegistering [POST] /training/dataset[39m
+[19:02:57.119] [32mINFO[39m (10032): [36mRegistering [POST] /training/record[39m
+[19:02:57.121] [32mINFO[39m (10032): [36mRegistering [POST] /training/start[39m
+[19:02:57.126] [32mINFO[39m (10032): [36mRegistering [GET] /training/status[39m
+[19:02:57.132] [32mINFO[39m (10032): [36mRegistering [POST] /upload/csv[39m
+[19:02:57.133] [32mINFO[39m (10032): [36mRegistering [POST] /upload/pdf[39m
+[19:02:57.135] [32mINFO[39m (10032): [36mRegistering [GET] /usage[39m
+[19:02:57.137] [32mINFO[39m (10032): [36mRegistering [GET] /user/profile[39m
+[19:02:57.139] [32mINFO[39m (10032): [36mRegistering [PUT] /user/profile[39m
+[19:02:57.141] [32mINFO[39m (10032): [36mRegistering [GET] /user/teams[39m
+[19:02:57.146] [32mINFO[39m (10032): [36mRegistering [GET] /v1/agents[39m
+[19:02:57.149] [32mINFO[39m (10032): [36mRegistering [POST] /v1/agents[39m
+[19:02:57.150] [32mINFO[39m (10032): [36mRegistering [GET] /v1/campaigns[39m
+[19:02:57.152] [32mINFO[39m (10032): [36mRegistering [POST] /v1/intelligence/sync[39m
+[19:02:57.153] [32mINFO[39m (10032): [36mRegistering [GET] /v1/knowledge[39m
+[19:02:57.155] [32mINFO[39m (10032): [36mRegistering [POST] /v1/knowledge[39m
+[19:02:57.156] [32mINFO[39m (10032): [36mRegistering [GET] /v1/leads[39m
+[19:02:57.157] [32mINFO[39m (10032): [36mRegistering [POST] /v1/leads[39m
+[19:02:57.159] [32mINFO[39m (10032): [36mRegistering [GET] /v1/leads/[id]/messages[39m
+[19:02:57.163] [32mINFO[39m (10032): [36mRegistering [POST] /v1/leads/[id]/messages[39m
+[19:02:57.165] [32mINFO[39m (10032): [36mRegistering [GET] /v1/leads/[id][39m
+[19:02:57.167] [32mINFO[39m (10032): [36mRegistering [DELETE] /v1/leads/[id][39m
+[19:02:57.168] [32mINFO[39m (10032): [36mRegistering [PATCH] /v1/leads/[id][39m
+[19:02:57.170] [32mINFO[39m (10032): [36mRegistering [GET] /v1/system/health[39m
+[19:02:57.172] [32mINFO[39m (10032): [36mRegistering [GET] /v1/tasks[39m
+[19:02:57.173] [32mINFO[39m (10032): [36mRegistering [POST] /v1/tasks[39m
+[19:02:57.174] [32mINFO[39m (10032): [36mRegistering [GET] /v1/workflows[39m
+[19:02:57.178] [32mINFO[39m (10032): [36mRegistering [POST] /v1/workflows[39m
+[19:02:57.179] [32mINFO[39m (10032): [36mRegistering [POST] /v1/workflows/[id]/run[39m
+[19:02:57.180] [32mINFO[39m (10032): [36mRegistering [GET] /verify-logic[39m
+[19:02:57.184] [32mINFO[39m (10032): [36mRegistering [GET] /verify-strategy[39m
+[19:02:57.363] [32mINFO[39m (10032): [36mRegistering [POST] /webhooks/ingress[39m
+[19:02:57.374] [32mINFO[39m (10032): [36mRegistering [POST] /webhooks/netjana-intel[39m
+[19:02:57.378] [32mINFO[39m (10032): [36mRegistering [POST] /webhooks/razorpay[39m
+[19:02:57.380] [32mINFO[39m (10032): [36mRegistering [GET] /webhooks[39m
+[19:02:57.381] [32mINFO[39m (10032): [36mRegistering [POST] /webhooks[39m
+[19:02:57.382] [32mINFO[39m (10032): [36mRegistering [POST] /webhooks/scraper-ingest[39m
+[19:02:57.384] [32mINFO[39m (10032): [36mRegistering [DELETE] /webhooks/[id][39m
+[19:02:57.386] [32mINFO[39m (10032): [36mRegistering [GET] /whatsapp/send[39m
+[19:02:57.390] [32mINFO[39m (10032): [36mRegistering [POST] /whatsapp/send[39m
+[19:02:57.404] [32mINFO[39m (10032): [36mRegistering [POST] /workflow/execute[39m
+[19:02:57.406] [32mINFO[39m (10032): [36mRegistering [GET] /workflow/status[39m
+[19:02:57.408] [32mINFO[39m (10032): [36mRegistering [GET] /workflows[39m
+[19:02:57.414] [32mINFO[39m (10032): [36mRegistering [POST] /workflows[39m
+[19:02:57.416] [32mINFO[39m (10032): [36mRegistering [GET] /workflows/[id][39m
+[19:02:57.418] [32mINFO[39m (10032): [36mRegistering [PUT] /workflows/[id][39m
+[19:02:57.553] [32mINFO[39m (10032): [36mRegistering [DELETE] /workflows/[id][39m
+[19:02:57.556] [32mINFO[39m (10032): [36mRegistering [POST] /workflows/[id]/run[39m
+[19:02:58.969] [31mERROR[39m (10032): [36mlisten EADDRINUSE: address already in use 0.0.0.0:3001[39m
+    err: {
+      "type": "Error",
+      "message": "listen EADDRINUSE: address already in use 0.0.0.0:3001",
+      "stack":
+          Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+              at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+              at listenInCluster (node:net:1997:12)
+              at node:net:2206:7
+              at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      "code": "EADDRINUSE",
+      "errno": -4091,
+      "syscall": "listen",
+      "address": "0.0.0.0",
+      "port": 3001
+    }
+Failed running 'server.ts'. Waiting for file changes before restarting...
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🛠️  run anywhere with `dotenvx run -- yourcommand`
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🗂️ backup and recover secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[15:43:19.884] [32mINFO[39m (5324): [36mRegistering [GET] /ab-testing/track[39m
+[15:43:19.907] [32mINFO[39m (5324): [36mRegistering [POST] /ab-testing/track[39m
+[15:43:19.910] [32mINFO[39m (5324): [36mRegistering [POST] /admin/actions/[action][39m
+[15:43:19.913] [32mINFO[39m (5324): [36mRegistering [GET] /admin/agent-audit[39m
+[15:43:19.920] [32mINFO[39m (5324): [36mRegistering [POST] /admin/agent-audit[39m
+[15:43:19.923] [32mINFO[39m (5324): [36mRegistering [GET] /admin/ai-config[39m
+[15:43:19.927] [32mINFO[39m (5324): [36mRegistering [POST] /admin/ai-config[39m
+[15:43:19.928] [32mINFO[39m (5324): [36mRegistering [GET] /admin/audit[39m
+[15:43:19.931] [32mINFO[39m (5324): [36mRegistering [POST] /admin/client-errors/export[39m
+[15:43:19.934] [32mINFO[39m (5324): [36mRegistering [GET] /admin/client-errors[39m
+[15:43:19.938] [32mINFO[39m (5324): [36mRegistering [GET] /admin/jobs/dead-letters[39m
+[15:43:19.940] [32mINFO[39m (5324): [36mRegistering [POST] /admin/jobs/replay/[id][39m
+[15:43:19.941] [32mINFO[39m (5324): [36mRegistering [GET] /admin/llm-stats[39m
+[15:43:19.944] [32mINFO[39m (5324): [36mRegistering [GET] /admin/observability[39m
+[15:43:19.951] [32mINFO[39m (5324): [36mRegistering [GET] /admin/rate-limits[39m
+[15:43:19.954] [32mINFO[39m (5324): [36mRegistering [POST] /admin/rate-limits[39m
+[15:43:19.956] [32mINFO[39m (5324): [36mRegistering [GET] /admin/runtime-overview[39m
+[15:43:19.960] [32mINFO[39m (5324): [36mRegistering [GET] /admin/service-health[39m
+[15:43:19.962] [32mINFO[39m (5324): [36mRegistering [GET] /admin/sovereign-stats[39m
+[15:43:19.966] [32mINFO[39m (5324): [36mRegistering [GET] /admin/stats[39m
+[15:43:19.969] [32mINFO[39m (5324): [36mRegistering [GET] /admin/usage[39m
+[15:43:19.971] [32mINFO[39m (5324): [36mRegistering [GET] /admin/users[39m
+[15:43:19.975] [32mINFO[39m (5324): [36mRegistering [POST] /admin/users[39m
+[15:43:19.976] [32mINFO[39m (5324): [36mRegistering [PATCH] /admin/users[39m
+[15:43:19.977] [32mINFO[39m (5324): [36mRegistering [POST] /agent/outreach/approve[39m
+[15:43:19.978] [32mINFO[39m (5324): [36mRegistering [GET] /agent/outreach/drafts[39m
+[15:43:19.981] [32mINFO[39m (5324): [36mRegistering [POST] /agents/campaign[39m
+[15:43:19.983] [32mINFO[39m (5324): [36mRegistering [POST] /agents/icp[39m
+[15:43:19.985] [32mINFO[39m (5324): [36mRegistering [POST] /agents/inbox/analyze[39m
+[15:43:19.987] [32mINFO[39m (5324): [36mRegistering [POST] /ai/compose[39m
+[15:43:19.988] [32mINFO[39m (5324): [36mRegistering [POST] /ai/execute[39m
+[15:43:19.989] [32mINFO[39m (5324): [36mRegistering [POST] /ai/improve[39m
+[15:43:19.990] [32mINFO[39m (5324): [36mRegistering [POST] /ai/preview[39m
+[15:43:19.991] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/campaigns/[id][39m
+[15:43:19.996] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/cohorts[39m
+[15:43:20.001] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/export[39m
+[15:43:20.004] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/funnel[39m
+[15:43:20.006] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/graph[39m
+[15:43:20.008] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/roi[39m
+[15:43:20.010] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/stats[39m
+[15:43:20.012] [32mINFO[39m (5324): [36mRegistering [GET] /analytics/variants/[id][39m
+[15:43:20.014] [32mINFO[39m (5324): [36mRegistering [GET] /approvals[39m
+[15:43:20.016] [32mINFO[39m (5324): [36mRegistering [POST] /approvals/[id][39m
+[15:43:20.017] [32mINFO[39m (5324): [36mRegistering [GET] /audit[39m
+[15:43:20.019] [32mINFO[39m (5324): [36mRegistering [POST] /auth/resend-verification[39m
+[15:43:20.020] [32mINFO[39m (5324): [36mRegistering [GET] /auth/sso/check[39m
+[15:43:20.024] [32mINFO[39m (5324): [36mRegistering [GET] /auth/verify-email[39m
+[15:43:20.027] [32mINFO[39m (5324): [36mRegistering [GET] /auth/[...nextauth][39m
+[15:43:20.030] [32mINFO[39m (5324): [36mRegistering [POST] /auth/[...nextauth][39m
+[15:43:20.032] [32mINFO[39m (5324): [36mRegistering [POST] /automations/approve[39m
+[15:43:20.037] [32mINFO[39m (5324): [36mRegistering [POST] /automations/evaluate[39m
+[15:43:20.039] [32mINFO[39m (5324): [36mRegistering [POST] /billing/checkout[39m
+[15:43:20.040] [32mINFO[39m (5324): [36mRegistering [GET] /billing/history[39m
+[15:43:20.044] [32mINFO[39m (5324): [36mRegistering [POST] /billing/portal[39m
+[15:43:20.046] [32mINFO[39m (5324): [36mRegistering [GET] /billing/subscription[39m
+[15:43:20.048] [32mINFO[39m (5324): [36mRegistering [POST] /billing/topup[39m
+[15:43:20.049] [32mINFO[39m (5324): [36mRegistering [GET] /billing/usage[39m
+[15:43:20.049] [32mINFO[39m (5324): [36mRegistering [POST] /bulk/action[39m
+[15:43:20.050] [32mINFO[39m (5324): [36mRegistering [GET] /caller/queue[39m
+[15:43:20.052] [32mINFO[39m (5324): [36mRegistering [POST] /caller/queue[39m
+[15:43:20.053] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns[39m
+[15:43:20.056] [32mINFO[39m (5324): [36mRegistering [POST] /campaigns[39m
+[15:43:20.057] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns/[id]/activity[39m
+[15:43:20.059] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns/[id]/analytics[39m
+[15:43:20.061] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns/[id]/analytics/v2[39m
+[15:43:20.062] [32mINFO[39m (5324): [36mRegistering [POST] /campaigns/[id]/leads[39m
+[15:43:20.063] [32mINFO[39m (5324): [36mRegistering [DELETE] /campaigns/[id]/leads[39m
+[15:43:20.063] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns/[id][39m
+[15:43:20.065] [32mINFO[39m (5324): [36mRegistering [DELETE] /campaigns/[id][39m
+[15:43:20.066] [32mINFO[39m (5324): [36mRegistering [PATCH] /campaigns/[id][39m
+[15:43:20.067] [32mINFO[39m (5324): [36mRegistering [GET] /campaigns/[id]/variants[39m
+[15:43:20.070] [32mINFO[39m (5324): [36mRegistering [POST] /campaigns/[id]/variants[39m
+[15:43:20.072] [32mINFO[39m (5324): [36mRegistering [POST] /crm/sync[39m
+[15:43:20.076] [32mINFO[39m (5324): [36mRegistering [POST] /csv-ingestion/upload[39m
+[15:43:20.077] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard/activities[39m
+[15:43:20.081] [32mINFO[39m (5324): [36mRegistering [POST] /dashboard/activities[39m
+[15:43:20.082] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard/analytics[39m
+[15:43:20.085] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard/briefing[39m
+[15:43:20.088] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard/campaigns[39m
+[15:43:20.089] [32mINFO[39m (5324): [36mRegistering [POST] /dashboard/campaigns[39m
+[15:43:20.090] [32mINFO[39m (5324): [36mRegistering [DELETE] /dashboard/campaigns/[id][39m
+[15:43:20.091] [32mINFO[39m (5324): [36mRegistering [PATCH] /dashboard/campaigns/[id][39m
+[15:43:20.092] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard[39m
+[15:43:20.093] [32mINFO[39m (5324): [36mRegistering [GET] /dashboard/stats[39m
+[15:43:20.094] [32mINFO[39m (5324): [36mRegistering [GET] /data-export/download[39m
+[15:43:20.096] [32mINFO[39m (5324): [36mRegistering [POST] /edge/attest[39m
+[15:43:20.098] [32mINFO[39m (5324): [36mRegistering [POST] /email/compose[39m
+[15:43:20.099] [32mINFO[39m (5324): [36mRegistering [POST] /email/send[39m
+[15:43:20.101] [32mINFO[39m (5324): [36mRegistering [POST] /email/send-verification[39m
+[15:43:20.103] [32mINFO[39m (5324): [36mRegistering [POST] /email/verification-token[39m
+[15:43:20.104] [32mINFO[39m (5324): [36mRegistering [POST] /email/verify[39m
+[15:43:20.107] [32mINFO[39m (5324): [36mRegistering [POST] /email/verify-token[39m
+[15:43:20.108] [32mINFO[39m (5324): [36mRegistering [POST] /enrichment/lead[39m
+[15:43:20.109] [32mINFO[39m (5324): [36mRegistering [POST] /errors/client[39m
+[15:43:20.111] [32mINFO[39m (5324): [36mRegistering [POST] /exports[39m
+[15:43:20.115] [32mINFO[39m (5324): [36mRegistering [GET] /exports/[filename][39m
+[15:43:20.119] [32mINFO[39m (5324): [36mRegistering [POST] /extension/action[39m
+[15:43:20.123] [32mINFO[39m (5324): [36mRegistering [GET] /extension/auth/validate[39m
+[15:43:20.130] [32mINFO[39m (5324): [36mRegistering [POST] /extension/push[39m
+[15:43:20.132] [32mINFO[39m (5324): [36mRegistering [POST] /extension/tasks/complete[39m
+[15:43:20.133] [32mINFO[39m (5324): [36mRegistering [GET] /extension/tasks[39m
+[15:43:20.137] [32mINFO[39m (5324): [36mRegistering [GET] /governance/audit[39m
+[15:43:20.139] [32mINFO[39m (5324): [36mRegistering [GET] /governance/guardrails[39m
+[15:43:20.142] [32mINFO[39m (5324): [36mRegistering [POST] /governance/guardrails[39m
+[15:43:20.144] [32mINFO[39m (5324): [36mRegistering [GET] /governance/keys[39m
+[15:43:20.146] [32mINFO[39m (5324): [36mRegistering [POST] /governance/keys[39m
+[15:43:20.147] [32mINFO[39m (5324): [36mRegistering [GET] /governance/members[39m
+[15:43:20.149] [32mINFO[39m (5324): [36mRegistering [GET] /governance[39m
+[15:43:20.151] [32mINFO[39m (5324): [36mRegistering [GET] /health[39m
+[15:43:20.153] [32mINFO[39m (5324): [36mRegistering [POST] /health[39m
+[15:43:20.154] [32mINFO[39m (5324): [36mRegistering [GET] /help/search[39m
+[15:43:20.158] [32mINFO[39m (5324): [36mRegistering [GET] /hunter-email-finder/domain-search[39m
+[15:43:20.161] [32mINFO[39m (5324): [36mRegistering [POST] /hunter-email-finder/find-email[39m
+[15:43:20.162] [32mINFO[39m (5324): [36mRegistering [POST] /hunter-email-finder/verify-email[39m
+[15:43:20.165] [32mINFO[39m (5324): [36mRegistering [POST] /icp-builder/create[39m
+[15:43:20.166] [32mINFO[39m (5324): [36mRegistering [GET] /icp-builder/list[39m
+[15:43:20.169] [32mINFO[39m (5324): [36mRegistering [POST] /icp-builder/score[39m
+[15:43:20.171] [32mINFO[39m (5324): [36mRegistering [GET] /icp-builder/[id][39m
+[15:43:20.175] [32mINFO[39m (5324): [36mRegistering [PUT] /icp-builder/[id][39m
+[15:43:20.176] [32mINFO[39m (5324): [36mRegistering [DELETE] /icp-builder/[id][39m
+[15:43:20.178] [32mINFO[39m (5324): [36mRegistering [POST] /import/suggest-mapping[39m
+[15:43:20.179] [32mINFO[39m (5324): [36mRegistering [POST] /inbox/drafts[39m
+[15:43:20.181] [32mINFO[39m (5324): [36mRegistering [DELETE] /inbox/drafts[39m
+[15:43:20.182] [32mINFO[39m (5324): [36mRegistering [POST] /inbox/reply[39m
+[15:43:20.184] [32mINFO[39m (5324): [36mRegistering [GET] /inbox[39m
+[15:43:20.187] [32mINFO[39m (5324): [36mRegistering [POST] /inbox/suggest[39m
+[15:43:20.189] [32mINFO[39m (5324): [36mRegistering [GET] /inbox/[id][39m
+[15:43:20.190] [32mINFO[39m (5324): [36mRegistering [GET] /inbox/[id]/suggest[39m
+[15:43:20.193] [32mINFO[39m (5324): [36mRegistering [POST] /intel/detail[39m
+[15:43:20.196] [32mINFO[39m (5324): [36mRegistering [GET] /intel/summary[39m
+[15:43:20.201] [32mINFO[39m (5324): [36mRegistering [GET] /jobs[39m
+[15:43:20.204] [32mINFO[39m (5324): [36mRegistering [POST] /jobs[39m
+[15:43:20.205] [32mINFO[39m (5324): [36mRegistering [POST] /jobs/[id]/retry[39m
+[15:43:20.206] [32mINFO[39m (5324): [36mRegistering [GET] /jobs/[id][39m
+[15:43:20.208] [32mINFO[39m (5324): [36mRegistering [DELETE] /jobs/[id][39m
+[15:43:20.209] [32mINFO[39m (5324): [36mRegistering [POST] /knowledge/campaign-context[39m
+[15:43:20.210] [32mINFO[39m (5324): [36mRegistering [GET] /knowledge[39m
+[15:43:20.212] [32mINFO[39m (5324): [36mRegistering [POST] /knowledge[39m
+[15:43:20.213] [32mINFO[39m (5324): [36mRegistering [GET] /knowledge/[id][39m
+[15:43:20.215] [32mINFO[39m (5324): [36mRegistering [POST] /knowledge/[id][39m
+[15:43:20.216] [32mINFO[39m (5324): [36mRegistering [DELETE] /knowledge/[id][39m
+[15:43:20.217] [32mINFO[39m (5324): [36mRegistering [GET] /knowledge/[id]/upload[39m
+[15:43:20.220] [32mINFO[39m (5324): [36mRegistering [POST] /knowledge/[id]/upload[39m
+[15:43:20.221] [32mINFO[39m (5324): [36mRegistering [DELETE] /leads/bulk[39m
+[15:43:20.222] [32mINFO[39m (5324): [36mRegistering [GET] /leads/export[39m
+[15:43:20.223] [32mINFO[39m (5324): [36mRegistering [POST] /leads/import[39m
+[15:43:20.224] [32mINFO[39m (5324): [36mRegistering [GET] /leads[39m
+[15:43:20.225] [32mINFO[39m (5324): [36mRegistering [POST] /leads[39m
+[15:43:20.226] [32mINFO[39m (5324): [36mRegistering [POST] /leads/[id]/action[39m
+[15:43:20.228] [32mINFO[39m (5324): [36mRegistering [POST] /leads/[id]/enrich[39m
+[15:43:20.229] [32mINFO[39m (5324): [36mRegistering [GET] /leads/[id]/identity[39m
+[15:43:20.231] [32mINFO[39m (5324): [36mRegistering [GET] /leads/[id][39m
+[15:43:20.233] [32mINFO[39m (5324): [36mRegistering [PATCH] /leads/[id][39m
+[15:43:20.234] [32mINFO[39m (5324): [36mRegistering [POST] /learning/enrich-lead[39m
+[15:43:20.235] [32mINFO[39m (5324): [36mRegistering [POST] /learning/feedback[39m
+[15:43:20.237] [32mINFO[39m (5324): [36mRegistering [POST] /learning/ingest-file[39m
+[15:43:20.239] [32mINFO[39m (5324): [36mRegistering [GET] /learning/memories[39m
+[15:43:20.242] [32mINFO[39m (5324): [36mRegistering [POST] /learning/memories[39m
+[15:43:20.244] [32mINFO[39m (5324): [36mRegistering [POST] /learning/record-feedback[39m
+[15:43:20.246] [32mINFO[39m (5324): [36mRegistering [POST] /linkedin-runner/run[39m
+[15:43:20.247] [32mINFO[39m (5324): [36mRegistering [POST] /marketplace/install[39m
+[15:43:20.248] [32mINFO[39m (5324): [36mRegistering [GET] /marketplace[39m
+[15:43:20.250] [32mINFO[39m (5324): [36mRegistering [GET] /meetings[39m
+[15:43:20.254] [32mINFO[39m (5324): [36mRegistering [POST] /meetings[39m
+[15:43:20.256] [32mINFO[39m (5324): [36mRegistering [GET] /metrics[39m
+[15:43:20.258] [32mINFO[39m (5324): [36mRegistering [POST] /ml-training/generate[39m
+[15:43:20.259] [32mINFO[39m (5324): [36mRegistering [GET] /ml-training/metrics/[version][39m
+[15:43:20.261] [32mINFO[39m (5324): [36mRegistering [GET] /ml-training/review[39m
+[15:43:20.263] [32mINFO[39m (5324): [36mRegistering [POST] /ml-training/review[39m
+[15:43:20.264] [32mINFO[39m (5324): [36mRegistering [GET] /monitoring/health[39m
+[15:43:20.266] [32mINFO[39m (5324): [36mRegistering [GET] /notifications[39m
+[15:43:20.268] [32mINFO[39m (5324): [36mRegistering [POST] /notifications[39m
+[15:43:20.270] [32mINFO[39m (5324): [36mRegistering [PATCH] /notifications[39m
+[15:43:20.270] [32mINFO[39m (5324): [36mRegistering [POST] /notifications/send-test[39m
+[15:43:20.271] [32mINFO[39m (5324): [36mRegistering [PATCH] /notifications/[id][39m
+[15:43:20.272] [32mINFO[39m (5324): [36mRegistering [GET] /nurture/trigger[39m
+[15:43:20.274] [32mINFO[39m (5324): [36mRegistering [POST] /nurture/trigger[39m
+[15:43:20.276] [32mINFO[39m (5324): [36mRegistering [GET] /onboarding/progress[39m
+[15:43:20.279] [32mINFO[39m (5324): [36mRegistering [GET] /onboarding/status[39m
+[15:43:20.283] [32mINFO[39m (5324): [36mRegistering [GET] /orchestrator/agents[39m
+[15:43:20.287] [32mINFO[39m (5324): [36mRegistering [POST] /orchestrator/agents/[id]/run[39m
+[15:43:20.288] [32mINFO[39m (5324): [36mRegistering [POST] /orchestrator/agents/[id]/stop[39m
+[15:43:20.291] [32mINFO[39m (5324): [36mRegistering [POST] /orchestrator/run[39m
+[15:43:20.293] [32mINFO[39m (5324): [36mRegistering [POST] /orchestrator/swarm/run[39m
+[15:43:20.294] [32mINFO[39m (5324): [36mRegistering [GET] /orchestrator/swarm/status[39m
+[15:43:20.296] [32mINFO[39m (5324): [36mRegistering [GET] /orchestrator/timeline[39m
+[15:43:20.298] [32mINFO[39m (5324): [36mRegistering [POST] /pipeline/ai/analyze[39m
+[15:43:20.299] [32mINFO[39m (5324): [36mRegistering [PATCH] /pipeline/leads/[leadId][39m
+[15:43:20.300] [32mINFO[39m (5324): [36mRegistering [GET] /pipeline/stats[39m
+[15:43:20.302] [32mINFO[39m (5324): [36mRegistering [GET] /pipeline/tasks[39m
+[15:43:20.304] [32mINFO[39m (5324): [36mRegistering [POST] /pipeline/tasks[39m
+[15:43:20.306] [32mINFO[39m (5324): [36mRegistering [PATCH] /pipeline/tasks/[id][39m
+[15:43:20.307] [32mINFO[39m (5324): [36mRegistering [GET] /playbooks[39m
+[15:43:20.309] [32mINFO[39m (5324): [36mRegistering [POST] /playbooks[39m
+[15:43:20.310] [32mINFO[39m (5324): [36mRegistering [POST] /playbooks/[id]/fork[39m
+[15:43:20.310] [32mINFO[39m (5324): [36mRegistering [POST] /playbooks/[id]/instantiate[39m
+[15:43:20.311] [32mINFO[39m (5324): [36mRegistering [POST] /playbooks/[id]/publish[39m
+[15:43:20.312] [32mINFO[39m (5324): [36mRegistering [GET] /queue/pending[39m
+[15:43:20.314] [32mINFO[39m (5324): [36mRegistering [POST] /queue/result[39m
+[15:43:20.315] [32mINFO[39m (5324): [36mRegistering [POST] /rag/query[39m
+[15:43:20.315] [32mINFO[39m (5324): [36mRegistering [GET] /rag/search[39m
+[15:43:20.317] [32mINFO[39m (5324): [36mRegistering [POST] /rag/search[39m
+[15:43:20.320] [32mINFO[39m (5324): [36mRegistering [POST] /register[39m
+[15:43:20.320] [32mINFO[39m (5324): [36mRegistering [POST] /scheduler/tick[39m
+[15:43:20.322] [32mINFO[39m (5324): [36mRegistering [GET] /schedules[39m
+[15:43:20.324] [32mINFO[39m (5324): [36mRegistering [POST] /schedules[39m
+[15:43:20.326] [32mINFO[39m (5324): [36mRegistering [DELETE] /schedules/[id][39m
+[15:43:20.327] [32mINFO[39m (5324): [36mRegistering [PATCH] /schedules/[id][39m
+[15:43:20.328] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/batch[39m
+[15:43:20.330] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/calculate[39m
+[15:43:20.332] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/case-studies[39m
+[15:43:20.339] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/case-studies[39m
+[15:43:20.341] [32mINFO[39m (5324): [36mRegistering [DELETE] /scoring/case-studies[39m
+[15:43:20.343] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/case-study/generate-copy[39m
+[15:43:20.345] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/case-study/list[39m
+[15:43:20.349] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/case-study/retrieve[39m
+[15:43:20.351] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/case-study[39m
+[15:43:20.352] [32mINFO[39m (5324): [36mRegistering [DELETE] /scoring/case-study[39m
+[15:43:20.353] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/cluster[39m
+[15:43:20.354] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/explain[39m
+[15:43:20.355] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/explain/[leadId][39m
+[15:43:20.357] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/lead-intent[39m
+[15:43:20.359] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/lead-intent[39m
+[15:43:20.359] [32mINFO[39m (5324): [36mRegistering [PUT] /scoring/lead-intent[39m
+[15:43:20.360] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/optimal-send-time[39m
+[15:43:20.361] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/persist[39m
+[15:43:20.363] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/predict[39m
+[15:43:20.367] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/predict[39m
+[15:43:20.370] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/predict-churn[39m
+[15:43:20.371] [32mINFO[39m (5324): [36mRegistering [GET] /scoring/verify[39m
+[15:43:20.373] [32mINFO[39m (5324): [36mRegistering [POST] /scoring/verify[39m
+[15:43:20.374] [32mINFO[39m (5324): [36mRegistering [DELETE] /scoring/verify[39m
+[15:43:20.374] [32mINFO[39m (5324): [36mRegistering [POST] /scraper-bridge/batch-scrape[39m
+[15:43:20.376] [32mINFO[39m (5324): [36mRegistering [POST] /scraper-bridge/scrape[39m
+[15:43:20.377] [32mINFO[39m (5324): [36mRegistering [GET] /search/global[39m
+[15:43:20.379] [32mINFO[39m (5324): [36mRegistering [GET] /settings/agent[39m
+[15:43:20.382] [32mINFO[39m (5324): [36mRegistering [POST] /settings/agent[39m
+[15:43:20.384] [32mINFO[39m (5324): [36mRegistering [GET] /settings/approvals[39m
+[15:43:20.388] [32mINFO[39m (5324): [36mRegistering [GET] /settings/audit[39m
+[15:43:20.390] [32mINFO[39m (5324): [36mRegistering [POST] /settings/branding[39m
+[15:43:20.391] [32mINFO[39m (5324): [36mRegistering [GET] /settings/budgeting[39m
+[15:43:20.393] [32mINFO[39m (5324): [36mRegistering [PUT] /settings/budgeting[39m
+[15:43:20.394] [32mINFO[39m (5324): [36mRegistering [GET] /settings/crm[39m
+[15:43:20.395] [32mINFO[39m (5324): [36mRegistering [POST] /settings/crm[39m
+[15:43:20.396] [32mINFO[39m (5324): [36mRegistering [PUT] /settings/crm[39m
+[15:43:20.397] [32mINFO[39m (5324): [36mRegistering [GET] /settings/governance/analytics[39m
+[15:43:20.399] [32mINFO[39m (5324): [36mRegistering [GET] /settings/governance[39m
+[15:43:20.400] [32mINFO[39m (5324): [36mRegistering [PUT] /settings/governance[39m
+[15:43:20.401] [32mINFO[39m (5324): [36mRegistering [GET] /settings/guardrails[39m
+[15:43:20.405] [32mINFO[39m (5324): [36mRegistering [PUT] /settings/guardrails[39m
+[15:43:20.407] [32mINFO[39m (5324): [36mRegistering [GET] /settings/keys[39m
+[15:43:20.408] [32mINFO[39m (5324): [36mRegistering [POST] /settings/keys[39m
+[15:43:20.409] [32mINFO[39m (5324): [36mRegistering [DELETE] /settings/keys/[id][39m
+[15:43:20.411] [32mINFO[39m (5324): [36mRegistering [GET] /settings/notifications[39m
+[15:43:20.413] [32mINFO[39m (5324): [36mRegistering [POST] /settings/notifications[39m
+[15:43:20.415] [32mINFO[39m (5324): [36mRegistering [GET] /settings[39m
+[15:43:20.417] [32mINFO[39m (5324): [36mRegistering [POST] /settings[39m
+[15:43:20.419] [32mINFO[39m (5324): [36mRegistering [GET] /settings/sso[39m
+[15:43:20.422] [32mINFO[39m (5324): [36mRegistering [PUT] /settings/sso[39m
+[15:43:20.423] [32mINFO[39m (5324): [36mRegistering [DELETE] /settings/sso[39m
+[15:43:20.424] [32mINFO[39m (5324): [36mRegistering [GET] /settings/webhooks/logs[39m
+[15:43:20.425] [32mINFO[39m (5324): [36mRegistering [GET] /settings/webhooks[39m
+[15:43:20.428] [32mINFO[39m (5324): [36mRegistering [POST] /settings/webhooks[39m
+[15:43:20.428] [32mINFO[39m (5324): [36mRegistering [DELETE] /settings/webhooks[39m
+[15:43:20.429] [32mINFO[39m (5324): [36mRegistering [POST] /settings/webhooks/secret[39m
+[15:43:20.430] [32mINFO[39m (5324): [36mRegistering [POST] /settings/webhooks/test[39m
+[15:43:20.431] [32mINFO[39m (5324): [36mRegistering [GET] /setup/email[39m
+[15:43:20.434] [32mINFO[39m (5324): [36mRegistering [POST] /setup/email[39m
+[15:43:20.436] [32mINFO[39m (5324): [36mRegistering [DELETE] /setup/email[39m
+[15:43:20.438] [32mINFO[39m (5324): [36mRegistering [POST] /setup/save[39m
+[15:43:20.439] [32mINFO[39m (5324): [36mRegistering [GET] /setup/status[39m
+[15:43:20.441] [32mINFO[39m (5324): [36mRegistering [GET] /smtp/config/redacted[39m
+[15:43:20.443] [32mINFO[39m (5324): [36mRegistering [GET] /smtp/config[39m
+[15:43:20.447] [32mINFO[39m (5324): [36mRegistering [POST] /smtp/config[39m
+[15:43:20.448] [32mINFO[39m (5324): [36mRegistering [DELETE] /smtp/config[39m
+[15:43:20.450] [32mINFO[39m (5324): [36mRegistering [GET] /studio/config[39m
+[15:43:20.454] [32mINFO[39m (5324): [36mRegistering [POST] /studio/config[39m
+[15:43:20.455] [32mINFO[39m (5324): [36mRegistering [POST] /studio/preview[39m
+[15:43:20.456] [32mINFO[39m (5324): [36mRegistering [POST] /support/contact[39m
+[15:43:20.457] [32mINFO[39m (5324): [36mRegistering [GET] /system/status[39m
+[15:43:20.459] [32mINFO[39m (5324): [36mRegistering [POST] /team/invite[39m
+[15:43:20.460] [32mINFO[39m (5324): [36mRegistering [GET] /team/members[39m
+[15:43:20.462] [32mINFO[39m (5324): [36mRegistering [POST] /team/members[39m
+[15:43:20.464] [32mINFO[39m (5324): [36mRegistering [DELETE] /team/members/[memberId][39m
+[15:43:20.465] [32mINFO[39m (5324): [36mRegistering [PATCH] /team/members/[memberId][39m
+[15:43:20.466] [32mINFO[39m (5324): [36mRegistering [GET] /team/policy[39m
+[15:43:20.468] [32mINFO[39m (5324): [36mRegistering [PATCH] /team/policy[39m
+[15:43:20.470] [32mINFO[39m (5324): [36mRegistering [GET] /team[39m
+[15:43:20.473] [32mINFO[39m (5324): [36mRegistering [DELETE] /team/[id][39m
+[15:43:20.474] [32mINFO[39m (5324): [36mRegistering [GET] /templates[39m
+[15:43:20.478] [32mINFO[39m (5324): [36mRegistering [POST] /templates[39m
+[15:43:20.479] [32mINFO[39m (5324): [36mRegistering [PUT] /templates/[id][39m
+[15:43:20.481] [32mINFO[39m (5324): [36mRegistering [DELETE] /templates/[id][39m
+[15:43:20.483] [32mINFO[39m (5324): [36mRegistering [POST] /test-auth[39m
+[15:43:20.484] [32mINFO[39m (5324): [36mRegistering [GET] /traces/[runId][39m
+[15:43:20.486] [32mINFO[39m (5324): [36mRegistering [GET] /training/dataset/list[39m
+[15:43:20.491] [32mINFO[39m (5324): [36mRegistering [POST] /training/dataset[39m
+[15:43:20.492] [32mINFO[39m (5324): [36mRegistering [POST] /training/record[39m
+[15:43:20.494] [32mINFO[39m (5324): [36mRegistering [POST] /training/start[39m
+[15:43:20.496] [32mINFO[39m (5324): [36mRegistering [GET] /training/status[39m
+[15:43:20.500] [32mINFO[39m (5324): [36mRegistering [POST] /upload/csv[39m
+[15:43:20.503] [32mINFO[39m (5324): [36mRegistering [POST] /upload/pdf[39m
+[15:43:20.505] [32mINFO[39m (5324): [36mRegistering [GET] /usage[39m
+[15:43:20.506] [32mINFO[39m (5324): [36mRegistering [GET] /user/profile[39m
+[15:43:20.509] [32mINFO[39m (5324): [36mRegistering [PUT] /user/profile[39m
+[15:43:20.512] [32mINFO[39m (5324): [36mRegistering [GET] /user/teams[39m
+[15:43:20.515] [32mINFO[39m (5324): [36mRegistering [GET] /v1/agents[39m
+[15:43:20.518] [32mINFO[39m (5324): [36mRegistering [POST] /v1/agents[39m
+[15:43:20.519] [32mINFO[39m (5324): [36mRegistering [GET] /v1/campaigns[39m
+[15:43:20.523] [32mINFO[39m (5324): [36mRegistering [POST] /v1/intelligence/sync[39m
+[15:43:20.525] [32mINFO[39m (5324): [36mRegistering [GET] /v1/knowledge[39m
+[15:43:20.526] [32mINFO[39m (5324): [36mRegistering [POST] /v1/knowledge[39m
+[15:43:20.527] [32mINFO[39m (5324): [36mRegistering [GET] /v1/leads[39m
+[15:43:20.529] [32mINFO[39m (5324): [36mRegistering [POST] /v1/leads[39m
+[15:43:20.531] [32mINFO[39m (5324): [36mRegistering [GET] /v1/leads/[id]/messages[39m
+[15:43:20.535] [32mINFO[39m (5324): [36mRegistering [POST] /v1/leads/[id]/messages[39m
+[15:43:20.536] [32mINFO[39m (5324): [36mRegistering [GET] /v1/leads/[id][39m
+[15:43:20.539] [32mINFO[39m (5324): [36mRegistering [DELETE] /v1/leads/[id][39m
+[15:43:20.540] [32mINFO[39m (5324): [36mRegistering [PATCH] /v1/leads/[id][39m
+[15:43:20.541] [32mINFO[39m (5324): [36mRegistering [GET] /v1/system/health[39m
+[15:43:20.543] [32mINFO[39m (5324): [36mRegistering [GET] /v1/tasks[39m
+[15:43:20.544] [32mINFO[39m (5324): [36mRegistering [POST] /v1/tasks[39m
+[15:43:20.545] [32mINFO[39m (5324): [36mRegistering [GET] /v1/workflows[39m
+[15:43:20.548] [32mINFO[39m (5324): [36mRegistering [POST] /v1/workflows[39m
+[15:43:20.549] [32mINFO[39m (5324): [36mRegistering [POST] /v1/workflows/[id]/run[39m
+[15:43:20.550] [32mINFO[39m (5324): [36mRegistering [GET] /verify-logic[39m
+[15:43:20.555] [32mINFO[39m (5324): [36mRegistering [GET] /verify-strategy[39m
+[15:43:20.558] [32mINFO[39m (5324): [36mRegistering [POST] /webhooks/ingress[39m
+[15:43:20.559] [32mINFO[39m (5324): [36mRegistering [POST] /webhooks/netjana-intel[39m
+[15:43:20.561] [32mINFO[39m (5324): [36mRegistering [POST] /webhooks/razorpay[39m
+[15:43:20.561] [32mINFO[39m (5324): [36mRegistering [GET] /webhooks[39m
+[15:43:20.562] [32mINFO[39m (5324): [36mRegistering [POST] /webhooks[39m
+[15:43:20.563] [32mINFO[39m (5324): [36mRegistering [POST] /webhooks/scraper-ingest[39m
+[15:43:20.564] [32mINFO[39m (5324): [36mRegistering [DELETE] /webhooks/[id][39m
+[15:43:20.565] [32mINFO[39m (5324): [36mRegistering [GET] /whatsapp/send[39m
+[15:43:20.568] [32mINFO[39m (5324): [36mRegistering [POST] /whatsapp/send[39m
+[15:43:20.569] [32mINFO[39m (5324): [36mRegistering [POST] /workflow/execute[39m
+[15:43:20.571] [32mINFO[39m (5324): [36mRegistering [GET] /workflow/status[39m
+[15:43:20.573] [32mINFO[39m (5324): [36mRegistering [GET] /workflows[39m
+[15:43:20.576] [32mINFO[39m (5324): [36mRegistering [POST] /workflows[39m
+[15:43:20.578] [32mINFO[39m (5324): [36mRegistering [GET] /workflows/[id][39m
+[15:43:20.583] [32mINFO[39m (5324): [36mRegistering [PUT] /workflows/[id][39m
+[15:43:20.585] [32mINFO[39m (5324): [36mRegistering [DELETE] /workflows/[id][39m
+[15:43:20.588] [32mINFO[39m (5324): [36mRegistering [POST] /workflows/[id]/run[39m
+[15:43:20.922] [31mERROR[39m (5324): [36mlisten EADDRINUSE: address already in use 0.0.0.0:3001[39m
+    err: {
+      "type": "Error",
+      "message": "listen EADDRINUSE: address already in use 0.0.0.0:3001",
+      "stack":
+          Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+              at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+              at listenInCluster (node:net:1997:12)
+              at node:net:2206:7
+              at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      "code": "EADDRINUSE",
+      "errno": -4091,
+      "syscall": "listen",
+      "address": "0.0.0.0",
+      "port": 3001
+    }
+Failed running 'server.ts'. Waiting for file changes before restarting...
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 👥 sync secrets across teammates & machines: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔑 add access controls to secrets: https://dotenvx.com/ops
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  override existing env vars with { override: true }
+Restarting 'server.ts'
+Waiting for graceful termination...
+Gracefully restarted 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔄 add secrets lifecycle management: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  enable debug logging with { debug: true }
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: ✅ audit secrets and track compliance: https://dotenvx.com/ops
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+Restarting 'server.ts'
+[dotenv@17.2.3] injecting env (31) from .env -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+[18:23:55.111] [32mINFO[39m (12676): [36mRegistering [GET] /ab-testing/track[39m
+[18:23:55.249] [32mINFO[39m (12676): [36mRegistering [POST] /ab-testing/track[39m
+[18:23:55.252] [32mINFO[39m (12676): [36mRegistering [POST] /admin/actions/[action][39m
+[18:23:55.256] [32mINFO[39m (12676): [36mRegistering [GET] /admin/agent-audit[39m
+[18:23:55.299] [32mINFO[39m (12676): [36mRegistering [POST] /admin/agent-audit[39m
+[18:23:55.400] [32mINFO[39m (12676): [36mRegistering [GET] /admin/ai-config[39m
+[18:23:55.407] [32mINFO[39m (12676): [36mRegistering [POST] /admin/ai-config[39m
+[18:23:55.409] [32mINFO[39m (12676): [36mRegistering [GET] /admin/audit[39m
+[18:23:55.412] [32mINFO[39m (12676): [36mRegistering [POST] /admin/client-errors/export[39m
+[18:23:55.415] [32mINFO[39m (12676): [36mRegistering [GET] /admin/client-errors[39m
+[18:23:55.421] [32mINFO[39m (12676): [36mRegistering [GET] /admin/jobs/dead-letters[39m
+[18:23:55.424] [32mINFO[39m (12676): [36mRegistering [POST] /admin/jobs/replay/[id][39m
+[18:23:55.425] [32mINFO[39m (12676): [36mRegistering [GET] /admin/llm-stats[39m
+[18:23:55.430] [32mINFO[39m (12676): [36mRegistering [GET] /admin/observability[39m
+[18:23:55.432] [32mINFO[39m (12676): [36mRegistering [GET] /admin/rate-limits[39m
+[18:23:55.435] [32mINFO[39m (12676): [36mRegistering [POST] /admin/rate-limits[39m
+[18:23:55.439] [32mINFO[39m (12676): [36mRegistering [GET] /admin/runtime-overview[39m
+[18:23:55.443] [32mINFO[39m (12676): [36mRegistering [GET] /admin/service-health[39m
+[18:23:55.451] [32mINFO[39m (12676): [36mRegistering [GET] /admin/sovereign-stats[39m
+[18:23:55.457] [32mINFO[39m (12676): [36mRegistering [GET] /admin/stats[39m
+[18:23:55.462] [32mINFO[39m (12676): [36mRegistering [GET] /admin/usage[39m
+[18:23:55.465] [32mINFO[39m (12676): [36mRegistering [GET] /admin/users[39m
+[18:23:55.468] [32mINFO[39m (12676): [36mRegistering [POST] /admin/users[39m
+[18:23:55.469] [32mINFO[39m (12676): [36mRegistering [PATCH] /admin/users[39m
+[18:23:55.471] [32mINFO[39m (12676): [36mRegistering [POST] /agent/outreach/approve[39m
+[18:23:55.477] [32mINFO[39m (12676): [36mRegistering [GET] /agent/outreach/drafts[39m
+[18:23:55.479] [32mINFO[39m (12676): [36mRegistering [POST] /agents/campaign[39m
+[18:23:55.481] [32mINFO[39m (12676): [36mRegistering [POST] /agents/icp[39m
+[18:23:55.483] [32mINFO[39m (12676): [36mRegistering [POST] /agents/inbox/analyze[39m
+[18:23:55.489] [32mINFO[39m (12676): [36mRegistering [POST] /ai/compose[39m
+[18:23:55.490] [32mINFO[39m (12676): [36mRegistering [POST] /ai/execute[39m
+[18:23:55.492] [32mINFO[39m (12676): [36mRegistering [POST] /ai/improve[39m
+[18:23:55.493] [32mINFO[39m (12676): [36mRegistering [POST] /ai/preview[39m
+[18:23:55.494] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/campaigns/[id][39m
+[18:23:55.497] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/cohorts[39m
+[18:23:55.501] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/export[39m
+[18:23:55.506] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/funnel[39m
+[18:23:55.510] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/graph[39m
+[18:23:55.513] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/roi[39m
+[18:23:55.517] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/stats[39m
+[18:23:55.519] [32mINFO[39m (12676): [36mRegistering [GET] /analytics/variants/[id][39m
+[18:23:55.525] [32mINFO[39m (12676): [36mRegistering [GET] /approvals[39m
+[18:23:55.528] [32mINFO[39m (12676): [36mRegistering [POST] /approvals/[id][39m
+[18:23:55.531] [32mINFO[39m (12676): [36mRegistering [GET] /audit[39m
+[18:23:55.534] [32mINFO[39m (12676): [36mRegistering [POST] /auth/resend-verification[39m
+[18:23:55.536] [32mINFO[39m (12676): [36mRegistering [GET] /auth/sso/check[39m
+[18:23:55.540] [32mINFO[39m (12676): [36mRegistering [GET] /auth/verify-email[39m
+[18:23:55.544] [32mINFO[39m (12676): [36mRegistering [GET] /auth/[...nextauth][39m
+[18:23:55.548] [32mINFO[39m (12676): [36mRegistering [POST] /auth/[...nextauth][39m
+[18:23:55.550] [32mINFO[39m (12676): [36mRegistering [POST] /automations/approve[39m
+[18:23:55.556] [32mINFO[39m (12676): [36mRegistering [POST] /automations/evaluate[39m
+[18:23:55.559] [32mINFO[39m (12676): [36mRegistering [POST] /billing/checkout[39m
+[18:23:55.561] [32mINFO[39m (12676): [36mRegistering [GET] /billing/history[39m
+[18:23:55.563] [32mINFO[39m (12676): [36mRegistering [POST] /billing/portal[39m
+[18:23:55.565] [32mINFO[39m (12676): [36mRegistering [GET] /billing/subscription[39m
+[18:23:55.569] [32mINFO[39m (12676): [36mRegistering [POST] /billing/topup[39m
+[18:23:55.574] [32mINFO[39m (12676): [36mRegistering [GET] /billing/usage[39m
+[18:23:55.576] [32mINFO[39m (12676): [36mRegistering [POST] /bulk/action[39m
+[18:23:55.578] [32mINFO[39m (12676): [36mRegistering [GET] /caller/queue[39m
+[18:23:55.580] [32mINFO[39m (12676): [36mRegistering [POST] /caller/queue[39m
+[18:23:55.580] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns[39m
+[18:23:55.590] [32mINFO[39m (12676): [36mRegistering [POST] /campaigns[39m
+[18:23:55.592] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns/[id]/activity[39m
+[18:23:55.594] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns/[id]/analytics[39m
+[18:23:55.600] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns/[id]/analytics/v2[39m
+[18:23:55.606] [32mINFO[39m (12676): [36mRegistering [POST] /campaigns/[id]/leads[39m
+[18:23:55.608] [32mINFO[39m (12676): [36mRegistering [DELETE] /campaigns/[id]/leads[39m
+[18:23:55.614] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns/[id][39m
+[18:23:55.621] [32mINFO[39m (12676): [36mRegistering [DELETE] /campaigns/[id][39m
+[18:23:55.624] [32mINFO[39m (12676): [36mRegistering [PATCH] /campaigns/[id][39m
+[18:23:55.626] [32mINFO[39m (12676): [36mRegistering [GET] /campaigns/[id]/variants[39m
+[18:23:55.629] [32mINFO[39m (12676): [36mRegistering [POST] /campaigns/[id]/variants[39m
+[18:23:55.631] [32mINFO[39m (12676): [36mRegistering [POST] /crm/sync[39m
+[18:23:55.632] [32mINFO[39m (12676): [36mRegistering [POST] /csv-ingestion/upload[39m
+[18:23:55.633] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard/activities[39m
+[18:23:55.636] [32mINFO[39m (12676): [36mRegistering [POST] /dashboard/activities[39m
+[18:23:55.638] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard/analytics[39m
+[18:23:55.641] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard/briefing[39m
+[18:23:55.646] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard/campaigns[39m
+[18:23:55.648] [32mINFO[39m (12676): [36mRegistering [POST] /dashboard/campaigns[39m
+[18:23:55.650] [32mINFO[39m (12676): [36mRegistering [DELETE] /dashboard/campaigns/[id][39m
+[18:23:55.651] [32mINFO[39m (12676): [36mRegistering [PATCH] /dashboard/campaigns/[id][39m
+[18:23:55.656] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard[39m
+[18:23:55.660] [32mINFO[39m (12676): [36mRegistering [GET] /dashboard/stats[39m
+[18:23:55.662] [32mINFO[39m (12676): [36mRegistering [GET] /data-export/download[39m
+[18:23:55.665] [32mINFO[39m (12676): [36mRegistering [POST] /edge/attest[39m
+[18:23:55.667] [32mINFO[39m (12676): [36mRegistering [POST] /email/compose[39m
+[18:23:55.669] [32mINFO[39m (12676): [36mRegistering [POST] /email/send[39m
+[18:23:55.673] [32mINFO[39m (12676): [36mRegistering [POST] /email/send-verification[39m
+[18:23:55.675] [32mINFO[39m (12676): [36mRegistering [POST] /email/verification-token[39m
+[18:23:55.676] [32mINFO[39m (12676): [36mRegistering [POST] /email/verify[39m
+[18:23:55.678] [32mINFO[39m (12676): [36mRegistering [POST] /email/verify-token[39m
+[18:23:55.680] [32mINFO[39m (12676): [36mRegistering [POST] /enrichment/lead[39m
+[18:23:55.685] [32mINFO[39m (12676): [36mRegistering [POST] /errors/client[39m
+[18:23:55.688] [32mINFO[39m (12676): [36mRegistering [POST] /exports[39m
+[18:23:55.689] [32mINFO[39m (12676): [36mRegistering [GET] /exports/[filename][39m
+[18:23:55.692] [32mINFO[39m (12676): [36mRegistering [POST] /extension/action[39m
+[18:23:55.696] [32mINFO[39m (12676): [36mRegistering [GET] /extension/auth/validate[39m
+[18:23:55.704] [32mINFO[39m (12676): [36mRegistering [POST] /extension/push[39m
+[18:23:55.707] [32mINFO[39m (12676): [36mRegistering [POST] /extension/tasks/complete[39m
+[18:23:55.708] [32mINFO[39m (12676): [36mRegistering [GET] /extension/tasks[39m
+[18:23:55.716] [32mINFO[39m (12676): [36mRegistering [GET] /governance/audit[39m
+[18:23:55.727] [32mINFO[39m (12676): [36mRegistering [GET] /governance/guardrails[39m
+[18:23:55.740] [32mINFO[39m (12676): [36mRegistering [POST] /governance/guardrails[39m
+[18:23:55.748] [32mINFO[39m (12676): [36mRegistering [GET] /governance/keys[39m
+[18:23:55.751] [32mINFO[39m (12676): [36mRegistering [POST] /governance/keys[39m
+[18:23:55.752] [32mINFO[39m (12676): [36mRegistering [GET] /governance/members[39m
+[18:23:55.757] [32mINFO[39m (12676): [36mRegistering [GET] /governance[39m
+[18:23:55.759] [32mINFO[39m (12676): [36mRegistering [GET] /health[39m
+[18:23:55.762] [32mINFO[39m (12676): [36mRegistering [POST] /health[39m
+[18:23:55.764] [32mINFO[39m (12676): [36mRegistering [GET] /help/search[39m
+[18:23:55.768] [32mINFO[39m (12676): [36mRegistering [GET] /hunter-email-finder/domain-search[39m
+[18:23:55.774] [32mINFO[39m (12676): [36mRegistering [POST] /hunter-email-finder/find-email[39m
+[18:23:55.778] [32mINFO[39m (12676): [36mRegistering [POST] /hunter-email-finder/verify-email[39m
+[18:23:55.783] [32mINFO[39m (12676): [36mRegistering [POST] /icp-builder/create[39m
+[18:23:55.785] [32mINFO[39m (12676): [36mRegistering [GET] /icp-builder/list[39m
+[18:23:55.791] [32mINFO[39m (12676): [36mRegistering [POST] /icp-builder/score[39m
+[18:23:55.794] [32mINFO[39m (12676): [36mRegistering [GET] /icp-builder/[id][39m
+[18:23:55.799] [32mINFO[39m (12676): [36mRegistering [PUT] /icp-builder/[id][39m
+[18:23:55.801] [32mINFO[39m (12676): [36mRegistering [DELETE] /icp-builder/[id][39m
+[18:23:55.802] [32mINFO[39m (12676): [36mRegistering [POST] /import/suggest-mapping[39m
+[18:23:55.806] [32mINFO[39m (12676): [36mRegistering [POST] /inbox/drafts[39m
+[18:23:55.808] [32mINFO[39m (12676): [36mRegistering [DELETE] /inbox/drafts[39m
+[18:23:55.810] [32mINFO[39m (12676): [36mRegistering [POST] /inbox/reply[39m
+[18:23:55.812] [32mINFO[39m (12676): [36mRegistering [GET] /inbox[39m
+[18:23:55.815] [32mINFO[39m (12676): [36mRegistering [POST] /inbox/suggest[39m
+[18:23:55.816] [32mINFO[39m (12676): [36mRegistering [GET] /inbox/[id][39m
+[18:23:55.823] [32mINFO[39m (12676): [36mRegistering [GET] /inbox/[id]/suggest[39m
+[18:23:55.826] [32mINFO[39m (12676): [36mRegistering [POST] /intel/detail[39m
+[18:23:55.839] [32mINFO[39m (12676): [36mRegistering [GET] /intel/summary[39m
+[18:23:55.842] [32mINFO[39m (12676): [36mRegistering [GET] /jobs[39m
+[18:23:55.845] [32mINFO[39m (12676): [36mRegistering [POST] /jobs[39m
+[18:23:55.846] [32mINFO[39m (12676): [36mRegistering [POST] /jobs/[id]/retry[39m
+[18:23:55.847] [32mINFO[39m (12676): [36mRegistering [GET] /jobs/[id][39m
+[18:23:55.848] [32mINFO[39m (12676): [36mRegistering [DELETE] /jobs/[id][39m
+[18:23:55.851] [32mINFO[39m (12676): [36mRegistering [POST] /knowledge/campaign-context[39m
+[18:23:55.854] [32mINFO[39m (12676): [36mRegistering [GET] /knowledge[39m
+[18:23:55.857] [32mINFO[39m (12676): [36mRegistering [POST] /knowledge[39m
+[18:23:55.858] [32mINFO[39m (12676): [36mRegistering [GET] /knowledge/[id][39m
+[18:23:55.860] [32mINFO[39m (12676): [36mRegistering [POST] /knowledge/[id][39m
+[18:23:55.862] [32mINFO[39m (12676): [36mRegistering [DELETE] /knowledge/[id][39m
+[18:23:55.864] [32mINFO[39m (12676): [36mRegistering [GET] /knowledge/[id]/upload[39m
+[18:23:55.866] [32mINFO[39m (12676): [36mRegistering [POST] /knowledge/[id]/upload[39m
+[18:23:55.867] [32mINFO[39m (12676): [36mRegistering [DELETE] /leads/bulk[39m
+[18:23:55.868] [32mINFO[39m (12676): [36mRegistering [GET] /leads/export[39m
+[18:23:55.872] [32mINFO[39m (12676): [36mRegistering [POST] /leads/import[39m
+[18:23:55.873] [32mINFO[39m (12676): [36mRegistering [GET] /leads[39m
+[18:23:55.877] [32mINFO[39m (12676): [36mRegistering [POST] /leads[39m
+[18:23:55.879] [32mINFO[39m (12676): [36mRegistering [POST] /leads/[id]/action[39m
+[18:23:55.881] [32mINFO[39m (12676): [36mRegistering [POST] /leads/[id]/enrich[39m
+[18:23:55.885] [32mINFO[39m (12676): [36mRegistering [GET] /leads/[id]/identity[39m
+[18:23:55.900] [32mINFO[39m (12676): [36mRegistering [GET] /leads/[id][39m
+[18:23:55.905] [32mINFO[39m (12676): [36mRegistering [PATCH] /leads/[id][39m
+[18:23:55.907] [32mINFO[39m (12676): [36mRegistering [POST] /learning/enrich-lead[39m
+[18:23:55.909] [32mINFO[39m (12676): [36mRegistering [POST] /learning/feedback[39m
+[18:23:55.913] [32mINFO[39m (12676): [36mRegistering [POST] /learning/ingest-file[39m
+[18:23:55.915] [32mINFO[39m (12676): [36mRegistering [GET] /learning/memories[39m
+[18:23:55.918] [32mINFO[39m (12676): [36mRegistering [POST] /learning/memories[39m
+[18:23:55.923] [32mINFO[39m (12676): [36mRegistering [POST] /learning/record-feedback[39m
+[18:23:55.925] [32mINFO[39m (12676): [36mRegistering [POST] /linkedin-runner/run[39m
+[18:23:55.928] [32mINFO[39m (12676): [36mRegistering [POST] /marketplace/install[39m
+[18:23:55.933] [32mINFO[39m (12676): [36mRegistering [GET] /marketplace[39m
+[18:23:55.935] [32mINFO[39m (12676): [36mRegistering [GET] /meetings[39m
+[18:23:55.946] [32mINFO[39m (12676): [36mRegistering [POST] /meetings[39m
+[18:23:55.960] [32mINFO[39m (12676): [36mRegistering [GET] /metrics[39m
+[18:23:55.974] [32mINFO[39m (12676): [36mRegistering [POST] /ml-training/generate[39m
+[18:23:55.976] [32mINFO[39m (12676): [36mRegistering [GET] /ml-training/metrics/[version][39m
+[18:23:55.981] [32mINFO[39m (12676): [36mRegistering [GET] /ml-training/review[39m
+[18:23:55.985] [32mINFO[39m (12676): [36mRegistering [POST] /ml-training/review[39m
+[18:23:55.993] [32mINFO[39m (12676): [36mRegistering [GET] /monitoring/health[39m
+[18:23:55.996] [32mINFO[39m (12676): [36mRegistering [GET] /notifications[39m
+[18:23:55.999] [32mINFO[39m (12676): [36mRegistering [POST] /notifications[39m
+[18:23:56.001] [32mINFO[39m (12676): [36mRegistering [PATCH] /notifications[39m
+[18:23:56.002] [32mINFO[39m (12676): [36mRegistering [POST] /notifications/send-test[39m
+[18:23:56.008] [32mINFO[39m (12676): [36mRegistering [PATCH] /notifications/[id][39m
+[18:23:56.009] [32mINFO[39m (12676): [36mRegistering [GET] /nurture/trigger[39m
+[18:23:56.039] [32mINFO[39m (12676): [36mRegistering [POST] /nurture/trigger[39m
+[18:23:56.041] [32mINFO[39m (12676): [36mRegistering [GET] /onboarding/progress[39m
+[18:23:56.044] [32mINFO[39m (12676): [36mRegistering [GET] /onboarding/status[39m
+[18:23:56.049] [32mINFO[39m (12676): [36mRegistering [GET] /orchestrator/agents[39m
+[18:23:56.059] [32mINFO[39m (12676): [36mRegistering [POST] /orchestrator/agents/[id]/run[39m
+[18:23:56.061] [32mINFO[39m (12676): [36mRegistering [POST] /orchestrator/agents/[id]/stop[39m
+[18:23:56.067] [32mINFO[39m (12676): [36mRegistering [POST] /orchestrator/run[39m
+[18:23:56.081] [32mINFO[39m (12676): [36mRegistering [POST] /orchestrator/swarm/run[39m
+[18:23:56.082] [32mINFO[39m (12676): [36mRegistering [GET] /orchestrator/swarm/status[39m
+[18:23:56.093] [32mINFO[39m (12676): [36mRegistering [GET] /orchestrator/timeline[39m
+[18:23:56.096] [32mINFO[39m (12676): [36mRegistering [POST] /pipeline/ai/analyze[39m
+[18:23:56.098] [32mINFO[39m (12676): [36mRegistering [PATCH] /pipeline/leads/[leadId][39m
+[18:23:56.100] [32mINFO[39m (12676): [36mRegistering [GET] /pipeline/stats[39m
+[18:23:56.102] [32mINFO[39m (12676): [36mRegistering [GET] /pipeline/tasks[39m
+[18:23:56.110] [32mINFO[39m (12676): [36mRegistering [POST] /pipeline/tasks[39m
+[18:23:56.112] [32mINFO[39m (12676): [36mRegistering [PATCH] /pipeline/tasks/[id][39m
+[18:23:56.114] [32mINFO[39m (12676): [36mRegistering [GET] /playbooks[39m
+[18:23:56.119] [32mINFO[39m (12676): [36mRegistering [POST] /playbooks[39m
+[18:23:56.126] [32mINFO[39m (12676): [36mRegistering [POST] /playbooks/[id]/fork[39m
+[18:23:56.127] [32mINFO[39m (12676): [36mRegistering [POST] /playbooks/[id]/instantiate[39m
+[18:23:56.133] [32mINFO[39m (12676): [36mRegistering [POST] /playbooks/[id]/publish[39m
+[18:23:56.135] [32mINFO[39m (12676): [36mRegistering [GET] /queue/pending[39m
+[18:23:56.146] [32mINFO[39m (12676): [36mRegistering [POST] /queue/result[39m
+[18:23:56.148] [32mINFO[39m (12676): [36mRegistering [POST] /rag/query[39m
+[18:23:56.149] [32mINFO[39m (12676): [36mRegistering [GET] /rag/search[39m
+[18:23:56.159] [32mINFO[39m (12676): [36mRegistering [POST] /rag/search[39m
+[18:23:56.162] [32mINFO[39m (12676): [36mRegistering [POST] /register[39m
+[18:23:56.164] [32mINFO[39m (12676): [36mRegistering [POST] /scheduler/tick[39m
+[18:23:56.166] [32mINFO[39m (12676): [36mRegistering [GET] /schedules[39m
+[18:23:56.169] [32mINFO[39m (12676): [36mRegistering [POST] /schedules[39m
+[18:23:56.174] [32mINFO[39m (12676): [36mRegistering [DELETE] /schedules/[id][39m
+[18:23:56.175] [32mINFO[39m (12676): [36mRegistering [PATCH] /schedules/[id][39m
+[18:23:56.177] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/batch[39m
+[18:23:56.179] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/calculate[39m
+[18:23:56.181] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/case-studies[39m
+[18:23:56.192] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/case-studies[39m
+[18:23:56.198] [32mINFO[39m (12676): [36mRegistering [DELETE] /scoring/case-studies[39m
+[18:23:56.201] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/case-study/generate-copy[39m
+[18:23:56.205] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/case-study/list[39m
+[18:23:56.212] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/case-study/retrieve[39m
+[18:23:56.214] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/case-study[39m
+[18:23:56.215] [32mINFO[39m (12676): [36mRegistering [DELETE] /scoring/case-study[39m
+[18:23:56.216] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/cluster[39m
+[18:23:56.217] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/explain[39m
+[18:23:56.218] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/explain/[leadId][39m
+[18:23:56.224] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/lead-intent[39m
+[18:23:56.229] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/lead-intent[39m
+[18:23:56.230] [32mINFO[39m (12676): [36mRegistering [PUT] /scoring/lead-intent[39m
+[18:23:56.238] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/optimal-send-time[39m
+[18:23:56.240] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/persist[39m
+[18:23:56.242] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/predict[39m
+[18:23:56.250] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/predict[39m
+[18:23:56.252] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/predict-churn[39m
+[18:23:56.256] [32mINFO[39m (12676): [36mRegistering [GET] /scoring/verify[39m
+[18:23:56.260] [32mINFO[39m (12676): [36mRegistering [POST] /scoring/verify[39m
+[18:23:56.262] [32mINFO[39m (12676): [36mRegistering [DELETE] /scoring/verify[39m
+[18:23:56.263] [32mINFO[39m (12676): [36mRegistering [POST] /scraper-bridge/batch-scrape[39m
+[18:23:56.265] [32mINFO[39m (12676): [36mRegistering [POST] /scraper-bridge/scrape[39m
+[18:23:56.267] [32mINFO[39m (12676): [36mRegistering [GET] /search/global[39m
+[18:23:56.272] [32mINFO[39m (12676): [36mRegistering [GET] /settings/agent[39m
+[18:23:56.276] [32mINFO[39m (12676): [36mRegistering [POST] /settings/agent[39m
+[18:23:56.277] [32mINFO[39m (12676): [36mRegistering [GET] /settings/approvals[39m
+[18:23:56.284] [32mINFO[39m (12676): [36mRegistering [GET] /settings/audit[39m
+[18:23:56.289] [32mINFO[39m (12676): [36mRegistering [POST] /settings/branding[39m
+[18:23:56.292] [32mINFO[39m (12676): [36mRegistering [GET] /settings/budgeting[39m
+[18:23:56.297] [32mINFO[39m (12676): [36mRegistering [PUT] /settings/budgeting[39m
+[18:23:56.300] [32mINFO[39m (12676): [36mRegistering [GET] /settings/crm[39m
+[18:23:56.307] [32mINFO[39m (12676): [36mRegistering [POST] /settings/crm[39m
+[18:23:56.309] [32mINFO[39m (12676): [36mRegistering [PUT] /settings/crm[39m
+[18:23:56.312] [32mINFO[39m (12676): [36mRegistering [GET] /settings/governance/analytics[39m
+[18:23:56.315] [32mINFO[39m (12676): [36mRegistering [GET] /settings/governance[39m
+[18:23:56.321] [32mINFO[39m (12676): [36mRegistering [PUT] /settings/governance[39m
+[18:23:56.323] [32mINFO[39m (12676): [36mRegistering [GET] /settings/guardrails[39m
+[18:23:56.329] [32mINFO[39m (12676): [36mRegistering [PUT] /settings/guardrails[39m
+[18:23:56.331] [32mINFO[39m (12676): [36mRegistering [GET] /settings/keys[39m
+[18:23:56.333] [32mINFO[39m (12676): [36mRegistering [POST] /settings/keys[39m
+[18:23:56.335] [32mINFO[39m (12676): [36mRegistering [DELETE] /settings/keys/[id][39m
+[18:23:56.339] [32mINFO[39m (12676): [36mRegistering [GET] /settings/notifications[39m
+[18:23:56.341] [32mINFO[39m (12676): [36mRegistering [POST] /settings/notifications[39m
+[18:23:56.343] [32mINFO[39m (12676): [36mRegistering [GET] /settings[39m
+[18:23:56.345] [32mINFO[39m (12676): [36mRegistering [POST] /settings[39m
+[18:23:56.346] [32mINFO[39m (12676): [36mRegistering [GET] /settings/sso[39m
+[18:23:56.349] [32mINFO[39m (12676): [36mRegistering [PUT] /settings/sso[39m
+[18:23:56.350] [32mINFO[39m (12676): [36mRegistering [DELETE] /settings/sso[39m
+[18:23:56.352] [32mINFO[39m (12676): [36mRegistering [GET] /settings/webhooks/logs[39m
+[18:23:56.356] [32mINFO[39m (12676): [36mRegistering [GET] /settings/webhooks[39m
+[18:23:56.360] [32mINFO[39m (12676): [36mRegistering [POST] /settings/webhooks[39m
+[18:23:56.361] [32mINFO[39m (12676): [36mRegistering [DELETE] /settings/webhooks[39m
+[18:23:56.363] [32mINFO[39m (12676): [36mRegistering [POST] /settings/webhooks/secret[39m
+[18:23:56.364] [32mINFO[39m (12676): [36mRegistering [POST] /settings/webhooks/test[39m
+[18:23:56.366] [32mINFO[39m (12676): [36mRegistering [GET] /setup/email[39m
+[18:23:56.374] [32mINFO[39m (12676): [36mRegistering [POST] /setup/email[39m
+[18:23:56.376] [32mINFO[39m (12676): [36mRegistering [DELETE] /setup/email[39m
+[18:23:56.377] [32mINFO[39m (12676): [36mRegistering [POST] /setup/save[39m
+[18:23:56.381] [32mINFO[39m (12676): [36mRegistering [GET] /setup/status[39m
+[18:23:56.392] [32mINFO[39m (12676): [36mRegistering [GET] /smtp/config/redacted[39m
+[18:23:56.396] [32mINFO[39m (12676): [36mRegistering [GET] /smtp/config[39m
+[18:23:56.400] [32mINFO[39m (12676): [36mRegistering [POST] /smtp/config[39m
+[18:23:56.402] [32mINFO[39m (12676): [36mRegistering [DELETE] /smtp/config[39m
+[18:23:56.407] [32mINFO[39m (12676): [36mRegistering [GET] /studio/config[39m
+[18:23:56.411] [32mINFO[39m (12676): [36mRegistering [POST] /studio/config[39m
+[18:23:56.412] [32mINFO[39m (12676): [36mRegistering [POST] /studio/preview[39m
+[18:23:56.415] [32mINFO[39m (12676): [36mRegistering [POST] /support/contact[39m
+[18:23:56.417] [32mINFO[39m (12676): [36mRegistering [GET] /system/status[39m
+[18:23:56.424] [32mINFO[39m (12676): [36mRegistering [POST] /team/invite[39m
+[18:23:56.433] [32mINFO[39m (12676): [36mRegistering [GET] /team/members[39m
+[18:23:56.437] [32mINFO[39m (12676): [36mRegistering [POST] /team/members[39m
+[18:23:56.458] [32mINFO[39m (12676): [36mRegistering [DELETE] /team/members/[memberId][39m
+[18:23:56.460] [32mINFO[39m (12676): [36mRegistering [PATCH] /team/members/[memberId][39m
+[18:23:56.462] [32mINFO[39m (12676): [36mRegistering [GET] /team/policy[39m
+[18:23:56.478] [32mINFO[39m (12676): [36mRegistering [PATCH] /team/policy[39m
+[18:23:56.484] [32mINFO[39m (12676): [36mRegistering [GET] /team[39m
+[18:23:56.490] [32mINFO[39m (12676): [36mRegistering [DELETE] /team/[id][39m
+[18:23:56.494] [32mINFO[39m (12676): [36mRegistering [GET] /templates[39m
+[18:23:56.499] [32mINFO[39m (12676): [36mRegistering [POST] /templates[39m
+[18:23:56.501] [32mINFO[39m (12676): [36mRegistering [PUT] /templates/[id][39m
+[18:23:56.502] [32mINFO[39m (12676): [36mRegistering [DELETE] /templates/[id][39m
+[18:23:56.511] [32mINFO[39m (12676): [36mRegistering [POST] /test-auth[39m
+[18:23:56.519] [32mINFO[39m (12676): [36mRegistering [GET] /traces/[runId][39m
+[18:23:56.523] [32mINFO[39m (12676): [36mRegistering [GET] /training/dataset/list[39m
+[18:23:56.526] [32mINFO[39m (12676): [36mRegistering [POST] /training/dataset[39m
+[18:23:56.527] [32mINFO[39m (12676): [36mRegistering [POST] /training/record[39m
+[18:23:56.529] [32mINFO[39m (12676): [36mRegistering [POST] /training/start[39m
+[18:23:56.530] [32mINFO[39m (12676): [36mRegistering [GET] /training/status[39m
+[18:23:56.532] [32mINFO[39m (12676): [36mRegistering [POST] /upload/csv[39m
+[18:23:56.533] [32mINFO[39m (12676): [36mRegistering [POST] /upload/pdf[39m
+[18:23:56.535] [32mINFO[39m (12676): [36mRegistering [GET] /usage[39m
+[18:23:56.536] [32mINFO[39m (12676): [36mRegistering [GET] /user/profile[39m
+[18:23:56.572] [32mINFO[39m (12676): [36mRegistering [PUT] /user/profile[39m
+[18:23:56.574] [32mINFO[39m (12676): [36mRegistering [GET] /user/teams[39m
+[18:23:56.578] [32mINFO[39m (12676): [36mRegistering [GET] /v1/agents[39m
+[18:23:56.581] [32mINFO[39m (12676): [36mRegistering [POST] /v1/agents[39m
+[18:23:56.582] [32mINFO[39m (12676): [36mRegistering [GET] /v1/campaigns[39m
+[18:23:56.585] [32mINFO[39m (12676): [36mRegistering [POST] /v1/intelligence/sync[39m
+[18:23:56.588] [32mINFO[39m (12676): [36mRegistering [GET] /v1/knowledge[39m
+[18:23:56.591] [32mINFO[39m (12676): [36mRegistering [POST] /v1/knowledge[39m
+[18:23:56.594] [32mINFO[39m (12676): [36mRegistering [GET] /v1/leads[39m
+[18:23:56.596] [32mINFO[39m (12676): [36mRegistering [POST] /v1/leads[39m
+[18:23:56.597] [32mINFO[39m (12676): [36mRegistering [GET] /v1/leads/[id]/messages[39m
+[18:23:56.602] [32mINFO[39m (12676): [36mRegistering [POST] /v1/leads/[id]/messages[39m
+[18:23:56.614] [32mINFO[39m (12676): [36mRegistering [GET] /v1/leads/[id][39m
+[18:23:56.618] [32mINFO[39m (12676): [36mRegistering [DELETE] /v1/leads/[id][39m
+[18:23:56.621] [32mINFO[39m (12676): [36mRegistering [PATCH] /v1/leads/[id][39m
+[18:23:56.623] [32mINFO[39m (12676): [36mRegistering [GET] /v1/system/health[39m
+[18:23:56.629] [32mINFO[39m (12676): [36mRegistering [GET] /v1/tasks[39m
+[18:23:56.631] [32mINFO[39m (12676): [36mRegistering [POST] /v1/tasks[39m
+[18:23:56.632] [32mINFO[39m (12676): [36mRegistering [GET] /v1/workflows[39m
+[18:23:56.668] [32mINFO[39m (12676): [36mRegistering [POST] /v1/workflows[39m
+[18:23:56.669] [32mINFO[39m (12676): [36mRegistering [POST] /v1/workflows/[id]/run[39m
+[18:23:56.671] [32mINFO[39m (12676): [36mRegistering [GET] /verify-logic[39m
+[18:23:56.687] [32mINFO[39m (12676): [36mRegistering [GET] /verify-strategy[39m
+[18:23:56.692] [32mINFO[39m (12676): [36mRegistering [POST] /webhooks/ingress[39m
+[18:23:56.694] [32mINFO[39m (12676): [36mRegistering [POST] /webhooks/netjana-intel[39m
+[18:23:56.697] [32mINFO[39m (12676): [36mRegistering [POST] /webhooks/razorpay[39m
+[18:23:56.709] [32mINFO[39m (12676): [36mRegistering [GET] /webhooks[39m
+[18:23:56.715] [32mINFO[39m (12676): [36mRegistering [POST] /webhooks[39m
+[18:23:56.717] [32mINFO[39m (12676): [36mRegistering [POST] /webhooks/scraper-ingest[39m
+[18:23:56.718] [32mINFO[39m (12676): [36mRegistering [DELETE] /webhooks/[id][39m
+[18:23:56.721] [32mINFO[39m (12676): [36mRegistering [GET] /whatsapp/send[39m
+[18:23:56.780] [32mINFO[39m (12676): [36mRegistering [POST] /whatsapp/send[39m
+[18:23:56.782] [32mINFO[39m (12676): [36mRegistering [POST] /workflow/execute[39m
+[18:23:56.786] [32mINFO[39m (12676): [36mRegistering [GET] /workflow/status[39m
+[18:23:56.795] [32mINFO[39m (12676): [36mRegistering [GET] /workflows[39m
+[18:23:56.802] [32mINFO[39m (12676): [36mRegistering [POST] /workflows[39m
+[18:23:56.807] [32mINFO[39m (12676): [36mRegistering [GET] /workflows/[id][39m
+[18:23:56.809] [32mINFO[39m (12676): [36mRegistering [PUT] /workflows/[id][39m
+[18:23:56.813] [32mINFO[39m (12676): [36mRegistering [DELETE] /workflows/[id][39m
+[18:23:56.825] [32mINFO[39m (12676): [36mRegistering [POST] /workflows/[id]/run[39m
+[18:23:58.018] [31mERROR[39m (12676): [36mlisten EADDRINUSE: address already in use 0.0.0.0:3001[39m
+    err: {
+      "type": "Error",
+      "message": "listen EADDRINUSE: address already in use 0.0.0.0:3001",
+      "stack":
+          Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+              at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+              at listenInCluster (node:net:1997:12)
+              at node:net:2206:7
+              at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+      "code": "EADDRINUSE",
+      "errno": -4091,
+      "syscall": "listen",
+      "address": "0.0.0.0",
+      "port": 3001
+    }
+Failed running 'server.ts'. Waiting for file changes before restarting...
