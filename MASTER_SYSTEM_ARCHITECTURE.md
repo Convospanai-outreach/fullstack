@@ -24,7 +24,7 @@ Single git repo does not mean single deployment unit. It means shared code owner
 
 ## Runtime Topology
 
-Full GitHub-renderable Mermaid diagrams are maintained in [`docs/architecture-diagram.md`](docs/architecture-diagram.md).
+Full GitHub-renderable Mermaid diagrams are maintained in [`docs/architecture-diagram.md`](docs/architecture-diagram.md), including layered, request-lifecycle, control-plane, data-plane, and Landing Agent funnel diagrams.
 
 ```mermaid
 flowchart LR
@@ -45,6 +45,33 @@ flowchart LR
 - `postgres`
 - `redis`
 - `edge-fastapi` (recommended private by default)
+
+---
+
+## Layered Architecture
+
+ConvoSpan is organized around explicit runtime, domain, data, and control boundaries. The goal is to keep public web delivery, API ownership, persistence, and optional edge execution separate while preserving fast cross-app development in one repo.
+
+| Layer | Name | Primary owner | Notes |
+| --- | --- | --- | --- |
+| 0 | Actors and Channels | Product surfaces | Browser users, anonymous landing visitors, operators, extension users, webhook senders |
+| 1 | Delivery and Routing | `apps/web` | Next middleware, public allowlist, feature gates, API proxy, CORS, rate limits |
+| 2 | Web Experience | `apps/web` | Marketing pages, dashboard, setup wizard, campaign UI, Landing Agent UI, public pages |
+| 3 | API Runtime Boundary | `apps/api` | Fastify server, route loader, Next-style route adapter, request/response bridge |
+| 4 | Application Services | `apps/api/routes` | Route handlers grouped by campaign, setup, billing, analytics, landing-agent, extension, admin |
+| 5 | Domain Modules | `apps/api/src/modules` | Campaigns, leads, landing-agent, knowledge, workflows, inbox, governance, settings |
+| 6 | AI and Automation | `apps/api/src/modules`, workers | Prompt builders, model gateway, guardrails, adapters, event store, workers |
+| 7 | Data Access and Persistence | Prisma + infra | Postgres primary state, Redis optional cache/queue, knowledge assets, audit/system events |
+| 8 | External Integrations | Provider adapters | LLMs, SMTP, payments, CRM/enrichment, browser automation providers |
+| 9 | Optional Private Edge | `apps/edge-fastapi` | Private edge execution, browser or hardware-backed tasks |
+
+### Cross-Cutting Controls
+
+- Auth/session context flows through web middleware and API request-aware auth helpers.
+- Team RBAC and workspace selection are enforced before domain-service mutation.
+- Public landing endpoints are allowlisted but still rate limited and input validated.
+- Governance approval, audit logging, and guardrails sit across publish/send/automation workflows.
+- Redis-backed behavior must degrade gracefully unless a workflow explicitly provisions Redis.
 
 ---
 

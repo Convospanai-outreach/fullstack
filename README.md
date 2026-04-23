@@ -16,7 +16,7 @@ The repository is organized as one codebase with multiple deployable services. T
 
 ## System Architecture
 
-For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md).
+For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md). It includes the layered system design, request lifecycle, control/data plane split, platform runtime, and Landing Agent funnel.
 
 ```mermaid
 flowchart LR
@@ -140,4 +140,3 @@ Use path-based deploy triggers:
 - Redis is optional for cache and queue features; the app should boot without Redis unless a specific workflow provisions it.
 - CI jobs that need Postgres or Redis should define GitHub Actions `services:` containers and run `prisma db push` before integration tests.
 - Edge runtime is optional for the email-first beta and should remain private unless explicitly exposed.
-
