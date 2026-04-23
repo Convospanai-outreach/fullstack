@@ -10,6 +10,26 @@ Use Netjana / ConvoSpan Intel buyer-intent signals to:
 4. show a clear dashboard of signal volume, connection status, strength, companies, industries, and buying intent,
 5. feed a lightweight wiki + RAG layer so the system learns from shared knowledge and past outcomes.
 
+## Current Implementation Status
+
+As of the current repo state, the core signal path is implemented:
+
+- Dedicated webhook: `apps/api/routes/webhooks/netjana-intel/route.ts`
+- Normalization/scoring/matching service: `apps/api/src/modules/intel/service/netjanaIntelService.ts`
+- Dashboard API: `apps/api/routes/intel/summary/route.ts`
+- Dashboard UI: `apps/web/src/app/(dashboard)/intel/page.tsx`
+- Hot-signal follow-up worker: `apps/api/workers/handlers/intel-followup-worker.ts`
+- Queue type: `INTEL_FOLLOWUP_REFRESH`
+- Signal-aware email path: `composeNodeA` plus `lead.enrichedData.netjana`
+- Knowledge path: `Netjana Intelligence` knowledge base items for trusted signals
+
+Still open or configurable:
+
+- A dedicated typed `ExternalSignal` table can replace or extend the current `ShadowSignal` storage.
+- Direct Netjana-to-Landing-Agent generation is not enabled by default; `BuyerIntelAdapter` is currently a configurable stub.
+- Full upstream detail pull depends on `NETJANA_URL` and feature flags.
+- LinkedIn execution remains gated by runner/runtime configuration.
+
 ## Source Inputs
 
 Grounded on:
@@ -72,16 +92,16 @@ Existing pieces we should reuse:
 
 Current gap:
 
-- Netjana signals are not yet treated as first-class campaign intelligence.
-- Webhook ingestion is not yet aligned to the Netjana contract.
-- Signal storage is too generic for company/industry/intent dashboards.
-- Knowledge and RAG do not yet ingest these signals as reusable campaign context.
+- Netjana signals are active through `ShadowSignal`, `ScrapingJob`, lead enrichment, dashboard aggregation, knowledge items, and hot-signal jobs.
+- The remaining model gap is whether to promote signals into a dedicated `ExternalSignal` table for stronger typed querying.
+- Direct Landing Agent buyer-intel injection is not configured by default.
+- Some upstream detail retrieval and LinkedIn execution paths remain gated by environment configuration and feature flags.
 
 ## Target Architecture
 
 ### 1. Dedicated Netjana Webhook
 
-Add a dedicated inbound route:
+Use the dedicated inbound route:
 
 - `apps/api/routes/webhooks/netjana-intel/route.ts`
 
@@ -95,7 +115,7 @@ Responsibilities:
 - Store raw payload for audit/replay
 - Trigger downstream normalization and campaign optimization
 
-This route should not overload `scraper-ingest`; the contracts are different enough to keep them separate.
+This route does not overload `scraper-ingest`; the contracts are different enough to keep them separate.
 
 ### 2. Canonical Signal Storage
 

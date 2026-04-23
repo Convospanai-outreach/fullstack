@@ -8,6 +8,7 @@ Landing Agent adds a constrained, team-scoped funnel builder flow with:
 - constrained GrapesJS editing
 - publish to `/p/[slug]`
 - anonymous lead and event ingestion
+- optional campaign linkage through `linkedCampaignId`
 
 ## Data Model
 - `LandingCampaign`:
@@ -23,6 +24,24 @@ Landing Agent adds a constrained, team-scoped funnel builder flow with:
   - anonymous lead form captures with UTM/referrer/session/version metadata.
 - `LandingEvent`:
   - lean event stream (`page_view`, `cta_click`, `form_start`, `form_submit`, `scroll_depth`).
+
+## Buyer Intel And Netjana Relationship
+
+Netjana buyer-signal support exists in the main Intel pipeline, not as automatic direct landing-page generation today.
+
+Current active path:
+
+1. Netjana posts buyer-intent payloads to `POST /webhooks/netjana-intel`.
+2. `netjanaIntelService` validates, normalizes, scores, and matches signals to leads/campaigns.
+3. The service persists `ShadowSignal`, `ScrapingJob`, lead `marketContext`, and `enrichedData.netjana`.
+4. Trusted signals become `Netjana Intelligence` knowledge items.
+5. Hot verified signals can queue `INTEL_FOLLOWUP_REFRESH`, draft an email, create activity, and request approval.
+
+Landing Agent has a `BuyerIntelAdapter` at `apps/api/src/modules/landing-agent/adapters/BuyerIntelAdapter.ts`, but that adapter currently returns `status: "stub"` unless a real provider is configured. So the visual architecture should show:
+
+- solid line: Netjana -> Intel -> Lead/Campaign/Knowledge -> email and LinkedIn outreach.
+- solid line: Landing Agent -> public page -> `LandingLead`/`LandingEvent`.
+- dotted line: Netjana/Knowledge -> Landing Agent brief generation, because direct buyer-intel injection is optional and not configured by default.
 
 ## API Surfaces
 - Authenticated dashboard:

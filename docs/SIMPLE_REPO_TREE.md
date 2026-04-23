@@ -45,6 +45,8 @@ apps/web/
 |   |   |-- (dashboard)/     # Authenticated dashboard routes
 |   |   |-- (marketing)/     # Public marketing routes
 |   |   |-- api/             # Web route handlers and API proxy
+|   |   |-- (dashboard)/intel # Netjana buyer-intent dashboard
+|   |   |-- (dashboard)/landing-agent # Landing Agent builder flow
 |   |   |-- p/               # Published landing pages
 |   |
 |   |-- components/          # React components and UI primitives
@@ -63,12 +65,15 @@ apps/web/
 apps/api/
 |-- routes/                  # Filesystem-loaded route handlers
 |   |-- landing-agent/       # Landing Agent campaign and public endpoints
+|   |-- intel/               # Netjana Intel dashboard APIs
+|   |-- webhooks/netjana-intel/ # Netjana buyer-signal webhook
 |   |-- setup/               # Setup wizard endpoints
 |   |-- health/              # Health checks
 |
 |-- src/
 |   |-- lib/                 # Auth, DB, governance, integrations
 |   |-- modules/             # API domain modules
+|   |   |-- intel/           # Netjana signal normalization, scoring, matching, queueing
 |   |   |-- landing-agent/   # Landing Agent service, schemas, prompts, adapters
 |   |-- workers/             # Background workers
 |
@@ -82,6 +87,7 @@ apps/api/
 docs/
 |-- README.md                         # Documentation index
 |-- architecture-diagram.md           # Mermaid architecture diagrams
+|-- NETJANA_SIGNAL_INTEGRATION_PLAN.md # Netjana buyer-signal architecture and rollout notes
 |-- landing-agent-architecture.md     # Landing Agent system notes
 |-- landing-agent-api-examples.md     # Landing Agent API examples
 |-- DEPLOYMENT_RUNBOOK.md             # Deployment runbook
@@ -102,4 +108,3 @@ docs/
 | `apps/api/prisma/schema.prisma` | Apply DB schema workflow, deploy API |
 | `apps/web/prisma/schema.prisma` | Keep Prisma schema mirror in sync with API schema |
 | `docs/**` | Documentation-only change |
-

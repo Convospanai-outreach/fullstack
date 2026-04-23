@@ -16,23 +16,28 @@ The repository is organized as one codebase with multiple deployable services. T
 
 ## System Architecture
 
-For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md). It includes the layered system design, request lifecycle, control/data plane split, platform runtime, and Landing Agent funnel.
+For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md). It includes the layered system design, request lifecycle, control/data plane split, platform runtime, Netjana buyer-signal flow, email/LinkedIn channel flow, and Landing Agent funnel.
 
 ```mermaid
 flowchart LR
     Browser[User Browser] --> Web[apps/web - Next.js]
     Visitor[Public Landing Visitor] --> Web
+    Netjana[Netjana Buyer Signals] --> API[apps/api - Fastify]
     Web --> Proxy["/api/proxy/*"]
     Proxy --> API[apps/api - Fastify]
     API --> Postgres[(Postgres)]
     API -. optional .-> Redis[(Redis)]
+    API --> Signals[(Signals + Jobs + Knowledge)]
+    API --> Channels[Email + LinkedIn Workers]
+    API --> Providers[LLM, CRM, Payments]
+    Channels --> ChannelProviders[SMTP + LinkedIn]
     API -. private optional .-> Edge[apps/edge-fastapi]
-    API --> Providers[LLM, Email, CRM, Payments]
 ```
 
 ## Product Surfaces
 
 - Outreach campaigns, leads, analytics, approvals, and inbox workflows.
+- Netjana Intel dashboard and webhook path for buyer-intent signals, lead/campaign matching, knowledge enrichment, and hot-signal follow-up review.
 - Landing Agent funnel builder with prompt intake, brief generation, wireframes, constrained editor, public publish path, lead capture, and event tracking.
 - Setup wizard for brand, email, AI, LinkedIn extension, readiness, and launch configuration.
 - Governance, audit, feature gating, team settings, and approval controls.
@@ -127,6 +132,7 @@ Use path-based deploy triggers:
 
 - [Master system architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
 - [Mermaid architecture diagram](./docs/architecture-diagram.md)
+- [Netjana signal integration plan](./docs/NETJANA_SIGNAL_INTEGRATION_PLAN.md)
 - [Landing Agent architecture](./docs/landing-agent-architecture.md)
 - [Landing Agent API examples](./docs/landing-agent-api-examples.md)
 - [Repository structure](./docs/SIMPLE_REPO_TREE.md)
