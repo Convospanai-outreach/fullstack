@@ -24,6 +24,8 @@ Single git repo does not mean single deployment unit. It means shared code owner
 
 ## 3) Runtime topology
 
+Full GitHub-renderable Mermaid diagrams are maintained in [`docs/architecture-diagram.md`](docs/architecture-diagram.md).
+
 ```mermaid
 flowchart LR
     U[User Browser] --> W[apps/web]
