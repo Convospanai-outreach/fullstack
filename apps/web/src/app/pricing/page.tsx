@@ -2,10 +2,84 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Zap, Rocket, Shield, Crown, Star, ArrowRight } from "lucide-react";
+import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+type Plan = {
+    name: "Starter" | "Growth" | "Enterprise";
+    description: string;
+    monthlyPrice: number;
+    annualPrice: number;
+    credits: number;
+    features: string[];
+    icon: typeof Zap;
+    badge: string;
+    highlight?: boolean;
+    outcome: string;
+};
+
+const plans: Plan[] = [
+    {
+        name: "Starter",
+        description: "For founders and early operators validating the first outbound loop",
+        monthlyPrice: 49,
+        annualPrice: 39,
+        credits: 500,
+        features: [
+            "Email campaign drafting",
+            "Lead import and mapping",
+            "Approval-first sending flow",
+            "Standard support response",
+        ],
+        icon: Zap,
+        badge: "Free Trial Available",
+        outcome: "Launch your first compliant campaign quickly",
+    },
+    {
+        name: "Growth",
+        description: "For teams scaling repeatable campaigns with tighter controls and ROI visibility",
+        monthlyPrice: 99,
+        annualPrice: 79,
+        credits: 2500,
+        features: [
+            "Higher monthly send capacity",
+            "Campaign templates and variants",
+            "Priority support response",
+            "Approval and governance controls",
+            "Reporting and ROI views",
+        ],
+        icon: Rocket,
+        badge: "Most Popular",
+        highlight: true,
+        outcome: "Improve reply velocity and handoff quality",
+    },
+    {
+        name: "Enterprise",
+        description: "For teams that need governance, SSO, and rollout support",
+        monthlyPrice: 499,
+        annualPrice: 399,
+        credits: 15000,
+        features: [
+            "Advanced governance console",
+            "SSO & Directory Sync",
+            "Dedicated Success Manager",
+            "Custom rollout planning",
+            "Expanded usage controls",
+            "Audit log persistence",
+        ],
+        icon: Crown,
+        badge: "Custom Quotas",
+        outcome: "Operate multi-team outreach with confidence",
+    },
+];
+
+const proofPoints = [
+    "No annual lock-in required",
+    "Keep data ownership and exports",
+    "Approval-first workflows stay enabled",
+];
 
 export default function PricingPage() {
     const router = useRouter();
@@ -33,7 +107,7 @@ export default function PricingPage() {
         });
     };
 
-    const handleCheckout = async (plan: string) => {
+    const handleCheckout = async (plan: Plan["name"]) => {
         if (plan === "Enterprise") {
             router.push("/contact");
             return;
@@ -56,7 +130,7 @@ export default function PricingPage() {
             const res = await fetch(`${base}/billing/checkout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ planId: plan.toLowerCase() })
+                body: JSON.stringify({ planId: plan.toLowerCase() }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Failed to create order");
@@ -68,10 +142,10 @@ export default function PricingPage() {
                 name: "ConvoSpan",
                 description: `${plan} Plan Subscription`,
                 order_id: data.orderId,
-                handler: function (_response: any) {
+                handler: function () {
                     toast.success("Payment successful!");
                 },
-                theme: { color: "#3b82f6" }
+                theme: { color: "#0891b2" },
             };
 
             const rzp = new (window as any).Razorpay(options);
@@ -81,153 +155,98 @@ export default function PricingPage() {
         }
     };
 
-    const plans = [
-        {
-            name: "Starter",
-            description: "For founders and early operators validating the first outreach loop",
-            monthlyPrice: 49,
-            annualPrice: 39,
-            credits: 500,
-            features: [
-                "Email campaign drafting",
-                "Lead import and mapping",
-                "Approval-first sending flow",
-                "Standard support response"
-            ],
-            icon: Zap,
-            color: "text-accent-silver",
-            badge: "Free Trial Available"
-        },
-        {
-            name: "Growth",
-            description: "For teams shipping repeatable email campaigns with tighter controls",
-            monthlyPrice: 99,
-            annualPrice: 79,
-            credits: 2500,
-            features: [
-                "Higher monthly send capacity",
-                "Campaign templates and variants",
-                "Priority support response",
-                "Approval and governance controls",
-                "Reporting and ROI views"
-            ],
-            icon: Rocket,
-            color: "text-accent-blue",
-            badge: "Most Popular",
-            highlight: true
-        },
-        {
-            name: "Enterprise",
-            description: "For teams that need governance, SSO, and rollout support",
-            monthlyPrice: 499,
-            annualPrice: 399,
-            credits: 15000,
-            features: [
-                "Advanced governance console",
-                "SSO & Directory Sync",
-                "Dedicated Success Manager",
-                "Custom rollout planning",
-                "Expanded usage controls",
-                "Audit log persistence"
-            ],
-            icon: Crown,
-            color: "text-accent-gold",
-            badge: "Custom Quotas"
-        }
-    ];
-
     return (
-        <div className="min-h-screen bg-slate-950 text-white selection:bg-accent-blue/30 overflow-x-hidden">
-            {/* Background Decorations */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-blue/10 rounded-full blur-[120px] pointer-events-none" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-accent-violet/10 rounded-full blur-[120px] pointer-events-none" />
+        <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
+            <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
+            <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 
-            <div className="max-w-7xl mx-auto px-6 py-24 relative z-10">
-                {/* Header */}
-                <div className="text-center space-y-6 mb-20 animate-reveal">
-                    <Badge variant="info" className="px-4 py-1.5 uppercase tracking-widest text-[10px] bg-accent-blue/10 border-accent-blue/20">
+            <div className="relative z-10 mx-auto max-w-7xl px-6 py-24">
+                <div className="mb-20 space-y-6 text-center">
+                    <Badge variant="info" className="border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-[10px] uppercase tracking-widest">
                         Pricing & Plans
                     </Badge>
-                    <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-                        Yes, you can start with what you need.
+                    <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">
+                        Choose the plan for your outbound team.
                     </h1>
-                    <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-                        Start simple. Add more when the work asks for it.
+                    <p className="mx-auto max-w-2xl text-lg text-slate-300">
+                        Start with guided email campaigns, then add governance and scale as your volume grows.
                     </p>
 
-                    {/* Billing Toggle */}
-                    <div className="flex items-center justify-center gap-4 pt-4">
-                        <span className={`text-sm font-semibold transition-colors ${!isAnnual ? 'text-white' : 'text-text-muted'}`}>Monthly</span>
-                        <button
-                            onClick={() => setIsAnnual(!isAnnual)}
-                            aria-label="Toggle billing cycle"
-                            className="w-14 h-7 bg-white/5 rounded-full p-1 border border-white/10 hover:border-white/20 transition-all relative group"
-                        >
-                            <div className={`w-5 h-5 bg-accent-blue rounded-full transition-all shadow-glow ${isAnnual ? 'translate-x-7' : 'translate-x-0'}`} />
-                        </button>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-sm font-semibold transition-colors ${isAnnual ? 'text-white' : 'text-text-muted'}`}>Annual</span>
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-none !text-[9px] py-0.5">SAVE 20%</Badge>
+                    <div className="pt-4">
+                        <div className="inline-flex items-center gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-2">
+                            <span className={`text-sm font-semibold transition-colors ${!isAnnual ? "text-white" : "text-slate-400"}`}>Monthly</span>
+                            <button
+                                onClick={() => setIsAnnual(!isAnnual)}
+                                aria-label="Toggle billing cycle"
+                                className="group relative h-7 w-14 rounded-full border border-white/10 bg-white/5 p-1 transition-all hover:border-white/20"
+                            >
+                                <div className={`h-5 w-5 rounded-full bg-cyan-500 shadow-lg shadow-cyan-500/30 transition-all ${isAnnual ? "translate-x-7" : "translate-x-0"}`} />
+                            </button>
+                            <div className="flex items-center gap-2">
+                                <span className={`text-sm font-semibold transition-colors ${isAnnual ? "text-white" : "text-slate-400"}`}>Annual</span>
+                                <Badge className="border-none bg-emerald-500/10 py-0.5 text-[9px] text-emerald-300">SAVE 20%</Badge>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Pricing Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-                    {plans.map((plan, i) => {
+                <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-3">
+                    {plans.map((plan) => {
                         const Icon = plan.icon;
                         const price = isAnnual ? plan.annualPrice : plan.monthlyPrice;
+                        const ctaText = plan.name === "Enterprise"
+                            ? "Talk to Sales"
+                            : plan.name === "Growth"
+                              ? "Choose Growth"
+                              : "Start Free Trial";
 
                         return (
-                            <div
-                                key={plan.name}
-                                className={`relative group animate-slide-up ${
-                                    i === 0 ? 'animation-delay-0' : 
-                                    i === 1 ? 'animation-delay-100' : 
-                                    'animation-delay-200'
-                                }`}
-                            >
+                            <div key={plan.name} className="relative">
                                 {plan.highlight && (
-                                    <div className="absolute -top-4 inset-x-0 flex justify-center z-20">
-                                        <Badge variant="info" className="bg-accent-blue text-white shadow-glow border-none px-4 py-1">
+                                    <div className="absolute -top-4 inset-x-0 z-20 flex justify-center">
+                                        <Badge variant="info" className="border-none bg-cyan-500 px-4 py-1 text-white shadow-lg shadow-cyan-500/30">
                                             {plan.badge}
                                         </Badge>
                                     </div>
                                 )}
 
-                                <div className={`h-full glass-strong p-8 rounded-3xl border transition-all duration-500 flex flex-col ${plan.highlight
-                                    ? 'border-accent-blue/30 shadow-[0_0_50px_rgba(59,130,246,0.15)] bg-slate-900/40'
-                                    : 'border-white/5 hover:border-white/20'
-                                    }`}>
+                                <div
+                                    className={`flex h-full flex-col rounded-3xl border p-8 transition-all duration-500 ${
+                                        plan.highlight
+                                            ? "border-cyan-400/40 bg-slate-900/50 shadow-[0_0_50px_rgba(34,211,238,0.16)]"
+                                            : "border-white/10 bg-slate-900/35 hover:border-white/25"
+                                    }`}
+                                >
                                     <div className="mb-8">
-                                        <div className={`p-3 rounded-2xl bg-white/5 w-fit mb-6 ${plan.color}`}>
-                                            <Icon className="w-8 h-8" />
+                                        <div className="mb-5 w-fit rounded-2xl bg-white/5 p-3 text-cyan-300">
+                                            <Icon className="h-8 w-8" />
                                         </div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
-                                        <p className="text-sm text-text-secondary leading-relaxed">{plan.description}</p>
+                                        <h3 className="mb-2 text-2xl font-bold text-white">{plan.name}</h3>
+                                        <p className="text-sm leading-relaxed text-slate-300">{plan.description}</p>
+                                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">{plan.outcome}</p>
                                     </div>
 
-                                    <div className="mb-8 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+                                    <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                                         <div className="flex items-baseline gap-1">
                                             <span className="text-4xl font-black text-white">${price}</span>
-                                            <span className="text-text-muted text-sm font-medium">/month</span>
+                                            <span className="text-sm font-medium text-slate-400">/month</span>
                                         </div>
-                                        <p className="text-[10px] text-text-muted mt-2 font-bold uppercase tracking-widest">
-                                            Billed {isAnnual ? 'annually' : 'monthly'}
+                                        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                                            Billed {isAnnual ? "annually" : "monthly"}
                                         </p>
-                                        <div className="mt-4 pt-4 border-t border-white/5">
-                                            <div className="flex justify-between items-center text-sm">
-                                                <span className="text-text-secondary">Credits included</span>
-                                                <span className="text-white font-bold">{plan.credits.toLocaleString()}</span>
+                                        <div className="mt-4 border-t border-white/10 pt-4">
+                                            <div className="flex items-center justify-between text-sm">
+                                                <span className="text-slate-300">Monthly usage included</span>
+                                                <span className="font-bold text-white">{plan.credits.toLocaleString()}</span>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <ul className="space-y-4 mb-10 flex-1">
+                                    <ul className="mb-10 flex-1 space-y-4">
                                         {plan.features.map((feature) => (
-                                            <li key={feature} className="flex items-start gap-3 text-sm text-text-secondary group-hover:text-white transition-colors">
-                                                <div className={`shrink-0 mt-0.5 ${plan.highlight ? 'text-accent-blue' : 'text-text-muted'}`}>
-                                                    <Check className="w-4 h-4" />
+                                            <li key={feature} className="flex items-start gap-3 text-sm text-slate-200">
+                                                <div className="mt-0.5 shrink-0 text-cyan-300">
+                                                    <Check className="h-4 w-4" />
                                                 </div>
                                                 {feature}
                                             </li>
@@ -235,11 +254,13 @@ export default function PricingPage() {
                                     </ul>
 
                                     <Button
-                                        variant={plan.highlight ? 'default' : 'outline'}
-                                        className="w-full py-6 text-base font-bold"
+                                        variant={plan.highlight ? "default" : "outline"}
+                                        className={`w-full py-6 text-base font-bold ${
+                                            plan.highlight ? "bg-cyan-600 hover:bg-cyan-500" : "border-white/20 hover:bg-white/10"
+                                        }`}
                                         onClick={() => handleCheckout(plan.name)}
                                     >
-                                        {plan.name === 'Enterprise' ? 'Contact Sales' : 'Get Started'}
+                                        {ctaText}
                                     </Button>
                                 </div>
                             </div>
@@ -247,31 +268,75 @@ export default function PricingPage() {
                     })}
                 </div>
 
-                {/* Value Proposition */}
-                <div className="mt-32 grid grid-cols-1 md:grid-cols-3 gap-12">
-                    <div className="space-y-4">
-                        <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue w-fit">
-                            <Shield className="w-6 h-6" />
+                <div className="mt-16 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/8 to-slate-900/80 p-8 md:p-10">
+                    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.1fr,0.9fr]">
+                        <div>
+                            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
+                                <PhoneCall className="h-3.5 w-3.5" />
+                                Optional add-on
+                            </div>
+                            <h3 className="text-2xl font-black text-white md:text-3xl">
+                                Optional human booking add-on for warm leads
+                            </h3>
+                            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-200">
+                                When campaigns generate high-intent replies, route only qualified leads to trained human callers who close the scheduling gap and book meetings.
+                            </p>
+                            <div className="mt-6 flex flex-wrap gap-3">
+                                <Badge className="border-none bg-white/10 text-slate-100">Intent score threshold</Badge>
+                                <Badge className="border-none bg-white/10 text-slate-100">Consent-aware routing</Badge>
+                                <Badge className="border-none bg-white/10 text-slate-100">SLA-based follow-up</Badge>
+                            </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-white/15 bg-slate-950/60 p-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Best fit</p>
+                            <ul className="mt-4 space-y-3 text-sm text-slate-200">
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Teams already generating warm replies every week</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Ops or sales teams where follow-up speed is the bottleneck</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Workflows requiring governance and auditable handoffs</li>
+                            </ul>
+                            <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-cyan-600 py-5 font-semibold hover:bg-cyan-500">
+                                Talk to sales about add-on pricing
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div className="w-fit rounded-xl bg-cyan-500/10 p-3 text-cyan-300">
+                            <Shield className="h-5 w-5" />
                         </div>
                         <h4 className="text-lg font-bold text-white">Secure by default</h4>
-                        <p className="text-sm text-text-secondary">Approval-first workflows and a narrower beta surface that reduce operational risk.</p>
+                        <p className="text-sm text-slate-300">Approval-first workflows and governance controls remain active as volume grows.</p>
                     </div>
-                    <div className="space-y-4">
-                        <div className="p-3 bg-accent-violet/10 rounded-xl text-accent-violet w-fit">
-                            <Star className="w-6 h-6" />
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div className="w-fit rounded-xl bg-amber-500/10 p-3 text-amber-300">
+                            <Star className="h-5 w-5" />
                         </div>
                         <h4 className="text-lg font-bold text-white">Support when it matters</h4>
-                        <p className="text-sm text-text-secondary">Help for setup, billing, sending issues, and launch readiness when you need it.</p>
+                        <p className="text-sm text-slate-300">Get implementation help for onboarding, billing, and launch readiness milestones.</p>
                     </div>
-                    <div className="space-y-4">
-                        <div className="p-3 bg-accent-mint/10 rounded-xl text-accent-mint w-fit">
-                            <ArrowRight className="w-6 h-6" />
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div className="w-fit rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
+                            <ArrowRight className="h-5 w-5" />
                         </div>
-                        <h4 className="text-lg font-bold text-white">Bring your data</h4>
-                        <p className="text-sm text-text-secondary">Import leads from CSV or your CRM and move from raw list to reviewed campaign.</p>
+                        <h4 className="text-lg font-bold text-white">Clear growth path</h4>
+                        <p className="text-sm text-slate-300">Start lean, validate conversion economics, then upgrade only when needed.</p>
                     </div>
+                </div>
+
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400">
+                    {proofPoints.map((point) => (
+                        <span key={point} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5">
+                            <Check className="h-3.5 w-3.5 text-emerald-400" />
+                            {point}
+                        </span>
+                    ))}
                 </div>
             </div>
         </div>
     );
 }
+

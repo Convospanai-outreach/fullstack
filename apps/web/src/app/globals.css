@@ -1,5 +1,5 @@
-@import "tailwindcss" source("../");
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@600;700;800;900&display=swap');
+@import "tailwindcss" source("../");
 
 @layer base {
   :root {
@@ -141,3 +141,5 @@
 .animation-delay-300 { animation-delay: 300ms; }
 .animation-delay-400 { animation-delay: 400ms; }
 .animation-delay-500 { animation-delay: 500ms; }
+
+

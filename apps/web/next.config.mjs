@@ -5,8 +5,11 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..', '..');
 const isDevelopment = process.env.NODE_ENV !== 'production';
-// Always use standalone in production for optimized Docker images
-const useStandaloneOutput = !isDevelopment || process.env.NEXT_OUTPUT_MODE === 'standalone';
+// Default local/CI builds avoid standalone trace-copy flakiness on Windows.
+// Deploy targets can opt in explicitly via NEXT_OUTPUT_MODE=standalone.
+const useStandaloneOutput =
+    process.env.NEXT_OUTPUT_MODE === 'standalone' ||
+    process.env.NEXT_USE_STANDALONE === 'true';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

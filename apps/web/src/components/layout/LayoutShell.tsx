@@ -8,14 +8,14 @@ const DASHBOARD_PREFIXES = [
     "/dashboard", "/campaigns", "/workflows", "/leads", "/inbox",
     "/templates", "/pipeline", "/playbooks", "/knowledge", "/marketplace",
     "/approvals", "/billing", "/settings", "/agents", "/command-center",
-    "/icp-builder", "/studio", "/team", "/caller", "/crm",
+    "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
     "/governance", "/analytics", "/admin",
 ];
 
 const MARKETING_PREFIXES = [
     "/", "/about", "/pricing", "/contact",
     "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/privacy", "/terms",
+    "/verify-email", "/privacy", "/terms", "/p",
 ];
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {

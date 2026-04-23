@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentContext } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     try {
-        const ctx = await getCurrentContext();
+        const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -106,3 +106,4 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+

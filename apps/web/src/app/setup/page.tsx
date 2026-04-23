@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
   CheckCircle2, Circle, ChevronRight, Palette, Mail, 
   Linkedin, MessageSquare, Bot, Users, Target, FileText,
-  CreditCard, LayoutGrid, Loader2, Chrome, ExternalLink
+  CreditCard, LayoutGrid, Loader2, Chrome, ExternalLink, AlertTriangle
 } from "lucide-react";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 
@@ -77,55 +77,71 @@ export default function SetupWizardPage() {
   const [saving, setSaving] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
   const [formData, setFormData] = useState<any>({});
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
 
   // Fetch status on load
   const loadStatus = async () => {
+    setLoadError(null);
+
     try {
-      const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/status");
-      if (res.ok) {
-        const data = await res.json();
-        setStatus(data);
-        
-        // Initialize form data payload from backend
-        setFormData({
-          step2: {
-            companyName: data.teamName || "",
-            logoUrl: data.branding?.logoUrl || "",
-            primaryColor: data.branding?.primaryColor || "#3b82f6",
-            accentColor: data.branding?.accentColor || "#10b981",
-            portalTitle: data.branding?.portalTitle || "",
-            guidelinesUrl: data.branding?.guidelinesUrl || "",
-          },
-          step3: {
-            host: data.aiConfig?.smtpConfig?.host || "smtp.gmail.com",
-            port: data.aiConfig?.smtpConfig?.port || 587,
-            secure: data.aiConfig?.smtpConfig?.secure || false,
-            user: data.aiConfig?.smtpConfig?.user || "",
-            password: "",
-            fromName: data.aiConfig?.smtpConfig?.fromName || data.teamName || "",
-            fromEmail: data.aiConfig?.smtpConfig?.fromEmail || data.aiConfig?.smtpConfig?.user || "",
-          },
-          step5: {
-            tone: data.aiConfig?.tone || "Professional",
-            voice: data.aiConfig?.voice || "",
-            formulation: data.aiConfig?.formulation || "Problem-Solution",
-            constraints: data.aiConfig?.constraints || "",
-            emailSignature: data.aiConfig?.emailSignature || "",
-            greetingStyle: data.aiConfig?.greetingStyle || "Hi {firstName},",
-            signOff: data.aiConfig?.signOff || "Best regards,",
-            ctaStyle: data.aiConfig?.ctaStyle || "Link",
-          },
-          step6: {
-            geminiKey: data.aiConfig?.apiKey || "",
-          },
-          step9: {
-            calendarLink: data.aiConfig?.calendarLink || "",
-            demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
+      const res = await fetch(`${apiBase}/setup/status`);
+      if (!res.ok) {
+        let message = `Unable to load setup status (${res.status}).`;
+        try {
+          const errorData = await res.json() as Record<string, unknown>;
+          if (typeof errorData["error"] === "string" && errorData["error"].length > 0) {
+            message = errorData["error"];
           }
-        });
+        } catch {}
+        throw new Error(message);
       }
-    } catch (e) {
+
+      const data = await res.json();
+      setStatus(data);
+      
+      // Initialize form data payload from backend
+      setFormData({
+        step2: {
+          companyName: data.teamName || "",
+          logoUrl: data.branding?.logoUrl || "",
+          primaryColor: data.branding?.primaryColor || "#3b82f6",
+          accentColor: data.branding?.accentColor || "#10b981",
+          portalTitle: data.branding?.portalTitle || "",
+          guidelinesUrl: data.branding?.guidelinesUrl || "",
+        },
+        step3: {
+          host: data.aiConfig?.smtpConfig?.host || "smtp.gmail.com",
+          port: data.aiConfig?.smtpConfig?.port || 587,
+          secure: data.aiConfig?.smtpConfig?.secure || false,
+          user: data.aiConfig?.smtpConfig?.user || "",
+          password: "",
+          fromName: data.aiConfig?.smtpConfig?.fromName || data.teamName || "",
+          fromEmail: data.aiConfig?.smtpConfig?.fromEmail || data.aiConfig?.smtpConfig?.user || "",
+        },
+        step5: {
+          tone: data.aiConfig?.tone || "Professional",
+          voice: data.aiConfig?.voice || "",
+          formulation: data.aiConfig?.formulation || "Problem-Solution",
+          constraints: data.aiConfig?.constraints || "",
+          emailSignature: data.aiConfig?.emailSignature || "",
+          greetingStyle: data.aiConfig?.greetingStyle || "Hi {firstName},",
+          signOff: data.aiConfig?.signOff || "Best regards,",
+          ctaStyle: data.aiConfig?.ctaStyle || "Link",
+        },
+        step6: {
+          geminiKey: data.aiConfig?.apiKey || "",
+        },
+        step9: {
+          calendarLink: data.aiConfig?.calendarLink || "",
+          demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
+        }
+      });
+    } catch (e: unknown) {
       console.error(e);
+      setStatus(null);
+      const message = e instanceof Error ? e.message : "Unable to load setup right now.";
+      setLoadError(message);
     } finally {
       setLoading(false);
     }
@@ -134,7 +150,6 @@ export default function SetupWizardPage() {
   useEffect(() => {
     loadStatus();
   }, []);
-
   const handleSaveStep = async (stepId: number) => {
     setSaving(true);
     try {
@@ -146,7 +161,7 @@ export default function SetupWizardPage() {
 
       if (stepId === 3) {
         // Save SMTP configuration using the dedicated endpoint
-        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/email", {
+        await fetch(`${apiBase}/setup/email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -156,7 +171,7 @@ export default function SetupWizardPage() {
         });
         await loadStatus(); // Refresh status
       } else if (payload) {
-        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/save", {
+        await fetch(`${apiBase}/setup/save`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ step: stepId, data: payload })
@@ -177,10 +192,46 @@ export default function SetupWizardPage() {
     }
   };
 
-  if (loading || !status) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!status) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center p-6">
+        <div className="max-w-xl w-full rounded-2xl border border-amber-500/30 bg-amber-900/10 p-6 md:p-8">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
+            <div>
+              <h2 className="text-xl font-semibold text-white">We could not load setup right now</h2>
+              <p className="mt-2 text-sm text-slate-300">{loadError || "Setup status is temporarily unavailable. Retry now or sign in again."}</p>
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setLoading(true);
+                loadStatus();
+              }}
+              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium text-sm transition"
+            >
+              Retry setup status
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/login")}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium text-sm transition border border-white/10"
+            >
+              Go to sign in
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -197,13 +248,22 @@ export default function SetupWizardPage() {
     </div>
   );
 
+  const getContinueLabel = (stepId: number) => {
+    if (stepId === 3) return "Save email settings";
+    if (stepId === 7) return "Continue to campaign setup";
+    if (stepId === 8) return "Continue to attachments";
+    if (stepId === 10) return "Continue to advanced options";
+    if (stepId === 11) return "Go to dashboard and launch";
+    return "Save and continue";
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col md:flex-row">
       
       {/* Sidebar Navigation */}
       <div className="w-full md:w-80 bg-slate-900 border-r border-white/10 p-6 flex flex-col shrink-0">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-emerald-400 bg-clip-text text-transparent">
             ConvoSpan Setup
           </h1>
           <p className="text-slate-400 text-sm mt-2">
@@ -211,7 +271,7 @@ export default function SetupWizardPage() {
           </p>
           <div className="mt-4 bg-slate-800 rounded-full h-2 overflow-hidden">
             <div 
-              className="bg-blue-500 h-full transition-all duration-500"
+              className="bg-cyan-500 h-full transition-all duration-500"
               ref={(el) => { if (el) el.style.width = `${Math.max(0, Math.min(100, status.completionPercent))}%`; }}
             />
           </div>
@@ -244,12 +304,12 @@ export default function SetupWizardPage() {
                 onClick={() => setActiveStep(step.id)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
                   isActive 
-                    ? "bg-blue-600/20 text-blue-400 border border-blue-500/30" 
+                    ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/30" 
                     : "hover:bg-slate-800/50 text-slate-400 border border-transparent"
                 }`}
               >
                 <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${isActive ? "bg-blue-500/20" : "bg-slate-800"}`}>
+                  <div className={`p-2 rounded-lg ${isActive ? "bg-cyan-500/20" : "bg-slate-800"}`}>
                     <Icon className="w-4 h-4" />
                   </div>
                   <span className="font-medium text-sm text-left">{step.id}. {step.title}</span>
@@ -278,9 +338,9 @@ export default function SetupWizardPage() {
             {/* --- STEP 1: Account --- */}
             {activeStep === 1 && (
               <div className="space-y-4">
-                <ChecklistItem label="User Account Registered" passed={status.hasAccount} />
-                <ChecklistItem label="Email Address Verified" passed={status.isEmailVerified} />
-                <ChecklistItem label="Team Workspace Created" passed={status.hasTeamRole !== null} />
+                <ChecklistItem label="Your account is ready" passed={status.hasAccount} />
+                <ChecklistItem label="Your email is verified" passed={status.isEmailVerified} />
+                <ChecklistItem label="Your workspace is ready" passed={status.hasTeamRole !== null} />
                 
                 <div className="mt-8">
                   <p className="text-slate-400 text-sm">This step confirms the workspace foundation is in place before you move on to branding, channels, and launch controls.</p>
@@ -299,7 +359,7 @@ export default function SetupWizardPage() {
                     title="Company Name"
                     value={formData.step2.companyName}
                     onChange={e => setFormData({...formData, step2: {...formData.step2, companyName: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
                     placeholder="Acme Corp"
                   />
                 </div>
@@ -310,7 +370,7 @@ export default function SetupWizardPage() {
                     title="Logo URL"
                     value={formData.step2.logoUrl}
                     onChange={e => setFormData({...formData, step2: {...formData.step2, logoUrl: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
                     placeholder="https://example.com/logo.png"
                   />
                 </div>
@@ -367,7 +427,7 @@ export default function SetupWizardPage() {
                     <Mail className="w-4 h-4" /> Google Business SMTP (Gmail)
                   </h3>
                   <p className="text-sky-300/80 text-sm mb-2">
-                    Connect your team's sending account. For Google Workspace or Gmail accounts with 2-Step Verification, use an App Password.
+                    Connect the inbox you will send from. Most Google Workspace teams only need their work email and an App Password. Host and port fields below are advanced settings.
                   </p>
                   <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">
                     How to create a Google App Password
@@ -376,10 +436,10 @@ export default function SetupWizardPage() {
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Host</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Host (Advanced)</label>
                     <input 
                       type="text"
-                      title="SMTP Host"
+                      title="SMTP Host (Advanced)"
                       placeholder="smtp.gmail.com"
                       value={formData.step3.host}
                       onChange={e => setFormData({...formData, step3: {...formData.step3, host: e.target.value}})}
@@ -387,10 +447,10 @@ export default function SetupWizardPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Port</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Port (Advanced)</label>
                     <input 
                       type="number"
-                      title="SMTP Port"
+                      title="SMTP Port (Advanced)"
                       placeholder="587"
                       value={formData.step3.port}
                       onChange={e => setFormData({...formData, step3: {...formData.step3, port: e.target.value}})}
@@ -460,7 +520,7 @@ export default function SetupWizardPage() {
                   <button 
                     onClick={async () => {
                       try {
-                        const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/email/verify", {
+                        const res = await fetch(`${apiBase}/email/verify`, {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
@@ -578,9 +638,9 @@ export default function SetupWizardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Formulation Style</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Default Message Structure</label>
                   <select
-                    title="Formulation Style"
+                    title="Default Message Structure"
                     value={formData.step5.formulation}
                     onChange={e => setFormData({...formData, step5: {...formData.step5, formulation: e.target.value}})}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white outline-none"
@@ -599,17 +659,17 @@ export default function SetupWizardPage() {
                   <textarea 
                     value={formData.step5.voice}
                     onChange={e => setFormData({...formData, step5: {...formData.step5, voice: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 h-24"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 h-24"
                     placeholder="We sound like a trusted industry advisor, speaking with authority but never sounding pushy."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">HTML Email Signature</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Email Signature (Optional)</label>
                   <textarea 
                     value={formData.step5.emailSignature}
                     onChange={e => setFormData({...formData, step5: {...formData.step5, emailSignature: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm h-32"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 font-mono text-sm h-32"
                     placeholder="<b>Jane Doe</b><br>Director of Sales, Acme Corp<br><a href='...'>Book a meeting</a>"
                   />
                 </div>
@@ -629,13 +689,13 @@ export default function SetupWizardPage() {
                 ) : null}
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Tenant Override Provider Key (Optional)</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Optional Team AI Key Override</label>
                   <input 
                     type="password"
                     title="AI Provider API Key"
                     value={formData.step6.geminiKey}
                     onChange={e => setFormData({...formData, step6: {...formData.step6, geminiKey: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
                     placeholder="AIzaSy..."
                   />
                 </div>
@@ -665,7 +725,7 @@ export default function SetupWizardPage() {
                 <ChecklistItem label={`Leads Assigned to Campaigns`} passed={status.hasAssignedLeads} />
                 
                 <div className="mt-8 flex justify-center">
-                  <button type="button" onClick={() => router.push("/campaigns/new")} className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50">
+                  <button type="button" onClick={() => router.push("/campaigns/new")} className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors border border-cyan-400/50">
                     Create New Campaign
                   </button>
                 </div>
@@ -682,7 +742,7 @@ export default function SetupWizardPage() {
                     title="Calendar Booking Link"
                     value={formData.step9.calendarLink}
                     onChange={e => setFormData({...formData, step9: {...formData.step9, calendarLink: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
                     placeholder="https://calendly.com/your-name"
                   />
                 </div>
@@ -694,7 +754,7 @@ export default function SetupWizardPage() {
                     title="Product Demo Video Link"
                     value={formData.step9.demoUrl}
                     onChange={e => setFormData({...formData, step9: {...formData.step9, demoUrl: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
                     placeholder="https://youtube.com/watch?v=..."
                   />
                 </div>
@@ -712,7 +772,7 @@ export default function SetupWizardPage() {
             {activeStep === 10 && (
               <div className="space-y-4">
                 <ChecklistItem label={`Available Balance: ${status.teamCredits} Credits`} passed={status.teamCredits > 0} />
-                <ChecklistItem label={`Razorpay Integration Checked`} passed={status.hasPaymentMethod} />
+                <ChecklistItem label={`Billing checkout is connected`} passed={status.hasPaymentMethod} />
                 
                 {!status.hasPaymentMethod && (
                   <p className="text-yellow-400 text-sm mt-4">
@@ -772,13 +832,13 @@ export default function SetupWizardPage() {
               <button 
                 type="submit"
                 disabled={saving}
-                className="flex items-center space-x-2 px-8 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors border border-blue-400/50 disabled:opacity-50"
+                className="flex items-center space-x-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors border border-cyan-400/50 disabled:opacity-50"
               >
                 {saving ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <>
-                    <span>{activeStep === 11 ? "Finish & Go to Dashboard" : "Save & Continue"}</span>
+                    <span>{getContinueLabel(activeStep)}</span>
                     <ChevronRight className="w-4 h-4" />
                   </>
                 )}
@@ -792,4 +852,9 @@ export default function SetupWizardPage() {
     </div>
   );
 }
+
+
+
+
+
 

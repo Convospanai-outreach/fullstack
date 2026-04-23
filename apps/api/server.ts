@@ -20,6 +20,43 @@ const fastify = Fastify({
   }
 });
 
+const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+  'content-length'
+]);
+
+function forwardSetCookieHeaders(responseHeaders: Headers, reply: any) {
+  const getSetCookie = (responseHeaders as any).getSetCookie;
+  if (typeof getSetCookie === 'function') {
+    const cookies = getSetCookie.call(responseHeaders) as string[];
+    if (cookies.length > 0) {
+      reply.header('set-cookie', cookies);
+      return;
+    }
+  }
+
+  const singleCookie = responseHeaders.get('set-cookie');
+  if (singleCookie) {
+    reply.header('set-cookie', singleCookie);
+  }
+}
+
+function forwardResponseHeaders(responseHeaders: Headers, reply: any) {
+  responseHeaders.forEach((value: string, key: string) => {
+    const normalized = key.toLowerCase();
+    if (normalized === 'set-cookie') return;
+    if (HOP_BY_HOP_RESPONSE_HEADERS.has(normalized)) return;
+    reply.header(key, value);
+  });
+}
+
 // Middleware
 fastify.register(helmet);
 const allowedOrigins = (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '')
@@ -63,59 +100,58 @@ const nextAdapter = (handler: any) => async (request: any, reply: any) => {
     const body = (method === 'GET' || method === 'HEAD') ? undefined : request.rawBody;
     const nextReq = new Request(url.toString(), { method, headers, body } as any);
 
-    const response = await handler(nextReq as any);
+    const paramsPayload = Promise.resolve((request.params || {}) as Record<string, string>);
+    const response = handler.length >= 2
+      ? await handler(nextReq as any, { params: paramsPayload })
+      : await handler(nextReq as any);
     
     const status = response.status || 200;
     const contentType = response.headers?.get?.('content-type') || '';
 
-    const setCookies = response.headers?.getSetCookie?.() || [];
-    if (setCookies.length) {
-      reply.header('set-cookie', setCookies);
-    } else {
-      const single = response.headers?.get?.('set-cookie');
-      if (single) reply.header('set-cookie', single);
-    }
+    forwardSetCookieHeaders(response.headers, reply);
+    forwardResponseHeaders(response.headers, reply);
 
-    if (response.headers?.forEach) {
-      response.headers.forEach((value: string, key: string) => {
-        if (key.toLowerCase() === 'set-cookie') return;
-        reply.header(key, value);
-      });
-    }
-
-    if (response.body && response.body instanceof ReadableStream) {
-      reply.status(status);
-      const reader = response.body.getReader();
-      const stream = new (await import('stream')).Readable({
-        async read() {
-          const { done, value } = await reader.read();
-          if (done) this.push(null);
-          else this.push(Buffer.from(value));
-        }
-      });
-      reply.send(stream);
+    if (status === 204 || status === 304 || request.method === 'HEAD') {
+      reply.status(status).send();
       return;
     }
 
     if (contentType.includes('application/json')) {
-      const data = await response.json();
-      reply.status(status).send(data);
+      try {
+        const data = await response.json();
+        reply.status(status).send(data);
+      } catch {
+        const payload = (await response.text()).trim();
+        if (!payload) {
+          reply.status(status).send();
+          return;
+        }
+        reply.status(status).type('application/json').send(payload);
+      }
       return;
     }
 
     if (contentType.startsWith('text/') || contentType.includes('application/xml') || contentType.includes('text/csv')) {
       const text = await response.text();
+      if (!text) {
+        reply.status(status).send();
+        return;
+      }
       reply.status(status).send(text);
       return;
     }
 
-    if (response.body) {
-      const buf = Buffer.from(await response.arrayBuffer());
-      reply.status(status).send(buf);
+    if (!response.body) {
+      reply.status(status).send();
       return;
     }
 
-    reply.status(status).send();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.length === 0) {
+      reply.status(status).send();
+      return;
+    }
+    reply.status(status).send(buffer);
   } catch (error: any) {
     fastify.log.error(error);
     reply.status(500).send({ ok: false, error: error.message || 'Internal Server Error' });
@@ -166,11 +202,12 @@ async function loadRoutes(dir: string) {
       }
 
       const registeredPath = `/${routePath}`.replace(/\/$/, '') || '/';
+      const fastifyPath = registeredPath.replace(/\[([^\]]+)\]/g, ':$1');
       fastify.log.info(`Registering [${method}] ${registeredPath}`);
 
       fastify.route({
         method: method as any,
-        url: registeredPath,
+        url: fastifyPath,
         handler: nextAdapter(handler)
       });
     }

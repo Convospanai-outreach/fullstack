@@ -172,6 +172,7 @@ model Campaign {
   leadList Lead[] // Renamed relation to avoid conflict with 'leads' Int
 
   activities Activity[]
+  landingCampaignLinks LandingCampaign[] @relation("LandingCampaignLinkedCampaign")
 
   @@index([status])
   @@index([teamId])
@@ -194,6 +195,143 @@ model CampaignVariant {
   campaign   Campaign @relation(fields: [campaignId], references: [id])
 
   @@index([campaignId])
+}
+
+model LandingCampaign {
+  id                 String                 @id @default(uuid())
+  teamId             String
+  ownerId            String?
+  linkedCampaignId   String?
+  name               String
+  prompt             String                 @db.Text
+  framework          String?
+  challenge          String?                @db.Text
+  solution           String?                @db.Text
+  benefit            String?                @db.Text
+  selectedWireframeId String?
+  status             String                 @default("draft")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  team               Team                   @relation(fields: [teamId], references: [id])
+  owner              User?                  @relation("LandingCampaignOwner", fields: [ownerId], references: [id])
+  linkedCampaign     Campaign?              @relation("LandingCampaignLinkedCampaign", fields: [linkedCampaignId], references: [id])
+  assets             LandingAsset[]
+  wireframeOptions   LandingWireframeOption[]
+  pages              LandingPage[]
+  leads              LandingLead[]
+  events             LandingEvent[]
+
+  @@index([teamId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([linkedCampaignId])
+}
+
+model LandingAsset {
+  id         String         @id @default(uuid())
+  campaignId String
+  type       String
+  sourceName String?
+  content    String         @db.Text
+  metadata   Json?
+  createdAt  DateTime       @default(now())
+  campaign   LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([createdAt])
+}
+
+model LandingWireframeOption {
+  id          String         @id @default(uuid())
+  campaignId  String
+  title       String
+  description String?
+  framework   String
+  score       Int            @default(0)
+  structure   Json
+  createdAt   DateTime       @default(now())
+  campaign    LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([createdAt])
+}
+
+model LandingPage {
+  id          String          @id @default(uuid())
+  campaignId  String
+  teamId      String
+  slug        String          @unique
+  title       String?
+  status      String          @default("draft")
+  version     Int             @default(1)
+  editorState Json?
+  renderedJson Json
+  publishedAt DateTime?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  campaign    LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team        Team            @relation(fields: [teamId], references: [id])
+  leads       LandingLead[]
+  events      LandingEvent[]
+
+  @@index([campaignId])
+  @@index([teamId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model LandingLead {
+  id           String          @id @default(uuid())
+  landingPageId String
+  campaignId   String
+  teamId       String
+  sessionId    String?
+  pageVersion  Int?
+  name         String?
+  email        String?
+  phone        String?
+  company      String?
+  title        String?
+  rawPayload   Json?
+  utmSource    String?
+  utmMedium    String?
+  utmCampaign  String?
+  utmTerm      String?
+  utmContent   String?
+  referrer     String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime        @default(now())
+  landingPage  LandingPage      @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  campaign     LandingCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team         Team             @relation(fields: [teamId], references: [id])
+
+  @@index([landingPageId])
+  @@index([campaignId])
+  @@index([teamId, createdAt])
+  @@index([email])
+}
+
+model LandingEvent {
+  id           String          @id @default(uuid())
+  landingPageId String
+  campaignId   String
+  teamId       String
+  sessionId    String?
+  eventName    String
+  eventData    Json?
+  pageVersion  Int?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime        @default(now())
+  landingPage  LandingPage      @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  campaign     LandingCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team         Team             @relation(fields: [teamId], references: [id])
+
+  @@index([landingPageId])
+  @@index([campaignId])
+  @@index([teamId, createdAt])
+  @@index([eventName])
 }
 
 model Activity {
@@ -408,6 +546,10 @@ model Team {
   memories        AgentMemory[]
   apiKeys         ApiKey[]
   tasks           Task[]
+  landingCampaigns LandingCampaign[]
+  landingPages     LandingPage[]
+  landingLeads     LandingLead[]
+  landingEvents    LandingEvent[]
 
   branding           Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig           Json? // Global agent settings (voice, tone, constraints)
@@ -628,6 +770,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   campaigns     Campaign[]   @relation("owner_campaigns")
+  landingCampaigns LandingCampaign[] @relation("LandingCampaignOwner")
 
   // Billing
   credits            Int               @default(0)

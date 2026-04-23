@@ -69,11 +69,12 @@ export default function Footer() {
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Sovereign Growth Infrastructure</p>
                     </div>
                     <p className="text-xs font-medium text-slate-600">
-                        © {new Date().getFullYear()} <span className="text-slate-400">ConvoSpan</span>. Built for operators, not demos.
+                        (c) {new Date().getFullYear()} <span className="text-slate-400">ConvoSpan</span>. Built for operators, not demos.
                     </p>
                 </div>
             </div>
         </footer>
     );
 }
+
 

@@ -26,6 +26,7 @@ COPY . .
 # Generate Prisma client and build Next.js
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate && \
     DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" \
+    NEXT_OUTPUT_MODE="standalone" \
     NODE_OPTIONS="--max-old-space-size=4096" \
     npx next build
 

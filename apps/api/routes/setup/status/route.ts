@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getCurrentContext } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 
-export async function GET() {
+export async function GET(req: Request) {
     try {
-        const ctx = await getCurrentContext();
+        const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -168,4 +168,5 @@ export async function GET() {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
 

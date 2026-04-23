@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentContext } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { getSmtpConfigRedacted, saveSmtpConfig, deleteSmtpConfig } from "@/modules/email-campaigner/service/smtpConfigService";
 import { z } from "zod";
 
@@ -13,9 +13,9 @@ const SmtpSchema = z.object({
     fromEmail: z.string().email(),
 });
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
-        const ctx = await getCurrentContext();
+        const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -29,7 +29,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
     try {
-        const ctx = await getCurrentContext();
+        const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -47,9 +47,9 @@ export async function POST(req: NextRequest) {
     }
 }
 
-export async function DELETE() {
+export async function DELETE(req: NextRequest) {
     try {
-        const ctx = await getCurrentContext();
+        const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -60,3 +60,4 @@ export async function DELETE() {
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
+

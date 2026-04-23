@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
+import { getToken } from "next-auth/jwt";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
@@ -261,4 +262,69 @@ export async function getCurrentContext() {
     return { userId, teamId: memberships[0].teamId };
 }
 
+function getCookieValue(cookieHeader: string | null, name: string): string | null {
+    if (!cookieHeader) return null;
+
+    const parts = cookieHeader.split(";").map((part) => part.trim());
+    const entry = parts.find((part) => part.startsWith(`${name}=`));
+    if (!entry) return null;
+
+    const value = entry.slice(name.length + 1);
+    if (!value) return null;
+
+    try {
+        return decodeURIComponent(value);
+    } catch {
+        return value;
+    }
+}
+
+export async function getCurrentContextFromRequest(req: Request) {
+    const token = await getToken({ req: req as any });
+    const userId = token?.sub || null;
+
+    if (!userId) {
+        return { userId: null, teamId: null };
+    }
+
+    const cookieHeader = req.headers.get("cookie");
+    const workspaceId = getCookieValue(cookieHeader, "convo-workspace-id");
+
+    if (workspaceId) {
+        const membership = await prisma.teamMember.findFirst({
+            where: {
+                userId,
+                teamId: workspaceId
+            }
+        });
+
+        if (membership) {
+            return { userId, teamId: workspaceId };
+        }
+    }
+
+    const memberships = await prisma.teamMember.findMany({
+        where: { userId },
+        select: { teamId: true },
+        take: 2
+    });
+
+    if (memberships.length === 0) {
+        return { userId, teamId: null };
+    }
+
+    if (memberships.length > 1) {
+        const { APIError } = await import("./apiResponse");
+        throw new APIError(
+            "Multiple teams found. Please specify a workspace in 'convo-workspace-id' cookie.",
+            409,
+            "WORKSPACE_SELECTION_REQUIRED"
+        );
+    }
+
+    return { userId, teamId: memberships[0].teamId };
+}
+
 export const auth = () => getServerSession(authOptions);
+
+

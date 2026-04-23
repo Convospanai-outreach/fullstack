@@ -35,7 +35,7 @@ export const vectorStore = {
     search: async (query?: string, teamId?: string, limit: number = 5): Promise<VectorResult[]> => {
         if (!query || !teamId) return [];
 
-        const items = await prisma.knowledgeItem.findMany({
+        const items = (await prisma.knowledgeItem.findMany({
             where: {
                 knowledgeBase: {
                     teamId,
@@ -49,7 +49,7 @@ export const vectorStore = {
             },
             orderBy: { createdAt: "desc" },
             take: 200,
-        });
+        })) ?? [];
 
         return items
             .map((item) => ({
