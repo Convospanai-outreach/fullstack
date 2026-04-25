@@ -95,6 +95,7 @@
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
         "react-error-boundary": "^6.0.0",
+        "react-is": "^19.2.0",
         "react-markdown": "^10.1.0",
         "reactflow": "^11.11.4",
         "recharts": "^3.5.1",
@@ -107,5 +108,8 @@
         "uuid": "^13.0.0",
         "winston": "^3.19.0",
         "zod": "^4.3.6"
+    },
+    "optionalDependencies": {
+        "lightningcss-linux-x64-musl": "1.30.2"
     }
 }
