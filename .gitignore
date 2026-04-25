@@ -16,6 +16,8 @@ blob-report/
 output/
 tmp/
 .tmp/
+.tmp-npm/
+.npm-cache/
 __pycache__/
 *.pyc
 apps/tmp-*.log

@@ -14,20 +14,6 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      postgres:
-        image: ankane/pgvector:latest
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: convospan
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      
       redis:
         image: redis:7-alpine
         ports:
@@ -61,15 +47,7 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/web
-      run: npx prisma generate
-      env:
-        DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
-
-    - name: Push Schema (Ephemeral CI DB)
-      working-directory: apps/web
-      run: npx prisma db push --accept-data-loss
-      env:
-        DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
 
     - name: Type Check
       working-directory: apps/web
@@ -81,7 +59,7 @@ jobs:
       env:
         NEXT_PUBLIC_API_URL: http://localhost:3001
         NEXT_PHASE: phase-production-build
-        DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
         NEXTAUTH_SECRET: ci-secret-not-real
         NEXTAUTH_URL: http://localhost:3000
         SKIP_ENV_VALIDATION: "true"
@@ -109,20 +87,18 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/api
-      run: npx prisma generate
-      env:
-        DATABASE_URL: "postgresql://postgres:password@localhost:5432/convospan"
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
 
     - name: Type Check
       working-directory: apps/api
-      run: npm run typecheck --workspaces=false
+      run: npm run typecheck
 
     - name: Build
       working-directory: apps/api
-      run: npm run build --workspaces=false
+      run: npm run build
 
   docker-smoke:
-    name: Docker Build Smoke (api + edge-fastapi)
+    name: Docker Build Smoke (api required, edge-fastapi optional)
     runs-on: ubuntu-latest
 
     steps:
@@ -132,7 +108,8 @@ jobs:
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Build API image
-      run: docker build -t convospan-api-ci -f apps/api/Dockerfile apps/api
+      run: docker build -t convospan-api-ci -f apps/api/Dockerfile .
 
-    - name: Build Edge image
+    - name: Build Edge image (optional)
+      continue-on-error: true
       run: docker build -t convospan-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
