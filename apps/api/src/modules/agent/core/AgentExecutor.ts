@@ -5,6 +5,7 @@ import { TrustEngine } from "@/modules/governance/TrustEngine";
 import { EventStore, SystemEventType } from "@/modules/learning/EventStore";
 import { mcpManager } from "@/lib/mcp/McpManager";
 import { microLLM } from "@/ai/MicroLLMClient";
+import { buildAgenticRagContext } from "./agenticRagScope";
 
 export enum AgentState {
     // Standard States
@@ -251,9 +252,10 @@ export class AgentExecutor {
                     `- ${t.name}: ${t.description} (Schema: ${JSON.stringify(t.inputSchema)}, Risk: ${t.riskLevel ?? "high"})`
                 ).join("\n");
 
-                // AGENTIC RAG: Retrieve campaign context
-                const query = task.goal.substring(0, 100); // Simple query extraction
-                const ragContext = await KnowledgeIngressService.agenticSearch(task.teamId, query);
+                // AGENTIC RAG: Retrieve campaign context only when a campaign scope is available.
+                const ragContext = await buildAgenticRagContext(task, (campaignId, query) =>
+                    KnowledgeIngressService.agenticSearch(campaignId, query)
+                );
 
                 const prompt = `
 GOAL: ${task.goal}

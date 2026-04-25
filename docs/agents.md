@@ -22,6 +22,14 @@ Infra expectations:
 - Postgres is the system-of-record (required).
 - Redis is recommended for cache/queues but remains optional (features must degrade gracefully when `REDIS_URL` is unset).
 
+Operational hardening:
+- AI generation now enforces centralized prompt-policy checks before provider calls.
+- AI generation now enforces atomic credit reservation + settlement for chargeable team contexts.
+- Helper/chat/email/landing surfaces enforce message-size and output-size budgets.
+- Legacy extension queue endpoints are authenticated, team-scoped, and claim-aware.
+- Sensitive config, policy, key, SMTP, and team-management routes now require elevated roles.
+- Landing rendering sanitizes stored HTML before public publish.
+
 ---
 
 # Layer 1: Intel Agents (NetJana)
@@ -111,7 +119,25 @@ Output:
 {
   allow,
   policy_flags,
-  redactions
+  redactions,
+  input_budget_ok,
+  credit_budget_ok,
+  reject_reason
+}
+```
+
+## Credit Meter Agent
+Purpose: Gate AI generation on available credits and record usage deductions.
+
+Output:
+```
+{
+  allowed,
+  estimated_credits,
+  reserved_credits,
+  charged_credits,
+  refunded_credits,
+  ledger_entry_id
 }
 ```
 
@@ -176,3 +202,4 @@ Output:
 - The Control Plane only orchestrates and routes; it does not run heavy execution.
 - Edge is optional and shown as an upsell path in the UI.
 - Task contracts and execution modes are now enforced across services.
+- Guardrail and credit contracts for AI generation are documented in `docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md`.

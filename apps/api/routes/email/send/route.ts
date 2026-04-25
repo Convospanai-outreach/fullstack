@@ -15,6 +15,12 @@ export async function POST(req: NextRequest) {
         if (!to || !subject || !html) {
             return NextResponse.json({ error: "Missing to, subject, or html" }, { status: 400 });
         }
+        if (typeof subject !== "string" || subject.trim().length > 160) {
+            return NextResponse.json({ error: "Subject exceeds 160 characters" }, { status: 400 });
+        }
+        if (typeof html !== "string" || html.length > 25000) {
+            return NextResponse.json({ error: "Email body exceeds allowed length" }, { status: 400 });
+        }
 
         const result = await emailService.sendEmail(
             to,

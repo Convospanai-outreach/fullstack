@@ -8,13 +8,15 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Check, X, Edit, Zap, Eye } from "lucide-react";
 import { toast } from "sonner";
 
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+
 export default function CommandCenterPage() {
     const [drafts, setDrafts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchDrafts = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/agent/outreach/drafts');
+            const res = await fetch(API_BASE + '/agent/outreach/drafts');
             if (res.ok) {
                 const data = await res.json();
                 setDrafts(data);
@@ -32,7 +34,7 @@ export default function CommandCenterPage() {
 
     const handleApprove = async (id: string, region: string) => {
         try {
-            const promise = fetch(process.env['NEXT_PUBLIC_API_URL'] + '/agent/outreach/approve', {
+            const promise = fetch(API_BASE + '/agent/outreach/approve', {
                 method: 'POST',
                 body: JSON.stringify({ id, region })
             });
@@ -52,7 +54,7 @@ export default function CommandCenterPage() {
 
     const handleReject = async (id: string, region: string) => {
         try {
-            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/agent/outreach/approve', {
+            await fetch(API_BASE + '/agent/outreach/approve', {
                 method: 'POST',
                 body: JSON.stringify({ id, region, action: 'REJECT' })
             });
@@ -65,7 +67,7 @@ export default function CommandCenterPage() {
 
     const handleReveal = async (draftId: string, originalLeadId: string) => {
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${originalLeadId}/identity`);
+            const res = await fetch(`${API_BASE}/leads/${originalLeadId}/identity`);
             const data = await res.json();
 
             if (data.email) {

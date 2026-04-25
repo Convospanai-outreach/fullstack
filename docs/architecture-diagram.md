@@ -607,3 +607,41 @@ sequenceDiagram
     Web->>Proxy: POST /landing-agent/public/:slug/lead or event
     API->>DB: Store LandingLead and LandingEvent
 ```
+
+## AI Guardrails, Token, And Credit Enforcement
+
+```mermaid
+flowchart TB
+    client[Web or API Client]
+    route[AI or Email Generation Route]
+    auth[Auth and Team Context Check]
+    inputLimits[Route Input Length Limits]
+    aiGuard[aiInputGuardrails enforceAIPromptPolicy]
+    creditReserve[Atomic credit reservation]
+    model[LLM Provider]
+    usageLog[LLMUsageLog tokensIn tokensOut cost]
+    creditSettle[Usage settlement or refund]
+    outputBound[Surface Output Bounds]
+    response[Response 200 or 400 401 402]
+
+    client --> route
+    route --> auth
+    auth --> inputLimits
+    inputLimits --> aiGuard
+    aiGuard --> creditReserve
+    creditReserve --> model
+    model --> usageLog
+    usageLog --> creditSettle
+    creditSettle --> outputBound
+    outputBound --> response
+```
+
+### Current Hardening Notes (2026-04)
+
+- Legacy queue endpoints are authenticated, team-scoped, and claim-aware (`/queue/pending`, `/queue/result`).
+- Agentic RAG campaign scoping now resolves campaign id correctly before search.
+- Helper/chat/email/landing generation paths enforce size budgets and prompt-policy checks.
+- AI generation with chargeable team contexts uses atomic reservation and usage settlement.
+- Embedding requests now go through the guarded billing and usage-log path.
+- Landing HTML is sanitized before public render to reduce stored-XSS exposure.
+- Sensitive config and governance routes now require elevated team roles and redact secrets on setup/status responses.

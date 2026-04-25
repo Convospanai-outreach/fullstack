@@ -43,6 +43,25 @@ flowchart LR
 - Governance, audit, feature gating, team settings, and approval controls.
 - Optional private edge runtime for hardware or browser-backed execution.
 
+## Security And AI Guardrails
+
+Recent hardening is now active across AI generation and outbound surfaces:
+
+- legacy queue endpoints are auth-gated, team-scoped, and claim-aware
+- prompt-injection and script payload checks are centralized in `apps/api/src/lib/aiInputGuardrails.ts`
+- route-level size limits are enforced for helper/chat/email/landing generation paths
+- AI generation uses atomic credit reservation + settlement in `apps/api/src/lib/aiService.ts`
+- embedding requests now go through guarded billing and usage logging
+- landing-page rendering now sanitizes stored HTML before public render
+- setup, SMTP, policy, guardrail, key, and team-management routes are explicitly role-gated
+- token usage and cost are recorded in `LLMUsageLog` and usage deductions are recorded in `CreditTransaction`
+
+For the full policy contract and Mermaid visual:
+
+- [AI guardrails and token usage](./docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
+- [Hardening implementation status](./docs/HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md)
+- [Swarm critique report](./docs/SWARM_CRITIQUE_REPORT_2026-04-24.md)
+
 ## Local Development
 
 Install dependencies from the repository root:
@@ -128,10 +147,20 @@ Use path-based deploy triggers:
 - `apps/edge-fastapi/**` deploys edge.
 - Shared changes such as `package-lock.json`, root scripts, or Prisma schema changes deploy affected services.
 
+## Docker And Registry
+
+- Local image builds are available via `npm run docker:web`, `npm run docker:api`, and `npm run docker:edge`.
+- GitHub Container Registry publishing is defined in `.github/workflows/docker-ghcr.yml`.
+- The web image builds from the monorepo root context so it can use the workspace lockfile consistently.
+- On pushes to `main`, the workflow builds and publishes `web`, `api`, and `edge-fastapi` images to `ghcr.io/convospanai-outreach/fullstack/*`.
+
 ## Documentation Map
 
 - [Master system architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
 - [Mermaid architecture diagram](./docs/architecture-diagram.md)
+- [AI guardrails and token usage](./docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
+- [Hardening implementation status](./docs/HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md)
+- [Swarm critique report](./docs/SWARM_CRITIQUE_REPORT_2026-04-24.md)
 - [Netjana signal integration plan](./docs/NETJANA_SIGNAL_INTEGRATION_PLAN.md)
 - [Landing Agent architecture](./docs/landing-agent-architecture.md)
 - [Landing Agent API examples](./docs/landing-agent-api-examples.md)

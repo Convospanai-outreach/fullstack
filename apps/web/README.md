@@ -1,19 +1,25 @@
 # ConvoSpan Web App
 
-Standalone Next.js web application extracted from the original monorepo.
+Next.js web application inside the ConvoSpan monorepo.
 
 ## Run locally
 
+From the repository root:
+
 ```bash
 npm install
-npm run dev
+npm run dev --workspace apps/web
 ```
 
 ## Build Docker image
 
+From the repository root:
+
 ```bash
-docker build -t convospan-web:split .
+npm run docker:web
 ```
+
+The web Docker build uses the monorepo root context so it can install from the shared workspace lockfile.
 
 ## Default port
 

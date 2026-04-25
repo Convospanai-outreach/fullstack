@@ -1,17 +1,19 @@
 FROM node:22-alpine AS deps
-WORKDIR /app
+WORKDIR /repo
 
-# Install dependencies first (cached layer)
+# Install workspace dependencies from the monorepo root lockfile so the
+# image matches the repo's real install model.
 COPY package.json package-lock.json ./
-COPY scripts/ ./scripts/
-# Use --legacy-peer-deps for compatibility, --no-audit for speed
-RUN npm ci --no-audit --no-fund --legacy-peer-deps
+COPY apps/web/package.json ./apps/web/package.json
+COPY apps/api/package.json ./apps/api/package.json
+COPY packages/toon-core/package.json ./packages/toon-core/package.json
+RUN npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
 
 # =============================================================================
 # Builder Stage: compile Next.js with Prisma client
 # =============================================================================
 FROM node:22-alpine AS builder
-WORKDIR /app
+WORKDIR /repo
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -20,8 +22,10 @@ ENV NODE_ENV=production
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost/dummy"
 ENV DATABASE_URL=$DATABASE_URL
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /repo/node_modules ./node_modules
 COPY . .
+
+WORKDIR /repo/apps/web
 
 # Generate Prisma client and build Next.js
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate && \
@@ -49,11 +53,11 @@ RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
 # Standalone output (fastest startup)
 # Copy only what Next.js needs at runtime
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /repo/apps/web/public ./public
+COPY --from=builder /repo/apps/web/.next/standalone ./
+COPY --from=builder /repo/apps/web/.next/static ./.next/static
+COPY --from=builder /repo/apps/web/prisma ./prisma
+COPY --from=builder /repo/apps/web/scripts ./scripts
 # node_modules already bundled in standalone output
 
 USER nextjs

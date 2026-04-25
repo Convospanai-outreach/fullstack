@@ -15,6 +15,12 @@ export async function POST(req: Request) {
         if (!leadId || !content) {
             return new NextResponse("Missing fields", { status: 400 });
         }
+        if (typeof content !== "string" || !content.trim()) {
+            return new NextResponse("Invalid content", { status: 400 });
+        }
+        if (content.length > 2200) {
+            return NextResponse.json({ error: "Message exceeds 2200 characters", action: "block" }, { status: 400 });
+        }
 
         // GUARDRAIL CHECK
         const { guardrailService } = await import("@/modules/governance/service/guardrailService");

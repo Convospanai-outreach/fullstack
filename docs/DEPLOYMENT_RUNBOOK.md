@@ -52,6 +52,22 @@ Build log validation:
 - Build must not reference root-level `next.config.mjs` or root app scripts.
 - Proxy route exists at `apps/web/src/app/api/proxy/[...path]/route.ts`.
 
+## 2a) Web Docker Build (GHCR or Local)
+
+The web image must be built from the repository root so Docker can use the workspace root `package-lock.json`.
+
+From repository root:
+
+```bash
+docker build -t convospan-web:latest -f apps/web/Dockerfile .
+```
+
+Or use the convenience script:
+
+```bash
+npm run docker:web
+```
+
 ## 3) API Deployment (Docker on DigitalOcean)
 
 On droplet:
@@ -145,3 +161,4 @@ These workflows now target app roots:
 Validation rule:
 
 - No workflow should run `npm ci` or `npm run build` from repo root for the web app.
+- The exception is the web Docker build context, which intentionally uses repo root so workspace dependency resolution matches local installs and CI.

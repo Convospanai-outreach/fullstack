@@ -1,6 +1,6 @@
 // Client-side API wrapper for lead operations
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] + "/leads";
+const API_BASE = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/leads";
 
 export interface Lead {
     id: string;
@@ -88,7 +88,8 @@ export async function importCSV(
     fieldMapping?: { [key: string]: string },
     campaignId?: string
 ) {
-    const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/upload/csv", {
+    const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+    const res = await fetch(apiBase + "/upload/csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

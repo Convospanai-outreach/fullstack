@@ -79,6 +79,47 @@ ConvoSpan is organized around explicit runtime, domain, data, and control bounda
 - Netjana webhook ingest validates `x-source`, API key scope, payload shape, and optional HMAC before any signal becomes trusted context.
 - Governance approval, audit logging, and guardrails sit across publish/send/automation workflows.
 - Redis-backed behavior must degrade gracefully unless a workflow explicitly provisions Redis.
+- AI generation enforces centralized prompt policy by surface (`CHAT`, `HELPER`, `EMAIL`, `LANDING`, `GENERIC`) before model execution.
+- AI generation enforces atomic team-credit reservation and usage settlement in the runtime generation path.
+- Embedding requests now use the same guarded billing and usage logging path as text generation.
+- Helper/chat/email/landing request payloads now have explicit size budgets to reduce abuse and prompt stuffing.
+- Legacy extension queue endpoints are authenticated, team-scoped, and claim-aware to prevent duplicate ambiguous fetch/result mutation.
+- Sensitive config and governance routes now require elevated team roles, and setup status redacts provider secrets before returning team config.
+- Landing HTML is sanitized before public render to reduce stored-XSS exposure on published pages.
+- Agentic RAG retrieval is campaign-scoped; the known `teamId`-as-`campaignId` mismatch is fixed.
+
+---
+
+## AI Guardrail and Credit Path
+
+The active guardrail and billing contract for AI generation is documented in:
+
+- [`docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md`](docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User or Client
+    participant Route as API Route
+    participant Guard as aiInputGuardrails
+    participant AI as aiService
+    participant Credits as reserve/settle credits
+    participant Model as LLM Provider
+    participant Usage as LLMUsageLog
+
+    User->>Route: Request AI generation
+    Route->>AI: Forward validated request with team context
+    AI->>Guard: Enforce prompt policy and size budgets
+    Guard-->>AI: allow or reject
+    AI->>Credits: reserve estimated credits
+    Credits-->>AI: allow or insufficient
+    AI->>Model: Generate response
+    Model-->>AI: text + token usage
+    AI->>Usage: persist tokens and cost
+    AI->>Credits: settle usage or refund difference
+    AI-->>Route: bounded output
+    Route-->>User: success or 400/401/402
+```
 
 ---
 

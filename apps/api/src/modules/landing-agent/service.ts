@@ -39,7 +39,12 @@ function clampText(value: string, maxLength: number): string {
 function sanitizeString(value: string): string {
     return value
         .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+        .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
+        .replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, "")
+        .replace(/<embed[\s\S]*?>[\s\S]*?<\/embed>/gi, "")
         .replace(/\son[a-z]+\s*=\s*["'][^"']*["']/gi, "")
+        .replace(/\sstyle\s*=\s*["'][^"']*["']/gi, "")
         .replace(/javascript:/gi, "")
         .trim();
 }
@@ -173,13 +178,14 @@ export const landingAgentService = {
         framework?: string;
         linkedCampaignId?: string | null;
     }) {
+        const safePrompt = clampText(input.prompt.trim(), 4000);
         const campaign = await prisma.landingCampaign.create({
             data: {
                 teamId: input.teamId,
                 ownerId: input.userId,
                 linkedCampaignId: input.linkedCampaignId ?? null,
                 name: input.name,
-                prompt: input.prompt,
+                prompt: safePrompt,
                 framework: input.framework ?? null,
                 status: "draft",
             },
@@ -246,12 +252,13 @@ export const landingAgentService = {
         const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
         const assetText = clampText(
             campaign.assets.map((a) => a.content).join("\n\n"),
-            20000
+            7000
         );
+        const campaignPrompt = clampText(campaign.prompt, 3000);
 
         const prompt = buildBriefPrompt({
             campaignName: campaign.name,
-            prompt: campaign.prompt,
+            prompt: campaignPrompt,
             framework: input.framework || campaign.framework,
             assetText,
         });
@@ -260,6 +267,8 @@ export const landingAgentService = {
 
         try {
             const raw = await aiService.askAI(prompt, input.teamId, {
+                taskType: "LANDING_BRIEF",
+                surface: "LANDING",
                 expectsJson: true,
                 disableGuardrails: true,
             });
@@ -295,7 +304,7 @@ export const landingAgentService = {
     }) {
         const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
         const brief: LandingBrief = {
-            challenge: campaign.challenge || campaign.prompt,
+            challenge: campaign.challenge || clampText(campaign.prompt, 260),
             solution: campaign.solution || "Position the product as the practical path forward.",
             benefit: campaign.benefit || "Improve conversion speed with less manual effort.",
             framework: campaign.framework || "PAS",
@@ -312,6 +321,8 @@ export const landingAgentService = {
 
         try {
             const raw = await aiService.askAI(prompt, input.teamId, {
+                taskType: "LANDING_WIREFRAME",
+                surface: "LANDING",
                 expectsJson: true,
                 disableGuardrails: true,
             });

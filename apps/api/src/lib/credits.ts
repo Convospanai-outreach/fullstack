@@ -30,20 +30,18 @@ export async function deductCredits(
         throw new Error("Deduct amount must be a positive number");
     }
     return await prisma.$transaction(async (tx) => {
-        const team = await tx.team.findUnique({
-            where: { id: teamId },
-            select: { credits: true }
-        });
-
-        if (!team || team.credits < amount) {
-            return false;
-        }
-
-        // Deduct credits
-        await tx.team.update({
-            where: { id: teamId },
+        // Atomic conditional decrement prevents check-then-update races.
+        const updated = await tx.team.updateMany({
+            where: {
+                id: teamId,
+                credits: { gte: amount }
+            },
             data: { credits: { decrement: amount } }
         });
+
+        if (updated.count !== 1) {
+            return false;
+        }
 
         // Record transaction (negative amount for usage)
         await tx.creditTransaction.create({

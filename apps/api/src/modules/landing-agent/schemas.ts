@@ -1,5 +1,16 @@
 import { z } from "zod";
 
+const PROMPT_GUARD_PATTERN = /\b(ignore|disregard|bypass)\s+(all\s+)?(previous|prior)\s+(instructions?|rules?)\b|<script[\s\S]*?>|javascript:/i;
+
+function isJsonWithinSize(value: unknown, maxChars: number): boolean {
+    if (typeof value === "undefined") return true;
+    try {
+        return JSON.stringify(value).length <= maxChars;
+    } catch {
+        return false;
+    }
+}
+
 export const landingFrameworkEnum = z.enum([
     "PAS",
     "AIDA",
@@ -10,13 +21,21 @@ export const landingFrameworkEnum = z.enum([
 
 export const createLandingCampaignSchema = z.object({
     name: z.string().min(1).max(200),
-    prompt: z.string().min(1).max(10000),
+    prompt: z
+        .string()
+        .min(1)
+        .max(4000)
+        .refine((value) => !PROMPT_GUARD_PATTERN.test(value), "Prompt contains blocked instructions."),
     framework: landingFrameworkEnum.optional(),
     linkedCampaignId: z.string().uuid().optional().nullable(),
 });
 
 export const addLandingAssetSchema = z.object({
-    text: z.string().max(50000).optional(),
+    text: z
+        .string()
+        .max(15000)
+        .refine((value) => !PROMPT_GUARD_PATTERN.test(value), "Asset text contains blocked instructions.")
+        .optional(),
     pdfKnowledgeItemId: z.string().uuid().optional(),
     sourceName: z.string().max(255).optional(),
 });
@@ -47,7 +66,10 @@ export const landingLeadPayloadSchema = z.object({
     phone: z.string().max(50).optional(),
     company: z.string().max(200).optional(),
     title: z.string().max(200).optional(),
-    rawPayload: z.unknown().optional(),
+    rawPayload: z
+        .unknown()
+        .refine((value) => isJsonWithinSize(value, 10000), "rawPayload exceeds 10k serialized size")
+        .optional(),
     utmSource: z.string().max(200).optional(),
     utmMedium: z.string().max(200).optional(),
     utmCampaign: z.string().max(200).optional(),
@@ -69,7 +91,10 @@ export const landingEventPayloadSchema = z.object({
     sessionId: z.string().max(255).optional(),
     pageVersion: z.number().int().positive().optional(),
     eventName: landingEventNameEnum,
-    eventData: z.unknown().optional(),
+    eventData: z
+        .unknown()
+        .refine((value) => isJsonWithinSize(value, 8000), "eventData exceeds 8k serialized size")
+        .optional(),
     website: z.string().max(500).optional(), // honeypot
 });
 

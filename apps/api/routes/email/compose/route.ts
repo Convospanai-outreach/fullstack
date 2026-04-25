@@ -15,6 +15,10 @@ export async function POST(req: NextRequest) {
         if (!node || !input) {
             return NextResponse.json({ error: "Missing node or input" }, { status: 400 });
         }
+        const serializedInput = JSON.stringify(input);
+        if (serializedInput.length > 9000) {
+            return NextResponse.json({ error: "Compose input exceeds allowed size" }, { status: 400 });
+        }
 
         let result;
         
@@ -31,6 +35,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true, data: result });
     } catch (err: any) {
         console.error("[Email Compose API] Error:", err);
-        return NextResponse.json({ error: err.message }, { status: 500 });
+        const message = err?.message || "Email compose failed";
+        if (message.includes("Insufficient credits")) {
+            return NextResponse.json({ error: message }, { status: 402 });
+        }
+        if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
+            return NextResponse.json({ error: message }, { status: 400 });
+        }
+        return NextResponse.json({ error: message }, { status: 500 });
     }
 }

@@ -9,6 +9,13 @@ import {
     enforceAgentOutputGuardrails,
     GuardrailOptions
 } from "./ai/agentOutputGuardrails";
+import { deductCredits, refundCredits } from "@/lib/credits";
+import {
+    AISurface,
+    clampGeneratedText,
+    enforceAIPromptPolicy,
+    resolveSurfaceFromTaskType
+} from "@/lib/aiInputGuardrails";
 
 type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -41,9 +48,35 @@ const COST_PER_1K_TOKENS: Record<string, number> = {
     "unknown": 0
 };
 
+const OUTPUT_MAX_CHARS: Record<AISurface, number> = {
+    CHAT: 2500,
+    HELPER: 3500,
+    EMAIL: 2800,
+    LANDING: 12000,
+    GENERIC: 5000
+};
+
+const EMBEDDING_MAX_INPUT_CHARS = 12000;
+
 function estimateCost(model: string, tokensIn: number, tokensOut: number): number {
     const rate = COST_PER_1K_TOKENS[model] ?? COST_PER_1K_TOKENS["unknown"];
     return ((tokensIn + tokensOut) / 1000) * rate;
+}
+
+function isChargeableTeamId(teamId?: string): teamId is string {
+    if (!teamId) return false;
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(teamId);
+}
+
+function estimateCreditsForPrompt(prompt: string, complexity?: TaskComplexity): number {
+    const inputTokens = Math.ceil(prompt.length / 4);
+    const estimatedOutputTokens = complexity === TaskComplexity.STRATEGIC ? 900 : 500;
+    return Math.max(1, Math.ceil((inputTokens + estimatedOutputTokens) / 1000));
+}
+
+function calculateCreditsFromUsage(tokensIn: number, tokensOut: number): number {
+    if (!Number.isFinite(tokensIn) || !Number.isFinite(tokensOut)) return 0;
+    return Math.max(1, Math.ceil((Math.max(0, tokensIn) + Math.max(0, tokensOut)) / 1000));
 }
 
 async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
@@ -122,7 +155,7 @@ async function logUsage(params: {
     teamId?: string;
     provider: LLMProvider;
     model: string;
-    taskType: TaskComplexity;
+    taskType: string;
     tokensIn: number;
     tokensOut: number;
     latencyMs: number;
@@ -150,10 +183,91 @@ async function logUsage(params: {
     }
 }
 
-async function callLLM(prompt: string, options: { teamId?: string; complexity?: TaskComplexity }) {
+async function reserveCreditsForGeneration(
+    teamId: string | undefined,
+    credits: number,
+    description: string,
+    meta: Record<string, unknown>
+) {
+    if (!isChargeableTeamId(teamId)) return 0;
+    const ok = await deductCredits(teamId, credits, `${description} (reservation)`, {
+        ...meta,
+        billingStage: "reservation",
+    });
+    if (!ok) {
+        throw new Error("Insufficient credits for AI generation.");
+    }
+    return credits;
+}
+
+async function settleCreditsForGeneration(
+    teamId: string | undefined,
+    reservedCredits: number,
+    actualCredits: number,
+    description: string,
+    meta: Record<string, unknown>
+) {
+    if (!isChargeableTeamId(teamId) || reservedCredits <= 0) {
+        return;
+    }
+
+    const normalizedActual = Math.max(1, actualCredits || reservedCredits);
+    if (normalizedActual === reservedCredits) {
+        return;
+    }
+
+    if (normalizedActual > reservedCredits) {
+        const extra = normalizedActual - reservedCredits;
+        const debited = await deductCredits(teamId, extra, `${description} (usage adjustment)`, {
+            ...meta,
+            billingStage: "adjustment",
+            adjustmentType: "debit",
+            reservedCredits,
+            actualCredits: normalizedActual,
+        });
+        if (!debited) {
+            logger.warn("[AI Usage] Unable to debit usage adjustment due to insufficient balance", {
+                teamId,
+                extra,
+                reservedCredits,
+                actualCredits: normalizedActual,
+            });
+        }
+        return;
+    }
+
+    const refund = reservedCredits - normalizedActual;
+    await refundCredits(teamId, refund, `${description} (usage adjustment)`, {
+        ...meta,
+        billingStage: "adjustment",
+        adjustmentType: "refund",
+        reservedCredits,
+        actualCredits: normalizedActual,
+    });
+}
+
+async function callLLM(
+    prompt: string,
+    options: {
+        teamId?: string;
+        complexity?: TaskComplexity;
+        taskTypeLabel?: string;
+        creditDescription?: string;
+    }
+) {
     const providers = await loadTeamProviders(options.teamId);
     const resolved = resolveProvider(providers, options.complexity);
     const start = Date.now();
+    const billedTeamId = isChargeableTeamId(options.teamId) ? options.teamId : undefined;
+    const estimatedCredits = estimateCreditsForPrompt(prompt, options.complexity);
+    const billingDescription = options.creditDescription || "AI generation usage";
+    const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, billingDescription, {
+        provider: resolved.provider,
+        model: resolved.model,
+        taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+        estimatedCredits,
+    });
+    let settledCredits = false;
 
     try {
         if (resolved.provider === LLMProvider.GEMINI) {
@@ -175,6 +289,20 @@ async function callLLM(prompt: string, options: { teamId?: string; complexity?: 
                 latencyMs: Date.now() - start,
                 success: true
             });
+            await settleCreditsForGeneration(
+                billedTeamId,
+                reservedCredits,
+                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+                billingDescription,
+                {
+                    model: resolved.model,
+                    provider: resolved.provider,
+                    taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+                    tokensIn,
+                    tokensOut
+                }
+            );
+            settledCredits = true;
             return { text, model: resolved.model };
         }
 
@@ -198,6 +326,20 @@ async function callLLM(prompt: string, options: { teamId?: string; complexity?: 
                 latencyMs: Date.now() - start,
                 success: true
             });
+            await settleCreditsForGeneration(
+                billedTeamId,
+                reservedCredits,
+                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+                billingDescription,
+                {
+                    model: resolved.model,
+                    provider: resolved.provider,
+                    taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+                    tokensIn,
+                    tokensOut
+                }
+            );
+            settledCredits = true;
             return { text, model: resolved.model };
         }
 
@@ -220,8 +362,45 @@ async function callLLM(prompt: string, options: { teamId?: string; complexity?: 
             latencyMs: Date.now() - start,
             success: true
         });
+        await settleCreditsForGeneration(
+            billedTeamId,
+            reservedCredits,
+            calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+            billingDescription,
+            {
+                model: resolved.model,
+                provider: resolved.provider,
+                taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+                tokensIn,
+                tokensOut
+            }
+        );
+        settledCredits = true;
         return { text, model: resolved.model };
     } catch (error: any) {
+        if (billedTeamId && reservedCredits > 0 && !settledCredits) {
+            try {
+                await refundCredits(
+                    billedTeamId,
+                    reservedCredits,
+                    `${billingDescription} (failure rollback)`,
+                    {
+                        provider: resolved.provider,
+                        model: resolved.model,
+                        taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+                        billingStage: "rollback",
+                        reservedCredits,
+                    }
+                );
+            } catch (refundError: any) {
+                logger.error("[AI Usage] Failed to rollback reserved credits", {
+                    error: refundError?.message || String(refundError),
+                    teamId: billedTeamId,
+                    reservedCredits,
+                });
+            }
+        }
+
         await logUsage({
             teamId: options.teamId,
             provider: resolved.provider,
@@ -246,16 +425,35 @@ export class AIService {
             disableGuardrails?: boolean;
             groundingContext?: string;
             taskType?: string;
+            surface?: AISurface;
         }
     ) {
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.STRATEGIC });
+        const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
+        const safePrompt = enforceAIPromptPolicy(prompt, {
+            surface,
+            label: "AI prompt"
+        });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.STRATEGIC,
+            taskTypeLabel: taskContext?.taskType || surface,
+            creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`
+        });
 
         const expectsJson = !!taskContext?.expectsJson;
         const disableGuardrails = !!taskContext?.disableGuardrails;
         const groundingContext = taskContext?.groundingContext || "";
 
-        if (expectsJson || disableGuardrails) {
-            return result.text;
+        if (expectsJson) {
+            const normalized = String(result.text || "").trim();
+            if (normalized.length > 60000) {
+                throw new Error("AI JSON response exceeds allowed size.");
+            }
+            return normalized;
+        }
+
+        if (disableGuardrails) {
+            return clampGeneratedText(result.text, OUTPUT_MAX_CHARS[surface]);
         }
 
         const guardrailOptions: GuardrailOptions = {
@@ -263,29 +461,145 @@ export class AIService {
             strictGrounding: true
         };
         const guarded = enforceAgentOutputGuardrails(result.text, guardrailOptions);
-        return guarded.text;
+        return clampGeneratedText(guarded.text, OUTPUT_MAX_CHARS[surface]);
     }
 
     async getEmbeddings(text: string, teamId?: string): Promise<number[]> {
+        const safeText = enforceAIPromptPolicy(text, {
+            surface: "HELPER",
+            label: "Embedding input",
+            maxChars: EMBEDDING_MAX_INPUT_CHARS,
+        });
         const providers = await loadTeamProviders(teamId);
+        const resolved = resolveProvider(providers, TaskComplexity.ROUTINE);
+        const billedTeamId = isChargeableTeamId(teamId) ? teamId : undefined;
+        const start = Date.now();
+        const estimatedCredits = estimateCreditsForPrompt(safeText, TaskComplexity.ROUTINE);
+        const billingDescription = "AI embedding generation";
+        const reservedCredits = await reserveCreditsForGeneration(
+            billedTeamId,
+            estimatedCredits,
+            billingDescription,
+            {
+                provider: resolved.provider,
+                model: resolved.model,
+                taskType: "EMBEDDING",
+                estimatedCredits,
+            }
+        );
+        let settledCredits = false;
+
+        const estimatedTokensIn = Math.ceil(safeText.length / 4);
+
+        try {
         if (providers.openai?.apiKey) {
             const client = new OpenAI({ apiKey: providers.openai.apiKey });
             const model = providers.openai.model || "text-embedding-3-small";
             const response = await client.embeddings.create({
                 model,
-                input: text
+                input: safeText
             });
+            const tokensIn = response.usage?.prompt_tokens || estimatedTokensIn;
+            const tokensOut = 0;
+            await logUsage({
+                teamId,
+                provider: LLMProvider.OPENAI,
+                model,
+                taskType: "EMBEDDING",
+                tokensIn,
+                tokensOut,
+                latencyMs: Date.now() - start,
+                success: true,
+            });
+            await settleCreditsForGeneration(
+                billedTeamId,
+                reservedCredits,
+                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+                billingDescription,
+                {
+                    provider: LLMProvider.OPENAI,
+                    model,
+                    taskType: "EMBEDDING",
+                    tokensIn,
+                    tokensOut,
+                }
+            );
+            settledCredits = true;
             return response.data[0]?.embedding || [];
         }
         if (providers.gemini?.apiKey) {
             const genAI = new GoogleGenerativeAI(providers.gemini.apiKey);
+            const embeddingModelName = process.env["GEMINI_EMBEDDING_MODEL"] || "text-embedding-004";
             const model = genAI.getGenerativeModel({
-                model: process.env["GEMINI_EMBEDDING_MODEL"] || "text-embedding-004"
+                model: embeddingModelName
             });
-            const result = await (model as any).embedContent(text);
+            const result = await (model as any).embedContent(safeText);
+            const tokensIn = estimatedTokensIn;
+            const tokensOut = 0;
+            await logUsage({
+                teamId,
+                provider: LLMProvider.GEMINI,
+                model: embeddingModelName,
+                taskType: "EMBEDDING",
+                tokensIn,
+                tokensOut,
+                latencyMs: Date.now() - start,
+                success: true,
+            });
+            await settleCreditsForGeneration(
+                billedTeamId,
+                reservedCredits,
+                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+                billingDescription,
+                {
+                    provider: LLMProvider.GEMINI,
+                    model: embeddingModelName,
+                    taskType: "EMBEDDING",
+                    tokensIn,
+                    tokensOut,
+                }
+            );
+            settledCredits = true;
             return result?.embedding?.values || [];
         }
         throw new Error("No embedding provider configured. Set OpenAI or Gemini API key.");
+        } catch (error: any) {
+            if (billedTeamId && reservedCredits > 0 && !settledCredits) {
+                try {
+                    await refundCredits(
+                        billedTeamId,
+                        reservedCredits,
+                        `${billingDescription} (failure rollback)`,
+                        {
+                            provider: resolved.provider,
+                            model: resolved.model,
+                            taskType: "EMBEDDING",
+                            billingStage: "rollback",
+                            reservedCredits,
+                        }
+                    );
+                } catch (refundError: any) {
+                    logger.error("[AI Usage] Failed to rollback embedding credits", {
+                        error: refundError?.message || String(refundError),
+                        teamId: billedTeamId,
+                        reservedCredits,
+                    });
+                }
+            }
+
+            await logUsage({
+                teamId,
+                provider: resolved.provider,
+                model: resolved.model,
+                taskType: "EMBEDDING",
+                tokensIn: 0,
+                tokensOut: 0,
+                latencyMs: Date.now() - start,
+                success: false,
+                error: error.message,
+            });
+            throw error;
+        }
     }
 
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
@@ -300,46 +614,85 @@ ${JSON.stringify(icp)}
 
 Return JSON with keys: subject, body.
         `.trim();
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.STRATEGIC });
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "EMAIL", label: "Email generation prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.STRATEGIC,
+            taskTypeLabel: "EMAIL_DRAFT",
+            creditDescription: "AI email draft generation"
+        });
         const json = JSON.parse(extractJsonBlock(result.text));
-        return { subject: json.subject, body: json.body };
+        return {
+            subject: clampGeneratedText(String(json.subject || ""), 160),
+            body: clampGeneratedText(String(json.body || ""), 2200)
+        };
     }
 
     async analyzeProfile(profileText: string, teamId?: string): Promise<string> {
         const prompt = `Analyze the following prospect profile. Return bullet points with role, priorities, pains, and relevant hooks.\n\n${profileText}`;
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
-        return result.text;
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Profile analysis prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "PROFILE_ANALYSIS",
+            creditDescription: "AI profile analysis"
+        });
+        return clampGeneratedText(result.text, 3000);
     }
 
     async generateComment(postContent: string, profileContext: string, teamId?: string): Promise<string> {
         const prompt = `Write a short LinkedIn comment (max 2 sentences) that is insightful and non-salesy.\n\nPost:\n${postContent}\n\nProfile context:\n${profileContext}`;
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
-        return result.text;
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Comment generation prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "COMMENT_GENERATION",
+            creditDescription: "AI comment generation"
+        });
+        return clampGeneratedText(result.text, 500);
     }
 
     async generateConnectionMessage(profileContext: string, teamId?: string): Promise<string> {
         const prompt = `Write a concise LinkedIn connection message (max 300 characters) based on this profile context:\n${profileContext}`;
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
-        return result.text;
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Connection message prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "CONNECTION_MESSAGE",
+            creditDescription: "AI connection message generation"
+        });
+        return clampGeneratedText(result.text, 320);
     }
 
     async improveEmail(text: string, teamId?: string): Promise<string> {
         const prompt = `Improve the following email for clarity and response rate. Keep it concise and professional.\n\n${text}`;
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
-        return result.text;
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "EMAIL", label: "Email improvement prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "EMAIL_IMPROVEMENT",
+            creditDescription: "AI email improvement"
+        });
+        return clampGeneratedText(result.text, 2800);
     }
 
     async generateSmartReply(context: string, tone: string = "professional", memories: string[] = [], teamId?: string): Promise<string[]> {
         const prompt = `
 Generate 3 short reply suggestions in ${tone} tone.
-Context: ${context}
+        Context: ${context}
 Memories: ${memories.join("\n")}
 Return JSON array of strings.
         `.trim();
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "CHAT", label: "Smart reply prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "SMART_REPLY",
+            creditDescription: "AI smart reply generation"
+        });
         const json = JSON.parse(extractJsonBlock(result.text));
         if (!Array.isArray(json)) throw new Error("AI response was not a JSON array");
-        return json;
+        return json.slice(0, 3).map((item) => clampGeneratedText(String(item || ""), 500));
     }
 
     async researchCompany(companyName: string, teamId?: string) {
@@ -347,7 +700,13 @@ Return JSON array of strings.
 Research the company "${companyName}". Return JSON with fields: summary, industry, employees, revenue.
 If unknown, use null instead of guessing.
         `.trim();
-        const result = await callLLM(prompt, { teamId, complexity: TaskComplexity.ROUTINE });
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Company research prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "COMPANY_RESEARCH",
+            creditDescription: "AI company research"
+        });
         const json = JSON.parse(extractJsonBlock(result.text));
         return json;
     }

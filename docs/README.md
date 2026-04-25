@@ -19,6 +19,9 @@ This directory contains architecture notes, runbooks, implementation records, an
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Broad product and technical architecture |
 | [ARCHITECTURE_AI_AGENTIC_SYSTEM.md](./ARCHITECTURE_AI_AGENTIC_SYSTEM.md) | Agentic automation design notes |
 | [MCP_ARCHITECTURE_MEMO.md](./MCP_ARCHITECTURE_MEMO.md) | Model Context Protocol integration architecture |
+| [AI_GUARDRAILS_AND_TOKEN_USAGE.md](./AI_GUARDRAILS_AND_TOKEN_USAGE.md) | AI prompt guardrails, token logging, strict credit enforcement, and Mermaid/Merlin flow |
+| [HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md](./HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md) | Completed hardening status across RBAC, billing, queueing, landing safety, and UI fixes |
+| [SWARM_CRITIQUE_REPORT_2026-04-24.md](./SWARM_CRITIQUE_REPORT_2026-04-24.md) | Multi-agent review, adversarial critique, and prioritized remediation findings |
 | [NETJANA_SIGNAL_INTEGRATION_PLAN.md](./NETJANA_SIGNAL_INTEGRATION_PLAN.md) | Netjana buyer-signal ingest, enrichment, and outreach flow |
 | [landing-agent-architecture.md](./landing-agent-architecture.md) | Landing Agent funnel builder architecture |
 | [landing-agent-discovery.md](./landing-agent-discovery.md) | Landing Agent insertion points and discovery notes |
@@ -76,3 +79,4 @@ When architecture, service boundaries, or startup behavior changes:
 2. Update [../MASTER_SYSTEM_ARCHITECTURE.md](../MASTER_SYSTEM_ARCHITECTURE.md) for system-level changes.
 3. Update [architecture-diagram.md](./architecture-diagram.md) when runtime topology changes.
 4. Update [SIMPLE_REPO_TREE.md](./SIMPLE_REPO_TREE.md) when folders or deployable services change.
+5. Update hardening/audit docs when guardrails, RBAC, billing, or queue semantics change materially.

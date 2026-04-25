@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { LeadDetail } from "@/components/crm/LeadDetail";
 
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+
 export default function LeadPage({ params }: { params: { id: string } }) {
     const [lead, setLead] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${params.id}`)
+        fetch(`${API_BASE}/leads/${params.id}`)
             .then((res) => res.json())
             .then((data) => {
                 setLead(data);

@@ -19,22 +19,34 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { action, ...params } = body;
         const ctx = await getCurrentContext();
-        if (ctx.teamId) {
-            if (params.teamId && params.teamId !== ctx.teamId) {
-                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-            }
-            params.teamId = ctx.teamId;
+        if (!ctx.teamId) {
+            return NextResponse.json({ error: "Team context required for AI execution" }, { status: 401 });
         }
+        if (params.teamId && params.teamId !== ctx.teamId) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        params.teamId = ctx.teamId;
 
         let result;
 
         switch (action) {
             case "askAI":
-                const text = await aiService.askAI(params.prompt, params.teamId, params.taskContext);
+                if (typeof params.prompt !== "string" || !params.prompt.trim()) {
+                    return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+                }
+                const taskContext = {
+                    ...(params.taskContext || {}),
+                    surface: params.taskContext?.surface || "HELPER",
+                    taskType: params.taskContext?.taskType || "HELPER_CHAT"
+                };
+                const text = await aiService.askAI(params.prompt, params.teamId, taskContext);
                 result = { text };
                 break;
             
             case "getEmbeddings":
+                if (typeof params.text !== "string" || !params.text.trim()) {
+                    return NextResponse.json({ error: "Text is required" }, { status: 400 });
+                }
                 const embeddings = await aiService.getEmbeddings(params.text, params.teamId);
                 result = { embeddings };
                 break;
@@ -79,6 +91,13 @@ export async function POST(req: Request) {
         return Response.json(result);
     } catch (error: any) {
         console.error(`[Backend AI] Action Error:`, error.message);
-        return Response.json({ error: error.message }, { status: 500 });
+        const message = error?.message || "AI execution failed";
+        if (message.includes("Insufficient credits")) {
+            return Response.json({ error: message }, { status: 402 });
+        }
+        if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
+            return Response.json({ error: message }, { status: 400 });
+        }
+        return Response.json({ error: message }, { status: 500 });
     }
 }

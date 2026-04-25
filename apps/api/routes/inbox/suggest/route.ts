@@ -7,8 +7,8 @@ import { LearningService } from "@/modules/learning/learningService";
 
 export async function POST(req: NextRequest) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -24,16 +24,22 @@ export async function POST(req: NextRequest) {
         const context = messages.slice(-10).map(m => {
             return `${m.sender === 'them' ? 'Lead' : 'Me'}: ${m.content}`;
         }).join("\n");
+        if (context.length > 5000) {
+            return NextResponse.json({ error: "Conversation context exceeds allowed size" }, { status: 400 });
+        }
 
         if (!context) {
             return NextResponse.json({ suggestions: ["Hello! How can I help you today?", "Thanks for reaching out.", "Let's schedule a call."] });
         }
 
         // 2. Get Team ID for credits & memories
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId },
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, teamId },
             select: { teamId: true }
         });
+        if (!lead?.teamId) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
 
         // 3. Get Memories
         let memories: string[] = [];
@@ -42,12 +48,19 @@ export async function POST(req: NextRequest) {
         }
 
         // 4. Generate Suggestions
-        const suggestions = await aiService.generateSmartReply(context, tone || "professional", memories);
+        const normalizedTone = typeof tone === "string" ? tone.slice(0, 40) : "professional";
+        const suggestions = await aiService.generateSmartReply(context, normalizedTone || "professional", memories, teamId);
 
         return NextResponse.json({ suggestions });
 
     } catch (error: any) {
         console.error("Error generating suggestions:", error);
+        if (error?.message?.includes("Insufficient credits")) {
+            return NextResponse.json({ error: error.message }, { status: 402 });
+        }
+        if (error?.message?.includes("prompt") || error?.message?.includes("not allowed") || error?.message?.includes("exceeds")) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

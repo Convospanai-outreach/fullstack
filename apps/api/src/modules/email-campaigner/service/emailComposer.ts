@@ -11,6 +11,7 @@
 import { aiService } from "@/lib/aiService";
 import { LearningService } from "@/modules/learning/learningService";
 import { KnowledgeOrchestrator } from "@/modules/knowledge/services/knowledgeOrchestrator";
+import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrails";
 
 const knowledgeOrchestrator = new KnowledgeOrchestrator();
 
@@ -300,6 +301,42 @@ function parseJsonResponse<T>(raw: string): T {
     return JSON.parse(cleaned) as T;
 }
 
+function enforceInputBudget(label: string, input: unknown, maxChars: number) {
+    const serialized = JSON.stringify(input || {});
+    if (serialized.length > maxChars) {
+        throw new Error(`${label} input exceeds ${maxChars} characters.`);
+    }
+    enforceAIPromptPolicy(serialized, {
+        surface: "EMAIL",
+        maxChars,
+        label: `${label} input`
+    });
+}
+
+function normalizeNodeAOutput(output: NodeAOutput): NodeAOutput {
+    return {
+        subject: clampGeneratedText(String(output.subject || ""), 160),
+        body: clampGeneratedText(String(output.body || ""), 2200),
+        internal_notes: clampGeneratedText(String(output.internal_notes || ""), 1200)
+    };
+}
+
+function normalizeNodeBOutput(output: NodeBOutput): NodeBOutput {
+    return {
+        subject: clampGeneratedText(String(output.subject || ""), 160),
+        body: clampGeneratedText(String(output.body || ""), 1700),
+        reasoning: clampGeneratedText(String(output.reasoning || ""), 1000)
+    };
+}
+
+function normalizeNodeCOutput(output: NodeCOutput): NodeCOutput {
+    return {
+        subject: clampGeneratedText(String(output.subject || ""), 160),
+        body: clampGeneratedText(String(output.body || ""), 1200),
+        reasoning: clampGeneratedText(String(output.reasoning || ""), 1000)
+    };
+}
+
 // ─── Public compose functions ─────────────────────────────────────────────────
 
 export async function composeNodeA(
@@ -308,6 +345,7 @@ export async function composeNodeA(
     campaignId?: string,
     leadId?: string
 ): Promise<NodeAOutput> {
+    enforceInputBudget("Node A", input, 7000);
     // 1. SELF-LEARNING: Fetch past team successes/lessons
     input.memories = await LearningService.getMemories(teamId);
 
@@ -317,91 +355,93 @@ export async function composeNodeA(
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeAPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);
         if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
             console.log(`[Self-Correction] Pivot applied: ${critiqueResult.critique}`);
-            return {
+            return normalizeNodeAOutput({
                 ...draft,
                 subject: critiqueResult.correction.subject,
                 body: critiqueResult.correction.body,
                 internal_notes: `${draft.internal_notes}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            };
+            });
         }
     } catch (e) {
         // Fallback to original if critique parsing fails
     }
 
-    return draft;
+    return normalizeNodeAOutput(draft);
 }
 
 export async function composeNodeB(
     input: NodeBInput,
     teamId: string
 ): Promise<NodeBOutput> {
+    enforceInputBudget("Node B", input, 6500);
     // 1. SELF-LEARNING
     input.memories = await LearningService.getMemories(teamId);
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeBPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeBOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
 
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);
         if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
             console.log(`[Self-Correction: Node B] Resulted in pivot: ${critiqueResult.critique}`);
-            return {
+            return normalizeNodeBOutput({
                 ...draft,
                 subject: critiqueResult.correction.subject,
                 body: critiqueResult.correction.body,
                 reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            };
+            });
         }
     } catch (e) {}
 
-    return draft;
+    return normalizeNodeBOutput(draft);
 }
 
 export async function composeNodeC(
     input: NodeCInput,
     teamId: string
 ): Promise<NodeCOutput> {
+    enforceInputBudget("Node C", input, 6000);
     // 1. SELF-LEARNING
     input.memories = await LearningService.getMemories(teamId);
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeCPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", expectsJson: true, disableGuardrails: true });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
     const draft = parseJsonResponse<NodeCOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
     const critiquePrompt = buildCritiquePrompt(input, draft);
-    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", expectsJson: true, disableGuardrails: true });
+    const critiqueRaw = await aiService.askAI(critiquePrompt, teamId, { taskType: "CRITIQUE", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
 
     try {
         const critiqueResult = parseJsonResponse<any>(critiqueRaw);
         if (critiqueResult.status === "FAIL" && critiqueResult.correction) {
             console.log(`[Self-Correction: Node C] Resulted in pivot: ${critiqueResult.critique}`);
-            return {
+            return normalizeNodeCOutput({
                 ...draft,
                 subject: critiqueResult.correction.subject,
                 body: critiqueResult.correction.body,
                 reasoning: `${draft.reasoning}\n\n[SELF-CORRECTION]: ${critiqueResult.critique}`
-            };
+            });
         }
     } catch (e) {}
 
-    return draft;
+    return normalizeNodeCOutput(draft);
 }

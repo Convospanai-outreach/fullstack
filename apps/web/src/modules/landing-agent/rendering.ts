@@ -123,6 +123,127 @@ function escapeAttribute(value: unknown): string {
     return escapeHtml(value).replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 80);
 }
 
+const ALLOWED_HTML_TAGS = new Set([
+    "section",
+    "div",
+    "span",
+    "p",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "a",
+    "strong",
+    "em",
+    "b",
+    "i",
+    "small",
+    "br",
+]);
+
+const ALLOWED_HTML_ATTRS = new Set([
+    "id",
+    "class",
+    "href",
+    "title",
+    "target",
+    "rel",
+    "aria-label",
+    "data-section-type",
+]);
+
+function sanitizeClassTokens(value: string): string {
+    return value
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter(Boolean)
+        .map((token) => token.replace(/[^a-zA-Z0-9:_-]/g, ""))
+        .filter(Boolean)
+        .join(" ")
+        .slice(0, 240);
+}
+
+function isSafeLink(value: string): boolean {
+    if (!value) return false;
+    if (value.startsWith("#") || value.startsWith("/")) return true;
+    if (/^https?:\/\//i.test(value)) return true;
+    if (/^mailto:/i.test(value)) return true;
+    if (/^tel:/i.test(value)) return true;
+    return false;
+}
+
+function sanitizeLandingHtml(rawHtml: string): string {
+    const withoutDangerousBlocks = rawHtml
+        .replace(/<!--[\s\S]*?-->/g, "")
+        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+        .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+        .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
+        .replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, "")
+        .replace(/<embed[\s\S]*?>[\s\S]*?<\/embed>/gi, "");
+
+    return withoutDangerousBlocks.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (match, rawTagName: string, rawAttrs: string) => {
+        const tagName = rawTagName.toLowerCase();
+        const isClosing = match.startsWith("</");
+        if (!ALLOWED_HTML_TAGS.has(tagName)) {
+            return "";
+        }
+        if (isClosing) {
+            return `</${tagName}>`;
+        }
+
+        const attrs: string[] = [];
+        rawAttrs.replace(
+            /([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g,
+            (_full: string, rawAttrName: string, doubleQuoted?: string, singleQuoted?: string, unquoted?: string) => {
+                const attrName = rawAttrName.toLowerCase();
+                if (attrName.startsWith("on") || attrName === "style") {
+                    return "";
+                }
+                if (!ALLOWED_HTML_ATTRS.has(attrName)) {
+                    return "";
+                }
+
+                const rawValue = String(doubleQuoted ?? singleQuoted ?? unquoted ?? "").trim();
+                if (!rawValue) {
+                    return "";
+                }
+
+                if (attrName === "href" && !isSafeLink(rawValue)) {
+                    return "";
+                }
+                if (attrName === "class") {
+                    const safeClass = sanitizeClassTokens(rawValue);
+                    if (!safeClass) return "";
+                    attrs.push(`class="${safeClass}"`);
+                    return "";
+                }
+                if (attrName === "target") {
+                    const safeTarget = rawValue === "_blank" ? "_blank" : "_self";
+                    attrs.push(`target="${safeTarget}"`);
+                    if (safeTarget === "_blank") {
+                        attrs.push(`rel="noopener noreferrer"`);
+                    }
+                    return "";
+                }
+                if (attrName === "rel") {
+                    // rel is controlled when target="_blank"; ignore direct raw rel to avoid spoofing.
+                    return "";
+                }
+
+                attrs.push(`${attrName}="${escapeHtml(rawValue)}"`);
+                return "";
+            }
+        );
+
+        return `<${tagName}${attrs.length ? ` ${attrs.join(" ")}` : ""}>`;
+    });
+}
+
 function normalizeSections(value: unknown): LandingPageSectionLike[] {
     if (Array.isArray(value)) {
         return value.filter((section) => section && typeof section === "object") as LandingPageSectionLike[];
@@ -207,8 +328,9 @@ export function getLandingRenderPayload(renderedJson: unknown): LandingRenderPay
         const html = text(data["html"]);
         if (html) {
             const css = text(data["css"]);
+            const safeHtml = sanitizeLandingHtml(html);
             return {
-                html,
+                html: safeHtml || FALLBACK_HTML,
                 css: withLandingBaseCss(css),
             };
         }

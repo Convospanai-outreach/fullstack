@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { getSmtpConfigRedacted, saveSmtpConfig, deleteSmtpConfig } from "@/modules/email-campaigner/service/smtpConfigService";
 import { z } from "zod";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 const SmtpSchema = z.object({
     host: z.string().min(1),
@@ -16,8 +17,11 @@ const SmtpSchema = z.object({
 export async function GET(req: NextRequest) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
-        if (!ctx.teamId) {
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const config = await getSmtpConfigRedacted(ctx.teamId);
@@ -30,8 +34,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
-        if (!ctx.teamId) {
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const body = await req.json();
@@ -50,8 +57,11 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
-        if (!ctx.teamId) {
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         await deleteSmtpConfig(ctx.teamId);

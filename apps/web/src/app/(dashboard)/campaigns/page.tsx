@@ -10,6 +10,8 @@ import ExportButton from "@/modules/data-export/ui/ExportButton";
 import FilterBar from "@/components/shared/FilterBar";
 import type { Campaign } from "@/types/common";
 
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
     const [loading, setLoading] = useState(true);
@@ -22,7 +24,7 @@ export default function CampaignsPage() {
         if (search) params.set("search", search);
         if (statusFilter) params.set("status", statusFilter);
 
-        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/campaigns?${params.toString()}`)
+        fetch(`${API_BASE}/campaigns?${params.toString()}`)
             .then((res) => res.json())
             .then((data) => {
                 if (Array.isArray(data)) {

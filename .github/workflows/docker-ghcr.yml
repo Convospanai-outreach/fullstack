@@ -3,6 +3,13 @@ name: Register Docker Images to GHCR
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "apps/web/**"
+      - "apps/api/**"
+      - "apps/edge-fastapi/**"
+      - ".github/workflows/docker-ghcr.yml"
+      - "package-lock.json"
+      - "package.json"
   workflow_dispatch:
 
 env:
@@ -48,7 +55,7 @@ jobs:
       - name: Build Web image (no push)
         uses: docker/build-push-action@v7
         with:
-          context: ./apps/web
+          context: .
           file: ./apps/web/Dockerfile
           load: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web:test
@@ -69,7 +76,7 @@ jobs:
       - name: Build and push Web image
         uses: docker/build-push-action@v7
         with:
-          context: ./apps/web
+          context: .
           file: ./apps/web/Dockerfile
           push: true
           tags: ${{ steps.meta-web.outputs.tags }}

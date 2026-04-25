@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
-        if (!ctx.teamId) {
+        if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const body = await req.json();

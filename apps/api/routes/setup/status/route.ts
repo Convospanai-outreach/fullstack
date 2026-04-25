@@ -2,12 +2,51 @@ import { NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+
+const SENSITIVE_CONFIG_KEYS = [
+    "apikey",
+    "api_key",
+    "secret",
+    "token",
+    "password",
+    "privatekey",
+    "encryptionkey",
+];
+
+function redactSensitiveConfig(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map((entry) => redactSensitiveConfig(entry));
+    }
+    if (!value || typeof value !== "object") {
+        return value;
+    }
+
+    const input = value as Record<string, unknown>;
+    const output: Record<string, unknown> = {};
+    for (const [key, raw] of Object.entries(input)) {
+        const normalizedKey = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
+        const isSensitive = SENSITIVE_CONFIG_KEYS.some((sensitiveKey) =>
+            normalizedKey.includes(sensitiveKey)
+        );
+
+        if (isSensitive) {
+            output[key] = null;
+            continue;
+        }
+        output[key] = redactSensitiveConfig(raw);
+    }
+    return output;
+}
 
 export async function GET(req: Request) {
     try {
         const ctx = await getCurrentContextFromRequest(req);
         if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.MEMBER)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const user = await prisma.user.findUnique({
@@ -31,11 +70,12 @@ export async function GET(req: Request) {
 
         const member = user.memberships[0];
         const branding = (team.branding as any) || {};
-        const aiConfig = (team.aiConfig as any) || {};
-        if (aiConfig.smtpConfig) {
-            delete aiConfig.smtpConfig.password;
-            delete aiConfig.smtpConfig.encryptedPassword;
+        const rawAiConfig = (team.aiConfig as any) || {};
+        if (rawAiConfig.smtpConfig) {
+            delete rawAiConfig.smtpConfig.password;
+            delete rawAiConfig.smtpConfig.encryptedPassword;
         }
+        const aiConfig = redactSensitiveConfig(rawAiConfig) as Record<string, unknown>;
 
         // Step 1: Account
         const hasAccount = !!user;
@@ -68,14 +108,14 @@ export async function GET(req: Request) {
             : false;
 
         // Step 5: Email Voice
-        const hasToneSet = !!aiConfig.tone;
-        const hasVoiceDescription = !!aiConfig.voice;
-        const hasEmailSignature = !!aiConfig.emailSignature;
-        const hasGreetingStyle = !!aiConfig.greetingStyle;
+        const hasToneSet = !!rawAiConfig.tone;
+        const hasVoiceDescription = !!rawAiConfig.voice;
+        const hasEmailSignature = !!rawAiConfig.emailSignature;
+        const hasGreetingStyle = !!rawAiConfig.greetingStyle;
         const emailVoiceComplete = hasToneSet && hasEmailSignature;
 
         // Step 6: AI
-        const hasGeminiKey = !!process.env['GEMINI_API_KEY'] || !!aiConfig.apiKey;
+        const hasGeminiKey = !!process.env['GEMINI_API_KEY'] || !!rawAiConfig.apiKey || !!rawAiConfig.providers?.gemini?.apiKey;
         const canGenerateMessage = hasGeminiKey;
 
         // Step 7: Leads
@@ -90,7 +130,7 @@ export async function GET(req: Request) {
         const hasAssignedLeads = team.campaigns.some(c => c.leadList.length > 0);
 
         // Step 9: Attachments
-        const hasCalendarLink = !!aiConfig.calendarLink;
+        const hasCalendarLink = !!rawAiConfig.calendarLink;
         const uploadedDocCount = team.knowledgeBases.length;
         const hasBrochure = team.knowledgeBases.some(kb => (kb as any).url?.toLowerCase().includes("brochure") || (kb as any).fileName?.toLowerCase().includes("brochure"));
         const hasCaseStudy = team.knowledgeBases.some(kb => (kb as any).url?.toLowerCase().includes("case") || (kb as any).fileName?.toLowerCase().includes("case"));

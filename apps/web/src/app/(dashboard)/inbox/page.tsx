@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import type { Thread } from "@/types/common";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
 
 export default function InboxPage() {
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export default function InboxPage() {
         const status = folderStatusMap[activeFolder];
         if (status) params.append("status", status);
         if (debouncedSearch) params.append("search", debouncedSearch);
-        return `${process.env['NEXT_PUBLIC_API_URL']}/inbox?${params.toString()}`;
+        return `${API_BASE}/inbox?${params.toString()}`;
     }, [activeFolder, debouncedSearch]);
 
     const { data: threads, isLoading } = useSWR<Thread[]>(queryUrl, fetcher, {
@@ -285,7 +286,7 @@ function FolderItem({ label, icon: Icon, active, count, onClick }: any) {
 
 function ConversationView({ threadId }: { threadId: string }) {
     // Messages are fetched from the inbox API for the active thread.
-    const { data, isLoading } = useSWR(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`, fetcher);
+    const { data, isLoading } = useSWR(`${API_BASE}/inbox/${threadId}`, fetcher);
     const [reply, setReply] = useState("");
     const [sending, setSending] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -306,21 +307,23 @@ function ConversationView({ threadId }: { threadId: string }) {
         const promise = new Promise<void>((resolve, reject) => {
             undoTimerRef.current = setTimeout(async () => {
                 try {
-                    const response = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}/send`, {
+                    const leadId = data?.lead?.id || threadId;
+                    const platform = data?.lead?.platform || "LINKEDIN";
+                    const response = await fetch(`${API_BASE}/inbox/reply`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ content: reply })
+                        body: JSON.stringify({ leadId, content: reply, platform })
                     });
 
                     if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.message || 'Failed to send message');
+                        const error = await response.json().catch(() => null);
+                        throw new Error(error?.message || error?.error || 'Failed to send message');
                     }
 
                     // Success handling
                     setReply("");
                     setSending(false);
-                    mutate(`${process.env['NEXT_PUBLIC_API_URL']}/inbox/${threadId}`);
+                    mutate(`${API_BASE}/inbox/${threadId}`);
                     resolve();
                 } catch (error: any) {
                     setSending(false);
