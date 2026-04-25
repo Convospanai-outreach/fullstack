@@ -7,6 +7,8 @@ on:
       - "apps/web/**"
       - "apps/api/**"
       - "apps/edge-fastapi/**"
+      - "packages/**"
+      - ".dockerignore"
       - ".github/workflows/docker-ghcr.yml"
       - "package-lock.json"
       - "package.json"
