@@ -5,8 +5,8 @@
     "scripts": {
         "dev": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs --watch server.ts",
         "start": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs server.ts",
-        "build": "tsc -p tsconfig.json",
-        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "build": "tsc -p tsconfig.strict.json",
+        "typecheck": "tsc -p tsconfig.strict.json --noEmit",
         "readiness:audit": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- node -r dotenv/config ../../node_modules/tsx/dist/cli.mjs src/scripts/validate-production-readiness.ts"
     },
     "dependencies": {
@@ -60,6 +60,7 @@
         "@types/node": "^20.0.0",
         "@types/nodemailer": "^7.0.11",
         "@types/papaparse": "^5.5.2",
+        "@types/pg": "^8.15.6",
         "pino-pretty": "^13.0.0",
         "typescript": "5.9.3"
     }
