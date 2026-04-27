@@ -1,0 +1,85 @@
+name: Phi-3 Runtime Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/edge-fastapi/**'
+      - 'models/**'
+      - 'scripts/**phi*'
+      - 'scripts/**llama*'
+      - '.github/workflows/*phi*'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/edge-fastapi/**'
+      - 'models/**'
+      - 'scripts/**phi*'
+      - 'scripts/**llama*'
+      - '.github/workflows/*phi*'
+
+concurrency:
+  group: phi3-runtime-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-verify:
+    name: Phi-3 Runtime Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+      
+      - name: Verify required files exist
+        run: |
+          echo "Checking required files..."
+          test -f docker/Dockerfile.verify || (echo "FATAL: Dockerfile.verify not found" && exit 1)
+          test -f evaluation/eval_suite_prod.py || (echo "FATAL: eval_suite_prod.py not found" && exit 1)
+          test -f evaluation/eval_cases_prod.json || (echo "FATAL: eval_cases_prod.json not found" && exit 1)
+          test -f scripts/verify_ci.sh || (echo "FATAL: verify_ci.sh not found" && exit 1)
+          echo "✓ All required files present"
+      
+      - name: Run CI Runtime Verification
+        id: verify
+        run: |
+          chmod +x scripts/verify_ci.sh
+          ./scripts/verify_ci.sh
+        env:
+          DOCKER_BUILDKIT: 1
+      
+      - name: Report verification status
+        if: always()
+        run: |
+          if [ "${{ steps.verify.outcome }}" != "success" ]; then
+            echo "::error::Phi-3 runtime verification failed. See artifacts for logs."
+            exit 1
+          else
+            echo "✓ Phi-3 runtime verification passed."
+          fi
+      
+      - name: Collect verification logs
+        if: always()
+        run: |
+          mkdir -p verification-artifacts
+          cp -f verification-*.log verification-artifacts/ 2>/dev/null || true
+          cp -f evaluation/*.log verification-artifacts/ 2>/dev/null || true
+          echo "Verification completed at $(date -u)" > verification-artifacts/metadata.txt
+          echo "Commit: ${{ github.sha }}" >> verification-artifacts/metadata.txt
+          echo "Ref: ${{ github.ref }}" >> verification-artifacts/metadata.txt
+      
+      - name: Upload verification artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: phi3-verification-logs-${{ github.run_id }}
+          path: verification-artifacts/
+          retention-days: 90
+          if-no-files-found: warn
