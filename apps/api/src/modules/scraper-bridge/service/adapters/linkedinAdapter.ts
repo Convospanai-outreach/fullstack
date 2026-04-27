@@ -1,8 +1,13 @@
-/**
- * LinkedIn Adapter Shell
- * Migrated to backend.
- */
+import { runLinkedInAction } from "@/linkedin/puppeteerRunner";
+import { logger } from "@/lib/logger";
+
 export class LinkedInAdapter {
-    constructor() { console.warn("LinkedInAdapter is only available on the backend."); }
-    async scrape() { throw new Error("Scraping execution only allowed on backend."); }
+    async scrape(url: string) {
+        logger.info(`[LinkedInAdapter] Scraping profile: ${url}`);
+        const result = await runLinkedInAction({ action: "scrape", profileUrl: url });
+        if (!result.ok) {
+            throw new Error(result.error || "Scraping failed");
+        }
+        return result.data;
+    }
 }

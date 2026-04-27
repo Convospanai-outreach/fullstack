@@ -19,6 +19,7 @@ This directory contains architecture notes, runbooks, implementation records, an
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Broad product and technical architecture |
 | [ARCHITECTURE_AI_AGENTIC_SYSTEM.md](./ARCHITECTURE_AI_AGENTIC_SYSTEM.md) | Agentic automation design notes |
 | [MCP_ARCHITECTURE_MEMO.md](./MCP_ARCHITECTURE_MEMO.md) | Model Context Protocol integration architecture |
+| [MCP_APP_LEARNINGS.md](./MCP_APP_LEARNINGS.md) | MCP tools for reading and sharing app learnings |
 | [AI_GUARDRAILS_AND_TOKEN_USAGE.md](./AI_GUARDRAILS_AND_TOKEN_USAGE.md) | AI prompt guardrails, token logging, strict credit enforcement, and Mermaid/Merlin flow |
 | [HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md](./HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md) | Completed hardening status across RBAC, billing, queueing, landing safety, and UI fixes |
 | [SWARM_CRITIQUE_REPORT_2026-04-24.md](./SWARM_CRITIQUE_REPORT_2026-04-24.md) | Multi-agent review, adversarial critique, and prioritized remediation findings |

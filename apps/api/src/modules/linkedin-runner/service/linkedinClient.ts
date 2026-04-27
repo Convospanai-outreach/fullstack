@@ -1,12 +1,13 @@
-/**
- * LinkedIn Runner Service Shell
- * Logic migrated to backend.
- */
+import { runLinkedInAction } from "@/linkedin/puppeteerRunner";
+import { logger } from "@/lib/logger";
+
 export class LinkedInRunner {
     constructor() {
-        console.warn("LinkedInRunner is only available on the backend.");
+        logger.info("LinkedInRunner initialized on backend.");
     }
-    async run() {
-        throw new Error("LinkedIn runner execution is only available on the backend.");
+
+    async run(params: { profileUrl: string; action: string }) {
+        logger.info(`[LinkedInRunner] Running action: ${params.action}`);
+        return await runLinkedInAction(params);
     }
 }

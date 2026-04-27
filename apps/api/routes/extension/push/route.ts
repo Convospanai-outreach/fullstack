@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../_lib/auth";
+import { PIIScrubber } from "@/lib/governance/PIIScrubber";
+import { scrapeLinkedInProfile } from "@/linkedin/scraper-bridge";
+
+function sanitizeText(value: unknown, maxLength: number): string | undefined {
+    if (typeof value !== "string") return undefined;
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    return trimmed.slice(0, maxLength);
+}
+
+function sanitizeProfileText(value: unknown, maxLength: number, scrubPii: boolean = false): string | undefined {
+    const base = sanitizeText(value, maxLength);
+    if (!base) return undefined;
+    return scrubPii ? PIIScrubber.scrub(base) : base;
+}
 
 export async function POST(req: NextRequest) {
     try {
@@ -8,48 +23,52 @@ export async function POST(req: NextRequest) {
         if (!auth.ok) {
             return NextResponse.json({ ok: false, error: auth.error, code: auth.code }, { status: auth.status });
         }
-        const primaryTeamId = auth.teamIds[0];
-        if (!primaryTeamId) {
+        if (auth.teamIds.length === 0) {
             return NextResponse.json({ ok: false, error: "User has no team membership", code: "NO_TEAM_MEMBERSHIP" }, { status: 403 });
         }
 
         const body = await req.json();
-        const { name, headline, about, location, url } = body;
+        const requestedTeamId = sanitizeText(body.teamId, 120);
+        const resolvedTeamId = requestedTeamId
+            ? (auth.teamIds.includes(requestedTeamId) ? requestedTeamId : null)
+            : (auth.teamIds.length === 1 ? auth.teamIds[0] : null);
 
-        console.log("[Extension Push] Received profile:", name);
+        if (!resolvedTeamId) {
+            return NextResponse.json(
+                { ok: false, error: "teamId is required for multi-team users", code: "TEAM_ID_REQUIRED" },
+                { status: 400 }
+            );
+        }
 
-        // In a real app, verify token -> userId
-        // For now, we'll just log and maybe create a Lead if it doesn't exist
+        const name = sanitizeProfileText(body.name, 200);
+        const headline = sanitizeProfileText(body.headline, 200);
+        const about = sanitizeProfileText(body.about, 4000, true);
+        const location = sanitizeProfileText(body.location, 140);
+        if (!body.url) {
+            return NextResponse.json(
+                { ok: false, error: "Valid LinkedIn profile url is required", code: "INVALID_LINKEDIN_URL" },
+                { status: 400 }
+            );
+        }
 
-        // Upsert Lead based on LinkedIn URL
-        if (url) {
-            const existingLead = await prisma.lead.findFirst({
-                where: { linkedIn: url, teamId: primaryTeamId }
+        try {
+            await scrapeLinkedInProfile({
+                url: body.url,
+                name,
+                headline,
+                about,
+                location,
+                teamId: resolvedTeamId,
+                userId: auth.user.id
             });
-
-            if (existingLead) {
-                await prisma.lead.update({
-                    where: { id: existingLead.id },
-                    data: {
-                        fullName: name,
-                        jobTitle: headline,
-                        location: location,
-                        enrichedData: { ...(existingLead.enrichedData as object), about, source: "extension_scrape" }
-                    }
-                });
-            } else {
-                await prisma.lead.create({
-                    data: {
-                        fullName: name || "Unknown",
-                        linkedIn: url,
-                        jobTitle: headline,
-                        location: location,
-                        status: "NEW",
-                        teamId: primaryTeamId,
-                        enrichedData: { about, source: "extension_scrape" }
-                    }
-                });
+        } catch (e: any) {
+            if (e.message === "Invalid LinkedIn URL") {
+                return NextResponse.json(
+                    { ok: false, error: "Valid LinkedIn profile url is required", code: "INVALID_LINKEDIN_URL" },
+                    { status: 400 }
+                );
             }
+            throw e;
         }
 
         return NextResponse.json({ ok: true, message: "Profile saved" });

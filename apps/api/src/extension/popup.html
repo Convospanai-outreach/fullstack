@@ -155,10 +155,26 @@
     </div>
 
     <div id="actionsSection" style="display: none;">
-        <div style="text-align: center; margin-bottom: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
             <span style="background: rgba(74, 222, 128, 0.1); color: #4ade80; padding: 4px 12px; border-radius: 20px; font-size: 11px; border: 1px solid rgba(74, 222, 128, 0.2);">
-                ● Connected
+                ● Active
             </span>
+            <button id="logoutBtn" style="width: auto; margin: 0; padding: 4px 8px; font-size: 10px; background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2);">Logout</button>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Active Team</label>
+            <select id="teamSelect" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; padding: 8px; font-size: 12px;"></select>
+        </div>
+
+        <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 6px;">
+                <span>Daily Outreach Cap</span>
+                <span id="capRatio">0 / 0</span>
+            </div>
+            <div style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;">
+                <div id="capBar" style="height: 100%; width: 0%; background: linear-gradient(to right, #3b82f6, #8b5cf6); transition: width 0.3s;"></div>
+            </div>
         </div>
         
         <button id="scrapeProfile" class="btn-secondary">

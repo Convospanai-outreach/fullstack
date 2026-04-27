@@ -2,7 +2,6 @@ import { mcpManager } from "@/lib/mcp/McpManager";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
 import { aiService } from "@/lib/aiService";
 import { TOON } from "@/lib/ai/TOON";
-import { netjanaServer } from "@/modules/integration/mcp/netjana-server";
 
 export interface Signal {
     id: string;
@@ -65,7 +64,7 @@ export class BullsEyeRAG {
         console.log(`[BullsEye:Agentic] Syncing market intelligence for "${query}"...`);
 
         // 1. Fetch Ingress Signal from Netjana MCP
-        const intentData = await netjanaServer.callTool("fetch_customer_intent", { query });
+        const intentData = await mcpManager.callTool("fetch_customer_intent", { query });
 
         // 2. Process each signal
         for (const signal of intentData.signals) {

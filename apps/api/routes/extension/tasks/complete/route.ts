@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../../_lib/auth";
+import { resolveExtensionTeamScope } from "../../_lib/teamScope";
 
 export async function POST(req: NextRequest) {
     try {
@@ -8,8 +9,14 @@ export async function POST(req: NextRequest) {
         if (!auth.ok) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
-
         const body = await req.json();
+        const requestedTeamId = typeof body?.teamId === "string" ? body.teamId : req.headers.get("x-team-id");
+        const teamScope = resolveExtensionTeamScope(auth.teamIds, requestedTeamId);
+        if (!teamScope.ok) {
+            return NextResponse.json({ error: teamScope.error, code: teamScope.code }, { status: teamScope.status });
+        }
+        const teamId = teamScope.teamId;
+
         const { taskId, success, result, error } = body;
 
         if (!taskId) {
@@ -17,7 +24,7 @@ export async function POST(req: NextRequest) {
         }
 
         const job = await prisma.job.findFirst({
-            where: { id: taskId, teamId: { in: auth.teamIds } },
+            where: { id: taskId, teamId },
             select: {
                 id: true,
                 status: true,
@@ -41,7 +48,7 @@ export async function POST(req: NextRequest) {
         const updateResult = await prisma.job.updateMany({
             where: {
                 id: job.id,
-                teamId: { in: auth.teamIds },
+                teamId,
                 status: "processing"
             },
             data: {
@@ -54,7 +61,7 @@ export async function POST(req: NextRequest) {
 
         if (updateResult.count === 0) {
             const latest = await prisma.job.findFirst({
-                where: { id: job.id, teamId: { in: auth.teamIds } },
+                where: { id: job.id, teamId },
                 select: { id: true, status: true }
             });
             if (!latest) {

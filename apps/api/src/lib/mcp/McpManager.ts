@@ -45,7 +45,26 @@ class McpManager {
 
         await this.registerInternalComputerUse();
         await this.registerInternalNetjana();
+        await this.registerInternalAppLearnings();
+        await this.registerInternalLinkedIn();
         await this.refreshToolRegistry();
+    }
+
+    private async registerInternalLinkedIn() {
+        try {
+            const { linkedinServer } = await import("@/modules/integration/mcp/linkedin-server");
+
+            const client: McpClientLike = {
+                listTools: async () => this.normalizeTools(linkedinServer.getTools()),
+                callTool: async (name: string, args: any) => linkedinServer.callTool(name, args),
+                connect: async () => {}
+            };
+
+            this.clients.set("linkedin", client);
+            console.log("[McpManager] LinkedIn Server registered.");
+        } catch (error) {
+            console.error("[McpManager] LinkedIn Server unavailable:", error);
+        }
     }
 
     private async registerInternalComputerUse() {
@@ -75,6 +94,24 @@ class McpManager {
             console.log("[McpManager] Netjana Server registered.");
         } catch (error) {
             console.error("[McpManager] Netjana Server unavailable:", error);
+        }
+    }
+
+    private async registerInternalAppLearnings() {
+        try {
+            const { AppLearningsMCPServer } = await import("@/modules/integration/mcp/app-learnings-server");
+            const appLearnings = new AppLearningsMCPServer();
+
+            const client: McpClientLike = {
+                listTools: async () => this.normalizeTools(appLearnings.getTools()),
+                callTool: async (name: string, args: any) => appLearnings.callTool(name, args),
+                connect: async () => {}
+            };
+
+            this.clients.set("app-learnings", client);
+            console.log("[McpManager] App Learnings Server registered.");
+        } catch (error) {
+            console.error("[McpManager] App Learnings Server unavailable:", error);
         }
     }
 
@@ -175,7 +212,8 @@ class McpManager {
             throw new Error(`Tool ${name} not found in MCP registry.`);
         }
 
-        this.validateToolArgs(name, args);
+        const normalizedArgs = this.enforceTeamScopedArgs(name, args, context);
+        this.validateToolArgs(name, normalizedArgs as Record<string, any>);
 
         if (registration.riskLevel === "high" && !context.approved) {
             const bypassEnabled = process.env["ALLOW_UNSAFE_MCP_BYPASS"] === "true" && context.bypassGovernance === true;
@@ -190,7 +228,36 @@ class McpManager {
             throw new Error(`Tool ${name} is registered to unavailable server '${registration.clientId}'.`);
         }
 
-        return client.callTool(name, args);
+        return client.callTool(name, normalizedArgs);
+    }
+
+    private enforceTeamScopedArgs(name: string, args: any, context: McpExecutionContext): Record<string, any> {
+        const input = args && typeof args === "object" && !Array.isArray(args) ? { ...args } : {};
+        const teamScopedTools = new Set([
+            "read_app_learning_summary",
+            "read_app_learning_memories",
+            "search_app_learning_events",
+            "share_app_learning_memory",
+            "read_app_learning_toon"
+        ]);
+
+        if (!teamScopedTools.has(name)) {
+            return input;
+        }
+
+        const contextTeamId = typeof context.teamId === "string" ? context.teamId.trim() : "";
+        const argTeamId = typeof input["team_id"] === "string" ? String(input["team_id"]).trim() : "";
+
+        if (!contextTeamId) {
+            throw new Error(`Tool ${name} requires context.teamId for tenant-safe execution.`);
+        }
+
+        if (argTeamId && argTeamId !== contextTeamId) {
+            throw new Error(`Tool ${name} team_id must match context.teamId.`);
+        }
+
+        input["team_id"] = contextTeamId;
+        return input;
     }
 
     private isValueCompatibleWithType(value: unknown, expectedType: string): boolean {

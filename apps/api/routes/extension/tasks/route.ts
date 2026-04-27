@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../_lib/auth";
+import { resolveExtensionTeamScope } from "../_lib/teamScope";
 
 export async function GET(req: NextRequest) {
     try {
@@ -12,6 +13,31 @@ export async function GET(req: NextRequest) {
         if (auth.teamIds.length === 0) {
             return NextResponse.json({ tasks: [] });
         }
+        const teamScope = resolveExtensionTeamScope(auth.teamIds, req.headers.get("x-team-id"));
+        if (!teamScope.ok) {
+            return NextResponse.json({ error: teamScope.error, code: teamScope.code }, { status: teamScope.status });
+        }
+        const teamId = teamScope.teamId;
+
+        if (process.env.LINKEDIN_AUTOMATION_ENABLED !== "true") {
+            return NextResponse.json({ tasks: [] });
+        }
+
+        const dailyCap = Number(process.env.LINKEDIN_DAILY_MAX_INVITES) || 15;
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const actionsToday = await prisma.job.count({
+            where: {
+                teamId,
+                type: { in: ["VIEW_PROFILE", "LIKE_POST", "CONNECT"] },
+                completedAt: { gte: startOfDay }
+            }
+        });
+
+        if (actionsToday >= dailyCap) {
+            return NextResponse.json({ tasks: [], capReached: true, remainingToday: 0 });
+        }
 
         const claimedAt = new Date();
 
@@ -19,7 +45,7 @@ export async function GET(req: NextRequest) {
         // This avoids returning tasks that another poller already grabbed.
         const candidates = await prisma.job.findMany({
             where: {
-                teamId: { in: auth.teamIds },
+                teamId,
                 status: { in: ["pending", "queued"] },
                 type: { in: ["VIEW_PROFILE", "LIKE_POST", "CONNECT"] }
             },
@@ -36,7 +62,7 @@ export async function GET(req: NextRequest) {
             const claim = await prisma.job.updateMany({
                 where: {
                     id: candidate.id,
-                    teamId: { in: auth.teamIds },
+                    teamId,
                     status: { in: ["pending", "queued"] }
                 },
                 data: {

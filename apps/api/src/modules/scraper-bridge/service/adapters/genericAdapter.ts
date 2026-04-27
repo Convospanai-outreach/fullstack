@@ -1,8 +1,16 @@
-/**
- * Generic Adapter Shell
- * Migrated to backend.
- */
+import { browserManager } from "@/modules/scraper-bridge/service/browserManager";
+import { logger } from "@/lib/logger";
+
 export class GenericAdapter {
-    constructor() { console.warn("GenericAdapter is only available on the backend."); }
-    async scrape() { throw new Error("Scraping execution only allowed on backend."); }
+    async scrape(url: string) {
+        logger.info(`[GenericAdapter] Scraping URL: ${url}`);
+        const page = await browserManager.getPage();
+        try {
+            await page.goto(url, { waitUntil: 'networkidle2' });
+            const content = await page.content();
+            return { content };
+        } finally {
+            await page.close();
+        }
+    }
 }

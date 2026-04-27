@@ -2,16 +2,25 @@
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { createHash } from "crypto";
+import { LRUCache } from "lru-cache";
 
 export class SemanticCache {
-    private readonly SIMILARITY_THRESHOLD = 0.95; // High threshold for safe cache hits
+    private readonly SIMILARITY_THRESHOLD = 0.95;
+    private lru = new LRUCache<string, string>({ max: 500 });
 
     /**
      * Retrieves a cached response if a semantically similar prompt exists.
      */
     async get(prompt: string): Promise<string | null> {
         try {
-            // 1. Check exact hash match first (Fastest)
+            // 0. Check in-memory LRU (Fastest)
+            const memHit = this.lru.get(prompt);
+            if (memHit) {
+                console.log("[SemanticCache] in-memory hit");
+                return memHit;
+            }
+
+            // 1. Check exact hash match first (DB)
             const promptHash = this.hashPrompt(prompt);
             const exactMatch = await prisma.lLMCache.findUnique({
                 where: { promptHash }
@@ -19,6 +28,7 @@ export class SemanticCache {
 
             if (exactMatch) {
                 console.log("[SemanticCache] exact hit");
+                this.lru.set(prompt, exactMatch.response);
                 return exactMatch.response;
             }
 
@@ -41,6 +51,7 @@ export class SemanticCache {
 
             if (results.length > 0) {
                 console.log(`[SemanticCache] semantic hit (score: ${results[0].score.toFixed(4)})`);
+                this.lru.set(prompt, results[0].response);
                 return results[0].response;
             }
 
@@ -56,6 +67,7 @@ export class SemanticCache {
      */
     async set(prompt: string, response: string, tokensIn: number, tokensOut: number) {
         try {
+            this.lru.set(prompt, response);
             const promptHash = this.hashPrompt(prompt);
             const embedding = await aiService.getEmbeddings(prompt);
             const embeddingSql = `[${embedding.join(",")}]`;

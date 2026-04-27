@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../../extension/_lib/auth";
+import { PIIScrubber } from "@/lib/governance/PIIScrubber";
+import { resolveExtensionTeamScope } from "../../extension/_lib/teamScope";
 
 type TaskContext = Record<string, any>;
+const ALLOWED_RESULT_STATUS = new Set(["SUCCESS", "FAILED", "BLOCKED", "SKIPPED"]);
+const MAX_DETAIL_STRING_LENGTH = 500;
 
 function asTaskContext(value: unknown): TaskContext {
     return value && typeof value === "object" && !Array.isArray(value) ? { ...(value as TaskContext) } : {};
@@ -14,6 +18,38 @@ function isTerminalStatus(status: string) {
 
 function toComparableValue(value: unknown) {
     return JSON.stringify(value ?? null);
+}
+
+function sanitizeDetailString(value: string): string {
+    return PIIScrubber.scrub(value.trim()).slice(0, MAX_DETAIL_STRING_LENGTH);
+}
+
+function sanitizeResultDetails(value: unknown): unknown {
+    if (typeof value === "string") {
+        return sanitizeDetailString(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map(sanitizeResultDetails);
+    }
+    if (value && typeof value === "object") {
+        const output: Record<string, unknown> = {};
+        for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+            output[key] = sanitizeResultDetails(nested);
+        }
+        return output;
+    }
+    return value;
+}
+
+function extractStopReason(status: string, details: unknown): string | null {
+    if (status !== "BLOCKED") return null;
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+        const raw = (details as Record<string, unknown>).stopReason;
+        if (typeof raw === "string" && raw.trim().length > 0) {
+            return sanitizeDetailString(raw);
+        }
+    }
+    return "BLOCKED";
 }
 
 function isIdempotentResult(task: { status: string; context: unknown }, status: string, details: unknown, durationMs: number, claimToken?: string) {
@@ -61,6 +97,14 @@ export async function POST(req: NextRequest) {
                 { status: 403 }
             );
         }
+        const teamScope = resolveExtensionTeamScope(auth.teamIds, req.headers.get("x-team-id"));
+        if (!teamScope.ok) {
+            return NextResponse.json(
+                { ok: false, error: teamScope.error, code: teamScope.code },
+                { status: teamScope.status }
+            );
+        }
+        const teamId = teamScope.teamId;
 
         const body = await req.json();
         const { commandId, status, details, duration, claimToken } = body;
@@ -68,15 +112,35 @@ export async function POST(req: NextRequest) {
         if (!commandId || !status) {
             return NextResponse.json({ error: "Missing fields" }, { status: 400 });
         }
+        if (typeof claimToken !== "string" || claimToken.trim().length === 0) {
+            return NextResponse.json(
+                { error: "claimToken is required", code: "CLAIM_TOKEN_REQUIRED" },
+                { status: 400 }
+            );
+        }
+
+        const normalizedStatus = String(status).trim().toUpperCase();
+        if (!ALLOWED_RESULT_STATUS.has(normalizedStatus)) {
+            return NextResponse.json(
+                { error: "Invalid status", code: "INVALID_STATUS" },
+                { status: 400 }
+            );
+        }
+        const parsedDuration = Number(duration);
+        const normalizedDuration = Number.isFinite(parsedDuration) && parsedDuration >= 0
+            ? Math.floor(parsedDuration)
+            : 0;
+        const sanitizedDetails = sanitizeResultDetails(details);
+        const stopReason = extractStopReason(normalizedStatus, details);
 
         // 1. Update Task Status
-        const taskStatus = status === "SUCCESS" ? "COMPLETED" : "FAILED";
+        const taskStatus = normalizedStatus === "SUCCESS" || normalizedStatus === "SKIPPED" ? "COMPLETED" : "FAILED";
 
         // Fetch current context to merge
         const currentTask = await prisma.agentTask.findFirst({
             where: {
                 id: commandId,
-                teamId: { in: auth.teamIds }
+                teamId
             }
         });
         if (!currentTask) {
@@ -84,10 +148,16 @@ export async function POST(req: NextRequest) {
         }
 
         const currentContext = asTaskContext(currentTask.context);
-        const normalizedDuration = Number(duration || 0);
         const currentClaimToken = currentContext.extensionClaim?.token;
 
-        if (claimToken && currentClaimToken && claimToken !== currentClaimToken) {
+        if (!currentClaimToken) {
+            return NextResponse.json(
+                { error: "Task has no active claim token", code: "TASK_NOT_CLAIMED" },
+                { status: 409 }
+            );
+        }
+
+        if (claimToken !== currentClaimToken) {
             return NextResponse.json(
                 { error: "Claim token does not match the active browser claim", code: "CLAIM_MISMATCH" },
                 { status: 409 }
@@ -95,28 +165,33 @@ export async function POST(req: NextRequest) {
         }
 
         if (currentTask.status !== "EXECUTING") {
-            return buildResultConflictResponse(currentTask, status, details, normalizedDuration, claimToken);
+            return buildResultConflictResponse(currentTask, normalizedStatus, sanitizedDetails, normalizedDuration, claimToken);
         }
 
         const executedAt = new Date().toISOString();
         const newContext = {
             ...currentContext,
-            executionStatus: status,
-            executionResult: details,
+            executionStatus: normalizedStatus,
+            executionResult: sanitizedDetails,
+            executionDisposition: {
+                outcome: normalizedStatus,
+                taskStatus,
+                stopReason
+            },
             durationMs: normalizedDuration,
             executedAt,
             extensionClaim: currentContext.extensionClaim
                 ? {
                     ...currentContext.extensionClaim,
                     completedAt: executedAt,
-                    completedStatus: status
+                    completedStatus: normalizedStatus
                 }
                 : undefined
         };
 
         const updateWhere: Record<string, any> = {
             id: currentTask.id,
-            teamId: { in: auth.teamIds },
+            teamId,
             status: "EXECUTING"
         };
 
@@ -136,7 +211,7 @@ export async function POST(req: NextRequest) {
             const latestTask = await prisma.agentTask.findFirst({
                 where: {
                     id: commandId,
-                    teamId: { in: auth.teamIds }
+                    teamId
                 }
             });
 
@@ -144,7 +219,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: "Task not found" }, { status: 404 });
             }
 
-            return buildResultConflictResponse(latestTask, status, details, normalizedDuration, claimToken);
+            return buildResultConflictResponse(latestTask, normalizedStatus, sanitizedDetails, normalizedDuration, claimToken);
         }
 
         // 2. Add specific Log entry
@@ -152,9 +227,16 @@ export async function POST(req: NextRequest) {
             data: {
                 taskId: commandId,
                 type: "ACTION",
-                content: `Browser Execution ${status}: ${details}`,
+                content: `Browser Execution ${normalizedStatus}`,
                 stepNumber: 0,
-                metadata: { duration: normalizedDuration, source: "EXTENSION", claimToken: claimToken ?? currentClaimToken ?? null }
+                metadata: {
+                    duration: normalizedDuration,
+                    source: "EXTENSION",
+                    claimToken: claimToken,
+                    outcome: normalizedStatus,
+                    ...(stopReason ? { stopReason } : {}),
+                    resultPreview: sanitizedDetails
+                }
             }
         });
 

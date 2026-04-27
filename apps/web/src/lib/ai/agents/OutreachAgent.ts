@@ -1,5 +1,4 @@
-import { slackServer } from "@/modules/integration/mcp/slack-server";
-import { gmailServer } from "@/modules/integration/mcp/gmail-server";
+import { mcpManager } from "@/lib/mcp/McpManager";
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -47,9 +46,9 @@ export class OutreachAgent {
 
         try {
             if (task.type === 'SLACK') {
-                await slackServer.callTool('post_message', { channel_id: task.target, text: task.content });
+                await mcpManager.callTool('post_message', { channel_id: task.target, text: task.content });
             } else {
-                await gmailServer.callTool('send_email', { to: task.target, subject: "Outreach", body: task.content });
+                await mcpManager.callTool('send_email', { to: task.target, subject: "Outreach", body: task.content });
             }
             this.taskQueue.delete(taskId);
             return true;

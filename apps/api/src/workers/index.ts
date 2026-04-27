@@ -1,4 +1,4 @@
-import { WorkerManager } from "../../workers/worker-manager";
+import { WorkerManager } from "./worker-manager";
 
 const manager = new WorkerManager();
 

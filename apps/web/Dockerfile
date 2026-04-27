@@ -6,6 +6,7 @@ WORKDIR /repo
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/package.json
 COPY apps/api/package.json ./apps/api/package.json
+COPY packages ./packages
 # apps/web postinstall executes scripts/repair-package-exports.mjs during npm ci.
 COPY apps/web/scripts ./apps/web/scripts
 RUN npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps

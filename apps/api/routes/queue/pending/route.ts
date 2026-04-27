@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../../extension/_lib/auth";
+import { resolveExtensionTeamScope } from "../../extension/_lib/teamScope";
 
 const CLAIM_TTL_MS = 5 * 60 * 1000;
+const ALLOWED_ACTION_TYPES = new Set(["VISIT", "CONNECT", "MESSAGE", "INMAIL"]);
+const LINKEDIN_HOSTS = new Set(["linkedin.com", "www.linkedin.com"]);
 
 type TaskContext = Record<string, any>;
 
@@ -29,6 +32,38 @@ function hasActiveClaim(context: TaskContext, nowMs: number) {
     return nowMs - claimedAtMs < CLAIM_TTL_MS;
 }
 
+function normalizeActionType(actionType: unknown): string | null {
+    if (typeof actionType !== "string") return null;
+    const normalized = actionType.trim().toUpperCase();
+    if (!ALLOWED_ACTION_TYPES.has(normalized)) return null;
+    return normalized;
+}
+
+function normalizeLinkedInUrl(value: unknown): string | null {
+    if (typeof value !== "string" || value.trim().length === 0) return null;
+    try {
+        const parsed = new URL(value.trim());
+        const hostname = parsed.hostname.toLowerCase();
+        if (!LINKEDIN_HOSTS.has(hostname)) return null;
+        if (parsed.protocol !== "https:") return null;
+        return parsed.toString();
+    } catch {
+        return null;
+    }
+}
+
+function buildInvalidTaskContext(context: TaskContext, reason: string): TaskContext {
+    return {
+        ...context,
+        extensionValidation: {
+            status: "REJECTED",
+            reason,
+            rejectedAt: new Date().toISOString(),
+            source: "EXTENSION_QUEUE_PENDING"
+        }
+    };
+}
+
 // GET /api/queue/pending
 // Called by Chrome Extension to fetch next Approved task
 export async function GET(req: NextRequest) {
@@ -44,17 +79,25 @@ export async function GET(req: NextRequest) {
                 { status: 403 }
             );
         }
+        const teamScope = resolveExtensionTeamScope(auth.teamIds, req.headers.get("x-team-id"));
+        if (!teamScope.ok) {
+            return NextResponse.json(
+                { ok: false, error: teamScope.error, code: teamScope.code },
+                { status: teamScope.status }
+            );
+        }
+        const teamId = teamScope.teamId;
 
         // Fetch oldest EXECUTING task meant for BROWSER
         // We use context filters which might be slow on large tables without index,
         // but for <100 operational tasks it's fine.
         const tasks = await prisma.agentTask.findMany({
             where: {
-                teamId: { in: auth.teamIds },
+                teamId,
                 status: "EXECUTING",
             },
             orderBy: { createdAt: "asc" },
-            take: 10 // Fetch a batch to filter in memory if needed
+            take: 100 // Fetch enough candidates so malformed rows don't starve valid work
         });
 
         // Filter for tasks demanding browser execution
@@ -62,8 +105,45 @@ export async function GET(req: NextRequest) {
 
         for (const task of tasks) {
             const context = asTaskContext(task.context);
+            const actionType = normalizeActionType(context.actionType);
+            const targetUrl = normalizeLinkedInUrl(context.targetUrl);
 
             if (context.mode !== "BROWSER") {
+                continue;
+            }
+            if (!actionType || !targetUrl) {
+                const reason = !actionType ? "INVALID_ACTION_TYPE" : "INVALID_TARGET_URL";
+                const invalidContext = buildInvalidTaskContext(context, reason);
+                const failWhere: Record<string, any> = {
+                    id: task.id,
+                    teamId,
+                    status: "EXECUTING"
+                };
+                if (task.updatedAt) {
+                    failWhere.updatedAt = task.updatedAt;
+                }
+                const failed = await prisma.agentTask.updateMany({
+                    where: failWhere,
+                    data: {
+                        status: "FAILED",
+                        context: invalidContext
+                    }
+                });
+                if (failed.count === 1) {
+                    await prisma.agentLog.create({
+                        data: {
+                            taskId: task.id,
+                            type: "ERROR",
+                            content: `Browser task rejected: ${reason}`,
+                            stepNumber: 0,
+                            metadata: {
+                                source: "EXTENSION",
+                                reason,
+                                rejectedAt: invalidContext.extensionValidation?.rejectedAt || new Date().toISOString()
+                            }
+                        }
+                    });
+                }
                 continue;
             }
 
@@ -87,7 +167,7 @@ export async function GET(req: NextRequest) {
 
             const claimWhere: Record<string, any> = {
                 id: task.id,
-                teamId: { in: auth.teamIds },
+                teamId,
                 status: "EXECUTING"
             };
 
@@ -121,12 +201,14 @@ export async function GET(req: NextRequest) {
 
             const command = {
                 id: task.id,
-                type: context.actionType || "CONNECT",
-                target: context.targetUrl || "https://linkedin.com",
+                type: actionType,
+                target: targetUrl,
                 details: context.draft || "No content",
                 claimToken,
                 metadata: {
                     ...context,
+                    actionType,
+                    targetUrl,
                     claimToken,
                     claimedAt
                 }

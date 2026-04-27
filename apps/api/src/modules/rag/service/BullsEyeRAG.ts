@@ -36,17 +36,42 @@ export class BullsEyeRAG {
         `;
 
         try {
-            const result = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS", groundingContext: context, expectsJson: true, disableGuardrails: true });
-            if (result.trim().toUpperCase() === "NULL") return null;
+            const result = await aiService.askAI(prompt, undefined, { 
+                taskType: "ANALYSIS", 
+                groundingContext: context, 
+                expectsJson: true, 
+                disableGuardrails: true 
+            });
 
-            const parsed = JSON.parse(result.trim().replace(/```json/g, "").replace(/```/g, ""));
+            // If the AI explicitly says NULL or returns an empty string, don't crash, but don't return a junk signal
+            const cleanedResult = result.trim().replace(/```json/g, "").replace(/```/g, "");
+            if (!cleanedResult || cleanedResult.toUpperCase() === "NULL") {
+                console.log("[BullsEye] AI returned NULL or empty for signal detection.");
+                return null;
+            }
 
-            if (parsed.confidence > 0.7) {
+            let parsed;
+            try {
+                parsed = JSON.parse(cleanedResult);
+            } catch (parseErr) {
+                console.warn("[BullsEye] Failed to parse AI response as JSON:", cleanedResult);
+                // Fallback: try to see if the type is mentioned in text
+                if (cleanedResult.includes("INTENT_DETECTED")) parsed = { type: "INTENT_DETECTED", confidence: 0.5 };
+                else if (cleanedResult.includes("MEETING_BOOKED")) parsed = { type: "MEETING_BOOKED", confidence: 0.5 };
+                else return null;
+            }
+
+            if (parsed.confidence > 0.6) {
                 return {
                     id: crypto.randomUUID(),
                     type: parsed.type,
                     confidence: parsed.confidence,
-                    metadata: { conversationId, source: 'semantic_rag', ...parsed }
+                    metadata: { 
+                        conversationId, 
+                        source: 'semantic_rag', 
+                        detectedAt: new Date().toISOString(),
+                        ...parsed 
+                    }
                 };
             }
         } catch (e) {

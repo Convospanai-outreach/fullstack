@@ -61,7 +61,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.verify.outcome }}" != "success" ]; then
-            echo "::warning::Phi-3 verification failed (non-blocking). See artifacts for logs."
+            echo "::error::Phi-3 verification failed. See artifacts for logs."
           else
             echo "✓ Phi-3 verification passed."
           fi
@@ -89,13 +89,14 @@ jobs:
         if: steps.verify.outcome != 'success'
         run: |
           echo "============================================"
-          echo "VERIFICATION FAILED (NON-BLOCKING)"
+          echo "VERIFICATION FAILED (BLOCKING)"
           echo "============================================"
           echo ""
           echo "Reason: Potential llama.cpp build or model download issue."
-          echo "Note: This is non-blocking as each user now binds their own edge node."
+          echo "Note: This gate is blocking for production readiness."
           echo ""
           echo "Review the verification-logs artifact for details."
+          exit 1
 
   # This job is a merge gate - it only runs if verification passes
   merge-gate:
@@ -107,8 +108,8 @@ jobs:
       - name: Check verification result
         run: |
           if [ "${{ needs.verify-micro-llm.result }}" != "success" ]; then
-            echo "::warning::Verification failed or skipped. Proceeding as app is decoupled from global AI nodes."
-            # exit 0  # Allowed - no longer a hard blocker
+            echo "::error::Verification failed or was skipped. Blocking merge."
+            exit 1
           else
             echo "✓ Verification passed. Global AI safety verified."
           fi

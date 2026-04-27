@@ -38,7 +38,17 @@ export class ExperimentService {
         });
 
         if (!experiment || experiment.status !== 'RUNNING' || experiment.variants.length === 0) {
-            return null;
+            console.warn(`[ExperimentService] Experiment ${experimentId} not active/found. Falling back to CONTROL variant.`);
+            return {
+                id: 'baseline-control',
+                experimentId: experimentId,
+                name: 'CONTROL',
+                config: { fallback: true },
+                sampleCount: 0,
+                successCount: 0,
+                createdAt: new Date(),
+                updatedAt: new Date()
+            } as ExperimentVariant;
         }
 
         // Deterministic Assignment: Hash(experimentId + entityId) % numVariants

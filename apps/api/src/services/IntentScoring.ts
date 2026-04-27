@@ -1,18 +1,13 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { aiService } from "@/lib/aiService";
 
 export class IntentScoringService {
-
-    /**
-     * Processes the ingested webhook data.
-     * Calculates Karmic Friction Score and triggers notifications.
-     */
     async processWebhookData(data: any): Promise<void> {
         logger.info("[IntentScoring] Processing webhook data:", data);
 
         const sentiment = data.sentiment || {};
-        // Pass text content if available (e.g. data.content, data.message, or data.snippet)
-        const textContent = data.content || data.snippet || "No content provided";
+        const textContent = data.content || data.snippet || data.text || "No content provided";
         const frictionScore = await this.calculateKarmicFriction(sentiment, textContent);
 
         logger.info(`[IntentScoring] Calculated Friction Score: ${frictionScore}`);
@@ -20,23 +15,17 @@ export class IntentScoringService {
         if (frictionScore > 80) {
             await this.triggerMasterAdminNotification(data, frictionScore);
         }
-
-        // You might want to update the Lead or other entities here based on data
     }
 
-    /**
-     * Calculates 'Karmic Friction Score' (0-100) using Edge Node Intelligence.
-     * Falls back to heuristic if offline.
-     */
     private async calculateKarmicFriction(sentiment: any, textContent: string = ""): Promise<number> {
-        // 1. Try Edge Node (Deep Learning)
+        // 1. Primary: Edge Node (Deep Learning)
         try {
-            // Assuming EDGE_NODE_URI is available in environment or config
             const edgeUri = process.env['EDGE_NODE_URI'] || "http://localhost:8000";
             const res = await fetch(`${edgeUri}/v1/score_intent`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ text: textContent || "Neutral context" })
+                body: JSON.stringify({ text: textContent || "Neutral context" }),
+                signal: AbortSignal.timeout(3000)
             });
 
             if (res.ok) {
@@ -44,15 +33,28 @@ export class IntentScoringService {
                 return json.score;
             }
         } catch (e) {
-            logger.warn("[IntentScoring] Edge Node offline, falling back to heuristic.");
+            logger.warn("[IntentScoring] Edge Node offline or timeout.");
         }
 
-        // 2. Heuristic Fallback
-        if (typeof sentiment.score === 'number') {
-            if (sentiment.score < 0) {
-                return Math.abs(sentiment.score) * 100;
+        // 2. Secondary: Cloud AI Fallback (LLM)
+        try {
+            const prompt = `Analyze the following text and provide a "Karmic Friction Score" from 0 to 100, where 100 is extremely high friction (anger, rejection, spam) and 0 is high intent/harmony.
+            TEXT: "${textContent}"
+            Return ONLY the number.`;
+            
+            const aiScoreStr = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS" });
+            const aiScore = parseFloat(aiScoreStr.trim());
+            if (!isNaN(aiScore)) {
+                console.log(`[IntentScoring] AI Fallback Score: ${aiScore}`);
+                return aiScore;
             }
-            return 0;
+        } catch (aiErr) {
+            logger.error("[IntentScoring] AI Fallback failed:", aiErr);
+        }
+
+        // 3. Tertiary: Simple Heuristic Fallback
+        if (typeof sentiment.score === 'number') {
+            if (sentiment.score < 0) return Math.abs(sentiment.score) * 100;
         }
 
         return 0;

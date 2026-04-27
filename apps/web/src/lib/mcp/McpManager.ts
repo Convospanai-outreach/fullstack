@@ -1,77 +1,47 @@
-
-import { McpClient } from "./McpClient";
 import { McpServerConfig, McpTool } from "./types";
 
 class McpManager {
-    private clients: Map<string, McpClient> = new Map();
-
     async initialize() {
-        console.log("[McpManager] Initializing...");
-        // Auto-register Internal Servers
-        try {
-            const { ComputerUseServer } = await import("./servers/ComputerUseServer");
-            const server = new ComputerUseServer();
-            const client = await server.initialize();
-            this.clients.set("computer-use", client);
-            console.log("[McpManager] Computer Use Server registered.");
-
-            // Register Netjana Server
-            const { NetjanaMCPServer } = await import("@/modules/integration/mcp/netjana-server");
-            const netjana = new NetjanaMCPServer();
-            // We can wrap it in a client or just register its tools
-            // For internal consistency, we keep internal servers in a separate set or wrap them
-            this.clients.set("netjana", {
-                listTools: async () => netjana.getTools(),
-                callTool: async (name: string, args: any) => netjana.callTool(name, args),
-                connect: async () => {},
-                config: { id: "netjana", name: "Netjana", transport: "sse" } // Virtual config
-            } as any);
-            console.log("[McpManager] Netjana Server registered.");
-        } catch (e) {
-            console.error("[McpManager] Failed to register Internal Servers:", e);
-        }
+        console.log("[McpManager-WebProxy] Initialized");
     }
 
-    async registerServer(config: McpServerConfig): Promise<McpClient> {
-        if (this.clients.has(config.id)) {
-            return this.clients.get(config.id)!;
-        }
-
-        const client = new McpClient(config);
-        await client.connect();
-        this.clients.set(config.id, client);
-        return client;
+    async registerServer(config: McpServerConfig) {
+        console.warn("[McpManager-WebProxy] Skipping server registration in web layer. MCP execution is backend-only.");
+        return null;
     }
 
-    getClient(serverId: string): McpClient | undefined {
-        return this.clients.get(serverId);
+    getClient(serverId: string) {
+        return null;
     }
 
     async getAllTools(): Promise<McpTool[]> {
-        const allTools: McpTool[] = [];
-        for (const client of this.clients.values()) {
-            try {
-                const tools = await client.listTools();
-                allTools.push(...tools);
-            } catch (e) {
-                console.error(`Failed to list tools for client`, e);
+        // Query the API for tools
+        try {
+            const origin = typeof window !== "undefined" ? window.location.origin : process.env['API_BASE_URL'] || "http://localhost:3000";
+            const res = await fetch(`${origin}/api/proxy/mcp/tools`);
+            if (res.ok) {
+                const data = await res.json();
+                return data.tools || [];
             }
+        } catch (e) {
+            console.error("Failed to fetch tools from API", e);
         }
-        return allTools;
+        return [];
     }
 
     async callTool(name: string, args: any): Promise<any> {
-        for (const client of this.clients.values()) {
-            try {
-                const tools = await client.listTools();
-                if (tools.find(t => t.name === name)) {
-                    return await client.callTool(name, args);
-                }
-            } catch (e) {
-                console.error(`Failed to check tools for client:`, e);
-            }
+        const origin = typeof window !== "undefined" ? window.location.origin : process.env['API_BASE_URL'] || "http://localhost:3000";
+        const res = await fetch(`${origin}/api/proxy/mcp/call`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, args })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || "Tool call failed");
         }
-        throw new Error(`Tool ${name} not found in any registered MCP server.`);
+        return data.result;
     }
 }
 

@@ -1,15 +1,29 @@
 /**
- * Computer Use Server Shell
- * Migrated to backend.
+ * Computer Use Server
+ * Implements MCP tools for simulated computer interaction.
  */
 export class ComputerUseServer {
-    constructor() { console.warn("ComputerUseServer is only available on the backend."); }
-    
-    async initialize(): Promise<any> {
-        throw new Error("ComputerUseServer initialization is only available on the backend.");
-    }
-
-    async start(): Promise<void> { 
-        throw new Error("MCP server start only allowed on backend."); 
+    async initialize() {
+        console.log("[ComputerUseServer] Initialized on backend.");
+        return {
+            listTools: async () => [
+                {
+                    name: "mouse_click",
+                    description: "Click at coordinates",
+                    inputSchema: {
+                        type: "object",
+                        properties: {
+                            x: { type: "number" },
+                            y: { type: "number" }
+                        },
+                        required: ["x", "y"]
+                    }
+                }
+            ],
+            callTool: async (name: string, args: any) => {
+                console.log(`[ComputerUseServer] Calling tool ${name} with args:`, args);
+                return { success: true, action: name };
+            }
+        };
     }
 }
