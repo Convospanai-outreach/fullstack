@@ -13,6 +13,13 @@
 !packages/toon-core
 !packages/toon-core/**
 
+!evaluation
+!evaluation/**
+!scripts
+!scripts/**
+!docker
+!docker/**
+
 apps/web/.next
 apps/web/node_modules
 apps/web/tmp
