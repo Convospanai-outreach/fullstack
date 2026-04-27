@@ -1,4 +1,4 @@
-import { Experiment, ExperimentVariant, TrainingDataset } from '@prisma/client';
+import type { Experiment, ExperimentVariant, TrainingDataset } from '@/types/governance';
 import { ApprovalGate } from '@/components/governance/ApprovalGate';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
