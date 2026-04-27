@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { UserRole } from "@prisma/client";
+
 
 export async function checkAdmin() {
     const session = await getServerSession(authOptions);
@@ -18,8 +18,8 @@ export async function checkAdmin() {
 
     const legacyAdmin = user.role === "admin" || user.role === "superadmin";
     const enterpriseAdmin =
-        user.enterpriseRole === UserRole.SYSTEM_ADMIN ||
-        user.enterpriseRole === UserRole.ORG_ADMIN;
+        user.enterpriseRole === "SYSTEM_ADMIN" ||
+        user.enterpriseRole === "ORG_ADMIN";
 
     return legacyAdmin || enterpriseAdmin;
 }

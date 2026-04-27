@@ -1,0 +1,33 @@
+name: Vercel Parity Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  vercel-parity-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+
+      - name: Install dependencies from repo root
+        run: npm ci
+
+      - name: Block unsafe Prisma imports in web
+        run: node scripts/check-web-prisma-imports.mjs
+
+      - name: Run exact Vercel web build
+        working-directory: apps/web
+        run: npm run build
