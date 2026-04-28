@@ -1,6 +1,6 @@
 
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/db";
 
 export interface SearchFilters {
     query?: string;

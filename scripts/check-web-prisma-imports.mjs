@@ -4,14 +4,15 @@ import path from "node:path";
 const projectRoot = process.cwd();
 const scanRoot = path.join(projectRoot, "apps/web/src");
 
+// Server-only library/service files that legitimately use @prisma/client directly
 const allowed = new Set([
   path.normalize("apps/web/src/lib/db.ts"),
   path.normalize("apps/web/src/lib/db-replica.ts"),
   path.normalize("apps/web/src/lib/dbFactory.ts"),
-  path.normalize("apps/web/src/lib/ai/HybridRouter.ts"),
-  path.normalize("apps/web/src/lib/identity/IdentityService.ts"),
-  path.normalize("apps/web/src/lib/permissions.ts"),
   path.normalize("apps/web/src/lib/queue.ts"),
+  path.normalize("apps/web/src/lib/permissions.ts"),
+  path.normalize("apps/web/src/lib/identity/IdentityService.ts"),
+  path.normalize("apps/web/src/lib/ai/HybridRouter.ts"),
   path.normalize("apps/web/src/modules/caller/CallerService.ts"),
   path.normalize("apps/web/src/modules/compliance/ResidencyLockService.ts"),
   path.normalize("apps/web/src/modules/contract/contractResolver.ts"),
@@ -65,10 +66,10 @@ walk(scanRoot);
 
 if (bad.length) {
   console.error("");
-  console.error("Forbidden @prisma/client imports found in apps/web:");
+  console.error("Forbidden @prisma/client imports found in apps/web (UI/component files):");
   for (const file of bad) console.error(`- ${file}`);
   console.error("");
-  console.error("Do not import Prisma model/enum exports into web components/shared frontend files.");
+  console.error("Do not import Prisma model/enum exports into React components or shared frontend files.");
   console.error("Use frontend-safe DTO/type files instead, for example apps/web/src/types/*.ts.");
   console.error("");
   process.exit(1);

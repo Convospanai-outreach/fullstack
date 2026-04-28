@@ -1,4 +1,3 @@
-
 import { PrismaClient } from "@prisma/client";
 
 // Global cache for Prisma clients to prevent connection exhaustion in serverless/dev

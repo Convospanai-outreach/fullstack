@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 
 export enum SystemEventType {
