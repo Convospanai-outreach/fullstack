@@ -8,18 +8,20 @@
 
 ## Executive Summary
 
-This document outlines the comprehensive architecture for transforming ConvoSpan into a world-class AI Agentic Automation Platform. The system will orchestrate intelligent, multi-channel outreach campaigns with autonomous decision-making, human-in-the-loop oversight, and enterprise-grade deliverability.
+This document outlines the architecture for ConvoSpan as an AI-assisted growth workflow platform. The system prepares campaign work, supports signal review, routes high-risk actions through human approval, and tracks lead and meeting workflow progress without promising guaranteed outcomes or fully autonomous delivery.
 
 ---
 
 ## 1. System Overview
 
 ### 1.1 Core Philosophy
-**Agentic AI** = Autonomous agents that can:
+**Agentic AI** = bounded assistants that can:
 - **Perceive** (analyze prospect behavior, replies, engagement)
-- **Decide** (choose optimal actions based on SOP and ML models)
-- **Act** (execute campaigns, send messages, schedule meetings)
+- **Prepare** (draft recommended actions based on SOP and ML models)
+- **Support** (prepare campaigns, messages, and meeting handoff context for review)
 - **Learn** (improve from feedback loops and outcomes)
+
+Human approval remains the default boundary for high-risk sends, follow-ups, and customer-facing claims. User-facing copy should use "supports", "prepares", "tracks", and "review-ready" unless an automatic workflow is implemented and verified.
 
 ### 1.2 Architecture Layers
 

@@ -57,17 +57,17 @@ interface SetupStatus {
 }
 
 const STEPS = [
-  { id: 1, title: "Account & Team", icon: Users, description: "Verify your identity and team role." },
-  { id: 2, title: "Brand Identity", icon: Palette, description: "Set your company name, logo, and colors." },
-  { id: 3, title: "Email Integration", icon: Mail, description: "Connect your sending infrastructure." },
-  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep email-first launch as default and optionally add LinkedIn via Chrome extension." },
-  { id: 5, title: "Email Voice", icon: MessageSquare, description: "Define your tone and writing style." },
-  { id: 6, title: "AI Configuration", icon: Bot, description: "Set up the provider key used for drafting and assistance." },
-  { id: 7, title: "Lead Import", icon: Users, description: "Bring in your target audience." },
-  { id: 8, title: "Campaign Setup", icon: Target, description: "Create your first sequence." },
-  { id: 9, title: "Attachments", icon: FileText, description: "Upload brochures and case studies." },
-  { id: 10, title: "Billing & Credits", icon: CreditCard, description: "Ensure sufficient balance." },
-  { id: 11, title: "Advanced", icon: LayoutGrid, description: "Optional integrations that are not required for beta launch." },
+  { id: 1, title: "Plan ICP", icon: Users, description: "Review the service-company segment, geography, and buyer profile for the first campaign run." },
+  { id: 2, title: "Workspace Identity", icon: Palette, description: "Confirm the workspace identity used across campaigns and meeting assets." },
+  { id: 3, title: "Sending Readiness", icon: Mail, description: "Connect the email infrastructure for managed campaigns." },
+  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep email-first launch as default and optionally add LinkedIn context." },
+  { id: 5, title: "Messaging Voice", icon: MessageSquare, description: "Define the tone used in vertical playbooks and follow-ups." },
+  { id: 6, title: "Autopilot Drafting", icon: Bot, description: "Set the provider key used for campaign and follow-up drafting." },
+  { id: 7, title: "Qualified Lead Inputs", icon: Users, description: "Bring in the target audience for the pilot or autopilot motion." },
+  { id: 8, title: "Approve Campaign Plan", icon: Target, description: "Review the first buyer-signal-to-meeting workflow before launch." },
+  { id: 9, title: "Meeting Assets", icon: FileText, description: "Add calendar links, proof assets, and conversion context." },
+  { id: 10, title: "Execution Readiness", icon: CreditCard, description: "Confirm the commercial path for managed execution." },
+  { id: 11, title: "Advanced Handoffs", icon: LayoutGrid, description: "Optional integrations that support follow-up and meeting workflows." },
 ];
 
 export default function SetupWizardPage() {
@@ -250,9 +250,9 @@ export default function SetupWizardPage() {
 
   const getContinueLabel = (stepId: number) => {
     if (stepId === 3) return "Save email settings";
-    if (stepId === 7) return "Continue to campaign setup";
-    if (stepId === 8) return "Continue to attachments";
-    if (stepId === 10) return "Continue to advanced options";
+    if (stepId === 7) return "Continue to campaign launch";
+    if (stepId === 8) return "Continue to meeting assets";
+    if (stepId === 10) return "Continue to advanced handoffs";
     if (stepId === 11) return "Go to dashboard and launch";
     return "Save and continue";
   };
@@ -264,10 +264,10 @@ export default function SetupWizardPage() {
       <div className="w-full md:w-80 bg-slate-900 border-r border-white/10 p-6 flex flex-col shrink-0">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-emerald-400 bg-clip-text text-transparent">
-            ConvoSpan Setup
+            Launch Growth Autopilot
           </h1>
           <p className="text-slate-400 text-sm mt-2">
-            Complete the core email launch steps first. Optional channels and advanced integrations can wait until after beta.
+            Start ICP-first: define the target segment, set the meeting outcome, approve the campaign plan, then track qualified leads and meetings.
           </p>
           <div className="mt-4 bg-slate-800 rounded-full h-2 overflow-hidden">
             <div 
@@ -341,10 +341,12 @@ export default function SetupWizardPage() {
                 <ChecklistItem label="Your account is ready" passed={status.hasAccount} />
                 <ChecklistItem label="Your email is verified" passed={status.isEmailVerified} />
                 <ChecklistItem label="Your workspace is ready" passed={status.hasTeamRole !== null} />
+                <ChecklistItem label="Review ICP notes: what you sell, who to reach, industry, and geography" passed={false} />
+                <ChecklistItem label="Review outcome notes: qualified lead definition and target meetings" passed={false} />
                 
                 <div className="mt-8">
-                  <p className="text-slate-400 text-sm">This step confirms the workspace foundation is in place before you move on to branding, channels, and launch controls.</p>
-                  <p className="mt-2 text-slate-500 text-sm">For beta, the launch path is email, leads, billing, approvals, and support.</p>
+                  <p className="text-slate-400 text-sm">Start by clarifying what you sell, who you want to reach, the industry, and the geography for this autopilot run.</p>
+                  <p className="mt-2 text-slate-500 text-sm">The outcome goal should define a qualified lead and the target number of qualified meetings.</p>
                 </div>
               </div>
             )}
@@ -353,14 +355,14 @@ export default function SetupWizardPage() {
             {activeStep === 2 && (
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Company / Team Name</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Company / workspace name</label>
                   <input 
                     type="text"
                     title="Company Name"
                     value={formData.step2.companyName}
                     onChange={e => setFormData({...formData, step2: {...formData.step2, companyName: e.target.value}})}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                    placeholder="Acme Corp"
+                    placeholder="Acme Services"
                   />
                 </div>
                 <div>
@@ -554,7 +556,7 @@ export default function SetupWizardPage() {
               <div className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <ChecklistItem label="Email-first beta mode active" passed={PRODUCT_FLAGS.emailFirstBeta} />
-                  <ChecklistItem label="LinkedIn autonomous runner held back" passed={!PRODUCT_FLAGS.enableLinkedInAutomation} />
+                  <ChecklistItem label="LinkedIn runner held back for review-first launch" passed={!PRODUCT_FLAGS.enableLinkedInAutomation} />
                   <ChecklistItem label="Chrome extension gateway configured" passed={status.hasExtensionApiKey} />
                 </div>
 
@@ -655,12 +657,12 @@ export default function SetupWizardPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Brand Voice Description</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Audience and messaging notes</label>
                   <textarea 
                     value={formData.step5.voice}
                     onChange={e => setFormData({...formData, step5: {...formData.step5, voice: e.target.value}})}
                     className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 h-24"
-                    placeholder="We sound like a trusted industry advisor, speaking with authority but never sounding pushy."
+                    placeholder="Describe the target buyer, industry, geography, qualification notes, and meeting goal context."
                   />
                 </div>
 
@@ -705,28 +707,28 @@ export default function SetupWizardPage() {
             {/* --- STEP 7: Lead Import --- */}
             {activeStep === 7 && (
               <div className="space-y-4">
-                <ChecklistItem label={`${status.leadCount} Total Leads in Database`} passed={status.leadCount > 0} />
-                <ChecklistItem label={`${status.leadsWithEmail} Leads with Email Addresses`} passed={status.leadsWithEmail > 0} />
-                <ChecklistItem label="At least one email segment ready for launch" passed={status.leadsWithEmail > 0} />
+                <ChecklistItem label={`${status.leadCount} Leads imported for review`} passed={status.leadCount > 0} />
+                <ChecklistItem label={`${status.leadsWithEmail} Reachable leads with email`} passed={status.leadsWithEmail > 0} />
+                <ChecklistItem label="Reachable segment available for campaign review" passed={status.leadsWithEmail > 0} />
                 
                 <div className="mt-8 flex justify-center">
                   <button type="button" onClick={() => router.push("/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
-                    Import More Leads (CSV)
+                    Add ICP Leads (CSV)
                   </button>
                 </div>
               </div>
             )}
 
-            {/* --- STEP 8: Campaign Setup --- */}
+            {/* --- STEP 8: Campaign Launch --- */}
             {activeStep === 8 && (
               <div className="space-y-4">
-                <ChecklistItem label={`${status.campaignCount} Campaigns Created`} passed={status.campaignCount > 0} />
-                <ChecklistItem label={`Campaign Variants Designed`} passed={status.hasVariants} />
-                <ChecklistItem label={`Leads Assigned to Campaigns`} passed={status.hasAssignedLeads} />
+                <ChecklistItem label={`${status.campaignCount} Campaign plans generated`} passed={status.campaignCount > 0} />
+                <ChecklistItem label={`Message variants created for review`} passed={status.hasVariants} />
+                <ChecklistItem label={`Leads assigned to campaign plan`} passed={status.hasAssignedLeads} />
                 
                 <div className="mt-8 flex justify-center">
                   <button type="button" onClick={() => router.push("/campaigns/new")} className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors border border-cyan-400/50">
-                    Create New Campaign
+                    Generate Campaign Plan
                   </button>
                 </div>
               </div>
@@ -736,7 +738,7 @@ export default function SetupWizardPage() {
             {activeStep === 9 && (
               <div className="space-y-6">
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Meeting / Calendar Booking Link</label>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Calendar booking link for meeting handoffs</label>
                   <input 
                     type="url"
                     title="Calendar Booking Link"
@@ -768,10 +770,10 @@ export default function SetupWizardPage() {
               </div>
             )}
 
-            {/* --- STEP 10: Billing --- */}
+            {/* --- STEP 10: Execution Readiness --- */}
             {activeStep === 10 && (
               <div className="space-y-4">
-                <ChecklistItem label={`Available Balance: ${status.teamCredits} Credits`} passed={status.teamCredits > 0} />
+                <ChecklistItem label={`Credits available for execution`} passed={status.teamCredits > 0} />
                 <ChecklistItem label={`Billing checkout is connected`} passed={status.hasPaymentMethod} />
                 
                 {!status.hasPaymentMethod && (

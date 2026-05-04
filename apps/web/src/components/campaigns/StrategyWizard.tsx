@@ -175,9 +175,9 @@ const EXECUTION_MODES: {
     },
     {
         id: "autonomous",
-        label: "Autonomous",
-        desc: "The system runs with minimal human involvement after launch.",
-        detail: "Best for mature playbooks with proven guardrails and messaging.",
+        label: "Guided automation",
+        desc: "The system prepares drafts and actions with configured review controls.",
+        detail: "Best for mature playbooks with proven guardrails and messaging review.",
         icon: Bot,
         iconClassName: "text-rose-400",
         badge: "Advanced"
@@ -1223,7 +1223,7 @@ function MessagingEditor({
                     <p className="mt-3 text-xs text-gray-500">
                         {mode === "saferun"
                             ? "SafeRun keeps this editable and routes every message through review."
-                            : "Autonomous modes use this brief as the instruction source for generated drafts."}
+                            : "Guided modes use this brief as the instruction source for generated drafts."}
                     </p>
                 </div>
             </div>

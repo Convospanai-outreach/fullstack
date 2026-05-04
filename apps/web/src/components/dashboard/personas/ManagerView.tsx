@@ -18,40 +18,40 @@ export default function ManagerView() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Team Quota Attainment</CardTitle>
+                        <CardTitle className="text-sm font-medium">Sample Conversion Rate</CardTitle>
                         <Target className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">87%</div>
-                        <p className="text-xs text-muted-foreground">+2% from last week</p>
+                        <p className="text-xs text-muted-foreground">Example lead-to-meeting movement</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active Deals</CardTitle>
+                        <CardTitle className="text-sm font-medium">Sample Qualified Leads</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">42</div>
-                        <p className="text-xs text-muted-foreground">12 closing this month</p>
+                        <p className="text-xs text-muted-foreground">Example qualification count</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Tasks Completed</CardTitle>
+                        <CardTitle className="text-sm font-medium">Sample Follow-ups Due</CardTitle>
                         <CheckCircle className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">1,240</div>
-                        <p className="text-xs text-muted-foreground">All time high</p>
+                        <p className="text-xs text-muted-foreground">Example follow-up workload</p>
                     </CardContent>
                 </Card>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Team Performance</CardTitle>
-                    <CardDescription>Weekly Efficiency & Quota Tracking</CardDescription>
+                    <CardTitle>Sample Lead Performance</CardTitle>
+                    <CardDescription>Example operating view for conversion and meeting-readiness review</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
@@ -69,7 +69,7 @@ export default function ManagerView() {
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">
                                         <p className="text-sm font-bold">{member.performance}%</p>
-                                        <p className="text-[10px] text-muted-foreground">Efficiency</p>
+                                        <p className="text-[10px] text-muted-foreground">Conversion</p>
                                     </div>
                                     {member.status === 'active' ? (
                                         <Badge variant="success">On Track</Badge>
@@ -87,18 +87,18 @@ export default function ManagerView() {
                 <CardHeader>
                     <CardTitle className="text-sm font-bold flex items-center gap-2">
                         <AlertCircle className="w-4 h-4 text-amber-500" />
-                        Manager Attention Needed
+                        Sample Approvals Pending
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
                     <ul className="space-y-2 text-sm">
                         <li className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                            <span>Root has 14 overdue tasks in "Ops Pipeline".</span>
+                            <span>Root has 14 follow-ups due in "Ops Pipeline".</span>
                         </li>
                         <li className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                            <span>Approval needed for "Q4 Outreach Campaign" budget.</span>
+                            <span>Approval needed for "Q4 Outreach Campaign" launch.</span>
                         </li>
                     </ul>
                 </CardContent>

@@ -40,6 +40,10 @@
 - Stateless execution
 - RAG, ranking, and verification logic
 
+## Current Product-Claim Boundary
+
+Micro-LLM output is used for bounded assistance, drafting, scoring, and review support. It must not be described as delivering fully autonomous outreach, guaranteed qualified meetings, or guaranteed pipeline outcomes. User-facing surfaces should frame micro-LLM work as preparation, tracking, review support, or human-approved workflow assistance.
+
 ## Validation
 
 Run existing verification:

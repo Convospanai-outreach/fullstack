@@ -11,7 +11,12 @@ import { toast } from "sonner"; // Assuming sonner is installed, or use standard
 
 import { motion, AnimatePresence } from "framer-motion";
 
-export function ApprovalQueue() {
+interface ApprovalQueueProps {
+    teamId?: string;
+    userId?: string;
+}
+
+export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
     const [requests, setRequests] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -19,8 +24,13 @@ export function ApprovalQueue() {
 
     const loadData = async () => {
         setLoading(true);
+        if (!teamId) {
+            setRequests([]);
+            setLoading(false);
+            return;
+        }
         try {
-            const data = await getPendingApprovals("team-convo-1");
+            const data = await getPendingApprovals(teamId);
             setRequests(data);
         } catch (e) {
             console.error("Failed to load approvals", e);
@@ -33,9 +43,13 @@ export function ApprovalQueue() {
         loadData();
         const interval = setInterval(loadData, 15000);
         return () => clearInterval(interval);
-    }, []);
+    }, [teamId]);
 
     const handleApprove = async (request: any) => {
+        if (!userId) {
+            toast.error("Approval unavailable: user context is missing");
+            return;
+        }
         try {
             let revisedPayload = null;
             if (editingId === request.id) {
@@ -52,7 +66,7 @@ export function ApprovalQueue() {
                 }
             }
 
-            await approveTask(request.id, "admin-user", revisedPayload);
+            await approveTask(request.id, userId, revisedPayload);
             setRequests(prev => prev.filter(r => r.id !== request.id));
             setEditingId(null);
             toast.success("Action Approved & Dispatched");
@@ -62,8 +76,12 @@ export function ApprovalQueue() {
     };
 
     const handleReject = async (id: string) => {
+        if (!userId) {
+            toast.error("Rejection unavailable: user context is missing");
+            return;
+        }
         try {
-            await rejectTask(id, "admin-user");
+            await rejectTask(id, userId);
             setRequests(prev => prev.filter(r => r.id !== id));
             setEditingId(null);
             toast.success("Action Terminated");
@@ -106,7 +124,11 @@ export function ApprovalQueue() {
             </CardHeader>
             <CardContent className="space-y-6 max-h-[500px] overflow-y-auto pt-8 px-8 pb-8 thin-scrollbar relative z-10">
                 <AnimatePresence mode="popLayout">
-                    {requests.length === 0 ? (
+                    {!teamId ? (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-slate-500 text-sm py-16 italic font-medium">
+                            Approval queue needs team context before actions can load.
+                        </motion.div>
+                    ) : requests.length === 0 ? (
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-slate-500 text-sm py-16 italic font-medium">
                             All systems healthy. No actions pending.
                         </motion.div>

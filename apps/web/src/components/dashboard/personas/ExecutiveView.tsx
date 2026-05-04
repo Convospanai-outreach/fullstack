@@ -25,35 +25,35 @@ export default function ExecutiveView() {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* 1. North Star Metrics (F-Pattern Top Left) */}
+            {/* 1. Outcome Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <ROICard
-                    title="Revenue (Closed Won)"
-                    value={data.financials.revenue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    title="Pipeline Wins"
+                    value={data.funnel.wins.toLocaleString()}
                     trend={{ value: data.funnel.conversionRate, isUp: true }}
                     status="success"
-                    description="Closed-won revenue tracked from CRM pipeline."
+                    description="Won opportunities reported by the funnel summary."
                 />
                 <ROICard
-                    title="Spend (LLM Usage)"
-                    value={data.financials.spend.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                    title="Pipeline Value"
+                    value={data.financials.revenue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     trend={{ value: data.financials.spend > 0 ? 1 : 0, isUp: false }}
                     status="warning"
-                    description="Calculated from recorded model usage."
+                    description="Revenue value currently reported by analytics."
+                />
+                <ROICard
+                    title="Conversion Rate"
+                    value={`${data.funnel.conversionRate.toFixed(2)}%`}
+                    trend={{ value: data.funnel.conversionRate, isUp: data.funnel.conversionRate >= 0 }}
+                    status={data.funnel.conversionRate >= 0 ? "success" : "warning"}
+                    description="Conversion rate reported by the funnel summary."
                 />
                 <ROICard
                     title="ROI"
                     value={`${data.financials.roi.toFixed(2)}%`}
                     trend={{ value: data.financials.roi, isUp: data.financials.roi >= 0 }}
-                    status={data.financials.roi >= 0 ? "success" : "warning"}
-                    description="Profit relative to AI spend."
-                />
-                <ROICard
-                    title="Closed Wins"
-                    value={data.funnel.wins.toLocaleString()}
-                    trend={{ value: data.funnel.conversionRate, isUp: data.funnel.conversionRate >= 0 }}
                     status="success"
-                    description="Deals marked as Closed Won."
+                    description="Return on spend reported by analytics."
                 />
             </div>
 
@@ -62,8 +62,8 @@ export default function ExecutiveView() {
                 {/* Main Trend Chart */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Revenue Velocity</CardTitle>
-                        <CardDescription>6-Month Growth Trajectory</CardDescription>
+                        <CardTitle>Pipeline Value Velocity</CardTitle>
+                        <CardDescription>6-month pipeline tracking trajectory</CardDescription>
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%" minHeight={1} minWidth={0}>
@@ -100,7 +100,7 @@ export default function ExecutiveView() {
                         <CardHeader>
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <ActivityIcon className="text-emerald-500 w-5 h-5" />
-                                Overall Health Score
+                                Pipeline Health
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -109,22 +109,22 @@ export default function ExecutiveView() {
                                 <span className="text-muted-foreground pb-2">/ 100</span>
                             </div>
                             <p className="text-sm text-muted-foreground">
-                                Health score derived from ROI and conversion signals.
+                                Health score derived from current ROI reporting.
                             </p>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">Strategic Actions</CardTitle>
+                            <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">Campaigns Needing Approval</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <button className="w-full text-left p-3 hover:bg-muted rounded-lg border border-border transition-colors flex justify-between items-center group">
-                                <span className="text-sm font-medium">Review Q3 Forecast</span>
+                                <span className="text-sm font-medium">Review qualified meeting plan</span>
                                 <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
                             </button>
                             <button className="w-full text-left p-3 hover:bg-muted rounded-lg border border-border transition-colors flex justify-between items-center group">
-                                <span className="text-sm font-medium">Approve Hiring Budget</span>
+                                <span className="text-sm font-medium">Approve campaign follow-up</span>
                                 <ArrowUpRight className="w-4 h-4 text-muted-foreground group-hover:text-foreground" />
                             </button>
                         </CardContent>

@@ -97,7 +97,7 @@ export default function CommandCenterPage() {
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <SectionHeader
                 title="Command Center"
-                subtitle="Human-in-the-Loop (HITL) Oversight for Autonomous Agents."
+                subtitle="Human-in-the-loop oversight for agent-assisted workflows."
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

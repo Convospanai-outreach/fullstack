@@ -39,3 +39,52 @@ This repo is a monorepo with multiple deployable apps. Treat each app as a separ
 - Legacy extension queue flows should preserve team scoping and claim-aware result semantics.
 - Sensitive config, SMTP, key, policy, and team-management routes should require elevated team roles.
 - User-facing generator routes should return `402` on insufficient credits and `400` for blocked/oversized prompt input.
+
+## Product Claim Guardrails
+
+- Public UI and docs must not imply guaranteed qualified meetings, guaranteed pipeline outcomes, fully autonomous outreach, or outcome-based billing unless the workflow is implemented and verified.
+- Prefer review-safe language: "helps teams manage", "supports", "prepares", "tracks", "review-ready", "human approval", and "lead and meeting workflow tracking".
+- If a feature is only a planning, review, setup, or tracking surface, label it that way. Do not describe it as automatic delivery.
+- Keep credit/billing implementation separate from public positioning; do not hide billing logic by renaming data fields.
+- Lead status labels should match supported application statuses unless a display-only mapping is clearly safe.
+
+# AI Agent Scope Rules for Positioning and UI Copy Changes
+
+For copy, positioning, or UI messaging tasks:
+- Use minimum context.
+- Search targeted files only.
+- Prefer small patches over broad rewrites.
+- Do not inspect the full repo unless necessary.
+- Do not modify backend, database, auth, billing, AI runtime, Docker, CI/CD, tests, or package files unless explicitly required.
+- Do not add dependencies.
+- Do not refactor architecture.
+- Do not use broad automated replacements across the repo.
+- Before editing, identify the smallest set of files needed.
+- After editing, report only files changed and concise summaries.
+
+## Token Budget Rules for AI Agents
+
+For positioning, copy, UX, and UI-label tasks:
+- Use minimum context.
+- Do not scan the full repository.
+- Inspect only the smallest likely set of files.
+- Do not open more than 8 files before patching unless explicitly approved.
+- Do not edit more than 3 files per run unless explicitly approved.
+- Prefer small patches over broad rewrites.
+- Do not touch backend, database, Prisma, Docker, CI/CD, auth, billing, package files, or tests unless explicitly required.
+- Do not add dependencies.
+- Do not refactor architecture.
+- Do not use subagents or parallel agents unless explicitly requested.
+- Before editing, list the exact files to inspect.
+- After editing, report only files changed and concise summaries.
+Most important rule
+
+Use Antigravity like this:
+
+Find files → stop.
+Patch one surface → stop.
+Verify banned phrases → stop.
+
+Do not ask:
+
+Analyze the full app and implement the architecture changes.

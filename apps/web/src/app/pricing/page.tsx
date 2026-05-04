@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 type Plan = {
     name: "Starter" | "Growth" | "Enterprise";
+    displayName: string;
     description: string;
     monthlyPrice: number;
     annualPrice: number;
@@ -23,62 +24,66 @@ type Plan = {
 const plans: Plan[] = [
     {
         name: "Starter",
-        description: "For founders and early operators validating the first outbound loop",
+        displayName: "Pilot",
+        description: "30-day growth pilot package for one ICP, one geography, and one offer",
         monthlyPrice: 49,
         annualPrice: 39,
         credits: 500,
         features: [
             "Email campaign drafting",
-            "Lead import and mapping",
+            "Lead list and qualification workflow",
+            "Campaign landing funnel",
             "Approval-first sending flow",
-            "Standard support response",
+            "Follow-up handling and reporting",
         ],
         icon: Zap,
-        badge: "Free Trial Available",
-        outcome: "Launch your first compliant campaign quickly",
+        badge: "Pilot Available",
+        outcome: "Review a qualified lead and meeting-tracking motion before scaling",
     },
     {
         name: "Growth",
-        description: "For teams scaling repeatable campaigns with tighter controls and ROI visibility",
+        displayName: "Growth Autopilot",
+        description: "Monthly managed campaign operations for repeatable pipeline tracking",
         monthlyPrice: 99,
         annualPrice: 79,
         credits: 2500,
         features: [
-            "Higher monthly send capacity",
-            "Campaign templates and variants",
-            "Priority support response",
+            "Multiple managed campaigns",
+            "Vertical playbooks and variants",
+            "Weekly performance review",
             "Approval and governance controls",
-            "Reporting and ROI views",
+            "Lead and meeting workflow tracking",
         ],
         icon: Rocket,
         badge: "Most Popular",
         highlight: true,
-        outcome: "Improve reply velocity and handoff quality",
+        outcome: "Support buyer-signal follow-up and meeting tracking",
     },
     {
         name: "Enterprise",
-        description: "For teams that need governance, SSO, and rollout support",
+        displayName: "Enterprise / Partner",
+        description: "Custom vertical playbooks, governance, and private-data execution options",
         monthlyPrice: 499,
         annualPrice: 399,
         credits: 15000,
         features: [
-            "Advanced governance console",
-            "SSO & Directory Sync",
-            "Dedicated Success Manager",
-            "Custom rollout planning",
-            "Expanded usage controls",
-            "Audit log persistence",
+            "Team governance and approval workflows",
+            "Custom vertical playbook design",
+            "Private data / edge execution where applicable",
+            "Advanced reporting",
+            "Dedicated success and rollout support",
+            "Partner operating model",
         ],
         icon: Crown,
         badge: "Custom Quotas",
-        outcome: "Operate multi-team outreach with confidence",
+        outcome: "Operate governed growth workflows across teams or regions",
     },
 ];
 
 const proofPoints = [
-    "No annual lock-in required",
-    "Keep data ownership and exports",
-    "Approval-first workflows stay enabled",
+    "Managed growth execution",
+    "Human-approved campaign operations",
+    "Lead and meeting workflow tracking",
 ];
 
 export default function PricingPage() {
@@ -166,10 +171,10 @@ export default function PricingPage() {
                         Pricing & Plans
                     </Badge>
                     <h1 className="text-5xl font-extrabold tracking-tight md:text-6xl">
-                        Choose the plan for your outbound team.
+                        Plans for managed growth execution, campaign operations, and pipeline tracking.
                     </h1>
                     <p className="mx-auto max-w-2xl text-lg text-slate-300">
-                        Start with guided email campaigns, then add governance and scale as your volume grows.
+                        Start with a focused pilot, then scale the buyer-signal-to-meeting workflow with managed campaigns, follow-ups, and governance.
                     </p>
 
                     <div className="pt-4">
@@ -197,8 +202,8 @@ export default function PricingPage() {
                         const ctaText = plan.name === "Enterprise"
                             ? "Talk to Sales"
                             : plan.name === "Growth"
-                              ? "Choose Growth"
-                              : "Start Free Trial";
+                              ? "Launch Growth Autopilot"
+                              : "Start Pilot";
 
                         return (
                             <div key={plan.name} className="relative">
@@ -221,7 +226,7 @@ export default function PricingPage() {
                                         <div className="mb-5 w-fit rounded-2xl bg-white/5 p-3 text-cyan-300">
                                             <Icon className="h-8 w-8" />
                                         </div>
-                                        <h3 className="mb-2 text-2xl font-bold text-white">{plan.name}</h3>
+                                        <h3 className="mb-2 text-2xl font-bold text-white">{plan.displayName}</h3>
                                         <p className="text-sm leading-relaxed text-slate-300">{plan.description}</p>
                                         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-300">{plan.outcome}</p>
                                     </div>
@@ -236,8 +241,8 @@ export default function PricingPage() {
                                         </p>
                                         <div className="mt-4 border-t border-white/10 pt-4">
                                             <div className="flex items-center justify-between text-sm">
-                                                <span className="text-slate-300">Monthly usage included</span>
-                                                <span className="font-bold text-white">{plan.credits.toLocaleString()}</span>
+                                                <span className="text-slate-300">Commercial focus</span>
+                                                <span className="font-bold text-white">Pipeline tracking</span>
                                             </div>
                                         </div>
                                     </div>
@@ -276,10 +281,10 @@ export default function PricingPage() {
                                 Optional add-on
                             </div>
                             <h3 className="text-2xl font-black text-white md:text-3xl">
-                                Optional human booking add-on for warm leads
+                                Human booking and follow-up support
                             </h3>
                             <p className="mt-3 max-w-xl text-sm leading-7 text-slate-200">
-                                When campaigns generate high-intent replies, route only qualified leads to trained human callers who close the scheduling gap and book meetings.
+                                When campaigns generate high-intent replies, route qualified leads to trained human callers who close the scheduling gap, capture remarks, and prepare meeting-ready context.
                             </p>
                             <div className="mt-6 flex flex-wrap gap-3">
                                 <Badge className="border-none bg-white/10 text-slate-100">Intent score threshold</Badge>
@@ -291,8 +296,8 @@ export default function PricingPage() {
                         <div className="rounded-2xl border border-white/15 bg-slate-950/60 p-6">
                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Best fit</p>
                             <ul className="mt-4 space-y-3 text-sm text-slate-200">
-                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Teams already generating warm replies every week</li>
-                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Ops or sales teams where follow-up speed is the bottleneck</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Service companies already generating warm replies every week</li>
+                                <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Growth teams where follow-up speed is the bottleneck</li>
                                 <li className="flex items-start gap-2"><TrendingUp className="mt-0.5 h-4 w-4 text-cyan-300" />Workflows requiring governance and auditable handoffs</li>
                             </ul>
                             <Button onClick={() => router.push("/contact")} className="mt-6 w-full bg-cyan-600 py-5 font-semibold hover:bg-cyan-500">
@@ -309,21 +314,21 @@ export default function PricingPage() {
                             <Shield className="h-5 w-5" />
                         </div>
                         <h4 className="text-lg font-bold text-white">Secure by default</h4>
-                        <p className="text-sm text-slate-300">Approval-first workflows and governance controls remain active as volume grows.</p>
+                        <p className="text-sm text-slate-300">Approval-first workflows and governance controls remain active as managed campaigns scale.</p>
                     </div>
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                         <div className="w-fit rounded-xl bg-amber-500/10 p-3 text-amber-300">
                             <Star className="h-5 w-5" />
                         </div>
                         <h4 className="text-lg font-bold text-white">Support when it matters</h4>
-                        <p className="text-sm text-slate-300">Get implementation help for onboarding, billing, and launch readiness milestones.</p>
+                        <p className="text-sm text-slate-300">Get implementation help for playbooks, handoffs, reporting, and launch readiness milestones.</p>
                     </div>
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                         <div className="w-fit rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
                             <ArrowRight className="h-5 w-5" />
                         </div>
                         <h4 className="text-lg font-bold text-white">Clear growth path</h4>
-                        <p className="text-sm text-slate-300">Start lean, validate conversion economics, then upgrade only when needed.</p>
+                        <p className="text-sm text-slate-300">Start with a pilot package, review qualified lead and meeting-tracking signals, then scale the managed workflow.</p>
                     </div>
                 </div>
 

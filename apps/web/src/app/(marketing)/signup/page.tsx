@@ -36,33 +36,33 @@ function getPasswordStrength(password: string): { level: number; label: string; 
 }
 
 const socialProof = [
-    { stat: "No Card", label: "to start trial" },
-    { stat: "Email-First", label: "guided launch path" },
-    { stat: "Approval-Safe", label: "outreach workflow" },
+    { stat: "ICP", label: "focused pilot motion" },
+    { stat: "Signals", label: "to meeting workflow" },
+    { stat: "Approval", label: "human-controlled launch" },
 ];
 
 const guaranteePoints = [
-    "14-day free trial - no credit card",
-    "Cancel anytime, zero lock-in",
-    "Human support on every plan",
+    "Qualified meeting pilot path",
+    "Human approval controls",
+    "Managed follow-up support",
     "Data you own, exports included",
 ];
 
 const activationFlow = [
     {
         icon: Clock3,
-        title: "Connect in minutes",
-        detail: "Workspace, sender identity, and first audience segment ready in one guided flow.",
+        title: "Define the service playbook",
+        detail: "Pick the ICP, geography, offer, and proof points for the first qualified meeting motion.",
     },
     {
         icon: Sparkles,
         title: "Launch with guardrails",
-        detail: "Approval-first sequences help your team ship outreach without reckless automation.",
+        detail: "Approval-first workflows keep outreach, follow-ups, and handoffs under human control.",
     },
     {
         icon: TrendingUp,
-        title: "Convert from warm intent",
-        detail: "Turn campaign engagement into booked conversations with better timing and routing.",
+        title: "Convert buyer signals",
+        detail: "Turn intent, replies, and caller context into booked conversations with better timing and routing.",
     },
 ];
 
@@ -146,13 +146,13 @@ export default function SignupPage() {
 
                         <div>
                             <h1 className="text-4xl font-black leading-tight text-white">
-                                Launch approval-safe outbound campaigns.
+                                Launch managed growth operations.
                                 <span className="block bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
-                                    From one workspace.
+                                    From buyer signal to qualified meeting.
                                 </span>
                             </h1>
                             <p className="mt-4 text-lg text-slate-400">
-                                Connect your sending inbox, import leads, and launch your first email sequence in one guided setup.
+                                Build the first service-company playbook, approve the campaign workflow, and move qualified leads toward meetings.
                             </p>
                         </div>
 
@@ -219,10 +219,10 @@ export default function SignupPage() {
                             <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-cyan-100">
                                     <Zap className="h-4 w-4 text-cyan-300" />
-                                    Free 14-day trial - no credit card required
+                                    Launch Growth Autopilot
                                 </div>
                                 <p className="mt-1 text-xs text-cyan-100/70">
-                                    Start with an email-first launch path, then expand to advanced channels when your baseline is stable.
+                                    Start with one ICP, one offer, approval controls, and a managed follow-up workflow.
                                 </p>
                             </div>
 
@@ -308,7 +308,7 @@ export default function SignupPage() {
                                     id="signup-submit"
                                     className="w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-cyan-600 to-blue-600 py-3 text-base font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-500/30 disabled:opacity-60"
                                 >
-                                    {loading ? "Creating workspace..." : "Create workspace and start free trial"}
+                                    {loading ? "Creating workspace..." : "Create workspace and launch autopilot"}
                                     {!loading && <ArrowRight className="h-4 w-4" />}
                                 </Button>
 

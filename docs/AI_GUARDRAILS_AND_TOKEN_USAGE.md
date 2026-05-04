@@ -9,6 +9,7 @@ It covers:
 - strict credit reservation and settlement for chargeable team contexts
 - token and cost logging
 - route-level behavior and status codes
+- customer-facing claim guardrails for AI-assisted growth workflows
 
 ## Runtime Contract
 
@@ -19,6 +20,8 @@ All user-facing AI generation should flow through:
 Prompt safety and input constraints are centralized in:
 
 - `apps/api/src/lib/aiInputGuardrails.ts`
+
+Public-facing copy and generated content must describe the product as AI-assisted preparation, review, and tracking unless a deeper workflow is implemented and verified. Avoid claims that ConvoSpan guarantees qualified meetings, delivers qualified pipeline outcomes, fully automates outreach, or charges on outcomes. Safer language is "supports", "prepares", "tracks", "review-ready", and "human approval controls".
 
 ## Mermaid (Merlin) Flow
 
@@ -34,7 +37,7 @@ sequenceDiagram
     participant Usage as LLMUsageLog
     participant Ledger as CreditTransaction
 
-    Client->>Route: AI request payload
+    Client->>Route: AI-assisted preparation or review request
     Route->>Route: Validate auth + team context + route size limits
     Route->>AI: askAI/generate*
     AI->>Guard: enforceAIPromptPolicy(surface, maxChars)
@@ -47,7 +50,7 @@ sequenceDiagram
     AI->>Credits: settleCredits(actual) or refund difference
     Credits->>Ledger: usage transaction
     AI-->>Route: bounded output
-    Route-->>Client: 200 / 400 / 401 / 402 / 500
+    Route-->>Client: bounded draft, review, or tracking response
 ```
 
 ## Surface Prompt Limits
@@ -149,6 +152,7 @@ Credit deductions are written to `CreditTransaction` as usage rows.
 - prompt-policy checks before generation
 - bounded output fields (subject/body/reasoning/internal notes)
 - credits charged through `aiService` for each generation call
+- generated copy should be review-ready and must not promise guaranteed outcomes, automatic meeting booking, or fully autonomous execution
 
 ## Landing Agent Guardrails
 
@@ -159,6 +163,7 @@ Credit deductions are written to `CreditTransaction` as usage rows.
 - bounded public event and lead payload size
 - AI brief/wireframe generation routed with explicit landing surface context
 - stored HTML is sanitized before public render to reduce stored-XSS exposure
+- landing copy should be described as campaign funnel support unless conversion attribution is explicitly implemented for the surface
 
 ## Related Files
 

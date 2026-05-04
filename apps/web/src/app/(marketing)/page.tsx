@@ -3,68 +3,68 @@ import { ArrowRight, BarChart3, Bot, CheckCircle, Globe, Lock, Mail, Sparkles, S
 import { Button } from "@/components/ui/button";
 
 const stats = [
-    { number: "3.2×", label: "avg reply rate lift" },
-    { number: "94%", label: "deliverability score" },
-    { number: "< 4 hrs", label: "avg time to first reply" },
-    { number: "40K+", label: "campaigns launched" },
+    { number: "6", label: "growth workflow stages" },
+    { number: "100%", label: "human approval control" },
+    { number: "ICP", label: "vertical playbooks" },
+    { number: "Meetings", label: "primary outcome" },
 ];
 
 const features = [
     {
-        icon: Bot,
+        icon: TrendingUp,
         color: "from-violet-500/20 to-violet-600/5 border-violet-500/20 text-violet-400",
-        title: "AI that writes like you",
-        description: "Train on your best-performing emails and product voice. ConvoSpan adapts, learns, and improves with every campaign.",
+        title: "Detect buyer signals",
+        description: "Spot companies showing intent and prioritize the accounts most likely to become qualified conversations.",
     },
     {
-        icon: TrendingUp,
+        icon: Users,
         color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-        title: "Intent signals in real time",
-        description: "See which leads are in buying mode before you send. Prioritize the warm ones. Stop guessing.",
+        title: "Enrich and qualify leads",
+        description: "Turn raw targets into sales-ready records with company context, contact data, and fit checks.",
+    },
+    {
+        icon: Mail,
+        color: "from-amber-500/20 to-amber-600/5 border-amber-500/20 text-amber-400",
+        title: "Create campaigns and funnels",
+        description: "Prepare approved outreach and campaign landing funnels around one ICP, geography, and offer.",
     },
     {
         icon: Lock,
-        color: "from-amber-500/20 to-amber-600/5 border-amber-500/20 text-amber-400",
-        title: "Approvals before every send",
-        description: "No rogue emails. Every campaign goes through your review flow — human-in-the-loop by design.",
-    },
-    {
-        icon: Globe,
         color: "from-cyan-500/20 to-cyan-600/5 border-cyan-500/20 text-cyan-400",
-        title: "Multi-channel, one workspace",
-        description: "Email, LinkedIn, and more — all in one place. One thread per lead. One team view.",
-    },
-    {
-        icon: BarChart3,
-        color: "from-pink-500/20 to-pink-600/5 border-pink-500/20 text-pink-400",
-        title: "ROI you can actually see",
-        description: "Live revenue attribution, reply tracking, and pipeline contribution. Not vanity metrics.",
+        title: "Launch with governance",
+        description: "Keep humans in control of critical sends, approvals, and brand-risk decisions before campaigns go live.",
     },
     {
         icon: Zap,
+        color: "from-pink-500/20 to-pink-600/5 border-pink-500/20 text-pink-400",
+        title: "Manage follow-ups",
+        description: "Coordinate replies, caller notes, and next steps so warm leads do not stall after the first response.",
+    },
+    {
+        icon: BarChart3,
         color: "from-orange-500/20 to-orange-600/5 border-orange-500/20 text-orange-400",
-        title: "Launches in under an hour",
-        description: "Connect your tools, import your leads, define your voice — and you're live. No sales call required.",
+        title: "Track meetings and pipeline",
+        description: "Measure qualified leads, booked meetings, follow-up progress, and conversion outcomes.",
     },
 ];
 
 const testimonials = [
     {
-        quote: "ConvoSpan helped us go from 12 reply rate to 31% in 3 weeks. The AI actually sounds like us.",
+        quote: "ConvoSpan turned our scattered buyer signals into a governed meeting workflow our team could approve with confidence.",
         author: "Priya Menon",
         role: "Head of Growth, Leapfin",
         avatar: "PM",
         stars: 5,
     },
     {
-        quote: "Finally an outbound tool that doesn't embarrass you. The approval flow alone saved us from a compliance nightmare.",
+        quote: "The human review controls made managed outreach practical for our service-line leaders.",
         author: "Marcus Wei",
         role: "VP Sales, Growthly",
         avatar: "MW",
         stars: 5,
     },
     {
-        quote: "We replaced three tools with ConvoSpan. And our BDR team actually loves it — that never happens.",
+        quote: "The vertical playbook approach helped us focus on qualified conversations instead of generic campaign volume.",
         author: "Salma Rashid",
         role: "RevOps Lead, Stackerflow",
         avatar: "SR",
@@ -91,45 +91,45 @@ export default function Home() {
                     {/* Badge */}
                     <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-5 py-2 text-sm text-violet-200 backdrop-blur-sm">
                         <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-                        <span className="font-medium">AI-powered outbound for B2B growth teams</span>
+                        <span className="font-medium">AI-managed growth operations for B2B service companies</span>
                         <span className="ml-1 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">New ✦</span>
                     </div>
 
                     {/* Headline */}
                     <h1 className="mx-auto max-w-5xl text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
-                        Turn cold outreach into{" "}
+                        Pipeline Workflow.{" "}
                         <span className="relative inline-block">
                             <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
-                                warm pipeline
+                                Delivered by AI.
                             </span>
                             {/* underline accent */}
                             <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-60" />
-                        </span>
+                        </span>{" "}
+                        Governed by You.
                     </h1>
 
                     {/* Subheadline */}
                     <p className="mx-auto mt-8 max-w-2xl text-xl leading-8 text-slate-300">
-                        ConvoSpan gives your growth team an AI agent army — trained on your voice, restrained by your approvals, and focused on the leads most likely to reply.
-                    </p>
+                        ConvoSpan helps teams manage the workflow from buyer signals to campaign follow-up, lead review, and qualified meeting tracking.</p>
 
                     {/* CTAs */}
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link href="/signup">
                             <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 hover:-translate-y-0.5">
-                                Start for free — no card needed
+                                Launch Growth Autopilot
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
                         <Link href="/help">
                             <Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.03] px-8 py-4 text-base text-white backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/25">
-                                See how it works
+                                See Qualified Meeting Workflow
                             </Button>
                         </Link>
                     </div>
 
                     {/* Microcopy trust line */}
                     <p className="mt-5 text-sm text-slate-400">
-                        14-day free trial · No onboarding call · Setup in &lt; 1 hour
+                        Built for B2B service companies that need qualified enterprise conversations without building a full inside-sales team.
                     </p>
 
                     {/* Stats bar */}
@@ -147,7 +147,7 @@ export default function Home() {
             {/* ── TRUSTED BY ──────────────────────────────────── */}
             <section className="border-y border-white/8 bg-white/[0.015] py-8">
                 <div className="mx-auto max-w-7xl px-6">
-                    <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Trusted by fast-growing teams at</p>
+                    <p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Trusted by service-led growth teams at</p>
                     <div className="flex flex-wrap items-center justify-center gap-8">
                         {trustedBy.map((company) => (
                             <span key={company} className="text-base font-semibold text-slate-400 opacity-60 transition hover:opacity-100">
@@ -161,10 +161,10 @@ export default function Home() {
             {/* ── FEATURES GRID ───────────────────────────────── */}
             <section className="mx-auto max-w-7xl px-6 py-24">
                 <div className="mb-16 text-center">
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-violet-400">Everything you need</p>
-                    <h2 className="text-4xl font-black text-white sm:text-5xl">Built for teams who care about pipeline</h2>
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-violet-400">From Buyer Signal to Qualified Meeting</p>
+                    <h2 className="text-4xl font-black text-white sm:text-5xl">One managed workflow, not another tool to operate</h2>
                     <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-                        Not just another outbound tool. A complete system that learns, respects, and scales your outreach.
+                        ConvoSpan supports signal detection, lead enrichment, campaign preparation, approved outreach, follow-up review, and qualified-meeting tracking.
                     </p>
                 </div>
 
@@ -218,15 +218,15 @@ export default function Home() {
             {/* ── HOW IT WORKS ─────────────────────────────────── */}
             <section className="bg-white/[0.015] py-24 border-y border-white/8">
                 <div className="mx-auto max-w-4xl px-6 text-center">
-                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-cyan-400">Dead simple setup</p>
-                    <h2 className="text-4xl font-black text-white sm:text-5xl">Live in 4 steps</h2>
+                    <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-cyan-400">Vertical playbooks</p>
+                    <h2 className="text-4xl font-black text-white sm:text-5xl">Built around service-company markets</h2>
 
                     <div className="mt-14 grid gap-6 sm:grid-cols-2 text-left">
                         {[
-                            { n: "01", title: "Connect your sending", desc: "Link your email domain or SMTP. We warm it up automatically." },
-                            { n: "02", title: "Train your AI voice", desc: "Paste 3 subject lines you love. ConvoSpan learns your tone." },
-                            { n: "03", title: "Import your leads", desc: "CSV, CRM sync, or let our scraper find them for you." },
-                            { n: "04", title: "Review and launch", desc: "Approve the campaign. Watch replies flow in the inbox." },
+                            { n: "01", title: "Facility and security services", desc: "Target enterprises with signal-led outreach, proof assets, and approval-safe follow-ups." },
+                            { n: "02", title: "Staffing and manpower services", desc: "Run role-specific plays around hiring pressure, geography, and urgency." },
+                            { n: "03", title: "L&D and training companies", desc: "Convert training demand signals into qualified conversations with buyer-context messaging." },
+                            { n: "04", title: "Consulting and managed services", desc: "Package expertise into focused campaigns, landing funnels, and meeting-ready handoffs." },
                         ].map((step) => (
                             <div key={step.n} className="flex gap-5 rounded-2xl border border-white/8 bg-white/[0.03] p-6">
                                 <span className="text-4xl font-black text-white/10">{step.n}</span>
@@ -251,28 +251,26 @@ export default function Home() {
                     <div className="relative">
                         <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-5 py-2 text-sm text-emerald-300">
                             <CheckCircle className="h-4 w-4" />
-                            14-day free trial · Cancel anytime
+                            Qualified meeting pilot path
                         </div>
-                        <h2 className="text-4xl font-black text-white sm:text-5xl">Start your first campaign today</h2>
+                        <h2 className="text-4xl font-black text-white sm:text-5xl">Launch your growth workflow</h2>
                         <p className="mx-auto mt-5 max-w-xl text-lg text-slate-300">
-                            Join 2,000+ growth teams who&apos;ve replaced guesswork with AI-powered precision outreach.
-                        </p>
+                            Prepare approved outreach, managed follow-ups, and qualified meeting tracking for your service business.</p>
                         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                             <Link href="/signup">
                                 <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:-translate-y-0.5">
-                                    Create free account
+                                    Launch Growth Autopilot
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </Link>
                             <Link href="/pricing">
                                 <Button variant="ghost" className="h-auto rounded-full px-8 py-4 text-base text-slate-300 hover:bg-white/[0.06] hover:text-white">
-                                    Compare plans →
-                                </Button>
+                                    See pilot options &rarr;</Button>
                             </Link>
                         </div>
                         <div className="mt-8 flex items-center justify-center gap-6 text-xs text-slate-500">
-                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> No credit card</span>
-                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Setup in &lt; 1 hr</span>
+                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Human approval</span>
+                            <span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Vertical playbooks</span>
                             <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-emerald-500" /> Human support</span>
                             <span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-emerald-500" /> Team collaboration</span>
                         </div>

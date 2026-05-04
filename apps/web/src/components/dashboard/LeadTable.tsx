@@ -20,6 +20,21 @@ interface LeadTableProps {
     leads: Lead[];
 }
 
+const leadStatusLabels: Record<string, string> = {
+    NEW: "New",
+    ENRICHED: "Enriched",
+    CONNECTED: "Engaged",
+    REPLIED: "Positive Reply",
+    CONVERTED: "Converted",
+    LOST: "Lost",
+    STOPPED: "Stopped",
+};
+
+function displayLeadStatus(status?: string) {
+    if (!status) return "New";
+    return leadStatusLabels[status] ?? status;
+}
+
 export function LeadTable({ leads = [] }: LeadTableProps) {
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -60,7 +75,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
         <>
             <GlassCard>
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-xl font-bold gradient-text">Recent Leads</h3>
+                    <h3 className="text-xl font-bold gradient-text">Lead Review Status</h3>
                     <div className="flex gap-2">
                         <Button variant="default">Add New Lead</Button>
                     </div>
@@ -104,7 +119,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
                                         <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
                                         <td className="px-4 py-3">
                                             <Badge variant={lead.status === "CONNECTED" ? "success" : "default"}>
-                                                {lead.status || "New"}
+                                                {displayLeadStatus(lead.status)}
                                             </Badge>
                                         </td>
                                     </tr>

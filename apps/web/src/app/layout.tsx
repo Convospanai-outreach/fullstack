@@ -5,22 +5,22 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { SupportAssistant } from "@/components/support/SupportAssistant";
 
 export const metadata = {
-  title: "ConvoSpan — AI-Powered Outbound for B2B Growth Teams",
-  description: "Launch personalized AI email campaigns, track buyer intent, and close more pipeline. Set up in under an hour. No credit card needed.",
-  keywords: "AI outbound, B2B email campaigns, sales automation, LinkedIn outreach, lead generation, AI sales tool",
+  title: "ConvoSpan - AI-Managed Growth Operations Autopilot",
+  description: "Turn buyer signals into qualified campaigns, approved follow-ups, landing funnels, and meeting-ready pipeline for B2B service companies.",
+  keywords: "AI-managed growth operations, qualified meetings, buyer intent, managed outbound, B2B service companies, vertical playbooks",
   icons: {
     icon: "/favicon.svg",
     apple: "/favicon.svg",
   },
   openGraph: {
-    title: "ConvoSpan — Turn Cold Outreach into Warm Pipeline",
-    description: "AI that sounds like you. Approvals built in. Replies up 3.2×. Start free.",
+    title: "ConvoSpan - Pipeline Workflow. Prepared with AI. Governed by You.",
+    description: "Buyer-signal-to-meeting workflows with managed execution and human approval controls.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ConvoSpan — AI Outbound for B2B Teams",
-    description: "Launch AI email campaigns in under an hour. No credit card needed.",
+    title: "ConvoSpan - Growth Autopilot for B2B Service Companies",
+    description: "Launch managed growth operations from buyer signals to qualified meetings.",
   },
 };
 

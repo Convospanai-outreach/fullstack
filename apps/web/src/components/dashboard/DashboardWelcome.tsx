@@ -87,7 +87,7 @@ export function DashboardWelcome() {
                         {[
                             { icon: Cpu, color: "text-indigo-400", bg: "bg-indigo-500/10", title: "Sovereign Core", desc: "Local SLM execution with zero-leak PII masking protocols." },
                             { icon: ShieldCheck, color: "text-purple-400", bg: "bg-purple-500/10", title: "Governance Gate", desc: "Human-in-the-loop validation for all high-risk agent behaviors." },
-                            { icon: Target, color: "text-emerald-400", bg: "bg-emerald-500/10", title: "Bulls-Eye RAG", desc: "Autonomous signal detection tuned for high-conversion outcomes." }
+                            { icon: Target, color: "text-emerald-400", bg: "bg-emerald-500/10", title: "Bulls-Eye RAG", desc: "Signal detection support for review-ready campaign decisions." }
                         ].map((feature, idx) => (
                             <motion.div 
                                 key={idx}

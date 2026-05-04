@@ -1,6 +1,6 @@
 export const metadata = {
     title: "Create Account | ConvoSpan",
-    description: "Start your 14-day free trial. Unleash a sovereign AI agent army to scale your growth velocity.",
+    description: "Launch an AI-managed growth operations autopilot for buyer-signal-to-meeting workflows.",
 };
 
 export default function SignupLayout({

@@ -5,9 +5,10 @@
 This document describes the current architecture used for the startup launch path:
 
 - email-first private beta
-- Netjana buyer-signal ingest and signal-aware outreach
+- Netjana buyer-signal ingest, signal-aware campaign preparation, and human-approved follow-up review
 - monorepo with independently deployable apps
 - edge runtime optional and private
+- public positioning is constrained to workflow preparation, review, and tracking unless a stronger capability is implemented and verified
 
 ---
 
@@ -36,7 +37,7 @@ flowchart LR
     A --> P[(Postgres)]
     A --> R[(Redis)]
     A --> J[(Jobs + Signals)]
-    A --> C[Email and LinkedIn Workers]
+    A --> C[Review-First Email and LinkedIn Workers]
     C --> X[SMTP + LinkedIn]
     A --> E[apps/edge-fastapi private optional]
 ```
@@ -87,6 +88,7 @@ ConvoSpan is organized around explicit runtime, domain, data, and control bounda
 - Sensitive config and governance routes now require elevated team roles, and setup status redacts provider secrets before returning team config.
 - Landing HTML is sanitized before public render to reduce stored-XSS exposure on published pages.
 - Agentic RAG retrieval is campaign-scoped; the known `teamId`-as-`campaignId` mismatch is fixed.
+- Public copy and generated content must avoid unsupported claims about guaranteed meetings, qualified pipeline outcomes, fully autonomous execution, conversion attribution, or outcome-based billing. Safer language is preparation, support, tracking, review, and human approval.
 
 ---
 
@@ -107,7 +109,7 @@ sequenceDiagram
     participant Model as LLM Provider
     participant Usage as LLMUsageLog
 
-    User->>Route: Request AI generation
+    User->>Route: Request AI-assisted draft, review, or tracking support
     Route->>AI: Forward validated request with team context
     AI->>Guard: Enforce prompt policy and size budgets
     Guard-->>AI: allow or reject
@@ -117,7 +119,7 @@ sequenceDiagram
     Model-->>AI: text + token usage
     AI->>Usage: persist tokens and cost
     AI->>Credits: settle usage or refund difference
-    AI-->>Route: bounded output
+    AI-->>Route: bounded review-ready output
     Route-->>User: success or 400/401/402
 ```
 
@@ -132,10 +134,10 @@ Netjana is connected through the Intel service path:
 3. `apps/api/src/modules/intel/service/netjanaIntelService.ts` normalizes the signal, computes strength, matches company/campaign/lead context, and writes `ScrapingJob`, `ShadowSignal`, lead `marketContext`, and lead `enrichedData.netjana`.
 4. Trusted signals are written into the `Netjana Intelligence` knowledge base so RAG and email composition can use grounded buyer context.
 5. Hot, verified, matched signals enqueue `INTEL_FOLLOWUP_REFRESH`.
-6. `apps/api/workers/handlers/intel-followup-worker.ts` generates a signal-aware email draft with `composeNodeA`, writes activity, and opens approval for review.
-7. Sequence actions can continue across LinkedIn and email: LinkedIn visit/connect/message steps use `runLinkedInAction`, and email steps can use Netjana context from `lead.enrichedData.netjana` before sending through SMTP.
+6. `apps/api/workers/handlers/intel-followup-worker.ts` generates a signal-aware email draft with `composeNodeA`, writes activity, and opens approval for review where configured.
+7. Sequence actions can continue across LinkedIn and email through review-first controls: LinkedIn visit/connect/message steps use `runLinkedInAction`, and email steps can use Netjana context from `lead.enrichedData.netjana` before sending through SMTP.
 
-The Landing Agent is connected to campaigns and captures public conversion data through `LandingLead` and `LandingEvent`. Its direct `BuyerIntelAdapter` currently exists as a configurable adapter stub, so direct Netjana-to-landing-copy injection is not enabled by default; the active connection is Netjana -> Intel -> Lead/Campaign/Knowledge -> outreach and reporting.
+The Landing Agent is connected to campaigns and captures public lead/event data through `LandingLead` and `LandingEvent`. Its direct `BuyerIntelAdapter` currently exists as a configurable adapter stub, so direct Netjana-to-landing-copy injection is not enabled by default; the active connection is Netjana -> Intel -> Lead/Campaign/Knowledge -> campaign preparation, follow-up review, and reporting.
 
 ---
 

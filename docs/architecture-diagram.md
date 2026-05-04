@@ -1,6 +1,6 @@
 # ConvoSpan Architecture Diagram
 
-This file is GitHub-renderable Mermaid. Copy any fenced `mermaid` block into the Mermaid Live Editor if you need an exported SVG or PNG. It shows the current runtime architecture, including Landing Agent, Netjana buyer-intent ingest, signal-aware email drafting, LinkedIn sequence actions, and public landing-page conversion tracking.
+This file is GitHub-renderable Mermaid. Copy any fenced `mermaid` block into the Mermaid Live Editor if you need an exported SVG or PNG. It shows the current runtime architecture, including Landing Agent, Netjana buyer-intent ingest, signal-aware email drafting, LinkedIn sequence actions, human approval controls, and public landing-page lead/event tracking.
 
 ## Layered System Design
 
@@ -69,14 +69,14 @@ flowchart TB
     end
 
     subgraph L6["Layer 6 - AI and Automation"]
-        promptBuilders[Prompt Builders]
+        promptBuilders[Prompt Builders and Review-Ready Drafts]
         modelGateway[Model Gateway]
         guardrails[Guardrails and Policy Checks]
         eventStore[Learning Event Store]
         workers[Workers and Schedulers]
         netjanaPipeline[Netjana Normalize, Score, Match]
         emailComposer[Signal-Aware Email Composer]
-        channelWorkers[Email and LinkedIn Workers]
+        channelWorkers[Review-First Email and LinkedIn Workers]
         adapters[Buyer Intel, Enrichment, Outreach Adapters]
     end
 
@@ -219,7 +219,7 @@ flowchart TB
 | 3 | API Runtime Boundary | Fastify server, route loading, dynamic route params, response header/cookie bridge |
 | 4 | Application Services | Route handlers for campaigns, landing-agent, intel/webhooks, setup, billing, analytics, extension, admin |
 | 5 | Domain Modules | Campaigns, leads, landing-agent, intel/signals, knowledge, workflows, inbox, governance, settings |
-| 6 | AI and Automation | Prompt construction, Netjana normalization/scoring/matching, model gateway, signal-aware email composer, guardrails, workers, event store |
+| 6 | AI and Assisted Workflows | Prompt construction, Netjana normalization/scoring/matching, model gateway, signal-aware email composer, guardrails, review-first workers, event store |
 | 7 | Data Access and Persistence | Prisma, Postgres, ShadowSignal/ScrapingJob/Job rows, optional Redis, knowledge assets, audit/system events |
 | 8 | External Integrations | Netjana/ConvoSpan Intel, LLMs, email, LinkedIn/browser actions, payments, CRM/enrichment |
 | 9 | Optional Private Edge | Edge FastAPI, private execution context, browser or hardware-backed tasks |
@@ -284,9 +284,9 @@ flowchart LR
         routeHandlers[Route Handlers]
         domainServices[Domain Services]
         workers[Workers]
-        aiCalls[AI Calls]
-        emailSends[Email Sends]
-        linkedinActions[LinkedIn Actions]
+        aiCalls[AI Draft and Review Support]
+        emailSends[Approved Email Sends]
+        linkedinActions[Review-First LinkedIn Actions]
         edgeTasks[Optional Edge Tasks]
     end
 
@@ -341,9 +341,9 @@ flowchart TB
         coreApi[Core Campaign, Lead, Billing, Analytics APIs]
         landingApi[Landing Agent APIs]
         intelApi[Netjana Webhook and Intel APIs]
-        sequenceApi[Sequence and Channel APIs]
+        sequenceApi[Sequence and Review-First Channel APIs]
         governance[Governance, Approval, Audit]
-        workers[Workers and Queue Consumers]
+        workers[Workers and Review Queues]
     end
 
     %% Optional edge
@@ -372,7 +372,7 @@ flowchart TB
         llm[LLM Providers]
         netjana[Netjana / ConvoSpan Intel]
         email[SMTP and Email Providers]
-        linkedIn[LinkedIn and Browser-backed Actions]
+        linkedIn[LinkedIn and Browser-backed Review Actions]
         payments[Razorpay]
         crm[CRM and Enrichment Providers]
     end
@@ -501,7 +501,7 @@ flowchart TB
     linkedinRunner --> linkedin
 ```
 
-## Landing, Email, And LinkedIn Conversion Loop
+## Landing, Email, And LinkedIn Lead/Event Loop
 
 ```mermaid
 flowchart LR
@@ -532,7 +532,7 @@ flowchart LR
 
     subgraph outreach["Outbound Channels"]
         linkedinVisit[LinkedIn visit/connect/message]
-        emailDraft[Signal-aware email draft]
+        emailDraft[Signal-aware review-ready draft]
         approval[Human approval]
         emailSend[SMTP send]
     end
@@ -581,12 +581,12 @@ sequenceDiagram
 
     User->>Web: Generate brief
     Web->>Proxy: POST /landing-agent/campaigns/:id/brief
-    API->>AI: Ask for structured challenge, solution, benefit
+    API->>AI: Ask for review-ready challenge, solution, benefit
     API->>DB: Persist brief fields
 
     User->>Web: Generate wireframes
     Web->>Proxy: POST /landing-agent/campaigns/:id/wireframes
-    API->>AI: Ask for 3 constrained wireframe options
+    API->>AI: Ask for 3 constrained campaign funnel options
     API->>DB: Store LandingWireframeOption rows
 
     User->>Web: Select and edit wireframe
@@ -613,7 +613,7 @@ sequenceDiagram
 ```mermaid
 flowchart TB
     client[Web or API Client]
-    route[AI or Email Generation Route]
+    route[AI Draft, Review, or Email Generation Route]
     auth[Auth and Team Context Check]
     inputLimits[Route Input Length Limits]
     aiGuard[aiInputGuardrails enforceAIPromptPolicy]

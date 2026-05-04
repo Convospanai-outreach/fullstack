@@ -22,6 +22,23 @@ import {
 import { toast } from "sonner";
 import type { Lead } from "@/types/common";
 
+const leadStatusLabels: Record<string, string> = {
+    NEW: "New",
+    enriched: "Enriched",
+    ENRICHED: "Enriched",
+    CONTACTED: "Contacted",
+    CONNECTED: "Engaged",
+    REPLIED: "Positive Reply",
+    CONVERTED: "Converted",
+    LOST: "Lost",
+    STOPPED: "Stopped",
+};
+
+function displayLeadStatus(status?: string) {
+    if (!status) return "New";
+    return leadStatusLabels[status] ?? status;
+}
+
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
@@ -107,8 +124,8 @@ export default function LeadsPage() {
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
                 <SectionHeader
-                    title="Leads"
-                    subtitle="Centralized management for all your target prospects."
+                    title="Lead Review"
+                    subtitle="Track enrichment, contact status, replies, and conversion."
                 />
 
                 {/* Keyboard Shortcut Hint */}
@@ -139,7 +156,7 @@ export default function LeadsPage() {
                         setSearch(query);
                         setStatusFilter(status || "");
                     }}
-                    placeholder="Search prospects by name, email, or firm..."
+                    placeholder="Search leads by name, email, company, or status..."
                 />
             </Card>
 
@@ -158,8 +175,8 @@ export default function LeadsPage() {
             ) : leads.length === 0 ? (
                 <GlassCard className="text-center py-24 border-dashed border-2 box-border shadow-none">
                     <Users className="w-16 h-16 text-muted-foreground mx-auto mb-6 opacity-20" />
-                    <h3 className="text-xl font-bold text-muted-foreground">No prospects found</h3>
-                    <p className="text-muted-foreground mt-2 mb-8">Start your journey by importing leads or creating one manually.</p>
+                    <h3 className="text-xl font-bold text-muted-foreground">No leads found</h3>
+                    <p className="text-muted-foreground mt-2 mb-8">Import ICP leads to enrich, review, contact, and track replies.</p>
                     <Link href="/leads/import">
                         <Button variant="default" className="px-8">Import your first leads</Button>
                     </Link>
@@ -188,7 +205,7 @@ export default function LeadsPage() {
                                 </div>
                                 <div className="flex gap-2">
                                     <Badge variant={lead.status === 'enriched' ? 'success' : 'secondary'}>
-                                        {lead.status}
+                                        {displayLeadStatus(lead.status)}
                                     </Badge>
                                 </div>
                             </div>
@@ -225,7 +242,7 @@ export default function LeadsPage() {
                                         } disabled:opacity-50`}
                                 >
                                     {enriching[lead.id] ? <Zap className="w-3 h-3 animate-pulse" /> : <Zap className="w-3 h-3" />}
-                                    {lead.isEnriched ? "Verified" : "AI Enrich"}
+                                    {lead.isEnriched ? "Enriched" : "Enrich Lead"}
                                 </button>
                                 <button onClick={(e) => e.stopPropagation()} className="px-3 py-2 bg-muted border border-border rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all">
                                     <MoreHorizontal className="w-4 h-4" />

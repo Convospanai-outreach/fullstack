@@ -329,7 +329,7 @@ export default function MessageControlStudio() {
                         <Input
                             label="Avoid words"
                             hint="Comma-separated words or phrases to exclude"
-                            placeholder="cheap, aggressive, guaranteed"
+                            placeholder="cheap, aggressive, unrealistic claims"
                             value={config.avoidWords}
                             onChange={(e) => setConfig((prev) => ({ ...prev, avoidWords: e.target.value }))}
                         />
