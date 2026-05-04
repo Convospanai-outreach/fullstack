@@ -3,12 +3,13 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { randomBytes } from "crypto";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { audit } from "@/lib/governance/audit";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.MEMBER);
+    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
 
     const keys = await prisma.apiKey.findMany({
         where: { teamId: ctx.teamId, isActive: true },
@@ -44,6 +45,15 @@ export async function POST(req: NextRequest) {
             key: rawKey,
             scopes: scopes || ["leads:read", "campaigns:read"]
         }
+    });
+
+    await audit({
+        actorId: ctx.userId,
+        orgId: ctx.teamId,
+        action: "API_KEY_CREATED",
+        entity: "ApiKey",
+        entityId: key.id,
+        metadata: { name: key.name, scopes: key.scopes }
     });
 
     return NextResponse.json({ ...key, key: rawKey }); // Return full key ONCE

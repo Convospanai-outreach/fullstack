@@ -1,12 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 // POST /api/campaigns/[id]/leads - Assign leads to campaign
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
         const body = await req.json();
         const { leadIds } = body;
 
@@ -17,19 +28,27 @@ export async function POST(
             );
         }
 
+        const campaign = await prisma.campaign.findFirst({
+            where: { id, teamId },
+        });
+        if (!campaign) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
         // Update leads to assign them to this campaign
         await prisma.lead.updateMany({
             where: {
                 id: { in: leadIds },
+                teamId,
             },
             data: {
-                campaignId: params.id,
+                campaignId: id,
             },
         });
 
         // Get updated lead count
         const leadCount = await prisma.lead.count({
-            where: { campaignId: params.id },
+            where: { campaignId: id, teamId },
         });
 
         return NextResponse.json({ success: true, leadCount });
@@ -45,9 +64,18 @@ export async function POST(
 // DELETE /api/campaigns/[id]/leads - Remove leads from campaign
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
         const body = await req.json();
         const { leadIds } = body;
 
@@ -62,7 +90,8 @@ export async function DELETE(
         await prisma.lead.updateMany({
             where: {
                 id: { in: leadIds },
-                campaignId: params.id,
+                campaignId: id,
+                teamId,
             },
             data: {
                 campaignId: null,
@@ -71,7 +100,7 @@ export async function DELETE(
 
         // Get updated lead count
         const leadCount = await prisma.lead.count({
-            where: { campaignId: params.id },
+            where: { campaignId: id, teamId },
         });
 
         return NextResponse.json({ success: true, leadCount });

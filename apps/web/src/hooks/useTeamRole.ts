@@ -26,9 +26,13 @@ export function useTeamRole() {
                 // We fetch the current user's membership from the team list 
                 // Alternatively, we could have a dedicated /api/team/role endpoint
                 const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/team/members");
-                const { success, data } = await res.json();
+                if (!res.ok) return;
 
-                if (success) {
+                const payload = await res.json();
+                const success = payload.success !== false;
+                const data = Array.isArray(payload) ? payload : payload.data;
+
+                if (success && Array.isArray(data)) {
                     // Identify self by fetching the current session and matching email
                     const sessionRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/auth/session");
                     const session = await sessionRes.json();

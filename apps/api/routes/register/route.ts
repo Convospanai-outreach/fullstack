@@ -85,7 +85,7 @@ export async function POST(req: Request) {
                 email: user.email,
                 name: user.name
             },
-            message: 'Account created! Please check your email to verify your account.'
+            message: 'Account created. You can start now; please verify your email when the message arrives.'
         });
     } catch (error: any) {
         logger.error("Registration error:", error);

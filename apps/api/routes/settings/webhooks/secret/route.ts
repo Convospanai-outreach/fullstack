@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import crypto from "crypto";
+import { audit } from "@/lib/governance/audit";
 
 export async function POST(req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -21,6 +22,15 @@ export async function POST(req: NextRequest) {
         await prisma.webhook.update({
             where: { id: webhookId, teamId },
             data: { secret: newSecret }
+        });
+
+        await audit({
+            actorId: userId,
+            orgId: teamId,
+            action: "WEBHOOK_SECRET_ROTATED",
+            entity: "Webhook",
+            entityId: webhookId,
+            metadata: {}
         });
 
         return NextResponse.json({ success: true, secret: newSecret });

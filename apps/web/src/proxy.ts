@@ -44,14 +44,10 @@ export async function proxy(req: NextRequest) {
         return NextResponse.redirect(url);
     }
 
-    // Avoid bundling the auth runtime into local dev middleware. This keeps public page
-    // renders responsive enough for frontend testing while preserving the production path.
-    if (!isDevelopment) {
-        const { getToken } = await import("next-auth/jwt");
-        const secret = process.env['NEXTAUTH_SECRET'] || "";
-        token = (await getToken({ req, secret })) as Record<string, unknown> | null;
-        userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
-    }
+    const { getToken } = await import("next-auth/jwt");
+    const secret = process.env['NEXTAUTH_SECRET'] || "";
+    token = (await getToken({ req, secret })) as Record<string, unknown> | null;
+    userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
@@ -135,7 +131,7 @@ export async function proxy(req: NextRequest) {
         webhookApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
         publicApiPrefixes.some((prefix) => path.startsWith(prefix));
 
-    if (!isPublic && !isDevelopment) {
+    if (!isPublic) {
         // Token already fetched at the top for rate limiting
 
 

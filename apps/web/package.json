@@ -11,9 +11,9 @@
     "scripts": {
         "repair:vendor": "node scripts/repair-package-exports.mjs",
         "postinstall": "npm run repair:vendor",
-        "dev": "npm run repair:vendor && node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client -- node ../../node_modules/next/dist/bin/next dev",
+        "dev": "npm run repair:vendor && node scripts/run-with-app-env.mjs ../../node_modules/next/dist/bin/next dev",
         "build": "node scripts/clean-next-lock.mjs && npm run repair:vendor && node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS=--max-old-space-size=8192 -- node scripts/build-next-with-retry.mjs",
-        "start": "npm run repair:vendor && node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client -- node scripts/start-production.mjs",
+        "start": "npm run repair:vendor && node scripts/run-with-app-env.mjs scripts/start-production.mjs",
         "typecheck": "node scripts/run-with-env.mjs NODE_OPTIONS=--max-old-space-size=8192 -- node ../../node_modules/typescript/bin/tsc --noEmit",
         "worker": "node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client -- node ../../node_modules/tsx/dist/cli.mjs src/workers/index.ts",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/vitest/vitest.mjs",

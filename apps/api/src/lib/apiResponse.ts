@@ -31,6 +31,21 @@ export function handleAPIError(error: any) {
         );
     }
 
+    const message = error?.message || "Internal Server Error";
+    if (message.includes("Insufficient credits")) {
+        return NextResponse.json(
+            { error: message, code: "INSUFFICIENT_CREDITS" },
+            { status: 402 }
+        );
+    }
+
+    if (message.includes("prompt") || message.includes("not allowed") || message.includes("exceeds")) {
+        return NextResponse.json(
+            { error: message, code: "AI_INPUT_BLOCKED" },
+            { status: 400 }
+        );
+    }
+
     return NextResponse.json(
         { error: "Internal Server Error", code: "INTERNAL_ERROR" },
         { status: 500 }

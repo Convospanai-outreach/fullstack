@@ -4,6 +4,7 @@ const mockValidateExtensionAuth = vi.fn();
 const mockLeadFindFirst = vi.fn();
 const mockLeadUpdate = vi.fn();
 const mockLeadCreate = vi.fn();
+const mockSystemEventCreate = vi.fn();
 
 vi.mock("../_lib/auth", () => ({
     validateExtensionAuth: mockValidateExtensionAuth
@@ -15,6 +16,9 @@ vi.mock("@/lib/db", () => ({
             findFirst: mockLeadFindFirst,
             update: mockLeadUpdate,
             create: mockLeadCreate
+        },
+        systemEvent: {
+            create: mockSystemEventCreate
         }
     }
 }));
@@ -24,6 +28,7 @@ describe("extension push route", () => {
         vi.clearAllMocks();
         mockLeadUpdate.mockResolvedValue({ id: "lead-1" });
         mockLeadCreate.mockResolvedValue({ id: "lead-2" });
+        mockSystemEventCreate.mockResolvedValue({ id: "event-1" });
     });
 
     it("requires explicit teamId for multi-team users", async () => {
@@ -121,6 +126,15 @@ describe("extension push route", () => {
         expect(updateCall.data.enrichedData.keep).toBe("yes");
         expect(updateCall.data.enrichedData.about).toBeUndefined();
         expect(typeof updateCall.data.enrichedData.sourceCapturedAt).toBe("string");
+        expect(mockSystemEventCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    teamId: "team-a",
+                    actorId: "user-1",
+                    name: "LEAD_SCRAPED_VIA_EXTENSION"
+                })
+            })
+        );
     });
 
     it("creates lead for single-team user without teamId in payload", async () => {
@@ -159,6 +173,14 @@ describe("extension push route", () => {
         expect(createCall.data.location).toBe("Dubai");
         expect(createCall.data.enrichedData.source).toBe("extension_scrape");
         expect(createCall.data.enrichedData.about).toContain("[REDACTED-EMAIL]");
+        expect(mockSystemEventCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    teamId: "team-a",
+                    actorId: "user-1",
+                    name: "LEAD_SCRAPED_VIA_EXTENSION"
+                })
+            })
+        );
     });
 });
-

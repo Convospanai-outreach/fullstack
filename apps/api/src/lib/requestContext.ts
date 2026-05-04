@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 
 interface RequestContextData {
     correlationId: string;
+    request?: Request;
     userId?: string;
     teamId?: string;
 }

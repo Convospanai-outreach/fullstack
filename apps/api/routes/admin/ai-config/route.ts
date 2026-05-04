@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
-import { UserRole } from "@prisma/client";
 import { checkAdmin } from "@/lib/admin";
+import { audit } from "@/lib/governance/audit";
 
 
 
@@ -52,9 +52,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const { teamId } = await getCurrentContext();
+        const { userId, teamId } = await getCurrentContext();
         const isAdmin = await checkAdmin();
-        if (!teamId || !isAdmin) {
+        if (!userId || !teamId || !isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -103,6 +103,21 @@ export async function POST(req: Request) {
                 }
             },
             select: { aiConfig: true }
+        });
+
+        await audit({
+            actorId: userId,
+            orgId: teamId,
+            action: "ADMIN_AI_CONFIG_UPDATED",
+            entity: "Team",
+            entityId: teamId,
+            metadata: {
+                providersTouched: {
+                    gemini: typeof geminiApiKey === "string" || typeof geminiModel === "string",
+                    openai: typeof openaiApiKey === "string" || typeof openaiModel === "string",
+                    anthropic: typeof anthropicApiKey === "string" || typeof anthropicModel === "string"
+                }
+            }
         });
 
         return NextResponse.json({

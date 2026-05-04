@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/db";
-import { McpTool } from "../types";
 
 export interface HelperTool {
     name: string;

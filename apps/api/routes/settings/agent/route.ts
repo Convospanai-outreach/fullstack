@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function GET(_req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
         const memories = await prisma.agentMemory.findMany({
             where: { teamId },
@@ -19,8 +23,11 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
         const body = await req.json();
         const { key, value } = body;

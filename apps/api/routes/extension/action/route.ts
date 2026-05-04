@@ -51,14 +51,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ ok: false, error: "Invalid stop reason", code: "INVALID_STOP_REASON" }, { status: 400 });
         }
 
+        const validActions = ["VIEW_PROFILE", "LIKE_POST", "CONNECT"];
+        const action = sanitizeText(body?.action, 80);
+        if (!action || !validActions.includes(action)) {
+            return NextResponse.json({ ok: false, error: "Invalid action", code: "INVALID_ACTION" }, { status: 400 });
+        }
+
         const sanitizedPayload = {
-            action: sanitizeText(body?.action, 80) || "UNKNOWN",
+            action,
             status: sanitizeText(body?.status, 80) || "UNKNOWN",
-            leadId: sanitizeText(body?.leadId, 120) || null,
-            profileUrl: normalizeLinkedInUrl(body?.profileUrl) || null,
+            leadId: sanitizeText(body?.leadId, 120),
+            profileUrl: normalizeLinkedInUrl(body?.profileUrl),
             stopReason: sanitizeText(body?.stopReason, 180) || null,
-            resultSummary: sanitizeText(body?.resultSummary || body?.details, 500) || null,
-            durationMs: normalizeDuration(body?.durationMs ?? body?.duration) ?? null
+            resultSummary: sanitizeText(body?.resultSummary || body?.details, 500),
+            durationMs: normalizeDuration(body?.durationMs ?? body?.duration)
         };
 
         logger.info("[Extension Action] Received action result:", { teamId, userId, ...sanitizedPayload });

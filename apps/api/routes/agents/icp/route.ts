@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
+import { handleAPIError } from "@/lib/apiResponse";
 
 const icpSchema = z.object({
     industry: z.string().min(2),
@@ -47,6 +48,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(result);
     } catch (error: any) {
         console.error("ICP Agent Error:", error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return handleAPIError(error);
     }
 }

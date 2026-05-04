@@ -2,6 +2,7 @@
   "extends": "./tsconfig.json",
   "include": [
     "server.ts",
+    "routes/**/*.ts",
     "src/**/*.d.ts"
   ],
   "exclude": [
@@ -9,7 +10,6 @@
     "**/__tests__/**",
     "node_modules",
     "dist",
-    "routes/**",
     "src/routes/**",
     "src/modules/**/api/**",
     "src/lib/apiAuth.ts",

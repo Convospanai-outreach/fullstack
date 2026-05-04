@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { getSmtpConfigRedacted, saveSmtpConfig, deleteSmtpConfig } from "@/modules/email-campaigner/service/smtpConfigService";
 import { z } from "zod";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { audit } from "@/lib/governance/audit";
 
 const SmtpSchema = z.object({
     host: z.string().min(1),
@@ -39,6 +40,20 @@ export async function POST(req: NextRequest) {
     }
 
     await saveSmtpConfig(ctx.teamId, parsed.data);
+    await audit({
+        actorId: ctx.userId,
+        orgId: ctx.teamId,
+        action: "SMTP_CONFIG_SAVED",
+        entity: "SmtpConfig",
+        entityId: ctx.teamId,
+        metadata: {
+            host: parsed.data.host,
+            port: parsed.data.port,
+            secure: parsed.data.secure,
+            user: parsed.data.user,
+            fromEmail: parsed.data.fromEmail
+        }
+    });
     return NextResponse.json({ success: true });
 }
 
@@ -50,5 +65,13 @@ export async function DELETE() {
     }
 
     await deleteSmtpConfig(ctx.teamId);
+    await audit({
+        actorId: ctx.userId,
+        orgId: ctx.teamId,
+        action: "SMTP_CONFIG_DELETED",
+        entity: "SmtpConfig",
+        entityId: ctx.teamId,
+        metadata: {}
+    });
     return NextResponse.json({ success: true });
 }

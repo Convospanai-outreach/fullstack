@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { audit } from "@/lib/governance/audit";
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -18,6 +19,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     if (deleted.count !== 1) {
         return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
+
+    await audit({
+        actorId: ctx.userId,
+        orgId: ctx.teamId,
+        action: "API_KEY_DELETED",
+        entity: "ApiKey",
+        entityId: id,
+        metadata: {}
+    });
 
     return NextResponse.json({ success: true });
 }

@@ -12,14 +12,14 @@ const VariantSchema = z.object({
 
 const VariantsArraySchema = z.array(VariantSchema);
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
 
-        const campaignId = params.id;
+        const { id: campaignId } = await params;
         const body = await req.json();
 
         // Validate input
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
 
         // Verify campaign ownership
-        const campaign = await prisma.campaign.findUnique({
+        const campaign = await prisma.campaign.findFirst({
             where: { id: campaignId, teamId }
         });
 
@@ -62,15 +62,16 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 }
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { teamId } = await getCurrentContext();
         if (!teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        const { id: campaignId } = await params;
 
         const variants = await prisma.campaignVariant.findMany({
-            where: { campaignId: params.id, campaign: { teamId } }
+            where: { campaignId, campaign: { teamId } }
         });
 
         return successResponse(variants);

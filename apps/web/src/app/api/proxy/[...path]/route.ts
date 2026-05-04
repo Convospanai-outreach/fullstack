@@ -25,9 +25,19 @@ function getTargetUrl(req: NextRequest, pathParts: string[] | undefined): URL {
     return target;
 }
 
+function getWebAuthUrl(req: NextRequest, pathParts: string[]): URL | null {
+    if (pathParts[0] !== "auth") return null;
+    const authPath = pathParts.slice(1).join("/");
+    return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
+}
+
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
     try {
-        const target = getTargetUrl(req, pathParts);
+        if (!pathParts || pathParts.length === 0) {
+            throw new Error("Proxy path is required");
+        }
+
+        const target = getWebAuthUrl(req, pathParts) ?? getTargetUrl(req, pathParts);
         const headers = new Headers(req.headers);
 
         headers.delete("host");

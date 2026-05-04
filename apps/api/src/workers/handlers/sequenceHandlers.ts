@@ -29,6 +29,7 @@ export async function handleSequenceAction(payload: JobPayload) {
     const leadId = payload['leadId'];
     const url = payload['url'];
     const action = payload['action'];
+    const payloadTeamId = typeof payload['teamId'] === "string" ? payload['teamId'] : undefined;
 
     if (!leadId || !url || !action) {
         throw new Error("Missing required payload for SEQUENCE_ACTION");
@@ -49,8 +50,13 @@ export async function handleSequenceAction(payload: JobPayload) {
 
         case "CONNECT":
             // Generate smart message based on lead context
-            const connectContext = leadId ? await prisma.lead.findUnique({ where: { id: leadId } }).then(l => l?.enrichedData ? JSON.stringify(l.enrichedData) : `Connect with lead at ${url}`) : `Connect with lead at ${url}`;
-            const message = await aiService.generateConnectionMessage(connectContext);
+            const connectLead = leadId ? await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { enrichedData: true, campaign: { select: { teamId: true } } }
+            }) : null;
+            const connectTeamId = payloadTeamId || connectLead?.campaign?.teamId;
+            const connectContext = connectLead?.enrichedData ? JSON.stringify(connectLead.enrichedData) : `Connect with lead at ${url}`;
+            const message = await aiService.generateConnectionMessage(connectContext, connectTeamId);
 
             // Connect with note
             result = await runLinkedInAction({
@@ -62,8 +68,17 @@ export async function handleSequenceAction(payload: JobPayload) {
 
         case "MESSAGE":
             // Follow up message - Personalized via lead context
-            const followUpContext = leadId ? await prisma.lead.findUnique({ where: { id: leadId } }).then(l => l?.enrichedData ? JSON.stringify(l.enrichedData) : `Follow up with lead at ${url}`) : `Follow up with lead at ${url}`;
-            const followUpMessage = await aiService.askAI(`Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`);
+            const followUpLead = leadId ? await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { enrichedData: true, campaign: { select: { teamId: true } } }
+            }) : null;
+            const followUpTeamId = payloadTeamId || followUpLead?.campaign?.teamId;
+            const followUpContext = followUpLead?.enrichedData ? JSON.stringify(followUpLead.enrichedData) : `Follow up with lead at ${url}`;
+            const followUpMessage = await aiService.askAI(
+                `Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`,
+                followUpTeamId,
+                { surface: "HELPER", taskType: "LINKEDIN_FOLLOW_UP" }
+            );
 
             result = await runLinkedInAction({
                 type: "INMAIL",

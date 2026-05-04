@@ -1,28 +1,25 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     try {
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            include: { memberships: { include: { team: true } } }
-        });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!teamId) return new NextResponse("Workspace Not Found", { status: 404 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
-        const team = user?.memberships?.[0]?.team;
+        const team = await prisma.team.findUnique({ where: { id: teamId } });
         if (!team) {
             return new NextResponse("Workspace Not Found", { status: 404 });
         }
 
-        const logs = await AuditService.getLogs(team.id);
+        const logs = await AuditService.getLogs(teamId);
 
         return NextResponse.json({
             success: true,

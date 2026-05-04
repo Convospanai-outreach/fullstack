@@ -37,7 +37,7 @@ ${prompt}
         let lastError: Error | null = null;
         for (let attempt = 0; attempt <= retries; attempt += 1) {
             try {
-                const text = await aiService.askAI(fullPrompt, this.teamId, { expectsJson: true, disableGuardrails: true });
+                const text = await aiService.askAI(fullPrompt, this.teamId, { expectsJson: true });
                 const json = JSON.parse(extractJsonBlock(text));
                 return json as T;
             } catch (err) {

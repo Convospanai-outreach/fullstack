@@ -5,11 +5,14 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
-
-dotenv.config();
+import { randomUUID } from 'crypto';
+import { RequestContext } from '@/lib/requestContext';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
+dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
 
 const fastify = Fastify({
   logger: {
@@ -64,6 +67,17 @@ const allowedOrigins = (process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS |
   .map(s => s.trim())
   .filter(Boolean);
 
+function isLoopbackDevOrigin(origin: string) {
+  if (process.env.NODE_ENV === 'production') return false;
+  try {
+    const parsed = new URL(origin);
+    return (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+      (parsed.port === '3000' || parsed.port === '3001');
+  } catch {
+    return false;
+  }
+}
+
 fastify.register(cors, {
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
@@ -71,7 +85,7 @@ fastify.register(cors, {
       const allowInDev = process.env.NODE_ENV !== 'production';
       return cb(null, allowInDev);
     }
-    return cb(null, allowedOrigins.includes(origin));
+    return cb(null, allowedOrigins.includes(origin) || isLoopbackDevOrigin(origin));
   }
 });
 
@@ -79,6 +93,25 @@ fastify.addContentTypeParser('*', { parseAs: 'buffer' }, (req: any, body: Buffer
   req.rawBody = body;
   done(null, body);
 });
+
+function getAdaptedRequestBody(request: any, headers: Headers) {
+  if (request.rawBody !== undefined) {
+    return request.rawBody;
+  }
+
+  if (request.body === undefined || request.body === null) {
+    return undefined;
+  }
+
+  if (Buffer.isBuffer(request.body) || typeof request.body === 'string') {
+    return request.body;
+  }
+
+  if (!headers.has('content-type')) {
+    headers.set('content-type', 'application/json');
+  }
+  return JSON.stringify(request.body);
+}
 
 /**
  * Adapter to bridge Next.js Route Handlers to Fastify
@@ -97,13 +130,20 @@ const nextAdapter = (handler: any) => async (request: any, reply: any) => {
     });
 
     const method = request.method;
-    const body = (method === 'GET' || method === 'HEAD') ? undefined : request.rawBody;
+    const body = (method === 'GET' || method === 'HEAD') ? undefined : getAdaptedRequestBody(request, headers);
     const nextReq = new Request(url.toString(), { method, headers, body } as any);
+    Object.defineProperty(nextReq, 'nextUrl', {
+      value: url,
+      configurable: true
+    });
 
     const paramsPayload = Promise.resolve((request.params || {}) as Record<string, string>);
-    const response = handler.length >= 2
-      ? await handler(nextReq as any, { params: paramsPayload })
-      : await handler(nextReq as any);
+    const correlationId = headers.get('x-correlation-id') || randomUUID();
+    const response = await RequestContext.run({ correlationId, request: nextReq }, async () => (
+      handler.length >= 2
+        ? await handler(nextReq as any, { params: paramsPayload })
+        : await handler(nextReq as any)
+    ));
     
     const status = response.status || 200;
     const contentType = response.headers?.get?.('content-type') || '';
@@ -202,7 +242,7 @@ async function loadRoutes(dir: string) {
       }
 
       const registeredPath = `/${routePath}`.replace(/\/$/, '') || '/';
-      const fastifyPath = registeredPath.replace(/\[([^\]]+)\]/g, ':$1');
+      const fastifyPath = toFastifyRoutePath(registeredPath);
       fastify.log.info(`Registering [${method}] ${registeredPath}`);
 
       fastify.route({
@@ -212,6 +252,12 @@ async function loadRoutes(dir: string) {
       });
     }
   }
+}
+
+function toFastifyRoutePath(nextRoutePath: string) {
+  return nextRoutePath
+    .replace(/\[\.\.\.([^\]]+)\]/g, '*')
+    .replace(/\[([^\]]+)\]/g, ':$1');
 }
 
 const start = async () => {

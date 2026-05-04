@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentContext } from "@/lib/auth";
 
 // GET /api/campaigns/[id]/analytics - Campaign analytics
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const campaign = await prisma.campaign.findUnique({
-            where: { id: params.id },
+        const { id } = await params;
+        const { teamId } = await getCurrentContext();
+        if (!teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const campaign = await prisma.campaign.findFirst({
+            where: { id, teamId },
             include: {
                 leadList: {
                     select: {

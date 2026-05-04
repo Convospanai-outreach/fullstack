@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import crypto from "crypto";
+import { audit } from "@/lib/governance/audit";
 
 export async function GET(_req: NextRequest) {
     const { userId, teamId } = await getCurrentContext();
@@ -39,6 +40,15 @@ export async function POST(req: NextRequest) {
         }
     });
 
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "WEBHOOK_CREATED",
+        entity: "Webhook",
+        entityId: webhook.id,
+        metadata: { url: webhook.url, events: webhook.events }
+    });
+
     return NextResponse.json(webhook);
 }
 
@@ -55,6 +65,15 @@ export async function DELETE(req: NextRequest) {
 
     await prisma.webhook.delete({
         where: { id, teamId }
+    });
+
+    await audit({
+        actorId: userId,
+        orgId: teamId,
+        action: "WEBHOOK_DELETED",
+        entity: "Webhook",
+        entityId: id,
+        metadata: {}
     });
 
     return NextResponse.json({ ok: true });

@@ -34,9 +34,9 @@ interface WorkflowEditorProps {
     onSave?: (nodes: Node[], edges: Edge[]) => void;
 }
 
-export default function WorkflowEditor({ initialNodes = [], workflowId, onSave }: WorkflowEditorProps) {
+export default function WorkflowEditor({ initialNodes = [], initialEdges = [], workflowId, onSave }: WorkflowEditorProps) {
     const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes as unknown as Node[]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges as unknown as Edge[]);
 
     const onConnect = useCallback((params: Connection) => setEdges((eds) => addEdge(params, eds)), [setEdges]);
 

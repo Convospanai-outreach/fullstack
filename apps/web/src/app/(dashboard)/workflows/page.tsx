@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 export default function WorkflowsPage() {
     const [workflows, setWorkflows] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -19,10 +20,20 @@ export default function WorkflowsPage() {
     const fetchWorkflows = async () => {
         try {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/workflows');
+            if (res.status === 401) {
+                router.push('/login');
+                return;
+            }
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Failed to load workflows");
+            }
             const data = await res.json();
             setWorkflows(Array.isArray(data) ? data : []);
+            setError(null);
         } catch (e) {
             console.error(e);
+            setError(e instanceof Error ? e.message : "Failed to load workflows");
         } finally {
             setLoading(false);
         }
@@ -38,10 +49,19 @@ export default function WorkflowsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name })
             });
+            if (res.status === 401) {
+                router.push('/login');
+                return;
+            }
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Failed to create workflow");
+            }
             const newWorkflow = await res.json();
+            if (!newWorkflow?.id) throw new Error("Workflow response was missing an id");
             router.push(`/workflows/${newWorkflow.id}`);
-        } catch (e) {
-            toast.error("Failed to create workflow");
+        } catch (e: any) {
+            toast.error(e.message || "Failed to create workflow");
         }
     };
 
@@ -49,9 +69,21 @@ export default function WorkflowsPage() {
         e.stopPropagation();
         if (!confirm("Are you sure?")) return;
 
-        await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/workflows/${id}`, { method: 'DELETE' });
-        fetchWorkflows();
-        toast.success("Workflow deleted");
+        try {
+            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/workflows/${id}`, { method: 'DELETE' });
+            if (res.status === 401) {
+                router.push('/login');
+                return;
+            }
+            if (!res.ok) {
+                const body = await res.json().catch(() => ({}));
+                throw new Error(body.error || "Failed to delete workflow");
+            }
+            fetchWorkflows();
+            toast.success("Workflow deleted");
+        } catch (err: any) {
+            toast.error(err.message || "Failed to delete workflow");
+        }
     };
 
     if (loading) return <div className="p-8">Loading workflows...</div>;
@@ -67,6 +99,12 @@ export default function WorkflowsPage() {
                     + New Workflow
                 </button>
             </div>
+
+            {error && (
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                    {error}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {workflows.map(wf => (

@@ -24,7 +24,8 @@ export default function TeamPage() {
                 fetch(process.env['NEXT_PUBLIC_API_URL'] + '/team/members'),
                 fetch(process.env['NEXT_PUBLIC_API_URL'] + '/team/policy')
             ]);
-            setMembers(await membersRes.json());
+            const membersPayload = await membersRes.json();
+            setMembers(Array.isArray(membersPayload) ? membersPayload : membersPayload.data || []);
             setPolicy(await policyRes.json());
         } catch (e) {
             console.error(e);
@@ -38,6 +39,7 @@ export default function TeamPage() {
         try {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/team/members', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, role })
             });
             if (!res.ok) throw new Error("Failed");

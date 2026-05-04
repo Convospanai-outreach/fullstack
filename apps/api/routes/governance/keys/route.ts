@@ -1,25 +1,17 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { randomBytes } from "crypto";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     try {
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            include: { memberships: true }
-        });
-
-        const teamId = user?.memberships?.[0]?.teamId;
-        if (!teamId) {
-            return new NextResponse("Workspace Not Found", { status: 404 });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!teamId) return new NextResponse("Workspace Not Found", { status: 404 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const keys = await prisma.apiKey.findMany({
@@ -51,21 +43,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     try {
         const { name } = await req.json();
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            include: { memberships: true }
-        });
-
-        const teamId = user?.memberships?.[0]?.teamId;
-        if (!teamId) {
-            return new NextResponse("Workspace Not Found", { status: 404 });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!teamId) return new NextResponse("Workspace Not Found", { status: 404 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         // Generate a cryptographically secure key

@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
         
         const context = {
             teamId: teamId || undefined,
-            source: "web-proxy",
+            source: "service" as const,
             approved: false // Needs explicit handling if it's a high-risk tool
         };
 

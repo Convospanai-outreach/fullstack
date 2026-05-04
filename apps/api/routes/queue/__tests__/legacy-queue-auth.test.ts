@@ -81,7 +81,7 @@ describe("legacy queue routes", () => {
         expect((mockFindMany as Mock).mock.calls[0]?.[0]).toEqual(
             expect.objectContaining({
                 where: expect.objectContaining({
-                    teamId: { in: ["team-a"] },
+                    teamId: "team-a",
                     status: "EXECUTING"
                 })
             })
@@ -90,7 +90,7 @@ describe("legacy queue routes", () => {
             expect.objectContaining({
                 where: expect.objectContaining({
                     id: "task-1",
-                    teamId: { in: ["team-a"] },
+                    teamId: "team-a",
                     status: "EXECUTING"
                 })
             })
@@ -128,7 +128,7 @@ describe("legacy queue routes", () => {
             expect.objectContaining({
                 where: expect.objectContaining({
                     id: "task-bad",
-                    teamId: { in: ["team-a"] },
+                    teamId: "team-a",
                     status: "EXECUTING"
                 }),
                 data: expect.objectContaining({
@@ -224,7 +224,7 @@ describe("legacy queue routes", () => {
         expect((mockFindFirst as Mock).mock.calls[0]?.[0]).toEqual({
             where: {
                 id: "task-2",
-                teamId: { in: ["team-a"] }
+                teamId: "team-a"
             }
         });
     });

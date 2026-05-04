@@ -9,7 +9,8 @@ export default defineConfig({
     test: {
         environment: "node",
         globals: true,
-        include: ["routes/**/*.test.ts", "routes/**/__tests__/**/*.test.ts"]
+        include: ["routes/**/*.test.ts", "routes/**/__tests__/**/*.test.ts"],
+        testTimeout: 15000
     },
     resolve: {
         alias: {
@@ -17,4 +18,3 @@ export default defineConfig({
         }
     }
 });
-

@@ -4,6 +4,7 @@ import { aiService } from "@/lib/aiService";
 
 export async function handleSmartComment(payload: JobPayload) {
     if (!payload.url) throw new Error("URL is required for SMART_COMMENT");
+    const teamId = typeof payload.teamId === "string" ? payload.teamId : undefined;
 
     // 1. Scrape post content
     const scrapeResult = await runLinkedInAction({
@@ -18,7 +19,7 @@ export async function handleSmartComment(payload: JobPayload) {
     const postContent = scrapeResult.text;
 
     // 2. Generate comment using AI
-    const comment = await aiService.generateComment(postContent, "User Profile Context");
+    const comment = await aiService.generateComment(postContent, "User Profile Context", teamId);
 
     // 3. Post comment
     return await runLinkedInAction({
@@ -30,6 +31,7 @@ export async function handleSmartComment(payload: JobPayload) {
 
 export async function handleSmartConnect(payload: JobPayload) {
     if (!payload.url) throw new Error("URL is required for SMART_CONNECT");
+    const teamId = typeof payload.teamId === "string" ? payload.teamId : undefined;
 
     // 1. Scrape profile
     const scrapeResult = await runLinkedInAction({
@@ -51,7 +53,7 @@ export async function handleSmartConnect(payload: JobPayload) {
     const profileContext = JSON.stringify(scrapeResult.data);
 
     // 2. Generate connection message using AI
-    const message = await aiService.generateConnectionMessage(profileContext);
+    const message = await aiService.generateConnectionMessage(profileContext, teamId);
 
     // 3. Connect with note
     // Note: Puppeteer runner needs to support "CONNECT_WITH_NOTE" or we handle it in "CONNECT"

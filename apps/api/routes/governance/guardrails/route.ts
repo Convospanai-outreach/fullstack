@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     try {
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            include: { memberships: { include: { team: { include: { guardrailPolicy: true } } } } }
-        });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!teamId) return new NextResponse("Workspace Not Found", { status: 404 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
+        }
 
-        const team = user?.memberships?.[0]?.team;
+        const team = await prisma.team.findUnique({
+            where: { id: teamId },
+            include: { guardrailPolicy: true }
+        });
         if (!team) {
             return new NextResponse("Workspace Not Found", { status: 404 });
         }
@@ -45,21 +45,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
-
     try {
         const body = await req.json();
-        const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            include: { memberships: true }
-        });
-
-        const teamId = user?.memberships?.[0]?.teamId;
-        if (!teamId) {
-            return new NextResponse("Workspace Not Found", { status: 404 });
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+        if (!teamId) return new NextResponse("Workspace Not Found", { status: 404 });
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return new NextResponse("Forbidden", { status: 403 });
         }
 
         const policy = await prisma.guardrailPolicy.upsert({

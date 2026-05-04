@@ -7,6 +7,7 @@ import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProviderImport from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { RequestContext } from "@/lib/requestContext";
 
 // Conditional Google Provider
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
@@ -211,6 +212,11 @@ export async function setupUser(user: { id: string, email: string, name?: string
 }
 
 export async function getCurrentContext() {
+    const request = RequestContext.get()?.request;
+    if (request) {
+        return getCurrentContextFromRequest(request);
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -279,15 +285,43 @@ function getCookieValue(cookieHeader: string | null, name: string): string | nul
     }
 }
 
+function getCookieMap(cookieHeader: string | null): Map<string, string> {
+    const cookies = new Map<string, string>();
+    if (!cookieHeader) return cookies;
+
+    for (const part of cookieHeader.split(";")) {
+        const trimmed = part.trim();
+        if (!trimmed) continue;
+
+        const equalsIndex = trimmed.indexOf("=");
+        if (equalsIndex <= 0) continue;
+
+        const name = trimmed.slice(0, equalsIndex);
+        const rawValue = trimmed.slice(equalsIndex + 1);
+        try {
+            cookies.set(name, decodeURIComponent(rawValue));
+        } catch {
+            cookies.set(name, rawValue);
+        }
+    }
+
+    return cookies;
+}
+
 export async function getCurrentContextFromRequest(req: Request) {
-    const token = await getToken({ req: req as any });
+    const cookieHeader = req.headers.get("cookie");
+    const token = await getToken({
+        req: {
+            headers: req.headers,
+            cookies: getCookieMap(cookieHeader),
+        } as any,
+    });
     const userId = token?.sub || null;
 
     if (!userId) {
         return { userId: null, teamId: null };
     }
 
-    const cookieHeader = req.headers.get("cookie");
     const workspaceId = getCookieValue(cookieHeader, "convo-workspace-id");
 
     if (workspaceId) {

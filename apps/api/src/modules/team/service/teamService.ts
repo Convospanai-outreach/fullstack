@@ -11,7 +11,7 @@ class TeamService {
         });
     }
 
-    async inviteMember(teamId: string, email: string, role: string = "member") {
+    async inviteMember(teamId: string, email: string, role: TeamRole = TeamRole.MEMBER) {
         // Check if already in team
         const existing = await prisma.teamMember.findFirst({
             where: { teamId, email }
@@ -40,7 +40,7 @@ class TeamService {
         // Logic: fetch member, check role. If owner, check if other owners exist.
         // For now, allow simple removal for non-owners, strict for owners.
 
-        const member = await prisma.teamMember.findUnique({ where: { id: memberId } });
+        const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
         if (!member) throw new Error("Member not found");
 
         if (member.role === TeamRole.OWNER) {
@@ -57,7 +57,19 @@ class TeamService {
         });
     }
 
-    async updateRole(_teamId: string, memberId: string, newRole: string) {
+    async updateRole(teamId: string, memberId: string, newRole: TeamRole) {
+        const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
+        if (!member) throw new Error("Member not found");
+
+        if (member.role === TeamRole.OWNER && newRole !== TeamRole.OWNER) {
+            const ownerCount = await prisma.teamMember.count({
+                where: { teamId, role: TeamRole.OWNER }
+            });
+            if (ownerCount <= 1) {
+                throw new Error("Cannot demote the last owner of the team.");
+            }
+        }
+
         return await prisma.teamMember.update({
             where: { id: memberId },
             data: { role: newRole }

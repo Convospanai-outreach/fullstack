@@ -4,6 +4,8 @@ import { TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { getCurrentContext } from "@/lib/auth";
 import { AuditService } from "@/modules/audit/auditService";
 
+const TEAM_ROLES = new Set<string>(Object.values(TeamRole));
+
 export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ memberId: string }> }
@@ -24,6 +26,9 @@ export async function PATCH(
         const { role } = body;
 
         if (!role) return NextResponse.json({ success: false, error: "Missing role" }, { status: 400 });
+        if (!TEAM_ROLES.has(role)) {
+            return NextResponse.json({ success: false, error: "Invalid role" }, { status: 400 });
+        }
 
         // Extra check: Only Owner can make someone an Admin or Owner
         if ((role === TeamRole.ADMIN || role === TeamRole.OWNER) &&
@@ -31,7 +36,7 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: "Only owners can promote to Admin/Owner" }, { status: 403 });
         }
 
-        const member = await teamService.updateRole(ctx.teamId, memberId, role);
+        const member = await teamService.updateRole(ctx.teamId, memberId, role as TeamRole);
 
         // Audit
         await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_ROLE_UPDATED", "TeamMember", memberId, { newRole: role });
@@ -39,6 +44,12 @@ export async function PATCH(
         return NextResponse.json({ success: true, data: member });
 
     } catch (error: any) {
+        if (error.message === "Member not found") {
+            return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+        }
+        if (error.message?.includes("last owner")) {
+            return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
@@ -67,6 +78,12 @@ export async function DELETE(
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
+        if (error.message === "Member not found") {
+            return NextResponse.json({ success: false, error: error.message }, { status: 404 });
+        }
+        if (error.message?.includes("last owner")) {
+            return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }

@@ -1,10 +1,10 @@
 import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { prisma } from "@/lib/db";
 
 // Global cache for Prisma clients to prevent connection exhaustion in serverless/dev
 const globalForPrisma = globalThis as unknown as {
-    prismaGlobal: PrismaClient | undefined;
     prismaUAE: PrismaClient | undefined;
     prismaEU: PrismaClient | undefined;
 };
@@ -25,10 +25,7 @@ export class DbFactory {
     }
 
     private static getGlobalClient(): PrismaClient {
-        if (!globalForPrisma.prismaGlobal) {
-            globalForPrisma.prismaGlobal = new PrismaClient();
-        }
-        return globalForPrisma.prismaGlobal;
+        return prisma as unknown as PrismaClient;
     }
 
     private static getUaeClient(): PrismaClient {
