@@ -1,6 +1,12 @@
-import { ProductMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { isEdgeRuntimeOptional } from "@/lib/edgeRuntime";
+
+const ProductMode = {
+    ENTERPRISE_CORE: "ENTERPRISE_CORE",
+    GROWTH: "GROWTH",
+} as const;
+
+type ProductMode = (typeof ProductMode)[keyof typeof ProductMode];
 
 export enum AIDestination {
     CLOUD = "CLOUD",
