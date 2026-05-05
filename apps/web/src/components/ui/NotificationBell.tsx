@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 
 import { useSession } from "next-auth/react";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export function NotificationBell() {
     const { status } = useSession();
@@ -12,7 +13,7 @@ export function NotificationBell() {
 
     useEffect(() => {
         if (status === "authenticated") {
-            fetch(process.env['NEXT_PUBLIC_API_URL'] + "/notifications")
+            fetch(getBrowserApiUrl("/notifications"))
                 .then(res => {
                     if (res.ok) return res.json();
                     return [];

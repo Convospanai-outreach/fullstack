@@ -13,8 +13,7 @@ import {
     Tooltip,
     ResponsiveContainer
 } from "recharts";
-
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] || "http://localhost:3001";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 type Signal = {
     id: string;
@@ -51,7 +50,7 @@ export function SovereignConsole() {
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                const res = await fetch(`${API_URL}/admin/sovereign-stats`);
+                const res = await fetch(getBrowserApiUrl("/admin/sovereign-stats"));
                 if (!res.ok) throw new Error("Failed to fetch sovereign stats");
                 const data = await res.json();
                 if (data.ok) {
@@ -75,7 +74,7 @@ export function SovereignConsole() {
     useEffect(() => {
         const fetchRoi = async () => {
             try {
-                const res = await fetch(`${API_URL}/analytics/roi`);
+                const res = await fetch(getBrowserApiUrl("/analytics/roi"));
                 if (!res.ok) throw new Error("Failed to fetch ROI");
                 const data = await res.json();
                 const history = (data?.history || []) as { date: string; revenue: number; spend: number }[];

@@ -8,9 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import ExportButton from "@/modules/data-export/ui/ExportButton";
 import FilterBar from "@/components/shared/FilterBar";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import type { Campaign } from "@/types/common";
-
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
 
 export default function CampaignsPage() {
     const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -24,7 +23,7 @@ export default function CampaignsPage() {
         if (search) params.set("search", search);
         if (statusFilter) params.set("status", statusFilter);
 
-        fetch(`${API_BASE}/campaigns?${params.toString()}`)
+        fetch(getBrowserApiUrl(`/campaigns?${params.toString()}`))
             .then((res) => res.json())
             .then((data) => {
                 if (Array.isArray(data)) {

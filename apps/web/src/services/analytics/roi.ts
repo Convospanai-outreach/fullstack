@@ -1,3 +1,5 @@
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
+
 export interface ROIFunnel {
     totalLeads: number;
     totalSent: number;
@@ -22,7 +24,7 @@ export interface ROIResponse {
 
 export const ROIService = {
     getSummary: async (): Promise<ROIResponse> => {
-        const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/analytics/roi");
+        const res = await fetch(getBrowserApiUrl("/analytics/roi"));
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             throw new Error(data.error || "Failed to load ROI metrics");

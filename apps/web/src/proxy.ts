@@ -107,6 +107,8 @@ export async function proxy(req: NextRequest) {
     const publicPaths = [
         "/",
         "/login",
+        "/agent-login",
+        "/client-login",
         "/signup",
         "/forgot-password",
         "/magic-link",
@@ -141,7 +143,7 @@ export async function proxy(req: NextRequest) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
             }
             const url = req.nextUrl.clone();
-            url.pathname = "/login";
+            url.pathname = path.startsWith("/client") ? "/client-login" : "/login";
             url.searchParams.set("callbackUrl", path);
             return NextResponse.redirect(url);
         }

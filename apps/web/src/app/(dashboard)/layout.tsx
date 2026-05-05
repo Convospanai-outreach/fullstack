@@ -2,24 +2,27 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import OnboardingChecklist from "@/modules/onboarding/ui/OnboardingChecklist";
 import { Omnibox } from "@/components/dashboard/Omnibox";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export default function DashboardLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showSetupBanner, setShowSetupBanner] = useState(false);
     const [setupPercent, setSetupPercent] = useState(0);
 
     useEffect(() => {
         // Only check setup status once on dashboard load
-        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/setup/status")
+        fetch(getBrowserApiUrl("/setup/status"))
             .then(res => res.ok ? res.json() : null)
             .then(data => {
                 if (data && (!data.readyToLaunch || data.completionPercent < 100)) {
@@ -70,7 +73,7 @@ export default function DashboardLayout({
                         {children}
                     </div>
                 </main>
-                <OnboardingChecklist />
+                {pathname !== "/campaigns/new" && <OnboardingChecklist />}
             </div>
             <Omnibox />
             <ConnectionStatusBar />

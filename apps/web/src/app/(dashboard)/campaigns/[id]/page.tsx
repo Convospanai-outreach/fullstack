@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import StatusBadge from "@/components/campaigns/StatusBadge";
 import ActivityFeed from "@/components/shared/ActivityFeed";
@@ -10,6 +10,7 @@ import {
     deleteCampaign,
     getCampaignAnalytics,
 } from "@/lib/api/campaigns";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 // import CampaignCharts from "@/components/campaigns/CampaignCharts"; // Replaced by AnalyticsTab
 import AnalyticsTab from "@/components/campaigns/AnalyticsTab";
 import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
@@ -26,8 +27,9 @@ import { checkCampaignPolicy } from "@/lib/policyUtils";
 export default function CampaignDetailPage({
     params,
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
+    const { id: campaignId } = use(params);
     const router = useRouter();
     const [campaign, setCampaign] = useState<any>(null);
     const [analytics, setAnalytics] = useState<any>(null);
@@ -47,11 +49,11 @@ export default function CampaignDetailPage({
         loadCampaign();
         loadAnalytics();
         loadActivities();
-    }, [params.id]);
+    }, [campaignId]);
 
     const loadCampaign = async () => {
         try {
-            const data = await getCampaign(params.id);
+            const data = await getCampaign(campaignId);
             setCampaign(data);
             setEditData({
                 name: data.name,
@@ -67,7 +69,7 @@ export default function CampaignDetailPage({
 
     const loadAnalytics = async () => {
         try {
-            const data = await getCampaignAnalytics(params.id);
+            const data = await getCampaignAnalytics(campaignId);
             setAnalytics(data);
         } catch (err) {
             console.error("Failed to load analytics:", err);
@@ -76,7 +78,7 @@ export default function CampaignDetailPage({
 
     const loadActivities = async () => {
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/campaigns/${params.id}/activity`);
+            const res = await fetch(getBrowserApiUrl(`/campaigns/${campaignId}/activity`));
             const data = await res.json();
             if (data.success) {
                 setActivities(data.activities);
@@ -88,7 +90,7 @@ export default function CampaignDetailPage({
 
     const handleStatusChange = async (newStatus: string) => {
         try {
-            await updateCampaign(params.id, { status: newStatus });
+            await updateCampaign(campaignId, { status: newStatus });
             loadCampaign();
             loadAnalytics();
             loadActivities(); // Refresh activity log
@@ -99,7 +101,7 @@ export default function CampaignDetailPage({
 
     const handleSaveEdit = async () => {
         try {
-            await updateCampaign(params.id, editData);
+            await updateCampaign(campaignId, editData);
             setIsEditing(false);
             loadCampaign();
             loadActivities();
@@ -112,7 +114,7 @@ export default function CampaignDetailPage({
         if (!confirm("Are you sure you want to delete this campaign?")) return;
 
         try {
-            await deleteCampaign(params.id);
+            await deleteCampaign(campaignId);
             router.push("/campaigns");
         } catch (err) {
             alert("Failed to delete campaign");
@@ -420,7 +422,7 @@ export default function CampaignDetailPage({
                     {activeTab === "timeline" && (
                         <div className="lg:col-span-3 bg-white rounded-lg shadow p-6">
                             <h2 className="text-xl font-semibold mb-6">Execution Timeline</h2>
-                            <ExecutionTimeline campaignId={params.id} />
+                            <ExecutionTimeline campaignId={campaignId} />
                         </div>
                     )}
 

@@ -10,6 +10,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export function WorkspaceSwitcher() {
     const [teams, setTeams] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export function WorkspaceSwitcher() {
 
     const fetchTeams = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/user/teams");
+            const res = await fetch(getBrowserApiUrl("/user/teams"));
             const data = await res.json();
 
             if (data.teams) {

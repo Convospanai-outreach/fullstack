@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import useSWR from "swr";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then(res => res.json());
 
 export default function NotificationBell() {
-    const { data: notifications, mutate } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/notifications", fetcher, { refreshInterval: 10000 });
+    const { data: notifications, mutate } = useSWR(getBrowserApiUrl("/notifications"), fetcher, { refreshInterval: 10000 });
     const [open, setOpen] = useState(false);
 
     const unreadCount = notifications ? notifications.filter((n: any) => !n.read).length : 0;
@@ -14,7 +15,7 @@ export default function NotificationBell() {
     const handleMarkRead = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         try {
-            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/notifications/${id}`, { method: "PATCH" });
+            await fetch(getBrowserApiUrl(`/notifications/${id}`), { method: "PATCH" });
             mutate(); // Refresh
         } catch (e) {
             console.error(e);

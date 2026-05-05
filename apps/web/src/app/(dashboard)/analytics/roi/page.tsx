@@ -21,6 +21,7 @@ import { StatCard } from "@/components/dashboard/StatCard"; // Reusing existing 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import {
     XAxis,
     YAxis,
@@ -37,7 +38,7 @@ export default function ROIDashboardPage() {
 
     useEffect(() => {
         // Fetch data
-        fetch(process.env['NEXT_PUBLIC_API_URL'] + '/analytics/roi')
+        fetch(getBrowserApiUrl("/analytics/roi"))
             .then(res => res.json())
             .then(json => {
                 setData(json);

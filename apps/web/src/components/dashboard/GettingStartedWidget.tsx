@@ -4,11 +4,12 @@ import useSWR from "swr";
 import Link from "next/link";
 import { clsx } from "clsx";
 import { ONBOARDING_STEPS } from "@/modules/onboarding/service/onboardingService";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function GettingStartedWidget() {
-    const { data: completedSteps } = useSWR<string[]>(process.env['NEXT_PUBLIC_API_URL'] + "/onboarding/status", fetcher);
+    const { data: completedSteps } = useSWR<string[]>(getBrowserApiUrl("/onboarding/status"), fetcher);
 
     if (!completedSteps) return null; // Loading or error
     if (completedSteps.length === ONBOARDING_STEPS.length) return null; // All done!

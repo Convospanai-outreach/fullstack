@@ -364,7 +364,7 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
             }
 
             const data = await response.json();
-            const campaignId = data?.data?.id as string | undefined;
+            const campaignId = (data?.data?.id || data?.id || data?.campaign?.id) as string | undefined;
             if (!campaignId) {
                 throw new Error("Campaign created but response was missing an id");
             }

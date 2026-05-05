@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 function getPasswordStrength(password: string): { level: number; label: string; color: string } {
     if (!password) return { level: 0, label: "", color: "bg-slate-700" };
@@ -80,9 +81,7 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
-            const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
-            const response = await fetch(`${base}/register`, {
+            const response = await fetch(getBrowserApiUrl("/register"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),

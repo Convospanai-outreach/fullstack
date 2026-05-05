@@ -1,6 +1,8 @@
 // Client-side API wrapper for campaign operations
 
-const API_BASE = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/campaigns";
+import { getBrowserApiUrl } from "./browserBase";
+
+const API_BASE = getBrowserApiUrl("/campaigns");
 
 export interface Campaign {
     id: string;

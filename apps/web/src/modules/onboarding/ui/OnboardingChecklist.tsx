@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, ChevronDown, Rocket } from "lucide-react";
 import { clsx } from "clsx";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 interface OnboardingProgressStep {
     id: string;
@@ -23,7 +24,7 @@ export default function OnboardingChecklist() {
     const [minimized, setMinimized] = useState(false);
 
     useEffect(() => {
-        fetch(process.env["NEXT_PUBLIC_API_URL"] + "/onboarding/progress")
+        fetch(getBrowserApiUrl("/onboarding/progress"))
             .then((response) => response.json())
             .then((json) => {
                 if (json.ok) {
