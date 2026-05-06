@@ -1,5 +1,5 @@
 import { HardwareService } from "@/services/HardwareService";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { logger } from "@/lib/logger";
 
 export class IdentityService {
@@ -29,13 +29,18 @@ export class IdentityService {
      * Verifies the X-Compliance-Hash signature of incoming webhooks.
      * Use this to ensure data is coming from a trusted source (e.g. Edge Node or Partner).
      */
-    static verifyWebhook(payload: any, signature: string, secret: string): boolean {
-        if (!secret) return true; // Dev mode bypass if strictly necessary, but better to fail safe
+    static verifyWebhook(payload: any, signature: string, secret?: string | null): boolean {
+        if (!secret) return false;
 
         const computed = createHmac('sha256', secret)
             .update(JSON.stringify(payload))
             .digest('hex');
 
-        return computed === signature;
+        const computedBuffer = Buffer.from(computed, 'utf8');
+        const signatureBuffer = Buffer.from(signature, 'utf8');
+
+        if (computedBuffer.length !== signatureBuffer.length) return false;
+
+        return timingSafeEqual(computedBuffer, signatureBuffer);
     }
 }

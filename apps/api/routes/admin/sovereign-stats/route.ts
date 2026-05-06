@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
+import { checkAdmin } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 
 export async function GET() {
+    const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
+    if (!isAdmin) {
+        return new NextResponse("Unauthorized", { status: 403 });
+    }
+
     try {
         const globalDb = DbFactory.getClient('GLOBAL');
         const uaeDb = DbFactory.getClient('UAE');

@@ -88,3 +88,28 @@ Verify banned phrases → stop.
 Do not ask:
 
 Analyze the full app and implement the architecture changes.
+
+## Multi-Agent Review Workflow
+
+Project Goal:
+Review and improve this application for security, customer experience, usability, reliability, and performance.
+
+Rules for all review agents:
+- Do not make assumptions without checking the code.
+- Do not change business logic unless clearly required.
+- Every issue must include file name, problem, impact, suggested fix, and priority: Critical / High / Medium / Low.
+- Prefer small, reviewable changes.
+- Do not expose secrets, tokens, credentials, or private user data.
+- Do not delete working features.
+- Keep review agents read-only unless explicitly assigned an implementation task.
+- Do not allow agents to overwrite each other's work; use separate branches, workspaces, or read-only report outputs when possible.
+
+Recommended initial review agents:
+- Builder Agent: app structure, main flows, broken or incomplete areas, obvious bugs, and proposed files to modify before editing.
+- Security Review Agent: authentication, authorization, exposed routes, input validation, injection risks, XSS, CSRF, uploads, secrets, env misuse, admin routes, rate limits, and data leakage.
+- Customer Experience and Usability Agent: first-time customer journey, homepage clarity, value proposition, CTAs, forms, messaging, mobile flow, navigation, accessibility basics, loading, empty, and error states.
+- QA Agent: smoke, functional, validation, mobile, security-related, negative, and edge-case test plan, plus missing tests and critical automation gaps.
+
+Consolidation model:
+- Product Manager Agent removes duplicates, prioritizes by business impact, and divides work into Must fix before launch, Should fix soon, and Good to have.
+- Developer-ready tasks should include owner: Codex Builder, Security, UX, QA, or Performance.

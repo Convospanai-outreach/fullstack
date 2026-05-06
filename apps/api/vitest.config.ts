@@ -9,7 +9,17 @@ export default defineConfig({
     test: {
         environment: "node",
         globals: true,
-        include: ["routes/**/*.test.ts", "routes/**/__tests__/**/*.test.ts"],
+        include: [
+            "routes/**/*.test.ts",
+            "routes/**/__tests__/**/*.test.ts",
+            "src/**/*.test.ts",
+            "src/**/__tests__/**/*.test.ts"
+        ],
+        exclude: [
+            "**/node_modules/**",
+            "**/dist/**",
+            "src/modules/rag/__tests__/rag-integration.test.ts"
+        ],
         testTimeout: 15000
     },
     resolve: {

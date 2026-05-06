@@ -202,7 +202,7 @@ export default function PricingPage() {
                         const ctaText = plan.name === "Enterprise"
                             ? "Talk to Sales"
                             : plan.name === "Growth"
-                              ? "Launch Growth Autopilot"
+                              ? "Start Guided Growth Pilot"
                               : "Start Pilot";
 
                         return (

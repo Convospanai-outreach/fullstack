@@ -43,7 +43,7 @@ const socialProof = [
 ];
 
 const guaranteePoints = [
-    "Qualified meeting pilot path",
+    "Review-ready pilot path",
     "Human approval controls",
     "Managed follow-up support",
     "Data you own, exports included",
@@ -53,17 +53,17 @@ const activationFlow = [
     {
         icon: Clock3,
         title: "Define the service playbook",
-        detail: "Pick the ICP, geography, offer, and proof points for the first qualified meeting motion.",
+        detail: "Pick the ICP, geography, offer, and proof points for the first lead and meeting workflow.",
     },
     {
         icon: Sparkles,
-        title: "Launch with guardrails",
+        title: "Start with guardrails",
         detail: "Approval-first workflows keep outreach, follow-ups, and handoffs under human control.",
     },
     {
         icon: TrendingUp,
-        title: "Convert buyer signals",
-        detail: "Turn intent, replies, and caller context into booked conversations with better timing and routing.",
+        title: "Prepare buyer-signal follow-up",
+        detail: "Use intent, replies, and caller context to support better-timed follow-up and routing.",
     },
 ];
 
@@ -145,9 +145,9 @@ export default function SignupPage() {
 
                         <div>
                             <h1 className="text-4xl font-black leading-tight text-white">
-                                Launch managed growth operations.
+                                Start guided growth operations.
                                 <span className="block bg-gradient-to-r from-cyan-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">
-                                    From buyer signal to qualified meeting.
+                                    From buyer signal to review-ready workflow.
                                 </span>
                             </h1>
                             <p className="mt-4 text-lg text-slate-400">
@@ -198,7 +198,7 @@ export default function SignupPage() {
                                 ))}
                             </div>
                             <p className="text-sm italic leading-7 text-slate-300">
-                                We replaced two separate outreach tools, tightened approvals, and booked more qualified meetings in the first month.
+                                We replaced two separate outreach tools, tightened approvals, and improved qualified meeting workflow tracking in the first month.
                             </p>
                             <p className="mt-3 text-xs text-slate-500">- Marcus W., VP Sales @ Growthly</p>
                         </div>
@@ -218,7 +218,7 @@ export default function SignupPage() {
                             <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
                                 <div className="flex items-center gap-2 text-sm font-semibold text-cyan-100">
                                     <Zap className="h-4 w-4 text-cyan-300" />
-                                    Launch Growth Autopilot
+                                    Guided Growth Pilot
                                 </div>
                                 <p className="mt-1 text-xs text-cyan-100/70">
                                     Start with one ICP, one offer, approval controls, and a managed follow-up workflow.
@@ -307,7 +307,7 @@ export default function SignupPage() {
                                     id="signup-submit"
                                     className="w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-cyan-600 to-blue-600 py-3 text-base font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-500/30 disabled:opacity-60"
                                 >
-                                    {loading ? "Creating workspace..." : "Create workspace and launch autopilot"}
+                                    {loading ? "Creating workspace..." : "Create workspace and start guided pilot"}
                                     {!loading && <ArrowRight className="h-4 w-4" />}
                                 </Button>
 

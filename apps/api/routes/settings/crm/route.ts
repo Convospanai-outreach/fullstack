@@ -2,16 +2,30 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+
+function sanitizeCrmIntegration(integration: any) {
+    const { accessToken, refreshToken, ...safeIntegration } = integration;
+    return {
+        ...safeIntegration,
+        hasAccessToken: Boolean(accessToken),
+        hasRefreshToken: Boolean(refreshToken)
+    };
+}
 
 export async function GET() {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     try {
         const integrations = await prisma.crmIntegration.findMany({
             where: { teamId }
         });
-        return NextResponse.json(integrations);
+        return NextResponse.json(integrations.map(sanitizeCrmIntegration));
     } catch (error) {
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
@@ -20,6 +34,10 @@ export async function GET() {
 export async function PUT(req: Request) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         const body = await req.json();
@@ -64,7 +82,7 @@ export async function PUT(req: Request) {
             metadata: { provider, isActive }
         });
 
-        return NextResponse.json(integration);
+        return NextResponse.json(sanitizeCrmIntegration(integration));
     } catch (error: any) {
         console.error("[CRM API] PUT error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -74,6 +92,10 @@ export async function PUT(req: Request) {
 export async function POST(req: Request) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         const { leadId } = await req.json();

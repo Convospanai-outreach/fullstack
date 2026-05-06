@@ -88,7 +88,7 @@ export default function CampaignsPage() {
                     </div>
                     <h3 className="text-2xl font-bold text-white mb-2">Ready to Launch?</h3>
                     <p className="text-gray-400 mb-8 max-w-md">
-                        Create your first AI-driven outreach campaign. We'll help you find leads, personalize emails, and schedule everything.
+                        Create your first review-ready outreach workflow. We'll help you prepare leads, draft emails, and track scheduling with human approval.
                     </p>
                     <Link href="/campaigns/new">
                         <Button variant="default" className="px-8 py-4 text-lg shadow-lg shadow-blue-500/20 hover:scale-105 transition-transform">

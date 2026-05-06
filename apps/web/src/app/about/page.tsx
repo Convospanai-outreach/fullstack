@@ -118,14 +118,14 @@ export default function AboutPage() {
 
                 {/* CTA */}
                 <section className="text-center space-y-8 py-16 rounded-3xl bg-gradient-to-r from-indigo-900/30 to-purple-900/30 border border-white/5">
-                    <h2 className="text-4xl font-bold">Ready to Launch Growth Autopilot?</h2>
+                    <h2 className="text-4xl font-bold">Ready to Start a Guided Growth Pilot?</h2>
                     <p className="text-xl text-gray-400 max-w-2xl mx-auto">
                         Turn buyer signals into approved outreach, managed follow-ups, and qualified meetings for your service business.
                     </p>
                     <div className="flex justify-center gap-4">
                         <Link href="/signup">
                             <button className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-lg font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30">
-                                Launch Growth Autopilot
+                                Start Guided Growth Pilot
                             </button>
                         </Link>
                         <Link href="/contact">

@@ -13,6 +13,7 @@
 
 import { LRUCache } from 'lru-cache';
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
 import { safeGet, safeDel, getRedisClient } from './redis';
 import { logger } from './logger';
 
@@ -35,6 +36,30 @@ const rateLimitCache = new LRUCache<string, RateLimitEntry>({
   updateAgeOnGet: false,
   updateAgeOnHas: false,
 });
+
+function hashIdentifier(value: string): string {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function isTrustedProxyConfigured(): boolean {
+  return process.env['TRUST_PROXY'] === 'true' || process.env['TRUSTED_PROXY'] === 'true';
+}
+
+function getRequestIp(req: NextRequest): string {
+  if (isTrustedProxyConfigured()) {
+    return (
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown'
+    );
+  }
+
+  if (process.env['NODE_ENV'] === 'production') {
+    throw new Error('Trusted proxy configuration is required for IP-based rate limiting');
+  }
+
+  return 'local-dev';
+}
 
 /**
  * Rate limit configurations by endpoint type
@@ -95,14 +120,11 @@ export function getClientIdentifier(req: NextRequest, userId?: string): string {
   // Check for API key
   const apiKey = req.headers.get('x-api-key');
   if (apiKey) {
-    return `apikey:${apiKey}`;
+    return `apikey:${hashIdentifier(apiKey)}`;
   }
 
   // Fall back to IP address
-  const ip =
-    (req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()) ||
-    req.headers.get('x-real-ip') ||
-    'unknown';
+  const ip = getRequestIp(req);
 
   return `ip:${ip}`;
 }
@@ -230,7 +252,16 @@ export async function applyRateLimit(
     return null;
   }
 
-  const identifier = getClientIdentifier(req, userId);
+  let identifier: string;
+  try {
+    identifier = getClientIdentifier(req, userId);
+  } catch (error) {
+    logger.error('[RateLimit] Unable to determine safe client identifier', error);
+    return NextResponse.json(
+      { error: 'Rate limit unavailable' },
+      { status: 503 }
+    );
+  }
   const result = await checkRateLimit(identifier, config, endpoint);
 
   if (!result.allowed) {

@@ -264,7 +264,7 @@ export default function SetupWizardPage() {
       <div className="w-full md:w-80 bg-slate-900 border-r border-white/10 p-6 flex flex-col shrink-0">
         <div className="mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-emerald-400 bg-clip-text text-transparent">
-            Launch Growth Autopilot
+            Start Guided Growth Pilot
           </h1>
           <p className="text-slate-400 text-sm mt-2">
             Start ICP-first: define the target segment, set the meeting outcome, approve the campaign plan, then track qualified leads and meetings.

@@ -14,7 +14,12 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const secret = process.env['WEBHOOK_SECRET'] || "default-secret-dev";
+        const secret = process.env['WEBHOOK_SECRET'];
+
+        if (!secret) {
+            logger.error("[Webhook Ingress] Missing WEBHOOK_SECRET");
+            return NextResponse.json({ error: "Webhook verification unavailable" }, { status: 503 });
+        }
 
         // 2. Verify Identity/Integrity
         const isValid = IdentityService.verifyWebhook(body, signature, secret);

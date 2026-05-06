@@ -65,7 +65,7 @@ export default function DashboardPage() {
             {/* ── Header ── */}
             <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-white">Launch Growth Autopilot</h1>
+                    <h1 className="text-3xl font-black tracking-tight text-white">Guided Growth Workflow</h1>
                     <p className="mt-1 text-slate-400">Qualified leads, meetings, pipeline, follow-ups, and approvals in one view.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">

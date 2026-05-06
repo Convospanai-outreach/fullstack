@@ -91,7 +91,7 @@ export default function Home() {
                     {/* Badge */}
                     <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-5 py-2 text-sm text-violet-200 backdrop-blur-sm">
                         <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-                        <span className="font-medium">AI-managed growth operations for B2B service companies</span>
+                        <span className="font-medium">AI-supported growth workflows for B2B service companies</span>
                         <span className="ml-1 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">New ✦</span>
                     </div>
 
@@ -100,7 +100,7 @@ export default function Home() {
                         Pipeline Workflow.{" "}
                         <span className="relative inline-block">
                             <span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">
-                                Delivered by AI.
+                                Prepared for review.
                             </span>
                             {/* underline accent */}
                             <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-60" />
@@ -116,7 +116,7 @@ export default function Home() {
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link href="/signup">
                             <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 hover:-translate-y-0.5">
-                                Launch Growth Autopilot
+                                Start Guided Growth Pilot
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
@@ -188,7 +188,7 @@ export default function Home() {
             <section className="mx-auto max-w-7xl px-6 py-8 pb-24">
                 <div className="mb-12 text-center">
                     <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-emerald-400">What customers say</p>
-                    <h2 className="text-4xl font-black text-white sm:text-5xl">Real teams. Real results.</h2>
+                            <h2 className="text-4xl font-black text-white sm:text-5xl">Real teams. Review-ready workflows.</h2>
                 </div>
 
                 <div className="grid gap-6 sm:grid-cols-3">
@@ -259,7 +259,7 @@ export default function Home() {
                         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                             <Link href="/signup">
                                 <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:-translate-y-0.5">
-                                    Launch Growth Autopilot
+                                    Start Guided Growth Pilot
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </Link>
