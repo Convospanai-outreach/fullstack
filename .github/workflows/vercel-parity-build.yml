@@ -6,6 +6,10 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: vercel-parity-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   vercel-parity-build:
     runs-on: ubuntu-latest
