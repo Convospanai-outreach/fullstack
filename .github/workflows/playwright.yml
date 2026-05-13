@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main, master ]
 
-env:
 # Node.js 24 native runtimes active via v6+ actions
 jobs:
   test:
