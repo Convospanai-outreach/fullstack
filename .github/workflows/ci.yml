@@ -47,7 +47,7 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/web
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
 
     - name: Type Check
       working-directory: apps/web
@@ -60,6 +60,7 @@ jobs:
         NEXT_PUBLIC_API_URL: http://localhost:3001
         NEXT_PHASE: phase-production-build
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
         NEXTAUTH_SECRET: ci-secret-not-real
         NEXTAUTH_URL: http://localhost:3000
         SKIP_ENV_VALIDATION: "true"
@@ -87,7 +88,7 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/api
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
 
     - name: Type Check
       working-directory: apps/api
