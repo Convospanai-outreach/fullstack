@@ -34,7 +34,7 @@ jobs:
 
       - name: Generate Prisma Client (build-only, no real DB)
         working-directory: apps/web
-        run: npx prisma generate
+        run: npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
           DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"

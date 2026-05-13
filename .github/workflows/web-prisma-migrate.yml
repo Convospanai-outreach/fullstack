@@ -1,0 +1,46 @@
+name: Web Prisma Migrate
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: web-prisma-migrate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  migrate-web-db:
+    name: Migrate apps/web Prisma schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Use Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.x"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+
+      - name: Validate Prisma schema for apps/web
+        run: npx prisma validate --schema apps/web/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+
+      - name: Generate Prisma Client for apps/web
+        run: npx prisma generate --schema apps/web/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+
+      - name: Run Prisma migrate deploy for apps/web
+        run: npx prisma migrate deploy --config apps/web/prisma/prisma.config.ts --schema apps/web/prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
