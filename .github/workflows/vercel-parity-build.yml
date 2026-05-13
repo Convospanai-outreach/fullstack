@@ -32,6 +32,19 @@ jobs:
       - name: Block unsafe Prisma imports in web
         run: node scripts/check-web-prisma-imports.mjs
 
+      - name: Generate Prisma Client (build-only, no real DB)
+        working-directory: apps/web
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+
       - name: Run exact Vercel web build
         working-directory: apps/web
         run: npm run build
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+          SKIP_ENV_VALIDATION: "true"
+          NEXTAUTH_SECRET: "ci-parity-secret-not-real"
+          NEXTAUTH_URL: "http://localhost:3000"
