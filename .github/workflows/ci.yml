@@ -47,7 +47,7 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/web
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
 
     - name: Type Check
       working-directory: apps/web

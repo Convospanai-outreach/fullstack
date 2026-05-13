@@ -51,8 +51,8 @@ jobs:
     - name: Generate Prisma Client & Push Schema
       working-directory: apps/web
       run: |
-        npx prisma generate
-        npx prisma db push
+        npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+        npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma
       env:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/convospan
         DIRECT_URL: postgresql://postgres:password@localhost:5432/convospan
