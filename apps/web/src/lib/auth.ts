@@ -87,12 +87,15 @@ export const authOptions: NextAuthOptions = {
                     const { safeGet, safeSet } = await import("@/lib/redis");
                     const cacheKey = `user:plan:${token.id}`;
 
-                    // Try cache first
-                    let planName = await safeGet(cacheKey);
+                    // Try cache first; safeGet returns string | null
+                    const cached = await safeGet(cacheKey);
+                    let planName: string;
 
-                    if (!planName) {
+                    if (cached) {
+                        planName = cached;
+                    } else {
                         // Cache miss - query DB
-                        const user = await prisma.user.findUnique({
+                        const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
                             include: {
                                 subscription: {
@@ -101,9 +104,9 @@ export const authOptions: NextAuthOptions = {
                             }
                         });
 
-                        planName = user?.subscription?.plan?.name || "FREE";
+                        planName = dbUser?.subscription?.plan?.name ?? "FREE";
 
-                        // Cache for 5 minutes
+                        // Cache for 5 minutes — planName is guaranteed string here
                         await safeSet(cacheKey, planName, 300);
                     }
 
