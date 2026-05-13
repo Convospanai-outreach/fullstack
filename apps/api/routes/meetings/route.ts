@@ -21,7 +21,16 @@ export async function GET(_req: NextRequest) {
 
         const meetings = await prisma.meeting.findMany({
             where: { teamId },
-            include: { lead: { select: { fullName: true } } },
+            include: {
+                lead: {
+                    select: {
+                        fullName: true,
+                        email: true,
+                        phone: true,
+                        company: true,
+                    }
+                }
+            },
             orderBy: { startTime: "asc" }
         });
 

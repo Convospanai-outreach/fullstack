@@ -3,11 +3,26 @@
 import { useState, useEffect } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import MeetingList from "@/components/calendar/MeetingList";
+import ReadyReckonerPanel from "@/components/calendar/ReadyReckonerPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 
+type CalendarMeeting = {
+    id: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    lead?: {
+        fullName?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        company?: string | null;
+    } | null;
+    notes?: string | null;
+};
+
 export default function CalendarPage() {
-    const [meetings, setMeetings] = useState([]);
+    const [meetings, setMeetings] = useState<CalendarMeeting[]>([]);
 
     useEffect(() => {
         fetchMeetings();
@@ -15,9 +30,11 @@ export default function CalendarPage() {
 
     const fetchMeetings = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/meetings");
+            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/meetings", {
+                credentials: "include",
+            });
             const data = await res.json();
-            setMeetings(data);
+            setMeetings(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error("Failed to fetch meetings", error);
         } finally {
@@ -63,6 +80,8 @@ export default function CalendarPage() {
                     </GlassCard>
                 </div>
             </div>
+
+            <ReadyReckonerPanel meetings={meetings} />
         </div>
     );
 }

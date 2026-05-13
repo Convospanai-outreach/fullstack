@@ -8,8 +8,13 @@ interface Meeting {
     title: string;
     startTime: string;
     endTime: string;
-    lead?: { fullName: string };
-    notes?: string;
+    lead?: {
+        fullName?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        company?: string | null;
+    } | null;
+    notes?: string | null;
 }
 
 interface MeetingListProps {
