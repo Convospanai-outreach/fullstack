@@ -83,7 +83,10 @@ export class CampaignService {
                 // Determine variant
                 let selectedVariant = null;
                 if (campaign.variants.length > 0) {
-                    const totalWeight = campaign.variants.reduce((sum, v) => sum + v.weight, 0);
+                    const totalWeight = campaign.variants.reduce(
+                        (sum: number, v) => sum + Number(v.weight ?? 0),
+                        0
+                    );
                     let random = Math.random() * totalWeight;
                     for (const variant of campaign.variants) {
                         random -= variant.weight;
