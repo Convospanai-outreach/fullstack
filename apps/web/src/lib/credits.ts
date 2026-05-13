@@ -29,7 +29,7 @@ export async function deductCredits(
     meta?: any
 ): Promise<boolean> {
     return await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-        const team = await tx.team.findUnique({
+        const team = await tx["team"].findUnique({
             where: { id: teamId },
             select: { credits: true }
         });
@@ -39,13 +39,13 @@ export async function deductCredits(
         }
 
         // Deduct credits
-        await tx.team.update({
+        await tx["team"].update({
             where: { id: teamId },
             data: { credits: { decrement: amount } }
         });
 
         // Record transaction (negative amount for usage)
-        await tx.creditTransaction.create({
+        await tx["creditTransaction"].create({
             data: {
                 teamId,
                 amount: -amount,
