@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
     const secret = process.env['CRON_SECRET'];
     if (!secret) {
-        return new NextResponse("CRON_SECRET is not configured", { status: 500 });
+        return new NextResponse("Unauthorized", { status: 401 });
     }
     if (authHeader !== `Bearer ${secret}`) {
         return new NextResponse("Unauthorized", { status: 401 });

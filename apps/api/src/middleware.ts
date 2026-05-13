@@ -145,7 +145,7 @@ export async function middleware(req: NextRequest) {
 
     const cspValues = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com",
+        "script-src 'self' https://accounts.google.com https://checkout.razorpay.com",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
         "font-src 'self' https://fonts.gstatic.com",
@@ -161,7 +161,7 @@ export async function middleware(req: NextRequest) {
 
     if (process.env['NODE_ENV'] !== 'production') {
         const devAdditions = " localhost:* 127.0.0.1:* ws://localhost:*";
-        cspValues[1] += devAdditions;
+        cspValues[1] += " 'unsafe-inline' 'unsafe-eval'" + devAdditions;
         cspValues[5] += devAdditions;
     }
 

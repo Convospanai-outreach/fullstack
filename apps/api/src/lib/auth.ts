@@ -315,6 +315,7 @@ export async function getCurrentContextFromRequest(req: Request) {
             headers: req.headers,
             cookies: getCookieMap(cookieHeader),
         } as any,
+        secret: process.env['NEXTAUTH_SECRET'],
     });
     const userId = token?.sub || null;
 

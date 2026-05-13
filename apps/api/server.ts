@@ -7,6 +7,7 @@ import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { randomUUID } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
+import { getToken } from 'next-auth/jwt';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,12 +81,14 @@ function isLoopbackDevOrigin(origin: string) {
 
 fastify.register(cors, {
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true);
+    if (!origin) return cb(null, true); // Allow server-to-server requests
     if (allowedOrigins.length === 0) {
-      const allowInDev = process.env.NODE_ENV !== 'production';
-      return cb(null, allowInDev);
+      if (process.env.NODE_ENV !== 'production' && isLoopbackDevOrigin(origin)) {
+        return cb(null, true);
+      }
+      return cb(null, false); // Deny by default instead of allowing all
     }
-    return cb(null, allowedOrigins.includes(origin) || isLoopbackDevOrigin(origin));
+    return cb(null, allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && isLoopbackDevOrigin(origin)));
   }
 });
 
@@ -115,10 +118,38 @@ function getAdaptedRequestBody(request: any, headers: Headers) {
 
 /**
  * Adapter to bridge Next.js Route Handlers to Fastify
- * It creates a mock Request object compatible with what Next.js handlers expect.
  */
-const nextAdapter = (handler: any) => async (request: any, reply: any) => {
+const nextAdapter = (handler: any, registeredPath: string) => async (request: any, reply: any) => {
   try {
+    const publicPaths = ["/webhooks", "/auth", "/test-auth", "/scheduler"];
+    const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
+
+    if (!isPublic) {
+      const secret = process.env.NEXTAUTH_SECRET;
+      if (!secret && process.env.NODE_ENV === 'production') {
+        reply.status(503).send({ error: 'Server misconfiguration' });
+        return;
+      }
+      
+      const token = await getToken({
+        req: request.raw,
+        secret
+      });
+      
+      if (!token) {
+        reply.status(401).send({ error: 'Unauthorized' });
+        return;
+      }
+      
+      if (registeredPath.startsWith('/admin')) {
+        const role = token.enterpriseRole as string;
+        if (role !== 'SYSTEM_ADMIN' && role !== 'ORG_ADMIN') {
+          reply.status(403).send({ error: 'Forbidden: Admin access required' });
+          return;
+        }
+      }
+    }
+
     const proto = request.headers['x-forwarded-proto'] || request.protocol || 'http';
     const host = request.headers['x-forwarded-host'] || request.hostname;
     const url = new URL(request.url, `${proto}://${host}`);
@@ -248,7 +279,7 @@ async function loadRoutes(dir: string) {
       fastify.route({
         method: method as any,
         url: fastifyPath,
-        handler: nextAdapter(handler)
+        handler: nextAdapter(handler, registeredPath)
       });
     }
   }

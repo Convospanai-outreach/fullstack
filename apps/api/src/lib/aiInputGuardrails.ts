@@ -38,6 +38,10 @@ function normalizeWhitespace(input: string): string {
     return input.replace(/\r\n/g, "\n").trim();
 }
 
+function normalizeForSecurityCheck(input: string): string {
+    return input.normalize('NFKD').replace(/[^\w\s<>/=:-]/gi, '').toLowerCase();
+}
+
 function countUrls(input: string): number {
     const matches = input.match(/https?:\/\/[^\s]+/gi);
     return matches?.length || 0;
@@ -80,14 +84,16 @@ export function enforceAIPromptPolicy(
         throw new Error(`${label} exceeds ${maxChars} characters.`);
     }
 
+    const checkString = normalizeForSecurityCheck(normalized);
+
     for (const rule of PROMPT_INJECTION_PATTERNS) {
-        if (rule.pattern.test(normalized)) {
+        if (rule.pattern.test(checkString) || rule.pattern.test(normalized)) {
             throw new Error(rule.reason);
         }
     }
 
     for (const rule of HIGH_RISK_CONTENT_PATTERNS) {
-        if (rule.pattern.test(normalized)) {
+        if (rule.pattern.test(checkString) || rule.pattern.test(normalized)) {
             throw new Error(rule.reason);
         }
     }
@@ -96,7 +102,7 @@ export function enforceAIPromptPolicy(
         throw new Error("Code-block payloads are not allowed for this generator.");
     }
 
-    if (countUrls(normalized) > 12) {
+    if (countUrls(normalized) > 5) {
         throw new Error("Too many external URLs in AI prompt.");
     }
 
