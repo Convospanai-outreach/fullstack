@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
 
 /**
  * Checks if a team has enough credits for an operation.
@@ -23,7 +24,7 @@ export async function deductCredits(
     description: string,
     meta?: any
 ): Promise<boolean> {
-    return await prisma.$transaction(async (tx) => {
+    return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         const team = await tx.team.findUnique({
             where: { id: teamId },
             select: { credits: true }
