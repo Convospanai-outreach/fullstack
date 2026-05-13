@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db";
 import { SequenceService } from "@/lib/sequenceService";
 
+type CampaignVariantWeight = {
+    weight?: number | string | null;
+};
+
 export class CampaignService {
     static async createCampaign(data: {
         name: string;
@@ -84,12 +88,12 @@ export class CampaignService {
                 let selectedVariant = null;
                 if (campaign.variants.length > 0) {
                     const totalWeight = campaign.variants.reduce(
-                        (sum: number, v) => sum + Number(v.weight ?? 0),
+                        (sum: number, v: CampaignVariantWeight) => sum + Number(v.weight ?? 0),
                         0
                     );
                     let random = Math.random() * totalWeight;
                     for (const variant of campaign.variants) {
-                        random -= variant.weight;
+                        random -= Number(variant.weight ?? 0);
                         if (random <= 0) {
                             selectedVariant = variant;
                             break;
