@@ -11,7 +11,7 @@ jobs:
   migrate-web-db:
     name: Migrate apps/web Prisma schema
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -40,7 +40,8 @@ jobs:
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
 
       - name: Verify database target without secrets
-        run: node -e "const u=new URL(process.env.DIRECT_URL); console.log({protocol:u.protocol, username:u.username, host:u.hostname, port:u.port, database:u.pathname}); if(process.env.DIRECT_URL.includes('YOUR-PASSWORD') || process.env.DIRECT_URL.includes('PASSWORD') || process.env.DIRECT_URL.includes('PROJECT_REF')) { throw new Error('Direct URL still contains placeholder text'); }"
+        run: |
+          node -e "const u=new URL(process.env.DIRECT_URL); console.log({protocol:u.protocol, username:u.username, host:u.hostname, port:u.port, database:u.pathname}); if(process.env.DIRECT_URL.includes('YOUR-PASSWORD') || process.env.DIRECT_URL.includes('PASSWORD') || process.env.DIRECT_URL.includes('PROJECT_REF')) { throw new Error('Direct URL still contains placeholder text'); }"
         env:
           DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
 
