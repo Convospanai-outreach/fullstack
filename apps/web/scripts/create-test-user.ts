@@ -1,7 +1,6 @@
-import { PrismaClient, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { hash } from 'bcryptjs';
-
-const prisma = new PrismaClient();
+import { prisma } from '../src/lib/db';
 
 async function main() {
   const email = 'audit_user@example.com';
@@ -51,7 +50,4 @@ main()
   .catch((e) => {
     console.error(e);
     process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
   });

@@ -1,6 +1,5 @@
-import { PrismaClient, ProductMode, UserRole } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { ProductMode, UserRole } from "@prisma/client";
+import { prisma } from "../lib/db";
 
 async function seed() {
     console.log("🌱 Seeding Enterprise Readiness Data...");
@@ -119,7 +118,5 @@ seed()
     .catch((e) => {
         console.error(e);
         process.exit(1);
-    })
-    .finally(async () => {
-        await prisma.$disconnect();
     });
+
