@@ -3,35 +3,17 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProviderImport from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { RequestContext } from "@/lib/requestContext";
 
-// Conditional Google Provider
-const googleClientId = process.env['GOOGLE_CLIENT_ID'];
-const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
-
-const providers = [];
-const GoogleProvider: typeof import("next-auth/providers/google").default =
-    ((GoogleProviderImport as any).default ?? GoogleProviderImport) as any;
 const CredentialsProvider: typeof import("next-auth/providers/credentials").default =
     ((CredentialsProviderImport as any).default ?? CredentialsProviderImport) as any;
-
-if (googleClientId && googleClientSecret) {
-    providers.push(
-        GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-        })
-    );
-}
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
     providers: [
-        ...providers,
         CredentialsProvider({
             name: "Credentials",
             credentials: {
@@ -69,14 +51,15 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         session: async ({ session, token }) => {
             if (token && session.user) {
-                session.user.id = token.id as string;
-                session.user.name = token.name ?? null;
-                session.user.email = token.email ?? null;
-                session.user.image = token.picture ?? null;
-                session.user.plan = token.plan;
-                session.user.productMode = token.productMode;
-                session.user.productSurface = token.productSurface as any;
-                session.user.enterpriseRole = token.enterpriseRole;
+                const user = session.user as any;
+                user.id = token.id as string;
+                user.name = token.name ?? null;
+                user.email = token.email ?? null;
+                user.image = token.picture ?? null;
+                user.plan = token.plan;
+                user.productMode = token.productMode;
+                user.productSurface = token.productSurface as any;
+                user.enterpriseRole = token.enterpriseRole;
             }
             return session;
         },

@@ -45,7 +45,7 @@ export function NavBar() {
                         href="/signup"
                         className="rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
                     >
-                        Get Started
+                        Join Waiting List
                     </Link>
                 </div>
 
@@ -82,7 +82,7 @@ export function NavBar() {
                             className="rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-center text-sm font-semibold text-white"
                             onClick={() => setOpen(false)}
                         >
-                            Get Started
+                            Join Waiting List
                         </Link>
                     </div>
                 </div>

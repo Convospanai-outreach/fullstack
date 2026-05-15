@@ -3,31 +3,14 @@ import { cookies } from "next/headers";
 
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 
-// Conditional Google Provider
-const googleClientId = process.env['GOOGLE_CLIENT_ID'];
-const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
-
-const providers = [];
-
-if (googleClientId && googleClientSecret) {
-    providers.push(
-        GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-        })
-    );
-}
-
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
     providers: [
-        ...providers,
         CredentialsProvider({
             name: "Credentials",
             credentials: {
@@ -65,27 +48,30 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         session: async ({ session, token }) => {
             if (token && session.user) {
-                session.user.id = token.id as string;
-                session.user.name = token.name ?? null;
-                session.user.email = token.email ?? null;
-                session.user.image = token.picture ?? null;
-                session.user.plan = token.plan;
-                session.user.productMode = token.productMode;
-                session.user.productSurface = token.productSurface as any;
-                session.user.enterpriseRole = token.enterpriseRole;
+                const user = session.user as any;
+                const jwt = token as any;
+                user.id = jwt.id as string;
+                user.name = jwt.name ?? null;
+                user.email = jwt.email ?? null;
+                user.image = jwt.picture ?? null;
+                user.plan = jwt.plan;
+                user.productMode = jwt.productMode;
+                user.productSurface = jwt.productSurface as any;
+                user.enterpriseRole = jwt.enterpriseRole;
             }
             return session;
         },
         jwt: async ({ token, user }) => {
+            const jwt = token as any;
             if (user) {
-                token.id = user.id;
+                jwt.id = user.id;
             }
 
             // Fetch Plan with Redis caching
-            if (token.id) {
+            if (jwt.id) {
                 try {
                     const { safeGet, safeSet } = await import("@/lib/redis");
-                    const cacheKey = `user:plan:${token.id}`;
+                    const cacheKey = `user:plan:${jwt.id}`;
 
                     // Try cache first; safeGet returns string | null
                     const cached = await safeGet(cacheKey);
@@ -96,7 +82,7 @@ export const authOptions: NextAuthOptions = {
                     } else {
                         // Cache miss - query DB
                         const dbUser = await prisma.user.findUnique({
-                            where: { id: token.id as string },
+                            where: { id: jwt.id as string },
                             include: {
                                 subscription: {
                                     include: { plan: true }
@@ -110,11 +96,11 @@ export const authOptions: NextAuthOptions = {
                         await safeSet(cacheKey, planName, 300);
                     }
 
-                    token.plan = planName;
+                    jwt.plan = planName;
 
                     // Fetch Product Mode and Enterprise Role
                     const membership = await prisma.teamMember.findFirst({
-                        where: { userId: token.id as string },
+                        where: { userId: jwt.id as string },
                         include: {
                             team: {
                                 include: { organizationPolicy: true }
@@ -124,21 +110,21 @@ export const authOptions: NextAuthOptions = {
 
                     // Fetch User's enterprise role directly
                     const fullUser = await prisma.user.findUnique({
-                        where: { id: token.id as string },
+                        where: { id: jwt.id as string },
                         select: { enterpriseRole: true }
                     });
 
                     // Default to ENTERPRISE_CORE if no policy set
-                    token.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
-                    token.productSurface = membership?.team?.organizationPolicy?.productSurface || "outreach";
-                    token.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
+                    jwt.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
+                    jwt.productSurface = membership?.team?.organizationPolicy?.productSurface || "outreach";
+                    jwt.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
 
                 } catch (error) {
                     console.error("Error fetching user plan/mode for JWT:", error);
-                    token.plan = "free";
-                    token.productMode = "ENTERPRISE_CORE";
-                    token.productSurface = "outreach";
-                    token.enterpriseRole = "SALES_USER";
+                    jwt.plan = "free";
+                    jwt.productMode = "ENTERPRISE_CORE";
+                    jwt.productSurface = "outreach";
+                    jwt.enterpriseRole = "SALES_USER";
                 }
             }
             return token;

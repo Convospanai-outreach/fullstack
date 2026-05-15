@@ -125,7 +125,7 @@ export default function AboutPage() {
                     <div className="flex justify-center gap-4">
                         <Link href="/signup">
                             <button className="px-10 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl text-lg font-bold transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30">
-                                Start Guided Growth Pilot
+                                Join Waiting List
                             </button>
                         </Link>
                         <Link href="/contact">

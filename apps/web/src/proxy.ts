@@ -24,7 +24,7 @@ export async function proxy(req: NextRequest) {
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/help", "/api/waitlist", "/api/proxy/waitlist", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
 

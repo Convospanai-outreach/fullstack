@@ -116,7 +116,7 @@ export default function Home() {
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
                         <Link href="/signup">
                             <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 hover:-translate-y-0.5">
-                                Start Guided Growth Pilot
+                                Join Waiting List
                                 <ArrowRight className="h-4 w-4" />
                             </Button>
                         </Link>
@@ -259,7 +259,7 @@ export default function Home() {
                         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
                             <Link href="/signup">
                                 <Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:-translate-y-0.5">
-                                    Start Guided Growth Pilot
+                                    Join Waiting List
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </Link>

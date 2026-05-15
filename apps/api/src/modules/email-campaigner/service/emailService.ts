@@ -6,6 +6,8 @@
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { getSmtpConfig } from "./smtpConfigService";
+import { GmailMailboxService } from "@/lib/gmailMailboxService";
+import { isSuppressed, logEmailActivity } from "@/lib/emailTracking";
 
 export type EmailSendResult = {
     success: boolean;
@@ -31,6 +33,27 @@ class EmailService {
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;
+        if (teamId && await isSuppressed(teamId, to)) {
+            return { success: false, error: "Recipient is suppressed for this team." };
+        }
+
+        if (teamId) {
+            const gmailResult = await GmailMailboxService.sendCampaignEmail({
+                teamId,
+                to,
+                subject,
+                html: body,
+                leadId: metadata?.leadId,
+                campaignId: metadata?.campaignId,
+                fromName: metadata?.fromName,
+                fromEmail: metadata?.fromEmail,
+            });
+            if (gmailResult) {
+                return gmailResult.success
+                    ? { success: true, providerId: gmailResult.providerId }
+                    : { success: false, error: gmailResult.error };
+            }
+        }
 
         // Lookup SMTP config
         let config = null;
@@ -52,12 +75,21 @@ class EmailService {
         const result = await sendViaSMTP(config, { to, subject, html: body });
 
         if (!result.success) {
+            if (teamId) {
+                await logEmailActivity({
+                    teamId,
+                    campaignId: metadata?.campaignId,
+                    leadId: metadata?.leadId,
+                    eventType: "FAILED",
+                    metadata: { provider: "SMTP", error: result.error },
+                });
+            }
             return result.error ? { success: false, error: result.error } : { success: false };
         }
 
         // Record in DB if we have context
         if (metadata?.leadId && metadata?.campaignId) {
-            await prisma.email.create({
+            const email = await prisma.email.create({
                 data: {
                     leadId: metadata.leadId,
                     campaignId: metadata.campaignId,
@@ -65,8 +97,20 @@ class EmailService {
                     body,
                     status: "sent",
                     ...(result.messageId ? { providerId: result.messageId } : {}),
+                    sentAt: new Date(),
                 },
             });
+            if (teamId) {
+                await logEmailActivity({
+                    teamId,
+                    emailId: email.id,
+                    campaignId: metadata.campaignId,
+                    leadId: metadata.leadId,
+                    messageId: result.messageId,
+                    eventType: "SENT",
+                    metadata: { provider: "SMTP" },
+                });
+            }
         }
         return result.messageId 
             ? { success: true, providerId: result.messageId }

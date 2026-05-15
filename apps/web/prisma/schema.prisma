@@ -9,7 +9,6 @@ datasource db {
   extensions = [vector]
 }
 
-
 enum Region {
   GLOBAL
   UAE
@@ -17,21 +16,21 @@ enum Region {
 }
 
 model Lead {
-  id           String    @id @default(uuid())
-  fullName     String?
-  email        String?
-  phone        String? // <-- Added field for Audit Remediation
-  linkedIn     String?
-  company      String?
-  jobTitle     String?
-  location     String?
-  status       String    @default("NEW")
-  tags         String[]
-  isEnriched   Boolean   @default(false)
-  
+  id         String   @id @default(uuid())
+  fullName   String?
+  email      String?
+  phone      String? // <-- Added field for Audit Remediation
+  linkedIn   String?
+  company    String?
+  jobTitle   String?
+  location   String?
+  status     String   @default("NEW")
+  tags       String[]
+  isEnriched Boolean  @default(false)
+
   // Data Sharding & Market Context
-  regionId      Region    @default(GLOBAL)
-  marketContext Json?     // Stores { detectedCountry: "AE", frictionScore: 0.8 }
+  regionId      Region @default(GLOBAL)
+  marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
   embedding    String? // Temporarily String to match DB state and unblock push
@@ -72,25 +71,28 @@ model Lead {
   generations Generation[]
 
   // Pipeline State (COLD â†’ WARM â†’ HOT â†’ COORDINATING â†’ MEETING_CONFIRMED â†’ COMPLETED)
-  pipelineState        String    @default("COLD")
+  pipelineState          String    @default("COLD")
   pipelineStateChangedAt DateTime?
-  hotAt                DateTime? // When lead became HOT
+  hotAt                  DateTime? // When lead became HOT
 
   // WhatsApp Consent & Contact
-  whatsappConsent      Boolean   @default(false)
-  whatsappConsentAt    DateTime?
-  whatsappConsentBy    String?   // User who recorded consent
-  whatsappNumber       String?
+  whatsappConsent   Boolean   @default(false)
+  whatsappConsentAt DateTime?
+  whatsappConsentBy String? // User who recorded consent
+  whatsappNumber    String?
 
   // Meeting Preferences  
-  preferredMeetingType String?   // virtual, in_person
+  preferredMeetingType String? // virtual, in_person
   meetingLocation      String?
 
   // Conversation Thread
-  conversationEntries  ConversationEntry[]
-  threads              ConversationThread[] // Added for Conversation System Spine
-  coordinationQueue    MeetingCoordinationQueue?
-  whatsappMessages     WhatsAppMessage[]
+  conversationEntries ConversationEntry[]
+  threads             ConversationThread[] // Added for Conversation System Spine
+  coordinationQueue   MeetingCoordinationQueue?
+  whatsappMessages    WhatsAppMessage[]
+  consentLedger       ConsentLedger[]
+  replies             ReplyTracker[]
+  shadowSignals       ShadowSignal[]
 
   @@index([teamId])
   @@index([email])
@@ -103,9 +105,6 @@ model Lead {
   @@index([teamId, status])
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
-  consentLedger ConsentLedger[]
-  replies       ReplyTracker[]
-  shadowSignals ShadowSignal[]
 }
 
 model Generation {
@@ -171,7 +170,7 @@ model Campaign {
   // Relations
   leadList Lead[] // Renamed relation to avoid conflict with 'leads' Int
 
-  activities Activity[]
+  activities           Activity[]
   landingCampaignLinks LandingCampaign[] @relation("LandingCampaignLinkedCampaign")
 
   @@index([status])
@@ -198,28 +197,28 @@ model CampaignVariant {
 }
 
 model LandingCampaign {
-  id                 String                 @id @default(uuid())
-  teamId             String
-  ownerId            String?
-  linkedCampaignId   String?
-  name               String
-  prompt             String                 @db.Text
-  framework          String?
-  challenge          String?                @db.Text
-  solution           String?                @db.Text
-  benefit            String?                @db.Text
+  id                  String                   @id @default(uuid())
+  teamId              String
+  ownerId             String?
+  linkedCampaignId    String?
+  name                String
+  prompt              String                   @db.Text
+  framework           String?
+  challenge           String?                  @db.Text
+  solution            String?                  @db.Text
+  benefit             String?                  @db.Text
   selectedWireframeId String?
-  status             String                 @default("draft")
-  createdAt          DateTime               @default(now())
-  updatedAt          DateTime               @updatedAt
-  team               Team                   @relation(fields: [teamId], references: [id])
-  owner              User?                  @relation("LandingCampaignOwner", fields: [ownerId], references: [id])
-  linkedCampaign     Campaign?              @relation("LandingCampaignLinkedCampaign", fields: [linkedCampaignId], references: [id])
-  assets             LandingAsset[]
-  wireframeOptions   LandingWireframeOption[]
-  pages              LandingPage[]
-  leads              LandingLead[]
-  events             LandingEvent[]
+  status              String                   @default("draft")
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+  team                Team                     @relation(fields: [teamId], references: [id])
+  owner               User?                    @relation("LandingCampaignOwner", fields: [ownerId], references: [id])
+  linkedCampaign      Campaign?                @relation("LandingCampaignLinkedCampaign", fields: [linkedCampaignId], references: [id])
+  assets              LandingAsset[]
+  wireframeOptions    LandingWireframeOption[]
+  pages               LandingPage[]
+  leads               LandingLead[]
+  events              LandingEvent[]
 
   @@index([teamId])
   @@index([status])
@@ -228,13 +227,13 @@ model LandingCampaign {
 }
 
 model LandingAsset {
-  id         String         @id @default(uuid())
+  id         String          @id @default(uuid())
   campaignId String
   type       String
   sourceName String?
-  content    String         @db.Text
+  content    String          @db.Text
   metadata   Json?
-  createdAt  DateTime       @default(now())
+  createdAt  DateTime        @default(now())
   campaign   LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
@@ -242,14 +241,14 @@ model LandingAsset {
 }
 
 model LandingWireframeOption {
-  id          String         @id @default(uuid())
+  id          String          @id @default(uuid())
   campaignId  String
   title       String
   description String?
   framework   String
-  score       Int            @default(0)
+  score       Int             @default(0)
   structure   Json
-  createdAt   DateTime       @default(now())
+  createdAt   DateTime        @default(now())
   campaign    LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([campaignId])
@@ -257,22 +256,22 @@ model LandingWireframeOption {
 }
 
 model LandingPage {
-  id          String          @id @default(uuid())
-  campaignId  String
-  teamId      String
-  slug        String          @unique
-  title       String?
-  status      String          @default("draft")
-  version     Int             @default(1)
-  editorState Json?
+  id           String          @id @default(uuid())
+  campaignId   String
+  teamId       String
+  slug         String          @unique
+  title        String?
+  status       String          @default("draft")
+  version      Int             @default(1)
+  editorState  Json?
   renderedJson Json
-  publishedAt DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  campaign    LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  team        Team            @relation(fields: [teamId], references: [id])
-  leads       LandingLead[]
-  events      LandingEvent[]
+  publishedAt  DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  campaign     LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team         Team            @relation(fields: [teamId], references: [id])
+  leads        LandingLead[]
+  events       LandingEvent[]
 
   @@index([campaignId])
   @@index([teamId])
@@ -281,30 +280,30 @@ model LandingPage {
 }
 
 model LandingLead {
-  id           String          @id @default(uuid())
+  id            String          @id @default(uuid())
   landingPageId String
-  campaignId   String
-  teamId       String
-  sessionId    String?
-  pageVersion  Int?
-  name         String?
-  email        String?
-  phone        String?
-  company      String?
-  title        String?
-  rawPayload   Json?
-  utmSource    String?
-  utmMedium    String?
-  utmCampaign  String?
-  utmTerm      String?
-  utmContent   String?
-  referrer     String?
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime        @default(now())
-  landingPage  LandingPage      @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
-  campaign     LandingCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  team         Team             @relation(fields: [teamId], references: [id])
+  campaignId    String
+  teamId        String
+  sessionId     String?
+  pageVersion   Int?
+  name          String?
+  email         String?
+  phone         String?
+  company       String?
+  title         String?
+  rawPayload    Json?
+  utmSource     String?
+  utmMedium     String?
+  utmCampaign   String?
+  utmTerm       String?
+  utmContent    String?
+  referrer      String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime        @default(now())
+  landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team          Team            @relation(fields: [teamId], references: [id])
 
   @@index([landingPageId])
   @@index([campaignId])
@@ -313,20 +312,20 @@ model LandingLead {
 }
 
 model LandingEvent {
-  id           String          @id @default(uuid())
+  id            String          @id @default(uuid())
   landingPageId String
-  campaignId   String
-  teamId       String
-  sessionId    String?
-  eventName    String
-  eventData    Json?
-  pageVersion  Int?
-  ipAddress    String?
-  userAgent    String?
-  createdAt    DateTime        @default(now())
-  landingPage  LandingPage      @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
-  campaign     LandingCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  team         Team             @relation(fields: [teamId], references: [id])
+  campaignId    String
+  teamId        String
+  sessionId     String?
+  eventName     String
+  eventData     Json?
+  pageVersion   Int?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime        @default(now())
+  landingPage   LandingPage     @relation(fields: [landingPageId], references: [id], onDelete: Cascade)
+  campaign      LandingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  team          Team            @relation(fields: [teamId], references: [id])
 
   @@index([landingPageId])
   @@index([campaignId])
@@ -393,7 +392,7 @@ model Job {
   expiresAt      DateTime?
   policy         Json?
   auditContext   Json?
-  runs          JobRun[]
+  runs           JobRun[]
 
   @@index([status, priority])
   @@index([type])
@@ -405,14 +404,14 @@ model Job {
 }
 
 model JobRun {
-  id            String   @id @default(uuid())
+  id            String    @id @default(uuid())
   jobId         String
   status        String
   errorCode     String?
   errorMessage  String?
-  startedAt     DateTime @default(now())
+  startedAt     DateTime  @default(now())
   finishedAt    DateTime?
-  retryCount    Int      @default(0)
+  retryCount    Int       @default(0)
   correlationId String?
 
   job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
@@ -423,44 +422,140 @@ model JobRun {
 }
 
 model ScrapingJob {
-  id          String   @id @default(uuid())
-  url         String
-  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  region      Region   @default(GLOBAL)
-  payload     Json?
-  tokenMap    Json?
-  error       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(uuid())
+  url       String
+  status    String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  region    Region   @default(GLOBAL)
+  payload   Json?
+  tokenMap  Json?
+  error     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  teamId      String?
-  team        Team?    @relation(fields: [teamId], references: [id])
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
 
   @@index([status])
   @@index([region])
 }
 
-
 model Email {
-  id         String    @id @default(uuid())
-  leadId     String
-  campaignId String
-  subject    String
-  body       String
-  status     String    @default("sent")
-  providerId String?
-  openedAt   DateTime?
-  clickedAt  DateTime?
-  createdAt  DateTime  @default(now())
-  campaign   Campaign  @relation(fields: [campaignId], references: [id])
-  lead       Lead      @relation(fields: [leadId], references: [id])
+  id            String    @id @default(uuid())
+  leadId        String
+  campaignId    String
+  subject       String
+  body          String
+  status        String    @default("sent")
+  providerId    String?
+  gmailThreadId String?
+  trackingToken String?   @unique
+  sentAt        DateTime?
+  openedAt      DateTime?
+  clickedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  campaign      Campaign  @relation(fields: [campaignId], references: [id])
+  lead          Lead      @relation(fields: [leadId], references: [id])
 
   @@index([leadId])
   @@index([campaignId])
   @@index([status])
   @@index([createdAt])
+  @@index([providerId])
+  @@index([gmailThreadId])
   @@index([openedAt])
   @@index([clickedAt])
+}
+
+model ConnectedMailbox {
+  id                    String    @id @default(uuid())
+  teamId                String
+  provider              String    @default("GOOGLE")
+  emailAddress          String
+  accessTokenEncrypted  String?   @db.Text
+  refreshTokenEncrypted String?   @db.Text
+  expiresAt             DateTime?
+  scopes                String[]  @default([])
+  gmailHistoryId        String?
+  watchExpiration       DateTime?
+  status                String    @default("ACTIVE")
+  lastSyncAt            DateTime?
+  lastError             String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, emailAddress])
+  @@index([teamId])
+  @@index([provider, status])
+  @@index([watchExpiration])
+}
+
+model EmailActivityLog {
+  id         String   @id @default(uuid())
+  teamId     String
+  emailId    String?
+  campaignId String?
+  leadId     String?
+  messageId  String?
+  eventType  String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([teamId, createdAt])
+  @@index([emailId])
+  @@index([campaignId])
+  @@index([leadId])
+  @@index([messageId])
+  @@index([eventType])
+}
+
+model EmailTrackedLink {
+  id            String    @id @default(uuid())
+  teamId        String
+  emailId       String?
+  campaignId    String?
+  leadId        String?
+  token         String    @unique
+  originalUrl   String    @db.Text
+  clickCount    Int       @default(0)
+  lastClickedAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([teamId])
+  @@index([emailId])
+  @@index([campaignId])
+  @@index([leadId])
+}
+
+model SuppressionEntry {
+  id        String   @id @default(uuid())
+  teamId    String
+  email     String
+  reason    String
+  source    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, email])
+  @@index([teamId])
+  @@index([email])
+  @@index([reason])
+}
+
+model WaitlistRequest {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  companyName String
+  phone       String?
+  useCase     String?  @db.Text
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 model Settings {
@@ -506,50 +601,51 @@ model Notification {
 }
 
 model ManualReview {
-  id             String   @id @default(uuid())
-  source         String   // "Sentinel", "Scraper"
-  payload        Json     // The raw data that was quarantined
-  reason         String   // "Low Quality", "Schema Mismatch", "Honeypot Suspected"
-  severity       String   // "WARN", "CRITICAL"
-  region         String   @default("GLOBAL")
-  status         String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  
-  reviewedBy     String?
-  reviewedAt     DateTime?
-  createdAt      DateTime @default(now())
+  id       String @id @default(uuid())
+  source   String // "Sentinel", "Scraper"
+  payload  Json // The raw data that was quarantined
+  reason   String // "Low Quality", "Schema Mismatch", "Honeypot Suspected"
+  severity String // "WARN", "CRITICAL"
+  region   String @default("GLOBAL")
+  status   String @default("PENDING") // PENDING, APPROVED, REJECTED
+
+  reviewedBy String?
+  reviewedAt DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([status])
   @@index([severity])
 }
 
 model Team {
-  id              String              @id @default(uuid())
-  name            String
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
-  credits         Int                 @default(100)
-  campaigns       Campaign[]
-  templates       EmailTemplate[]
-  jobs            Job[]
-  scrapingJobs    ScrapingJob[]
-  leads           Lead[]
-  meetings        Meeting[]
+  id                 String              @id @default(uuid())
+  name               String
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  credits            Int                 @default(100)
+  campaigns          Campaign[]
+  templates          EmailTemplate[]
+  jobs               Job[]
+  scrapingJobs       ScrapingJob[]
+  leads              Lead[]
+  meetings           Meeting[]
   // subscription Subscription? // Moved to User
-  members         TeamMember[]
-  webhooks        Webhook[]
-  automations     Automation[]
-  schedules       Schedule[]
-  workflows       Workflow[]
-  guardrailPolicy GuardrailPolicy?
-  transactions    CreditTransaction[]
-  auditLogs       AuditLog[]
-  memories        AgentMemory[]
-  apiKeys         ApiKey[]
-  tasks           Task[]
-  landingCampaigns LandingCampaign[]
-  landingPages     LandingPage[]
-  landingLeads     LandingLead[]
-  landingEvents    LandingEvent[]
+  members            TeamMember[]
+  webhooks           Webhook[]
+  automations        Automation[]
+  schedules          Schedule[]
+  workflows          Workflow[]
+  guardrailPolicy    GuardrailPolicy?
+  transactions       CreditTransaction[]
+  auditLogs          AuditLog[]
+  memories           AgentMemory[]
+  apiKeys            ApiKey[]
+  tasks              Task[]
+  landingCampaigns   LandingCampaign[]
+  landingPages       LandingPage[]
+  landingLeads       LandingLead[]
+  landingEvents      LandingEvent[]
+  connectedMailboxes ConnectedMailbox[]
 
   branding           Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig           Json? // Global agent settings (voice, tone, constraints)
@@ -567,7 +663,7 @@ model Team {
   Experiment         Experiment[]
   ImmutableAudit     ImmutableAudit[]
   contractProfile    ContractProfile?
-  shadowSignals     ShadowSignal[]
+  shadowSignals      ShadowSignal[]
 }
 
 model CrmIntegration {
@@ -754,22 +850,22 @@ model TeamMember {
 }
 
 model User {
-  id            String       @id @default(uuid())
-  email         String       @unique
-  password      String? // <-- Add this line
-  emailVerified DateTime?
-  name          String?
-  image         String?
-  address       String?
-  role          String       @default("user") // Legacy
-  enterpriseRole UserRole    @default(SALES_USER) // Enterprise RBAC
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-  settings      Settings?
-  memberships   TeamMember[]
-  accounts      Account[]
-  sessions      Session[]
-  campaigns     Campaign[]   @relation("owner_campaigns")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  password         String? // <-- Add this line
+  emailVerified    DateTime?
+  name             String?
+  image            String?
+  address          String?
+  role             String            @default("user") // Legacy
+  enterpriseRole   UserRole          @default(SALES_USER) // Enterprise RBAC
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  settings         Settings?
+  memberships      TeamMember[]
+  accounts         Account[]
+  sessions         Session[]
+  campaigns        Campaign[]        @relation("owner_campaigns")
   landingCampaigns LandingCampaign[] @relation("LandingCampaignOwner")
 
   // Billing
@@ -785,9 +881,9 @@ model User {
   datasetReviews     DatasetReview[]
 
   // Caller Role (Part 4)
-  isCaller           Boolean   @default(false)
-  callerTeamId       String?   // Which team this caller works for
-  callerMaxQueueSize Int       @default(10) // Max assigned items at once
+  isCaller           Boolean                    @default(false)
+  callerTeamId       String? // Which team this caller works for
+  callerMaxQueueSize Int                        @default(10) // Max assigned items at once
   callerActiveAt     DateTime? // Last activity timestamp
   callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
   edgeNodeUri        String? // Individual Phi-3 Edge Node binding
@@ -829,18 +925,18 @@ model VerificationToken {
 }
 
 model Message {
-  id        String          @id @default(uuid())
-  leadId    String
-  content   String
-  direction String // INBOUND, OUTBOUND
-  platform  String // LINKEDIN, EMAIL
-  sender    String? // Name of sender
-  status    String          @default("received") // received, sent, draft
-  isRead    Boolean         @default(false)
-  sentimentScore Float?     // -1.0 to 1.0
-  createdAt DateTime        @default(now())
-  lead      Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  feedback  AgentFeedback[]
+  id             String          @id @default(uuid())
+  leadId         String
+  content        String
+  direction      String // INBOUND, OUTBOUND
+  platform       String // LINKEDIN, EMAIL
+  sender         String? // Name of sender
+  status         String          @default("received") // received, sent, draft
+  isRead         Boolean         @default(false)
+  sentimentScore Float? // -1.0 to 1.0
+  createdAt      DateTime        @default(now())
+  lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  feedback       AgentFeedback[]
 
   @@index([leadId])
 }
@@ -1017,11 +1113,11 @@ model AuditLog {
   orgId         String   @map("teamId")
   correlationId String?
   action        String // e.g. "CREATE", "UPDATE", "DELETE", "LOGIN"
-  entity    String   @map("resource")
-  entityId  String?  @map("resourceId")
-  metadata  Json?    @map("details") // Metadata
-  ipAddress String?
-  createdAt DateTime @default(now())
+  entity        String   @map("resource")
+  entityId      String?  @map("resourceId")
+  metadata      Json?    @map("details") // Metadata
+  ipAddress     String?
+  createdAt     DateTime @default(now())
 
   team Team  @relation(fields: [orgId], references: [id])
   user User? @relation(fields: [actorId], references: [id])
@@ -1134,11 +1230,11 @@ model CustomDomain {
 }
 
 model OrganizationPolicy {
-  id             String @id @default(cuid())
-  organizationId String @unique
+  id             String      @id @default(cuid())
+  organizationId String      @unique
   productMode    ProductMode @default(ENTERPRISE_CORE)
-  executionMode  String? @default("saas_only")
-  productSurface String? @default("outreach")
+  executionMode  String?     @default("saas_only")
+  productSurface String?     @default("outreach")
 
   maxDailyActions Int @default(200)
   maxCampaigns    Int @default(10)
@@ -1392,11 +1488,11 @@ model SystemEvent {
   id            String   @id @default(uuid())
   correlationId String?
   type          String // USER, AI, ESP, SYSTEM
-  name      String // e.g., "DRAFT_SENT", "REPLY_RECEIVED", "BOUNCE", "ACTION_REJECTED"
-  actorId   String? // User ID or "SYSTEM"
-  teamId    String
-  payload   Json // Full context snapshot
-  timestamp DateTime @default(now())
+  name          String // e.g., "DRAFT_SENT", "REPLY_RECEIVED", "BOUNCE", "ACTION_REJECTED"
+  actorId       String? // User ID or "SYSTEM"
+  teamId        String
+  payload       Json // Full context snapshot
+  timestamp     DateTime @default(now())
 
   @@index([teamId, timestamp])
   @@index([name])
@@ -1464,15 +1560,15 @@ model ImmutableAudit {
 // I will append the back-relations to KnowledgeItem as well if needed.
 
 model ConversationEntry {
-  id                   String              @id @default(uuid())
+  id                   String   @id @default(uuid())
   leadId               String
   role                 String // user, assistant, system
   content              String // @db.Text if supported, default String for now
-  createdAt            DateTime            @default(now())
+  createdAt            DateTime @default(now())
   conversationThreadId String?
-  
-  lead                 Lead                @relation(fields: [leadId], references: [id])
-  thread               ConversationThread? @relation(fields: [conversationThreadId], references: [id])
+
+  lead   Lead                @relation(fields: [leadId], references: [id])
+  thread ConversationThread? @relation(fields: [conversationThreadId], references: [id])
 
   @@index([leadId])
   @@index([conversationThreadId])
@@ -1494,7 +1590,7 @@ model ConversationThread {
   state   ConversationState @default(INITIATED)
   channel String? // EMAIL, WHATSAPP, etc.
 
-  lead    Lead              @relation(fields: [leadId], references: [id])
+  lead    Lead                @relation(fields: [leadId], references: [id])
   entries ConversationEntry[]
 
   createdAt DateTime @default(now())
@@ -1508,7 +1604,7 @@ model WhatsAppMessage {
   id        String   @id @default(uuid())
   leadId    String
   body      String
-  direction String   // INBOUND, OUTBOUND
+  direction String // INBOUND, OUTBOUND
   status    String   @default("sent")
   createdAt DateTime @default(now())
 
@@ -1525,13 +1621,14 @@ model MeetingCoordinationQueue {
   priority       Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  
-  lead Lead @relation(fields: [leadId], references: [id])
+
+  lead         Lead  @relation(fields: [leadId], references: [id])
   assignedUser User? @relation("caller_assignments", fields: [assignedUserId], references: [id])
 
   @@index([assignedUserId])
   @@index([status])
 }
+
 // --- ENTERPRISE GOVERNANCE START ---
 
 enum CapabilityLayer {
@@ -1562,9 +1659,9 @@ model FeatureFlag {
   isEnabled   Boolean         @default(false)
   layer       CapabilityLayer @default(EXPERIMENTAL)
   description String?
-  
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // --- ENTERPRISE GOVERNANCE END ---
@@ -1576,40 +1673,40 @@ enum ConsentStatus {
 }
 
 model ConsentLedger {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   leadId    String
-  userId    String?  // Who recorded it
-  channel   String   // WHATSAPP, EMAIL, PHONE
-  purpose   String   // "Marketing", "Support", "Transactions"
+  userId    String? // Who recorded it
+  channel   String // WHATSAPP, EMAIL, PHONE
+  purpose   String // "Marketing", "Support", "Transactions"
   status    ConsentStatus @default(GRANTED)
-  proof     String?  // URL to screenshot, chat ID, form ID
+  proof     String? // URL to screenshot, chat ID, form ID
   notes     String?
-  grantedAt DateTime @default(now())
+  grantedAt DateTime      @default(now())
   revokedAt DateTime?
   ipAddress String?
 
-  lead      Lead     @relation(fields: [leadId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
 
   @@index([leadId])
   @@index([channel, status])
 }
 
 model ContractProfile {
-  id                    String   @id @default(uuid())
-  teamId                String   @unique
-  allowedChannels       String[] // ["EMAIL", "WHATSAPP", "LINKEDIN"]
+  id                      String   @id @default(uuid())
+  teamId                  String   @unique
+  allowedChannels         String[] // ["EMAIL", "WHATSAPP", "LINKEDIN"]
   allowedCapabilityLayers String[] // ["CORE", "GOVERNED_AI"]
-  aiUsageLimit          Int      @default(1000) // Monthly limit
-  conversationThreadLimit Int    @default(50)
-  humanHandoffLimit     Int      @default(10)
-  onPremRequired        Boolean  @default(false)
-  dataRetentionDays     Int      @default(90)
-  featureTier           String   @default("CORE") // CORE, ADVANCED, CUSTOM
-  contractStatus        String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED
-  
-  updatedAt             DateTime @updatedAt
-  
-  team                  Team     @relation(fields: [teamId], references: [id])
+  aiUsageLimit            Int      @default(1000) // Monthly limit
+  conversationThreadLimit Int      @default(50)
+  humanHandoffLimit       Int      @default(10)
+  onPremRequired          Boolean  @default(false)
+  dataRetentionDays       Int      @default(90)
+  featureTier             String   @default("CORE") // CORE, ADVANCED, CUSTOM
+  contractStatus          String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED
+
+  updatedAt DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
 }
 
 // --- ENTERPRISE MICRO-LLM TRAINING INFRASTRUCTURE ---
@@ -1642,41 +1739,41 @@ enum ModelStatus {
 }
 
 model TrainingDataset {
-  id            String   @id @default(uuid())
-  version       String   @unique
-  taskType      TrainingTaskType
-  recordCount   Int      @default(0)
-  datasetHash   String
-  configHash    String
-  status        DatasetStatus @default(DRAFT)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
+  id          String           @id @default(uuid())
+  version     String           @unique
+  taskType    TrainingTaskType
+  recordCount Int              @default(0)
+  datasetHash String
+  configHash  String
+  status      DatasetStatus    @default(DRAFT)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
   records       TrainingRecord[]
   reviews       DatasetReview[]
   modelVersions ModelVersion[]
-  
+
   @@index([status])
   @@index([taskType])
 }
 
 model TrainingRecord {
-  id                  String   @id @default(uuid())
+  id                  String           @id @default(uuid())
   datasetId           String
   taskType            TrainingTaskType
-  inputText           String   @db.Text
+  inputText           String           @db.Text
   brandRules          Json
   policyRules         Json
-  expectedOutput      String   @db.Text
+  expectedOutput      String           @db.Text
   rejectionConditions Json
   reviewScore         Float?
   reviewedBy          String?
   reviewedAt          DateTime?
-  approved            Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  
-  dataset             TrainingDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
-  
+  approved            Boolean          @default(false)
+  createdAt           DateTime         @default(now())
+
+  dataset TrainingDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
   @@index([datasetId])
   @@index([approved])
   @@index([reviewScore])
@@ -1696,49 +1793,49 @@ model DatasetReview {
   notes             String?  @db.Text
   approved          Boolean
   createdAt         DateTime @default(now())
-  
-  dataset   TrainingDataset @relation(fields: [datasetId], references: [id])
-  reviewer  User            @relation(fields: [reviewerId], references: [id])
-  
+
+  dataset  TrainingDataset @relation(fields: [datasetId], references: [id])
+  reviewer User            @relation(fields: [reviewerId], references: [id])
+
   @@index([datasetId])
   @@index([reviewerId])
 }
 
 model ModelVersion {
-  id                  String   @id @default(uuid())
-  version             String   @unique
+  id                  String      @id @default(uuid())
+  version             String      @unique
   baseModel           String
   datasetId           String
   configHash          String
-  changelog           String   @db.Text
+  changelog           String      @db.Text
   status              ModelStatus @default(TRAINING)
   refusalAccuracy     Float?
   policyViolationRate Float?
   driftScore          Float?
   verbosityScore      Float?
   deployedAt          DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  dataset             TrainingDataset @relation(fields: [datasetId], references: [id])
-  metrics             EvaluationMetric[]
-  
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  dataset TrainingDataset    @relation(fields: [datasetId], references: [id])
+  metrics EvaluationMetric[]
+
   @@index([status])
   @@index([version])
 }
 
 model EvaluationMetric {
-  id              String   @id @default(uuid())
-  modelVersionId  String
-  metricType      String   // REFUSAL_ACC, POLICY_VIOLATION, DRIFT, VERBOSITY
-  value           Float
-  threshold       Float
-  passed          Boolean
-  metadata        Json?
-  timestamp       DateTime @default(now())
-  
-  modelVersion    ModelVersion @relation(fields: [modelVersionId], references: [id])
-  
+  id             String   @id @default(uuid())
+  modelVersionId String
+  metricType     String // REFUSAL_ACC, POLICY_VIOLATION, DRIFT, VERBOSITY
+  value          Float
+  threshold      Float
+  passed         Boolean
+  metadata       Json?
+  timestamp      DateTime @default(now())
+
+  modelVersion ModelVersion @relation(fields: [modelVersionId], references: [id])
+
   @@index([modelVersionId])
   @@index([metricType])
   @@index([passed])
@@ -1759,7 +1856,7 @@ model ClientError {
   ip             String
   metadata       Json?
   createdAt      DateTime @default(now())
-  
+
   @@index([createdAt])
   @@index([userId])
   @@index([url])
@@ -1768,75 +1865,75 @@ model ClientError {
 // --- REPLY DECISION TREE TRACKER ---
 
 model ReplyTracker {
-  id              String   @id @default(uuid())
-  leadId          String
-  emailId         String?  // Original outbound email ID if available
-  receivedAt      DateTime @default(now())
-  
-  senderEmail     String
-  subject         String
-  body            String   @db.Text
-  
+  id         String   @id @default(uuid())
+  leadId     String
+  emailId    String? // Original outbound email ID if available
+  receivedAt DateTime @default(now())
+
+  senderEmail String
+  subject     String
+  body        String @db.Text
+
   // AI Classification
-  aiClassification String  // INTERESTED, NOT_INTERESTED, OOO, QUESTION, DNC
-  aiConfidence     Float   // 0.0 - 1.0 confidence score
+  aiClassification String // INTERESTED, NOT_INTERESTED, OOO, QUESTION, DNC
+  aiConfidence     Float // 0.0 - 1.0 confidence score
   aiReasoning      String? @db.Text
-  sentimentScore   Float?  // -1.0 to 1.0
-  
+  sentimentScore   Float? // -1.0 to 1.0
+
   // HITL State
-  status          String   @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, AUTO_HANDLED
-  humanCorrection String?  // Stores correct classification if AI was wrong
-  reviewedBy      String?  // User ID of operator
+  status          String    @default("PENDING_REVIEW") // PENDING_REVIEW, APPROVED, REJECTED, AUTO_HANDLED
+  humanCorrection String? // Stores correct classification if AI was wrong
+  reviewedBy      String? // User ID of operator
   reviewedAt      DateTime?
-  
+
   // Action taken
-  actionTaken     String?  // PAUSED_CAMPAIGN, SENT_REPLY, SCHEDULED_MEETING
-  replyDraft      String?  @db.Text // The AI suggested reply
-  
-  lead            Lead     @relation(fields: [leadId], references: [id])
-  
+  actionTaken String? // PAUSED_CAMPAIGN, SENT_REPLY, SCHEDULED_MEETING
+  replyDraft  String? @db.Text // The AI suggested reply
+
+  lead Lead @relation(fields: [leadId], references: [id])
+
   @@index([status])
   @@index([leadId])
   @@index([aiClassification])
 }
 
 model CalendarEvent {
-  id             String      @id @default(cuid())
-  eventName      String
-  eventDate      DateTime
-  category       String
-  leadGenAngle   String
-  newsletterId   String?     @unique
-  newsletter     Newsletter? @relation(fields: [newsletterId], references: [id])
+  id           String      @id @default(cuid())
+  eventName    String
+  eventDate    DateTime
+  category     String
+  leadGenAngle String
+  newsletterId String?     @unique
+  newsletter   Newsletter? @relation(fields: [newsletterId], references: [id])
 
   @@unique([eventName, eventDate])
 }
 
 model Newsletter {
-  id             String         @id @default(cuid())
-  subjectLine    String
-  emailBodyHtml  String
-  cta            String
-  event          CalendarEvent?
+  id            String         @id @default(cuid())
+  subjectLine   String
+  emailBodyHtml String
+  cta           String
+  event         CalendarEvent?
 }
 
 model ShadowSignal {
   id            String   @id @default(uuid())
-  source        String   // "reddit", "glassdoor", etc.
+  source        String // "reddit", "glassdoor", etc.
   url           String
   content       String   @db.Text
   frictionScore Float
   detectedICPs  String[]
   isWarmLead    Boolean  @default(false)
   metadata      Json?
-  
-  leadId        String?
-  lead          Lead?    @relation(fields: [leadId], references: [id])
-  
-  teamId        String?
-  team          Team?    @relation(fields: [teamId], references: [id])
-  
-  createdAt     DateTime @default(now())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  teamId String?
+  team   Team?   @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
 
   @@index([teamId])
   @@index([leadId])
@@ -1846,11 +1943,11 @@ model ShadowSignal {
 
 // Foundation Models for RAG and Analytics
 model VectorDocument {
-  id        String   @id @default(uuid())
-  type      String
-  content   String   @db.Text
-  metadata  String?  @db.Text // JSON string
-  embedding String?  @db.Text // JSON string
+  id         String   @id @default(uuid())
+  type       String
+  content    String   @db.Text
+  metadata   String?  @db.Text // JSON string
+  embedding  String?  @db.Text // JSON string
   created_at DateTime @default(now())
 
   @@index([type])
@@ -1867,4 +1964,3 @@ model EngagementLog {
   @@index([email])
   @@index([event])
 }
-

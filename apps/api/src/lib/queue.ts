@@ -29,6 +29,7 @@ export type JobType =
     | "data_export"
     | "LINKEDIN_ACTION"
     | "INBOX_SYNC"
+    | "GMAIL_SYNC"
     | "CRM_SYNC"
     | "WEBHOOK_DISPATCH"
     | "workflow_step"

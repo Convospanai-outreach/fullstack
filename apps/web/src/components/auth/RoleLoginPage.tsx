@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { ArrowRight, Lock, ShieldCheck } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -116,14 +116,6 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
                             </div>
                         )}
 
-                        <button
-                            type="button"
-                            onClick={() => signIn("google", { callbackUrl })}
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white transition hover:border-white/20 hover:bg-white/10"
-                        >
-                            <Lock className="h-4 w-4 text-cyan-300" />
-                            Continue with Google
-                        </button>
                     </form>
 
                     <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
