@@ -25,6 +25,7 @@ interface AnalyticsStats {
             clicked?: number;
             openRate?: number;
             clickRate?: number;
+            replyRate?: number;
         };
     };
     campaignPerformance?: Array<{
@@ -63,13 +64,13 @@ export function AnalyticsDashboard() {
 
     const totalLeads = overview?.totalLeads ?? 0;
     const totalCampaigns = overview?.totalCampaigns ?? 0;
-    const openRate = emailStats?.openRate ?? 0;
+    const replyRate = emailStats?.replyRate ?? 0;
     const emailsSent = emailStats?.sent ?? 0;
 
     // Build funnelData from emailStats
     const funnelData = [
         { name: "Sent", value: emailStats?.sent ?? 0 },
-        { name: "Opened", value: emailStats?.opened ?? 0 },
+        { name: "Opened (noisy)", value: emailStats?.opened ?? 0 },
         { name: "Clicked", value: emailStats?.clicked ?? 0 },
     ];
 
@@ -77,7 +78,7 @@ export function AnalyticsDashboard() {
     const trends = (data?.campaignPerformance ?? []).map((cp) => ({
         date: cp.name?.substring(0, 12) || "—",
         sent: cp.targetCount ?? 0,
-        opened: cp.completedCount ?? 0,
+        replies: cp.completedCount ?? 0,
     }));
 
     return (
@@ -86,7 +87,7 @@ export function AnalyticsDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <KPICard title="Total Leads" value={totalLeads} icon="👥" />
                 <KPICard title="Active Campaigns" value={totalCampaigns} icon="🚀" />
-                <KPICard title="Open Rate" value={`${openRate.toFixed(1)}%`} icon="💬" />
+                <KPICard title="Reply Rate" value={`${replyRate.toFixed(1)}%`} icon="💬" />
                 <KPICard title="Emails Sent" value={emailsSent} icon="📧" />
             </div>
 
@@ -107,7 +108,7 @@ export function AnalyticsDashboard() {
                                     />
                                     <Legend />
                                     <Line type="monotone" dataKey="sent" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 8 }} />
-                                    <Line type="monotone" dataKey="opened" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+                                    <Line type="monotone" dataKey="replies" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
                                 </LineChart>
                             </ResponsiveContainer>
                         ) : (

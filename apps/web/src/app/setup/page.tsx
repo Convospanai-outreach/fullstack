@@ -59,7 +59,7 @@ interface SetupStatus {
 const STEPS = [
   { id: 1, title: "Plan ICP", icon: Users, description: "Review the service-company segment, geography, and buyer profile for the first campaign run." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Confirm the workspace identity used across campaigns and meeting assets." },
-  { id: 3, title: "Sending Readiness", icon: Mail, description: "Connect the email infrastructure for managed campaigns." },
+  { id: 3, title: "Gmail Readiness", icon: Mail, description: "Connect Gmail campaign sending and keep SMTP only as a fallback." },
   { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep email-first launch as default and optionally add LinkedIn context." },
   { id: 5, title: "Messaging Voice", icon: MessageSquare, description: "Define the tone used in vertical playbooks and follow-ups." },
   { id: 6, title: "Autopilot Drafting", icon: Bot, description: "Set the provider key used for campaign and follow-up drafting." },
@@ -426,22 +426,22 @@ export default function SetupWizardPage() {
               <div className="space-y-4">
                 <div className="p-4 bg-sky-900/20 border border-sky-500/30 rounded-xl mb-6">
                   <h3 className="text-sky-400 font-semibold mb-2 flex items-center gap-2">
-                    <Mail className="w-4 h-4" /> Google Business SMTP (Gmail)
+                    <Mail className="w-4 h-4" /> Gmail Campaign Mailbox
                   </h3>
                   <p className="text-sky-300/80 text-sm mb-2">
-                    Connect the inbox you will send from. Most Google Workspace teams only need their work email and an App Password. Host and port fields below are advanced settings.
+                    Production campaigns should use the admin-connected Google Workspace mailbox. Use the SMTP fields below only as a fallback for system messages or legacy environments.
                   </p>
                   <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">
-                    How to create a Google App Password
+                    Legacy fallback: Google App Password guide
                   </a>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Host (Advanced)</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Fallback SMTP Host</label>
                     <input 
                       type="text"
-                      title="SMTP Host (Advanced)"
+                      title="Fallback SMTP Host"
                       placeholder="smtp.gmail.com"
                       value={formData.step3.host}
                       onChange={e => setFormData({...formData, step3: {...formData.step3, host: e.target.value}})}
@@ -449,10 +449,10 @@ export default function SetupWizardPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Port (Advanced)</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Fallback SMTP Port</label>
                     <input 
                       type="number"
-                      title="SMTP Port (Advanced)"
+                      title="Fallback SMTP Port"
                       placeholder="587"
                       value={formData.step3.port}
                       onChange={e => setFormData({...formData, step3: {...formData.step3, port: e.target.value}})}
@@ -545,7 +545,7 @@ export default function SetupWizardPage() {
                     Test Connection
                   </button>
                   <div className="flex flex-col gap-2">
-                    <ChecklistItem label="SMTP Configured" passed={status.canSendEmail} />
+                    <ChecklistItem label="Fallback SMTP configured" passed={status.canSendEmail} />
                   </div>
                 </div>
               </div>
@@ -565,7 +565,7 @@ export default function SetupWizardPage() {
                     <p className="text-xs uppercase tracking-[0.16em] text-emerald-300">Recommended</p>
                     <h3 className="mt-2 text-lg font-semibold text-white">Email-first launch path</h3>
                     <p className="mt-2 text-sm text-slate-300">
-                      Launch campaigns with SMTP + approvals first. Add extra channels only after email workflow is stable.
+                      Launch with Gmail sending, reply-first metrics, and approval controls. Keep open pixels as a low-trust signal.
                     </p>
                   </div>
 
@@ -788,7 +788,7 @@ export default function SetupWizardPage() {
             {activeStep === 11 && (
               <div className="space-y-4">
                 <ChecklistItem label="Advanced channels deferred for beta" passed={PRODUCT_FLAGS.emailFirstBeta} />
-                <ChecklistItem label="Google OAuth SSO" passed={status.hasGoogleOAuth} />
+                <ChecklistItem label="Google Workspace mailbox OAuth" passed={status.hasGoogleOAuth} />
                 <ChecklistItem label="Redis Queue Active" passed={status.hasRedis} />
                 <ChecklistItem label="Slack Alert Hooks" passed={status.hasSlackAlerts} />
                 <ChecklistItem

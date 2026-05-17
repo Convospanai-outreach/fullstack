@@ -13,6 +13,9 @@ function decodePubSubData(data: string | undefined) {
 
 export async function POST(req: NextRequest) {
     const expectedToken = process.env["GMAIL_PUBSUB_WEBHOOK_TOKEN"];
+    if (!expectedToken && process.env["NODE_ENV"] === "production") {
+        return NextResponse.json({ error: "Gmail Pub/Sub webhook token is not configured" }, { status: 503 });
+    }
     if (expectedToken) {
         const provided = req.headers.get("x-gmail-webhook-token") || new URL(req.url).searchParams.get("token");
         if (provided !== expectedToken) {
@@ -48,4 +51,3 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, queued: mailboxes.length });
 }
-

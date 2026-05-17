@@ -14,7 +14,7 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
 
     // Calculate Rates
     const openRate = funnel.sent > 0 ? ((funnel.opened / funnel.sent) * 100).toFixed(1) : "0.0";
-    const clickRate = funnel.opened > 0 ? ((funnel.clicked / funnel.opened) * 100).toFixed(1) : "0.0";
+    const clickRate = funnel.sent > 0 ? ((funnel.clicked / funnel.sent) * 100).toFixed(1) : "0.0";
     const replyRate = funnel.sent > 0 ? ((funnel.replied / funnel.sent) * 100).toFixed(1) : "0.0";
 
     return (
@@ -27,10 +27,10 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                     color="text-accent-blue"
                 />
                 <MetricCard
-                    label="Open Rate"
-                    value={`${openRate}%`}
-                    icon={MailOpen}
-                    color="text-accent-mint"
+                    label="Reply Rate"
+                    value={`${replyRate}%`}
+                    icon={MessageCircle}
+                    color="text-pink-500"
                 />
                 <MetricCard
                     label="Click Rate"
@@ -39,10 +39,10 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                     color="text-accent-violet"
                 />
                 <MetricCard
-                    label="Reply Rate"
-                    value={`${replyRate}%`}
-                    icon={MessageCircle}
-                    color="text-pink-500"
+                    label="Opens (Noisy)"
+                    value={`${openRate}%`}
+                    icon={MailOpen}
+                    color="text-accent-mint"
                 />
             </div>
 
@@ -58,9 +58,9 @@ export default function AnalyticsTab({ data }: AnalyticsTabProps) {
                             AI Insights
                         </h3>
                         <div className="space-y-4 text-sm text-text-secondary">
-                            <p>- Open rate is above your baseline.</p>
-                            <p>- Most replies cluster on weekdays.</p>
-                            <p>- Recommendation: Increase personalization in the subject line.</p>
+                            <p>- Prioritize replies and qualified clicks over open-rate movement.</p>
+                            <p>- Opens are privacy-filtered and should stay a low-trust signal.</p>
+                            <p>- Recommendation: prepare the next drip for leads with clicks or positive reply intent.</p>
                         </div>
                     </div>
                 </div>

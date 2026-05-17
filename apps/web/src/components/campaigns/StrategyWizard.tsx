@@ -129,9 +129,9 @@ const CHANNEL_OPTIONS: {
     },
     {
         id: "email",
-        label: "Email Outreach",
-        desc: "Best for direct outreach with a connected inbox and deliverability controls.",
-        detail: "Use this when speed, volume, and follow-up sequencing matter most.",
+        label: "Gmail Outreach",
+        desc: "Best for direct outreach from a connected Google Workspace mailbox.",
+        detail: "Use this when reply-first tracking, safe links, and approval-ready follow-up sequencing matter most.",
         icon: Mail,
         iconClassName: "text-violet-400",
         selectedClassName: "border-violet-500 bg-violet-500/10 ring-1 ring-violet-500/30"
@@ -224,8 +224,8 @@ const AUDIENCE_OPTIONS: {
 
 const CHANNEL_SEQUENCE: Record<ChannelType, string[]> = {
     linkedin: ["Connection request", "Follow-up note after acceptance"],
-    email: ["Intro email", "Follow-up email two days later"],
-    omnichannel: ["LinkedIn touch", "Email follow-up", "Final reminder"],
+    email: ["Intro email", "Reply/click-aware follow-up draft"],
+    omnichannel: ["LinkedIn touch", "Gmail follow-up draft", "Review-ready final reminder"],
 };
 
 const DEFAULT_PREVIEW = "Hi {firstName},\n\nI noticed your team is scaling quickly. We help teams remove manual work from outbound execution without losing control.\n\nWould a short conversation next week be useful?\n\nBest,\n[Your Name]";
