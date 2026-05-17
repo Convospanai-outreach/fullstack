@@ -16,7 +16,6 @@ import {
 import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
-import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const socialProof = [
     { stat: "ICP", label: "focused pilot motion" },
@@ -62,7 +61,7 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            const response = await fetch(getBrowserApiUrl("/waitlist"), {
+            const response = await fetch("/api/waitlist", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData),
@@ -208,6 +207,7 @@ export default function SignupPage() {
                                     <input
                                         type="text"
                                         id="signup-name"
+                                        name="name"
                                         required
                                         value={formData.name}
                                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -221,6 +221,7 @@ export default function SignupPage() {
                                     <input
                                         type="email"
                                         id="signup-email"
+                                        name="email"
                                         required
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -234,6 +235,7 @@ export default function SignupPage() {
                                     <input
                                         type="text"
                                         id="signup-company"
+                                        name="companyName"
                                         required
                                         value={formData.companyName}
                                         onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
@@ -247,6 +249,7 @@ export default function SignupPage() {
                                     <input
                                         type="tel"
                                         id="signup-phone"
+                                        name="phone"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                         className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
@@ -258,6 +261,7 @@ export default function SignupPage() {
                                     <label className="mb-2 block text-sm font-medium text-slate-300">Use case <span className="text-slate-500">optional</span></label>
                                     <textarea
                                         id="signup-use-case"
+                                        name="useCase"
                                         value={formData.useCase}
                                         onChange={(e) => setFormData({ ...formData, useCase: e.target.value })}
                                         className="min-h-28 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"

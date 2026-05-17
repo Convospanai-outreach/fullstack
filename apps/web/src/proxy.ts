@@ -20,11 +20,12 @@ export async function proxy(req: NextRequest) {
     );
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
+    const isPlaywrightE2E = process.env['PLAYWRIGHT_E2E'] === 'true';
     const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/test-auth", "/api/contact", "/api/help", "/api/waitlist", "/api/proxy/waitlist", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/metrics", "/api/test-auth", "/api/contact", "/api/help", "/api/waitlist", "/api/proxy/waitlist", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
 
@@ -123,6 +124,7 @@ export async function proxy(req: NextRequest) {
         "/terms",
         "/privacy",
         "/help",
+        ...(isPlaywrightE2E ? ["/test-crash"] : []),
     ];
     const isPublic = publicPaths.some(p => path === p) ||
         path.startsWith("/p/") ||

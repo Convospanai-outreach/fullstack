@@ -28,14 +28,13 @@ test.describe('Frontend Visual Audit', () => {
     });
 
     test('audit login page', async ({ page }) => {
-        await page.goto('/api/auth/signin');
+        await page.goto('/login');
         await page.screenshot({ path: path.join(screenshotDir, 'login-desktop.png') });
     });
 
     test('audit dashboard redirect', async ({ page }) => {
         await page.goto('/dashboard');
-        // Should redirect to signin
-        await expect(page.url()).toContain('api/auth/signin');
+        await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fdashboard/);
         await page.screenshot({ path: path.join(screenshotDir, 'dashboard-redirect.png') });
     });
 

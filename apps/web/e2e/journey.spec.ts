@@ -38,19 +38,18 @@ test.describe('User Journey Map', () => {
         await page.goto('/signup'); // Direct navigation to be safe
         await page.screenshot({ path: path.join(screenshotDir, '04-signup-page.png') });
 
-        // 4. Fill Signup Form
+        // 4. Fill waitlist form
         const uniqueEmail = `testuser_${Date.now()}@example.com`;
-        console.log(`Attempting signup with ${uniqueEmail}...`);
+        console.log(`Joining waitlist with ${uniqueEmail}...`);
 
-        // Selectors based on signup-verification.spec.ts
         await page.fill('input[name="name"]', 'Journey Mapper');
         await page.fill('input[name="email"]', uniqueEmail);
-        await page.fill('input[name="password"]', 'TestPass123!');
+        await page.fill('input[name="companyName"]', 'Journey Mapping Co');
+        await page.fill('textarea[name="useCase"]', 'Testing the invite-only waitlist flow.');
         await page.click('button[type="submit"]');
 
         // 5. Verify Result
-        // Check if we are redirected or see a message
-        await page.waitForTimeout(5000); // Wait for processing
+        await expect(page.getByText(/thank you\. your request has been received/i)).toBeVisible();
         await page.screenshot({ path: path.join(screenshotDir, '05-signup-result.png') });
 
         // 6. Attempt Dashboard Access
