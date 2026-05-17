@@ -4,9 +4,9 @@ import { prisma } from "@/lib/db";
 import { compare } from "bcryptjs";
 
 export async function POST(req: Request) {
-    // Security: Only allow in development environment
-    if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    // This endpoint is for explicit local/CI diagnostics only.
+    if (process.env.NODE_ENV === 'production' || process.env.ENABLE_TEST_AUTH !== 'true') {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     try {
@@ -17,25 +17,25 @@ export async function POST(req: Request) {
             where: { email }
         });
 
-        if (!user) {
-            return NextResponse.json({ error: "User not found within Next.js runtime" }, { status: 404 });
-        }
-
-        if (!user.password) {
-            return NextResponse.json({ error: "User has no password set" }, { status: 400 });
+        if (!user?.password) {
+            return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
         }
 
         const isValid = await compare(password, user.password);
+        if (!isValid) {
+            return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+        }
 
         return NextResponse.json({
             success: true,
             userFound: true,
-            passwordValid: isValid,
+            passwordValid: true,
             // Removed hash exposure for security
             storedHash: "REDACTED" 
         });
 
     } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 500 });
+        console.error("Test auth diagnostic failed:", e);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }

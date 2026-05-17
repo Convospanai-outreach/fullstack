@@ -121,7 +121,7 @@ function getAdaptedRequestBody(request: any, headers: Headers) {
  */
 const nextAdapter = (handler: any, registeredPath: string) => async (request: any, reply: any) => {
   try {
-    const publicPaths = ["/webhooks", "/auth", "/test-auth", "/scheduler"];
+    const publicPaths = ["/webhooks", "/auth", "/test-auth", "/scheduler", "/extension", "/queue"];
     const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
 
     if (!isPublic) {
@@ -225,7 +225,11 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     reply.status(status).send(buffer);
   } catch (error: any) {
     fastify.log.error(error);
-    reply.status(500).send({ ok: false, error: error.message || 'Internal Server Error' });
+    const isProduction = process.env.NODE_ENV === 'production';
+    reply.status(500).send({
+      ok: false,
+      error: isProduction ? 'Internal Server Error' : error.message || 'Internal Server Error',
+    });
   }
 };
 

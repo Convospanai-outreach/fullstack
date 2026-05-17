@@ -1,5 +1,5 @@
 const API_BASE = "http://localhost:3000/api/proxy";
-const EXTENSION_KEY = "convo-ext-key-dev"; // This would normally be injected or configured
+const DEFAULT_EXTENSION_KEY = "convo-ext-key-dev";
 
 let state = {
   token: null,
@@ -34,10 +34,16 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-function getHeaders() {
+async function getExtensionKey() {
+  const res = await chrome.storage.local.get("extensionKey");
+  return res.extensionKey || DEFAULT_EXTENSION_KEY;
+}
+
+async function getHeaders() {
+  const extensionKey = await getExtensionKey();
   return {
     "Content-Type": "application/json",
-    "x-extension-key": EXTENSION_KEY, // Needs a real value in prod
+    "x-extension-key": extensionKey,
     "Authorization": state.token ? `Bearer ${state.token}` : "",
     "x-team-id": state.teamId || ""
   };
@@ -55,7 +61,7 @@ async function pollTasks() {
   try {
     const res = await fetch(`${apiBase}/extension/tasks`, {
       method: "GET",
-      headers: getHeaders()
+      headers: await getHeaders()
     });
 
     if (!res.ok) return;
@@ -144,12 +150,28 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   
   if (msg.type === "UPDATE_STATE") {
-    state.token = msg.token;
-    state.teamId = msg.teamId;
+    if (Object.prototype.hasOwnProperty.call(msg, "token")) {
+      state.token = msg.token;
+    }
+    if (Object.prototype.hasOwnProperty.call(msg, "teamId")) {
+      state.teamId = msg.teamId;
+    }
     if (msg.apiBase) {
       chrome.storage.local.set({ apiBase: msg.apiBase });
     }
+    if (msg.extensionKey) {
+      chrome.storage.local.set({ extensionKey: msg.extensionKey });
+    }
     chrome.storage.local.set({ token: state.token, teamId: state.teamId });
+    sendResponse({ ok: true });
+    return true;
+  }
+
+  if (msg.type === "LOGOUT") {
+    state.token = null;
+    state.teamId = null;
+    state.offlineQueue = [];
+    chrome.storage.local.remove(["token", "teamId", "teamIds", "offlineQueue"]);
     sendResponse({ ok: true });
     return true;
   }
@@ -170,7 +192,7 @@ async function sendPush(payload) {
   try {
     await fetch(`${apiBase}/extension/push`, {
       method: "POST",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify(payload)
     });
   } catch (e) {
@@ -186,7 +208,7 @@ async function sendAction(payload) {
   try {
     const res = await fetch(`${apiBase}/extension/action`, {
       method: "POST",
-      headers: getHeaders(),
+      headers: await getHeaders(),
       body: JSON.stringify(payload)
     });
     
@@ -194,7 +216,7 @@ async function sendAction(payload) {
     if (payload.taskId) {
        await fetch(`${apiBase}/extension/tasks/complete`, {
          method: "POST",
-         headers: getHeaders(),
+         headers: await getHeaders(),
          body: JSON.stringify({
             taskId: payload.taskId,
             success: payload.status === "SUCCESS",
