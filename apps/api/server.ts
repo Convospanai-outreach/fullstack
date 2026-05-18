@@ -225,7 +225,12 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     reply.status(status).send(buffer);
   } catch (error: any) {
     fastify.log.error(error);
-    reply.status(500).send({ ok: false, error: error.message || 'Internal Server Error' });
+    reply.status(500).send({
+      ok: false,
+      error: process.env.NODE_ENV === 'production'
+        ? 'Internal Server Error'
+        : error.message || 'Internal Server Error'
+    });
   }
 };
 
