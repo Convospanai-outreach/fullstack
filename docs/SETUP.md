@@ -145,12 +145,40 @@ RESEND_API_KEY=re_xxxxx
 ```
 
 **Option 3: Gmail SMTP**
+
+Use this when the sender mailbox is a Gmail or Google Workspace account.
+
+1. Sign in to the sender Google account.
+2. Enable 2-Step Verification in **Google Account > Security**.
+3. Create an app password from **Security > 2-Step Verification > App passwords**.
+4. Choose **Mail** or create a custom app name such as `ConvoSpan SMTP`.
+5. Copy the generated 16-character app password and remove any spaces before storing it.
+6. Add these values to the Vercel and Railway environments that send email:
+
 ```bash
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+SMTP_SECURE=false
+SMTP_USER=sender@yourdomain.com
+SMTP_PASSWORD=your-16-character-app-password
+SMTP_FROM_NAME=ConvoSpan
+SMTP_FROM_EMAIL=sender@yourdomain.com
 ```
+
+7. Redeploy the affected services after changing environment variables.
+8. In the app, open the team email integration setup and select the Google Business/Gmail SMTP option.
+9. Enter the same host, port, username, app password, sender name, and sender email.
+10. Send a test email before enabling campaign or workflow emails.
+
+For better deliverability on Google Workspace domains, configure SPF, DKIM, and DMARC in DNS:
+
+```dns
+v=spf1 include:_spf.google.com ~all
+```
+
+Generate DKIM from the Google Admin console, then publish the TXT record Google provides. Add a DMARC record such as `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com` while testing, then move to a stricter policy after monitoring reports.
+
+Do not use the normal Gmail password for SMTP. If an app password is exposed, revoke it in Google Account Security and generate a new one.
 
 ### AI Service Setup
 

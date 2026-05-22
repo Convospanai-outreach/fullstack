@@ -20,18 +20,31 @@ For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diag
 
 ```mermaid
 flowchart LR
-    Browser[User Browser] --> Web[apps/web - Next.js]
-    Visitor[Public Landing Visitor] --> Web
-    Netjana[Netjana Buyer Signals] --> API[apps/api - Fastify]
-    Web --> Proxy["/api/proxy/*"]
-    Proxy --> API[apps/api - Fastify]
-    API --> Postgres[(Postgres)]
-    API -. optional .-> Redis[(Redis)]
-    API --> Signals[(Signals + Jobs + Knowledge)]
-    API --> Channels[Email + LinkedIn Workers]
-    API --> Providers[LLM, CRM, Payments]
-    Channels --> ChannelProviders[SMTP + LinkedIn]
-    API -. private optional .-> Edge[apps/edge-fastapi]
+    GitHub[GitHub Repo and Actions] --> Vercel[Vercel - apps/web Next.js]
+    GitHub --> RailwayAPI[Railway - apps/api Fastify]
+    GitHub -. optional .-> RailwayEdge[Railway Private - apps/edge-fastapi]
+
+    Browser[Authenticated User Browser] --> Vercel
+    Visitor[Public Landing Visitor] --> Vercel
+    Netjana[Netjana Buyer Signals] --> RailwayAPI
+
+    Vercel --> WebRoutes[Marketing, Dashboard, Setup, Landing Pages]
+    Vercel --> Proxy["/api/proxy/*"]
+    Proxy --> RailwayAPI
+
+    RailwayAPI --> Postgres[(Managed Postgres)]
+    RailwayAPI -. recommended .-> Redis[(Managed Redis)]
+    RailwayAPI --> Signals[(Signals, Jobs, Knowledge, Audit)]
+    RailwayAPI --> Channels[Email and LinkedIn Workers]
+    RailwayAPI --> AI[OpenAI / Anthropic / Gemini]
+    RailwayAPI --> Billing[Razorpay]
+    RailwayAPI --> CRM[HubSpot / Salesforce Optional]
+    RailwayAPI -. private optional .-> RailwayEdge
+
+    Channels --> GmailSMTP[Gmail / Google Workspace SMTP]
+    Channels -. optional .-> WhatsApp[Meta WhatsApp / Twilio]
+    Vercel -. errors .-> Sentry[Sentry Optional]
+    Cloudflare[Cloudflare DNS / WAF Optional] --> Vercel
 ```
 
 ## Product Surfaces
