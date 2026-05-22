@@ -35,6 +35,7 @@ export default defineConfig({
             env: {
                 ...process.env,
                 PORT: '3000',
+                DISABLE_RATE_LIMIT: 'true',
             },
         }
         : undefined,

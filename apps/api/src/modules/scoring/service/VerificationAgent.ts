@@ -12,11 +12,11 @@ const defaultConfig: VerificationConfig = {
     threshold: 0.4
 };
 
-let currentConfig: VerificationConfig = { ...defaultConfig };
-
 export class VerificationAgent {
+    private config: VerificationConfig = { ...defaultConfig };
+
     updateConfig(config: Partial<VerificationConfig>) {
-        currentConfig = { ...currentConfig, ...config };
+        this.config = { ...this.config, ...config };
     }
 
     async verify(leadId: string): Promise<VerificationResult> {
@@ -54,7 +54,7 @@ export class VerificationAgent {
             };
 
             const score = await leadScoringService.calculateIntentScore(input);
-            if (score.score < currentConfig.threshold) {
+            if (score.score < this.config.threshold) {
                 violations.push({
                     type: "LOW_SCORE",
                     severity: "WARNING",
@@ -62,14 +62,14 @@ export class VerificationAgent {
                 });
             }
 
-            const passed = violations.every(v => v.severity !== "ERROR") && score.score >= currentConfig.threshold;
+            const passed = violations.every(v => v.severity !== "ERROR") && score.score >= this.config.threshold;
             const recommendation: VerificationRecommendation = passed ? "PROCESS" : violations.some(v => v.severity === "ERROR") ? "REJECT" : "REVIEW";
 
             const result: VerificationResult = {
                 leadId,
                 passed,
                 score: score.score,
-                threshold: currentConfig.threshold,
+                threshold: this.config.threshold,
                 violations,
                 recommendation,
                 verifiedAt: new Date()
@@ -81,7 +81,7 @@ export class VerificationAgent {
                     teamId: lead.teamId,
                     passed,
                     score: score.score,
-                    threshold: currentConfig.threshold,
+                    threshold: this.config.threshold,
                     recommendation,
                     violations: violations as any
                 }
