@@ -15,11 +15,19 @@ export class PredictiveService {
             const { prisma } = await import("@/lib/db");
             const lead = await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { id: true, updatedAt: true, intentScore: true, churnRisk: true }
+                select: {
+                    id: true,
+                    intentScore: true,
+                    churnRisk: true,
+                    pipelineStateChangedAt: true,
+                    hotAt: true,
+                    createdAt: true,
+                }
             });
             if (!lead) throw new Error("Lead not found");
 
-            const daysSince = (Date.now() - lead.updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+            const stalenessRef = lead.pipelineStateChangedAt || lead.hotAt || lead.createdAt;
+            const daysSince = (Date.now() - stalenessRef.getTime()) / (1000 * 60 * 60 * 24);
             const baseRisk = clamp01(daysSince / 90);
             const engagementFactor = 1 - clamp01(lead.intentScore ?? 0);
             const churnProbability = clamp01((baseRisk * 0.7) + (engagementFactor * 0.3));
@@ -116,14 +124,16 @@ export class PredictiveService {
                     intentScore: true,
                     churnRisk: true,
                     createdAt: true,
-                    updatedAt: true
+                    pipelineStateChangedAt: true,
+                    hotAt: true,
                 }
             });
 
             const clusters: Record<string, CustomerCluster> = {};
 
             for (const lead of leads) {
-                const daysSince = (Date.now() - lead.updatedAt.getTime()) / (1000 * 60 * 60 * 24);
+                const stalenessRef = lead.pipelineStateChangedAt || lead.hotAt || lead.createdAt;
+                const daysSince = (Date.now() - stalenessRef.getTime()) / (1000 * 60 * 60 * 24);
                 let label: CustomerCluster["label"] = "DORMANT";
                 if ((lead.value ?? 0) > 5000 || (lead.intentScore ?? 0) > 0.7) {
                     label = "HIGH_VALUE";
