@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Email Verification Flow', () => {
+    test.skip(process.env.E2E_MUTATING_AUTH_TESTS !== 'true', 'Signup and verification flows require an isolated test database and email harness.');
+
     test('should complete signup and email verification', async ({ page }) => {
         // Navigate to signup page
         await page.goto('/signup');

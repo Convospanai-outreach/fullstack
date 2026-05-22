@@ -13,6 +13,7 @@ test.describe('Dashboard Journey Map', () => {
 
     test('Authenticated Dashboard Flow', async ({ page }) => {
         test.setTimeout(120000);
+        test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'Authenticated dashboard flow requires TEST_USER_EMAIL and TEST_USER_PASSWORD.');
 
         // 1. Login
         console.log('Navigating to Login...');
@@ -28,8 +29,8 @@ test.describe('Dashboard Journey Map', () => {
         });
 
         console.log('Filling Credentials...');
-        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL || 'audit_user@example.com');
-        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD || 'AuditPassword123!');
+        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL!);
+        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD!);
 
         // Wait for potential submit button
         const submitBtn = page.locator('button[type="submit"]');

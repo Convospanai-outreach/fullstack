@@ -4,9 +4,8 @@ import { test, expect } from '@playwright/test';
 test.describe('Authentication', () => {
     test('should redirect to login unauthenticated user', async ({ page }) => {
         await page.goto('/dashboard');
-        // Expect to be redirected to signin, or at least not show dashboard content
-        // Since NextAuth usually redirects to /api/auth/signin or custom login
-        await expect(page.url()).toContain('api/auth/signin');
+        // Expect to be redirected to the custom login page.
+        await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fdashboard/);
     });
 
     // Since we are mocking auth in E2E usually, or need a real user.
@@ -16,8 +15,8 @@ test.describe('Authentication', () => {
     // or we can test the Login UI if it exists.
 
     test('should show login options', async ({ page }) => {
-        await page.goto('/api/auth/signin');
-        await expect(page.getByText('Sign in with Google')).toBeVisible();
-        await expect(page.getByText('Sign in with Email')).toBeVisible();
+        await page.goto('/login');
+        await expect(page.getByRole('heading', { name: /welcome back/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /^sign in$/i })).toBeVisible();
     });
 });

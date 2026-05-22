@@ -82,7 +82,8 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
             attachErrorListeners(page, route);
             console.log(`Navigating to ${route}...`);
             await page.goto(route);
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
+            await page.waitForTimeout(500);
 
             // Basic assertion to ensure page loaded
             await expect(page).toHaveTitle(/ConvoSpan|.*/i);
@@ -98,9 +99,16 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
         test.setTimeout(120000); // 2 minutes for cold start
         attachErrorListeners(page, '/login');
         console.log('Logging in...');
-        await page.goto('/login'); // Or /api/auth/signin
-        await page.fill('input[name="email"]', 'audit_user@example.com');
-        await page.fill('input[name="password"]', 'AuditPassword123!'); // Ensure this user exists or use a valid one
+        await page.goto('/login');
+
+        if (!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD) {
+            await expect(page.getByRole('heading', { name: /sign in to your workspace/i })).toBeVisible();
+            await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'protected-login-required.png'), fullPage: true });
+            return;
+        }
+
+        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL);
+        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD);
         await page.click('button[type="submit"]');
         await page.waitForURL(/.*dashboard/);
         await page.waitForLoadState('networkidle');
@@ -116,7 +124,8 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
             console.log(`Navigating to ${route}...`);
             await page.goto(route);
             // Allow some time for hydration/rendering
-            await page.waitForLoadState('networkidle');
+            await page.waitForLoadState('domcontentloaded');
+            await page.waitForTimeout(500);
 
             const safeRoute = route.replace(/\//g, '-').substring(1);
             await page.screenshot({ path: path.join(SCREENSHOT_DIR, `protected-${safeRoute}.png`), fullPage: true });

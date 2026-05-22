@@ -34,8 +34,8 @@ test.describe('Frontend Visual Audit', () => {
 
     test('audit dashboard redirect', async ({ page }) => {
         await page.goto('/dashboard');
-        // Should redirect to signin
-        await expect(page.url()).toContain('api/auth/signin');
+        // Should redirect to the custom login page.
+        await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fdashboard/);
         await page.screenshot({ path: path.join(screenshotDir, 'dashboard-redirect.png') });
     });
 

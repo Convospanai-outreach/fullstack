@@ -12,12 +12,13 @@ test.describe('SMTP Setup UI', () => {
 
     test('Should display and fill SMTP Setup Form', async ({ page }) => {
         test.setTimeout(120000);
+        test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'SMTP setup flow requires TEST_USER_EMAIL and TEST_USER_PASSWORD.');
 
         // 1. Login
         console.log('Navigating to Login...');
         await page.goto('/login');
-        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL || 'audit_user@example.com');
-        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD || 'AuditPassword123!');
+        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL!);
+        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD!);
         await page.click('button[type="submit"]');
         await page.waitForURL(/.*dashboard/);
 
