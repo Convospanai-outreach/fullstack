@@ -42,11 +42,10 @@ test.describe('User Journey Map', () => {
         const uniqueEmail = `testuser_${Date.now()}@example.com`;
         console.log(`Attempting signup with ${uniqueEmail}...`);
 
-        // Selectors based on signup-verification.spec.ts
-        await page.fill('input[name="name"]', 'Journey Mapper');
-        await page.fill('input[name="email"]', uniqueEmail);
-        const passwordInput = page.locator('input[name="password"]');
-        if (await passwordInput.isVisible()) {
+        await page.getByPlaceholder('Alex Johnson').fill('Journey Mapper');
+        await page.getByPlaceholder('you@company.com').fill(uniqueEmail);
+        const passwordInput = page.getByPlaceholder('Create a strong password');
+        if (await passwordInput.count()) {
             await passwordInput.fill('TestPass123!');
         }
 
