@@ -10,7 +10,11 @@ export class WorkerManager {
     private scheduleInterval: number = parseInt(process.env['SCHEDULE_INTERVAL_MS'] || '60000');
     private lastScheduleTick: number = 0;
     private lastStaleResetTick: number = 0;
+    private lastMailboxSyncTick: number = 0;
+    private lastWarmupTick: number = 0;
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
+    private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
+    private warmupInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WARMUP_INTERVAL_MS'] || '3600000'); // 1 hour
 
     async start() {
         if (this.isRunning) return;
@@ -59,6 +63,31 @@ export class WorkerManager {
                 console.log(`[Worker] Watchdog reset ${resetCount} stuck jobs.`);
             }
             this.lastStaleResetTick = now;
+        }
+
+        if (now - this.lastMailboxSyncTick >= this.mailboxSyncInterval) {
+            console.log("[Worker] Syncing due Google mailboxes...");
+            const { renewDueGoogleMailboxWatches, syncDueGoogleMailboxes } = await import("@/modules/email-campaigner/service/googleMailboxService");
+            const renewals = await renewDueGoogleMailboxWatches();
+            const renewedCount = renewals.filter((result) => result.renewed).length;
+            if (renewedCount > 0) {
+                console.log(`[Worker] Renewed ${renewedCount} Gmail mailbox watches.`);
+            }
+            const results = await syncDueGoogleMailboxes();
+            if (results.length > 0) {
+                console.log(`[Worker] Synced ${results.length} Google mailboxes.`);
+            }
+            this.lastMailboxSyncTick = now;
+        }
+
+        if (now - this.lastWarmupTick >= this.warmupInterval) {
+            console.log("[Worker] Advancing mailbox warmup state...");
+            const { advanceMailboxWarmup } = await import("@/modules/email-campaigner/service/googleMailboxService");
+            const result = await advanceMailboxWarmup();
+            if (result.count > 0) {
+                console.log(`[Worker] Advanced warmup for ${result.count} mailboxes.`);
+            }
+            this.lastWarmupTick = now;
         }
     }
 

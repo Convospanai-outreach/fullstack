@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
+import { createHmac, timingSafeEqual } from "crypto";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
@@ -308,6 +309,35 @@ function getCookieMap(cookieHeader: string | null): Map<string, string> {
     return cookies;
 }
 
+function verifyInternalAuthHeaders(headers: Headers) {
+    const secret = process.env['NEXTAUTH_SECRET'];
+    if (!secret) return null;
+
+    const userId = headers.get("x-convospan-user-id") || "";
+    const email = headers.get("x-convospan-user-email") || "";
+    const role = headers.get("x-convospan-user-role") || "";
+    const timestamp = headers.get("x-convospan-auth-ts") || "";
+    const signature = headers.get("x-convospan-auth-signature") || "";
+
+    if (!userId || !timestamp || !signature) return null;
+
+    const issuedAt = Number(timestamp);
+    if (!Number.isFinite(issuedAt) || Math.abs(Date.now() - issuedAt) > 5 * 60 * 1000) {
+        return null;
+    }
+
+    const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
+    const expected = createHmac("sha256", secret).update(payload).digest("hex");
+    const expectedBuffer = Buffer.from(expected, "hex");
+    const actualBuffer = Buffer.from(signature, "hex");
+
+    if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
+        return null;
+    }
+
+    return { sub: userId, email, enterpriseRole: role };
+}
+
 export async function getCurrentContextFromRequest(req: Request) {
     const cookieHeader = req.headers.get("cookie");
     const token = await getToken({
@@ -317,7 +347,8 @@ export async function getCurrentContextFromRequest(req: Request) {
         } as any,
         secret: process.env['NEXTAUTH_SECRET'],
     });
-    const userId = token?.sub || null;
+    const signedIdentity = verifyInternalAuthHeaders(req.headers);
+    const userId = token?.sub || signedIdentity?.sub || null;
 
     if (!userId) {
         return { userId: null, teamId: null };

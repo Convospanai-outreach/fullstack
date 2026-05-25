@@ -35,7 +35,8 @@ export type JobType =
     | "event_processing"
     | "CSV_IMPORT"
     | "SEQUENCE_ACTION"
-    | "INTEL_FOLLOWUP_REFRESH";
+    | "INTEL_FOLLOWUP_REFRESH"
+    | "lead_scoring";
 
 export interface JobPayload {
     leadId?: string | undefined;

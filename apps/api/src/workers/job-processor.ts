@@ -7,6 +7,7 @@ import { handleLinkedInScrape } from "./handlers/linkedin-worker";
 import { handleAgentRun } from "./handlers/agent-worker";
 import { handleCsvImport } from "./handlers/csv-worker";
 import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
+import { handleSequenceExecution } from "./handlers/sequence-worker";
 
 function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -45,6 +46,15 @@ async function runHandler(jobType: string, payload: JobPayload) {
         case "agent_run":
             return handleAgentRun(payload);
 
+        case "lead_scoring": {
+            const teamId = asString(payload.teamId);
+            if (!teamId) {
+                throw new Error("lead_scoring payload is missing teamId");
+            }
+            const { LeadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
+            return LeadScoringService.batchScoreLeads(teamId);
+        }
+
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);
             if (!filePath) {
@@ -59,6 +69,9 @@ async function runHandler(jobType: string, payload: JobPayload) {
 
         case "INTEL_FOLLOWUP_REFRESH":
             return handleIntelFollowupRefresh(payload as any);
+
+        case "sequence_execution":
+            return handleSequenceExecution(payload);
 
         default:
             throw new Error(`No worker handler registered for job type ${jobType}`);

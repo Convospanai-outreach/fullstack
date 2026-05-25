@@ -28,8 +28,35 @@ interface UserQuota {
     user?: { name: string; email: string };
 }
 
+interface BudgetPolicy {
+    maxCreditsPerUser: number;
+    requiresApprovalForOverage: boolean;
+}
+
+interface BudgetingData {
+    policy: BudgetPolicy;
+    members: Member[];
+    userQuotas: UserQuota[];
+}
+
+const DEFAULT_POLICY: BudgetPolicy = {
+    maxCreditsPerUser: 1000,
+    requiresApprovalForOverage: true,
+};
+
+function normalizeBudgetingData(data: any): BudgetingData {
+    return {
+        policy: {
+            ...DEFAULT_POLICY,
+            ...(data?.policy ?? {}),
+        },
+        members: Array.isArray(data?.members) ? data.members : [],
+        userQuotas: Array.isArray(data?.userQuotas) ? data.userQuotas : [],
+    };
+}
+
 export default function BudgetingPage() {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<BudgetingData | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [overrides, setOverrides] = useState<Record<string, number>>({});
@@ -42,11 +69,12 @@ export default function BudgetingPage() {
         try {
             const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/budgeting");
             const d = await res.json();
-            setData(d);
+            const normalized = normalizeBudgetingData(d);
+            setData(normalized);
 
             // Initialize overrides state
             const initialOverrides: Record<string, number> = {};
-            d.userQuotas.forEach((q: UserQuota) => {
+            normalized.userQuotas.forEach((q: UserQuota) => {
                 initialOverrides[q.userId] = q.monthlyLimit;
             });
             setOverrides(initialOverrides);
@@ -58,6 +86,8 @@ export default function BudgetingPage() {
     };
 
     const handleSave = async () => {
+        if (!data) return;
+
         setSaving(true);
         try {
             const userOverrides = Object.entries(overrides).map(([userId, monthlyLimit]) => ({
@@ -88,7 +118,7 @@ export default function BudgetingPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading budgeting console...</div>;
+    if (loading || !data) return <div className="p-8 text-white">Loading budgeting console...</div>;
 
     return (
         <div className="space-y-8 max-w-6xl">

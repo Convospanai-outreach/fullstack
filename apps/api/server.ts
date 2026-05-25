@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
-import { randomUUID } from 'crypto';
+import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
 
@@ -116,12 +116,49 @@ function getAdaptedRequestBody(request: any, headers: Headers) {
   return JSON.stringify(request.body);
 }
 
+function verifyInternalAuthHeaders(headers: Record<string, unknown>) {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return null;
+
+  const userId = typeof headers['x-convospan-user-id'] === 'string' ? headers['x-convospan-user-id'] : '';
+  const email = typeof headers['x-convospan-user-email'] === 'string' ? headers['x-convospan-user-email'] : '';
+  const role = typeof headers['x-convospan-user-role'] === 'string' ? headers['x-convospan-user-role'] : '';
+  const timestamp = typeof headers['x-convospan-auth-ts'] === 'string' ? headers['x-convospan-auth-ts'] : '';
+  const signature = typeof headers['x-convospan-auth-signature'] === 'string' ? headers['x-convospan-auth-signature'] : '';
+
+  if (!userId || !timestamp || !signature) return null;
+
+  const issuedAt = Number(timestamp);
+  if (!Number.isFinite(issuedAt) || Math.abs(Date.now() - issuedAt) > 5 * 60 * 1000) {
+    return null;
+  }
+
+  const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
+  const expected = createHmac('sha256', secret).update(payload).digest('hex');
+  const expectedBuffer = Buffer.from(expected, 'hex');
+  const actualBuffer = Buffer.from(signature, 'hex');
+
+  if (actualBuffer.length !== expectedBuffer.length || !timingSafeEqual(actualBuffer, expectedBuffer)) {
+    return null;
+  }
+
+  return { sub: userId, email, enterpriseRole: role };
+}
+
 /**
  * Adapter to bridge Next.js Route Handlers to Fastify
  */
 const nextAdapter = (handler: any, registeredPath: string) => async (request: any, reply: any) => {
   try {
-    const publicPaths = ["/webhooks", "/auth", "/test-auth", "/scheduler"];
+    const publicPaths = [
+      "/webhooks",
+      "/auth",
+      "/register",
+      "/test-auth",
+      "/scheduler",
+      "/integrations/google/oauth/callback",
+      "/integrations/google/pubsub",
+    ];
     const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
 
     if (!isPublic) {
@@ -134,7 +171,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       const token = await getToken({
         req: request.raw,
         secret
-      });
+      }) || verifyInternalAuthHeaders(request.headers || {});
       
       if (!token) {
         reply.status(401).send({ error: 'Unauthorized' });
