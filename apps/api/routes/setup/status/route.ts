@@ -92,8 +92,11 @@ export async function GET(req: Request) {
         const { getSmtpConfigRedacted } = await import("@/modules/email-campaigner/service/smtpConfigService");
         const smtpConfig = await getSmtpConfigRedacted(ctx.teamId);
         const hasSmtpConfig = !!smtpConfig;
-        const canSendEmail = hasSmtpConfig;
-        const hasCustomSender = hasSmtpConfig;
+        const hasConnectedGoogleMailbox = await prisma.connectedMailbox.count({
+            where: { teamId: ctx.teamId, status: "CONNECTED" }
+        }) > 0;
+        const canSendEmail = hasSmtpConfig || hasConnectedGoogleMailbox;
+        const hasCustomSender = canSendEmail;
 
         // Step 4: LinkedIn
         const hasExtensionApiKey = !!process.env['EXTENSION_API_KEY'];

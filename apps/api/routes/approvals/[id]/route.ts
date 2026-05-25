@@ -1,24 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const session = await getServerSession(authOptions);
-  if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
+    const ctx = await getCurrentContextFromRequest(req);
+    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { action, reason } = await req.json(); // action: "APPROVE" | "REJECT"
 
     if (action === "APPROVE") {
-      const result = await ApprovalService.approve(id, session.user.id);
+      const result = await ApprovalService.approve(id, ctx.userId);
       return NextResponse.json({ success: true, result });
     } else if (action === "REJECT") {
-      const result = await ApprovalService.reject(id, session.user.id, reason);
+      const result = await ApprovalService.reject(id, ctx.userId, reason);
       return NextResponse.json({ success: true, result });
     }
 

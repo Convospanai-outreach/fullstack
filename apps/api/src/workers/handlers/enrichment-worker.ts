@@ -103,10 +103,14 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             }
         }
 
-        // Update lead status
+        // Update lead status to enriched
         await prisma.lead.update({
             where: { id: leadId },
-            data: { status: "enriched" },
+            data: {
+                status: "enriched",
+                isEnriched: true,
+                ...(enrichmentData.email ? { email: enrichmentData.email } : {})
+            },
         });
 
         // If part of a campaign, enqueue email job
@@ -127,7 +131,17 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                 .catch(err => logger.error("[Worker] Failed to dispatch enrichment webhook", { error: err.message }));
         }
 
+        // Auto-score after enrichment — this drives COLD→WARM→HOT transitions
+        try {
+            const { leadScoringService } = await import("@/modules/scoring");
+            await leadScoringService.scoreAndPersist(leadId);
+        } catch (scoreErr) {
+            // Non-fatal: enrichment succeeded even if scoring fails
+            logger.warn(`[Worker] Post-enrichment scoring failed for lead ${leadId}:`, scoreErr);
+        }
+
         return enrichmentData;
+
     } catch (err) {
         if (teamId && charged) {
             await refundCredits(teamId, ENRICHMENT_COST, `Refund: enrichment failed for ${leadId}`);

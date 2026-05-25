@@ -83,6 +83,7 @@ export class SchedulerService {
                 let jobType: JobType = "agent_run";
                 if (schedule.campaignId) jobType = "campaign_execution";
                 else if (schedule.agentId) jobType = "agent_run";
+                else if (schedule.name.toLowerCase().includes("scoring")) jobType = "lead_scoring";
 
                 await JobQueue.enqueue(jobType, payload, { priority: 1, teamId: schedule.teamId });
 

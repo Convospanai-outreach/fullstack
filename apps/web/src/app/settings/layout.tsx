@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <NavLink href="/settings/webhooks">Webhooks</NavLink>
                 <NavLink href="/settings/features">Features</NavLink>
                 <NavLink href="/docs/api">Documentation</NavLink>
-                <NavLink href="/settings/billing">Billing</NavLink>
+                <NavLink href="/settings/budgeting">Billing</NavLink>
                 <NavLink href="/settings/team">Team Members</NavLink>
                 <NavLink href="/settings/guardrails">AI Guardrails</NavLink>
                 <NavLink href="/settings/governance">Enterprise Governance</NavLink>

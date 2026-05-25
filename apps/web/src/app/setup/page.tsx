@@ -1,22 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  CheckCircle2, Circle, ChevronRight, Palette, Mail, 
-  Linkedin, MessageSquare, Bot, Users, Target, FileText,
-  CreditCard, LayoutGrid, Loader2, Chrome, ExternalLink, AlertTriangle
+import {
+  AlertTriangle,
+  Bot,
+  Check,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  CreditCard,
+  ExternalLink,
+  FileText,
+  LayoutGrid,
+  Linkedin,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Palette,
+  RefreshCw,
+  ShieldCheck,
+  Target,
+  Users,
 } from "lucide-react";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 
-interface SetupStatus {
-  // Same TS interface from backend...
+type SetupStatus = {
   hasAccount: boolean;
   isEmailVerified: boolean;
-  hasTeamRole: string | null;
-  hasCompanyName: boolean;
-  hasLogo: boolean;
-  hasPrimaryColor: boolean;
   brandingComplete: boolean;
   canSendEmail: boolean;
   hasCustomSender: boolean;
@@ -25,88 +37,110 @@ interface SetupStatus {
   extensionApiBase: string;
   emailVoiceComplete: boolean;
   hasGeminiKey: boolean;
-  canGenerateMessage: boolean;
   leadCount: number;
   leadsWithEmail: number;
-  leadsWithLinkedIn: number;
-  hasHunterKey: boolean;
   campaignCount: number;
-  hasVariants: boolean;
-  hasAssignedLeads: boolean;
   uploadedDocCount: number;
   teamCredits: number;
-  hasPaymentMethod: boolean;
-  linkedInMode: string;
-  hasBrowserNode: boolean;
   hasWhatsApp: boolean;
-  hasGoogleOAuth: boolean;
-  hasRedis: boolean;
-  hasEdgeNode: boolean;
-  hasSlackAlerts: boolean;
-  edgeNodeAvailable: boolean;
   edgeNodeOptional: boolean;
   edgeNodeStatus: "UP" | "DOWN" | "NOT_CONFIGURED";
   edgeNodeMessage: string;
   readyToLaunch: boolean;
   completionPercent: number;
-  
-  // Form initial state
   teamName: string;
   branding: any;
   aiConfig: any;
-}
+};
+
+type Mailbox = {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  status: string;
+  dailyLimit: number;
+  sentToday: number;
+  minDelaySeconds: number;
+  isWarmingUp: boolean;
+  warmupDay: number;
+  replyCount: number;
+  bounceCount: number;
+  lastSyncAt?: string | null;
+};
+
+type DomainCheckResult = {
+  domain: string;
+  selector: string;
+  status: "VERIFIED" | "MISSING";
+  missing: string[];
+  records: Record<string, { status: "VERIFIED" | "MISSING"; host: string; values: string[] }>;
+};
 
 const STEPS = [
-  { id: 1, title: "Plan ICP", icon: Users, description: "Review the service-company segment, geography, and buyer profile for the first campaign run." },
-  { id: 2, title: "Workspace Identity", icon: Palette, description: "Confirm the workspace identity used across campaigns and meeting assets." },
-  { id: 3, title: "Sending Readiness", icon: Mail, description: "Connect the email infrastructure for managed campaigns." },
-  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep email-first launch as default and optionally add LinkedIn context." },
-  { id: 5, title: "Messaging Voice", icon: MessageSquare, description: "Define the tone used in vertical playbooks and follow-ups." },
-  { id: 6, title: "Autopilot Drafting", icon: Bot, description: "Set the provider key used for campaign and follow-up drafting." },
-  { id: 7, title: "Qualified Lead Inputs", icon: Users, description: "Bring in the target audience for the pilot or autopilot motion." },
-  { id: 8, title: "Approve Campaign Plan", icon: Target, description: "Review the first buyer-signal-to-meeting workflow before launch." },
-  { id: 9, title: "Meeting Assets", icon: FileText, description: "Add calendar links, proof assets, and conversion context." },
-  { id: 10, title: "Execution Readiness", icon: CreditCard, description: "Confirm the commercial path for managed execution." },
-  { id: 11, title: "Advanced Handoffs", icon: LayoutGrid, description: "Optional integrations that support follow-up and meeting workflows." },
+  { id: 1, title: "Launch Brief", icon: Users, description: "Confirm account access and the operating goal for the first campaign." },
+  { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
+  { id: 3, title: "Google Workspace", icon: Mail, description: "Connect sending mailboxes, check domain records, and keep SMTP as a fallback." },
+  { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep the first launch email-first, then add LinkedIn or WhatsApp context when needed." },
+  { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
+  { id: 6, title: "AI Drafting", icon: Bot, description: "Add the provider key used for draft preparation and enrichment support." },
+  { id: 7, title: "Lead Inputs", icon: Users, description: "Import the reachable segment for review-ready campaign work." },
+  { id: 8, title: "Campaign Plan", icon: Target, description: "Create the first workflow so leads, copy, and approvals have a place to land." },
+  { id: 9, title: "Meeting Assets", icon: FileText, description: "Add calendar and proof links that support human-approved follow-up." },
+  { id: 10, title: "Commercial Readiness", icon: CreditCard, description: "Confirm credits or billing before chargeable execution starts." },
+  { id: 11, title: "Handoffs", icon: LayoutGrid, description: "Review optional infrastructure and handoff integrations." },
 ];
+
+const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
+const labelClass = "mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400";
+const panelClass = "rounded-lg border border-white/10 bg-slate-900/60 p-5";
 
 export default function SetupWizardPage() {
   const router = useRouter();
   const [status, setStatus] = useState<SetupStatus | null>(null);
+  const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
+  const [activeStep, setActiveStep] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeStep, setActiveStep] = useState(1);
-  const [formData, setFormData] = useState<any>({});
+  const [mailboxLoading, setMailboxLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [domainCheck, setDomainCheck] = useState<DomainCheckResult | null>(null);
+  const [formData, setFormData] = useState<any>({});
   const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
 
-  // Fetch status on load
-  const loadStatus = async () => {
+  const completion = Math.max(0, Math.min(100, status?.completionPercent ?? 0));
+  const connectedMailboxes = mailboxes.filter((mailbox) => mailbox.status === "CONNECTED").length;
+
+  const stepComplete = useMemo(() => {
+    if (!status) return () => false;
+    return (stepId: number) => {
+      if (stepId === 1) return status.hasAccount && status.isEmailVerified;
+      if (stepId === 2) return status.brandingComplete;
+      if (stepId === 3) return status.canSendEmail || connectedMailboxes > 0;
+      if (stepId === 4) return PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
+      if (stepId === 5) return status.emailVoiceComplete;
+      if (stepId === 6) return status.hasGeminiKey;
+      if (stepId === 7) return status.leadCount > 0;
+      if (stepId === 8) return status.campaignCount > 0;
+      if (stepId === 9) return status.uploadedDocCount > 0;
+      if (stepId === 10) return status.teamCredits > 0;
+      if (stepId === 11) return PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
+      return false;
+    };
+  }, [status, connectedMailboxes]);
+
+  async function loadStatus() {
     setLoadError(null);
-
     try {
-      const res = await fetch(`${apiBase}/setup/status`);
-      if (!res.ok) {
-        let message = `Unable to load setup status (${res.status}).`;
-        try {
-          const errorData = await res.json() as Record<string, unknown>;
-          if (typeof errorData["error"] === "string" && errorData["error"].length > 0) {
-            message = errorData["error"];
-          }
-        } catch {}
-        throw new Error(message);
-      }
-
-      const data = await res.json();
+      const res = await fetch(`${apiBase}/setup/status`, { cache: "no-store" });
+      const data = await readJson(res);
       setStatus(data);
-      
-      // Initialize form data payload from backend
       setFormData({
         step2: {
           companyName: data.teamName || "",
           logoUrl: data.branding?.logoUrl || "",
-          primaryColor: data.branding?.primaryColor || "#3b82f6",
-          accentColor: data.branding?.accentColor || "#10b981",
+          primaryColor: data.branding?.primaryColor || "#0891b2",
+          accentColor: data.branding?.accentColor || "#22c55e",
           portalTitle: data.branding?.portalTitle || "",
           guidelinesUrl: data.branding?.guidelinesUrl || "",
         },
@@ -118,6 +152,8 @@ export default function SetupWizardPage() {
           password: "",
           fromName: data.aiConfig?.smtpConfig?.fromName || data.teamName || "",
           fromEmail: data.aiConfig?.smtpConfig?.fromEmail || data.aiConfig?.smtpConfig?.user || "",
+          domain: data.aiConfig?.smtpConfig?.fromEmail?.split("@")[1] || "",
+          selector: "google",
         },
         step5: {
           tone: data.aiConfig?.tone || "Professional",
@@ -127,736 +163,534 @@ export default function SetupWizardPage() {
           emailSignature: data.aiConfig?.emailSignature || "",
           greetingStyle: data.aiConfig?.greetingStyle || "Hi {firstName},",
           signOff: data.aiConfig?.signOff || "Best regards,",
-          ctaStyle: data.aiConfig?.ctaStyle || "Link",
         },
-        step6: {
-          geminiKey: data.aiConfig?.apiKey || "",
-        },
+        step6: { geminiKey: data.aiConfig?.apiKey || "" },
         step9: {
           calendarLink: data.aiConfig?.calendarLink || "",
           demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
-        }
+        },
       });
-    } catch (e: unknown) {
-      console.error(e);
+    } catch (error) {
       setStatus(null);
-      const message = e instanceof Error ? e.message : "Unable to load setup right now.";
-      setLoadError(message);
-    } finally {
-      setLoading(false);
+      setLoadError(error instanceof Error ? error.message : "Unable to load setup.");
     }
-  };
+  }
+
+  async function loadMailboxes() {
+    setMailboxLoading(true);
+    try {
+      const res = await fetch(`${apiBase}/integrations/google/mailboxes`, { cache: "no-store" });
+      if (res.status === 401 || res.status === 403) return;
+      const data = await readJson(res);
+      setMailboxes(Array.isArray(data.mailboxes) ? data.mailboxes : []);
+    } catch {
+      setMailboxes([]);
+    } finally {
+      setMailboxLoading(false);
+    }
+  }
 
   useEffect(() => {
-    loadStatus();
-  }, []);
-  const handleSaveStep = async (stepId: number) => {
-    setSaving(true);
-    try {
-      let payload = null;
-      if (stepId === 2) payload = formData.step2;
-      if (stepId === 5) payload = formData.step5;
-      if (stepId === 6) payload = formData.step6;
-      if (stepId === 9) payload = formData.step9;
+    const params = new URLSearchParams(window.location.search);
+    const requestedStep = Number(params.get("step"));
+    if (requestedStep >= 1 && requestedStep <= STEPS.length) setActiveStep(requestedStep);
+    if (params.get("googleMailbox") === "connected") setActiveStep(3);
 
+    Promise.all([loadStatus(), loadMailboxes()]).finally(() => setLoading(false));
+  }, []);
+
+  async function handleSaveStep(stepId: number) {
+    setSaving(true);
+    setActionMessage(null);
+    try {
       if (stepId === 3) {
-        // Save SMTP configuration using the dedicated endpoint
         await fetch(`${apiBase}/setup/email`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...formData.step3,
-            port: Number(formData.step3.port)
-          })
+          body: JSON.stringify({ ...formData.step3, port: Number(formData.step3.port) }),
         });
-        await loadStatus(); // Refresh status
-      } else if (payload) {
-        await fetch(`${apiBase}/setup/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: stepId, data: payload })
-        });
-        await loadStatus(); // Refresh status
-      }
-      
-      // Move to next step if not the last
-      if (stepId < 11) {
-        setActiveStep(stepId + 1);
       } else {
-        router.push("/dashboard");
+        const payload = stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
+        if (payload) {
+          await fetch(`${apiBase}/setup/save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ step: stepId, data: payload }),
+          });
+        }
       }
-    } catch (e) {
-      console.error(e);
+
+      await loadStatus();
+      if (stepId < STEPS.length) setActiveStep(stepId + 1);
+      else router.push("/dashboard");
     } finally {
       setSaving(false);
     }
-  };
+  }
+
+  async function connectGoogleMailbox() {
+    setSaving(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`${apiBase}/integrations/google/oauth/start?next=${encodeURIComponent("/setup?step=3")}`);
+      const data = await readJson(res);
+      if (!data.authUrl) throw new Error("Google authorization URL was not returned.");
+      window.location.assign(data.authUrl);
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to start Google connection.");
+      setSaving(false);
+    }
+  }
+
+  async function syncMailbox(mailboxId: string) {
+    setActionMessage("Syncing mailbox activity...");
+    const res = await fetch(`${apiBase}/integrations/google/mailboxes/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mailboxId }),
+    });
+    const data = await readJson(res);
+    setActionMessage(`Sync complete: ${data.replies ?? 0} replies, ${data.bounces ?? 0} bounces.`);
+    await loadMailboxes();
+  }
+
+  async function checkDomain() {
+    setSaving(true);
+    setActionMessage(null);
+    try {
+      const res = await fetch(`${apiBase}/integrations/google/domain-checks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: formData.step3?.domain,
+          selector: formData.step3?.selector || "google",
+          mailboxId: mailboxes[0]?.id || null,
+        }),
+      });
+      const data = await readJson(res);
+      setDomainCheck(data.result);
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to check DNS records.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
+      </main>
     );
   }
 
   if (!status) {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-200 flex items-center justify-center p-6">
-        <div className="max-w-xl w-full rounded-2xl border border-amber-500/30 bg-amber-900/10 p-6 md:p-8">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-amber-300 mt-0.5" />
-            <div>
-              <h2 className="text-xl font-semibold text-white">We could not load setup right now</h2>
-              <p className="mt-2 text-sm text-slate-300">{loadError || "Setup status is temporarily unavailable. Retry now or sign in again."}</p>
-            </div>
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setLoading(true);
-                loadStatus();
-              }}
-              className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg font-medium text-sm transition"
-            >
-              Retry setup status
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/login")}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium text-sm transition border border-white/10"
-            >
-              Go to sign in
-            </button>
-          </div>
-        </div>
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-200">
+        <section className="max-w-lg rounded-lg border border-amber-400/30 bg-amber-950/20 p-6">
+          <AlertTriangle className="h-6 w-6 text-amber-300" />
+          <h1 className="mt-4 text-2xl font-semibold text-white">Setup is unavailable</h1>
+          <p className="mt-2 text-sm text-slate-300">{loadError || "Retry status loading or sign in again."}</p>
+          <button className="mt-6 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950" onClick={() => { setLoading(true); loadStatus().finally(() => setLoading(false)); }}>
+            Retry setup
+          </button>
+        </section>
+      </main>
     );
   }
 
-  // Helper component for read-only checklist items
-  const ChecklistItem = ({ label, passed }: { label: string, passed: boolean }) => (
-    <div className="flex items-center space-x-3 p-3 bg-slate-900/50 rounded-lg border border-white/5">
-      {passed ? (
-        <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
-      ) : (
-        <Circle className="w-5 h-5 text-slate-600 flex-shrink-0" />
-      )}
-      <span className="text-slate-300 font-medium">{label}</span>
-    </div>
-  );
-
-  const getContinueLabel = (stepId: number) => {
-    if (stepId === 3) return "Save email settings";
-    if (stepId === 7) return "Continue to campaign launch";
-    if (stepId === 8) return "Continue to meeting assets";
-    if (stepId === 10) return "Continue to advanced handoffs";
-    if (stepId === 11) return "Go to dashboard and launch";
-    return "Save and continue";
-  };
+  const active = STEPS[activeStep - 1];
+  const ActiveIcon = active.icon;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 flex flex-col md:flex-row">
-      
-      {/* Sidebar Navigation */}
-      <div className="w-full md:w-80 bg-slate-900 border-r border-white/10 p-6 flex flex-col shrink-0">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-300 to-emerald-400 bg-clip-text text-transparent">
-            Start Guided Growth Pilot
-          </h1>
-          <p className="text-slate-400 text-sm mt-2">
-            Start ICP-first: define the target segment, set the meeting outcome, approve the campaign plan, then track qualified leads and meetings.
-          </p>
-          <div className="mt-4 bg-slate-800 rounded-full h-2 overflow-hidden">
-            <div 
-              className="bg-cyan-500 h-full transition-all duration-500"
-              ref={(el) => { if (el) el.style.width = `${Math.max(0, Math.min(100, status.completionPercent))}%`; }}
-            />
-          </div>
-          <p className="text-xs text-slate-500 mt-1">{status.completionPercent}% Complete</p>
-        </div>
-
-        <nav className="flex-1 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
-          {STEPS.map((step) => {
-            const Icon = step.icon;
-            const isActive = activeStep === step.id;
-            
-            // Rough heuristic for checkmarks in sidebar
-            let isPassed = false;
-            if (step.id === 1) isPassed = status.hasAccount && status.isEmailVerified;
-            if (step.id === 2) isPassed = status.brandingComplete;
-            if (step.id === 3) isPassed = status.canSendEmail;
-            if (step.id === 4) isPassed = PRODUCT_FLAGS.emailFirstBeta || status.hasLinkedInSession || status.hasExtensionApiKey;
-            if (step.id === 5) isPassed = status.emailVoiceComplete;
-            if (step.id === 6) isPassed = status.hasGeminiKey;
-            if (step.id === 7) isPassed = status.leadCount > 0;
-            if (step.id === 8) isPassed = status.campaignCount > 0;
-            if (step.id === 9) isPassed = status.uploadedDocCount > 0;
-            if (step.id === 10) isPassed = status.teamCredits > 0;
-            if (step.id === 11) isPassed = PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
-
-            return (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setActiveStep(step.id)}
-                className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${
-                  isActive 
-                    ? "bg-cyan-600/20 text-cyan-300 border border-cyan-500/30" 
-                    : "hover:bg-slate-800/50 text-slate-400 border border-transparent"
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className={`p-2 rounded-lg ${isActive ? "bg-cyan-500/20" : "bg-slate-800"}`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <span className="font-medium text-sm text-left">{step.id}. {step.title}</span>
+    <main className="min-h-screen bg-slate-950 text-slate-100">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:flex-row">
+        <aside className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-80">
+          <div className="flex h-full flex-col rounded-lg border border-white/10 bg-slate-900/70">
+            <div className="border-b border-white/10 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-300">Launch setup</p>
+              <h1 className="mt-2 text-2xl font-semibold text-white">Readiness wizard</h1>
+              <div className="mt-5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-400">Overall progress</span>
+                  <span className="font-semibold text-white">{completion}%</span>
                 </div>
-                {isPassed && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-              </button>
-            )
-          })}
-        </nav>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto bg-slate-950 p-6 md:p-12">
-        <div className="max-w-3xl mx-auto">
-          
-          <div className="mb-10">
-            <h2 className="text-3xl font-bold text-white mb-2">{STEPS[activeStep - 1]?.title}</h2>
-            <p className="text-slate-400 text-lg">{STEPS[activeStep - 1]?.description}</p>
-          </div>
-
-          <form 
-            onSubmit={(e) => { e.preventDefault(); handleSaveStep(activeStep); }}
-            className="bg-slate-900 border border-white/10 rounded-2xl p-6 md:p-8 shadow-xl"
-          >
-            
-            {/* --- STEP 1: Account --- */}
-            {activeStep === 1 && (
-              <div className="space-y-4">
-                <ChecklistItem label="Your account is ready" passed={status.hasAccount} />
-                <ChecklistItem label="Your email is verified" passed={status.isEmailVerified} />
-                <ChecklistItem label="Your workspace is ready" passed={status.hasTeamRole !== null} />
-                <ChecklistItem label="Review ICP notes: what you sell, who to reach, industry, and geography" passed={false} />
-                <ChecklistItem label="Review outcome notes: qualified lead definition and target meetings" passed={false} />
-                
-                <div className="mt-8">
-                  <p className="text-slate-400 text-sm">Start by clarifying what you sell, who you want to reach, the industry, and the geography for this autopilot run.</p>
-                  <p className="mt-2 text-slate-500 text-sm">The outcome goal should define a qualified lead and the target number of qualified meetings.</p>
+                <div className="mt-2 h-2 rounded-full bg-slate-800">
+                  <div className="h-full rounded-full bg-cyan-400 transition-all duration-500" style={{ width: `${completion}%` }} />
                 </div>
               </div>
-            )}
-
-            {/* --- STEP 2: Brand Identity --- */}
-            {activeStep === 2 && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Company / workspace name</label>
-                  <input 
-                    type="text"
-                    title="Company Name"
-                    value={formData.step2.companyName}
-                    onChange={e => setFormData({...formData, step2: {...formData.step2, companyName: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                    placeholder="Acme Services"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Logo URL (Optional)</label>
-                  <input 
-                    type="text"
-                    title="Logo URL"
-                    value={formData.step2.logoUrl}
-                    onChange={e => setFormData({...formData, step2: {...formData.step2, logoUrl: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                    placeholder="https://example.com/logo.png"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Primary Color (Hex)</label>
-                    <div className="flex space-x-3">
-                      <input 
-                        type="color"
-                        title="Primary Color Picker"
-                        value={formData.step2.primaryColor}
-                        onChange={e => setFormData({...formData, step2: {...formData.step2, primaryColor: e.target.value}})}
-                        className="w-12 h-12 rounded cursor-pointer border-0 p-0"
-                      />
-                      <input 
-                        type="text"
-                        title="Primary Color Hex"
-                        placeholder="#3b82f6"
-                        value={formData.step2.primaryColor}
-                        onChange={e => setFormData({...formData, step2: {...formData.step2, primaryColor: e.target.value}})}
-                        className="flex-1 bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Accent Color (Hex)</label>
-                    <div className="flex space-x-3">
-                      <input 
-                        type="color"
-                        title="Accent Color Picker"
-                        value={formData.step2.accentColor}
-                        onChange={e => setFormData({...formData, step2: {...formData.step2, accentColor: e.target.value}})}
-                        className="w-12 h-12 rounded cursor-pointer border-0 p-0"
-                      />
-                      <input 
-                        type="text"
-                        title="Accent Color Hex"
-                        placeholder="#10b981"
-                        value={formData.step2.accentColor}
-                        onChange={e => setFormData({...formData, step2: {...formData.step2, accentColor: e.target.value}})}
-                        className="flex-1 bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 3: Email Integration --- */}
-            {activeStep === 3 && (
-              <div className="space-y-4">
-                <div className="p-4 bg-sky-900/20 border border-sky-500/30 rounded-xl mb-6">
-                  <h3 className="text-sky-400 font-semibold mb-2 flex items-center gap-2">
-                    <Mail className="w-4 h-4" /> Google Business SMTP (Gmail)
-                  </h3>
-                  <p className="text-sky-300/80 text-sm mb-2">
-                    Connect the inbox you will send from. Most Google Workspace teams only need their work email and an App Password. Host and port fields below are advanced settings.
-                  </p>
-                  <a href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-sky-400 hover:text-sky-300 underline underline-offset-2">
-                    How to create a Google App Password
-                  </a>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Host (Advanced)</label>
-                    <input 
-                      type="text"
-                      title="SMTP Host (Advanced)"
-                      placeholder="smtp.gmail.com"
-                      value={formData.step3.host}
-                      onChange={e => setFormData({...formData, step3: {...formData.step3, host: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">SMTP Port (Advanced)</label>
-                    <input 
-                      type="number"
-                      title="SMTP Port (Advanced)"
-                      placeholder="587"
-                      value={formData.step3.port}
-                      onChange={e => setFormData({...formData, step3: {...formData.step3, port: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
-                    <input 
-                      type="email"
-                      title="Email Address"
-                      placeholder="you@company.com"
-                      value={formData.step3.user}
-                      onChange={e => setFormData({
-                        ...formData, 
-                        step3: {
-                          ...formData.step3, 
-                          user: e.target.value,
-                          fromEmail: formData.step3.fromEmail === formData.step3.user ? e.target.value : formData.step3.fromEmail
-                        }
-                      })}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">App Password</label>
-                    <input 
-                      type="password"
-                      title="App Password"
-                      placeholder={status?.canSendEmail ? "•••••••••••••••• (Set)" : "16-char app password"}
-                      value={formData.step3.password}
-                      onChange={e => setFormData({...formData, step3: {...formData.step3, password: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">From Name (Display Name)</label>
-                    <input 
-                      type="text"
-                      title="From Name"
-                      placeholder="Jane Doe"
-                      value={formData.step3.fromName}
-                      onChange={e => setFormData({...formData, step3: {...formData.step3, fromName: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">From Email (Sender)</label>
-                    <input 
-                      type="email"
-                      title="From Email"
-                      placeholder="you@company.com"
-                      value={formData.step3.fromEmail}
-                      onChange={e => setFormData({...formData, step3: {...formData.step3, fromEmail: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 flex items-center justify-between">
-                  <button 
-                    onClick={async () => {
-                      try {
-                        const res = await fetch(`${apiBase}/email/verify`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            ...formData.step3,
-                            port: Number(formData.step3.port)
-                          })
-                        });
-                        const result = await res.json();
-                        if (result.success) {
-                          alert("Connection successful!");
-                        } else {
-                          alert("Connection failed: " + result.error);
-                        }
-                      } catch (e: any) {
-                        alert("Error: " + e.message);
-                      }
-                    }}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-medium text-sm transition"
-                  >
-                    Test Connection
-                  </button>
-                  <div className="flex flex-col gap-2">
-                    <ChecklistItem label="SMTP Configured" passed={status.canSendEmail} />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 4: Optional Channels --- */}
-            {activeStep === 4 && (
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <ChecklistItem label="Email-first beta mode active" passed={PRODUCT_FLAGS.emailFirstBeta} />
-                  <ChecklistItem label="LinkedIn runner held back for review-first launch" passed={!PRODUCT_FLAGS.enableLinkedInAutomation} />
-                  <ChecklistItem label="Chrome extension gateway configured" passed={status.hasExtensionApiKey} />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-900/20 p-4">
-                    <p className="text-xs uppercase tracking-[0.16em] text-emerald-300">Recommended</p>
-                    <h3 className="mt-2 text-lg font-semibold text-white">Email-first launch path</h3>
-                    <p className="mt-2 text-sm text-slate-300">
-                      Launch campaigns with SMTP + approvals first. Add extra channels only after email workflow is stable.
-                    </p>
-                  </div>
-
-                  <div className="rounded-xl border border-sky-500/30 bg-sky-900/20 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.16em] text-sky-300">Optional Method</p>
-                        <h3 className="mt-2 text-lg font-semibold text-white">LinkedIn via Chrome Extension</h3>
-                      </div>
-                      <Chrome className="h-5 w-5 text-sky-300" />
-                    </div>
-                    <p className="mt-2 text-sm text-slate-300">
-                      Use the local browser extension for assisted LinkedIn tasks. This keeps session handling on the operator machine.
-                    </p>
-                    <ol className="mt-3 space-y-1 text-sm text-slate-300 list-decimal list-inside">
-                      <li>Set <code className="text-slate-200">EXTENSION_API_KEY</code> in API env.</li>
-                      <li>Load the current LinkedIn extension package in Chrome.</li>
-                      <li>Configure API URL and key inside extension popup.</li>
-                    </ol>
-                    <div className="mt-3 rounded-lg border border-white/10 bg-slate-950/50 p-3 text-xs text-slate-300">
-                      API Base: <span className="text-slate-100 break-all">{status.extensionApiBase || "http://localhost:3000/api/proxy/extension"}</span>
-                    </div>
-                    <a
-                      href="/faq"
-                      className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-sky-300 hover:text-sky-200"
-                    >
-                      View extension setup FAQ <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                </div>
-
-                <div className="rounded-xl border border-white/10 bg-slate-800/40 p-4">
-                  <p className="text-sm text-slate-300">
-                    Keep <code>linkedin-runner</code> automation disabled in beta. Chrome extension remains the approved optional LinkedIn method.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 5: Email Voice & Signature --- */}
-            {activeStep === 5 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Writing Tone</label>
-                    <select 
-                      title="Writing Tone"
-                      value={formData.step5.tone}
-                      onChange={e => setFormData({...formData, step5: {...formData.step5, tone: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white outline-none"
-                    >
-                      <option>Professional</option>
-                      <option>Friendly</option>
-                      <option>Casual</option>
-                      <option>Bold</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Greeting Style</label>
-                    <select 
-                      title="Greeting Style"
-                      value={formData.step5.greetingStyle}
-                      onChange={e => setFormData({...formData, step5: {...formData.step5, greetingStyle: e.target.value}})}
-                      className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white outline-none"
-                    >
-                      <option>Hi {"{firstName}"},</option>
-                      <option>Dear {"{fullName}"},</option>
-                      <option>{"{firstName}"} —</option>
-                      <option>No greeting</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Default Message Structure</label>
-                  <select
-                    title="Default Message Structure"
-                    value={formData.step5.formulation}
-                    onChange={e => setFormData({...formData, step5: {...formData.step5, formulation: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white outline-none"
-                  >
-                    <option>Problem-Solution</option>
-                    <option>Proof-first</option>
-                    <option>Narrative</option>
-                    <option>Executive Brief</option>
-                    <option>Bullet-light</option>
-                  </select>
-                  <p className="mt-2 text-xs text-slate-400">Controls the structure and pacing of how the message is framed.</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Audience and messaging notes</label>
-                  <textarea 
-                    value={formData.step5.voice}
-                    onChange={e => setFormData({...formData, step5: {...formData.step5, voice: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 h-24"
-                    placeholder="Describe the target buyer, industry, geography, qualification notes, and meeting goal context."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Email Signature (Optional)</label>
-                  <textarea 
-                    value={formData.step5.emailSignature}
-                    onChange={e => setFormData({...formData, step5: {...formData.step5, emailSignature: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 font-mono text-sm h-32"
-                    placeholder="<b>Jane Doe</b><br>Director of Sales, Acme Corp<br><a href='...'>Book a meeting</a>"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 6: AI Configuration --- */}
-            {activeStep === 6 && (
-              <div className="space-y-6">
-                {status.hasGeminiKey ? (
-                  <div className="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-xl mb-6">
-                    <h3 className="text-emerald-400 font-semibold mb-2">AI Provider Key Active</h3>
-                    <p className="text-emerald-300/80 text-sm">
-                      A global provider key is active via the environment. You can optionally override it for this team below.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Optional Team AI Key Override</label>
-                  <input 
-                    type="password"
-                    title="AI Provider API Key"
-                    value={formData.step6.geminiKey}
-                    onChange={e => setFormData({...formData, step6: {...formData.step6, geminiKey: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500 outline-none transition-all"
-                    placeholder="AIzaSy..."
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 7: Lead Import --- */}
-            {activeStep === 7 && (
-              <div className="space-y-4">
-                <ChecklistItem label={`${status.leadCount} Leads imported for review`} passed={status.leadCount > 0} />
-                <ChecklistItem label={`${status.leadsWithEmail} Reachable leads with email`} passed={status.leadsWithEmail > 0} />
-                <ChecklistItem label="Reachable segment available for campaign review" passed={status.leadsWithEmail > 0} />
-                
-                <div className="mt-8 flex justify-center">
-                  <button type="button" onClick={() => router.push("/leads")} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors border border-white/10">
-                    Add ICP Leads (CSV)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 8: Campaign Launch --- */}
-            {activeStep === 8 && (
-              <div className="space-y-4">
-                <ChecklistItem label={`${status.campaignCount} Campaign plans generated`} passed={status.campaignCount > 0} />
-                <ChecklistItem label={`Message variants created for review`} passed={status.hasVariants} />
-                <ChecklistItem label={`Leads assigned to campaign plan`} passed={status.hasAssignedLeads} />
-                
-                <div className="mt-8 flex justify-center">
-                  <button type="button" onClick={() => router.push("/campaigns/new")} className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors border border-cyan-400/50">
-                    Generate Campaign Plan
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 9: Attachments --- */}
-            {activeStep === 9 && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Calendar booking link for meeting handoffs</label>
-                  <input 
-                    type="url"
-                    title="Calendar Booking Link"
-                    value={formData.step9.calendarLink}
-                    onChange={e => setFormData({...formData, step9: {...formData.step9, calendarLink: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
-                    placeholder="https://calendly.com/your-name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Product Demo Video Link (Optional)</label>
-                  <input 
-                    type="url"
-                    title="Product Demo Video Link"
-                    value={formData.step9.demoUrl}
-                    onChange={e => setFormData({...formData, step9: {...formData.step9, demoUrl: e.target.value}})}
-                    className="w-full bg-slate-950 border border-white/10 rounded-lg p-3 text-white focus:ring-2 focus:ring-cyan-500"
-                    placeholder="https://youtube.com/watch?v=..."
-                  />
-                </div>
-
-                <div className="p-4 border border-dashed border-white/20 rounded-xl bg-slate-900/50 text-center">
-                  <p className="text-sm text-slate-400 mb-3">Keep this optional for beta. A calendar link and one proof asset are enough to support the first email campaigns.</p>
-                  <button type="button" onClick={() => router.push("/contact")} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium rounded-lg">
-                    Ask support for asset help
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* --- STEP 10: Execution Readiness --- */}
-            {activeStep === 10 && (
-              <div className="space-y-4">
-                <ChecklistItem label={`Credits available for execution`} passed={status.teamCredits > 0} />
-                <ChecklistItem label={`Billing checkout is connected`} passed={status.hasPaymentMethod} />
-                
-                {!status.hasPaymentMethod && (
-                  <p className="text-yellow-400 text-sm mt-4">
-                    Payments are not configured on this instance. Contact administrator.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* --- STEP 11: Advanced --- */}
-            {activeStep === 11 && (
-              <div className="space-y-4">
-                <ChecklistItem label="Advanced channels deferred for beta" passed={PRODUCT_FLAGS.emailFirstBeta} />
-                <ChecklistItem label="Google OAuth SSO" passed={status.hasGoogleOAuth} />
-                <ChecklistItem label="Redis Queue Active" passed={status.hasRedis} />
-                <ChecklistItem label="Slack Alert Hooks" passed={status.hasSlackAlerts} />
-                <ChecklistItem
-                  label={`Edge Runtime ${status.edgeNodeOptional ? "(Optional)" : "(Required)"}`}
-                  passed={status.edgeNodeAvailable || status.edgeNodeOptional}
-                />
-
-                <div className={`rounded-xl border p-4 ${
-                  status.edgeNodeAvailable
-                    ? "border-emerald-500/30 bg-emerald-900/10"
-                    : status.edgeNodeOptional
-                      ? "border-amber-500/30 bg-amber-900/10"
-                      : "border-red-500/30 bg-red-900/10"
-                }`}>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-white">Edge runtime status</p>
-                    <span className="text-xs uppercase tracking-[0.18em] text-slate-300">{status.edgeNodeStatus}</span>
-                  </div>
-                  <p className="mt-2 text-sm text-slate-300">{status.edgeNodeMessage}</p>
-                  <p className="mt-2 text-xs text-slate-400">
-                    Core email and cloud AI workflows continue without the edge node. Edge is only required for strict sovereignty,
-                    residential-IP automation, and hardware-backed actions.
-                  </p>
-                </div>
-                
-                <div className="mt-8 flex justify-center">
-                  <p className="text-slate-400 text-sm italic">You have reached the end of the beta readiness checklist.</p>
-                </div>
-              </div>
-            )}
-
-            {/* ACTION BUTTONS */}
-            <div className="mt-10 flex items-center justify-between border-t border-white/10 pt-6">
-              <button 
-                type="button"
-                onClick={() => setActiveStep(prev => Math.max(1, prev - 1))}
-                disabled={activeStep === 1}
-                className="px-6 py-3 text-sm font-medium text-slate-400 hover:text-white disabled:opacity-30 transition-colors"
-              >
-                Back
-              </button>
-              
-              <button 
-                type="submit"
-                disabled={saving}
-                className="flex items-center space-x-2 px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-medium rounded-lg transition-colors border border-cyan-400/50 disabled:opacity-50"
-              >
-                {saving ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <span>{getContinueLabel(activeStep)}</span>
-                    <ChevronRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
             </div>
 
-          </form>
-        </div>
-      </div>
+            <nav className="min-h-0 flex-1 overflow-y-auto p-3">
+              {STEPS.map((step) => {
+                const Icon = step.icon;
+                const complete = stepComplete(step.id);
+                const selected = activeStep === step.id;
+                return (
+                  <button
+                    key={step.id}
+                    type="button"
+                    onClick={() => setActiveStep(step.id)}
+                    className={`mb-1 grid w-full grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-3 py-3 text-left transition ${selected ? "bg-white text-slate-950" : "text-slate-300 hover:bg-white/5 hover:text-white"}`}
+                  >
+                    <span className={`flex h-8 w-8 items-center justify-center rounded-md ${selected ? "bg-slate-950 text-white" : complete ? "bg-emerald-400/10 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+                      {complete ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-semibold">{step.id}. {step.title}</span>
+                      <span className={`mt-0.5 block text-xs ${selected ? "text-slate-600" : "text-slate-500"}`}>{complete ? "Ready" : "Needs review"}</span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 opacity-50" />
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
 
+        <section className="min-w-0 flex-1">
+          <header className="rounded-lg border border-white/10 bg-slate-900/60 p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+              <div className="max-w-2xl">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-400/10 text-cyan-300">
+                    <ActiveIcon className="h-5 w-5" />
+                  </span>
+                  <p className="text-sm font-medium text-cyan-200">Step {activeStep} of {STEPS.length}</p>
+                </div>
+                <h2 className="mt-5 text-3xl font-semibold tracking-tight text-white">{active.title}</h2>
+                <p className="mt-2 max-w-2xl text-base text-slate-400">{active.description}</p>
+              </div>
+              <StatusPill ready={stepComplete(activeStep)} />
+            </div>
+          </header>
+
+          <form className="mt-5 space-y-5" onSubmit={(event) => { event.preventDefault(); handleSaveStep(activeStep); }}>
+            {activeStep === 1 && <LaunchBrief status={status} />}
+            {activeStep === 2 && <WorkspaceIdentity formData={formData} setFormData={setFormData} />}
+            {activeStep === 3 && (
+              <GoogleWorkspaceStep
+                status={status}
+                formData={formData}
+                setFormData={setFormData}
+                mailboxes={mailboxes}
+                mailboxLoading={mailboxLoading}
+                actionMessage={actionMessage}
+                domainCheck={domainCheck}
+                onConnect={connectGoogleMailbox}
+                onReload={loadMailboxes}
+                onSync={syncMailbox}
+                onCheckDomain={checkDomain}
+                saving={saving}
+              />
+            )}
+            {activeStep === 4 && <OptionalChannels status={status} />}
+            {activeStep === 5 && <MessageVoice formData={formData} setFormData={setFormData} />}
+            {activeStep === 6 && <AiDrafting formData={formData} setFormData={setFormData} status={status} />}
+            {activeStep === 7 && <LeadInputs status={status} onOpenLeads={() => router.push("/leads/import")} />}
+            {activeStep === 8 && <CampaignPlan status={status} onOpenCampaigns={() => router.push("/campaigns")} />}
+            {activeStep === 9 && <MeetingAssets formData={formData} setFormData={setFormData} status={status} />}
+            {activeStep === 10 && <CommercialReadiness status={status} />}
+            {activeStep === 11 && <Handoffs status={status} />}
+
+            <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={() => setActiveStep((value) => Math.max(1, value - 1))}
+                disabled={activeStep === 1}
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" /> Back
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {continueLabel(activeStep)}
+              </button>
+            </footer>
+          </form>
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function GoogleWorkspaceStep(props: {
+  status: SetupStatus;
+  formData: any;
+  setFormData: (value: any) => void;
+  mailboxes: Mailbox[];
+  mailboxLoading: boolean;
+  actionMessage: string | null;
+  domainCheck: DomainCheckResult | null;
+  onConnect: () => void;
+  onReload: () => void;
+  onSync: (mailboxId: string) => void;
+  onCheckDomain: () => void;
+  saving: boolean;
+}) {
+  const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
+      <section className={panelClass}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Connected mailboxes</h3>
+            <p className="mt-1 text-sm text-slate-400">Use OAuth for Google Workspace sending, reply detection, bounce tracking, and warmup controls.</p>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={props.onReload} className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/5" title="Refresh mailboxes">
+              <RefreshCw className={`h-4 w-4 ${props.mailboxLoading ? "animate-spin" : ""}`} />
+            </button>
+            <button type="button" onClick={props.onConnect} disabled={props.saving} className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
+              <Mail className="h-4 w-4" /> Connect Google
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {props.mailboxes.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-white/15 p-6 text-sm text-slate-400">
+              No Google mailboxes are connected yet. Connect the mailbox that should send approved campaign emails.
+            </div>
+          ) : props.mailboxes.map((mailbox) => (
+            <div key={mailbox.id} className="rounded-lg border border-white/10 bg-slate-950/50 p-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-white">{mailbox.displayName || mailbox.email}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${mailbox.status === "CONNECTED" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{mailbox.status.replace(/_/g, " ")}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">{mailbox.email}</p>
+                </div>
+                <button type="button" onClick={() => props.onSync(mailbox.id)} className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">
+                  Sync replies
+                </button>
+              </div>
+              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                <Metric label="Sent today" value={`${mailbox.sentToday}/${mailbox.dailyLimit}`} />
+                <Metric label="Delay" value={`${mailbox.minDelaySeconds}s`} />
+                <Metric label="Replies" value={String(mailbox.replyCount)} />
+                <Metric label="Bounces" value={String(mailbox.bounceCount)} />
+              </dl>
+            </div>
+          ))}
+        </div>
+
+        {props.actionMessage ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{props.actionMessage}</p> : null}
+      </section>
+
+      <section className={panelClass}>
+        <div className="flex items-start gap-3">
+          <ShieldCheck className="mt-1 h-5 w-5 text-cyan-300" />
+          <div>
+            <h3 className="text-xl font-semibold text-white">Domain readiness</h3>
+            <p className="mt-1 text-sm text-slate-400">Check Google MX, SPF, DMARC, and DKIM records before scaled sending.</p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_8rem]">
+          <Field label="Sending domain">
+            <input className={inputClass} value={props.formData.step3?.domain || ""} placeholder="example.com" onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, domain: event.target.value } })} />
+          </Field>
+          <Field label="DKIM selector">
+            <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, selector: event.target.value } })} />
+          </Field>
+        </div>
+
+        <button type="button" onClick={props.onCheckDomain} disabled={props.saving || !props.formData.step3?.domain} className="mt-4 w-full rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50">
+          Check DNS records
+        </button>
+
+        {props.domainCheck ? (
+          <div className="mt-5 space-y-3">
+            <StatusLine label="Overall" ready={props.domainCheck.status === "VERIFIED"} />
+            {Object.entries(props.domainCheck.records).map(([key, record]) => (
+              <StatusLine key={key} label={`${key.toUpperCase()} ${record.host}`} ready={record.status === "VERIFIED"} />
+            ))}
+            {props.domainCheck.missing.length > 0 ? (
+              <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-100">Missing: {props.domainCheck.missing.join(", ")}</p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="mt-5 space-y-2 text-sm text-slate-400">
+            <ChecklistItem label="At least one connected mailbox" passed={connected.length > 0 || props.status.canSendEmail} />
+            <ChecklistItem label="Domain records checked for Google Workspace" passed={false} />
+            <ChecklistItem label="SMTP fallback available" passed={props.status.canSendEmail} />
+          </div>
+        )}
+
+        <details className="mt-5 rounded-lg border border-white/10 p-4">
+          <summary className="cursor-pointer text-sm font-semibold text-slate-200">SMTP fallback</summary>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="SMTP host">
+              <input className={inputClass} value={props.formData.step3?.host || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, host: event.target.value } })} />
+            </Field>
+            <Field label="Port">
+              <input className={inputClass} value={props.formData.step3?.port || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, port: event.target.value } })} />
+            </Field>
+            <Field label="Username">
+              <input type="email" className={inputClass} value={props.formData.step3?.user || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, user: event.target.value, fromEmail: props.formData.step3?.fromEmail || event.target.value } })} />
+            </Field>
+            <Field label="App password">
+              <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, password: event.target.value } })} />
+            </Field>
+          </div>
+        </details>
+      </section>
     </div>
   );
 }
 
+function LaunchBrief({ status }: { status: SetupStatus }) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Account and launch goal</h3>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <ChecklistItem label="Account exists" passed={status.hasAccount} />
+        <ChecklistItem label="Email is verified" passed={status.isEmailVerified} />
+        <ChecklistItem label="Qualified lead definition reviewed" passed={false} />
+        <ChecklistItem label="Meeting workflow tracking confirmed" passed={false} />
+      </div>
+    </section>
+  );
+}
 
+function WorkspaceIdentity({ formData, setFormData }: any) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Brand details</h3>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <Field label="Company name"><input className={inputClass} value={formData.step2?.companyName || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, companyName: e.target.value } })} /></Field>
+        <Field label="Portal title"><input className={inputClass} value={formData.step2?.portalTitle || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, portalTitle: e.target.value } })} /></Field>
+        <Field label="Logo URL"><input className={inputClass} value={formData.step2?.logoUrl || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, logoUrl: e.target.value } })} /></Field>
+        <Field label="Guidelines URL"><input className={inputClass} value={formData.step2?.guidelinesUrl || ""} onChange={(e) => setFormData({ ...formData, step2: { ...formData.step2, guidelinesUrl: e.target.value } })} /></Field>
+      </div>
+    </section>
+  );
+}
 
+function OptionalChannels({ status }: { status: SetupStatus }) {
+  return <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey]]} />;
+}
 
+function MessageVoice({ formData, setFormData }: any) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Drafting voice</h3>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <Field label="Tone"><input className={inputClass} value={formData.step5?.tone || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, tone: e.target.value } })} /></Field>
+        <Field label="Greeting"><input className={inputClass} value={formData.step5?.greetingStyle || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, greetingStyle: e.target.value } })} /></Field>
+        <Field label="Signoff"><input className={inputClass} value={formData.step5?.signOff || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, signOff: e.target.value } })} /></Field>
+        <Field label="Structure"><input className={inputClass} value={formData.step5?.formulation || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, formulation: e.target.value } })} /></Field>
+      </div>
+      <Field label="Review notes"><textarea className={`${inputClass} mt-5 min-h-28`} value={formData.step5?.voice || ""} onChange={(e) => setFormData({ ...formData, step5: { ...formData.step5, voice: e.target.value } })} /></Field>
+    </section>
+  );
+}
 
+function AiDrafting({ formData, setFormData, status }: any) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">AI provider</h3>
+      <p className="mt-1 text-sm text-slate-400">Used for draft preparation. Keep approval controls separate from generation.</p>
+      <Field label="Provider API key"><input type="password" className={`${inputClass} mt-5`} value={formData.step6?.geminiKey || ""} onChange={(e) => setFormData({ ...formData, step6: { ...formData.step6, geminiKey: e.target.value } })} /></Field>
+      <div className="mt-4"><ChecklistItem label="Drafting key saved" passed={status.hasGeminiKey} /></div>
+    </section>
+  );
+}
 
+function LeadInputs({ status, onOpenLeads }: { status: SetupStatus; onOpenLeads: () => void }) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Lead segment</h3>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <Metric label="Imported leads" value={String(status.leadCount)} />
+        <Metric label="Reachable by email" value={String(status.leadsWithEmail)} />
+        <Metric label="Campaigns" value={String(status.campaignCount)} />
+      </div>
+      <button type="button" onClick={onOpenLeads} className="mt-5 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Open lead import</button>
+    </section>
+  );
+}
+
+function CampaignPlan({ status, onOpenCampaigns }: { status: SetupStatus; onOpenCampaigns: () => void }) {
+  return <ActionPanel title="Campaign plan" text="Create or review the first workflow before leads move into outreach." ready={status.campaignCount > 0} action="Open campaigns" onAction={onOpenCampaigns} />;
+}
+
+function MeetingAssets({ formData, setFormData, status }: any) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Meeting support links</h3>
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
+        <Field label="Calendar link"><input className={inputClass} value={formData.step9?.calendarLink || ""} onChange={(e) => setFormData({ ...formData, step9: { ...formData.step9, calendarLink: e.target.value } })} /></Field>
+        <Field label="Proof or demo URL"><input className={inputClass} value={formData.step9?.demoUrl || ""} onChange={(e) => setFormData({ ...formData, step9: { ...formData.step9, demoUrl: e.target.value } })} /></Field>
+      </div>
+      <div className="mt-4"><ChecklistItem label={`${status.uploadedDocCount} proof assets uploaded`} passed={status.uploadedDocCount > 0} /></div>
+    </section>
+  );
+}
+
+function CommercialReadiness({ status }: { status: SetupStatus }) {
+  return <SimpleChecklist items={[["Credits available", status.teamCredits > 0], [`Credit balance: ${status.teamCredits}`, status.teamCredits > 0], ["Chargeable execution gated by balance", true]]} />;
+}
+
+function Handoffs({ status }: { status: SetupStatus }) {
+  return <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />;
+}
+
+function ActionPanel({ title, text, ready, action, onAction }: { title: string; text: string; ready: boolean; action: string; onAction: () => void }) {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">{title}</h3>
+      <p className="mt-1 text-sm text-slate-400">{text}</p>
+      <div className="mt-5"><ChecklistItem label={ready ? "Ready for review" : "Needs setup"} passed={ready} /></div>
+      <button type="button" onClick={onAction} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">{action} <ExternalLink className="h-4 w-4" /></button>
+    </section>
+  );
+}
+
+function SimpleChecklist({ items }: { items: Array<[string, boolean]> }) {
+  return <section className={panelClass}><div className="space-y-3">{items.map(([label, passed]) => <ChecklistItem key={label} label={label} passed={passed} />)}</div></section>;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label><span className={labelClass}>{label}</span>{children}</label>;
+}
+
+function ChecklistItem({ label, passed }: { label: string; passed: boolean }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2.5">
+      {passed ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Circle className="h-5 w-5 text-slate-500" />}
+      <span className="text-sm text-slate-200">{label}</span>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-white/10 bg-slate-950/50 p-3"><dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 text-lg font-semibold text-white">{value}</dd></div>;
+}
+
+function StatusLine({ label, ready }: { label: string; ready: boolean }) {
+  return <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 px-3 py-2 text-sm"><span className="truncate text-slate-300">{label}</span><StatusPill ready={ready} /></div>;
+}
+
+function StatusPill({ ready }: { ready: boolean }) {
+  return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ready ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{ready ? "Ready" : "Needs review"}</span>;
+}
+
+function continueLabel(stepId: number) {
+  if (stepId === 3) return "Save fallback and continue";
+  if (stepId === 7) return "Continue to campaign plan";
+  if (stepId === 11) return "Open dashboard";
+  return "Save and continue";
+}
+
+async function readJson(res: Response) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || `Request failed (${res.status}).`);
+  return data;
+}

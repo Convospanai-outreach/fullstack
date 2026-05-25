@@ -113,7 +113,7 @@ export default function SignupPage() {
                 toast.error("Account created but auto sign-in failed. Please sign in manually.");
                 router.push("/login");
             } else {
-                router.push("/dashboard");
+                window.location.assign("/dashboard");
                 router.refresh();
             }
         } catch (error: unknown) {

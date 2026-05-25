@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "crypto";
+import { getToken } from "next-auth/jwt";
 
 const INTERNAL_API_ORIGIN =
     process.env["API_INTERNAL_ORIGIN"] ||
@@ -31,6 +33,32 @@ function getWebAuthUrl(req: NextRequest, pathParts: string[]): URL | null {
     return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
 }
 
+async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
+    const secret = process.env["NEXTAUTH_SECRET"];
+    if (!secret) return;
+
+    const token = await getToken({ req, secret });
+    const userId = typeof token?.sub === "string"
+        ? token.sub
+        : typeof token?.["id"] === "string"
+            ? token["id"]
+            : "";
+
+    if (!userId) return;
+
+    const email = typeof token?.email === "string" ? token.email : "";
+    const role = typeof token?.["enterpriseRole"] === "string" ? token["enterpriseRole"] : "";
+    const timestamp = String(Date.now());
+    const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
+    const signature = createHmac("sha256", secret).update(payload).digest("hex");
+
+    headers.set("x-convospan-user-id", userId);
+    headers.set("x-convospan-user-email", email);
+    headers.set("x-convospan-user-role", role);
+    headers.set("x-convospan-auth-ts", timestamp);
+    headers.set("x-convospan-auth-signature", signature);
+}
+
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {
     try {
         if (!pathParts || pathParts.length === 0) {
@@ -43,6 +71,10 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
         headers.delete("host");
         headers.delete("connection");
         headers.delete("content-length");
+
+        if (!getWebAuthUrl(req, pathParts)) {
+            await addInternalAuthHeaders(req, headers);
+        }
 
         const method = req.method.toUpperCase();
         const body =

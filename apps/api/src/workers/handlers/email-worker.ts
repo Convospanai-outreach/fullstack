@@ -45,9 +45,10 @@ export async function handleEmailSend(payload: JobPayload) {
 
     // Send email via Email Service
     try {
-    const metadata: { leadId?: string; campaignId?: string; teamId?: string } = { leadId, campaignId };
+    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string } = { leadId, campaignId };
     const resolvedTeamId = campaign.teamId || teamId;
     if (resolvedTeamId) metadata.teamId = resolvedTeamId;
+    if (campaign.ownerId) metadata.userId = campaign.ownerId;
 
     const result = await emailService.sendEmail(
         lead.email,

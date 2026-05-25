@@ -42,14 +42,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const { teamId } = await requireLeadContext(id, TeamRole.MEMBER);
         const body = await req.json();
 
-        // Prevent sensitive/system field mutation from direct payload pass-through.
-        const {
-            id: _ignoredId,
-            teamId: _ignoredTeamId,
-            createdAt: _ignoredCreatedAt,
-            updatedAt: _ignoredUpdatedAt,
-            ...safeData
-        } = body ?? {};
+        // STRICT ALLOWLIST: Only user-editable fields are permitted.
+        // System-managed fields (pipelineState, intentScore, leadScore, isEnriched,
+        // hotAt, lastScoredAt, churnRisk, clusterLabel, optimalSendHour, etc.)
+        // must be updated through their dedicated service methods, not via direct PATCH.
+        const ALLOWED_PATCH_FIELDS = new Set([
+            "fullName", "email", "phone", "linkedIn",
+            "company", "jobTitle", "location",
+            "status", "tags", "crmId", "value",
+            "consentObtained",
+            "whatsappConsent", "whatsappConsentAt", "whatsappConsentBy", "whatsappNumber",
+            "preferredMeetingType", "meetingLocation",
+        ]);
+
+        const safeData: Record<string, any> = {};
+        for (const [key, val] of Object.entries(body ?? {})) {
+            if (ALLOWED_PATCH_FIELDS.has(key)) {
+                safeData[key] = val;
+            }
+        }
 
         if (Object.keys(safeData).length === 0) {
             throw new APIError("No valid fields supplied for update", 400, "VALIDATION_ERROR");

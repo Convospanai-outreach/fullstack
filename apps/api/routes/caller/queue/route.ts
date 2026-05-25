@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { CallerService } from "@/modules/caller/CallerService";
-import { UserRole } from "@prisma/client";
+import { UserRole, ConversationState } from "@prisma/client";
+import { z } from "zod";
 
 // Shared function to check caller or admin role (Enterprise RBAC)
 function isAllowed(role?: string) {
@@ -13,6 +14,26 @@ function isAllowed(role?: string) {
         role === UserRole.SYSTEM_ADMIN
     );
 }
+
+// Valid ConversationState values for outcome validation
+const VALID_OUTCOMES = Object.values(ConversationState) as [string, ...string[]];
+
+const CompleteActionSchema = z.object({
+    action: z.literal("complete"),
+    leadId: z.string().min(1),
+    outcome: z.enum(VALID_OUTCOMES),
+    notes: z.string().optional(),
+});
+
+const ClaimActionSchema = z.object({
+    action: z.literal("claim"),
+    leadId: z.string().min(1),
+});
+
+const CallerActionSchema = z.discriminatedUnion("action", [
+    ClaimActionSchema,
+    CompleteActionSchema,
+]);
 
 export async function GET(req: NextRequest) {
     const token = await getToken({ req });
@@ -37,20 +58,23 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
-        const { action, leadId, outcome, notes } = body;
-
-        if (!leadId) {
-            return NextResponse.json({ error: "Lead ID required" }, { status: 400 });
+        const validation = CallerActionSchema.safeParse(body);
+        if (!validation.success) {
+            return NextResponse.json({
+                error: "Invalid request",
+                details: validation.error.format()
+            }, { status: 400 });
         }
 
-        if (action === "claim") {
-            const result = await CallerService.claimLead(leadId, token.sub);
+        const data = validation.data;
+
+        if (data.action === "claim") {
+            const result = await CallerService.claimLead(data.leadId, token.sub);
             return NextResponse.json({ result });
         }
 
-        if (action === "complete") {
-            if (!outcome) return NextResponse.json({ error: "Outcome required" }, { status: 400 });
-            await CallerService.completeTask(leadId, token.sub, outcome, notes);
+        if (data.action === "complete") {
+            await CallerService.completeTask(data.leadId, token.sub, data.outcome as ConversationState, data.notes);
             return NextResponse.json({ success: true });
         }
 

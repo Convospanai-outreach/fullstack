@@ -13,7 +13,16 @@ import {
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
-const STAGES = ["NEW", "QUALIFIED", "CONTACTED", "MEETING", "PROPOSAL", "WON"];
+const STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
+
+const STAGE_CONFIG: Record<string, { color: string; dot: string; label: string }> = {
+    COLD:             { color: "text-blue-400",    dot: "bg-blue-400",    label: "Cold" },
+    WARM:             { color: "text-amber-400",   dot: "bg-amber-400",   label: "Warm" },
+    HOT:              { color: "text-red-400",     dot: "bg-red-400",     label: "Hot 🔥" },
+    COORDINATING:     { color: "text-purple-400",  dot: "bg-purple-400",  label: "Coordinating" },
+    MEETING_CONFIRMED:{ color: "text-emerald-400", dot: "bg-emerald-400", label: "Meeting Booked" },
+    COMPLETED:        { color: "text-green-400",   dot: "bg-green-400",   label: "Completed ✓" },
+};
 
 export default function PipelinePage() {
     const [leads, setLeads] = useState<any[]>([]);
@@ -90,22 +99,29 @@ export default function PipelinePage() {
 
             {/* Pipeline Board */}
             <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[70vh]">
-                {STAGES.map(stage => (
+                {STAGES.map(stage => {
+                    const cfg = STAGE_CONFIG[stage];
+                    const stageLeads = leads.filter(l => (l.pipelineState || "COLD") === stage);
+                    return (
                     <div key={stage} className="min-w-[320px] flex-1 flex flex-col gap-4">
                         <div className="flex items-center justify-between px-2">
                             <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${stage === 'WON' ? 'bg-emerald-500' : 'bg-blue-400'
-                                    }`} />
-                                <h3 className="font-bold text-xs uppercase tracking-widest text-gray-400">{stage}</h3>
+                                <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                                <h3 className={`font-bold text-xs uppercase tracking-widest ${cfg.color}`}>{cfg.label}</h3>
                                 <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-gray-500">
-                                    {leads.filter(l => l.status === stage).length}
+                                    {stageLeads.length}
                                 </span>
                             </div>
                             <button className="text-gray-600 hover:text-white" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
                         </div>
 
                         <div className="flex-1 flex flex-col gap-3 rounded-2xl bg-white/[0.02] p-2 border border-white/5">
-                            {leads.filter(l => l.status === stage).map(lead => (
+                            {stageLeads.map(lead => {
+                                const score = lead.intentScore ?? 0;
+                                const scorePct = Math.round(score * 100);
+                                const tier: string = lead.pipelineState || "COLD";
+                                const tierCfg = STAGE_CONFIG[tier] || STAGE_CONFIG["COLD"];
+                                return (
                                 <div
                                     key={lead.id}
                                     className="glass-panel p-4 rounded-xl border border-white/10 hover:border-white/20 transition-all group relative cursor-pointer active:scale-95"
@@ -114,15 +130,34 @@ export default function PipelinePage() {
                                         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold shadow-lg">
                                             {lead.fullName?.[0] || 'L'}
                                         </div>
-                                        <div className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">
-                                            ${lead.value || 0}
+                                        <div className="flex items-center gap-2">
+                                            {scorePct > 0 && (
+                                                <span className={`text-[10px] font-bold ${tierCfg.color} bg-white/5 px-2 py-0.5 rounded`}>
+                                                    {scorePct}% intent
+                                                </span>
+                                            )}
+                                            <div className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">
+                                                ${lead.value || 0}
+                                            </div>
                                         </div>
                                     </div>
 
                                     <div className="font-bold text-white text-sm mb-1">{lead.fullName}</div>
-                                    <div className="text-xs text-gray-500 mb-4">{lead.company}</div>
+                                    <div className="text-xs text-gray-500 mb-2">{lead.company}</div>
 
-                                    <div className="flex items-center justify-between pt-4 border-t border-white/5">
+                                    {/* Intent score bar */}
+                                    {scorePct > 0 && (
+                                        <div className="w-full bg-white/5 rounded-full h-1 mb-3">
+                                            <div
+                                                className={`h-1 rounded-full transition-all ${
+                                                    scorePct >= 70 ? 'bg-red-400' : scorePct >= 40 ? 'bg-amber-400' : 'bg-blue-400'
+                                                }`}
+                                                style={{ width: `${scorePct}%` }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); analyzeLead(lead.id); }}
@@ -137,13 +172,15 @@ export default function PipelinePage() {
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                                );
+                            })}
                             <button className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all" title="Add lead to stage">
                                 <Plus className="w-3 h-3" /> Add Lead
                             </button>
                         </div>
                     </div>
-                ))}
+                    );
+                })}
             </div>
 
             {/* AI Assistance Overlay (if suggestions exist) */}

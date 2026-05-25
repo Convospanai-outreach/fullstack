@@ -34,9 +34,29 @@ const leadStatusLabels: Record<string, string> = {
     STOPPED: "Stopped",
 };
 
+const TIER_CONFIG: Record<string, { label: string; classes: string }> = {
+    COLD:              { label: "Cold",          classes: "bg-blue-500/10 text-blue-400 border border-blue-500/20" },
+    WARM:              { label: "Warm",          classes: "bg-amber-500/10 text-amber-400 border border-amber-500/20" },
+    HOT:               { label: "Hot",           classes: "bg-red-500/10 text-red-400 border border-red-500/20 animate-pulse" },
+    COORDINATING:      { label: "Coordinating",  classes: "bg-purple-500/10 text-purple-400 border border-purple-500/20" },
+    MEETING_CONFIRMED: { label: "Meeting Set",   classes: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" },
+    COMPLETED:         { label: "Won",           classes: "bg-green-500/10 text-green-400 border border-green-500/20" },
+};
+
 function displayLeadStatus(status?: string) {
     if (!status) return "New";
     return leadStatusLabels[status] ?? status;
+}
+
+function TierBadge({ pipelineState }: { pipelineState?: string }) {
+    if (!pipelineState || pipelineState === "COLD") return null;
+    const cfg = TIER_CONFIG[pipelineState];
+    if (!cfg) return null;
+    return (
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.classes}`}>
+            {cfg.label}
+        </span>
+    );
 }
 
 export default function LeadsPage() {
@@ -203,10 +223,11 @@ export default function LeadsPage() {
                                 <div className="w-12 h-12 rounded-xl bg-brand-100 dark:bg-brand-900/20 border border-border flex items-center justify-center text-brand-600 dark:text-brand-400 font-bold text-lg">
                                     {lead.fullName?.[0] || lead.email[0]?.toUpperCase() || '?'}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col items-end gap-1">
                                     <Badge variant={lead.status === 'enriched' ? 'success' : 'secondary'}>
                                         {displayLeadStatus(lead.status)}
                                     </Badge>
+                                    <TierBadge pipelineState={(lead as any).pipelineState} />
                                 </div>
                             </div>
 
@@ -220,6 +241,24 @@ export default function LeadsPage() {
                             </div>
 
                             <div className="mt-6 pt-6 border-t border-border space-y-3">
+                                {/* Intent Score Bar */}
+                                {(lead as any).intentScore > 0 && (
+                                    <div>
+                                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                            <span>Intent Score</span>
+                                            <span className="font-semibold">{Math.round((lead as any).intentScore * 100)}%</span>
+                                        </div>
+                                        <div className="w-full bg-muted rounded-full h-1.5">
+                                            <div
+                                                className={`h-1.5 rounded-full transition-all ${
+                                                    (lead as any).intentScore >= 0.7 ? 'bg-red-400' :
+                                                    (lead as any).intentScore >= 0.4 ? 'bg-amber-400' : 'bg-blue-400'
+                                                }`}
+                                                style={{ width: `${Math.round((lead as any).intentScore * 100)}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex items-center gap-3 text-sm text-muted-foreground">
                                     <Mail className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                                     <span className="truncate">{lead.email}</span>

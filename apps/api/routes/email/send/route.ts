@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { emailService } from "@/modules/email-campaigner";
+import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     try {
@@ -22,12 +23,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Email body exceeds allowed length" }, { status: 400 });
         }
 
+        const campaign = campaignId
+            ? await prisma.campaign.findFirst({
+                where: { id: campaignId, teamId: ctx.teamId },
+                select: { ownerId: true },
+            })
+            : null;
+
         const result = await emailService.sendEmail(
             to,
             subject,
             html,
             {
                 teamId: ctx.teamId,
+                userId: campaign?.ownerId || ctx.userId,
                 leadId,
                 campaignId,
                 fromName,

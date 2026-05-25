@@ -13,15 +13,31 @@ interface UsageData {
     teamId: string;
 }
 
+const DEFAULT_USAGE: UsageData = {
+    credits: 0,
+    currentSpend: 0,
+    monthlyLimit: 1000,
+    teamId: "local",
+};
+
+function normalizeUsage(usage: Partial<UsageData> | null | undefined): UsageData {
+    return {
+        credits: Number.isFinite(usage?.credits) ? Number(usage?.credits) : DEFAULT_USAGE.credits,
+        currentSpend: Number.isFinite(usage?.currentSpend) ? Number(usage?.currentSpend) : DEFAULT_USAGE.currentSpend,
+        monthlyLimit: Number.isFinite(usage?.monthlyLimit) && Number(usage?.monthlyLimit) > 0 ? Number(usage?.monthlyLimit) : DEFAULT_USAGE.monthlyLimit,
+        teamId: usage?.teamId || DEFAULT_USAGE.teamId,
+    };
+}
+
 export function UsageStats() {
-    const [data, setData] = useState<UsageData | null>(null);
+    const [data, setData] = useState<UsageData>(DEFAULT_USAGE);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetch(process.env['NEXT_PUBLIC_API_URL'] + "/usage")
             .then((res) => res.json())
             .then((json) => {
-                if (json.usage) setData(json.usage);
+                setData(normalizeUsage(json?.usage));
             })
             .catch((err) => console.error("Failed to fetch usage:", err))
             .finally(() => setLoading(false));
@@ -29,10 +45,6 @@ export function UsageStats() {
 
     if (loading) {
         return <div className="p-4 text-sm text-white/50">Loading usage stats...</div>;
-    }
-
-    if (!data) {
-        return <div className="p-4 text-sm text-red-500">Unable to load usage data.</div>;
     }
 
     const percentUsed = Math.min((data.currentSpend / data.monthlyLimit) * 100, 100);
