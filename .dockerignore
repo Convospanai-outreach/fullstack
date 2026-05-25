@@ -5,20 +5,14 @@
 
 !apps
 !apps/web
-!apps/web/**
 !apps/api
-!apps/api/**
 
 !packages
 !packages/toon-core
-!packages/toon-core/**
 
 !evaluation
-!evaluation/**
 !scripts
-!scripts/**
 !docker
-!docker/**
 
 apps/web/.next
 apps/web/node_modules
