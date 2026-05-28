@@ -11,7 +11,7 @@ jobs:
   test:
     name: Playwright (apps/web)
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     services:
       postgres:

@@ -12,7 +12,7 @@ on:
 jobs:
   validate-readiness:
     name: Production Stability Audit (apps/web)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     services:
       postgres:
