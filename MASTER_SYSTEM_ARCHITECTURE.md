@@ -1,4 +1,4 @@
-# ConvoSpan Master System Architecture (Current)
+# CraftMyFunnel Master System Architecture (Current)
 
 ## Scope
 
@@ -14,7 +14,7 @@ This document describes the current architecture used for the startup launch pat
 
 ## Deployable Apps
 
-ConvoSpan has 3 deployable apps under `apps/`:
+CraftMyFunnel has 3 deployable apps under `apps/`:
 
 1. `apps/web` (Next.js): public web app
 2. `apps/api` (Fastify): public backend API
@@ -57,7 +57,7 @@ flowchart LR
 
 ## Layered Architecture
 
-ConvoSpan is organized around explicit runtime, domain, data, and control boundaries. The goal is to keep public web delivery, API ownership, persistence, and optional edge execution separate while preserving fast cross-app development in one repo.
+CraftMyFunnel is organized around explicit runtime, domain, data, and control boundaries. The goal is to keep public web delivery, API ownership, persistence, and optional edge execution separate while preserving fast cross-app development in one repo.
 
 | Layer | Name | Primary owner | Notes |
 | --- | --- | --- | --- |
@@ -69,7 +69,7 @@ ConvoSpan is organized around explicit runtime, domain, data, and control bounda
 | 5 | Domain Modules | `apps/api/src/modules` | Campaigns, leads, landing-agent, intel/signals, knowledge, workflows, inbox, governance, settings |
 | 6 | AI and Automation | `apps/api/src/modules`, workers | Prompt builders, Netjana normalize/score/match, signal-aware email composer, model gateway, guardrails, channel workers, event store |
 | 7 | Data Access and Persistence | Prisma + infra | Postgres primary state, ShadowSignal/ScrapingJob/Job rows, Redis optional cache/queue, knowledge assets, audit/system events |
-| 8 | External Integrations | Provider adapters | Netjana/ConvoSpan Intel, LLMs, SMTP, LinkedIn/browser actions, payments, CRM/enrichment |
+| 8 | External Integrations | Provider adapters | Netjana/CraftMyFunnel Intel, LLMs, SMTP, LinkedIn/browser actions, payments, CRM/enrichment |
 | 9 | Optional Private Edge | `apps/edge-fastapi` | Private edge execution, browser or hardware-backed tasks |
 
 ### Cross-Cutting Controls

@@ -115,7 +115,7 @@ export default function OnboardingPage() {
                         <div className="space-y-6">
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">Step {step} of {stepMeta.length}</p>
-                                <h1 className="mt-3 text-3xl font-bold text-white">Welcome to ConvoSpan</h1>
+                                <h1 className="mt-3 text-3xl font-bold text-white">Welcome to CraftMyFunnel</h1>
                                 <p className="mt-2 text-gray-400">This takes about a minute. After this, we move you into the deeper setup checklist.</p>
                             </div>
 

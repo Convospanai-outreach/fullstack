@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
             ]
         });
 
+        // Generate a lease ID for this poller to ensure idempotent claim
+        const leaseId = crypto.randomUUID();
+
         const claimedTasks: Array<{ id: string; type: string; payload: unknown }> = [];
 
         for (const candidate of candidates) {

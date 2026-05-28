@@ -11,7 +11,7 @@
 ### 1. Comprehensive Architecture Documentation
 **File:** `docs/ARCHITECTURE_AI_AGENTIC_SYSTEM.md`
 
-A complete end-to-end architecture for transforming ConvoSpan into a world-class AI Agentic Automation Platform, including:
+A complete end-to-end architecture for transforming CraftMyFunnel into a world-class AI Agentic Automation Platform, including:
 
 - **System Overview** with 5-layer architecture
 - **Feature Implementation Matrix** (9 features already done, 20+ to implement)

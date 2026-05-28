@@ -18,7 +18,7 @@ export default function FAQSection() {
                     />
                     <FAQItem
                         question="Do I need special hardware?"
-                        answer="Yes. ConvoSpan Edge requires a supported node (Raspberry Pi 4/5 or NVIDIA Jetson) to run the local Cortex Engine."
+                        answer="Yes. CraftMyFunnel Edge requires a supported node (Raspberry Pi 4/5 or NVIDIA Jetson) to run the local Cortex Engine."
                     />
                     <FAQItem
                         question="Is this compliant with India's DPDP Act?"
@@ -33,8 +33,8 @@ export default function FAQSection() {
                         answer="Yes. You can configure sensitive entity types and confidence thresholds directly from the dashboard."
                     />
                     <FAQItem
-                        question="Is ConvoSpan SafeRun™ safe?"
-                        answer="Yes, with ConvoSpan SafeRun™. We use a local extension that mimics human behavior and requires your approval, ensuring you never risk your account with unauthorized cloud scripts."
+                        question="Is CraftMyFunnel SafeRun™ safe?"
+                        answer="Yes, with CraftMyFunnel SafeRun™. We use a local extension that mimics human behavior and requires your approval, ensuring you never risk your account with unauthorized cloud scripts."
                     />
                     <FAQItem
                         question="Can I integrate with my CRM?"

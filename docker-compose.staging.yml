@@ -5,7 +5,7 @@ services:
   app:
     build: .
     environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/convospan
+      - DATABASE_URL=postgresql://user:password@db:5432/craftmyfunnel
       - NEXTAUTH_Secret=staging_secret
       - NEXTAUTH_URL=http://localhost:3000
       - MICRO_LLM_URL=http://micro-llm:8081
@@ -23,7 +23,7 @@ services:
     environment:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=convospan
+      - POSTGRES_DB=craftmyfunnel
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:

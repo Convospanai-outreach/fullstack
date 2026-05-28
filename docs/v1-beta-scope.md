@@ -1,8 +1,8 @@
-# ConvoSpan V1 Beta Scope
+# CraftMyFunnel V1 Beta Scope
 
 ## Goal
 
-Launch the smallest stable version of ConvoSpan as an email-first outreach workspace.
+Launch the smallest stable version of CraftMyFunnel as an email-first outreach workspace.
 
 ## In Scope
 

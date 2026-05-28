@@ -20,7 +20,7 @@ export function NavBar() {
                         C
                     </span>
                     <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-bold text-transparent">
-                        ConvoSpan
+                        CraftMyFunnel
                     </span>
                 </Link>
 

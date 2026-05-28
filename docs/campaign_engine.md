@@ -1,4 +1,4 @@
-# ConvoSpan Campaign Engine Specification
+# CraftMyFunnel Campaign Engine Specification
 
 ## Purpose
 

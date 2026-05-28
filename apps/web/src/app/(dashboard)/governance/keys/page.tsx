@@ -102,7 +102,7 @@ export default function SecurityKeysPage() {
                     <div className="glass p-12 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center text-center">
                         <Key className="w-12 h-12 text-text-muted mb-4" />
                         <h4 className="text-lg font-bold text-white">No active API keys</h4>
-                        <p className="text-sm text-text-secondary max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with ConvoSpan.</p>
+                        <p className="text-sm text-text-secondary max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with CraftMyFunnel.</p>
                         <Button variant="outline" onClick={() => setIsModalOpen(true)}>Get Started with API</Button>
                     </div>
                 ) : (

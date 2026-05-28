@@ -32,7 +32,7 @@ class IngestService {
         console.log(`[Ingest] Crawling: ${url}`);
 
         try {
-            const response = await fetch(url, { headers: { "User-Agent": "ConvoSpan-Bot/1.0" } });
+            const response = await fetch(url, { headers: { "User-Agent": "CraftMyFunnel-Bot/1.0" } });
             if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
             
             const html = await response.text();

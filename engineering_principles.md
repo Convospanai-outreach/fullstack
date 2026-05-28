@@ -1,8 +1,8 @@
-# ConvoSpan Engineering Principles
+# CraftMyFunnel Engineering Principles
 
 ## Purpose
 
-This document defines the core engineering philosophy guiding the development of ConvoSpan.
+This document defines the core engineering philosophy guiding the development of CraftMyFunnel.
 
 Its objective is to ensure that all components—Intel Engine, SaaS Platform, and Edge Nodes—remain consistent, scalable, and secure as the system evolves.
 
@@ -14,7 +14,7 @@ All engineers contributing to the platform must follow these principles.
 
 ## Three-Layer System
 
-The ConvoSpan platform is built on three architectural layers:
+The CraftMyFunnel platform is built on three architectural layers:
 
 1. **Signal Intelligence Layer**
 
@@ -286,7 +286,7 @@ Documentation must evolve alongside the codebase.
 
 # Future Evolution
 
-The ConvoSpan architecture is designed to support:
+The CraftMyFunnel architecture is designed to support:
 
 * autonomous lead discovery
 * predictive intent modeling
@@ -299,7 +299,7 @@ All future development must remain consistent with the sovereign architecture mo
 
 # Engineering Culture
 
-The ConvoSpan platform should prioritize:
+The CraftMyFunnel platform should prioritize:
 
 * disciplined architecture
 * responsible automation

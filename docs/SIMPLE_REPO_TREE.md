@@ -1,6 +1,6 @@
 # Repository Structure
 
-ConvoSpan is a monorepo with multiple deployable applications. The repository root is for orchestration, shared configuration, documentation, and CI.
+CraftMyFunnel is a monorepo with multiple deployable applications. The repository root is for orchestration, shared configuration, documentation, and CI.
 
 ## Top-Level Layout
 

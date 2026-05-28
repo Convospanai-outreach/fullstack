@@ -2,7 +2,7 @@ import { HardwareService } from '../src/services/HardwareService';
 import { AgentExecutor, AgentState } from '../src/modules/agent/core/AgentExecutor';
 
 async function main() {
-    console.log("Starting ConvoSpan Edge Verification...");
+    console.log("Starting CraftMyFunnel Edge Verification...");
 
     // 1. Test Hardware Handshake
     try {

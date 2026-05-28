@@ -139,7 +139,7 @@ export default function SignupPage() {
                                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-black text-white shadow-lg shadow-cyan-500/25">
                                     CS
                                 </div>
-                                ConvoSpan
+                                CraftMyFunnel
                             </Link>
                         </div>
 
@@ -211,7 +211,7 @@ export default function SignupPage() {
                                     <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-black text-white">
                                         CS
                                     </div>
-                                    ConvoSpan
+                                    CraftMyFunnel
                                 </Link>
                             </div>
 

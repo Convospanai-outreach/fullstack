@@ -1,4 +1,4 @@
-# ConvoSpan Beta Testing & Architecture Documentation
+# CraftMyFunnel Beta Testing & Architecture Documentation
 
 > **Status**: Draft for Beta Review  
 > **Target Audience**: QA, Engineering, Product  

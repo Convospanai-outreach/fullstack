@@ -59,7 +59,7 @@ export function DashboardWelcome() {
                                 <Sparkles className="w-7 h-7 text-white" />
                             </div>
                             <h1 className="text-4xl font-black text-white tracking-tight font-outfit">
-                                Welcome to <span className="text-glow text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-300">ConvoSpan</span>
+                                Welcome to <span className="text-glow text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-indigo-300">CraftMyFunnel</span>
                             </h1>
                         </motion.div>
                         <Button 

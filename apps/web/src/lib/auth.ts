@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 
+// Ensure ENCRYPTION_KEY is set to a secure, non-default value
+if (!process.env['ENCRYPTION_KEY'] || process.env['ENCRYPTION_KEY'] === '0123456789abcdef0123456789abcdef') {
+  throw new Error('FATAL: ENCRYPTION_KEY must be set to a unique 32‑char hex value');
+}
+
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
@@ -40,6 +45,12 @@ export const authOptions: NextAuthOptions = {
                 }
 
                 try {
+                    const { checkRateLimit } = await import("@/lib/rateLimit");
+                    const rateLimitKey = `login:${credentials.email}`;
+                    const { allowed } = await checkRateLimit(rateLimitKey, { maxRequests: 5, windowMs: 900 * 1000 }, "login");
+                    if (!allowed) {
+                        throw new Error("Too many login attempts. Please try again in 15 minutes.");
+                    }
                     const user = await prisma.user.findUnique({
                         where: { email: credentials.email }
                     });
@@ -172,6 +183,26 @@ export const authOptions: NextAuthOptions = {
                 } catch (e) { console.error("Failed to load AuditService during login", e) }
             }
         },
+        signOut: async (message) => {
+            if (message.token?.id && message.token?.email) {
+                try {
+                    const { AuditService } = await import("@/modules/audit/auditService");
+                    const membership = await prisma.teamMember.findFirst({
+                        where: { userId: message.token.id as string }
+                    });
+                    if (membership) {
+                        await AuditService.log(
+                            membership.teamId,
+                            message.token.id as string,
+                            "USER_LOGOUT",
+                            "Auth",
+                            message.token.id as string,
+                            { email: message.token.email }
+                        ).catch((e: unknown) => console.error("Audit log failed on logout", e));
+                    }
+                } catch (e) { console.error("Failed to load AuditService during logout", e); }
+            }
+        },
     },
     session: {
         strategy: "jwt"
@@ -222,8 +253,7 @@ export async function getCurrentContext() {
         return { userId: null, teamId: null };
     }
 
-    // @ts-ignore
-    const userId = session.user.id;
+    const userId = (session.user as { id: string }).id;
 
     // Check for workspace cookie
     const cookieStore = await cookies();

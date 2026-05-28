@@ -25,7 +25,7 @@ const ENDPOINTS = [
             { name: "q", type: "string", desc: "Search across name, email, or company" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://convospan.com/api/v1/leads?limit=5&status=QUALIFIED"`
+"https://craftmyfunnel.com/api/v1/leads?limit=5&status=QUALIFIED"`
     },
     {
         category: "Leads",
@@ -35,7 +35,7 @@ const ENDPOINTS = [
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -H "Content-Type: application/json" \\
 -d '{"email": "john@example.com", "fullName": "John Doe", "dealValue": 5000}' \\
-"https://convospan.com/api/v1/leads"`
+"https://craftmyfunnel.com/api/v1/leads"`
     },
     {
         category: "Knowledge",
@@ -47,7 +47,7 @@ const ENDPOINTS = [
             { name: "limit", type: "number", desc: "Number of snippets to return" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://convospan.com/api/v1/knowledge/search?q=pricing+plans"`
+"https://craftmyfunnel.com/api/v1/knowledge/search?q=pricing+plans"`
     },
     {
         category: "Workflows",
@@ -56,7 +56,7 @@ const ENDPOINTS = [
         description: "Programmatically trigger a workflow execution for a specific lead or entity.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -d '{"leadId": "lead_123"}' \\
-"https://convospan.com/api/v1/workflows/wf_xyz/run"`
+"https://craftmyfunnel.com/api/v1/workflows/wf_xyz/run"`
     },
     {
         category: "Tasks",
@@ -68,7 +68,7 @@ const ENDPOINTS = [
             { name: "priority", type: "string", desc: "Filter by priority (HIGH, MEDIUM, LOW)" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://convospan.com/api/v1/tasks?priority=HIGH"`
+"https://craftmyfunnel.com/api/v1/tasks?priority=HIGH"`
     }
 ];
 
@@ -87,7 +87,7 @@ export default function ApiDocsPage() {
         <div className="space-y-8 max-w-[1400px] mx-auto pb-20">
             <SectionHeader
                 title="Developer Hub"
-                subtitle="The complete guide to integrating ConvoSpan into your stack."
+                subtitle="The complete guide to integrating CraftMyFunnel into your stack."
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden rounded-3xl border border-white/5 bg-slate-950/50 backdrop-blur-xl">

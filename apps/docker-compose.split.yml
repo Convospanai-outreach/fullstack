@@ -5,12 +5,12 @@ services:
   # ─────────────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: convospan-postgres-split
+    container_name: craftmyfunnel-postgres-split
     restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: convospan
+      POSTGRES_DB: craftmyfunnel
     ports:
       - "5433:5432"
     volumes:
@@ -26,7 +26,7 @@ services:
   # ─────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: convospan-redis-split
+    container_name: craftmyfunnel-redis-split
     restart: unless-stopped
     ports:
       - "6380:6379"
@@ -43,11 +43,11 @@ services:
   # ─────────────────────────────────────────────
   edge-fastapi:
     build: ./edge-fastapi
-    image: convospan-edge-fastapi:split
-    container_name: convospan-edge-fastapi-split
+    image: craftmyfunnel-edge-fastapi:split
+    container_name: craftmyfunnel-edge-fastapi-split
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/convospan}
+      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/craftmyfunnel}
       EDGE_MODE: ${EDGE_MODE:-false}
       HARDWARE_SIGNATURE: uuid-550e8400-e29b-41d4-a716-446655440000
       OFFLINE_MODEL_PATH: /app/models/custom/Phi-3-Custom.gguf
@@ -74,14 +74,14 @@ services:
   # ─────────────────────────────────────────────
   api:
     build: ./api
-    image: convospan-api:split
-    container_name: convospan-api-split
+    image: craftmyfunnel-api:split
+    container_name: craftmyfunnel-api-split
     restart: unless-stopped
     environment:
       PORT: 3001
       NODE_ENV: production
       CRON_SECRET: ${CRON_SECRET:-change-me}
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/craftmyfunnel
       REDIS_URL: redis://redis:6379
       EDGE_NODE_URI: http://edge-fastapi:8000
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
@@ -109,13 +109,13 @@ services:
   # ─────────────────────────────────────────────
   web:
     build: ./web
-    image: convospan-web:split
-    container_name: convospan-web-split
+    image: craftmyfunnel-web:split
+    container_name: craftmyfunnel-web-split
     restart: unless-stopped
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/convospan
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/craftmyfunnel
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3001}
       EDGE_NODE_URI: http://edge-fastapi:8000
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}

@@ -16,7 +16,7 @@ test.describe('User Journey Map', () => {
         // 1. Visit Home
         console.log('Navigating to Home...');
         await page.goto('/');
-        await expect(page).toHaveTitle(/.*ConvoSpan|Home/i);
+        await expect(page).toHaveTitle(/.*CraftMyFunnel|Home/i);
         await page.screenshot({ path: path.join(screenshotDir, '01-home-hero.png') });
 
         // Scroll to bottom to capture footer/features

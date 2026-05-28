@@ -86,8 +86,8 @@ async function runDecisionTreeTest() {
         hypothesis: "Alice is struggling with audit trails for cross-cloud clusters.",
         signal_type: "Netjana Activity",
         extracted_signal: "Security Whitepaper Download",
-        sender_name: "Bob from ConvoSpan",
-        sender_email: "bob(at)convospan.ai"
+        sender_name: "Bob from CraftMyFunnel",
+        sender_email: "bob(at)craftmyfunnel.ai"
     };
 
     try {

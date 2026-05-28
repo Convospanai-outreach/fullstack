@@ -1,4 +1,4 @@
-# ConvoSpan Edge FastAPI App
+# CraftMyFunnel Edge FastAPI App
 
 Standalone edge runtime extracted from `services/edge-node`.
 
@@ -14,7 +14,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ## Build Docker image
 
 ```bash
-docker build -t convospan-edge-fastapi:split .
+docker build -t craftmyfunnel-edge-fastapi:split .
 ```
 
 ## Default port

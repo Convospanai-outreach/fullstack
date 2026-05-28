@@ -86,7 +86,7 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
             await page.waitForTimeout(500);
 
             // Basic assertion to ensure page loaded
-            await expect(page).toHaveTitle(/ConvoSpan|.*/i);
+            await expect(page).toHaveTitle(/CraftMyFunnel|.*/i);
 
             // Screenshot
             const safeRoute = route === '/' ? 'home' : route.replace(/\//g, '-').substring(1);

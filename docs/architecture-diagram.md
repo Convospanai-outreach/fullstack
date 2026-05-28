@@ -1,4 +1,4 @@
-# ConvoSpan Architecture Diagram
+# CraftMyFunnel Architecture Diagram
 
 This file is GitHub-renderable Mermaid. Copy any fenced `mermaid` block into the Mermaid Live Editor if you need an exported SVG or PNG. It shows the current runtime architecture, including Landing Agent, Netjana buyer-intent ingest, signal-aware email drafting, LinkedIn sequence actions, human approval controls, and public landing-page lead/event tracking.
 
@@ -91,7 +91,7 @@ flowchart TB
 
     subgraph L8["Layer 8 - External Integrations"]
         llm[LLM Providers]
-        netjanaProvider[Netjana / ConvoSpan Intel]
+        netjanaProvider[Netjana / CraftMyFunnel Intel]
         smtp[SMTP and Email Providers]
         linkedin[LinkedIn and Browser Actions]
         payments[Razorpay]
@@ -221,7 +221,7 @@ flowchart TB
 | 5 | Domain Modules | Campaigns, leads, landing-agent, intel/signals, knowledge, workflows, inbox, governance, settings |
 | 6 | AI and Assisted Workflows | Prompt construction, Netjana normalization/scoring/matching, model gateway, signal-aware email composer, guardrails, review-first workers, event store |
 | 7 | Data Access and Persistence | Prisma, Postgres, ShadowSignal/ScrapingJob/Job rows, optional Redis, knowledge assets, audit/system events |
-| 8 | External Integrations | Netjana/ConvoSpan Intel, LLMs, email, LinkedIn/browser actions, payments, CRM/enrichment |
+| 8 | External Integrations | Netjana/CraftMyFunnel Intel, LLMs, email, LinkedIn/browser actions, payments, CRM/enrichment |
 | 9 | Optional Private Edge | Edge FastAPI, private execution context, browser or hardware-backed tasks |
 
 ## Request Lifecycle
@@ -370,7 +370,7 @@ flowchart TB
     %% External services
     subgraph external["External Providers"]
         llm[LLM Providers]
-        netjana[Netjana / ConvoSpan Intel]
+        netjana[Netjana / CraftMyFunnel Intel]
         email[SMTP and Email Providers]
         linkedIn[LinkedIn and Browser-backed Review Actions]
         payments[Razorpay]
@@ -438,7 +438,7 @@ This is the current buyer-signal path. Netjana is connected through the Intel we
 ```mermaid
 flowchart TB
     subgraph source["External Signal Source"]
-        netjana["Netjana / ConvoSpan Intel<br/>LEAD_CARD_READY, SIGNAL_INGESTED, INTENT_UPDATED"]
+        netjana["Netjana / CraftMyFunnel Intel<br/>LEAD_CARD_READY, SIGNAL_INGESTED, INTENT_UPDATED"]
     end
 
     subgraph ingest["API Ingest And Trust Boundary"]

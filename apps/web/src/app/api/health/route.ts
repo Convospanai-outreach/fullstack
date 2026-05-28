@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 function healthResponse() {
     const response = NextResponse.json({
         status: "UP",
-        service: "convospan-web",
+        service: "craftmyfunnel-web",
         timestamp: new Date().toISOString(),
     });
     response.headers.set("x-correlation-id", crypto.randomUUID());

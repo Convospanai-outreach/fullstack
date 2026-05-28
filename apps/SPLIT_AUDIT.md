@@ -4,7 +4,7 @@
 
 1. Web container command and image stage are mismatched.
    - `docker-compose.yml` runs `node server.js`, but the Dockerfile's web stage runs `server-custom.js`.
-   - Docker default target is the last stage (`runner-worker`), so `convospan-web` may build from the worker image.
+   - Docker default target is the last stage (`runner-worker`), so `craftmyfunnel-web` may build from the worker image.
    - Files: `docker-compose.yml`, `Dockerfile`
 
 2. Edge node defaults to local DB host that is invalid inside container.

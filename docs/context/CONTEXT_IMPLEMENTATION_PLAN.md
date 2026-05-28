@@ -1,4 +1,4 @@
-# ConvoSpan Context Implementation Plan
+# CraftMyFunnel Context Implementation Plan
 
 ## Purpose
 Create a context-first, reusable implementation plan that keeps stabilization, product clarity, migration safety, and runtime split execution aligned across all phases.

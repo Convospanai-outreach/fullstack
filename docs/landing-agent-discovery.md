@@ -1,7 +1,7 @@
 # Landing Agent Discovery
 
 ## Goal
-Implement a constrained landing-page funnel flow in ConvoSpan without changing existing `/campaigns/*` outreach flows.
+Implement a constrained landing-page funnel flow in CraftMyFunnel without changing existing `/campaigns/*` outreach flows.
 
 ## Existing Reusable Patterns
 - API route loading is file-system based through `apps/api/routes/**/route.ts`.

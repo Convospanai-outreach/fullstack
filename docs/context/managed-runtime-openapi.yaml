@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: ConvoSpan Managed Runtime API
+  title: CraftMyFunnel Managed Runtime API
   version: "1.0"
 servers:
   - url: ${MANAGED_RUNTIME_URL}

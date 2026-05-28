@@ -349,7 +349,7 @@ function buildWikiContent(signal: NormalizedNetjanaSignal) {
         `# ${signal.companyName} Buyer Intent`,
         "",
         "> External Intel Summary",
-        "> This note came from Netjana / ConvoSpan Intel and should be treated as verified external signal context, not a first-party customer statement.",
+        "> This note came from Netjana / CraftMyFunnel Intel and should be treated as verified external signal context, not a first-party customer statement.",
         "",
         `Industry: ${signal.industry || "Unknown"}`,
         `Buying stage: ${signal.buyingStage}`,
@@ -466,7 +466,7 @@ async function ensureIntelKnowledgeBase(teamId: string) {
             data: {
                 teamId,
                 name: "Netjana Intelligence",
-                description: "Buyer-intent signals and company context imported from Netjana / ConvoSpan Intel.",
+                description: "Buyer-intent signals and company context imported from Netjana / CraftMyFunnel Intel.",
             },
             select: { id: true },
         });

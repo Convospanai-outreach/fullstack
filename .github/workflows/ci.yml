@@ -14,6 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: convospan_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       redis:
         image: redis:7-alpine
         ports:
@@ -25,13 +38,13 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Use Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v4
       with:
         node-version: '22.x'
         cache: 'npm'
@@ -47,7 +60,14 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/web
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/convospan_ci" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/convospan_ci" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+
+    - name: Setup Database Schema
+      working-directory: apps/web
+      run: npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma --skip-generate
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
 
     - name: Type Check
       working-directory: apps/web
@@ -59,8 +79,8 @@ jobs:
       env:
         NEXT_PUBLIC_API_URL: http://localhost:3001
         NEXT_PHASE: phase-production-build
-        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
-        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
         NEXTAUTH_SECRET: ci-secret-not-real
         NEXTAUTH_URL: http://localhost:3000
         SKIP_ENV_VALIDATION: "true"
@@ -71,13 +91,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Use Node.js
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@v4
       with:
         node-version: '22.x'
         cache: 'npm'
@@ -103,7 +123,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
 
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs

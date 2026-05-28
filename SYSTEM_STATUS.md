@@ -1,4 +1,4 @@
-# System Status Report: ConvoSpan Enterprise Platform
+# System Status Report: CraftMyFunnel Enterprise Platform
 
 **Generated:** 2026-01-24
 **Auditor:** Antigravity (Independent Technical Auditor)
@@ -8,7 +8,7 @@
 
 ## 1. Application Overview
 
-**ConvoSpan** is an enterprise-grade AI communication platform designed for Indian MSMEs and agencies. It automates high-volume lead outreach and engagement while enforcing strict organizational policies and safety barriers.
+**CraftMyFunnel** is an enterprise-grade AI communication platform designed for Indian MSMEs and agencies. It automates high-volume lead outreach and engagement while enforcing strict organizational policies and safety barriers.
 
 -   **Target User**: Sales teams, Agencies, MSMEs in India.
 -   **Core Value**: "Safe Autonomy". AI that drafts aggressively (Cloud) but is censored and controlled locally (Edge/Pi) before sending.

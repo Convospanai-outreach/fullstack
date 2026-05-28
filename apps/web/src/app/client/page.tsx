@@ -64,7 +64,7 @@ export default function ClientPortalPage() {
                     <div>
                         <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-cyan-300">
                             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-xs">CS</span>
-                            ConvoSpan Client Portal
+                            CraftMyFunnel Client Portal
                         </Link>
                         <h1 className="mt-4 text-3xl font-black tracking-tight">Campaign progress</h1>
                         <p className="mt-2 max-w-2xl text-sm text-slate-400">

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         // We bypass the queue for test events to give immediate feedback if possible, 
         // but WebhookService processDelivery uses fetch which is async friendly.
         await webhookService.processDelivery(webhook.id, "webhook.test.ping", {
-            message: "This is a test event from ConvoSpan to verify your endpoint synchronization.",
+            message: "This is a test event from CraftMyFunnel to verify your endpoint synchronization.",
             timestamp: new Date().toISOString()
         });
 

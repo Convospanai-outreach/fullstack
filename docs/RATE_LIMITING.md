@@ -8,7 +8,7 @@
 
 ## Overview
 
-The ConvoSpan platform now includes a multi-tier rate limiting system that protects against abuse while ensuring legitimate users have seamless access. The system is implemented at the middleware level and uses an in-memory LRU cache for development/single-instance deployments.
+The CraftMyFunnel platform now includes a multi-tier rate limiting system that protects against abuse while ensuring legitimate users have seamless access. The system is implemented at the middleware level and uses an in-memory LRU cache for development/single-instance deployments.
 
 ---
 

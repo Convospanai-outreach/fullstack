@@ -1,4 +1,3 @@
-
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
@@ -9,15 +8,10 @@ test.describe('Dashboard Journey Map', () => {
         fs.mkdirSync(screenshotDir, { recursive: true });
     }
 
-    test.use({ viewport: { width: 1280, height: 720 } });
+    test.use({ viewport: { width: 1280, height: 720 }, storageState: 'e2e/.auth/user.json' });
 
     test('Authenticated Dashboard Flow', async ({ page }) => {
         test.setTimeout(120000);
-        test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'Authenticated dashboard flow requires TEST_USER_EMAIL and TEST_USER_PASSWORD.');
-
-        // 1. Login
-        console.log('Navigating to Login...');
-        await page.goto('/login'); // or /api/auth/signin if NextAuth default
 
         // Listen for console logs
         page.on('console', msg => console.log(`[BROWSER] ${msg.text()}`));
@@ -28,22 +22,13 @@ test.describe('Dashboard Journey Map', () => {
             }
         });
 
-        console.log('Filling Credentials...');
-        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL!);
-        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD!);
-
-        // Wait for potential submit button
-        const submitBtn = page.locator('button[type="submit"]');
-        await expect(submitBtn).toBeVisible();
-        await submitBtn.click();
-
         // 2. Verify Dashboard Access
-        console.log('Waiting for Dashboard...');
+        console.log('Navigating to Dashboard...');
+        await page.goto('/dashboard');
         await expect(page).toHaveURL(/.*dashboard/, { timeout: 30000 });
         await page.waitForLoadState('networkidle');
 
         // Wait for key dashboard elements to confirm loading (e.g. sidebar, widgets)
-        // Adjust these selectors based on your actual dashboard components
         try {
             await expect(page.locator('text=Overview')).toBeVisible({ timeout: 10000 });
         } catch (e) {
@@ -51,9 +36,6 @@ test.describe('Dashboard Journey Map', () => {
         }
 
         await page.screenshot({ path: path.join(screenshotDir, '01-dashboard-overview.png') });
-
-        // 3. Map Widgets (if identifiable)
-        // Just general screenshot for now
 
         // 4. Test Navigation (e.g., Settings)
         console.log('Navigating to Settings...');

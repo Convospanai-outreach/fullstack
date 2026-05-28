@@ -1,7 +1,7 @@
 # SOC 2 Type II Control Mappings
 
 ## Overview
-This document maps ConvoSpan's technical controls to SOC 2 Trust Services Criteria, demonstrating readiness for SOC 2 Type II certification.
+This document maps CraftMyFunnel's technical controls to SOC 2 Trust Services Criteria, demonstrating readiness for SOC 2 Type II certification.
 
 ## Trust Services Criteria Coverage
 

@@ -16,13 +16,13 @@ export interface HelpArticle {
 export const HELP_ARTICLES: HelpArticle[] = [
     {
         slug: "getting-started",
-        title: "Getting Started with ConvoSpan",
+        title: "Getting Started with CraftMyFunnel",
         category: "General",
         summary: "Launch your workspace in four steps, from setup through first campaign.",
         content: `
-# Welcome to ConvoSpan
+# Welcome to CraftMyFunnel
 
-ConvoSpan turns prospect data, messaging, and workflow automation into one operating surface for growth teams.
+CraftMyFunnel turns prospect data, messaging, and workflow automation into one operating surface for growth teams.
 
 ## First 30 minutes
 1. Complete the workspace setup flow.
@@ -48,7 +48,7 @@ ConvoSpan turns prospect data, messaging, and workflow automation into one opera
         content: `
 # Completing Workspace Setup
 
-The setup flow shows the exact prerequisites ConvoSpan needs before you can safely launch outreach.
+The setup flow shows the exact prerequisites CraftMyFunnel needs before you can safely launch outreach.
 
 ## Required checks
 - Account and team role verified
@@ -77,7 +77,7 @@ The setup flow shows the exact prerequisites ConvoSpan needs before you can safe
         content: `
 # Managing AI and API Keys
 
-ConvoSpan supports bring-your-own-provider keys for generation, analysis, and enrichment workflows.
+CraftMyFunnel supports bring-your-own-provider keys for generation, analysis, and enrichment workflows.
 
 ## Best practice
 1. Add only the keys required for your current workflow.
@@ -160,7 +160,7 @@ export const HELP_PROMPTS = [
 export const HELP_QUICK_ACTIONS: HelpAction[] = [
     { label: "Open help center", href: "/help", kind: "page" },
     { label: "Contact support", href: "/contact", kind: "page" },
-    { label: "Email support", href: "mailto:support@convospan.com", kind: "mailto" },
+    { label: "Email support", href: "mailto:support@craftmyfunnel.com", kind: "mailto" },
 ];
 
 function tokenize(input: string): string[] {

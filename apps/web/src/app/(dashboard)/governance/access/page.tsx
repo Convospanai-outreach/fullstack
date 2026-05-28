@@ -133,7 +133,7 @@ export default function AccessControlPage() {
                             <Badge variant="info">Enabled</Badge>
                         </div>
                         <h4 className="text-lg font-bold text-white">SSO Configuration</h4>
-                        <p className="text-sm text-text-secondary mt-1">SAML/OIDC is currently enforced for all users in the <b>convospan.ai</b> domain.</p>
+                        <p className="text-sm text-text-secondary mt-1">SAML/OIDC is currently enforced for all users in the <b>craftmyfunnel.ai</b> domain.</p>
                         <Button variant="outline" className="mt-6 w-full text-xs">Manage Authentication</Button>
                     </div>
 

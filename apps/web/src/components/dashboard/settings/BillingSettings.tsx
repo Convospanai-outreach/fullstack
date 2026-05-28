@@ -43,7 +43,7 @@ export default function BillingSettings() {
                 key: order.key,
                 amount: order.amount,
                 currency: order.currency,
-                name: "ConvoSpan",
+                name: "CraftMyFunnel",
                 description: `${credits} Credits Top-up`,
                 order_id: order.id,
                 handler: async function (_response: any) {

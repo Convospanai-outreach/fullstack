@@ -52,9 +52,9 @@ export class NotificationDispatcher {
 
                 if (shouldSendEmail) {
                     await resend.emails.send({
-                        from: 'ConvoSpan <notifications@convospan.com>',
+                        from: 'CraftMyFunnel <notifications@craftmyfunnel.com>',
                         to: user.email,
-                        subject: `[ConvoSpan] ${title}`,
+                        subject: `[CraftMyFunnel] ${title}`,
                         html: `<p>${message}</p>`
                     });
                 }

@@ -375,7 +375,7 @@ async function generateReport() {
 }
 
 async function main() {
-    console.log("ConvoSpan production readiness validation\n");
+    console.log("CraftMyFunnel production readiness validation\n");
 
     await validateDatabaseIndexes();
     await validateEnvironmentConfig();

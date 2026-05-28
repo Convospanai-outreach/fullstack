@@ -7,7 +7,9 @@ import ReactFlow, {
     useNodesState,
     useEdgesState,
     applyNodeChanges,
-    applyEdgeChanges
+    applyEdgeChanges,
+    type NodeChange,
+    type EdgeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -30,10 +32,8 @@ export default function OrgGraph() {
             });
     }, [setNodes, setEdges]);
 
-    // @ts-ignore
-    const onNodesChange = useCallback((changes) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
-    // @ts-ignore
-    const onEdgesChange = useCallback((changes) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
+    const onNodesChange = useCallback((changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)), [setNodes]);
+    const onEdgesChange = useCallback((changes: EdgeChange[]) => setEdges((eds) => applyEdgeChanges(changes, eds)), [setEdges]);
 
     if (loading) return <div className="h-[500px] flex items-center justify-center text-white/50">Loading Organization Map...</div>;
 

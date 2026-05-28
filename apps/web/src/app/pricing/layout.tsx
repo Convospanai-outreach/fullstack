@@ -1,5 +1,5 @@
 export const metadata = {
-    title: "Pricing | ConvoSpan",
+    title: "Pricing | CraftMyFunnel",
     description: "Transparent pricing for high-performance outbound teams. Scale your outreach with AI agents.",
 };
 

@@ -45,7 +45,7 @@ function getSmtpConfig() {
         secure: (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465,
         user,
         password,
-        fromName: process.env["SMTP_FROM_NAME"] || "ConvoSpan Support",
+        fromName: process.env["SMTP_FROM_NAME"] || "CraftMyFunnel Support",
         fromEmail,
     };
 }
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@convospan.com";
+    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@craftmyfunnel.com";
     const ticketId = generateTicketId();
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());

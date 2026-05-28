@@ -52,11 +52,11 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
     const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
     const signature = createHmac("sha256", secret).update(payload).digest("hex");
 
-    headers.set("x-convospan-user-id", userId);
-    headers.set("x-convospan-user-email", email);
-    headers.set("x-convospan-user-role", role);
-    headers.set("x-convospan-auth-ts", timestamp);
-    headers.set("x-convospan-auth-signature", signature);
+    headers.set("x-craftmyfunnel-user-id", userId);
+    headers.set("x-craftmyfunnel-user-email", email);
+    headers.set("x-craftmyfunnel-user-role", role);
+    headers.set("x-craftmyfunnel-auth-ts", timestamp);
+    headers.set("x-craftmyfunnel-auth-signature", signature);
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {

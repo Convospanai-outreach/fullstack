@@ -16,7 +16,7 @@ function getSystemSmtpConfig() {
         secure,
         user,
         password,
-        fromName: process.env.SMTP_FROM_NAME || "ConvoSpan",
+        fromName: process.env.SMTP_FROM_NAME || "CraftMyFunnel",
         fromEmail: process.env.SMTP_FROM_EMAIL || user
     };
 }
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
     const html = `
         <p>Hi ${name || "there"},</p>
-        <p>Please verify your email to activate your ConvoSpan account:</p>
+        <p>Please verify your email to activate your CraftMyFunnel account:</p>
         <p><a href="${verifyUrl}">Verify Email</a></p>
         <p>If you did not request this, you can ignore this email.</p>
     `;

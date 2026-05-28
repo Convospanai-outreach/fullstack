@@ -1,6 +1,6 @@
-# ConvoSpan Documentation
+# CraftMyFunnel Documentation
 
-This directory contains architecture notes, runbooks, implementation records, and operating guides for the ConvoSpan monorepo.
+This directory contains architecture notes, runbooks, implementation records, and operating guides for the CraftMyFunnel monorepo.
 
 ## Start Here
 

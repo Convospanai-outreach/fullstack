@@ -1,4 +1,4 @@
-# ConvoSpan Production Rollback Runbook
+# CraftMyFunnel Production Rollback Runbook
 
 ## 🚨 Emergency Trigger Criteria
 Initiate a rollback if any of the following occur after a deployment:
@@ -47,7 +47,7 @@ npx prisma migrate status
 ```bash
 # Note: Prisma migrate down is not natively supported. 
 # Use a manual SQL script from the `prisma/migrations` folder of the stable version.
-psql -d convospan -f ./migrations/stable_state_reverter.sql
+psql -d craftmyfunnel -f ./migrations/stable_state_reverter.sql
 ```
 
 ---

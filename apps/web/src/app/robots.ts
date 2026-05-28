@@ -5,6 +5,6 @@ export default function robots() {
             allow: "/",
             disallow: [process.env['NEXT_PUBLIC_API_URL'] + "/", "/dashboard/", "/settings/"],
         },
-        sitemap: "https://convospan.com/sitemap.xml",
+        sitemap: "https://craftmyfunnel.com/sitemap.xml",
     };
 }

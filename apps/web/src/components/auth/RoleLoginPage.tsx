@@ -65,7 +65,7 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
                             <div className={`flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-xs font-black text-white`}>
                                 CS
                             </div>
-                            ConvoSpan
+                            CraftMyFunnel
                         </Link>
                         <h1 className="text-3xl font-bold text-white">{title}</h1>
                         <p className="mt-2 text-sm text-slate-400">{subtitle}</p>

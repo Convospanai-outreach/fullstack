@@ -1,6 +1,6 @@
-# ConvoSpan Web App
+# CraftMyFunnel Web App
 
-Next.js web application inside the ConvoSpan monorepo.
+Next.js web application inside the CraftMyFunnel monorepo.
 
 ## Run locally
 

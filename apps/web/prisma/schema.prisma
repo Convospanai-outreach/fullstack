@@ -33,7 +33,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
-  embedding    String? // Temporarily String to match DB state and unblock push
+  embedding    Unsupported("vector(1536)")? // Vector embedding for similarity search
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
   lostAt       DateTime? // When it was marked CLOSED_LOST
@@ -1402,7 +1402,7 @@ model MarketplaceTemplate {
   config      Json // The JSON config (Workflow structure or Campaign steps)
   metrics     Json? // e.g. { "avgOpenRate": 0.45, "users": 1000 }
   isOfficial  Boolean  @default(true)
-  author      String   @default("ConvoSpan")
+  author      String   @default("CraftMyFunnel")
   createdAt   DateTime @default(now())
 
   @@index([type])
