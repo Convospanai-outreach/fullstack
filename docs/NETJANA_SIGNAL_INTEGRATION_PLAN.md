@@ -35,7 +35,7 @@ Still open or configurable:
 Grounded on:
 
 - `c:\Users\tewar\Desktop\craftmyfunnel_integration_spec.md`
-- `c:\Users\tewar\Desktop\covospan_signal_schema.json`
+- `c:\Users\tewar\Desktop\CraftMyFunnel_signal_schema.json`
 - `c:\Users\tewar\Desktop\signal_graph.md`
 
 Key contract from the Intel system:

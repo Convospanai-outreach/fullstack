@@ -3,7 +3,7 @@ import crypto from 'crypto';
 /**
  * Firmware Service
  * Handles Digital Signing and Remote Attestation for Edge Nodes (Jetson).
- * Ensures that only code signed by the "Covospan Developer Key" is running.
+ * Ensures that only code signed by the "CraftMyFunnel Developer Key" is running.
  */
 export class FirmwareService {
     // In production, these should be loaded from a secure HSM or KMS

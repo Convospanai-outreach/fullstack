@@ -1,8 +1,8 @@
-# create-convospan-scaffold.ps1
+# create-CraftMyFunnel-scaffold.ps1
 # Run in your project root (e.g. D:\Convo\extracted)
-# PowerShell: Right-click -> Run with PowerShell or `.\create-convospan-scaffold.ps1`
+# PowerShell: Right-click -> Run with PowerShell or `.\create-CraftMyFunnel-scaffold.ps1`
 
-$root = Join-Path (Get-Location) "convospan-full-pack"
+$root = Join-Path (Get-Location) "CraftMyFunnel-full-pack"
 if (Test-Path $root) { Remove-Item -Recurse -Force $root }
 New-Item -ItemType Directory -Path $root | Out-Null
 
@@ -16,7 +16,7 @@ function Write-File($path, $content) {
 
 # README
 Write-File "README.md" @"
-Convospan Full Fix Pack (Scaffold)
+CraftMyFunnel Full Fix Pack (Scaffold)
 =================================
 
 This scaffold contains minimal, safe, and well-documented placeholder implementations to help you continue development quickly.
@@ -53,7 +53,7 @@ NODE_ENV=development
 # package.json
 Write-File "package.json" @"
 {
-  "name": "convospan-full-pack",
+  "name": "CraftMyFunnel-full-pack",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -295,7 +295,7 @@ export function analyzeCommunication(text: string) {
 Write-File "chrome-extension/manifest.json" @"
 {
   ""manifest_version"": 3,
-  ""name"": ""Convospan LinkedIn Bridge (scaffold)"",
+  ""name"": ""CraftMyFunnel LinkedIn Bridge (scaffold)"",
   ""version"": ""0.0.1"",
   ""permissions"": [""storage"", ""activeTab"", ""scripting""],
   ""host_permissions"": [""https://www.linkedin.com/*""],
@@ -310,15 +310,15 @@ Write-File "chrome-extension/manifest.json" @"
 }
 "@
 
-Write-File "chrome-extension/content.js" "console.log('Convospan extension stub - content script');"
-Write-File "chrome-extension/background.js" "console.log('Convospan extension stub - background');"
+Write-File "chrome-extension/content.js" "console.log('CraftMyFunnel extension stub - content script');"
+Write-File "chrome-extension/background.js" "console.log('CraftMyFunnel extension stub - background');"
 
 # simple Next page to satisfy build
 Write-File "src/pages/index.tsx" @"
 export default function Home() {
   return (
     <main style={{ padding: 20, fontFamily: 'system-ui, sans-serif' }}>
-      <h1>Convospan Full Pack - Scaffold</h1>
+      <h1>CraftMyFunnel Full Pack - Scaffold</h1>
       <p>POST /api/orchestrator/run with { company, contact, linkedin } to test orchestrator.</p>
     </main>
   );
@@ -326,13 +326,13 @@ export default function Home() {
 "@
 
 # create zip
-$zipPath = Join-Path (Get-Location) "convospan-full-pack.zip"
+$zipPath = Join-Path (Get-Location) "CraftMyFunnel-full-pack.zip"
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [System.IO.Compression.ZipFile]::CreateFromDirectory($root, $zipPath)
 Write-Host "Created zip:" $zipPath
 Write-Host "`nNext steps (recommended):"
-Write-Host "1) Copy convospan-full-pack.zip to your project root and extract or merge files."
+Write-Host "1) Copy CraftMyFunnel-full-pack.zip to your project root and extract or merge files."
 Write-Host "2) In project root run: npm install"
 Write-Host "3) Copy .env.example -> .env and fill keys or leave to use mocks."
 Write-Host "4) Run: npm run prisma:generate"

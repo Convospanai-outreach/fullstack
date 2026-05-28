@@ -1,15 +1,15 @@
 $root = (Get-Location).Path
 Write-Host "Root: $root"
 
-$pack1 = Join-Path $root "convospan-postgres-pack"
+$pack1 = Join-Path $root "CraftMyFunnel-postgres-pack"
 Write-Host "Pack1: $pack1"
 Write-Host "Test-Path Pack1: $(Test-Path $pack1)"
 
-$pack2 = Join-Path $root "convospan-full-pack"
+$pack2 = Join-Path $root "CraftMyFunnel-full-pack"
 Write-Host "Pack2: $pack2"
 Write-Host "Test-Path Pack2: $(Test-Path $pack2)"
 
-$merged = Join-Path $root "convospan-merged-final"
+$merged = Join-Path $root "CraftMyFunnel-merged-final"
 Write-Host "Merged: $merged"
 
 if (Test-Path $merged) {

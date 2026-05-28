@@ -1,10 +1,10 @@
-Write-Host "=== FIXED Convospan Merge System ===" -ForegroundColor Cyan
+Write-Host "=== FIXED CraftMyFunnel Merge System ===" -ForegroundColor Cyan
 
 $root = (Get-Location).Path
 $main = $root
-$pack1 = Join-Path $root "convospan-postgres-pack"
-$pack2 = Join-Path $root "convospan-full-pack"
-$merged = Join-Path $root "convospan-merged-final"
+$pack1 = Join-Path $root "CraftMyFunnel-postgres-pack"
+$pack2 = Join-Path $root "CraftMyFunnel-full-pack"
+$merged = Join-Path $root "CraftMyFunnel-merged-final"
 
 # Verify folders exist
 foreach ($dir in @($pack1, $pack2)) {
@@ -24,7 +24,7 @@ if (Test-Path -LiteralPath $merged) {
 
 # Report
 $report = Join-Path $merged "merge-report.txt"
-[System.IO.File]::WriteAllText($report, "Convospan Merge Report`r`n=======================`r`nMAIN:      $main`r`nPOSTGRES:  $pack1`r`nFULLPACK:  $pack2`r`n`r`n")
+[System.IO.File]::WriteAllText($report, "CraftMyFunnel Merge Report`r`n=======================`r`nMAIN:      $main`r`nPOSTGRES:  $pack1`r`nFULLPACK:  $pack2`r`n`r`n")
 
 function Safe-RelPath {
     param (

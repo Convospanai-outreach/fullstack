@@ -1,5 +1,5 @@
 """
-ConvoSpan End-to-End Simulation Test
+CraftMyFunnel End-to-End Simulation Test
 =====================================
 1. Logs in via the NextAuth credentials endpoint
 2. Checks system/status (DB, Edge Node, Netjana)

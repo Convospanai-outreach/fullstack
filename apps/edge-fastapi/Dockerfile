@@ -1,6 +1,6 @@
 # Stage 1: Build dependencies and artifacts
 FROM python:3.11-slim AS builder
-LABEL org.opencontainers.image.source="https://github.com/Convospanai-outreach/fullstack"
+LABEL org.opencontainers.image.source="https://github.com/craftmyfunnel-outreach/fullstack"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

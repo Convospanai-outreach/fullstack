@@ -9,7 +9,7 @@ CREATE TABLE "MarketplaceTemplate" (
     "config" JSONB NOT NULL,
     "metrics" JSONB,
     "isOfficial" BOOLEAN NOT NULL DEFAULT true,
-    "author" TEXT NOT NULL DEFAULT 'ConvoSpan',
+    "author" TEXT NOT NULL DEFAULT 'CraftMyFunnel',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MarketplaceTemplate_pkey" PRIMARY KEY ("id")

@@ -87,7 +87,7 @@ export default function SecurityKeysPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-xl font-bold text-white">System Access Keys</h2>
-                    <p className="text-text-secondary text-sm">Automate your workspace using the CovoSpan Public API.</p>
+                    <p className="text-text-secondary text-sm">Automate your workspace using the CraftMyFunnel Public API.</p>
                 </div>
                 <Button onClick={() => setIsModalOpen(true)} className="gap-2">
                     <Plus className="w-4 h-4" />

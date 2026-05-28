@@ -38,7 +38,7 @@ if EDGE_EXECUTE_ENABLED and not EDGE_API_KEY:
         "The browser actuator cannot run unauthenticated. Set EDGE_API_KEY or disable EDGE_EXECUTE_ENABLED."
     )
 
-app = FastAPI(title="ConvoSpan Edge Node")
+app = FastAPI(title="CraftMyFunnel Edge Node")
 app.add_middleware(CorrelationMiddleware)
 
 # Inject correlation ID into logs

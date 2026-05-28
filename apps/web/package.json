@@ -3,7 +3,7 @@
     "private": true,
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Convospanai-outreach/fullstack.git"
+        "url": "git+https://github.com/craftmyfunnel-outreach/fullstack.git"
     },
     "publishConfig": {
         "registry": "https://npm.pkg.github.com"
