@@ -96,7 +96,7 @@ async function testAgentIdentity() {
 
 async function runAllTests() {
     try {
-        process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5433/convospan?schema=public";
+        process.env.DATABASE_URL = "postgresql://postgres:postgres@127.0.0.1:5433/craftmyfunnel?schema=public";
         console.log("DATABASE_URL (Forced IPv4):", process.env.DATABASE_URL);
         await setupMockData();
         await testSentinel();

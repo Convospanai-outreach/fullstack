@@ -2,7 +2,7 @@
 
 ## Current Status: India-Focused Deployment
 
-ConvoSpan is currently deployed with infrastructure optimized for the Indian market, but architected with global expansion capabilities.
+CraftMyFunnel is currently deployed with infrastructure optimized for the Indian market, but architected with global expansion capabilities.
 
 ## Database Architecture
 
@@ -15,8 +15,8 @@ ConvoSpan is currently deployed with infrastructure optimized for the Indian mar
 
 **Configuration**:
 ```env
-DATABASE_URL="postgresql://user:pass@ep-xxx.ap-south-1.aws.neon.tech/convospan"
-DIRECT_URL="postgresql://user:pass@ep-xxx.ap-south-1.aws.neon.tech/convospan" # For migrations
+DATABASE_URL="postgresql://user:pass@ep-xxx.ap-south-1.aws.neon.tech/craftmyfunnel"
+DIRECT_URL="postgresql://user:pass@ep-xxx.ap-south-1.aws.neon.tech/craftmyfunnel" # For migrations
 ```
 
 ### Future Global Expansion Architecture
@@ -45,17 +45,17 @@ When expanding globally, the architecture is designed to support multi-region re
 
 **Europe (EU-West)**:
 ```env
-DATABASE_REPLICA_EU="postgresql://user:pass@ep-xxx.eu-west-1.aws.neon.tech/convospan"
+DATABASE_REPLICA_EU="postgresql://user:pass@ep-xxx.eu-west-1.aws.neon.tech/craftmyfunnel"
 ```
 
 **United States (US-East)**:
 ```env
-DATABASE_REPLICA_US="postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/convospan"
+DATABASE_REPLICA_US="postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/craftmyfunnel"
 ```
 
 **Asia-Pacific (Singapore)** - Additional coverage:
 ```env
-DATABASE_REPLICA_APAC="postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/convospan"
+DATABASE_REPLICA_APAC="postgresql://user:pass@ep-xxx.ap-southeast-1.aws.neon.tech/craftmyfunnel"
 ```
 
 ## Application Deployment

@@ -2,7 +2,7 @@
 
 ## Objective
 
-Make MCP a reliable internal control plane for ConvoSpan so agents and operators can use tools safely, consistently, and efficiently without duplicating runtime logic across apps.
+Make MCP a reliable internal control plane for CraftMyFunnel so agents and operators can use tools safely, consistently, and efficiently without duplicating runtime logic across apps.
 
 ## Current State
 

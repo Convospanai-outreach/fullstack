@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-This document outlines the architecture for ConvoSpan as an AI-assisted growth workflow platform. The system prepares campaign work, supports signal review, routes high-risk actions through human approval, and tracks lead and meeting workflow progress without promising guaranteed outcomes or fully autonomous delivery.
+This document outlines the architecture for CraftMyFunnel as an AI-assisted growth workflow platform. The system prepares campaign work, supports signal review, routes high-risk actions through human approval, and tracks lead and meeting workflow progress without promising guaranteed outcomes or fully autonomous delivery.
 
 ---
 

@@ -1,12 +1,12 @@
-# ConvoSpan Unified Data Model Specification
+# CraftMyFunnel Unified Data Model Specification
 
 ## Purpose
 
-The ConvoSpan Unified Data Model defines how all platform components store and exchange data.
+The CraftMyFunnel Unified Data Model defines how all platform components store and exchange data.
 
 This model ensures interoperability between:
 
-* ConvoSpan Intel (signal intelligence)
+* CraftMyFunnel Intel (signal intelligence)
 * SaaS Control Platform (campaign orchestration)
 * Edge Nodes (execution and sovereignty layer)
 
@@ -18,7 +18,7 @@ The schema prioritizes data isolation, signal enrichment, and safe handling of p
 
 ## Organization
 
-Represents a customer account using the ConvoSpan platform.
+Represents a customer account using the CraftMyFunnel platform.
 
 Attributes:
 

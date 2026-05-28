@@ -12,7 +12,7 @@ test.describe('Frontend Visual Audit', () => {
 
     test('audit home page', async ({ page }) => {
         await page.goto('/');
-        await expect(page).toHaveTitle(/.*ConvoSpan|Home/i);
+        await expect(page).toHaveTitle(/.*CraftMyFunnel|Home/i);
         await page.screenshot({ path: path.join(screenshotDir, 'home-desktop.png'), fullPage: true });
 
         // Mobile view

@@ -21,7 +21,7 @@ Prompt safety and input constraints are centralized in:
 
 - `apps/api/src/lib/aiInputGuardrails.ts`
 
-Public-facing copy and generated content must describe the product as AI-assisted preparation, review, and tracking unless a deeper workflow is implemented and verified. Avoid claims that ConvoSpan guarantees qualified meetings, delivers qualified pipeline outcomes, fully automates outreach, or charges on outcomes. Safer language is "supports", "prepares", "tracks", "review-ready", and "human approval controls".
+Public-facing copy and generated content must describe the product as AI-assisted preparation, review, and tracking unless a deeper workflow is implemented and verified. Avoid claims that CraftMyFunnel guarantees qualified meetings, delivers qualified pipeline outcomes, fully automates outreach, or charges on outcomes. Safer language is "supports", "prepares", "tracks", "review-ready", and "human approval controls".
 
 ## Mermaid (Merlin) Flow
 

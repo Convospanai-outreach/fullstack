@@ -1,6 +1,6 @@
 # Sovereign Growth: Lead Nurturing Workflow
 
-This document outlines the high-frequency lead engagement engine within ConvoSpan Edge, leveraging autonomous AI agents, a synchronized 2026 event calendar, and a secure, fail-closed detokenization layer.
+This document outlines the high-frequency lead engagement engine within CraftMyFunnel Edge, leveraging autonomous AI agents, a synchronized 2026 event calendar, and a secure, fail-closed detokenization layer.
 
 ## 🏗 Architectural Blueprint
 

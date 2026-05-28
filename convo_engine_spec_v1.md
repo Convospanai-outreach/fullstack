@@ -1,4 +1,4 @@
-# ConvoSpan Autonomous Engine — Production Specification v1.0
+# CraftMyFunnel Autonomous Engine — Production Specification v1.0
 
 ---
 
@@ -20,7 +20,7 @@
 
 | Field            | Value                                                                 |
 |------------------|-----------------------------------------------------------------------|
-| **System Name**  | ConvoSpan Autonomous Engine                                           |
+| **System Name**  | CraftMyFunnel Autonomous Engine                                           |
 | **Version**      | 1.0.0                                                                 |
 | **Runtime**      | Python 3.11 (with 'uv'), PostgreSQL 16, Redis 7.2, Gemini 2.0 Flash (cloud), Micro-LLM (edge) |
 | **Architecture** | Hybrid Edge-Cloud                                                     |
@@ -246,7 +246,7 @@ CREATE TABLE vertical_policies (
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "convospan:agent:base:v1",
+  "$id": "craftmyfunnel:agent:base:v1",
   "title": "BaseAgentContract",
   "type": "object",
   "required": ["agent_id", "capabilities", "llm_tier", "input_schema", "output_schema"],
@@ -318,7 +318,7 @@ CREATE TABLE vertical_policies (
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "convospan:task:dispatch:v1",
+  "$id": "craftmyfunnel:task:dispatch:v1",
   "title": "TaskDispatchContract",
   "type": "object",
   "required": ["task_id", "tenant_id", "task_type", "priority", "payload"],
@@ -381,7 +381,7 @@ CREATE TABLE vertical_policies (
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "convospan:task:result:v1",
+  "$id": "craftmyfunnel:task:result:v1",
   "title": "TaskResultContract",
   "type": "object",
   "required": ["task_id", "agent_id", "status", "completed_at"],
@@ -555,7 +555,7 @@ def backoff_seconds(retry_count: int, base: float = 2.0, cap: float = 300.0) -> 
 
 ### 5.1 Conventions
 
-- Base URL: `https://api.convospan.internal/v1`
+- Base URL: `https://api.craftmyfunnel.internal/v1`
 - Auth: Bearer JWT (RS256, on-prem JWKS endpoint)
 - Content-Type: `application/json`
 - Rate Limiting: `X-RateLimit-*` headers on all responses
@@ -667,20 +667,20 @@ def backoff_seconds(retry_count: int, base: float = 2.0, cap: float = 300.0) -> 
 ```
 Redis Cluster (on-prem, Sentinel mode)
 │
-├── Stream: convospan:tasks:critical     (XADD, XREADGROUP)
-├── Stream: convospan:tasks:high         (XADD, XREADGROUP)
-├── Stream: convospan:tasks:normal       (XADD, XREADGROUP)
-├── Stream: convospan:tasks:low          (XADD, XREADGROUP)
+├── Stream: craftmyfunnel:tasks:critical     (XADD, XREADGROUP)
+├── Stream: craftmyfunnel:tasks:high         (XADD, XREADGROUP)
+├── Stream: craftmyfunnel:tasks:normal       (XADD, XREADGROUP)
+├── Stream: craftmyfunnel:tasks:low          (XADD, XREADGROUP)
 │
-├── Sorted Set: convospan:tasks:delayed  (ZADD score=epoch, retry scheduling)
-├── Sorted Set: convospan:tasks:deadlines (ZADD score=deadline_epoch)
+├── Sorted Set: craftmyfunnel:tasks:delayed  (ZADD score=epoch, retry scheduling)
+├── Sorted Set: craftmyfunnel:tasks:deadlines (ZADD score=deadline_epoch)
 │
-├── Hash: convospan:agent:heartbeats     (agent_id → last_seen_epoch)
-├── Hash: convospan:task:locks           (task_id → agent_id, TTL=timeout_s)
+├── Hash: craftmyfunnel:agent:heartbeats     (agent_id → last_seen_epoch)
+├── Hash: craftmyfunnel:task:locks           (task_id → agent_id, TTL=timeout_s)
 │
-├── PubSub: convospan:events             (task.started, task.completed, etc.)
+├── PubSub: craftmyfunnel:events             (task.started, task.completed, etc.)
 │
-└── String: convospan:idempotency:{key}  (TTL=24h, dedup window)
+└── String: craftmyfunnel:idempotency:{key}  (TTL=24h, dedup window)
 ```
 
 ### 6.2 Task Message Schema
@@ -713,24 +713,24 @@ Redis Cluster (on-prem, Sentinel mode)
 CONSUMER_GROUPS = {
     "edge_micro_workers": {
         "streams": [
-            "convospan:tasks:critical",
-            "convospan:tasks:high",
-            "convospan:tasks:normal"
+            "craftmyfunnel:tasks:critical",
+            "craftmyfunnel:tasks:high",
+            "craftmyfunnel:tasks:normal"
         ],
         "count": 10,
         "block_ms": 2000
     },
     "cloud_gemini_workers": {
         "streams": [
-            "convospan:tasks:high",
-            "convospan:tasks:normal",
-            "convospan:tasks:low"
+            "craftmyfunnel:tasks:high",
+            "craftmyfunnel:tasks:normal",
+            "craftmyfunnel:tasks:low"
         ],
         "count": 5,
         "block_ms": 5000
     },
     "dlq_processor": {
-        "streams": ["convospan:tasks:dlq"],
+        "streams": ["craftmyfunnel:tasks:dlq"],
         "count": 1,
         "block_ms": 10000
     }
@@ -742,7 +742,7 @@ CONSUMER_GROUPS = {
 ```python
 DLQ_POLICY = {
     "trigger": "retry_count >= max_retries",
-    "stream": "convospan:tasks:dlq",
+    "stream": "craftmyfunnel:tasks:dlq",
     "retention_hours": 72,
     "alert_threshold": 5,       # alert after 5 DLQ messages in 1 minute
     "alert_channel": "pagerduty"
@@ -754,22 +754,22 @@ DLQ_POLICY = {
 ```python
 PRIORITY_ROUTING = {
     "critical": {
-        "stream": "convospan:tasks:critical",
+        "stream": "craftmyfunnel:tasks:critical",
         "max_workers": 20,
         "sla_seconds": 5
     },
     "high": {
-        "stream": "convospan:tasks:high",
+        "stream": "craftmyfunnel:tasks:high",
         "max_workers": 10,
         "sla_seconds": 30
     },
     "normal": {
-        "stream": "convospan:tasks:normal",
+        "stream": "craftmyfunnel:tasks:normal",
         "max_workers": 5,
         "sla_seconds": 120
     },
     "low": {
-        "stream": "convospan:tasks:low",
+        "stream": "craftmyfunnel:tasks:low",
         "max_workers": 2,
         "sla_seconds": 600
     }
@@ -781,7 +781,7 @@ PRIORITY_ROUTING = {
 ```python
 HEARTBEAT = {
     "interval_seconds": 10,
-    "key_pattern": "convospan:agent:heartbeats",
+    "key_pattern": "craftmyfunnel:agent:heartbeats",
     "ttl_seconds": 30,          # worker considered dead if TTL expires
     "requeue_orphaned_tasks": True
 }
@@ -810,21 +810,21 @@ HEARTBEAT = {
 # Application
 APP_ENV=production
 APP_PORT=8000
-APP_SECRET_KEY=<vault:secret/convospan/app_secret>
+APP_SECRET_KEY=<vault:secret/craftmyfunnel/app_secret>
 LOG_LEVEL=INFO
 
 # PostgreSQL
-DATABASE_URL=postgresql+asyncpg://convospan:<secret>@pg-primary:5432/convospan_db
+DATABASE_URL=postgresql+asyncpg://craftmyfunnel:<secret>@pg-primary:5432/craftmyfunnel_db
 DATABASE_POOL_SIZE=20
 DATABASE_MAX_OVERFLOW=10
 
 # Redis
 REDIS_URL=redis://:password@redis-sentinel:26379/0
-REDIS_SENTINEL_MASTER=convospan-master
+REDIS_SENTINEL_MASTER=craftmyfunnel-master
 REDIS_MAX_CONNECTIONS=50
 
 # Gemini
-GEMINI_API_KEY=<vault:secret/convospan/gemini_key>
+GEMINI_API_KEY=<vault:secret/craftmyfunnel/gemini_key>
 GEMINI_MODEL=gemini-2.0-flash
 GEMINI_MAX_OUTPUT_TOKENS=8192
 GEMINI_TIMEOUT_SECONDS=60
@@ -835,7 +835,7 @@ MICRO_LLM_MAX_TOKENS=512
 MICRO_LLM_DEVICE=cpu
 
 # PII
-PII_ENCRYPTION_KEY=<vault:secret/convospan/pii_key>
+PII_ENCRYPTION_KEY=<vault:secret/craftmyfunnel/pii_key>
 PII_VAULT_ENABLED=true
 PII_EGRESS_BLOCK=true
 
@@ -846,7 +846,7 @@ ALLOWED_EGRESS_HOSTS=generativelanguage.googleapis.com
 
 # Observability
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.internal:4317
-SENTRY_DSN=<vault:secret/convospan/sentry_dsn>
+SENTRY_DSN=<vault:secret/craftmyfunnel/sentry_dsn>
 ```
 
 ### 7.3 Docker Compose (Development)
@@ -866,18 +866,18 @@ services:
       - postgres
       - redis
     networks:
-      - convospan-net
+      - craftmyfunnel-net
 
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: convospan_db
-      POSTGRES_USER: convospan
+      POSTGRES_DB: craftmyfunnel_db
+      POSTGRES_USER: craftmyfunnel
       POSTGRES_PASSWORD: devpassword
     volumes:
       - pg_data:/var/lib/postgresql/data
     networks:
-      - convospan-net
+      - craftmyfunnel-net
 
   redis:
     image: redis:7.2-alpine
@@ -885,7 +885,7 @@ services:
     volumes:
       - redis_data:/data
     networks:
-      - convospan-net
+      - craftmyfunnel-net
 
   sentinel:
     image: redis:7.2-alpine
@@ -893,25 +893,25 @@ services:
     depends_on:
       - redis
     networks:
-      - convospan-net
+      - craftmyfunnel-net
 
   worker:
     build:
       context: .
       dockerfile: Dockerfile.worker
-    command: python -m convospan.worker --queues critical high normal low
+    command: python -m craftmyfunnel.worker --queues critical high normal low
     depends_on:
       - redis
       - postgres
     networks:
-      - convospan-net
+      - craftmyfunnel-net
 
 volumes:
   pg_data:
   redis_data:
 
 networks:
-  convospan-net:
+  craftmyfunnel-net:
     driver: bridge
 ```
 
@@ -922,7 +922,7 @@ networks:
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: convospan
+  name: craftmyfunnel
   labels:
     istio-injection: enabled
 ---
@@ -930,27 +930,27 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: convospan-api
-  namespace: convospan
+  name: craftmyfunnel-api
+  namespace: craftmyfunnel
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: convospan-api
+      app: craftmyfunnel-api
   template:
     metadata:
       labels:
-        app: convospan-api
+        app: craftmyfunnel-api
     spec:
-      serviceAccountName: convospan-api
+      serviceAccountName: craftmyfunnel-api
       containers:
         - name: api
-          image: convospan/engine-api:1.0.0
+          image: craftmyfunnel/engine-api:1.0.0
           ports:
             - containerPort: 8000
           envFrom:
             - secretRef:
-                name: convospan-secrets
+                name: craftmyfunnel-secrets
           resources:
             requests:
               cpu: "500m"
@@ -975,25 +975,25 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: convospan-worker
-  namespace: convospan
+  name: craftmyfunnel-worker
+  namespace: craftmyfunnel
 spec:
   replicas: 5
   selector:
     matchLabels:
-      app: convospan-worker
+      app: craftmyfunnel-worker
   template:
     metadata:
       labels:
-        app: convospan-worker
+        app: craftmyfunnel-worker
     spec:
       containers:
         - name: worker
-          image: convospan/engine-worker:1.0.0
-          command: ["python", "-m", "convospan.worker"]
+          image: craftmyfunnel/engine-worker:1.0.0
+          command: ["python", "-m", "craftmyfunnel.worker"]
           envFrom:
             - secretRef:
-                name: convospan-secrets
+                name: craftmyfunnel-secrets
           resources:
             requests:
               cpu: "1000m"
@@ -1032,12 +1032,12 @@ observability:
     provider: Prometheus
     scrape_interval: 15s
     key_metrics:
-      - convospan_tasks_total{status, priority, vertical}
-      - convospan_task_duration_seconds{priority, agent}
-      - convospan_queue_depth{stream, priority}
-      - convospan_pii_blocks_total{reason, vertical}
-      - convospan_llm_tokens_total{tier, model}
-      - convospan_agent_heartbeat_age_seconds{agent_id}
+      - craftmyfunnel_tasks_total{status, priority, vertical}
+      - craftmyfunnel_task_duration_seconds{priority, agent}
+      - craftmyfunnel_queue_depth{stream, priority}
+      - craftmyfunnel_pii_blocks_total{reason, vertical}
+      - craftmyfunnel_llm_tokens_total{tier, model}
+      - craftmyfunnel_agent_heartbeat_age_seconds{agent_id}
 
   logging:
     provider: structlog (Python)
@@ -1064,29 +1064,29 @@ stages:
       fail_on: any_error
 
   - test:
-      unit: pytest --cov=convospan --cov-fail-under=80
+      unit: pytest --cov=craftmyfunnel --cov-fail-under=80
       integration: pytest tests/integration -m integration
       contract: pytest tests/contracts -m contract
 
   - security:
-      sast: bandit -r convospan/
+      sast: bandit -r craftmyfunnel/
       dependency_scan: safety check
-      container_scan: trivy image convospan/engine-api:$CI_COMMIT_SHA
+      container_scan: trivy image craftmyfunnel/engine-api:$CI_COMMIT_SHA
 
   - build:
       dockerfile: Dockerfile
       tags: [latest, "$CI_COMMIT_SHA", "$CI_COMMIT_TAG"]
-      push_to: on-prem-registry.convospan.internal
+      push_to: on-prem-registry.craftmyfunnel.internal
 
   - deploy_staging:
       cluster: k8s-staging
-      namespace: convospan-staging
+      namespace: craftmyfunnel-staging
       strategy: rolling_update
       smoke_tests: true
 
   - deploy_production:
       cluster: k8s-prod
-      namespace: convospan
+      namespace: craftmyfunnel
       strategy: canary
       canary_weight: 10           # 10% traffic initially
       promote_after: 30m
@@ -1099,5 +1099,5 @@ stages:
 
 ---
 
-*ConvoSpan Autonomous Engine — Specification v1.0.0 — Generated 2026-03-01*
+*CraftMyFunnel Autonomous Engine — Specification v1.0.0 — Generated 2026-03-01*
 *Classification: INTERNAL — Not for external distribution*

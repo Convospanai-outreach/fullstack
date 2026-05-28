@@ -1,4 +1,4 @@
-# ConvoSpan API App
+# CraftMyFunnel API App
 
 Standalone Fastify API extracted from the legacy monolith and the required shared `src/` modules.
 
@@ -12,7 +12,7 @@ npm run start
 ## Build Docker image
 
 ```bash
-docker build -t convospan-api:split .
+docker build -t craftmyfunnel-api:split .
 ```
 
 ## Default port

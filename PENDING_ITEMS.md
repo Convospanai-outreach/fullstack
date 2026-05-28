@@ -1,4 +1,4 @@
-# ConvoSpan - Pending Items & Roadmap
+# CraftMyFunnel - Pending Items & Roadmap
 
 **Last Updated:** February 10, 2026  
 **Status:** Post-Audit Tracking Document

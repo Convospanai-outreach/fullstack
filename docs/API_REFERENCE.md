@@ -1,6 +1,6 @@
-# ConvoSpan API Reference
+# CraftMyFunnel API Reference
 
-Complete API documentation for ConvoSpan endpoints.
+Complete API documentation for CraftMyFunnel endpoints.
 
 **Base URL**: `http://localhost:3000` (development) | `https://yourdomain.com` (production)
 
@@ -494,6 +494,6 @@ Webhook endpoints for external integrations will be documented here.
 ## Support
 
 For API support:
-- **Email**: api-support@convospan.com
-- **Documentation**: https://docs.convospan.com
-- **Status Page**: https://status.convospan.com
+- **Email**: api-support@craftmyfunnel.com
+- **Documentation**: https://docs.craftmyfunnel.com
+- **Status Page**: https://status.craftmyfunnel.com

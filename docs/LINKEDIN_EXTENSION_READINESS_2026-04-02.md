@@ -62,7 +62,7 @@
 4. `manifest.json`
 - Bumped version to `1.1.0`
 - Added `tabs` permission required by improved tab orchestration
-- Added `https://*.convospan.com/*` host permission for hosted environments
+- Added `https://*.craftmyfunnel.com/*` host permission for hosted environments
 
 ## Validation Performed
 

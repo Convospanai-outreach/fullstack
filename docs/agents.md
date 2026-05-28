@@ -1,13 +1,13 @@
-# ConvoSpan Agent Architecture
+# CraftMyFunnel Agent Architecture
 
 ## Overview
 
-ConvoSpan now follows a clear multi-layer split with explicit execution modes:
+CraftMyFunnel now follows a clear multi-layer split with explicit execution modes:
 
 1. **Intel Layer (NetJana)**
    External signal discovery and intent intelligence.
 
-2. **Control Layer (ConvoSpan Cloud / Next.js)**
+2. **Control Layer (CraftMyFunnel Cloud / Next.js)**
    Product UI, orchestration, billing, and runtime routing.
 
 3. **Execution Layer (FastAPI Runtime)**
@@ -75,7 +75,7 @@ Output:
 
 ---
 
-# Layer 2: Control Plane Agents (ConvoSpan Cloud)
+# Layer 2: Control Plane Agents (CraftMyFunnel Cloud)
 
 These agents are orchestration-focused and should remain lightweight.
 

@@ -59,7 +59,7 @@ The web image must be built from the repository root so Docker can use the works
 From repository root:
 
 ```bash
-docker build -t convospan-web:latest -f apps/web/Dockerfile .
+docker build -t craftmyfunnel-web:latest -f apps/web/Dockerfile .
 ```
 
 Or use the convenience script:
@@ -73,27 +73,27 @@ npm run docker:web
 On droplet:
 
 ```bash
-git clone https://github.com/Convospanai-outreach/fullstack.git /opt/convospan/fullstack
-cd /opt/convospan/fullstack
-docker build -t convospan-api:latest -f apps/api/Dockerfile apps/api
+git clone https://github.com/Convospanai-outreach/fullstack.git /opt/craftmyfunnel/fullstack
+cd /opt/craftmyfunnel/fullstack
+docker build -t craftmyfunnel-api:latest -f apps/api/Dockerfile apps/api
 ```
 
 Create env file from app source:
 
 ```bash
-cp apps/api/.env.example /opt/convospan/api.env
+cp apps/api/.env.example /opt/craftmyfunnel/api.env
 ```
 
 Run container:
 
 ```bash
-docker rm -f convospan-api 2>/dev/null || true
+docker rm -f craftmyfunnel-api 2>/dev/null || true
 docker run -d \
-  --name convospan-api \
+  --name craftmyfunnel-api \
   --restart unless-stopped \
-  --env-file /opt/convospan/api.env \
+  --env-file /opt/craftmyfunnel/api.env \
   -p 3001:3001 \
-  convospan-api:latest
+  craftmyfunnel-api:latest
 ```
 
 Health checks:
@@ -113,17 +113,17 @@ Expected behavior:
 On droplet:
 
 ```bash
-cd /opt/convospan/fullstack
-docker build -t convospan-edge-fastapi:latest -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
+cd /opt/craftmyfunnel/fullstack
+docker build -t craftmyfunnel-edge-fastapi:latest -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
 ```
 
 Create env file from app source:
 
 ```bash
-cp apps/edge-fastapi/.env.example /opt/convospan/edge.env
+cp apps/edge-fastapi/.env.example /opt/craftmyfunnel/edge.env
 ```
 
-Set required values in `/opt/convospan/edge.env`:
+Set required values in `/opt/craftmyfunnel/edge.env`:
 
 - `DATABASE_URL`
 - `EDGE_MODE` (`disabled` or `enabled`)
@@ -133,13 +133,13 @@ Set required values in `/opt/convospan/edge.env`:
 Run container:
 
 ```bash
-docker rm -f convospan-edge-fastapi 2>/dev/null || true
+docker rm -f craftmyfunnel-edge-fastapi 2>/dev/null || true
 docker run -d \
-  --name convospan-edge-fastapi \
+  --name craftmyfunnel-edge-fastapi \
   --restart unless-stopped \
-  --env-file /opt/convospan/edge.env \
+  --env-file /opt/craftmyfunnel/edge.env \
   -p 8000:8000 \
-  convospan-edge-fastapi:latest
+  craftmyfunnel-edge-fastapi:latest
 ```
 
 Health checks:

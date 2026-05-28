@@ -1,10 +1,10 @@
-# ConvoSpan Architecture (Current)
+# CraftMyFunnel Architecture (Current)
 
 ## High-Level Diagram (Mermaid)
 
 ```mermaid
 flowchart LR
-  subgraph SaaS["ConvoSpan Cloud (Next.js Control Plane)"]
+  subgraph SaaS["CraftMyFunnel Cloud (Next.js Control Plane)"]
     UI["UI + Auth + Billing + Campaigns"]
     Orchestrator["Runtime Dispatch + Task Contracts"]
     DB["Neon Postgres (SaaS DB)"]

@@ -9,7 +9,7 @@
 const BASE_URL = 'http://localhost:3000';
 
 async function simulateLogin() {
-    console.log('=== ConvoSpan Login Simulation (v2) ===\n');
+    console.log('=== CraftMyFunnel Login Simulation (v2) ===\n');
 
     // Step 1: Check dev server
     console.log('1. Checking dev server...');

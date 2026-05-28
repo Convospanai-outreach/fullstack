@@ -1,6 +1,6 @@
-# ConvoSpan
+# CraftMyFunnel
 
-ConvoSpan is a multi-app monorepo for AI-assisted outbound, campaign operations, landing-page funnels, governance, and launch-readiness workflows.
+CraftMyFunnel is a multi-app monorepo for AI-assisted outbound, campaign operations, landing-page funnels, governance, and launch-readiness workflows.
 
 The repository is organized as one codebase with multiple deployable services. The root is orchestration only: scripts, shared config, CI, and documentation.
 
@@ -165,7 +165,7 @@ Use path-based deploy triggers:
 - Local image builds are available via `npm run docker:web`, `npm run docker:api`, and `npm run docker:edge`.
 - GitHub Container Registry publishing is defined in `.github/workflows/docker-ghcr.yml`.
 - The web image builds from the monorepo root context so it can use the workspace lockfile consistently.
-- On pushes to `main`, the workflow builds and publishes `web`, `api`, and `edge-fastapi` images to `ghcr.io/convospanai-outreach/fullstack/*`.
+- On pushes to `main`, the workflow builds and publishes `web`, `api`, and `edge-fastapi` images to `ghcr.io/craftmyfunnelai-outreach/fullstack/*`.
 
 ## Documentation Map
 

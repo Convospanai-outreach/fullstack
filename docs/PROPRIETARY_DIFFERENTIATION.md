@@ -1,11 +1,11 @@
-# ConvoSpan: Proprietary Orchestration Engine
+# CraftMyFunnel: Proprietary Orchestration Engine
 ## Defensibility & Competitive Moat Analysis
 
 ---
 
 ## Executive Summary
 
-**ConvoSpan is NOT an AI wrapper.** It is a **proprietary orchestration engine** that wraps AI models within sophisticated governance, control, and data protection layers. Our core intellectual property lies in:
+**CraftMyFunnel is NOT an AI wrapper.** It is a **proprietary orchestration engine** that wraps AI models within sophisticated governance, control, and data protection layers. Our core intellectual property lies in:
 
 1. **Sovereign Firewall™** - Proprietary PII masking and data sovereignty engine
 2. **Human-in-the-Loop (HITL) Orchestration** - Confidence-based intervention system
@@ -118,7 +118,7 @@ processOutbound(text: string): { safeText: string; map: Map<string, string> } {
 
 ### Competitive Differentiation
 
-| Feature | ConvoSpan | Generic AI Wrapper |
+| Feature | CraftMyFunnel | Generic AI Wrapper |
 |---------|-----------|-------------------|
 | **PII Detection** | Multi-pattern with regional compliance | Basic regex (if any) |
 | **Reversibility** | Guaranteed restoration with collision detection | N/A |
@@ -313,7 +313,7 @@ async processApprovalDecision(
 
 ### Competitive Differentiation
 
-| Feature | ConvoSpan | Generic AI Wrapper |
+| Feature | CraftMyFunnel | Generic AI Wrapper |
 |---------|-----------|-------------------|
 | **Confidence Calculation** | Multi-factor proprietary algorithm | None or basic threshold |
 | **State Preservation** | Full agent context snapshot | Lost on pause |
@@ -334,7 +334,7 @@ async processApprovalDecision(
 
 ## 3. Orchestration vs. Wrapper: The Technical Distinction
 
-### AI Wrapper (What ConvoSpan is NOT)
+### AI Wrapper (What CraftMyFunnel is NOT)
 
 ```typescript
 // Simple AI wrapper approach
@@ -355,7 +355,7 @@ async function generateEmail(prompt: string) {
 // - No learning loop
 ```
 
-### ConvoSpan Orchestration Engine
+### CraftMyFunnel Orchestration Engine
 
 ```typescript
 // Proprietary orchestration with governance
@@ -546,7 +546,7 @@ export class VerificationAgent {
 
 ### Why Competitors Can't Copy
 
-| Competitor Type | Why They Can't Match ConvoSpan |
+| Competitor Type | Why They Can't Match CraftMyFunnel |
 |-----------------|-------------------------------|
 | **Simple AI Wrappers** | Lack governance layer, no HITL, no PII protection |
 | **Enterprise Sales Tools** | Focus on CRM, not AI orchestration, no compliance layer |
@@ -560,7 +560,7 @@ export class VerificationAgent {
 
 ### Investor Narrative
 
-**"ConvoSpan is a proprietary orchestration engine that makes AI safe for enterprise use."**
+**"CraftMyFunnel is a proprietary orchestration engine that makes AI safe for enterprise use."**
 
 #### Key Talking Points
 
@@ -570,7 +570,7 @@ export class VerificationAgent {
 
 3. **Multi-Provider Intelligence**: "We're not locked into OpenAI/Anthropic - our gateway routes to the best/cheapest model per task."
 
-4. **Learning Loop**: "Unlike static AI wrappers, ConvoSpan learns from every human decision to improve confidence over time."
+4. **Learning Loop**: "Unlike static AI wrappers, CraftMyFunnel learns from every human decision to improve confidence over time."
 
 5. **15 Engineer-Months of IP**: "Replicating our governance layer would cost competitors $300K+ in engineering time alone."
 
@@ -613,7 +613,7 @@ export class VerificationAgent {
 
 ## Conclusion
 
-**ConvoSpan is fundamentally different from AI wrappers because:**
+**CraftMyFunnel is fundamentally different from AI wrappers because:**
 
 1. ✅ We **control** the data (Sovereign Firewall)
 2. ✅ We **govern** the execution (HITL orchestration)
@@ -621,7 +621,7 @@ export class VerificationAgent {
 4. ✅ We **adapt** to providers (model gateway)
 5. ✅ We **comply** by design (regulatory engine)
 
-**The core insight**: Enterprises don't just want AI - they want **safe, governed, auditable AI**. ConvoSpan's IP is the governance layer that makes AI production-ready.
+**The core insight**: Enterprises don't just want AI - they want **safe, governed, auditable AI**. CraftMyFunnel's IP is the governance layer that makes AI production-ready.
 
 **For Series A investors**: This isn't a feature that can be copied in a sprint. It's 15 engineer-months of specialized work in compliance, ML, and orchestration. That's the moat.
 
@@ -630,4 +630,4 @@ export class VerificationAgent {
 **Document Version**: 1.0  
 **Last Updated**: January 12, 2026  
 **Classification**: Strategic - Series A  
-**Author**: ConvoSpan Engineering & Strategy Team
+**Author**: CraftMyFunnel Engineering & Strategy Team

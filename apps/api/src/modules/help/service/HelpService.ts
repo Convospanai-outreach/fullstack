@@ -9,12 +9,12 @@ export interface HelpArticle {
 const ARTICLES: HelpArticle[] = [
     {
         slug: "getting-started",
-        title: "Getting Started with ConvoSpan",
+        title: "Getting Started with CraftMyFunnel",
         category: "General",
         content: `
-# Welcome to ConvoSpan
+# Welcome to CraftMyFunnel
 
-ConvoSpan is your intelligent email outreach platform.
+CraftMyFunnel is your intelligent email outreach platform.
 
 ## Key Concepts
 - **Campaigns**: Your email sequences.

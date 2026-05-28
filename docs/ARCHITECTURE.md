@@ -1,4 +1,4 @@
-# ConvoSpan Architecture & Framework Documentation
+# CraftMyFunnel Architecture & Framework Documentation
 
 ## Table of Contents
 1. [System Overview](#system-overview)
@@ -15,7 +15,7 @@
 
 ## System Overview
 
-**ConvoSpan** is an enterprise-grade AI-powered outreach and lead management platform built with a modern full-stack architecture. The application provides intelligent automation for sales, marketing, and customer engagement workflows.
+**CraftMyFunnel** is an enterprise-grade AI-powered outreach and lead management platform built with a modern full-stack architecture. The application provides intelligent automation for sales, marketing, and customer engagement workflows.
 
 ### Key Capabilities
 - 🤖 **Autonomous AI Agents** with human-in-the-loop controls
@@ -160,7 +160,7 @@
 
 ## Core Modules
 
-ConvoSpan is organized into **41 feature modules**, each encapsulating specific business capabilities:
+CraftMyFunnel is organized into **41 feature modules**, each encapsulating specific business capabilities:
 
 ### 1. Agent & AI Modules
 | Module | Purpose | Key Files |
@@ -744,7 +744,7 @@ The **Autonomous Knowledge Engine** is the orchestration layer responsible for d
 
 ## 3-Node Outreach Engine
 
-ConvoSpan utilizes a multi-stage outreach strategy governed by the `emailComposer` service.
+CraftMyFunnel utilizes a multi-stage outreach strategy governed by the `emailComposer` service.
 
 | Node | Scenario | AI Strategy |
 |------|----------|-------------|
@@ -761,7 +761,7 @@ ConvoSpan utilizes a multi-stage outreach strategy governed by the `emailCompose
 
 ### Database Schema Overview
 
-ConvoSpan uses **PostgreSQL** with **Prisma ORM** and **pgvector** extension for vector operations.
+CraftMyFunnel uses **PostgreSQL** with **Prisma ORM** and **pgvector** extension for vector operations.
 
 #### Core Entities (50+ models)
 
@@ -843,7 +843,7 @@ Performance-critical indexes:
 
 ### API Organization
 
-ConvoSpan provides **200+ API endpoints** organized by domain:
+CraftMyFunnel provides **200+ API endpoints** organized by domain:
 
 ```
 /api
@@ -1011,7 +1011,7 @@ DATABASE_URL=postgresql://...
 
 # Authentication
 NEXTAUTH_SECRET=<secret>
-NEXTAUTH_URL=https://app.convospan.com
+NEXTAUTH_URL=https://app.craftmyfunnel.com
 
 # AI Providers (choose one)
 GEMINI_API_KEY=...
@@ -1142,7 +1142,7 @@ npm run test:coverage    # Coverage report
 
 **Last Updated**: January 23, 2026  
 **Version**: 2.0.0 (Enterprise-Ready)  
-**Maintainer**: ConvoSpan Engineering Team
+**Maintainer**: CraftMyFunnel Engineering Team
 
 **Recent Updates**:
 - ✅ Enterprise Governance Framework (Phases 0-8)

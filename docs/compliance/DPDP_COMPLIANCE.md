@@ -1,7 +1,7 @@
 # DPDP Act 2023 Compliance Summary
 
 ## Overview
-This document demonstrates ConvoSpan's compliance with India's Digital Personal Data Protection Act, 2023.
+This document demonstrates CraftMyFunnel's compliance with India's Digital Personal Data Protection Act, 2023.
 
 ## Key Requirements & Implementation
 
@@ -242,4 +242,4 @@ await ConsentService.revokeConsent(leadId, userId, "User requested");
 
 **Data Fiduciary:** [Organization Name]  
 **Grievance Officer:** [Name, Email]  
-**Compliance Queries:** compliance@convospan.com
+**Compliance Queries:** compliance@craftmyfunnel.com

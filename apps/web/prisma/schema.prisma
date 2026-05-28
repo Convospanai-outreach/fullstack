@@ -1402,7 +1402,7 @@ model MarketplaceTemplate {
   config      Json // The JSON config (Workflow structure or Campaign steps)
   metrics     Json? // e.g. { "avgOpenRate": 0.45, "users": 1000 }
   isOfficial  Boolean  @default(true)
-  author      String   @default("ConvoSpan")
+  author      String   @default("CraftMyFunnel")
   createdAt   DateTime @default(now())
 
   @@index([type])

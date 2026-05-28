@@ -6,11 +6,11 @@ Target outcome:
 - Default delivery is **minimal**, **secure**, **replay-safe**, and **non-bloating**.
 - Full long-form intel is **pulled only after user action** (enterprise/top-tier feature).
 
-ConvoSpan already implements:
-- Webhook receiver: `POST /webhooks/netjana-intel` (ConvoSpan `apps/api`)
-- User-initiated pull: ConvoSpan calls `GET {NETJANA_URL}/v1/intel/leads/{lead_id}` (NetJana must add)
+CraftMyFunnel already implements:
+- Webhook receiver: `POST /webhooks/netjana-intel` (CraftMyFunnel `apps/api`)
+- User-initiated pull: CraftMyFunnel calls `GET {NETJANA_URL}/v1/intel/leads/{lead_id}` (NetJana must add)
 
-Do **not** change ConvoSpan paths above unless explicitly told.
+Do **not** change CraftMyFunnel paths above unless explicitly told.
 
 ---
 
@@ -25,8 +25,8 @@ Constraints:
 - Avoid data bloat and avoid breaking backwards compatibility.
 
 Acceptance criteria:
-1) NetJana can push minimal signals to ConvoSpan successfully.
-2) ConvoSpan can request full details for a `lead_id` via pull API after a user clicks “Unlock full report”.
+1) NetJana can push minimal signals to CraftMyFunnel successfully.
+2) CraftMyFunnel can request full details for a `lead_id` via pull API after a user clicks “Unlock full report”.
 3) Replay protection blocks repeated identical requests with same nonce in TTL.
 4) HMAC verification fails closed in production (missing/invalid signature -> 401/403).
 
@@ -35,12 +35,12 @@ Acceptance criteria:
 ## Prompt 1 — Implement minimal webhook push (secure + replay-safe)
 
 Implement a webhook client in NetJana that POSTs to:
-`https://<CONVOSPAN_API_HOST>/webhooks/netjana-intel`
+`https://<CRAFTMYFUNNEL_API_HOST>/webhooks/netjana-intel`
 
 Headers required on every request:
 - `Content-Type: application/json`
 - `x-source: netjana-intel`
-- `x-api-key: <CONVOSPAN_API_KEY>`
+- `x-api-key: <CRAFTMYFUNNEL_API_KEY>`
 - `x-netjana-timestamp: <unix-seconds>`
 - `x-netjana-nonce: <uuid>`
 - `x-netjana-signature: <hex>` computed as:
@@ -61,7 +61,7 @@ Nonce rules:
 Payload rules (minimal):
 - MUST match:
   - `event` one of: `LEAD_CARD_READY`, `SIGNAL_INGESTED`, `INTENT_UPDATED`
-  - `source` exactly: `NetJana.AI / ConvoSpan Intel`
+  - `source` exactly: `NetJana.AI / CraftMyFunnel Intel`
   - `timestamp` ISO-8601 string
   - `lead` object includes:
     - `lead_id` (uuid)
@@ -85,8 +85,8 @@ Implementation notes:
 Deliverables:
 - Code implementing the push client
 - Configuration/env variables:
-  - `CONVOSPAN_WEBHOOK_URL`
-  - `CONVOSPAN_API_KEY`
+  - `CRAFTMYFUNNEL_WEBHOOK_URL`
+  - `CRAFTMYFUNNEL_API_KEY`
   - `NETJANA_HMAC_SECRET`
 
 ---
@@ -109,7 +109,7 @@ Implement in NetJana an authenticated endpoint:
 
 Auth:
 - Require `x-api-key: <NETJANA_PULL_API_KEY>` (start with this)
-- Also accept `x-source: convospan`
+- Also accept `x-source: craftmyfunnel`
 - Return 403 if key invalid/missing.
 
 Response (JSON):

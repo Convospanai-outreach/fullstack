@@ -2,7 +2,7 @@
 
 ## Goal
 
-Use Netjana / ConvoSpan Intel buyer-intent signals to:
+Use Netjana / CraftMyFunnel Intel buyer-intent signals to:
 
 1. ingest external intelligence safely through a dedicated webhook/API path,
 2. map signals to leads, companies, campaigns, and knowledge,
@@ -34,7 +34,7 @@ Still open or configurable:
 
 Grounded on:
 
-- `c:\Users\tewar\Desktop\convospan_integration_spec.md`
+- `c:\Users\tewar\Desktop\craftmyfunnel_integration_spec.md`
 - `c:\Users\tewar\Desktop\covospan_signal_schema.json`
 - `c:\Users\tewar\Desktop\signal_graph.md`
 

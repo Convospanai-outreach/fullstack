@@ -1,6 +1,6 @@
 ﻿{
   "manifest_version": 3,
-  "name": "ConvoSpan LinkedIn Agent",
+  "name": "CraftMyFunnel LinkedIn Agent",
   "description": "SafeRun™ AI Assistant for LinkedIn compliance & drafting.",
   "version": "1.1.0",
   "permissions": [
@@ -13,8 +13,8 @@
   "host_permissions": [
     "https://www.linkedin.com/*",
     "http://localhost:3000/*",
-    "https://api.convospan.com/*",
-    "https://*.convospan.com/*"
+    "https://api.craftmyfunnel.com/*",
+    "https://*.craftmyfunnel.com/*"
   ],
   "background": {
     "service_worker": "background.js"

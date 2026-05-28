@@ -11,10 +11,10 @@ export default function ComplianceSettings() {
     const [, setSaving] = useState(false);
 
     useEffect(() => {
-        const savedRegion = localStorage.getItem('CONVOSPAN_REGION') as 'INDIA' | 'EU';
+        const savedRegion = localStorage.getItem('CRAFTMYFUNNEL_REGION') as 'INDIA' | 'EU';
         if (savedRegion) setRegion(savedRegion);
 
-        const savedHybrid = localStorage.getItem('CONVOSPAN_HYBRID') === 'true';
+        const savedHybrid = localStorage.getItem('CRAFTMYFUNNEL_HYBRID') === 'true';
         setHybridCompute(savedHybrid);
     }, []);
 
@@ -26,7 +26,7 @@ export default function ComplianceSettings() {
         // Enforce on Physical Edge Node (via Server Action)
         await setComplianceMode(newRegion);
 
-        localStorage.setItem('CONVOSPAN_REGION', newRegion);
+        localStorage.setItem('CRAFTMYFUNNEL_REGION', newRegion);
         setRegion(newRegion);
         setSaving(false);
     };
@@ -34,7 +34,7 @@ export default function ComplianceSettings() {
     const toggleHybrid = () => {
         const newValue = !hybridCompute;
         setHybridCompute(newValue);
-        localStorage.setItem('CONVOSPAN_HYBRID', String(newValue));
+        localStorage.setItem('CRAFTMYFUNNEL_HYBRID', String(newValue));
     };
 
     const handleUpdate = () => {

@@ -4,7 +4,7 @@ import { logger } from "../lib/logger";
 const prisma = new PrismaClient();
 
 /**
- * ConvoSpan Audit Log Archival Script
+ * CraftMyFunnel Audit Log Archival Script
  * 
  * Retention Policy: 90 days (Standard Compliance)
  */
