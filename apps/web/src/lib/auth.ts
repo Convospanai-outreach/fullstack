@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 import { cookies } from "next/headers";
 
 // Ensure ENCRYPTION_KEY is set to a secure, non-default value
-if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY === '0123456789abcdef0123456789abcdef') {
+if (!process.env['ENCRYPTION_KEY'] || process.env['ENCRYPTION_KEY'] === '0123456789abcdef0123456789abcdef') {
   throw new Error('FATAL: ENCRYPTION_KEY must be set to a unique 32‑char hex value');
 }
 
@@ -47,7 +47,7 @@ export const authOptions: NextAuthOptions = {
                 try {
                     const { checkRateLimit } = await import("@/lib/rateLimit");
                     const rateLimitKey = `login:${credentials.email}`;
-                    const allowed = await checkRateLimit(rateLimitKey, 5, 900); // 5 attempts / 15 min
+                    const { allowed } = await checkRateLimit(rateLimitKey, { maxRequests: 5, windowMs: 900 * 1000 }, "login");
                     if (!allowed) {
                         throw new Error("Too many login attempts. Please try again in 15 minutes.");
                     }

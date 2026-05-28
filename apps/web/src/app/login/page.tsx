@@ -28,11 +28,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className={styles.container}>
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <h1 className={styles.title}>Welcome back</h1>
-        {error && <p className={styles.error}>{error}</p>}
-        <label htmlFor="email" className={styles.label}>Email</label>
+    <div className={styles['container']}>
+      <form onSubmit={handleSubmit} className={styles['form']}>
+        <h1 className={styles['title']}>Welcome back</h1>
+        {error && <p className={styles['error']}>{error}</p>}
+        <label htmlFor="email" className={styles['label']}>Email</label>
         <input
           id="email"
           type="email"
@@ -40,9 +40,9 @@ export default function LoginPage() {
           placeholder="you@example.com"
           value={email}
           onChange={e => setEmail(e.target.value)}
-          className={styles.input}
+          className={styles['input']}
         />
-        <label htmlFor="password" className={styles.label}>Password</label>
+        <label htmlFor="password" className={styles['label']}>Password</label>
         <input
           id="password"
           type="password"
@@ -50,9 +50,9 @@ export default function LoginPage() {
           placeholder="Your password"
           value={password}
           onChange={e => setPassword(e.target.value)}
-          className={styles.input}
+          className={styles['input']}
         />
-        <button id="sign-in-btn" type="submit" disabled={loading} className={styles.button}>
+        <button id="sign-in-btn" type="submit" disabled={loading} className={styles['button']}>
           {loading ? 'Signing in…' : 'Sign In'}
         </button>
       </form>

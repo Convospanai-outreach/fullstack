@@ -31,7 +31,7 @@ export async function handleEmailSending(payload: JobPayload) {
   const mailbox = mailboxId
     ? await prisma.connectedMailbox.findUnique({ where: { id: mailboxId } })
     : await prisma.connectedMailbox.findFirst({
-        where: { teamId: teamId ?? undefined, status: "CONNECTED" }
+        where: { teamId: teamId as string, status: "CONNECTED" }
       });
 
   if (!mailbox) {

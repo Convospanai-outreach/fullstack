@@ -50,7 +50,7 @@ export async function handleSequenceStep(payload: JobPayload) {
 
   // 7. Advance enrollment
   const nextStep = await prisma.sequenceStep.findFirst({
-    where: { sequenceId: step.sequenceId, stepOrder: { >: step.stepOrder } },
+    where: { sequenceId: step.sequenceId, stepOrder: { gt: step.stepOrder } },
     orderBy: { stepOrder: 'asc' }
   });
 
