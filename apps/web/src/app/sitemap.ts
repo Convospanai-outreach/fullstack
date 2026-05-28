@@ -1,5 +1,5 @@
 export default function sitemap() {
-    const baseUrl = "https://convospan.com";
+    const baseUrl = "https://craftmyfunnel.com";
 
     return [
         {

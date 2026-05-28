@@ -5,7 +5,7 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { SupportAssistant } from "@/components/support/SupportAssistant";
 
 export const metadata = {
-  title: "ConvoSpan - AI-Managed Growth Operations Autopilot",
+  title: "CraftMyFunnel - AI-Managed Growth Operations Autopilot",
   description: "Turn buyer signals into qualified campaigns, approved follow-ups, landing funnels, and meeting-ready pipeline for B2B service companies.",
   keywords: "AI-managed growth operations, qualified meetings, buyer intent, managed outbound, B2B service companies, vertical playbooks",
   icons: {
@@ -13,13 +13,13 @@ export const metadata = {
     apple: "/favicon.svg",
   },
   openGraph: {
-    title: "ConvoSpan - Pipeline Workflow. Prepared with AI. Governed by You.",
+    title: "CraftMyFunnel - Pipeline Workflow. Prepared with AI. Governed by You.",
     description: "Buyer-signal-to-meeting workflows with managed execution and human approval controls.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ConvoSpan - Growth Autopilot for B2B Service Companies",
+    title: "CraftMyFunnel - Growth Autopilot for B2B Service Companies",
     description: "Launch managed growth operations from buyer signals to qualified meetings.",
   },
 };

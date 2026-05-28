@@ -41,7 +41,7 @@ export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSid
                     <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                         <Sparkles className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-lg font-black tracking-tight text-foreground font-outfit">ConvoSpan</span>
+                    <span className="text-lg font-black tracking-tight text-foreground font-outfit">CraftMyFunnel</span>
                 </Link>
             </div>
 

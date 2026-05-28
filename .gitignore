@@ -23,3 +23,13 @@ __pycache__/
 apps/tmp-*.log
 audit-report.json
 audit-screenshots/
+
+bench.js
+boost.js
+simulate.js
+validate.js
+handoff-bench.js
+load-test.js
+check-*.js
+debug-*.js
+fix-env.js

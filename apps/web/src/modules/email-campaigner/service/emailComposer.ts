@@ -117,7 +117,7 @@ function buildStyleGuidance(input: {
     ].filter(Boolean);
 
     if (guidance.length === 0) {
-        return "Use the default ConvoSpan voice: concise, respectful, and buyer-first.";
+        return "Use the default CraftMyFunnel voice: concise, respectful, and buyer-first.";
     }
 
     return guidance.join("\n");

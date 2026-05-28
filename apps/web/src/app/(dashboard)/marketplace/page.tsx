@@ -99,7 +99,7 @@ export default function MarketplacePage() {
 
                         <div className="p-4 border-t border-white/5 flex justify-between items-center bg-black/20">
                             <div className="text-xs text-gray-500">
-                                by {tpl.author || "ConvoSpan"}
+                                by {tpl.author || "CraftMyFunnel"}
                             </div>
                             <button
                                 onClick={() => handleInstall(tpl.id, tpl.type)}

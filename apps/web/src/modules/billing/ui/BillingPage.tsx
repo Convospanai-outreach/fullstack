@@ -76,7 +76,7 @@ export default function BillingPage() {
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan AI",
+                name: "CraftMyFunnel AI",
                 description: "Subscription Upgrade",
                 order_id: data.orderId,
                 handler: function (response: any) {
@@ -129,7 +129,7 @@ export default function BillingPage() {
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan AI",
+                name: "CraftMyFunnel AI",
                 description: "Credits Top-up",
                 order_id: data.id, // ID from backend is order_id
                 handler: function (response: any) {

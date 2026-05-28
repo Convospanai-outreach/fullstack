@@ -51,7 +51,7 @@ export default function ComplianceLog() {
                 </table>
             </div>
             <p className="text-xs text-gray-500 mt-4">
-                * ConvoSpan SafeRun™: Real data is never stored on our servers. This log is generated from your local session.
+                * CraftMyFunnel SafeRun™: Real data is never stored on our servers. This log is generated from your local session.
             </p>
         </div>
     );

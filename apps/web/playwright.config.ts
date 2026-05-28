@@ -21,6 +21,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
     testDir: './e2e',
+    globalSetup: require.resolve('./e2e/global-setup'),
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
@@ -42,6 +43,7 @@ export default defineConfig({
     use: {
         baseURL: 'http://localhost:3000',
         trace: 'on-first-retry',
+        storageState: 'e2e/.auth/user.json',
     },
 
     projects: [

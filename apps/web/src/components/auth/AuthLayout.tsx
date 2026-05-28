@@ -20,7 +20,7 @@ export default function AuthLayout({ children, heading, subheading, showLogo = t
                 {showLogo && (
                     <div className="flex justify-center mb-2">
                         <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-                            ConvoSpan
+                            CraftMyFunnel
                         </Link>
                     </div>
                 )}

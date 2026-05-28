@@ -26,7 +26,7 @@ export default function Header() {
                         <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <span className="text-2xl font-black font-outfit bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent tracking-tight">
-                        ConvoSpan
+                        CraftMyFunnel
                     </span>
                     <div className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
                         <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Pro</span>

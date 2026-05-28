@@ -2,8 +2,8 @@ import { Shield, Users, HeartHandshake, Rocket, Globe, Zap, Target, Brain } from
 import Link from "next/link";
 
 export const metadata = {
-    title: "About ConvoSpan - AI-Managed Growth Operations",
-    description: "Learn how ConvoSpan helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval."
+    title: "About CraftMyFunnel - AI-Managed Growth Operations",
+    description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval."
 };
 
 export default function AboutPage() {
@@ -23,7 +23,7 @@ export default function AboutPage() {
                         <span className="bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">Growth Autopilot</span>
                     </h1>
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
-                        ConvoSpan was born from a simple frustration: B2B service companies see buying signals every week, but too few turn into approved outreach, timely follow-ups, and qualified meetings.
+                        CraftMyFunnel was born from a simple frustration: B2B service companies see buying signals every week, but too few turn into approved outreach, timely follow-ups, and qualified meetings.
                     </p>
                 </section>
 
@@ -36,10 +36,10 @@ export default function AboutPage() {
                         </div>
                         <h2 className="text-4xl font-bold">Managed by AI. Approved by Humans.</h2>
                         <p className="text-lg text-gray-400 leading-relaxed">
-                            We believe the best sales conversations happen when service teams enter each meeting with clear context, qualified intent, and approved messaging. ConvoSpan manages signal detection, lead enrichment, campaigns, and follow-ups so humans stay focused on decisions and relationships.
+                            We believe the best sales conversations happen when service teams enter each meeting with clear context, qualified intent, and approved messaging. CraftMyFunnel manages signal detection, lead enrichment, campaigns, and follow-ups so humans stay focused on decisions and relationships.
                         </p>
                         <p className="text-lg text-gray-400 leading-relaxed">
-                            ConvoSpan does not replace salespeople. It <span className="text-white font-semibold">supports</span> them with vertical playbooks, human review controls, and meeting-ready handoffs.
+                            CraftMyFunnel does not replace salespeople. It <span className="text-white font-semibold">supports</span> them with vertical playbooks, human review controls, and meeting-ready handoffs.
                         </p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -110,9 +110,9 @@ export default function AboutPage() {
                     <div className="p-12 rounded-3xl bg-gradient-to-br from-indigo-900/20 to-purple-900/20 border border-white/5 text-center">
                         <Rocket className="w-10 h-10 text-indigo-400 mx-auto mb-6" />
                         <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                            "We started ConvoSpan because too many promising buyer signals were lost between research, outreach, follow-up, and scheduling. Today, ConvoSpan turns that gap into a managed workflow."
+                            "We started CraftMyFunnel because too many promising buyer signals were lost between research, outreach, follow-up, and scheduling. Today, CraftMyFunnel turns that gap into a managed workflow."
                         </p>
-                        <p className="mt-6 text-sm text-gray-500">— ConvoSpan Founding Team</p>
+                        <p className="mt-6 text-sm text-gray-500">— CraftMyFunnel Founding Team</p>
                     </div>
                 </section>
 

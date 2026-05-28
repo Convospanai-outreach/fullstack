@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 
 // Simple Tour steps
 const TOUR_STEPS = [
-    { target: "h1", content: "Welcome to ConvoSpan! This is your command center.", position: "bottom" },
+    { target: "h1", content: "Welcome to CraftMyFunnel! This is your command center.", position: "bottom" },
     { target: "a[href='/campaigns']", content: "Create and manage your email campaigns here.", position: "right" },
     { target: "a[href='/agents']", content: "Configure AI agents to handle specialized tasks.", position: "right" },
     { target: "a[href='/settings']", content: "Manage your API keys and team settings.", position: "right" },

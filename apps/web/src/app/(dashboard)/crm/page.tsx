@@ -62,7 +62,7 @@ export default function CRMIntegrationPage() {
                     <div>
                         <h1 className="text-3xl font-black text-white tracking-tight mb-2">CRM Bridge</h1>
                         <p className="text-text-secondary max-w-2xl">
-                            Bi-directional sync between ConvoSpan and your System of Record.
+                            Bi-directional sync between CraftMyFunnel and your System of Record.
                             Automatically push qualified leads and pull opt-outs.
                         </p>
                     </div>
@@ -138,7 +138,7 @@ export default function CRMIntegrationPage() {
                                     <div>
                                         <h4 className="text-sm font-bold text-white">Bi-Directional Opt-Outs</h4>
                                         <p className="text-[10px] text-text-secondary mt-1">
-                                            If marked DND in CRM, immediately stop campaigns in ConvoSpan
+                                            If marked DND in CRM, immediately stop campaigns in CraftMyFunnel
                                         </p>
                                     </div>
                                     <div className="h-6 w-11 bg-white/10 rounded-full relative cursor-pointer">

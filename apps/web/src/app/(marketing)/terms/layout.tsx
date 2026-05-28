@@ -1,6 +1,6 @@
 export const metadata = {
-    title: "Terms of Service | ConvoSpan",
-    description: "Terms and conditions for using the ConvoSpan platform.",
+    title: "Terms of Service | CraftMyFunnel",
+    description: "Terms and conditions for using the CraftMyFunnel platform.",
 };
 
 export default function TermsLayout({

@@ -17,7 +17,7 @@ interface SystemStatus {
 }
 
 const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
-    "ConvoSpan DB": Server,
+    "CraftMyFunnel DB": Server,
     "Raspberry Pi Node": Cpu,
     "Netjana Signals": Activity,
 };

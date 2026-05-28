@@ -9,18 +9,18 @@ export interface OfflineRequest {
     synced: boolean;
 }
 
-export class ConvoSpanDatabase extends Dexie {
+export class CraftMyFunnelDatabase extends Dexie {
     offlineRequests!: Table<OfflineRequest>;
 
     constructor() {
-        super('ConvoSpanEdgeDB');
+        super('CraftMyFunnelEdgeDB');
         this.version(1).stores({
             offlineRequests: '++id, timestamp, synced'
         });
     }
 }
 
-export const db = new ConvoSpanDatabase();
+export const db = new CraftMyFunnelDatabase();
 
 export const offlineStore = {
     async queueRequest(url: string, method: string, body: any) {

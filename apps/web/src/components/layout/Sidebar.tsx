@@ -45,7 +45,7 @@ export function Sidebar() {
                 <div className="bg-accent-blue rounded-xl p-2 shadow-glow">
                     <Zap className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-2xl font-bold text-white tracking-tight">ConvoSpan</span>
+                <span className="text-2xl font-bold text-white tracking-tight">CraftMyFunnel</span>
             </div>
 
             <nav className="flex-1 space-y-2">

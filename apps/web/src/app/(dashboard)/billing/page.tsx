@@ -53,7 +53,7 @@ export default function BillingPage() {
                 key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'],
                 amount: data.amount,
                 currency: data.currency,
-                name: 'ConvoSpan',
+                name: 'CraftMyFunnel',
                 description: 'Credit Top-up',
                 order_id: data.id,
                 handler: function (_response: any) {

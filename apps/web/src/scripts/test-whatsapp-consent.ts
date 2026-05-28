@@ -74,7 +74,7 @@ async function testWhatsAppConsent() {
     console.log("Test 5: First message with approved template...");
     const templateMessage = await TemplateGuard.validateMessage(
         lead.id,
-        "Hello, this is John from ConvoSpan. We received your inquiry and would like to schedule a call. Are you available?",
+        "Hello, this is John from CraftMyFunnel. We received your inquiry and would like to schedule a call. Are you available?",
         true // Is a template
     );
     if (templateMessage.isValid) {

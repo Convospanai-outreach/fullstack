@@ -50,7 +50,7 @@ const features = [
 
 const testimonials = [
     {
-        quote: "ConvoSpan turned our scattered buyer signals into a governed meeting workflow our team could approve with confidence.",
+        quote: "CraftMyFunnel turned our scattered buyer signals into a governed meeting workflow our team could approve with confidence.",
         author: "Priya Menon",
         role: "Head of Growth, Leapfin",
         avatar: "PM",
@@ -110,7 +110,7 @@ export default function Home() {
 
                     {/* Subheadline */}
                     <p className="mx-auto mt-8 max-w-2xl text-xl leading-8 text-slate-300">
-                        ConvoSpan helps teams manage the workflow from buyer signals to campaign follow-up, lead review, and qualified meeting tracking.</p>
+                        CraftMyFunnel helps teams manage the workflow from buyer signals to campaign follow-up, lead review, and qualified meeting tracking.</p>
 
                     {/* CTAs */}
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
@@ -164,7 +164,7 @@ export default function Home() {
                     <p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-violet-400">From Buyer Signal to Qualified Meeting</p>
                     <h2 className="text-4xl font-black text-white sm:text-5xl">One managed workflow, not another tool to operate</h2>
                     <p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">
-                        ConvoSpan supports signal detection, lead enrichment, campaign preparation, approved outreach, follow-up review, and qualified-meeting tracking.
+                        CraftMyFunnel supports signal detection, lead enrichment, campaign preparation, approved outreach, follow-up review, and qualified-meeting tracking.
                     </p>
                 </div>
 

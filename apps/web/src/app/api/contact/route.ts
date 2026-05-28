@@ -44,7 +44,7 @@ function getSmtpConfig() {
         secure: (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465,
         user,
         password,
-        fromName: process.env["SMTP_FROM_NAME"] || "ConvoSpan Contact",
+        fromName: process.env["SMTP_FROM_NAME"] || "CraftMyFunnel Contact",
         fromEmail,
     };
 }
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Contact service is not configured" }, { status: 503 });
     }
 
-    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@convospan.com";
+    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@craftmyfunnel.com";
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());

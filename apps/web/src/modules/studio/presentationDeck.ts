@@ -182,8 +182,8 @@ export async function buildStudioPresentationBuffer(config: StudioConfig, previe
     const fileName = `${slugifyPresentationName(config.deckTitle)}-${config.language.toLowerCase()}.pptx`;
 
     pptx.layout = "LAYOUT_WIDE";
-    pptx.author = "ConvoSpan";
-    pptx.company = "ConvoSpan";
+    pptx.author = "CraftMyFunnel";
+    pptx.company = "CraftMyFunnel";
     pptx.subject = `${config.market} campaign deck`;
     pptx.title = config.deckTitle;
     pptx.theme = {

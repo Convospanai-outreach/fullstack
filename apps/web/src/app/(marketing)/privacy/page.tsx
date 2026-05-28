@@ -18,6 +18,10 @@ export default function PrivacyPage() {
 
                 <h3 className="text-xl font-semibold text-white">4. Cookies</h3>
                 <p>We use cookies to understand and save your preferences for future visits and compile aggregate data about site traffic and site interaction so that we can offer better site experiences and tools in the future.</p>
+
+                <h3 className="text-xl font-semibold text-white">5. Google Workspace APIs (OAuth)</h3>
+                <p>Our application uses Google Workspace APIs (like Gmail) to enable email campaigns. Our use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" className="text-blue-400 hover:underline" target="_blank" rel="noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+                <p>We only access the email data necessary to provide our outreach tracking and automated campaign services. We do not use your Google data for targeted advertising, nor do we allow humans to read your data unless you explicitly consent or for security purposes.</p>
             </GlassCard>
         </div>
     );

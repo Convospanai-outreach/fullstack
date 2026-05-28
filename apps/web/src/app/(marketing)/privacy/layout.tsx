@@ -1,5 +1,5 @@
 export const metadata = {
-    title: "Privacy Policy | ConvoSpan",
+    title: "Privacy Policy | CraftMyFunnel",
     description: "Our commitment to data sovereignty and your privacy.",
 };
 

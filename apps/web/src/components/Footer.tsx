@@ -13,7 +13,7 @@ export default function Footer() {
                             <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-400 to-cyan-500 flex items-center justify-center">
                                 <Sparkles className="w-4 h-4 text-white" />
                             </div>
-                            <span className="text-lg font-black font-outfit text-white">ConvoSpan</span>
+                            <span className="text-lg font-black font-outfit text-white">CraftMyFunnel</span>
                         </Link>
                         <p className="text-sm text-gray-500 leading-relaxed">
                             Email-first outbound built for teams that want control, approvals, and clear launch readiness.
@@ -69,7 +69,7 @@ export default function Footer() {
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-600">Sovereign Growth Infrastructure</p>
                     </div>
                     <p className="text-xs font-medium text-slate-600">
-                        (c) {new Date().getFullYear()} <span className="text-slate-400">ConvoSpan</span>. Built for operators, not demos.
+                        (c) {new Date().getFullYear()} <span className="text-slate-400">CraftMyFunnel</span>. Built for operators, not demos.
                     </p>
                 </div>
             </div>

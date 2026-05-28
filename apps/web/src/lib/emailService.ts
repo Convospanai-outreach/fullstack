@@ -82,7 +82,7 @@ export class EmailService {
             const password = process.env["SMTP_PASSWORD"] || "local";
             const port = Number(process.env["SMTP_PORT"] || 587);
             const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
-            const fromName = process.env["SMTP_FROM_NAME"] || "ConvoSpan";
+            const fromName = process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
             const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
             const baseUrl = process.env["NEXTAUTH_URL"] || "http://localhost:3000";
             const verifyUrl = `${baseUrl}/verify-email?token=${encodeURIComponent(token)}`;

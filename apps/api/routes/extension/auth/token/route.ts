@@ -43,25 +43,26 @@ export async function POST(req: NextRequest) {
         const user = session.user;
         const teamIds = user.memberships.map((m: any) => m.teamId).filter(Boolean);
 
-        // Generate a fast opaque token specifically for the extension
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-
-
+        // Generate a short-lived opaque token with expiration claim (seconds since epoch)
+        const expiresAt = Math.floor(Date.now() / 1000) + 60; // 60 seconds validity
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const token = `${rawToken}.${expiresAt}`;
+        const expiresDate = new Date(expiresAt * 1000);
+        
         await prisma.session.create({
             data: {
                 sessionToken: token,
                 userId: user.id,
-                expires: expiresAt
-            }
+                expires: expiresDate,
+            },
         });
-
+        
         return NextResponse.json({
             ok: true,
             token,
-            expiresAt: expiresAt.toISOString(),
+            expiresAt: expiresDate.toISOString(),
             userId: user.id,
-            teamIds
+            teamIds,
         });
 
     } catch (e: any) {

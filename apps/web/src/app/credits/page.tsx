@@ -60,7 +60,7 @@ export default function CreditsPage() {
                 key: order.key,
                 amount: order.amount,
                 currency: order.currency,
-                name: "ConvoSpan",
+                name: "CraftMyFunnel",
                 description: `Top-up: ${bundle.credits.toLocaleString()} Credits`,
                 order_id: order.id,
                 handler: function (_response: any) {
