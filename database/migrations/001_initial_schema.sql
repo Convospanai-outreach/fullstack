@@ -1,5 +1,5 @@
 -- Migration: 001_initial_schema
--- Description: ConvoSpan Autonomous Engine Schema - Multi-tenant, PII Separation, Intelligence Domains
+-- Description: CraftMyFunnel Autonomous Engine Schema - Multi-tenant, PII Separation, Intelligence Domains
 -- Dialect: PostgreSQL
 
 -- ============================================================

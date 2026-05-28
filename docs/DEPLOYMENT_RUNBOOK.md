@@ -73,7 +73,7 @@ npm run docker:web
 On droplet:
 
 ```bash
-git clone https://github.com/Convospanai-outreach/fullstack.git /opt/craftmyfunnel/fullstack
+git clone https://github.com/craftmyfunnel-outreach/fullstack.git /opt/craftmyfunnel/fullstack
 cd /opt/craftmyfunnel/fullstack
 docker build -t craftmyfunnel-api:latest -f apps/api/Dockerfile apps/api
 ```

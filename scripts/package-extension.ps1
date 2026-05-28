@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $SourceDir = "$PSScriptRoot\..\apps\api\src\extension"
 $DistDir = "$PSScriptRoot\..\dist\chrome-extension"
-$ZipPath = "$PSScriptRoot\..\dist\convospan-extension.zip"
+$ZipPath = "$PSScriptRoot\..\dist\CraftMyFunnel-extension.zip"
 
 Write-Host "Cleaning dist directory..."
 if (Test-Path $DistDir) {

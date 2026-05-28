@@ -11,7 +11,7 @@ on:
 jobs:
   web-build:
     name: Web Build (apps/web)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     services:
       postgres:
@@ -19,7 +19,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: convospan_ci
+          POSTGRES_DB: craftmyfunnel_ci
         ports:
           - 5432:5432
         options: >-
@@ -60,14 +60,14 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/web
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/convospan_ci" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/convospan_ci" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
 
     - name: Setup Database Schema
       working-directory: apps/web
       run: npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma --skip-generate
       env:
-        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
-        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
 
     - name: Type Check
       working-directory: apps/web
@@ -79,8 +79,8 @@ jobs:
       env:
         NEXT_PUBLIC_API_URL: http://localhost:3001
         NEXT_PHASE: phase-production-build
-        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
-        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/convospan_ci"
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
         NEXTAUTH_SECRET: ci-secret-not-real
         NEXTAUTH_URL: http://localhost:3000
         SKIP_ENV_VALIDATION: "true"
@@ -88,7 +88,7 @@ jobs:
 
   api-typecheck:
     name: API Strict Typecheck (apps/api)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
@@ -120,7 +120,7 @@ jobs:
 
   docker-smoke:
     name: Docker Build Smoke (api required, edge-fastapi optional)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v4
@@ -129,8 +129,8 @@ jobs:
       run: node scripts/check-critical-runtime-files.mjs
 
     - name: Build API image
-      run: docker build -t convospan-api-ci -f apps/api/Dockerfile .
+      run: docker build -t craftmyfunnel-api-ci -f apps/api/Dockerfile .
 
     - name: Build Edge image (optional)
       continue-on-error: true
-      run: docker build -t convospan-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
+      run: docker build -t craftmyfunnel-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi

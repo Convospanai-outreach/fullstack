@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 
 const rootDir = process.cwd();
 const prismaCli = path.join(rootDir, "node_modules", "prisma", "build", "index.js");
-const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5433/convospan?schema=public";
+const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5433/craftmyfunnel?schema=public";
 const isWindows = process.platform === "win32";
 const withEdge = process.argv.includes("--with-edge") || process.env.START_EDGE === "true";
 
@@ -73,7 +73,7 @@ async function isApiHealthy() {
             return false;
         }
         const json = await response.json().catch(() => null);
-        return json?.service === "convospan-api";
+        return json?.service === "craftmyfunnel-api";
     } catch {
         return false;
     }
@@ -241,7 +241,7 @@ async function main() {
                 ...process.env,
                 EDGE_DATABASE_URL:
                     process.env.EDGE_DATABASE_URL ||
-                    "postgresql://postgres:postgres@host.docker.internal:5433/convospan",
+                    "postgresql://postgres:postgres@host.docker.internal:5433/craftmyfunnel",
             },
         }
     );

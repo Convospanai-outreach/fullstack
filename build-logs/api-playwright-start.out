@@ -3,7 +3,7 @@
 > node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- node ../../node_modules/tsx/dist/cli.mjs server.ts
 
 [dotenv@17.2.3] injecting env (31) from .env -- tip: ⚙️  write to custom object with { processEnv: myObject }
-[32m✔ ConvoSpan Production API launched on port 3001[0m
+[32m✔ CraftMyFunnel Production API launched on port 3001[0m
 [17:38:58.181] [32mINFO[39m (752): [36mRegistering [GET] /ab-testing/track[39m
 [17:38:58.241] [32mINFO[39m (752): [36mRegistering [POST] /ab-testing/track[39m
 [17:38:58.249] [32mINFO[39m (752): [36mRegistering [POST] /admin/actions/[action][39m

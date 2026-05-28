@@ -1,7 +1,7 @@
 #!/bin/bash
-# ConvoSpan Local Setup Script (Unix)
+# CraftMyFunnel Local Setup Script (Unix)
 
-echo "🚀 Setting up ConvoSpan for local development..."
+echo "🚀 Setting up CraftMyFunnel for local development..."
 
 if [ ! -f .env ]; then
   echo "📄 Creating .env from .env.example..."
