@@ -15,12 +15,17 @@ jobs:
   setup:
     name: Setup
     outputs:
-      branch: ${{ steps.branch_name.outputs.current_branch }}
+      branch: ${{ steps.branch_name.outputs.safe_branch }}
     runs-on: ubuntu-latest
     steps:
       - name: Get branch name
         id: branch_name
-        uses: tj-actions/branch-names@v8
+        shell: bash
+        run: |
+          branch="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          safe_branch="$(printf '%s' "$branch" | tr '/[:upper:]' '-[:lower:]' | tr -cd 'a-z0-9._-')"
+          safe_branch="${safe_branch:0:48}"
+          echo "safe_branch=${safe_branch:-preview}" >> "$GITHUB_OUTPUT"
 
   create_neon_branch:
     name: Create Neon Branch
@@ -38,7 +43,20 @@ jobs:
       - name: Get branch expiration date as an env variable (2 weeks from now)
         id: get_expiration_date
         run: echo "EXPIRES_AT=$(date -u --date '+14 days' +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_ENV"
+      - name: Check Neon configuration
+        id: neon_config
+        env:
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          if [ -n "$NEON_PROJECT_ID" ] && [ -n "$NEON_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Neon preview branch configuration is not present; skipping branch creation." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Create Neon Branch
+        if: steps.neon_config.outputs.configured == 'true'
         id: create_neon_branch
         uses: neondatabase/create-branch-action@v6
         with:
@@ -53,7 +71,20 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     steps:
+      - name: Check Neon configuration
+        id: neon_config
+        env:
+          NEON_PROJECT_ID: ${{ vars.NEON_PROJECT_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          if [ -n "$NEON_PROJECT_ID" ] && [ -n "$NEON_API_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Neon preview branch configuration is not present; skipping branch deletion." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Delete Neon Branch
+        if: steps.neon_config.outputs.configured == 'true'
         uses: neondatabase/delete-branch-action@v3
         with:
           project_id: ${{ vars.NEON_PROJECT_ID }}
