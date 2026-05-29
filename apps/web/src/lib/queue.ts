@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { Job } from "@prisma/client";
 import { TaskState, canTransition } from "@/contracts/taskState";
 import { EXECUTION_MODES, RUNTIME_TARGETS } from "@/contracts/executionModes";
+import { logger } from "@/lib/logger";
 
 function normalizeStatus(status: string): TaskState {
     switch (status) {
@@ -241,7 +242,7 @@ export class JobQueue {
 
         if (staleJobs.length === 0) return 0;
 
-        console.log(`[JobQueue] Resetting ${staleJobs.length} stale jobs to pending.`);
+        logger.info(`[JobQueue] Resetting stale jobs to pending`, { count: staleJobs.length });
 
         const result = await prisma.job.updateMany({
             where: {
