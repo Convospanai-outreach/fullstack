@@ -3,6 +3,8 @@
 **Last Updated:** February 10, 2026  
 **Status:** Post-Audit Tracking Document
 
+> **Current readiness note (2026-05-29):** This document contains historical roadmap status and an aspirational February score. For the current evidence-based production readiness assessment, use [`docs/PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md`](docs/PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md). Current assessed score: **81/100**. Main blocker: GitHub Actions hosted-runner startup failure prevents end-to-end CI evidence, while critical-path integration/E2E coverage remains incomplete.
+
 ---
 
 ## 📊 Executive Summary

@@ -57,6 +57,7 @@ This directory contains architecture notes, runbooks, implementation records, an
 | [IMPLEMENTATION_TRACKER.md](./IMPLEMENTATION_TRACKER.md) | Implementation tracker |
 | [IMPLEMENTATION_SUMMARY.md](./IMPLEMENTATION_SUMMARY.md) | Implementation summary |
 | [IMPLEMENTATION_AUDIT.md](./IMPLEMENTATION_AUDIT.md) | Implementation audit |
+| [PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md](./PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md) | Current evidence-based production readiness assessment |
 | [SCALABILITY_AUDIT.md](./SCALABILITY_AUDIT.md) | Scalability audit |
 | [SCALE_READINESS.md](./SCALE_READINESS.md) | Scale readiness |
 | [ENTERPRISE_PILOT.md](./ENTERPRISE_PILOT.md) | Enterprise pilot notes |
