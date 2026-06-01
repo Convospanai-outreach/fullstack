@@ -72,9 +72,23 @@ jobs:
       working-directory: apps/web
       run: npm run typecheck
 
+    - name: Lint
+      working-directory: apps/web
+      run: npm run lint
+
     - name: Unit Tests
       working-directory: apps/web
       run: npm run test:unit
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        NEXTAUTH_SECRET: ci-secret-not-real
+        NEXTAUTH_URL: http://localhost:3000
+        REDIS_URL: "redis://localhost:6379"
+
+    - name: Coverage Gate
+      working-directory: apps/web
+      run: npm run test:coverage
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"

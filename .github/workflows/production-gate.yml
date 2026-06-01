@@ -77,6 +77,16 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
           REDIS_URL: "redis://localhost:6379"
 
+      - name: Run Coverage Gate
+        working-directory: apps/web
+        run: npm run test:coverage
+        env:
+          DATABASE_URL: "postgresql://postgres:password@localhost:5432/craftmyfunnel"
+          DIRECT_URL: "postgresql://postgres:password@localhost:5432/craftmyfunnel"
+          NEXTAUTH_SECRET: ci-secret
+          NEXTAUTH_URL: http://localhost:3000
+          REDIS_URL: "redis://localhost:6379"
+
       - name: Seed Readiness Data
         working-directory: apps/web
         run: npm run readiness:seed

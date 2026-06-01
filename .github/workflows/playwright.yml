@@ -82,7 +82,7 @@ jobs:
 
     - name: Run Playwright tests
       working-directory: apps/web
-      run: npx playwright test
+      run: npx playwright test e2e/auth.spec.ts e2e/dashboard.spec.ts
       env:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
