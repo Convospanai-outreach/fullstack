@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle, ChevronDown, ClipboardCheck, Mail, MessageCircle, Network, PhoneCall, ShieldCheck, Sparkles, TrendingUp, Users } from "lucide-react";
+import { ArrowRight, CheckCircle, ChevronDown, ClipboardCheck, Network, PhoneCall, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navGroups = [
   { label: "Solutions", href: "#workflow", items: ["Buyer Signal Intelligence", "Multi-Channel Outreach", "Human Approval Workflow", "Human Calling Layer", "Meeting Qualification"] },
   { label: "Platform", href: "#platform", items: ["Command Center", "NetJana Intelligence", "Outreach Engine", "Workflow Automation", "Governance Controls"] },
   { label: "Industries", href: "#industries", items: ["Facility Management", "Security Services", "Staffing", "L&D Companies", "Consulting Firms", "Managed Services"] },
-  { label: "Resources", href: "#pilot", items: ["GTM Playbooks", "Revenue Guides", "FAQs", "Pilot Program"] },
+  { label: "Pilot", href: "#pilot", items: ["GTM Playbooks", "Revenue Guides", "FAQs", "Pilot Program"] },
 ];
 
 const trustBadges = ["Human Approved", "Governed Outreach", "Multi Channel", "Enterprise Ready"];
@@ -43,6 +43,7 @@ function Header() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 md:flex lg:hidden">{navGroups.slice(0, 3).map((group) => <a key={group.label} href={group.href} className="text-xs font-semibold text-slate-300 hover:text-white">{group.label}</a>)}</div>
           <Link href="/login" className="hidden text-sm font-semibold text-slate-300 hover:text-white sm:block">Login</Link>
           <Link href="/signup"><Button className="rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-5 text-white shadow-lg shadow-violet-900/25">Book Demo</Button></Link>
         </div>
@@ -57,7 +58,7 @@ function ProductDashboardPreview() {
     <div className="relative">
       <div className="absolute -inset-4 rounded-[36px] border border-white/8 bg-white/[0.025] backdrop-blur-xl" />
       <GlassCard className="relative overflow-hidden p-5">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
           <div><p className="text-[10px] font-bold uppercase tracking-[0.24em] text-cyan-300">Command Center</p><h2 className="mt-1 text-xl font-black text-white">Revenue workflow cockpit</h2></div>
           <span className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-3 py-1.5 text-xs font-bold text-emerald-200">Human approval active</span>
         </div>
@@ -65,7 +66,7 @@ function ProductDashboardPreview() {
           <GlassCard className="p-4"><p className="text-sm text-slate-400">Signal Queue</p><div className="mt-1 flex items-end justify-between"><p className="text-4xl font-black text-white">15</p><p className="text-sm font-semibold text-cyan-200">New Buyer Signals</p></div><div className="mt-5 space-y-3">{signals.map(([label, value]) => <div key={label} className="flex items-center justify-between rounded-xl bg-white/[0.045] px-3 py-2.5"><span className="text-xs text-slate-300">{label}</span><span className="font-black text-white">{value}</span></div>)}</div></GlassCard>
           <div className="space-y-4"><GlassCard className="p-4"><p className="text-sm text-slate-400">Review Queue</p><p className="mt-2 text-3xl font-black text-white">7</p><p className="text-xs text-amber-200">Pending Approvals</p></GlassCard><GlassCard className="p-4"><p className="text-sm text-slate-400">Meetings</p><p className="mt-2 text-3xl font-black text-white">12</p><p className="text-xs text-emerald-200">Qualified Meetings</p><p className="mt-3 rounded-xl bg-white/[0.05] px-3 py-2 text-xs text-slate-300">Pipeline Value <span className="float-right font-black text-white">₹48L</span></p></GlassCard></div>
         </div>
-        <GlassCard className="mt-4 p-4"><div className="mb-3 flex items-center justify-between"><p className="text-sm text-slate-400">Outreach Activity</p><span className="text-xs text-violet-200">Caller Assigned</span></div><div className="grid grid-cols-4 gap-2">{["Email", "LinkedIn", "WhatsApp", "Caller"].map((item) => <div key={item} className="rounded-xl border border-white/8 bg-[#07131f]/70 px-3 py-3 text-center text-xs font-bold text-slate-200">{item}</div>)}</div></GlassCard>
+        <GlassCard className="mt-4 p-4"><div className="mb-3 flex items-center justify-between"><p className="text-sm text-slate-400">Outreach Activity</p><span className="text-xs text-violet-200">Caller Assigned</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{["Email", "LinkedIn", "WhatsApp", "Caller"].map((item) => <div key={item} className="rounded-xl border border-white/8 bg-[#07131f]/70 px-3 py-3 text-center text-xs font-bold text-slate-200">{item}</div>)}</div></GlassCard>
       </GlassCard>
     </div>
   );
