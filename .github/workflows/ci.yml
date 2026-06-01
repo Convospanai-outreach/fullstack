@@ -55,7 +55,6 @@ jobs:
 
     - name: Security Audit
       working-directory: apps/web
-      continue-on-error: true
       run: npm audit --audit-level=critical --omit=dev
 
     - name: Generate Prisma Client
@@ -64,7 +63,7 @@ jobs:
 
     - name: Setup Database Schema
       working-directory: apps/web
-      run: npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma --skip-generate
+      run: npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
@@ -72,6 +71,16 @@ jobs:
     - name: Type Check
       working-directory: apps/web
       run: npm run typecheck
+
+    - name: Unit Tests
+      working-directory: apps/web
+      run: npm run test:unit
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+        NEXTAUTH_SECRET: ci-secret-not-real
+        NEXTAUTH_URL: http://localhost:3000
+        REDIS_URL: "redis://localhost:6379"
 
     - name: Build
       working-directory: apps/web
@@ -89,6 +98,30 @@ jobs:
   api-typecheck:
     name: API Strict Typecheck (apps/api)
     runs-on: ubuntu-22.04
+
+    services:
+      postgres:
+        image: ankane/pgvector:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: craftmyfunnel_api_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
@@ -108,7 +141,14 @@ jobs:
 
     - name: Generate Prisma Client
       working-directory: apps/api
-      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dummy" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/dummy" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+      run: DATABASE_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci" DIRECT_URL="postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci" npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+
+    - name: Setup API Database Schema
+      working-directory: apps/api
+      run: npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
 
     - name: Type Check
       working-directory: apps/api
@@ -117,6 +157,14 @@ jobs:
     - name: Build
       working-directory: apps/api
       run: npm run build
+
+    - name: API Tests
+      working-directory: apps/api
+      run: npm run test
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
+        REDIS_URL: "redis://localhost:6379"
 
   docker-smoke:
     name: Docker Build Smoke (api required, edge-fastapi optional)

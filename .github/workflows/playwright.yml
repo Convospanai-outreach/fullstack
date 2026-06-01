@@ -48,11 +48,11 @@ jobs:
     - name: Install dependencies
       run: npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
     
-    - name: Generate Prisma Client & Push Schema
+    - name: Generate Prisma Client & Apply Migrations
       working-directory: apps/web
       run: |
         npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
-        npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma
+        npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
       env:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
@@ -71,6 +71,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         NEXTAUTH_SECRET: ci-playwright-secret
+        METRICS_TOKEN: ci-metrics-token
         NEXTAUTH_URL: http://localhost:3000
         NEXT_PUBLIC_API_URL: http://localhost:3001
         REDIS_URL: redis://localhost:6379
@@ -87,6 +88,7 @@ jobs:
         DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         NEXTAUTH_SECRET: ci-playwright-secret
         NEXTAUTH_URL: http://localhost:3000
+        METRICS_TOKEN: ci-metrics-token
         TEST_USER_EMAIL: audit_user@example.com
         TEST_USER_PASSWORD: AuditPassword123!
         REDIS_URL: redis://localhost:6379
