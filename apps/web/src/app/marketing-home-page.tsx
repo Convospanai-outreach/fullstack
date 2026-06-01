@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CheckCircle, ChevronDown, ClipboardCheck, Cpu, Database, HardDrive, Mail, Network, PhoneCall, ShieldCheck, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, CheckCircle, ChevronDown, ClipboardCheck, Cpu, Database, HardDrive, Network, PhoneCall, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const navGroups = [
@@ -63,7 +63,7 @@ function Header() {
 }
 
 function OutreachWidget({ className = "" }: { className?: string }) {
-  return <div className={`rounded-2xl border border-blue-200 bg-white p-4 shadow-2xl shadow-blue-900/10 ${className}`}><div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /><span className="text-xs font-black uppercase tracking-widest text-blue-600">Welcome to invite</span></div><p className="text-xs text-slate-600">Approve and send this outreach sequence to matched buyers.</p><div className="mt-3 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-bold text-white">Continue</div></div>;
+  return <div className={`rounded-2xl border border-blue-200 bg-white p-4 shadow-2xl shadow-blue-900/10 ${className}`}><div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-500" /><span className="text-xs font-black uppercase tracking-widest text-blue-600">Approval ready</span></div><p className="text-xs text-slate-600">Review and approve this sequence before it goes live.</p><div className="mt-3 rounded-xl bg-blue-600 px-3 py-2 text-center text-xs font-bold text-white">Approve</div></div>;
 }
 
 function ProductDashboardPreview() {
@@ -71,13 +71,13 @@ function ProductDashboardPreview() {
   return (
     <div className="relative mx-auto max-w-3xl">
       <div className="absolute -inset-8 rounded-[44px] bg-blue-500/15 blur-3xl" />
-      <OutreachWidget className="absolute -left-10 top-4 hidden w-56 rotate-[-3deg] lg:block" />
-      <OutreachWidget className="absolute -right-8 bottom-14 hidden w-56 rotate-[3deg] lg:block" />
+      <OutreachWidget className="absolute -right-3 -top-10 hidden w-52 rotate-[2deg] xl:block" />
+      <OutreachWidget className="absolute -right-6 bottom-8 hidden w-52 rotate-[-2deg] xl:block" />
       <SoftCard className="relative overflow-hidden p-4">
         <div className="rounded-[22px] bg-gradient-to-br from-blue-600 to-blue-500 p-5 text-white">
-          <div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">Live outreach workspace</p><span className="rounded-full bg-white/18 px-3 py-1 text-xs font-bold">Human approval on</span></div>
+          <div className="flex items-center justify-between"><p className="text-xs font-black uppercase tracking-[0.22em] text-blue-100">Live outreach workspace</p><span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold">Human approval on</span></div>
           <div className="mt-5 grid gap-4 lg:grid-cols-[0.65fr_1.35fr]">
-            <div className="rounded-2xl bg-white/12 p-4 backdrop-blur"><p className="text-sm text-blue-100">Today</p><p className="mt-2 text-4xl font-black">42</p><p className="text-sm text-blue-100">review-ready leads</p><div className="mt-5 space-y-2 text-xs">{["Email sequence", "LinkedIn step", "Caller assigned"].map((item) => <div key={item} className="rounded-xl bg-white/12 px-3 py-2">{item}</div>)}</div></div>
+            <div className="rounded-2xl bg-white/15 p-4 backdrop-blur"><p className="text-sm text-blue-100">Today</p><p className="mt-2 text-4xl font-black">42</p><p className="text-sm text-blue-100">review-ready leads</p><div className="mt-5 space-y-2 text-xs">{["Email sequence", "LinkedIn step", "Caller assigned"].map((item) => <div key={item} className="rounded-xl bg-white/15 px-3 py-2">{item}</div>)}</div></div>
             <div className="rounded-2xl bg-white p-4 text-slate-900 shadow-xl"><div className="mb-3 flex items-center justify-between"><p className="font-black">Buyer signal table</p><span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">4 high intent</span></div><div className="space-y-2">{rows.map(([company, signal, score, status]) => <div key={company} className="grid grid-cols-[1.2fr_0.8fr_0.4fr_0.7fr] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3 text-xs"><span className="font-bold text-slate-900">{company}</span><span className="text-slate-500">{signal}</span><span className="font-black text-blue-700">{score}</span><span className="rounded-full bg-white px-2 py-1 text-center font-bold text-slate-600">{status}</span></div>)}</div></div>
           </div>
         </div>
@@ -91,7 +91,7 @@ export default function Home() {
     <div className="min-h-screen bg-white text-slate-950">
       <Header />
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_50%_0%,rgba(37,99,235,0.16),transparent_36%),linear-gradient(180deg,#ffffff_0%,#f7fbff_100%)] pt-20">
-        <div className="absolute left-0 top-28 hidden flex-col gap-4 lg:flex">{Array.from({ length: 5 }).map((_, i) => <OutreachWidget key={i} className="w-52 -translate-x-8" />)}</div>
+        <div className="pointer-events-none absolute right-0 top-24 hidden w-36 flex-col gap-4 opacity-70 xl:flex">{Array.from({ length: 3 }).map((_, i) => <OutreachWidget key={i} className="w-52 translate-x-24" />)}</div>
         <div className="relative mx-auto grid max-w-7xl gap-14 px-6 pb-24 pt-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
           <div className="text-center lg:text-left">
             <div className="mb-6 inline-flex items-center rounded-full border border-blue-100 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700"><Sparkles className="mr-2 h-4 w-4" />AI-approved funnel workflows for B2B service teams</div>
