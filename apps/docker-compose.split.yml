@@ -87,7 +87,9 @@ services:
   # API — Fastify + Prisma
   # ─────────────────────────────────────────────
   api:
-    build: ./api
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
     image: craftmyfunnel-api:split
     container_name: craftmyfunnel-api-split
     restart: unless-stopped
@@ -122,7 +124,11 @@ services:
   # Web — Next.js Frontend
   # ─────────────────────────────────────────────
   web:
-    build: ./web
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/proxy}
     image: craftmyfunnel-web:split
     container_name: craftmyfunnel-web-split
     restart: unless-stopped
@@ -130,10 +136,12 @@ services:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/craftmyfunnel
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:3001}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3000/api/proxy}
+      API_INTERNAL_ORIGIN: http://api:3001
       EDGE_NODE_URI: http://edge-fastapi:8000
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?ENCRYPTION_KEY is required}
     ports:
       - "3000:3000"
     depends_on:

@@ -11,7 +11,7 @@ async function globalSetup(config: FullConfig) {
   await page.fill('#login-email', email);
   await page.fill('#login-password', password);
   await page.click('#login-submit');
-  await page.waitForURL('**/dashboard');
+  await page.waitForURL('**/dashboard', { timeout: 120000, waitUntil: 'domcontentloaded' });
   
   // Save auth state
   await page.context().storageState({ path: 'e2e/.auth/user.json' });

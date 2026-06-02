@@ -12,6 +12,7 @@ import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import GoogleProvider from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
+import type { JWT } from "next-auth/jwt";
 
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
@@ -29,6 +30,19 @@ if (googleClientId && googleClientSecret) {
             clientSecret: googleClientSecret,
         })
     );
+}
+
+const DEFAULT_PLAN = "free";
+const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
+const DEFAULT_PRODUCT_SURFACE = "outreach";
+const DEFAULT_ENTERPRISE_ROLE = "SALES_USER";
+const CLAIMS_REFRESH_MS = 5 * 60 * 1000;
+
+function applyDefaultClaims(token: JWT) {
+    token.plan = DEFAULT_PLAN;
+    token.productMode = DEFAULT_PRODUCT_MODE;
+    token.productSurface = DEFAULT_PRODUCT_SURFACE;
+    token.enterpriseRole = DEFAULT_ENTERPRISE_ROLE;
 }
 
 export const authOptions: NextAuthOptions = {
@@ -92,22 +106,32 @@ export const authOptions: NextAuthOptions = {
         jwt: async ({ token, user }) => {
             if (user) {
                 token.id = user.id;
+                token.claimsRefreshedAt = 0;
             }
 
-            // Fetch Plan with Redis caching
             if (token.id) {
+                const claimsAreFresh =
+                    typeof token.claimsRefreshedAt === "number" &&
+                    Date.now() - token.claimsRefreshedAt < CLAIMS_REFRESH_MS &&
+                    typeof token.plan === "string" &&
+                    typeof token.productMode === "string" &&
+                    typeof token.productSurface === "string" &&
+                    typeof token.enterpriseRole === "string";
+
+                if (claimsAreFresh) {
+                    return token;
+                }
+
                 try {
                     const { safeGet, safeSet } = await import("@/lib/redis");
                     const cacheKey = `user:plan:${token.id}`;
 
-                    // Try cache first; safeGet returns string | null
                     const cached = await safeGet(cacheKey);
                     let planName: string;
 
                     if (cached) {
                         planName = cached;
                     } else {
-                        // Cache miss - query DB
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
                             include: {
@@ -125,7 +149,6 @@ export const authOptions: NextAuthOptions = {
 
                     token.plan = planName;
 
-                    // Fetch Product Mode and Enterprise Role
                     const membership = await prisma.teamMember.findFirst({
                         where: { userId: token.id as string },
                         include: {
@@ -135,24 +158,24 @@ export const authOptions: NextAuthOptions = {
                         }
                     });
 
-                    // Fetch User's enterprise role directly
                     const fullUser = await prisma.user.findUnique({
                         where: { id: token.id as string },
                         select: { enterpriseRole: true }
                     });
 
                     // Default to ENTERPRISE_CORE if no policy set
-                    token.productMode = membership?.team?.organizationPolicy?.productMode || "ENTERPRISE_CORE";
-                    token.productSurface = membership?.team?.organizationPolicy?.productSurface || "outreach";
-                    token.enterpriseRole = fullUser?.enterpriseRole || "SALES_USER";
+                    token.productMode = membership?.team?.organizationPolicy?.productMode || DEFAULT_PRODUCT_MODE;
+                    token.productSurface = membership?.team?.organizationPolicy?.productSurface || DEFAULT_PRODUCT_SURFACE;
+                    token.enterpriseRole = fullUser?.enterpriseRole || DEFAULT_ENTERPRISE_ROLE;
+                    token.claimsRefreshedAt = Date.now();
 
                 } catch (error) {
                     console.error("Error fetching user plan/mode for JWT:", error);
-                    token.plan = "free";
-                    token.productMode = "ENTERPRISE_CORE";
-                    token.productSurface = "outreach";
-                    token.enterpriseRole = "SALES_USER";
+                    applyDefaultClaims(token as JWT);
+                    token.claimsRefreshedAt = Date.now();
                 }
+            } else {
+                applyDefaultClaims(token as JWT);
             }
             return token;
         },

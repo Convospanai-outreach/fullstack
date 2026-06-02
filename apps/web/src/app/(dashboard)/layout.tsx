@@ -21,16 +21,25 @@ export default function DashboardLayout({
     const [setupPercent, setSetupPercent] = useState(0);
 
     useEffect(() => {
-        // Only check setup status once on dashboard load
+        let cancelled = false;
+
         fetch(getBrowserApiUrl("/setup/status"))
             .then(res => res.ok ? res.json() : null)
             .then(data => {
-                if (data && (!data.readyToLaunch || data.completionPercent < 100)) {
+                if (!cancelled && data && (!data.readyToLaunch || data.completionPercent < 100)) {
                     setShowSetupBanner(true);
                     setSetupPercent(data.completionPercent || 0);
                 }
             })
-            .catch(console.error);
+            .catch(() => {
+                if (!cancelled) {
+                    setShowSetupBanner(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     return (

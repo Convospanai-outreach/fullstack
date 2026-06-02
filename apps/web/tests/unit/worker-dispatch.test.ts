@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { dispatch } from "../../src/workers/index";
 
-const failMock = vi.fn();
-const completeMock = vi.fn();
+const { failMock, completeMock } = vi.hoisted(() => ({
+  failMock: vi.fn(),
+  completeMock: vi.fn(),
+}));
 
 vi.mock("@/lib/queue", () => ({
   JobQueue: {
@@ -44,8 +47,6 @@ describe("Worker dispatch", () => {
   });
 
   it("dead-letters acknowledged job types without throwing", async () => {
-    const { dispatch } = await import("../../src/workers/index");
-
     await expect(dispatch(job("workflow_step"))).resolves.toBeUndefined();
 
     expect(failMock).toHaveBeenCalledWith(
@@ -55,8 +56,6 @@ describe("Worker dispatch", () => {
   });
 
   it("dead-letters completely unknown job types without crashing the worker", async () => {
-    const { dispatch } = await import("../../src/workers/index");
-
     await expect(dispatch(job("unknown_type"))).resolves.toBeUndefined();
 
     expect(failMock).toHaveBeenCalledWith(
@@ -66,7 +65,6 @@ describe("Worker dispatch", () => {
   });
 
   it("dispatches implemented job handlers without dead-lettering", async () => {
-    const { dispatch } = await import("../../src/workers/index");
     const { handleEmailSending } = await import("@/workers/handlers/email-sending-worker");
 
     await dispatch(job("email_sending"));

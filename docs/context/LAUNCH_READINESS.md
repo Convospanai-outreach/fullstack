@@ -2,27 +2,33 @@
 
 ## Current Launch Recommendation
 
-The platform is suitable for controlled beta and operator-led rollout. It is **not yet ready for broad public production traffic**.
+The platform is now locally suitable for launch validation. It is **very close to broad public production readiness**, but the final claim still depends on remote GitHub Actions proof and reproducible Docker image confirmation.
 
 ## Verified In This Reassessment
 
 - `npm run readiness:audit --workspace apps/api` -> **pass**
 - API readiness score -> **100/100**
+- `npm run lint --workspace apps/web` -> **pass**
+- `npm run typecheck --workspace apps/web` -> **pass**
+- `npm run test:coverage --workspace apps/web` -> **pass**
+- `CI=true npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts` -> **pass**
+- production-style web build -> **pass**
 
 ## Current Blockers
 
-1. Web coverage lane is not stable in the current tree.
-   - `tests/unit/health-route.test.ts`
-   - `tests/unit/metrics-route.test.ts`
-   - `tests/unit/worker-dispatch.test.ts`
-   - observed failure mode: timeout during reassessment
-
-2. GitHub Actions need a fresh confirmed green run after recent local changes.
+1. GitHub Actions need a fresh confirmed green run after recent local changes.
    - CI
    - Playwright
    - docker/registry build
 
-3. Dependency security debt still needs remediation or formal acceptance.
+2. Docker image proof on this Windows host is still noisy and slow.
+   - Dockerfiles were hardened
+   - local Docker Desktop behavior is still not clean enough to count as final artifact proof
+
+3. Residual moderate dependency advisories still need formal acceptance.
+   - no high
+   - no critical
+   - remaining items are upstream `next`, `next-auth`, and `prisma` chains
 
 4. Edge runtime remains optional and should not be part of the required launch gate.
 
@@ -30,9 +36,10 @@ The platform is suitable for controlled beta and operator-led rollout. It is **n
 
 1. `npm run readiness:audit --workspace apps/api`
 2. `npm run lint --workspace apps/web`
-3. `npm run test:coverage --workspace apps/web`
-4. `npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts`
-5. confirm GitHub Actions are green on `main`
+3. `npm run typecheck --workspace apps/web`
+4. `npm run test:coverage --workspace apps/web`
+5. `CI=true npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts`
+6. confirm GitHub Actions are green on `main`
 
 ## Deploy Order
 

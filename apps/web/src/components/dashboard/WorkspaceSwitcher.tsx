@@ -18,15 +18,28 @@ export function WorkspaceSwitcher() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchTeams();
+        let cancelled = false;
+
+        fetchTeams(cancelled).finally(() => {
+            if (!cancelled) {
+                setLoading(false);
+            }
+        });
+
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
-    const fetchTeams = async () => {
+    const fetchTeams = async (cancelled = false) => {
         try {
             const res = await fetch(getBrowserApiUrl("/user/teams"));
+            if (!res.ok) {
+                return;
+            }
             const data = await res.json();
 
-            if (data.teams) {
+            if (!cancelled && data.teams) {
                 setTeams(data.teams);
 
                 // Get active from cookie or default
@@ -38,10 +51,11 @@ export function WorkspaceSwitcher() {
                 const active = data.teams.find((t: any) => t.id === cookieValue) || data.teams[0];
                 setActiveTeam(active);
             }
-        } catch (e) {
-            console.error("Failed to fetch teams", e);
-        } finally {
-            setLoading(false);
+        } catch {
+            if (!cancelled) {
+                setTeams([]);
+                setActiveTeam(null);
+            }
         }
     };
 

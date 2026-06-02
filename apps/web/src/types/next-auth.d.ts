@@ -24,5 +24,6 @@ declare module "next-auth/jwt" {
         productMode: string
         productSurface: string
         enterpriseRole: string
+        claimsRefreshedAt?: number
     }
 }

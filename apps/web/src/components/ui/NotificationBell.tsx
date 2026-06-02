@@ -12,15 +12,29 @@ export function NotificationBell() {
     const [count, setCount] = useState(0);
 
     useEffect(() => {
+        let cancelled = false;
+
         if (status === "authenticated") {
             fetch(getBrowserApiUrl("/notifications"))
                 .then(res => {
                     if (res.ok) return res.json();
                     return [];
                 })
-                .then(data => setCount(Array.isArray(data) ? data.length : 0))
-                .catch(err => console.error(err));
+                .then(data => {
+                    if (!cancelled) {
+                        setCount(Array.isArray(data) ? data.length : 0);
+                    }
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        setCount(0);
+                    }
+                });
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [status]);
 
     if (status !== "authenticated") {
