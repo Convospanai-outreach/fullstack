@@ -1,264 +1,167 @@
-# CraftMyFunnel Master System Architecture (Current)
+# CraftMyFunnel Master System Architecture
 
-## Scope
+## Purpose
 
-This document describes the current architecture used for the startup launch path:
+This is the repo-level source of truth for the system that actually exists today. It replaces older descriptions that referred to a separate "managed runtime" control-plane topology that is no longer the primary shape of this repository.
 
-- email-first private beta
-- Netjana buyer-signal ingest, signal-aware campaign preparation, and human-approved follow-up review
-- monorepo with independently deployable apps
-- edge runtime optional and private
-- public positioning is constrained to workflow preparation, review, and tracking unless a stronger capability is implemented and verified
+## Deployable Services
 
----
+CraftMyFunnel is a monorepo with **three deployable apps**:
 
-## Deployable Apps
+1. `apps/web` - public Next.js application
+2. `apps/api` - public Fastify API and worker runtime
+3. `apps/edge-fastapi` - optional private FastAPI edge runtime
 
-CraftMyFunnel has 3 deployable apps under `apps/`:
+Shared code lives in `packages/*`, currently including `packages/toon-core`.
 
-1. `apps/web` (Next.js): public web app
-2. `apps/api` (Fastify): public backend API
-3. `apps/edge-fastapi` (FastAPI): optional private edge execution service
-
-Single git repo does not mean single deployment unit. It means shared code ownership with split deployment pipelines.
-
----
-
-## Runtime Topology
-
-Full GitHub-renderable Mermaid diagrams are maintained in [`docs/architecture-diagram.md`](docs/architecture-diagram.md), including layered, request-lifecycle, control-plane, data-plane, Netjana buyer-signal, email/LinkedIn channel, and Landing Agent funnel diagrams.
+## Production Topology
 
 ```mermaid
 flowchart LR
-    U[User Browser] --> W[apps/web]
-    V[Landing Visitor] --> W
-    N[Netjana Buyer Signals] --> A[apps/api]
-    W --> A[apps/api]
-    A --> P[(Postgres)]
-    A --> R[(Redis)]
-    A --> J[(Jobs + Signals)]
-    A --> C[Review-First Email and LinkedIn Workers]
-    C --> X[SMTP + LinkedIn]
-    A --> E[apps/edge-fastapi private optional]
+    Browser[Authenticated browser] --> Web[apps/web]
+    Visitor[Public landing visitor] --> Web
+    Web --> API[apps/api]
+    Signals[Netjana and webhooks] --> API
+    API --> DB[(Postgres)]
+    API -. optional .-> Cache[(Redis)]
+    API --> Jobs[Workers and async handlers]
+    API --> Providers[LLM, SMTP, CRM, billing providers]
+    API -. optional private .-> Edge[apps/edge-fastapi]
 ```
 
-### Public services
+### Public surfaces
 
-- `web`
-- `api`
+- `apps/web`
+- `apps/api`
 
-### Private/internal services
+### Private or internal surfaces
 
-- `postgres`
-- `redis`
-- `edge-fastapi` (recommended private by default)
+- Postgres
+- Redis
+- `apps/edge-fastapi`
+- provider secrets and signing keys
 
----
-
-## Layered Architecture
-
-CraftMyFunnel is organized around explicit runtime, domain, data, and control boundaries. The goal is to keep public web delivery, API ownership, persistence, and optional edge execution separate while preserving fast cross-app development in one repo.
-
-| Layer | Name | Primary owner | Notes |
-| --- | --- | --- | --- |
-| 0 | Actors and Channels | Product surfaces | Browser users, anonymous landing visitors, email/LinkedIn prospects, operators, extension users, webhook senders |
-| 1 | Delivery and Routing | `apps/web` + `apps/api` | Next middleware, public allowlist, feature gates, API proxy, direct API ingress, CORS, rate limits |
-| 2 | Web Experience | `apps/web` | Marketing pages, dashboard, setup wizard, campaign UI, Intel dashboard, Landing Agent UI, public pages |
-| 3 | API Runtime Boundary | `apps/api` | Fastify server, route loader, Next-style route adapter, request/response bridge |
-| 4 | Application Services | `apps/api/routes` | Route handlers grouped by campaign, setup, billing, analytics, landing-agent, intel/webhooks, extension, admin |
-| 5 | Domain Modules | `apps/api/src/modules` | Campaigns, leads, landing-agent, intel/signals, knowledge, workflows, inbox, governance, settings |
-| 6 | AI and Automation | `apps/api/src/modules`, workers | Prompt builders, Netjana normalize/score/match, signal-aware email composer, model gateway, guardrails, channel workers, event store |
-| 7 | Data Access and Persistence | Prisma + infra | Postgres primary state, ShadowSignal/ScrapingJob/Job rows, Redis optional cache/queue, knowledge assets, audit/system events |
-| 8 | External Integrations | Provider adapters | Netjana/CraftMyFunnel Intel, LLMs, SMTP, LinkedIn/browser actions, payments, CRM/enrichment |
-| 9 | Optional Private Edge | `apps/edge-fastapi` | Private edge execution, browser or hardware-backed tasks |
-
-### Cross-Cutting Controls
-
-- Auth/session context flows through web middleware and API request-aware auth helpers.
-- Team RBAC and workspace selection are enforced before domain-service mutation.
-- Public landing endpoints are allowlisted but still rate limited and input validated.
-- Netjana webhook ingest validates `x-source`, API key scope, payload shape, and optional HMAC before any signal becomes trusted context.
-- Governance approval, audit logging, and guardrails sit across publish/send/automation workflows.
-- Redis-backed behavior must degrade gracefully unless a workflow explicitly provisions Redis.
-- AI generation enforces centralized prompt policy by surface (`CHAT`, `HELPER`, `EMAIL`, `LANDING`, `GENERIC`) before model execution.
-- AI generation enforces atomic team-credit reservation and usage settlement in the runtime generation path.
-- Embedding requests now use the same guarded billing and usage logging path as text generation.
-- Helper/chat/email/landing request payloads now have explicit size budgets to reduce abuse and prompt stuffing.
-- Legacy extension queue endpoints are authenticated, team-scoped, and claim-aware to prevent duplicate ambiguous fetch/result mutation.
-- Sensitive config and governance routes now require elevated team roles, and setup status redacts provider secrets before returning team config.
-- Landing HTML is sanitized before public render to reduce stored-XSS exposure on published pages.
-- Agentic RAG retrieval is campaign-scoped; the known `teamId`-as-`campaignId` mismatch is fixed.
-- Public copy and generated content must avoid unsupported claims about guaranteed meetings, qualified pipeline outcomes, fully autonomous execution, conversion attribution, or outcome-based billing. Safer language is preparation, support, tracking, review, and human approval.
-
----
-
-## AI Guardrail and Credit Path
-
-The active guardrail and billing contract for AI generation is documented in:
-
-- [`docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md`](docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as User or Client
-    participant Route as API Route
-    participant Guard as aiInputGuardrails
-    participant AI as aiService
-    participant Credits as reserve/settle credits
-    participant Model as LLM Provider
-    participant Usage as LLMUsageLog
-
-    User->>Route: Request AI-assisted draft, review, or tracking support
-    Route->>AI: Forward validated request with team context
-    AI->>Guard: Enforce prompt policy and size budgets
-    Guard-->>AI: allow or reject
-    AI->>Credits: reserve estimated credits
-    Credits-->>AI: allow or insufficient
-    AI->>Model: Generate response
-    Model-->>AI: text + token usage
-    AI->>Usage: persist tokens and cost
-    AI->>Credits: settle usage or refund difference
-    AI-->>Route: bounded review-ready output
-    Route-->>User: success or 400/401/402
-```
-
----
-
-## Buyer Signal And Channel Flow
-
-Netjana is connected through the Intel service path:
-
-1. Netjana posts buyer-intent cards to `POST /webhooks/netjana-intel`.
-2. `apps/api/routes/webhooks/netjana-intel/route.ts` validates source, API key, payload, and optional `x-netjana-signature`.
-3. `apps/api/src/modules/intel/service/netjanaIntelService.ts` normalizes the signal, computes strength, matches company/campaign/lead context, and writes `ScrapingJob`, `ShadowSignal`, lead `marketContext`, and lead `enrichedData.netjana`.
-4. Trusted signals are written into the `Netjana Intelligence` knowledge base so RAG and email composition can use grounded buyer context.
-5. Hot, verified, matched signals enqueue `INTEL_FOLLOWUP_REFRESH`.
-6. `apps/api/workers/handlers/intel-followup-worker.ts` generates a signal-aware email draft with `composeNodeA`, writes activity, and opens approval for review where configured.
-7. Sequence actions can continue across LinkedIn and email through review-first controls: LinkedIn visit/connect/message steps use `runLinkedInAction`, and email steps can use Netjana context from `lead.enrichedData.netjana` before sending through SMTP.
-
-The Landing Agent is connected to campaigns and captures public lead/event data through `LandingLead` and `LandingEvent`. Its direct `BuyerIntelAdapter` currently exists as a configurable adapter stub, so direct Netjana-to-landing-copy injection is not enabled by default; the active connection is Netjana -> Intel -> Lead/Campaign/Knowledge -> campaign preparation, follow-up review, and reporting.
-
----
-
-## Responsibilities By App
+## Architectural Boundaries
 
 ### `apps/web`
 
-- onboarding, dashboard, marketing, pricing, setup UI
-- authenticated user flows
-- Netjana Intel dashboard at `/intel`
-- public landing pages at `/p/[slug]`
-- calls API for business operations
-- beta feature gating at route/UI level
+Owns:
+
+- marketing pages
+- authenticated dashboard and setup flows
+- public landing-page render path
+- lightweight route handlers that are appropriate to run in the web app
+- API proxy and browser-facing auth/session behavior
+
+Should not become the home of core business mutations that belong in the API service.
 
 ### `apps/api`
 
-- campaign, lead, approval, billing, analytics APIs
-- Netjana webhook and Intel summary APIs
-- Landing Agent APIs and public landing ingestion
-- database access via Prisma
-- queue/task handling
-- signal-aware email and LinkedIn sequence workers
-- system health and operational endpoints
+Owns:
 
-### `apps/edge-fastapi` (optional)
+- core business APIs
+- Prisma/database access
+- workers and background job dispatch
+- buyer-signal intake and normalization
+- AI generation path, guardrails, usage logging, and credit enforcement
+- governance, audit, feature flags, and operational readiness checks
 
-- edge execution endpoints
-- hardware/edge-specific operations when enabled
-- kept private for beta unless explicitly required
+This is the system-of-record backend.
 
----
+### `apps/edge-fastapi`
 
-## Data Boundaries
+Owns only optional edge concerns:
 
-- primary system state: Postgres
-- transient queue/cache: Redis
-- API owns database writes for core workflows
-- web should treat API as system boundary for business operations
+- private edge execution
+- hardware-adjacent or browser-adjacent workloads
+- local or isolated runtime behavior when explicitly enabled
 
----
+It should remain optional for the main web/API launch path.
 
-## Monorepo And Separate Hosting
+## Core Request Flows
 
-### Why One Repo
+### 1. Authenticated product flow
 
-- atomic cross-app changes (UI + API + schema in one PR)
-- single CI policy surface (quality/security checks)
-- shared scripts and dependency management
-- lower coordination overhead for early-stage team
+1. User enters through `apps/web`
+2. Web middleware/session checks run
+3. Business operations go to `apps/api`
+4. API validates team context, roles, flags, and payloads
+5. API reads/writes Postgres and may queue work
 
-### How To Host Separately From One Repo
+### 2. Public landing flow
 
-Define one service per app with independent root paths:
+1. Visitor requests `/p/[slug]` from `apps/web`
+2. Published landing content is rendered from stored state
+3. Lead capture and event tracking flow into `apps/api`
+4. Landing HTML is sanitized before public render
 
-- web service root: `apps/web`
-- api service root: `apps/api`
-- edge service root: `apps/edge-fastapi`
+### 3. Buyer-signal flow
 
-Use path-based deploy triggers:
+1. External signal source posts to API webhook endpoints
+2. API validates source and payload
+3. Signal is normalized and written to team/campaign/lead context
+4. Hot signals can enqueue review-first follow-up refresh work
+5. Human review remains the safe default for outbound actions
 
-- `apps/web/**` -> deploy web
-- `apps/api/**` -> deploy api
-- `apps/edge-fastapi/**` -> deploy edge
+### 4. AI generation flow
 
-For shared files (`package-lock.json`, root scripts, shared schema/config), trigger deploys for impacted services.
+1. Route validates auth, team scope, and input size
+2. `aiInputGuardrails` evaluates the request
+3. `aiService` reserves estimated credits
+4. Model provider call executes
+5. usage, cost, and settlement are persisted
+6. bounded output returns to the caller
 
----
+## Data Ownership
 
-## Environments
+### Required
 
-Use at least:
+- **Postgres**: required for auth, data, workflow state, governance, and readiness checks
 
-- `staging`
-- `production`
+### Optional
 
-Recommended environment variables by service:
+- **Redis**: optional for cache/queue acceleration; runtime should degrade gracefully when absent unless a workflow explicitly depends on it
 
-- web: `NEXT_PUBLIC_API_URL`, auth/public keys
-- api: `DATABASE_URL`, `REDIS_URL`, provider secrets, edge URI (if used)
-- edge: runtime/hardware variables only when edge is enabled
+### Persistence rules
 
----
+- API is the primary owner of business-state writes
+- web should treat the API as the boundary for most product mutations
+- edge should not introduce an alternate source of truth
 
-## Startup Beta Mode
+## Cross-Cutting Controls
 
-Current launch mode prioritizes reliability:
+- role-aware access control
+- feature-flag gating
+- audit logging
+- prompt guardrails
+- credit reservation and settlement
+- HTML sanitization on public landing render
+- readiness, health, and metrics endpoints
+- optional infra degradation for Redis
 
-- web + api + postgres required
-- redis recommended (cache/queue), but the system should boot without it
-- edge optional
-- linked automation surfaces gated for beta where required
+## Current Readiness View
 
-Local fast path:
+### Strong
 
-```bash
-npm run beta:start
-```
+- API readiness audit is currently `100/100`
+- web/API/edge service boundaries are understandable and documentable
+- local Docker-backed Postgres and Redis support realistic beta flows
+- launch-path docs now reflect the current monorepo topology
 
-This command starts infra, syncs schema, and starts/reuses web and API services.
+### Not Yet Broad-Launch Ready
 
-All three apps locally:
+- web unit coverage is currently non-deterministic in this tree, with timeouts observed in health, metrics, and worker-dispatch tests
+- latest local fixes still need a confirmed green GitHub Actions run
+- dependency security debt remains in the npm dependency graph
+- edge runtime remains optional and should not be considered part of the required launch path
 
-```bash
-npm run beta:start:all
-```
+## Documentation Contract
 
-This also ensures `edge-fastapi` is up on port `8000`.
+When the runtime shape changes, update these files together:
 
----
-
-## CI And Build Environments
-
-Build/test runners (GitHub Actions, preview deploys) should not assume Postgres/Redis exist unless the pipeline provisions them.
-
-- Workflows that need Postgres/Redis should use service containers and run `prisma db push` before executing integration steps.
-- Redis-backed features should degrade gracefully when `REDIS_URL` is not set.
-
----
-
-## Decision Summary
-
-There are 3 apps because responsibilities are different and deploy cadence is different.
-There is 1 repo because coordination speed and consistency matter more than repo count at startup stage.
-They are hosted separately by using app-level service roots and path-filtered deploy pipelines.
+1. `README.md`
+2. `MASTER_SYSTEM_ARCHITECTURE.md`
+3. `docs/ARCHITECTURE.md`
+4. `docs/context/ARCHITECTURE.md`
+5. `docs/context/LAUNCH_READINESS.md`
+6. the current readiness assessment in `docs/`

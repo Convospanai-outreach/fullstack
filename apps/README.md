@@ -1,27 +1,37 @@
 # Apps Folder
 
-This directory contains the three deployable applications in this monorepo:
+This directory contains the deployable services in the CraftMyFunnel monorepo.
 
-- `web` - Next.js app (public UI)
-- `api` - Fastify app (public API)
-- `edge-fastapi` - FastAPI app (private optional edge runtime)
+| App | Path | Role | Required |
+| --- | --- | --- | --- |
+| Web | `apps/web` | Public Next.js UI, dashboard, setup, public landing pages | Yes |
+| API | `apps/api` | Public Fastify API, workers, Prisma, webhooks, readiness checks | Yes |
+| Edge | `apps/edge-fastapi` | Optional private FastAPI edge runtime | No |
 
-## Independent deploy model
+## Deployment Model
 
-Each app is deployed separately, even though they live in one git repository.
+Each app deploys independently even though the code lives in one repository.
 
-- web service uses `apps/web` as its deploy root
-- api service uses `apps/api` as its deploy root
-- edge service uses `apps/edge-fastapi` as its deploy root
+- web deploy root: `apps/web`
+- API deploy root: `apps/api`
+- edge deploy root: `apps/edge-fastapi`
 
-## Why keep them in one repo
+## Local Runtime
 
-- one source of truth for contracts and schemas
-- one PR can change all required layers safely
-- CI can still deploy services independently using path filters
-
-## Local split runtime
+From the repo root:
 
 ```bash
-docker compose -f docker-compose.split.yml up -d
+npm run beta:start
 ```
+
+To include the optional edge runtime:
+
+```bash
+npm run beta:start:all
+```
+
+## Notes
+
+- Postgres is required for real product behavior.
+- Redis is recommended but optional.
+- Edge should remain private unless there is a clear product or operational need to expose it.
