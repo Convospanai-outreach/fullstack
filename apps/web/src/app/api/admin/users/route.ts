@@ -1,11 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { UserRole } from "@prisma/client";
 import { authOptions, canManageUsers, isSuperAdminRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
+import { UserRole } from "@/types/prisma-safe";
 
-async function getActor() {
+type TeamMembership = { teamId: string; status: string };
+type AdminActor = {
+    id: string;
+    enterpriseRole: UserRole | string | null;
+    memberships: TeamMembership[];
+};
+type ManagedUser = AdminActor & {
+    email: string | null;
+    memberships: TeamMembership[];
+};
+
+async function getActor(): Promise<AdminActor | null> {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
@@ -13,10 +24,10 @@ async function getActor() {
     return prisma.user.findUnique({
         where: { id: userId },
         include: { memberships: true }
-    });
+    }) as Promise<AdminActor | null>;
 }
 
-function allowedTeamIds(actor: NonNullable<Awaited<ReturnType<typeof getActor>>>) {
+function allowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
     return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
 }
@@ -60,7 +71,7 @@ export async function PATCH(req: NextRequest) {
     const target = await prisma.user.findUnique({
         where: { id },
         include: { memberships: true }
-    });
+    }) as ManagedUser | null;
 
     if (!target) {
         return NextResponse.json({ error: "User not found." }, { status: 404 });

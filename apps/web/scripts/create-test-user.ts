@@ -38,11 +38,23 @@ async function main() {
             userId: user.id,
             email: user.email,
             role: 'owner',
+            status: 'active',
           },
         },
       },
     });
     console.log('Team created.');
+  } else {
+    await prisma.teamMember.updateMany({
+      where: {
+        teamId: team.id,
+        userId: user.id,
+      },
+      data: {
+        status: 'active',
+      },
+    });
+    console.log('Team membership activated.');
   }
 }
 

@@ -1,9 +1,9 @@
 import crypto from "crypto";
 import { hash } from "bcryptjs";
-import { UserRole, type User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { UserRole } from "@/types/prisma-safe";
 
 export const INVITE_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 
@@ -88,7 +88,7 @@ export async function acceptInvitation(token: string, input: { name?: string; pa
     const passwordHash = await hash(input.password, 12);
     const now = new Date();
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
         const updateData = {
             password: passwordHash,
             enterpriseRole: invitation.role,
@@ -160,5 +160,5 @@ export async function acceptInvitation(token: string, input: { name?: string; pa
         { email: invitation.email, role: invitation.role }
     );
 
-    return result as User;
+    return result;
 }

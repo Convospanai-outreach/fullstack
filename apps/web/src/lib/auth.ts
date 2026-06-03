@@ -17,7 +17,7 @@ import type { JWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import { redirect } from "next/navigation";
-import { UserRole } from "@prisma/client";
+import { UserRole } from "@/types/prisma-safe";
 
 // Conditional Google Provider
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
@@ -84,7 +84,7 @@ export const authOptions: NextAuthOptions = {
                         throw new Error("Invalid password");
                     }
 
-                    const hasActiveMembership = user.memberships.some((membership) => membership.status === "active");
+                    const hasActiveMembership = user.memberships.some((membership: { status: string }) => membership.status === "active");
                     if (!isSuperAdminRole(user.enterpriseRole) && user.memberships.length > 0 && !hasActiveMembership) {
                         throw new Error("User is inactive");
                     }

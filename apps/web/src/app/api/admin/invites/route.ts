@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { UserRole } from "@prisma/client";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
+import { UserRole } from "@/types/prisma-safe";
 import {
     createInviteToken,
     getInviteLink,
@@ -13,7 +13,13 @@ import {
     maybeSendInviteEmail
 } from "@/lib/invitations";
 
-async function getActor() {
+type AdminActor = {
+    id: string;
+    enterpriseRole: UserRole | string | null;
+    memberships: Array<{ teamId: string; status: string }>;
+};
+
+async function getActor(): Promise<AdminActor | null> {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
@@ -21,10 +27,10 @@ async function getActor() {
     return prisma.user.findUnique({
         where: { id: userId },
         include: { memberships: true }
-    });
+    }) as Promise<AdminActor | null>;
 }
 
-function getAllowedTeamIds(actor: NonNullable<Awaited<ReturnType<typeof getActor>>>) {
+function getAllowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
     return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
 }

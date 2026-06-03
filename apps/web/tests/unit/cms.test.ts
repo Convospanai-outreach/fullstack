@@ -55,7 +55,7 @@ Body content here.`;
         vi.spyOn(fs, "existsSync").mockReturnValue(true);
         
         // Mock fs.readdirSync to return mock entries depending on path
-        vi.spyOn(fs, "readdirSync").mockImplementation((dirPath: any) => {
+        vi.spyOn(fs, "readdirSync").mockImplementation((dirPath: fs.PathLike): any => {
             if (String(dirPath).endsWith("sub")) {
                 return mockSubEntries;
             }
