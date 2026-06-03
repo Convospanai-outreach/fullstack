@@ -96,6 +96,7 @@
         "nodemailer": "^8.0.10",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",
+        "posthog-js": "^1.286.0",
         "pptxgenjs": "^4.0.1",
         "prom-client": "^15.1.3",
         "qs": "^6.15.0",
