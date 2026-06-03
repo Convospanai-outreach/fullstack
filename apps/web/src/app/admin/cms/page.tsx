@@ -1,5 +1,5 @@
 import { redirect as nextRedirect } from "next/navigation";
-import { checkAdmin } from "@/lib/admin";
+import { canAccessCMS, requireAuth } from "@/lib/auth";
 import Link from "next/link";
 import { FileText, Plus, ArrowLeft, RefreshCw, Edit3, Globe } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
@@ -7,8 +7,8 @@ import GlassCard from "@/components/GlassCard";
 export const dynamic = "force-dynamic";
 
 export default async function CMSDashboard() {
-    const isAdmin = await checkAdmin();
-    if (!isAdmin) {
+    const user = await requireAuth();
+    if (!canAccessCMS(user.enterpriseRole)) {
         nextRedirect("/");
     }
 

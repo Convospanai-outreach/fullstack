@@ -24,7 +24,7 @@ export async function proxy(req: NextRequest) {
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invitations/accept", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;
@@ -131,6 +131,7 @@ export async function proxy(req: NextRequest) {
         "/agent-login",
         "/client-login",
         "/signup",
+        "/accept-invite",
         "/forgot-password",
         "/magic-link",
         "/verify-email",
@@ -145,6 +146,14 @@ export async function proxy(req: NextRequest) {
         "/privacy",
         "/help",
     ];
+
+    if ((path === "/signup" || path === "/accept-invite") && !req.nextUrl.searchParams.get("token")) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("invite", "required");
+        return NextResponse.redirect(url);
+    }
+
     const isPublic = publicPaths.some(p => path === p) ||
         path.startsWith("/p/") ||
         authApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
@@ -170,8 +179,52 @@ export async function proxy(req: NextRequest) {
         }
 
         // 3. Caller Page Protection (RBAC)
+        const role = token?.['enterpriseRole'] as string;
+        const superAdminRoles = ["SUPER_ADMIN", "SYSTEM_ADMIN"];
+        const canManageUsers = superAdminRoles.includes(role) || role === "ORG_ADMIN";
+        const canAccessCMS = canManageUsers || role === "CMS_EDITOR";
+
+        if (
+            role === "CMS_EDITOR" &&
+            !path.startsWith("/admin/content") &&
+            !path.startsWith("/admin/cms") &&
+            !path.startsWith("/api/admin/cms") &&
+            !path.startsWith("/api/auth")
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/admin/content", req.url));
+        }
+
+        if (
+            (path.startsWith("/admin/users") || path.startsWith("/admin/invites") || path.startsWith("/api/admin/users") || path.startsWith("/api/admin/invites")) &&
+            !canManageUsers
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
+
+        if (
+            (path.startsWith("/admin/content") || path.startsWith("/admin/cms") || path.startsWith("/api/admin/cms")) &&
+            !canAccessCMS
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
+
+        if (role === "CALLER" && !path.startsWith("/caller") && !path.startsWith("/api/auth") && !path.startsWith("/api/proxy/caller")) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/caller", req.url));
+        }
+
         if (path.startsWith("/caller")) {
-            const role = token?.['enterpriseRole'] as string;
             // Strict RBAC: Caller UI is for Callers only. Managers use Dashboard.
             const allowed = ["CALLER"];
 

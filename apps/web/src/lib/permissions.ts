@@ -113,5 +113,5 @@ export function canExportData(role: UserRole): boolean {
 }
 
 export function canManageSystem(role: UserRole): boolean {
-    return role === UserRole.SYSTEM_ADMIN || role === UserRole.ORG_ADMIN;
+    return role === UserRole.SUPER_ADMIN || role === UserRole.SYSTEM_ADMIN || role === UserRole.ORG_ADMIN;
 }

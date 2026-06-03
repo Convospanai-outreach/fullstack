@@ -924,6 +924,7 @@ model Team {
   sequenceEnrollments        SequenceEnrollment[]
   sequenceStepRuns           SequenceStepRun[]
   domainAuthenticationChecks DomainAuthenticationCheck[]
+  userInvitations            UserInvitation[]
 }
 
 model CrmIntegration {
@@ -1141,6 +1142,7 @@ model User {
   reviewedApprovals  ApprovalRequest[] @relation("reviewer")
   agentTasks         AgentTask[]
   datasetReviews     DatasetReview[]
+  sentInvitations    UserInvitation[]
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
@@ -1149,6 +1151,28 @@ model User {
   callerActiveAt     DateTime? // Last activity timestamp
   callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
   edgeNodeUri        String? // Individual Phi-3 Edge Node binding
+}
+
+model UserInvitation {
+  id          String           @id @default(uuid())
+  email       String
+  role        UserRole
+  teamId      String
+  invitedById String
+  tokenHash   String           @unique
+  status      InvitationStatus @default(pending)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy User @relation(fields: [invitedById], references: [id])
+
+  @@index([email])
+  @@index([teamId])
+  @@index([invitedById])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model Account {
@@ -1907,12 +1931,22 @@ enum ProductMode {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   SYSTEM_ADMIN
   ORG_ADMIN
+  CMS_EDITOR
   SALES_MANAGER
   SALES_USER
   CALLER
+  VIEWER
   COMPLIANCE_OFFICER
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  revoked
 }
 
 model FeatureFlag {
