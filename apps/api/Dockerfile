@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Dependencies stage (workspace-aware install for monorepo)
 FROM node:22-alpine AS deps
 WORKDIR /repo
@@ -7,7 +8,12 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
 COPY packages ./packages
 
-RUN npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+RUN sh -c 'for attempt in 1 2 3; do \
+      npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps --prefer-offline --fetch-retries=5 --fetch-retry-maxtimeout=120000 && exit 0; \
+      echo "npm ci failed on attempt ${attempt}, retrying..." >&2; \
+      sleep 5; \
+    done; \
+    exit 1'
 
 # Build artifacts needed at runtime
 FROM node:22-alpine AS builder

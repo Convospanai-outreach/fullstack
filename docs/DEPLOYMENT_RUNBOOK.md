@@ -127,8 +127,11 @@ Set required values in `/opt/craftmyfunnel/edge.env`:
 
 - `DATABASE_URL`
 - `EDGE_MODE` (`disabled` or `enabled`)
+- `EDGE_API_KEY`
+- `EDGE_VAULT_KEY` (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
 - `HARDWARE_SIGNATURE`
 - `OFFLINE_MODEL_PATH` (when `EDGE_MODE=enabled`)
+- `EDGE_PRELOAD_MODELS` (`none` is recommended on small devices)
 
 Run container:
 
@@ -147,6 +150,31 @@ Health checks:
 ```bash
 curl -i http://127.0.0.1:8000/health
 curl -i http://127.0.0.1:8000/version
+```
+
+Raspberry Pi 5 edge-mode build:
+
+```bash
+docker buildx build \
+  --platform linux/arm64 \
+  --build-arg REQUIREMENTS_FILE=requirements.pi.txt \
+  --build-arg FORCE_CMAKE=1 \
+  --build-arg CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_OPENMP=ON" \
+  -t craftmyfunnel-edge-fastapi:pi5 \
+  -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
+```
+
+Recommended Pi 5 runtime values:
+
+```bash
+EDGE_MODE=enabled
+EDGE_PRELOAD_MODELS=none
+EDGE_SPACY_MODEL=en_core_web_sm
+LLM_THREADS=4
+LLM_CONTEXT_TOKENS=1536
+LLM_BATCH_SIZE=128
+DB_POOL_SIZE=2
+DB_MAX_OVERFLOW=2
 ```
 
 ## 5) CI/CD Expectations

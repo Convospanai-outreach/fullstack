@@ -120,6 +120,15 @@ export async function checkRateLimit(
   endpoint: string
 ): Promise<{ allowed: boolean; remaining: number; resetTime: number }> {
   const now = Date.now();
+
+  if (process.env['DISABLE_RATE_LIMIT'] === 'true') {
+    return {
+      allowed: true,
+      remaining: config.maxRequests,
+      resetTime: now + config.windowMs,
+    };
+  }
+
   const key = `ratelimit:${endpoint}:${identifier}`;
 
   // 1. Try Redis First

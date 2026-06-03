@@ -2,12 +2,13 @@ import os
 import uuid
 import logging
 import time
+import hmac
 from typing import Dict, List, Optional
 from enum import Enum
 from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from database import init_db, get_db, SessionLocal
 
 # Logging
@@ -30,12 +31,27 @@ class CorrelationMiddleware(BaseHTTPMiddleware):
 EDGE_MODE = os.getenv("EDGE_MODE", "disabled").lower() in {"1", "true", "edge", "enabled"}
 EDGE_EXECUTE_ENABLED = os.getenv("EDGE_EXECUTE_ENABLED", "false").lower() == "true"
 EDGE_API_KEY = os.getenv("EDGE_API_KEY")
+EDGE_REQUIRE_API_KEY = os.getenv("EDGE_REQUIRE_API_KEY", "true").lower() == "true"
+EDGE_REQUIRE_VAULT_KEY = os.getenv("EDGE_REQUIRE_VAULT_KEY", "true").lower() == "true"
+MAX_TEXT_CHARS = int(os.getenv("EDGE_MAX_TEXT_CHARS", "12000"))
 
 # [MED-5] Startup assertion: actuator must have a key if enabled
 if EDGE_EXECUTE_ENABLED and not EDGE_API_KEY:
     raise RuntimeError(
         "SECURITY ERROR: EDGE_EXECUTE_ENABLED is true but EDGE_API_KEY is not set. "
         "The browser actuator cannot run unauthenticated. Set EDGE_API_KEY or disable EDGE_EXECUTE_ENABLED."
+    )
+
+if EDGE_MODE and EDGE_REQUIRE_API_KEY and not EDGE_API_KEY:
+    raise RuntimeError(
+        "SECURITY ERROR: EDGE_MODE is enabled but EDGE_API_KEY is not set. "
+        "Set EDGE_API_KEY or explicitly set EDGE_REQUIRE_API_KEY=false for a local-only lab run."
+    )
+
+if EDGE_MODE and EDGE_REQUIRE_VAULT_KEY and not os.getenv("EDGE_VAULT_KEY"):
+    raise RuntimeError(
+        "SECURITY ERROR: EDGE_MODE is enabled but EDGE_VAULT_KEY is not set. "
+        "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
     )
 
 app = FastAPI(title="CraftMyFunnel Edge Node")
@@ -67,7 +83,7 @@ if EDGE_MODE:
 # --- Schemas ---
 
 class SanitizeRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1)
     session_id: Optional[str] = None
 
 class SanitizeResponse(BaseModel):
@@ -76,7 +92,7 @@ class SanitizeResponse(BaseModel):
     stats: Dict[str, int]
 
 class CritiqueRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1)
     context: Optional[str] = None
 
 class CritiqueResponse(BaseModel):
@@ -90,7 +106,7 @@ class StatusResponse(BaseModel):
     services: List[str]
 
 class OfflineRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(min_length=1)
 
 class OfflineResponse(BaseModel):
     text: str
@@ -108,6 +124,31 @@ class ExecuteRequest(BaseModel):
 
 # --- Endpoints ---
 
+def require_edge_api_key(
+    x_api_key: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None),
+):
+    if not EDGE_API_KEY:
+        if EDGE_REQUIRE_API_KEY and EDGE_MODE:
+            raise HTTPException(status_code=503, detail="EDGE_API_KEY is not configured")
+        return
+
+    bearer = None
+    if authorization and authorization.lower().startswith("bearer "):
+        bearer = authorization[7:]
+
+    presented = x_api_key or bearer
+    if not presented or not hmac.compare_digest(presented, EDGE_API_KEY):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
+def enforce_text_limit(value: str):
+    if len(value) > MAX_TEXT_CHARS:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Text exceeds EDGE_MAX_TEXT_CHARS ({MAX_TEXT_CHARS})",
+        )
+
 def init_db_with_retry(retries=5, delay=3):
     for attempt in range(retries):
         try:
@@ -124,7 +165,7 @@ def startup_event():
     logger.info("Initializing Edge Database...")
     init_db_with_retry()
     if EDGE_MODE and local_intelligence:
-        local_intelligence.load_models()
+        local_intelligence.warmup(os.getenv("EDGE_PRELOAD_MODELS", "none").lower())
         logger.info("Edge mode enabled.")
     else:
         logger.info("Edge mode disabled.")
@@ -161,11 +202,12 @@ def capabilities():
         }
     }
 
-@app.post("/v1/sanitize", response_model=SanitizeResponse)
+@app.post("/v1/sanitize", response_model=SanitizeResponse, dependencies=[Depends(require_edge_api_key)])
 def sanitize_text(request: SanitizeRequest):
     """Deep Tech: Semantic Masking with Metadata Injection"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
+    enforce_text_limit(request.text)
     session_id = request.session_id or str(uuid.uuid4())
     sanitized_text, stats = local_intelligence.sanitize_and_tag(request.text, session_id)
     
@@ -175,11 +217,12 @@ def sanitize_text(request: SanitizeRequest):
         "stats": stats
     }
 
-@app.post("/v1/critique", response_model=CritiqueResponse)
+@app.post("/v1/critique", response_model=CritiqueResponse, dependencies=[Depends(require_edge_api_key)])
 def critique_response(request: CritiqueRequest):
     """Deep Tech: Adversarial Judge"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
+    enforce_text_limit(request.text)
     result = local_intelligence.critique_response(request.text)
     return {
         "status": result["status"],
@@ -187,11 +230,12 @@ def critique_response(request: CritiqueRequest):
         "reason": result.get("reason")
     }
 
-@app.post("/v1/generate_offline", response_model=OfflineResponse)
+@app.post("/v1/generate_offline", response_model=OfflineResponse, dependencies=[Depends(require_edge_api_key)])
 def generate_offline(request: OfflineRequest):
     """Deep Tech: Offline Fallback (Quantized SLM)"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
+    enforce_text_limit(request.prompt)
     output = local_intelligence.generate_offline(request.prompt)
     return {"text": output}
 
@@ -199,7 +243,7 @@ class ReidentifyRequest(BaseModel):
     token: str
     session_id: Optional[str] = None
 
-@app.post("/v1/reidentify")
+@app.post("/v1/reidentify", dependencies=[Depends(require_edge_api_key)])
 def reidentify_token(request: ReidentifyRequest):
     """Deep Tech: Protocol Break - Identity Vault Lookup"""
     if not EDGE_MODE or not local_intelligence:
@@ -210,16 +254,17 @@ def reidentify_token(request: ReidentifyRequest):
     return {"original": original}
 
 class ScoreRequest(BaseModel):
-    text: str
+    text: str = Field(min_length=1)
 
 class ScoreResponse(BaseModel):
     score: int
 
-@app.post("/v1/score_intent", response_model=ScoreResponse)
+@app.post("/v1/score_intent", response_model=ScoreResponse, dependencies=[Depends(require_edge_api_key)])
 def score_intent(request: ScoreRequest):
     """Deep Tech: Karmic Friction Analysis (Offline SLM)"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
+    enforce_text_limit(request.text)
     score = local_intelligence.score_intent(request.text)
     return {"score": score}
 
@@ -227,19 +272,19 @@ def score_intent(request: ScoreRequest):
 
 class SearchRequest(BaseModel):
     query: str
-    limit: int = 5
+    limit: int = Field(default=5, ge=1, le=25)
 
 class SearchResponse(BaseModel):
     results: List[Dict]
 
-@app.post("/search", response_model=SearchResponse)
+@app.post("/search", response_model=SearchResponse, dependencies=[Depends(require_edge_api_key)])
 def search_golden_records(request: SearchRequest, db: Session = Depends(get_db)):
     """Semantic Search against Local Golden Records"""
     if not EDGE_MODE or not local_intelligence:
         raise HTTPException(status_code=503, detail="Edge features disabled")
     try:
         if not local_intelligence.embedding_model:
-             local_intelligence.load_models()
+             local_intelligence.load_embedding_model()
         
         vector = local_intelligence.embedding_model.encode(request.query).tolist()
         vector_str = str(vector)
@@ -261,14 +306,11 @@ def search_golden_records(request: SearchRequest, db: Session = Depends(get_db))
         logger.error(f"Search failed: {e}")
         return {"results": []}
 
-@app.post("/execute")
-def execute_browser_action(request: ExecuteRequest, x_api_key: str = Header(None)):
+@app.post("/execute", dependencies=[Depends(require_edge_api_key)])
+def execute_browser_action(request: ExecuteRequest):
     """Secured Proxy for Browser Node (Puppeteer)"""
     if not EDGE_EXECUTE_ENABLED:
         raise HTTPException(status_code=403, detail="Edge execution is disabled")
-    
-    if EDGE_API_KEY and x_api_key != EDGE_API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
     
     logger.info(f"PHYSICAL ACTUATOR: Executing {request.action} with {request.payload}")
     

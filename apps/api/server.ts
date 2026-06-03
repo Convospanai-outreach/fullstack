@@ -154,6 +154,8 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/webhooks",
       "/auth",
       "/register",
+      "/health",
+      "/metrics",
       // "/test-auth" removed for production security
       "/scheduler",
       "/integrations/google/oauth/callback",

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { GET } from "../../src/app/api/health/route";
 
 const queryRawMock = vi.fn();
 
@@ -14,14 +15,11 @@ function request(path: string) {
 
 describe("/api/health", () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     queryRawMock.mockResolvedValue([{ ok: 1 }]);
   });
 
   it("returns a fast liveness response without touching the database", async () => {
-    const { GET } = await import("../../src/app/api/health/route");
-
     const response = await GET(request("/api/health?probe=live"));
     const body = await response.json();
 
@@ -35,8 +33,6 @@ describe("/api/health", () => {
   });
 
   it("returns healthy readiness when the database probe succeeds", async () => {
-    const { GET } = await import("../../src/app/api/health/route");
-
     const response = await GET(request("/api/health?probe=ready"));
     const body = await response.json();
 
@@ -51,7 +47,6 @@ describe("/api/health", () => {
 
   it("returns 503 readiness when the database probe fails", async () => {
     queryRawMock.mockRejectedValueOnce(new Error("database unavailable"));
-    const { GET } = await import("../../src/app/api/health/route");
 
     const response = await GET(request("/api/health?probe=ready"));
     const body = await response.json();

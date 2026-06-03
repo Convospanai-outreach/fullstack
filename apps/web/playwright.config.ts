@@ -35,8 +35,10 @@ export default defineConfig({
             reuseExistingServer: false,
             env: {
                 ...process.env,
+                NODE_ENV: 'production',
                 PORT: '3000',
                 DISABLE_RATE_LIMIT: 'true',
+                DISABLE_REDIS: 'true',
             },
         }
         : undefined,

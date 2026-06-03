@@ -2,7 +2,11 @@ let redisClient: any = null;
 
 function resolveRedisUrl(): string | null {
     const explicit = (process.env["REDIS_URL"] || "").trim();
-    if (explicit) return explicit;
+    if (explicit) {
+        return process.env["NODE_ENV"] === "production"
+            ? explicit
+            : explicit.replace("redis://localhost", "redis://127.0.0.1");
+    }
 
     const inCi = process.env["CI"] === "true" || process.env["GITHUB_ACTIONS"] === "true";
     const isProd = process.env["NODE_ENV"] === "production";
@@ -15,7 +19,7 @@ function resolveRedisUrl(): string | null {
         return null;
     }
 
-    return "redis://localhost:6379";
+    return "redis://127.0.0.1:6379";
 }
 
 export async function getRedisClient() {
@@ -64,6 +68,10 @@ export async function getRedisClient() {
     } catch (error) {
         if (process.env["NODE_ENV"] !== "test") {
             console.error("Failed to connect to Redis:", error);
+        }
+        if (redisClient) {
+            redisClient.destroy();
+            redisClient = null;
         }
         // Do not throw, allow app to start without Redis
     }

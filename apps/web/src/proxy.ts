@@ -24,9 +24,30 @@ export async function proxy(req: NextRequest) {
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/metrics", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
+    const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
+
+    if (
+        process.env['NODE_ENV'] === 'production' &&
+        process.env['ENABLE_TEST_DIAGNOSTIC_ROUTES'] !== 'true' &&
+        testDiagnosticPaths.some((prefix) => path.startsWith(prefix))
+    ) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (metricsApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+        const metricsToken = process.env['METRICS_TOKEN'];
+        const authorization = req.headers.get("authorization");
+        if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+    }
 
     if (PRODUCT_FLAGS.betaMode && !isPathEnabled(path, enabledHiddenFeatures)) {
         if (path.startsWith("/api")) {

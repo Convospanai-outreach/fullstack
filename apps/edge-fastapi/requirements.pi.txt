@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+cryptography
+sqlalchemy
+psycopg2-binary
+pgvector
+presidio-analyzer
+presidio-anonymizer
+spacy==3.7.0
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0.tar.gz
+llama-cpp-python

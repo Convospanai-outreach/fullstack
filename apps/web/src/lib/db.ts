@@ -11,10 +11,18 @@ const createPrismaClient = () => {
         throw new Error("DATABASE_URL is not set.");
     }
 
+    const resolvedDatabaseUrl =
+        process.env["NODE_ENV"] === "production"
+            ? databaseUrl
+            : databaseUrl.replace("@localhost:", "@127.0.0.1:");
+
     const { Pool } = require("pg");
     const { PrismaPg } = require("@prisma/adapter-pg");
     const pool = new Pool({
-        connectionString: databaseUrl,
+        connectionString: resolvedDatabaseUrl,
+        max: 10,
+        idleTimeoutMillis: 30_000,
+        connectionTimeoutMillis: 5_000,
     });
     const adapter = new PrismaPg(pool);
 

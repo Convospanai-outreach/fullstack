@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
+cryptography
 presidio-analyzer
 presidio-anonymizer
 spacy==3.7.0
