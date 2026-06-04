@@ -142,7 +142,6 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                     <div className="flex items-center gap-3 px-2 py-1.5">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-lg">
                             {session?.user?.image ? (
-                                // eslint-disable-next-line @next/next/no-img-element
                                 <img src={session.user.image} alt={userName} className="w-8 h-8 rounded-full object-cover" />
                             ) : (
                                 userInitial

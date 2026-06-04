@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { dispatch } from "../../src/workers/index";
 
-const { failMock, completeMock } = vi.hoisted(() => ({
+const { failMock, completeMock, handlers } = vi.hoisted(() => ({
   failMock: vi.fn(),
   completeMock: vi.fn(),
+  handlers: {
+    enrichment: vi.fn().mockResolvedValue({ ok: true }),
+    email: vi.fn().mockResolvedValue({ ok: true }),
+    campaign: vi.fn().mockResolvedValue({ ok: true }),
+    sequence: vi.fn().mockResolvedValue({ ok: true }),
+  },
 }));
 
 vi.mock("@/lib/queue", () => ({
@@ -18,19 +24,19 @@ vi.mock("@/lib/logger", () => ({
 }));
 
 vi.mock("@/workers/handlers/enrichment-worker", () => ({
-  handleLeadEnrichment: vi.fn().mockResolvedValue({ ok: true }),
+  handleLeadEnrichment: handlers.enrichment,
 }));
 
 vi.mock("@/workers/handlers/email-sending-worker", () => ({
-  handleEmailSending: vi.fn().mockResolvedValue({ ok: true }),
+  handleEmailSending: handlers.email,
 }));
 
 vi.mock("@/workers/handlers/campaign-execution-worker", () => ({
-  handleCampaignExecution: vi.fn().mockResolvedValue({ ok: true }),
+  handleCampaignExecution: handlers.campaign,
 }));
 
 vi.mock("@/workers/handlers/sequence-step-worker", () => ({
-  handleSequenceStep: vi.fn().mockResolvedValue({ ok: true }),
+  handleSequenceStep: handlers.sequence,
 }));
 
 function job(type: string) {
@@ -46,12 +52,19 @@ describe("Worker dispatch", () => {
     vi.clearAllMocks();
   });
 
-  it("dead-letters acknowledged job types without throwing", async () => {
-    await expect(dispatch(job("workflow_step"))).resolves.toBeUndefined();
+  it.each([
+    "workflow_step",
+    "WEBHOOK_DISPATCH",
+    "event_processing",
+    "linkedin_scraping",
+    "CSV_IMPORT",
+    "SEQUENCE_ACTION",
+  ])("dead-letters acknowledged job type %s without throwing", async (type) => {
+    await expect(dispatch(job(type))).resolves.toBeUndefined();
 
     expect(failMock).toHaveBeenCalledWith(
-      "job-workflow_step",
-      "Handler not implemented for job type: workflow_step"
+      `job-${type}`,
+      `Handler not implemented for job type: ${type}`
     );
   });
 
@@ -64,12 +77,15 @@ describe("Worker dispatch", () => {
     );
   });
 
-  it("dispatches implemented job handlers without dead-lettering", async () => {
-    const { handleEmailSending } = await import("@/workers/handlers/email-sending-worker");
+  it.each([
+    ["lead_enrichment", handlers.enrichment],
+    ["email_sending", handlers.email],
+    ["campaign_execution", handlers.campaign],
+    ["sequence_step", handlers.sequence],
+  ])("dispatches implemented job handler %s without dead-lettering", async (type, handler) => {
+    await dispatch(job(type));
 
-    await dispatch(job("email_sending"));
-
-    expect(handleEmailSending).toHaveBeenCalledWith({});
+    expect(handler).toHaveBeenCalledWith({});
     expect(failMock).not.toHaveBeenCalled();
   });
 });
