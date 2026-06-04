@@ -40,6 +40,7 @@ export async function dispatch(job: Job) {
   }
 }
 
+/* v8 ignore start -- infinite process loop is exercised by worker smoke/runtime checks, not unit coverage */
 async function runWorker() {
   // Reset any stale jobs that may have been left running
   await JobQueue.resetStaleJobs();
@@ -76,3 +77,4 @@ if (require.main === module) {
     process.exit(1);
   });
 }
+/* v8 ignore stop */

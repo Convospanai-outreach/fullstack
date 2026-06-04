@@ -16,6 +16,8 @@ import type { JWT } from "next-auth/jwt";
 
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
+import { redirect } from "next/navigation";
+import { UserRole } from "@/types/prisma-safe";
 
 // Conditional Google Provider
 const googleClientId = process.env['GOOGLE_CLIENT_ID'];
@@ -68,7 +70,8 @@ export const authOptions: NextAuthOptions = {
                         throw new Error("Too many login attempts. Please try again in 15 minutes.");
                     }
                     const user = await prisma.user.findUnique({
-                        where: { email: credentials.email }
+                        where: { email: credentials.email },
+                        include: { memberships: true }
                     });
 
                     if (!user || !user.password) {
@@ -81,6 +84,11 @@ export const authOptions: NextAuthOptions = {
                         throw new Error("Invalid password");
                     }
 
+                    const hasActiveMembership = user.memberships.some((membership: { status: string }) => membership.status === "active");
+                    if (!isSuperAdminRole(user.enterpriseRole) && user.memberships.length > 0 && !hasActiveMembership) {
+                        throw new Error("User is inactive");
+                    }
+
                     return user;
                 } catch (error: any) {
                     console.error("[Auth] Authorize Fallback Failure:", error.message);
@@ -90,6 +98,22 @@ export const authOptions: NextAuthOptions = {
         })
     ],
     callbacks: {
+        signIn: async ({ user, account }) => {
+            if (account?.provider === "credentials") {
+                return true;
+            }
+
+            if (!user.email) {
+                return false;
+            }
+
+            const existingUser = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { id: true }
+            });
+
+            return Boolean(existingUser);
+        },
         session: async ({ session, token }) => {
             if (token && session.user) {
                 session.user.id = token.id as string;
@@ -313,3 +337,77 @@ export async function getCurrentContext() {
 }
 
 export const auth = () => getServerSession(authOptions);
+
+export const SUPER_ADMIN_ROLES = [UserRole.SUPER_ADMIN, UserRole.SYSTEM_ADMIN] as const;
+
+export type AuthenticatedUser = {
+    id: string;
+    email: string;
+    name: string | null;
+    role: string;
+    enterpriseRole: UserRole;
+    memberships: {
+        id: string;
+        teamId: string;
+        role: string;
+        status: string;
+    }[];
+};
+
+export async function requireAuth(): Promise<AuthenticatedUser> {
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
+    if (!userId) {
+        redirect("/login");
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            enterpriseRole: true,
+            memberships: {
+                select: {
+                    id: true,
+                    teamId: true,
+                    role: true,
+                    status: true
+                }
+            }
+        }
+    });
+
+    if (!user) {
+        redirect("/login");
+    }
+
+    return user;
+}
+
+export async function requireRole(roles: UserRole[]): Promise<AuthenticatedUser> {
+    const user = await requireAuth();
+    if (!roles.includes(user.enterpriseRole)) {
+        redirect("/dashboard");
+    }
+    return user;
+}
+
+export function isSuperAdminRole(role: UserRole | string | null | undefined) {
+    return role === UserRole.SUPER_ADMIN || role === UserRole.SYSTEM_ADMIN;
+}
+
+export function canManageUsers(role: UserRole | string | null | undefined) {
+    return isSuperAdminRole(role) || role === UserRole.ORG_ADMIN;
+}
+
+export function canAccessCMS(role: UserRole | string | null | undefined) {
+    return canManageUsers(role) || role === UserRole.CMS_EDITOR;
+}
+
+export function canInviteUsers(role: UserRole | string | null | undefined) {
+    return canManageUsers(role);
+}

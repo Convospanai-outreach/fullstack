@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { canManageUsers } from "@/lib/auth";
 
 
 export async function checkAdmin() {
@@ -17,9 +18,7 @@ export async function checkAdmin() {
     if (!user) return false;
 
     const legacyAdmin = user.role === "admin" || user.role === "superadmin";
-    const enterpriseAdmin =
-        user.enterpriseRole === "SYSTEM_ADMIN" ||
-        user.enterpriseRole === "ORG_ADMIN";
+    const enterpriseAdmin = canManageUsers(user.enterpriseRole);
 
     return legacyAdmin || enterpriseAdmin;
 }

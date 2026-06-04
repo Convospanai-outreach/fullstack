@@ -5,15 +5,47 @@ interface ValidationResult {
     check: string;
     passed: boolean;
     message: string;
+    skipped?: boolean;
 }
 
 const results: ValidationResult[] = [];
 let prismaModulePromise: Promise<typeof import("../lib/db")> | undefined;
 
-function addResult(category: string, check: string, passed: boolean, message: string) {
-    results.push({ category, check, passed, message });
-    const icon = passed ? "[PASS]" : "[FAIL]";
+function addResult(category: string, check: string, passed: boolean, message: string, skipped = false) {
+    results.push({ category, check, passed, message, skipped });
+    const icon = skipped ? "[SKIP]" : passed ? "[PASS]" : "[FAIL]";
     console.log(`${icon} ${category}: ${check} - ${message}`);
+}
+
+function isCiRun() {
+    return process.env["CI"] === "true" || process.env["GITHUB_ACTIONS"] === "true";
+}
+
+function isDatabaseUnavailable(error: unknown) {
+    if (typeof error === "object" && error !== null) {
+        const maybeCode = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+        if (maybeCode === "P1001" || maybeCode === "ECONNREFUSED") {
+            return true;
+        }
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    return message.includes("Can't reach database server") || message.includes("ECONNREFUSED");
+}
+
+function addDatabaseBackedResult(category: string, check: string, error: unknown, messagePrefix: string) {
+    if (!isCiRun() && isDatabaseUnavailable(error)) {
+        addResult(
+            category,
+            check,
+            true,
+            `Skipped locally because Postgres is not reachable: ${formatErrorMessage(error)}`,
+            true
+        );
+        return;
+    }
+
+    addResult(category, check, false, `${messagePrefix}: ${formatErrorMessage(error)}`);
 }
 
 async function getPrisma() {
@@ -25,6 +57,9 @@ async function getPrisma() {
 function formatErrorMessage(error: unknown): string {
     if (typeof error === "object" && error !== null) {
         const maybeCode = "code" in error ? String((error as { code?: unknown }).code ?? "") : "";
+        if (maybeCode === "P1001") {
+            return "Database is configured but Postgres is not reachable";
+        }
         if (maybeCode === "ECONNREFUSED") {
             return "Database is configured but not reachable (connection refused)";
         }
@@ -33,6 +68,9 @@ function formatErrorMessage(error: unknown): string {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes("ECONNREFUSED")) {
         return "Database is configured but not reachable (connection refused)";
+    }
+    if (message.includes("Can't reach database server")) {
+        return "Database is configured but Postgres is not reachable";
     }
 
     return message;
@@ -119,11 +157,11 @@ async function validateSecurityControls() {
             guardrailCount > 0 ? `${guardrailCount} policies configured` : "No guardrail policies"
         );
     } catch (error) {
-        addResult(
+        addDatabaseBackedResult(
             "Security",
             "Database-backed security controls",
-            false,
-            `Unable to validate RBAC and policy controls: ${formatErrorMessage(error)}`
+            error,
+            "Unable to validate RBAC and policy controls"
         );
     }
 }
@@ -144,11 +182,11 @@ async function validateAuditLogging() {
         const systemEventCount = await prisma.systemEvent.count();
         addResult("Audit", "System events", true, `${systemEventCount} system events recorded`);
     } catch (error) {
-        addResult(
+        addDatabaseBackedResult(
             "Audit",
             "Database-backed audit logging",
-            false,
-            `Unable to validate audit data: ${formatErrorMessage(error)}`
+            error,
+            "Unable to validate audit data"
         );
     }
 }
@@ -186,11 +224,11 @@ async function validateComplianceReadiness() {
             featureFlags > 0 ? `${featureFlags} feature flags configured` : "No feature flags"
         );
     } catch (error) {
-        addResult(
+        addDatabaseBackedResult(
             "Compliance",
             "Database-backed compliance checks",
-            false,
-            `Unable to validate consent and feature-flag data: ${formatErrorMessage(error)}`
+            error,
+            "Unable to validate consent and feature-flag data"
         );
     }
 }
@@ -224,11 +262,11 @@ async function validateDataIntegrity() {
             invalidThreads === 0 ? "All threads have valid states" : `${invalidThreads} invalid states`
         );
     } catch (error) {
-        addResult(
+        addDatabaseBackedResult(
             "Data Integrity",
             "Database-backed integrity checks",
-            false,
-            `Unable to validate relational integrity: ${formatErrorMessage(error)}`
+            error,
+            "Unable to validate relational integrity"
         );
     }
 }
@@ -257,11 +295,11 @@ async function validateObservability() {
             recentAudit ? "Traceable logs detected" : "No correlation IDs in DB yet (expected in fresh env)"
         );
     } catch (error) {
-        addResult(
+        addDatabaseBackedResult(
             "Observability",
             "Correlation ID",
-            false,
-            `Unable to validate traceability data: ${formatErrorMessage(error)}`
+            error,
+            "Unable to validate traceability data"
         );
     }
 }
@@ -326,13 +364,18 @@ async function generateReport() {
     console.log("PRODUCTION READINESS REPORT");
     console.log("=".repeat(60));
 
-    const passed = results.filter((result) => result.passed).length;
-    const total = results.length;
+    const scoredResults = results.filter((result) => !result.skipped);
+    const passed = scoredResults.filter((result) => result.passed).length;
+    const total = scoredResults.length;
     const score = Math.round((passed / total) * 100);
 
-    console.log(`\nScore: ${score}/100 (${passed}/${total} checks passed)`);
+    const skipped = results.filter((result) => result.skipped);
+    console.log(`\nScore: ${score}/100 (${passed}/${total} checks passed${skipped.length ? `, ${skipped.length} skipped` : ""})`);
 
     const byCategory = results.reduce((acc, result) => {
+        if (result.skipped) {
+            return acc;
+        }
         const stats = acc[result.category] ?? { passed: 0, total: 0 };
         stats.total += 1;
         if (result.passed) {
@@ -348,10 +391,18 @@ async function generateReport() {
         console.log(`  ${category}: ${stats.passed}/${stats.total} (${pct}%)`);
     }
 
-    const failed = results.filter((result) => !result.passed);
+    const failed = results.filter((result) => !result.passed && !result.skipped);
     if (failed.length > 0) {
         console.log("\nFailed checks:");
         for (const result of failed) {
+            console.log(`  - ${result.category}: ${result.check}`);
+            console.log(`    ${result.message}`);
+        }
+    }
+
+    if (skipped.length > 0) {
+        console.log("\nSkipped local-only checks:");
+        for (const result of skipped) {
             console.log(`  - ${result.category}: ${result.check}`);
             console.log(`    ${result.message}`);
         }

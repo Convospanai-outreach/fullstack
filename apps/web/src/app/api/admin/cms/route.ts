@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkAdmin } from "@/lib/admin";
+import { getServerSession } from "next-auth";
+import { authOptions, canAccessCMS } from "@/lib/auth";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -78,8 +79,8 @@ function getGitToken(): string | null {
 }
 
 export async function GET(req: NextRequest) {
-    const isAdmin = await checkAdmin();
-    if (!isAdmin) {
+    const session = await getServerSession(authOptions);
+    if (!canAccessCMS(session?.user?.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -111,8 +112,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const isAdmin = await checkAdmin();
-    if (!isAdmin) {
+    const session = await getServerSession(authOptions);
+    if (!canAccessCMS(session?.user?.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -134,8 +135,8 @@ export async function POST(req: NextRequest) {
 
 // Git Commit & Sync
 export async function PUT(req: NextRequest) {
-    const isAdmin = await checkAdmin();
-    if (!isAdmin) {
+    const session = await getServerSession(authOptions);
+    if (!canAccessCMS(session?.user?.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
