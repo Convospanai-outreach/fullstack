@@ -925,6 +925,7 @@ model Team {
   sequenceStepRuns           SequenceStepRun[]
   domainAuthenticationChecks DomainAuthenticationCheck[]
   userInvitations            UserInvitation[]
+  edgeNode                   EdgeNode?
 }
 
 model CrmIntegration {
@@ -1720,12 +1721,28 @@ model LLMUsageLog {
 
 // 1. Hardware Binding (Grant Requirement: Proof of Physical Device)
 model EdgeNode {
-  id         String   @id @default(cuid())
-  teamId     String   @unique
-  hardwareId String   @unique // Matches the HARDWARE_SIGNATURE env var
-  ipAddress  String // e.g., "http://192.168.1.50:8000"
-  status     String   @default("OFFLINE") // Heartbeat check
-  lastSync   DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  teamId                  String    @unique
+  hardwareId              String    @unique // Legacy compatibility with HARDWARE_SIGNATURE; do not expose publicly.
+  hardwareFingerprintHash String?   @unique
+  publicKey               String?   @db.Text
+  ipAddress               String? // e.g., "http://192.168.1.50:8000"
+  status                  String    @default("OFFLINE") // ONLINE, DEGRADED, DISCONNECTED, REVOKED
+  attestationStatus       String    @default("PENDING") // PENDING, TRUSTED, FAILED
+  runtimeVersion          String?
+  buildHash               String?
+  capabilities            Json?
+  piiStorageMode          String    @default("edge_only")
+  vaultState              String    @default("LOCKED") // LOCKED, UNLOCKED, UNKNOWN
+  lastSeenAt              DateTime?
+  pairedAt                DateTime  @default(now())
+  revokedAt               DateTime?
+  removalReason           String?
+  lastSync                DateTime  @updatedAt
+  team                    Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([lastSeenAt])
 }
 
 // 2. FTO (Freedom to Operate) Guardrails
