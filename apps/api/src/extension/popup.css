@@ -1,0 +1,173 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  width: 360px;
+  min-height: 560px;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: #111827;
+  background: #f8fafc;
+}
+
+.shell {
+  padding: 16px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 12px;
+}
+
+label {
+  display: block;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+input,
+textarea,
+select {
+  width: 100%;
+  margin-top: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 9px 10px;
+  color: #111827;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 84px;
+}
+
+select {
+  margin: 0 0 8px;
+}
+
+button {
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  min-height: 36px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.primary {
+  width: 100%;
+  color: #fff;
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.secondary {
+  width: 100%;
+  color: #0f172a;
+  background: #fff;
+  margin-bottom: 8px;
+}
+
+.secondary:hover,
+.icon-btn:hover {
+  background: #eef4ff;
+  border-color: #93b4f6;
+}
+
+.icon-btn {
+  background: #fff;
+  color: #334155;
+  min-height: 32px;
+}
+
+.settings,
+.actions,
+.activity {
+  margin-bottom: 14px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.stats div {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 6px;
+  text-align: center;
+}
+
+.stats strong,
+.stats span {
+  display: block;
+}
+
+.stats strong {
+  font-size: 16px;
+}
+
+.stats span {
+  color: #64748b;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.section-title {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+#activityLog {
+  max-height: 112px;
+  overflow: auto;
+  margin: 0;
+  padding-left: 18px;
+  color: #475569;
+  font-size: 12px;
+}
+
+#activityLog li {
+  margin-bottom: 5px;
+}
+
+footer {
+  border-top: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 12px;
+  padding-top: 10px;
+}
+
+footer.success {
+  color: #15803d;
+}
+
+footer.error {
+  color: #b91c1c;
+}
