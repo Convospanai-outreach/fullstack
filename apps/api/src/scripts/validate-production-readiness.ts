@@ -87,7 +87,8 @@ async function validateEnvironmentConfig() {
     const required = [
         "DATABASE_URL",
         "NEXTAUTH_SECRET",
-        "NEXTAUTH_URL"
+        "NEXTAUTH_URL",
+        "CONTENT_ASSET_API_URL"
     ];
 
     const optional = [

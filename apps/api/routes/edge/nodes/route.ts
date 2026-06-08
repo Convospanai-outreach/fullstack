@@ -6,6 +6,7 @@ import { AuditService } from "@/modules/audit/auditService";
 import {
     getEdgeNodeStatusSnapshot,
     hashHardwareFingerprint,
+    verifyEdgeSessionToken,
     verifyEdgeRequestSignature,
 } from "@/lib/edgeRuntime";
 
@@ -139,6 +140,8 @@ export async function PATCH(req: Request) {
             revokedAt: new Date(),
             removalReason: typeof body.reason === "string" ? body.reason.slice(0, 200) : "revoked_by_admin",
             vaultState: "LOCKED",
+            sessionTokenHash: null,
+            sessionTokenExpiresAt: null,
         },
     });
 
@@ -156,9 +159,14 @@ export async function PUT(req: Request) {
     const timestamp = req.headers.get("x-edge-timestamp") || "";
     const nonce = req.headers.get("x-edge-nonce") || "";
     const signature = req.headers.get("x-edge-signature") || "";
+    const authorization = req.headers.get("authorization") || "";
+    const bearerToken = authorization.toLowerCase().startsWith("bearer ")
+        ? authorization.slice(7).trim()
+        : "";
+    const sessionToken = req.headers.get("x-edge-session-token") || bearerToken || body.sessionToken || "";
 
-    if (!nodeId || !timestamp || !nonce || !signature) {
-        return NextResponse.json({ error: "Missing signed heartbeat headers" }, { status: 400 });
+    if (!nodeId) {
+        return NextResponse.json({ error: "Missing edge node id" }, { status: 400 });
     }
 
     const node = await prisma.edgeNode.findUnique({ where: { id: nodeId } });
@@ -169,7 +177,9 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: "EDGE_NODE_REVOKED" }, { status: 403 });
     }
 
-    const signed = verifyEdgeRequestSignature({
+    const hasValidSession = verifyEdgeSessionToken(sessionToken, node);
+    const hasSignedHeaders = Boolean(timestamp && nonce && signature);
+    const signed = hasSignedHeaders && verifyEdgeRequestSignature({
         publicKeyPem: node.publicKey,
         rawBody,
         timestamp,
@@ -177,9 +187,9 @@ export async function PUT(req: Request) {
         signatureHex: signature,
     });
 
-    if (!signed) {
+    if (!hasValidSession && !signed) {
         await AuditService.log(node.teamId, null, "edge_attestation_failed", "EdgeNode", node.id, {
-            reason: "invalid_heartbeat_signature",
+            reason: hasSignedHeaders ? "invalid_heartbeat_auth" : "missing_heartbeat_auth",
         });
         return NextResponse.json({ error: "EDGE_ATTESTATION_FAILED" }, { status: 403 });
     }

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { FirmwareService } from "@/modules/security/FirmwareService";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
+import { hashEdgeSessionToken } from "@/lib/edgeRuntime";
+
+const EDGE_SESSION_TTL_MS = 15 * 60 * 1000;
 
 export async function POST(req: Request) {
     try {
@@ -30,6 +33,8 @@ export async function POST(req: Request) {
                     status: "DISCONNECTED",
                     attestationStatus: "FAILED",
                     vaultState: "LOCKED",
+                    sessionTokenHash: null,
+                    sessionTokenExpiresAt: null,
                     removalReason: "attestation_failed",
                     lastSeenAt: new Date(),
                 },
@@ -47,11 +52,14 @@ export async function POST(req: Request) {
 
         // Issue a short-lived session token since verification passed
         const sessionToken = `session_${crypto.randomUUID()}`;
+        const sessionTokenExpiresAt = new Date(Date.now() + EDGE_SESSION_TTL_MS);
         const updated = await prisma.edgeNode.update({
             where: { id: node.id },
             data: {
                 status: "ONLINE",
                 attestationStatus: "TRUSTED",
+                sessionTokenHash: hashEdgeSessionToken(sessionToken),
+                sessionTokenExpiresAt,
                 runtimeVersion: typeof runtimeVersion === "string" ? runtimeVersion : node.runtimeVersion,
                 buildHash: typeof buildHash === "string" ? buildHash : node.buildHash,
                 capabilities: capabilities && typeof capabilities === "object" ? capabilities : node.capabilities ?? undefined,
@@ -71,6 +79,7 @@ export async function POST(req: Request) {
             ok: true,
             status: "TRUSTED",
             sessionToken,
+            expiresAt: sessionTokenExpiresAt.toISOString(),
             edgeNodeId: updated.id,
             vaultState: updated.vaultState,
         });

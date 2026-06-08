@@ -47,11 +47,24 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         include: {
             team: { select: { id: true, name: true } },
-            invitedBy: { select: { id: true, name: true, email: true } }
+            invitedBy: { select: { id: true, name: true, email: true } },
+            inviteRequest: { select: { id: true, name: true, company: true } }
         }
     });
 
-    return NextResponse.json(invites);
+    const inviteRequests = await prisma.inviteRequest.findMany({
+        orderBy: { createdAt: "desc" },
+        include: {
+            approvedBy: { select: { id: true, name: true, email: true } },
+            invitations: {
+                select: { id: true, status: true, expiresAt: true, acceptedAt: true },
+                orderBy: { createdAt: "desc" },
+                take: 1
+            }
+        }
+    });
+
+    return NextResponse.json({ invites, inviteRequests });
 }
 
 export async function POST(req: NextRequest) {
@@ -141,8 +154,115 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
+    const action = typeof body.action === "string" ? body.action : "";
     const id = typeof body.id === "string" ? body.id : "";
     const status = typeof body.status === "string" ? body.status : "";
+
+    if (action === "reject-request" || action === "mark-used-request") {
+        if (!id) {
+            return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
+        }
+
+        const updated = await prisma.inviteRequest.update({
+            where: { id },
+            data: action === "reject-request"
+                ? { status: "REJECTED" }
+                : { status: "USED", usedAt: new Date() }
+        });
+
+        return NextResponse.json(updated);
+    }
+
+    if (action === "approve-request") {
+        if (!id) {
+            return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
+        }
+
+        const inviteRequest = await prisma.inviteRequest.findUnique({ where: { id } });
+        if (!inviteRequest) {
+            return NextResponse.json({ error: "Invite request not found." }, { status: 404 });
+        }
+
+        if (!["WAITLISTED", "REJECTED", "APPROVED"].includes(inviteRequest.status)) {
+            return NextResponse.json({ error: `Invite request is already ${inviteRequest.status}.` }, { status: 400 });
+        }
+
+        const allowedTeamIds = getAllowedTeamIds(actor);
+        let teamId = actor.memberships.find((member) => member.status === "active")?.teamId;
+        if (!teamId && !allowedTeamIds) {
+            teamId = (await prisma.team.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
+        }
+
+        if (!teamId) {
+            return NextResponse.json({ error: "A team is required before approving invite requests." }, { status: 400 });
+        }
+
+        if (allowedTeamIds && !allowedTeamIds.includes(teamId)) {
+            return NextResponse.json({ error: "Cannot approve invite requests outside your team." }, { status: 403 });
+        }
+
+        const token = createInviteToken();
+        const inviteLink = getInviteLink(token);
+        const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+        const now = new Date();
+
+        const invitation = await prisma.$transaction(async (tx: any) => {
+            const createdInvite = await tx.userInvitation.create({
+                data: {
+                    email: inviteRequest.email,
+                    role: UserRole.SALES_USER,
+                    teamId,
+                    invitedById: actor.id,
+                    tokenHash: hashInviteToken(token),
+                    expiresAt,
+                    inviteRequestId: inviteRequest.id
+                },
+                include: { team: { select: { id: true, name: true } } }
+            });
+
+            await tx.inviteRequest.update({
+                where: { id: inviteRequest.id },
+                data: {
+                    status: "INVITED",
+                    inviteToken: token,
+                    approvedById: actor.id,
+                    approvedAt: now
+                }
+            });
+
+            const existingMember = await tx.teamMember.findFirst({
+                where: { teamId, email: inviteRequest.email }
+            });
+
+            if (existingMember) {
+                await tx.teamMember.update({
+                    where: { id: existingMember.id },
+                    data: { role: "member", status: "invited" }
+                });
+            } else {
+                await tx.teamMember.create({
+                    data: { teamId, email: inviteRequest.email, role: "member", status: "invited" }
+                });
+            }
+
+            return createdInvite;
+        });
+
+        let emailed = false;
+        try {
+            emailed = await maybeSendInviteEmail(inviteRequest.email, inviteLink);
+        } catch (error) {
+            console.error("[Invitations] Failed to email approved invite request:", error);
+        }
+
+        await AuditService.log(teamId, actor.id, "invite_request_approved", "InviteRequest", inviteRequest.id, {
+            email: inviteRequest.email,
+            invitationId: invitation.id,
+            emailed
+        });
+
+        return NextResponse.json({ invitation, inviteLink, emailed });
+    }
 
     if (!id || status !== "revoked") {
         return NextResponse.json({ error: "Only invite revocation is supported." }, { status: 400 });

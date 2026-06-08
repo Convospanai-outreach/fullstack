@@ -10,6 +10,7 @@ import { authOptions } from "@/lib/auth";
 import { syntheticDataGenerator } from "@/modules/ml-training/generators/SyntheticGenerator";
 import { z } from "zod";
 import { UserRole } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 const generateSchema = z.object({
     taskType: z.enum([
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { taskType, version, teamId } = generateSchema.parse(body);
 
-        console.log(`[ML-Training] Starting generation: ${taskType} v${version}`);
+        logger.info("[ML-Training] Starting generation", { taskType, version });
 
         // Generate dataset
         const datasetId = await syntheticDataGenerator.generateAndSaveDataset(

@@ -148,6 +148,13 @@ export async function acceptInvitation(token: string, input: { name?: string; pa
             data: { status: "accepted", acceptedAt: now }
         });
 
+        if (invitation.inviteRequestId) {
+            await tx.inviteRequest.update({
+                where: { id: invitation.inviteRequestId },
+                data: { status: "USED", activeAt: now, usedAt: now }
+            });
+        }
+
         return user;
     });
 

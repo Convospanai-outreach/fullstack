@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import {
     ArrowRight,
     CheckCircle2,
@@ -71,7 +72,7 @@ export default function SignupPage() {
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [inviteToken, setInviteToken] = useState("");
-    const [inviteStatus, setInviteStatus] = useState<"checking" | "valid" | "invalid">("checking");
+    const [inviteStatus, setInviteStatus] = useState<"checking" | "valid" | "manual" | "invalid">("checking");
     const [inviteMeta, setInviteMeta] = useState<{ teamName?: string; role?: string } | null>(null);
 
     const passwordStrength = useMemo(() => getPasswordStrength(formData.password), [formData.password]);
@@ -81,8 +82,7 @@ export default function SignupPage() {
         setInviteToken(token);
 
         if (!token) {
-            setInviteStatus("invalid");
-            setErrorMessage("Signup is invite-only. Ask an administrator for an invitation link.");
+            setInviteStatus("manual");
             return;
         }
 
@@ -116,14 +116,14 @@ export default function SignupPage() {
         setLoading(true);
 
         try {
-            if (inviteStatus !== "valid" || !inviteToken) {
+            if (inviteToken && inviteStatus !== "valid") {
                 throw new Error("A valid invitation is required to create an account.");
             }
 
-            const response = await fetch("/api/invitations/accept", {
+            const response = await fetch("/api/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: inviteToken, name: formData.name, password: formData.password }),
+                body: JSON.stringify({ inviteToken, name: formData.name, email: formData.email, password: formData.password }),
             });
 
             const raw = await response.text();
@@ -140,8 +140,20 @@ export default function SignupPage() {
                 throw new Error((data["error"] as string) || "Unable to create workspace right now.");
             }
 
-            toast.success("Invite accepted. Please sign in.");
-            router.push("/login");
+            const signInResult = await signIn("credentials", {
+                email: formData.email,
+                password: formData.password,
+                redirect: false,
+            });
+
+            if (signInResult?.error) {
+                toast.success("Invite accepted. Please sign in.");
+                router.push("/login");
+                return;
+            }
+
+            toast.success("Invite accepted. Welcome to Manual Mode.");
+            router.push((data["redirectTo"] as string) || "/dashboard");
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Unable to create workspace.";
             setErrorMessage(message);
@@ -251,7 +263,7 @@ export default function SignupPage() {
                                 </p>
                             </div>
 
-                            <h2 className="text-2xl font-bold text-white">Accept your invitation</h2>
+                            <h2 className="text-2xl font-bold text-white">{inviteToken ? "Accept your invitation" : "Create your Manual Mode account"}</h2>
                             <p className="mt-1 text-sm text-slate-400">
                                 Already have an account?{" "}
                                 <Link href="/login" className="font-medium text-cyan-300 hover:text-cyan-200">
@@ -285,7 +297,7 @@ export default function SignupPage() {
                                         id="signup-email"
                                         required
                                         value={formData.email}
-                                        readOnly
+                                        readOnly={Boolean(inviteToken)}
                                         className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white transition-all duration-200 placeholder:text-slate-600 focus:border-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-500/20"
                                         placeholder="you@company.com"
                                     />
@@ -333,12 +345,12 @@ export default function SignupPage() {
                                 </div>
 
                                 <Button
-                                    disabled={loading || inviteStatus !== "valid"}
+                                    disabled={loading || inviteStatus === "checking" || inviteStatus === "invalid"}
                                     type="submit"
                                     id="signup-submit"
                                     className="w-full gap-2 rounded-xl border-0 bg-gradient-to-r from-cyan-600 to-blue-600 py-3 text-base font-semibold shadow-lg shadow-cyan-500/20 transition-all duration-300 hover:-translate-y-0.5 hover:from-cyan-500 hover:to-blue-500 hover:shadow-cyan-500/30 disabled:opacity-60"
                                 >
-                                    {loading ? "Accepting invite..." : "Accept invite and set password"}
+                                    {loading ? "Creating account..." : inviteToken ? "Accept invite and set password" : "Create account"}
                                     {!loading && <ArrowRight className="h-4 w-4" />}
                                 </Button>
 

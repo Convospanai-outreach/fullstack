@@ -1708,6 +1708,8 @@ model EdgeNode {
   runtimeVersion          String?
   buildHash               String?
   capabilities            Json?
+  sessionTokenHash        String?
+  sessionTokenExpiresAt   DateTime?
   piiStorageMode          String    @default("edge_only")
   vaultState              String    @default("LOCKED") // LOCKED, UNLOCKED, UNKNOWN
   lastSeenAt              DateTime?
@@ -1718,6 +1720,7 @@ model EdgeNode {
   team                    Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId, status])
+  @@index([sessionTokenExpiresAt])
   @@index([lastSeenAt])
 }
 

@@ -1,4 +1,4 @@
-import { createHash, createVerify } from "node:crypto";
+import { createHash, createVerify, timingSafeEqual } from "node:crypto";
 
 export type EdgeRuntimeStatus = "UP" | "DOWN" | "NOT_CONFIGURED";
 export type EdgeNodeLifecycleStatus =
@@ -42,6 +42,8 @@ export interface EdgeNodeRecordLike {
     revokedAt?: Date | string | null;
     publicKey?: string | null;
     vaultState?: string | null;
+    sessionTokenHash?: string | null;
+    sessionTokenExpiresAt?: Date | string | null;
 }
 
 export interface EdgeNodeStatusSnapshot {
@@ -110,6 +112,24 @@ export function isEdgePiiModeEnabled(): boolean {
 
 export function hashHardwareFingerprint(rawFingerprint: string): string {
     return createHash("sha256").update(rawFingerprint).digest("hex");
+}
+
+export function hashEdgeSessionToken(sessionToken: string): string {
+    return createHash("sha256").update(sessionToken).digest("hex");
+}
+
+export function verifyEdgeSessionToken(
+    token: string | null | undefined,
+    node: Pick<EdgeNodeRecordLike, "sessionTokenHash" | "sessionTokenExpiresAt">,
+    now: Date = new Date(),
+): boolean {
+    if (!token || !node.sessionTokenHash || !node.sessionTokenExpiresAt) return false;
+    const expiresAt = coerceDate(node.sessionTokenExpiresAt);
+    if (!expiresAt || expiresAt <= now) return false;
+
+    const expected = Buffer.from(node.sessionTokenHash, "hex");
+    const actual = Buffer.from(hashEdgeSessionToken(token), "hex");
+    return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 function coerceDate(value: Date | string | null | undefined): Date | null {

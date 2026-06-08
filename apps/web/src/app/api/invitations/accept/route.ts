@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
         }
 
         await acceptInvitation(token, { name, password });
-        return NextResponse.json({ ok: true, redirectTo: "/login" });
+        return NextResponse.json({ ok: true, redirectTo: "/dashboard" });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Unable to accept invitation.";
         return NextResponse.json({ error: message }, { status: 400 });

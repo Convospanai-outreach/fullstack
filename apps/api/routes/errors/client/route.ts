@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { headers } from "next/headers";
 import { ClientErrorAlertService } from "@/lib/errors/ClientErrorAlertService";
+import { logger } from "@/lib/logger";
 
 // Rate limiting: Track error reports per IP
 const errorRateLimit = new Map<string, { count: number; resetAt: number }>();
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        console.log(`[ClientError] Logged error ${errorLog.id}:`, message);
+        logger.info("[ClientError] Logged client error", { errorLogId: errorLog.id, message });
 
         // Trigger async error monitoring and alerting
         // Don't await - run in background

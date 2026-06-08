@@ -24,7 +24,7 @@ export async function proxy(req: NextRequest) {
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invitations/accept", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;
@@ -147,7 +147,7 @@ export async function proxy(req: NextRequest) {
         "/help",
     ];
 
-    if ((path === "/signup" || path === "/accept-invite") && !req.nextUrl.searchParams.get("token")) {
+    if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {
         const url = req.nextUrl.clone();
         url.pathname = "/login";
         url.searchParams.set("invite", "required");

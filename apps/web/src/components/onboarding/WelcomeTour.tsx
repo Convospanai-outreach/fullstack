@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// @ts-ignore
 import { createPortal } from "react-dom";
 
 // Simple Tour steps

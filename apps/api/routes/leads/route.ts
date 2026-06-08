@@ -4,6 +4,7 @@ import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { createLeadSchema } from "@/lib/validation/schemas";
 import { AuditService } from "@/modules/audit/auditService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { logger } from "@/lib/logger";
 
 // GET /api/leads - List leads with optional filters
 export async function GET(req: NextRequest) {
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
 
         // Log if UAE context is active (Audit Trail)
         if (market.region === 'UAE') {
-            console.log(`[Sovereign Routing] Request routed to UAE Shard. Origin: ${market.country}`);
+            logger.info("[Sovereign Routing] Request routed to UAE Shard", { country: market.country });
         }
 
         const body = await req.json();

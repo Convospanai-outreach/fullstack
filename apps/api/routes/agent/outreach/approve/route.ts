@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
     try {
@@ -25,9 +26,9 @@ export async function POST(req: Request) {
         });
 
         if (status === "ACTIONED") {
-            console.log(`[Strike] Agent dispatched for Job ${id} in ${dbRegion}`);
+            logger.info("[Strike] Agent dispatched", { jobId: id, dbRegion });
         } else {
-            console.log(`[Strike] Job ${id} rejected in ${dbRegion}`);
+            logger.info("[Strike] Job rejected", { jobId: id, dbRegion });
         }
 
         return NextResponse.json({ ok: true, job: updatedJob });
