@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, CheckCircle, ChevronDown, ClipboardCheck, Cpu, Database, HardDrive, LayoutDashboard, Network, PhoneCall, Sparkles, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InviteRequestForm } from "@/components/marketing/InviteRequestForm";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 const navGroups = [
   { label: "Product", href: "#workflow", items: ["Buyer Signals", "Sequences", "Approvals", "Human Calling"] },
@@ -27,7 +29,7 @@ const edgeTiers = [
 const pilotWeeks = [["Week 1", "Signal Setup"], ["Week 2", "Qualification Rules"], ["Week 3", "Multi Channel Outreach"], ["Week 4", "Qualified Meetings"]];
 const footerLinks = [
   { href: "/privacy", label: "Privacy Policy" },
-  { href: "/terms", label: "Terms of Service" },
+  { href: "/terms", label: "Terms & Conditions" },
   { href: "/support", label: "Support" },
   { href: "/data-deletion", label: "Data Deletion" },
   { href: "/security", label: "Security" },
@@ -42,7 +44,7 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080b1a]/88 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-black text-white"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 text-white">C</span>CraftMyFunnel</Link>
+        <Link href="/" className="flex items-center gap-2 text-lg font-black text-white"><LogoMark priority className="h-8 w-8" />CraftMyFunnel</Link>
         <nav className="hidden items-center gap-1 lg:flex">
           {navGroups.map((group) => (
             <div key={group.label} className="group relative">
@@ -55,7 +57,7 @@ function Header() {
         </nav>
         <div className="flex items-center gap-3">
           <Link href="/login" className="hidden text-sm font-semibold text-slate-300 hover:text-white sm:block">Login</Link>
-          <Link href="/signup"><Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 font-bold text-white shadow-lg shadow-violet-500/25 hover:opacity-95">Start pilot</Button></Link>
+          <a href="#request-invite"><Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 font-bold text-white shadow-lg shadow-violet-500/25 hover:opacity-95">Request Invite</Button></a>
         </div>
       </div>
     </header>
@@ -76,7 +78,7 @@ function RealDashboardPreview({ large = false }: { large?: boolean }) {
       <GlassCard className="relative overflow-hidden p-3 ring-1 ring-white/10">
         <div className="grid overflow-hidden rounded-[24px] border border-white/10 bg-[#090d21] text-white lg:grid-cols-[220px_1fr]">
           <aside className="hidden border-r border-white/10 bg-white/[0.035] p-5 lg:block">
-            <div className="mb-8 flex items-center gap-2 font-black"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400">C</span>CMF</div>
+            <div className="mb-8 flex items-center gap-2 font-black"><LogoMark className="h-8 w-8" />CMF</div>
             {[["Dashboard", LayoutDashboard], ["Leads", Users], ["Campaigns", Sparkles], ["Governance", ClipboardCheck]].map(([label, Icon]) => <div key={String(label)} className="mb-2 flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-3 text-sm text-slate-300"><Icon className="h-4 w-4 text-cyan-300" />{String(label)}</div>)}
           </aside>
           <main className="p-4 sm:p-6">
@@ -100,7 +102,7 @@ export default function Home() {
           <div className="mb-6 inline-flex items-center rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-bold text-cyan-200 backdrop-blur-xl"><Sparkles className="mr-2 h-4 w-4" />AI-approved funnel workflows for B2B service teams</div>
           <h1 className="mx-auto max-w-5xl text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">Convert buyer signals into <span className="bg-gradient-to-r from-violet-300 to-cyan-300 bg-clip-text text-transparent">qualified meetings</span></h1>
           <p className="mx-auto mt-6 max-w-3xl text-xl leading-8 text-slate-300">CraftMyFunnel helps service companies run signal-led outreach, human-approved sequences, WhatsApp follow-ups and caller-assisted meeting qualification from one clean workspace.</p>
-          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"><Link href="/signup"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-9 py-4 text-base font-bold text-white shadow-xl shadow-violet-500/25 hover:opacity-95">Start 30-day pilot<ArrowRight className="h-4 w-4" /></Button></Link><a href="#dashboard-preview"><Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.08] px-9 py-4 text-base font-bold text-white shadow-lg backdrop-blur-xl hover:bg-white/[0.12]">View dashboard</Button></a></div>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"><a href="#request-invite"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-9 py-4 text-base font-bold text-white shadow-xl shadow-violet-500/25 hover:opacity-95">Request Invite<ArrowRight className="h-4 w-4" /></Button></a><a href="#dashboard-preview"><Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.08] px-9 py-4 text-base font-bold text-white shadow-lg backdrop-blur-xl hover:bg-white/[0.12]">View dashboard</Button></a></div>
           <div className="mt-8 flex flex-wrap justify-center gap-3">{trustBadges.map((badge) => <span key={badge} className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-200 shadow-sm backdrop-blur-xl"><CheckCircle className="mr-2 inline h-4 w-4 text-cyan-300" />{badge}</span>)}</div>
           <div className="relative mx-auto mt-14 max-w-5xl"><OutreachWidget className="absolute -left-4 top-10 hidden w-52 -rotate-3 xl:block" /><OutreachWidget className="absolute -right-4 bottom-10 hidden w-52 rotate-3 xl:block" /><RealDashboardPreview /></div>
         </div>
@@ -118,9 +120,9 @@ export default function Home() {
 
       <section id="industries" className="bg-[#080b1a] py-24"><div className="mx-auto max-w-7xl px-6"><h2 className="text-4xl font-black text-white sm:text-5xl">Built for service-company markets</h2><div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{serviceTeams.map((team) => <GlassCard key={team} className="p-6"><h3 className="text-xl font-black text-white">{team}</h3><p className="mt-4 text-sm leading-7 text-slate-300"><b>Signals:</b> hiring, expansion, tenders or growth activity.<br /><b>Workflow:</b> approved email, LinkedIn, WhatsApp and caller follow-up.<br /><b>Outcome:</b> qualified meeting with context.</p></GlassCard>)}</div></div></section>
 
-      <section id="pilot" className="bg-[#080b1a] px-6 py-24"><div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center text-white shadow-2xl shadow-black/30 sm:p-14"><h2 className="text-4xl font-black sm:text-5xl">Launch your funnel workflow in 30 days</h2><div className="mt-10 grid gap-4 sm:grid-cols-4">{pilotWeeks.map(([week, title]) => <div key={week} className="rounded-2xl bg-white/10 p-5"><p className="text-xs font-bold uppercase tracking-widest text-cyan-200">{week}</p><p className="mt-3 font-black">{title}</p></div>)}</div><div className="mt-10"><Link href="/signup"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-10 py-4 text-base font-bold text-white hover:opacity-95">Start pilot<ArrowRight className="h-4 w-4" /></Button></Link></div></div></section>
+      <section id="request-invite" className="bg-[#080b1a] px-6 py-24"><div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center text-white shadow-2xl shadow-black/30 sm:p-14"><h2 className="text-4xl font-black sm:text-5xl">Request access to Manual Mode</h2><p className="mx-auto mt-4 max-w-2xl text-slate-300">We are approving a small set of teams for the invite-only MVP focused on manual lead and meeting workflow tracking.</p><div className="mt-10 grid gap-4 sm:grid-cols-4">{pilotWeeks.map(([week, title]) => <div key={week} className="rounded-2xl bg-white/10 p-5"><p className="text-xs font-bold uppercase tracking-widest text-cyan-200">{week}</p><p className="mt-3 font-black">{title}</p></div>)}</div><InviteRequestForm /></div></section>
 
-      <footer className="border-t border-white/10 bg-[#070a18] px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><p className="font-semibold text-white">CraftMyFunnel</p><p className="mt-1">Copyright 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
+      <footer className="border-t border-white/10 bg-[#070a18] px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><Link href="/" className="inline-flex items-center gap-2 font-semibold text-white"><LogoMark className="h-7 w-7" />CraftMyFunnel</Link><p className="mt-1">Copyright 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
     </div>
   );
 }

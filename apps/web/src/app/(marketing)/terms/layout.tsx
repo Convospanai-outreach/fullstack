@@ -1,6 +1,6 @@
 export const metadata = {
-    title: "Terms of Service | CraftMyFunnel",
-    description: "Terms and conditions for using the CraftMyFunnel platform.",
+    title: "Terms & Conditions | CraftMyFunnel",
+    description: "Terms and conditions for using CraftMyFunnel's AI-powered outreach, lead management, workflow automation, and revenue orchestration platform.",
 };
 
 export default function TermsLayout({

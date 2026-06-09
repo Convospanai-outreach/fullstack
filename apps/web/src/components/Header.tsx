@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@clerk/nextjs";
 import { NotificationBell } from "./ui/NotificationBell";
 import Nav from "./Nav";
-import { Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 export default function Header() {
-    const { data: session } = useSession();
+    const { isSignedIn } = useAuth();
     // Default to FREE if plan not set, safe fallback
-    const isFree = !session?.user?.plan || session.user.plan === "FREE";
-    const isLoggedIn = !!session?.user;
+    const isFree = true;
+    const isLoggedIn = Boolean(isSignedIn);
 
     return (
         <header className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[1600px] z-50 transition-all duration-500">
@@ -22,9 +22,7 @@ export default function Header() {
                 </div>
 
                 <Link href="/" className="relative z-10 flex items-center gap-3 group/logo">
-                    <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg group-hover/logo:scale-110 transition-transform">
-                        <Sparkles className="w-5 h-5 text-white" />
-                    </div>
+                    <LogoMark priority className="h-8 w-8 transition-transform group-hover/logo:scale-110" />
                     <span className="text-2xl font-black font-outfit bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent tracking-tight">
                         CraftMyFunnel
                     </span>

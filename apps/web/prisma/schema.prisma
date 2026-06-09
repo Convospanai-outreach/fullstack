@@ -925,6 +925,7 @@ model Team {
   sequenceStepRuns           SequenceStepRun[]
   domainAuthenticationChecks DomainAuthenticationCheck[]
   userInvitations            UserInvitation[]
+  edgeNode                   EdgeNode?
 }
 
 model CrmIntegration {
@@ -1112,6 +1113,7 @@ model TeamMember {
 
 model User {
   id                  String             @id @default(uuid())
+  clerkUserId         String?            @unique @map("clerk_user_id")
   email               String             @unique
   password            String? // <-- Add this line
   emailVerified       DateTime?
@@ -1143,6 +1145,7 @@ model User {
   agentTasks         AgentTask[]
   datasetReviews     DatasetReview[]
   sentInvitations    UserInvitation[]
+  approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
@@ -1163,16 +1166,44 @@ model UserInvitation {
   status      InvitationStatus @default(pending)
   expiresAt   DateTime
   acceptedAt  DateTime?
+  inviteRequestId String?          @map("invite_request_id")
   createdAt   DateTime         @default(now())
 
-  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  invitedBy User @relation(fields: [invitedById], references: [id])
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy     User           @relation(fields: [invitedById], references: [id])
+  inviteRequest InviteRequest? @relation(fields: [inviteRequestId], references: [id], onDelete: SetNull)
 
   @@index([email])
   @@index([teamId])
   @@index([invitedById])
+  @@index([inviteRequestId])
   @@index([status])
   @@index([expiresAt])
+}
+
+model InviteRequest {
+  id          String              @id @default(uuid())
+  name        String
+  email       String
+  company     String
+  linkedinUrl String              @map("linkedin_url")
+  useCase     String              @map("use_case") @db.Text
+  status      InviteRequestStatus @default(WAITLISTED)
+  inviteToken String?             @unique @map("invite_token")
+  approvedById String?            @map("approved_by_id")
+  approvedAt  DateTime?           @map("approved_at")
+  usedAt      DateTime?           @map("used_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  approvedBy User?            @relation("InviteRequestApprovedBy", fields: [approvedById], references: [id])
+  invitations UserInvitation[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([approvedById])
+  @@map("invite_requests")
 }
 
 model Account {
@@ -1720,12 +1751,31 @@ model LLMUsageLog {
 
 // 1. Hardware Binding (Grant Requirement: Proof of Physical Device)
 model EdgeNode {
-  id         String   @id @default(cuid())
-  teamId     String   @unique
-  hardwareId String   @unique // Matches the HARDWARE_SIGNATURE env var
-  ipAddress  String // e.g., "http://192.168.1.50:8000"
-  status     String   @default("OFFLINE") // Heartbeat check
-  lastSync   DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  teamId                  String    @unique
+  hardwareId              String    @unique // Legacy compatibility with HARDWARE_SIGNATURE; do not expose publicly.
+  hardwareFingerprintHash String?   @unique
+  publicKey               String?   @db.Text
+  ipAddress               String? // e.g., "http://192.168.1.50:8000"
+  status                  String    @default("OFFLINE") // ONLINE, DEGRADED, DISCONNECTED, REVOKED
+  attestationStatus       String    @default("PENDING") // PENDING, TRUSTED, FAILED
+  runtimeVersion          String?
+  buildHash               String?
+  capabilities            Json?
+  sessionTokenHash        String?
+  sessionTokenExpiresAt   DateTime?
+  piiStorageMode          String    @default("edge_only")
+  vaultState              String    @default("LOCKED") // LOCKED, UNLOCKED, UNKNOWN
+  lastSeenAt              DateTime?
+  pairedAt                DateTime  @default(now())
+  revokedAt               DateTime?
+  removalReason           String?
+  lastSync                DateTime  @updatedAt
+  team                    Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([sessionTokenExpiresAt])
+  @@index([lastSeenAt])
 }
 
 // 2. FTO (Freedom to Operate) Guardrails
@@ -1947,6 +1997,15 @@ enum InvitationStatus {
   accepted
   expired
   revoked
+}
+
+enum InviteRequestStatus {
+  WAITLISTED
+  APPROVED
+  INVITED
+  ACTIVE
+  USED
+  REJECTED
 }
 
 model FeatureFlag {

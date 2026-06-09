@@ -224,7 +224,6 @@ export async function getCurrentContext() {
         return { userId: null, teamId: null };
     }
 
-    // @ts-ignore
     const userId = session.user.id;
 
     // Check for workspace cookie

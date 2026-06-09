@@ -1,4 +1,5 @@
 import { aiService } from "@/lib/aiService";
+import { logger } from "@/lib/logger";
 
 /**
  * Calendar Nurture Flow
@@ -6,7 +7,7 @@ import { aiService } from "@/lib/aiService";
  */
 export const calendarNurtureFlow = {
     run: async (input: { leadContext: string; eventDetails: string; pastInteractions: string }) => {
-        console.log("[Genkit] Running calendar nurture flow for input:", input);
+        logger.info("[Genkit] Running calendar nurture flow", { input });
         
         try {
             const prompt = `

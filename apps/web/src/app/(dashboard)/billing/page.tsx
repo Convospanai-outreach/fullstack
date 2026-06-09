@@ -68,7 +68,6 @@ export default function BillingPage() {
                 }
             };
 
-            // @ts-ignore - Razorpay is loaded via script
             const rzp = new window.Razorpay(options);
             rzp.open();
         } catch (error: any) {

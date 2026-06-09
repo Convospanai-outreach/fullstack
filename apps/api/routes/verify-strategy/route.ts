@@ -2,15 +2,15 @@
 import { NextResponse } from "next/server";
 import { CampaignService } from "@/lib/campaignService";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
-    // Security: Only allow in development environment
-    if (process.env.NODE_ENV === 'production') {
-        return NextResponse.json({ error: "Not available in production" }, { status: 403 });
+    if (process.env["ENABLE_VERIFY_STRATEGY_ROUTE"] !== "true") {
+        return NextResponse.json({ error: "Route disabled" }, { status: 404 });
     }
 
     try {
-        console.log("1. Creating Campaign via Service (In-Band Verification)...");
+        logger.info("Creating campaign via service for in-band verification");
 
         const team = await prisma.team.findFirst();
         if (!team) return NextResponse.json({ error: "No team found" }, { status: 500 });
@@ -26,7 +26,7 @@ export async function GET() {
             }
         });
 
-        console.log(`   > Created Campaign ID: ${campaign.id}`);
+        logger.info("Created verification campaign", { campaignId: campaign.id });
 
         const storedCampaign = await prisma.campaign.findUnique({
             where: { id: campaign.id }

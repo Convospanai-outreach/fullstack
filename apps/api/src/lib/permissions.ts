@@ -85,8 +85,8 @@ export async function authorizeRole(userId: string, teamId: string, requiredRole
 }
 
 export function canManageMembers(role: string): boolean {
-    // @ts-ignore
-    return ROLE_PERMISSIONS[role]?.includes(Permission.INVITE_MEMBERS) || false;
+    if (!Object.values(TeamRole).includes(role as TeamRole)) return false;
+    return ROLE_PERMISSIONS[role as TeamRole].includes(Permission.INVITE_MEMBERS);
 }
 
 

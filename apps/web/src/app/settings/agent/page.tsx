@@ -4,8 +4,20 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Bot, Save, Loader2, Sparkles, MessageSquare, AlertCircle } from "lucide-react";
 
+type AgentSettings = {
+    tone_preference: string;
+    value_propositions: string;
+    forbidden_words: string;
+};
+
+const AGENT_SETTING_KEYS = ["tone_preference", "value_propositions", "forbidden_words"] as const;
+
+function isAgentSettingKey(key: unknown): key is keyof AgentSettings {
+    return typeof key === "string" && AGENT_SETTING_KEYS.includes(key as keyof AgentSettings);
+}
+
 export default function AgentSettingsPage() {
-    const [settings, setSettings] = useState({
+    const [settings, setSettings] = useState<AgentSettings>({
         tone_preference: "",
         value_propositions: "",
         forbidden_words: "",
@@ -21,8 +33,7 @@ export default function AgentSettingsPage() {
                 if (Array.isArray(data)) {
                     const newSettings = { ...settings };
                     data.forEach((m: any) => {
-                        if (m.key in newSettings) {
-                            // @ts-ignore
+                        if (isAgentSettingKey(m.key) && typeof m.value === "string") {
                             newSettings[m.key] = m.value;
                         }
                     });

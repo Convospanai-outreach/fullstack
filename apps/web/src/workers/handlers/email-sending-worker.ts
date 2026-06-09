@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import type { JobPayload } from "@/lib/queue";
+import { sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 
 export async function handleEmailSending(payload: JobPayload) {
   const { leadId, campaignId, teamId, mailboxId } = payload;
@@ -38,19 +39,53 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId}`);
   }
 
-  // 4. Record email row (actual send delegated to Gmail API service)
-  // TODO: Call GmailSendService.send() here once integrated
+  const subject = typeof payload.subject === "string" && payload.subject.trim()
+    ? payload.subject.trim()
+    : `Follow-up from ${campaign.name}`;
+  const body = typeof payload.body === "string" ? payload.body : "";
+
+  // 4. Record email row, then send via the connected Google mailbox.
   const email = await prisma.email.create({
     data: {
       leadId,
       campaignId,
       mailboxId: mailbox.id,
-      subject: `Follow-up from ${campaign.name}`,
-      body: "",         // populated by AI generation upstream
+      subject,
+      body,
       status: "queued",
     }
   });
 
-  logger.info("[email_sending] Email record created, pending send", { emailId: email.id, leadId });
-  return { emailId: email.id, status: "queued" };
+  const resolvedTeamId = teamId || campaign.teamId;
+  if (!resolvedTeamId) {
+    throw new Error(`No teamId available for campaign ${campaignId}`);
+  }
+
+  const result = await sendViaGmailMailbox({
+    teamId: resolvedTeamId,
+    mailboxId: mailbox.id,
+    to: lead.email,
+    subject,
+    html: body,
+  });
+
+  if (!result.success) {
+    await prisma.email.update({
+      where: { id: email.id },
+      data: { status: "failed" },
+    });
+    throw new Error(result.error || "Gmail send failed.");
+  }
+
+  const sent = await prisma.email.update({
+    where: { id: email.id },
+    data: {
+      status: "sent",
+      providerId: result.messageId,
+      threadId: result.threadId,
+    },
+  });
+
+  logger.info("[email_sending] Email sent", { emailId: sent.id, leadId, mailboxId: mailbox.id });
+  return { emailId: sent.id, status: "sent", providerId: sent.providerId, threadId: sent.threadId };
 }

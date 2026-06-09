@@ -3,6 +3,8 @@
  * Generates visual assets for outreach campaigns (Images, Slide Decks).
  * Integrates as a sub-agent for the OutreachAgent.
  */
+import { logger } from "@/lib/logger";
+
 const contentCache = new Map<string, string>();
 const CONTENT_ASSET_API_URL = process.env["CONTENT_ASSET_API_URL"] || "";
 
@@ -13,7 +15,7 @@ export class ContentAgent {
         const cacheKey = `${type}:${prompt}`;
 
         if (contentCache.has(cacheKey)) {
-            console.log(`[ContentAgent] Cache HIT for ${type}: "${prompt.substring(0, 20)}..."`);
+            logger.info("[ContentAgent] Cache HIT", { type, promptPreview: prompt.substring(0, 20) });
             return contentCache.get(cacheKey)!;
         }
 

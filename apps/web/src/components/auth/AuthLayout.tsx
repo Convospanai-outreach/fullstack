@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { LogoMark } from "@/components/brand/LogoMark";
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -17,7 +18,8 @@ export default function AuthLayout({ children, heading, subheading, showLogo = t
             <div className="glass w-full max-w-md p-8 rounded-2xl relative z-10 flex flex-col gap-6 animate-in fade-in zoom-in duration-500">
                 {showLogo && (
                     <div className="flex justify-center mb-2">
-                        <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                        <Link href="/" className="flex items-center gap-2 text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
+                            <LogoMark className="h-8 w-8" />
                             CraftMyFunnel
                         </Link>
                     </div>

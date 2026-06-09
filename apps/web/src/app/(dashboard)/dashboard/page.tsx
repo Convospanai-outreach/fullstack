@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Bot, CheckCircle2, Megaphone, Rocket, Sparkles, TrendingUp, Zap } from "lucide-react";
+import { ArrowRight, Bot, CheckCircle2, Import, Linkedin, Mail, Send, Sparkles, TrendingUp } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { DashboardController } from "@/components/dashboard/DashboardController";
 import { Button } from "@/components/ui/button";
@@ -10,28 +10,36 @@ import { IntelCapsule, IntelSignal } from "@/components/intel/IntelCapsule";
 
 const quickActions = [
     {
-        href: "/setup",
-        icon: Zap,
-        color: "from-violet-500/15 border-violet-500/20 text-violet-400 hover:border-violet-500/40",
-        title: "Define ICP",
-        desc: "Set the target segment, geography, and buyer profile",
+        href: "/leads/import",
+        icon: Import,
+        color: "from-cyan-500/15 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40",
+        title: "Add/import leads",
+        desc: "Upload a small lead list or add contacts manually",
         step: 1,
     },
     {
-        href: "/setup",
-        icon: TrendingUp,
-        color: "from-cyan-500/15 border-cyan-500/20 text-cyan-400 hover:border-cyan-500/40",
-        title: "Review outcome goal",
-        desc: "Capture qualification and meeting-goal context before launch",
+        href: "/campaigns/new",
+        icon: Mail,
+        color: "from-violet-500/15 border-violet-500/20 text-violet-400 hover:border-violet-500/40",
+        title: "Generate email draft",
+        desc: "Prepare a review-ready email draft for selected leads",
         step: 2,
     },
     {
         href: "/campaigns/new",
-        icon: Rocket,
+        icon: Linkedin,
         color: "from-emerald-500/15 border-emerald-500/20 text-emerald-400 hover:border-emerald-500/40",
-        title: "Approve campaign plan",
-        desc: "Generate the campaign plan, approve launch, and track meetings",
+        title: "Generate LinkedIn note",
+        desc: "Create a concise LinkedIn note for manual outreach",
         step: 3,
+    },
+    {
+        href: "/approvals",
+        icon: Send,
+        color: "from-amber-500/15 border-amber-500/20 text-amber-300 hover:border-amber-500/40",
+        title: "Copy and send manually",
+        desc: "Review each message, copy it, and send from your own account",
+        step: 4,
     },
 ];
 
@@ -65,8 +73,8 @@ export default function DashboardPage() {
             {/* ── Header ── */}
             <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                    <h1 className="text-3xl font-black tracking-tight text-white">Guided Growth Workflow</h1>
-                    <p className="mt-1 text-slate-400">Qualified leads, meetings, pipeline, follow-ups, and approvals in one view.</p>
+                    <h1 className="text-3xl font-black tracking-tight text-white">Manual Mode Dashboard</h1>
+                    <p className="mt-1 text-slate-400">Add leads, generate drafts, review, and send outreach manually.</p>
                 </div>
                 <div className="flex flex-wrap gap-3">
                     <Link href="/agents/swarm">
@@ -83,8 +91,8 @@ export default function DashboardPage() {
                     </Link>
                     <Link href="/campaigns/new">
                         <Button className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20 hover:from-violet-500 hover:to-indigo-500">
-                            <Megaphone className="h-4 w-4" />
-                            New Autopilot Campaign
+                            <Send className="h-4 w-4" />
+                            Prepare Manual Drafts
                         </Button>
                     </Link>
                 </div>
@@ -94,15 +102,15 @@ export default function DashboardPage() {
             <section className="mb-8">
                 <div className="mb-5 flex items-center justify-between">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-400">Launch path</p>
-                        <h2 className="mt-1 text-xl font-bold text-white">Define ICP, set outcomes, approve launch</h2>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-violet-400">Manual Mode onboarding</p>
+                        <h2 className="mt-1 text-xl font-bold text-white">First workflow checklist</h2>
                     </div>
-                    <Link href="/setup" className="inline-flex items-center gap-1 text-sm font-medium text-violet-400 transition hover:text-violet-300">
-                        Open launch readiness <ArrowRight className="h-3.5 w-3.5" />
+                    <Link href="/leads/import" className="inline-flex items-center gap-1 text-sm font-medium text-violet-400 transition hover:text-violet-300">
+                        Import leads <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-3">
+                <div className="grid gap-4 lg:grid-cols-4">
                     {quickActions.map((action) => (
                         <Link
                             key={action.title}
@@ -127,7 +135,7 @@ export default function DashboardPage() {
                 <div className="mt-4 flex items-start gap-3 rounded-2xl border border-emerald-500/20 bg-emerald-500/8 p-4 text-sm text-emerald-200">
                     <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
                     <p>
-                        <strong>Best practice:</strong> Keep human approval active before launches and follow-ups so meeting opportunities can be reviewed without brand risk.
+                        <strong>Manual Mode:</strong> CraftMyFunnel prepares drafts and tracking context. You stay in control of when and where messages are sent.
                     </p>
                 </div>
             </section>

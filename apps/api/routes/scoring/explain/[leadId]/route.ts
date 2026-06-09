@@ -10,6 +10,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { leadScoringService, caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function GET(
     _req: NextRequest,
@@ -86,7 +87,7 @@ export async function GET(
                 }
             } catch (err) {
                 // Case study lookup is optional
-                console.log('[Explain] Case study lookup skipped:', err);
+                logger.info("[Explain] Case study lookup skipped", { error: err instanceof Error ? err.message : String(err) });
             }
         }
 
