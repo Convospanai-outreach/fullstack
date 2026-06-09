@@ -12,8 +12,8 @@ export const metadata = {
   description: "CraftMyFunnel helps B2B service teams manage buyer signals, approved outreach, follow-ups, and qualified meeting tracking.",
   keywords: "governed funnel workflows, qualified meetings, buyer intent, approved outreach, B2B service companies, vertical playbooks",
   icons: {
-    icon: "/favicon.svg",
-    apple: "/favicon.svg",
+    icon: "/craftmyfunnel-logo.png",
+    apple: "/craftmyfunnel-logo.png",
   },
   openGraph: {
     title: "CraftMyFunnel — Governed Funnel Workflows",

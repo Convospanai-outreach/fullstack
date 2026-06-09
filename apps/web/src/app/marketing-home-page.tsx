@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BarChart3, CheckCircle, ChevronDown, ClipboardCheck, Cpu, Database, HardDrive, LayoutDashboard, Network, PhoneCall, Sparkles, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { InviteRequestForm } from "@/components/marketing/InviteRequestForm";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 const navGroups = [
   { label: "Product", href: "#workflow", items: ["Buyer Signals", "Sequences", "Approvals", "Human Calling"] },
@@ -43,7 +44,7 @@ function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080b1a]/88 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-        <Link href="/" className="flex items-center gap-2 text-lg font-black text-white"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 text-white">C</span>CraftMyFunnel</Link>
+        <Link href="/" className="flex items-center gap-2 text-lg font-black text-white"><LogoMark priority className="h-8 w-8" />CraftMyFunnel</Link>
         <nav className="hidden items-center gap-1 lg:flex">
           {navGroups.map((group) => (
             <div key={group.label} className="group relative">
@@ -77,7 +78,7 @@ function RealDashboardPreview({ large = false }: { large?: boolean }) {
       <GlassCard className="relative overflow-hidden p-3 ring-1 ring-white/10">
         <div className="grid overflow-hidden rounded-[24px] border border-white/10 bg-[#090d21] text-white lg:grid-cols-[220px_1fr]">
           <aside className="hidden border-r border-white/10 bg-white/[0.035] p-5 lg:block">
-            <div className="mb-8 flex items-center gap-2 font-black"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400">C</span>CMF</div>
+            <div className="mb-8 flex items-center gap-2 font-black"><LogoMark className="h-8 w-8" />CMF</div>
             {[["Dashboard", LayoutDashboard], ["Leads", Users], ["Campaigns", Sparkles], ["Governance", ClipboardCheck]].map(([label, Icon]) => <div key={String(label)} className="mb-2 flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-3 text-sm text-slate-300"><Icon className="h-4 w-4 text-cyan-300" />{String(label)}</div>)}
           </aside>
           <main className="p-4 sm:p-6">
@@ -121,7 +122,7 @@ export default function Home() {
 
       <section id="request-invite" className="bg-[#080b1a] px-6 py-24"><div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center text-white shadow-2xl shadow-black/30 sm:p-14"><h2 className="text-4xl font-black sm:text-5xl">Request access to Manual Mode</h2><p className="mx-auto mt-4 max-w-2xl text-slate-300">We are approving a small set of teams for the invite-only MVP focused on manual lead and meeting workflow tracking.</p><div className="mt-10 grid gap-4 sm:grid-cols-4">{pilotWeeks.map(([week, title]) => <div key={week} className="rounded-2xl bg-white/10 p-5"><p className="text-xs font-bold uppercase tracking-widest text-cyan-200">{week}</p><p className="mt-3 font-black">{title}</p></div>)}</div><InviteRequestForm /></div></section>
 
-      <footer className="border-t border-white/10 bg-[#070a18] px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><p className="font-semibold text-white">CraftMyFunnel</p><p className="mt-1">Copyright 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
+      <footer className="border-t border-white/10 bg-[#070a18] px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><Link href="/" className="inline-flex items-center gap-2 font-semibold text-white"><LogoMark className="h-7 w-7" />CraftMyFunnel</Link><p className="mt-1">Copyright 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
     </div>
   );
 }

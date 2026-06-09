@@ -8,6 +8,7 @@ import { ArrowRight, Lock, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 interface RoleLoginPageProps {
     title: string;
@@ -62,9 +63,7 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
                 <GlassCard>
                     <div className="mb-7 text-center">
                         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-lg font-black text-white">
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br ${gradient} text-xs font-black text-white`}>
-                                CS
-                            </div>
+                            <LogoMark className="h-8 w-8" />
                             CraftMyFunnel
                         </Link>
                         <h1 className="text-3xl font-bold text-white">{title}</h1>

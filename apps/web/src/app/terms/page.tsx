@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 export const metadata: Metadata = {
   title: "Terms & Conditions | CraftMyFunnel",
@@ -175,7 +176,7 @@ export default function TermsPage() {
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-40" />
         <div className="relative mx-auto max-w-6xl">
           <Link href="/" className="inline-flex items-center gap-2 text-lg font-black text-white">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-cyan-400 text-white">C</span>
+            <LogoMark priority className="h-8 w-8" />
             CraftMyFunnel
           </Link>
           <div className="mt-12 max-w-4xl">

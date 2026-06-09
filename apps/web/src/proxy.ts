@@ -150,6 +150,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/verify-email",
         "/favicon.ico",
         "/favicon.svg",
+        "/craftmyfunnel-logo.png",
         "/about",
         "/contact",
         "/pricing",

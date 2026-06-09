@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 export default function Footer() {
     return (
@@ -8,9 +8,7 @@ export default function Footer() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
                     <div className="col-span-2 md:col-span-1 space-y-4">
                         <Link href="/" className="flex items-center gap-2 group">
-                            <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-amber-400 to-cyan-500 flex items-center justify-center">
-                                <Sparkles className="w-4 h-4 text-white" />
-                            </div>
+                            <LogoMark className="h-7 w-7" />
                             <span className="text-lg font-black font-outfit text-white">CraftMyFunnel</span>
                         </Link>
                         <p className="text-sm text-gray-500 leading-relaxed">

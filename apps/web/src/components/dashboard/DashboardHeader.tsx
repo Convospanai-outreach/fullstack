@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { QuickActions } from "./QuickActions";
 import { useUser } from "@clerk/nextjs";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 function getUserInitials(name?: string | null): string {
     if (!name) return "U";
@@ -38,9 +39,7 @@ export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSid
                 </button>
 
                 <Link href="/dashboard" className="flex items-center gap-2 group lg:hidden">
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <Sparkles className="w-4 h-4 text-white" />
-                    </div>
+                    <LogoMark className="h-7 w-7" />
                     <span className="text-lg font-black tracking-tight text-foreground font-outfit">CraftMyFunnel</span>
                 </Link>
             </div>

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import { NotificationBell } from "./ui/NotificationBell";
 import Nav from "./Nav";
-import { Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 export default function Header() {
     const { isSignedIn } = useAuth();
@@ -22,9 +22,7 @@ export default function Header() {
                 </div>
 
                 <Link href="/" className="relative z-10 flex items-center gap-3 group/logo">
-                    <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg group-hover/logo:scale-110 transition-transform">
-                        <Sparkles className="w-5 h-5 text-white" />
-                    </div>
+                    <LogoMark priority className="h-8 w-8 transition-transform group-hover/logo:scale-110" />
                     <span className="text-2xl font-black font-outfit bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent tracking-tight">
                         CraftMyFunnel
                     </span>
