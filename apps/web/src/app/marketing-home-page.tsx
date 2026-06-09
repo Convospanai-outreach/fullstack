@@ -28,7 +28,7 @@ const edgeTiers = [
 const pilotWeeks = [["Week 1", "Signal Setup"], ["Week 2", "Qualification Rules"], ["Week 3", "Multi Channel Outreach"], ["Week 4", "Qualified Meetings"]];
 const footerLinks = [
   { href: "/privacy", label: "Privacy Policy" },
-  { href: "/terms", label: "Terms of Service" },
+  { href: "/terms", label: "Terms & Conditions" },
   { href: "/support", label: "Support" },
   { href: "/data-deletion", label: "Data Deletion" },
   { href: "/security", label: "Security" },
