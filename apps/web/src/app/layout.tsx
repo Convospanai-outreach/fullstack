@@ -4,6 +4,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { SupportAssistant } from "@/components/support/SupportAssistant";
 import Script from "next/script";
+import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata = {
   metadataBase: new URL(process.env["NEXTAUTH_URL"] || "http://localhost:3000"),
@@ -36,6 +37,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const gaId = process.env["NEXT_PUBLIC_GA_ID"];
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
+  const clerkPublishableKey = process.env["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY"];
+  const app = (
+    <ErrorBoundary>
+      <Providers>
+        <CommandPalette />
+        <Toaster position="top-center" richColors />
+        <LayoutShell>
+          {children}
+        </LayoutShell>
+        <SupportAssistant />
+      </Providers>
+    </ErrorBoundary>
+  );
 
   return (
     <html lang="en" className="dark" data-scroll-behavior="smooth">
@@ -76,16 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >
           Skip to main content
         </a>
-        <ErrorBoundary>
-          <Providers>
-            <CommandPalette />
-            <Toaster position="top-center" richColors />
-            <LayoutShell>
-              {children}
-            </LayoutShell>
-            <SupportAssistant />
-          </Providers>
-        </ErrorBoundary>
+        {clerkPublishableKey ? <ClerkProvider publishableKey={clerkPublishableKey}>{app}</ClerkProvider> : app}
       </body>
     </html>
   );

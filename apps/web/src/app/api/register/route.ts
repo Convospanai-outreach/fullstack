@@ -55,6 +55,10 @@ async function createAccountFromInviteRequest(input: { email: string; name: stri
 }
 
 export async function POST(req: NextRequest) {
+    if (process.env["CLERK_SECRET_KEY"]) {
+        return NextResponse.json({ error: "Password signup is disabled. Use Clerk invite signup." }, { status: 410 });
+    }
+
     const body = await req.json().catch(() => null);
     const token = typeof body?.inviteToken === "string" ? body.inviteToken : typeof body?.token === "string" ? body.token : "";
     const name = typeof body?.name === "string" ? body.name.trim() : "";

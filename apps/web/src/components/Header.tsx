@@ -1,17 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useAuth } from "@clerk/nextjs";
 import { NotificationBell } from "./ui/NotificationBell";
 import Nav from "./Nav";
 import { Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
 
 export default function Header() {
-    const { data: session } = useSession();
+    const { isSignedIn } = useAuth();
     // Default to FREE if plan not set, safe fallback
-    const isFree = !session?.user?.plan || session.user.plan === "FREE";
-    const isLoggedIn = !!session?.user;
+    const isFree = true;
+    const isLoggedIn = Boolean(isSignedIn);
 
     return (
         <header className="fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-[1600px] z-50 transition-all duration-500">

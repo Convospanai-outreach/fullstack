@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
 import {
     getDefaultEnabledHiddenFeatureKeys,
@@ -11,7 +12,7 @@ import {
     PRODUCT_FLAGS,
 } from './lib/productFlags';
 
-export async function proxy(req: NextRequest) {
+async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
     const hiddenFeature = getHiddenFeatureForPath(path);
     const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
@@ -24,7 +25,7 @@ export async function proxy(req: NextRequest) {
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;
@@ -65,10 +66,22 @@ export async function proxy(req: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    let clerkUserId: string | undefined;
+    let clerkClaims: Record<string, unknown> | undefined;
+    if (clerkAuth) {
+        try {
+            const authState = await clerkAuth();
+            clerkUserId = authState?.userId || undefined;
+            clerkClaims = authState?.sessionClaims as Record<string, unknown> | undefined;
+        } catch {
+            clerkUserId = undefined;
+        }
+    }
+
     const { getToken } = await import("next-auth/jwt");
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     token = (await getToken({ req, secret })) as Record<string, unknown> | null;
-    userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
+    userId = clerkUserId || (typeof token?.['sub'] === "string" ? token['sub'] : undefined);
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
@@ -167,7 +180,7 @@ export async function proxy(req: NextRequest) {
         // Token already fetched at the top for rate limiting
 
 
-        if (!token) {
+        if (!token && !clerkUserId) {
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -179,7 +192,7 @@ export async function proxy(req: NextRequest) {
         }
 
         // 3. Caller Page Protection (RBAC)
-        const role = token?.['enterpriseRole'] as string;
+        const role = (token?.['enterpriseRole'] || clerkClaims?.['enterpriseRole']) as string;
         const superAdminRoles = ["SUPER_ADMIN", "SYSTEM_ADMIN"];
         const canManageUsers = superAdminRoles.includes(role) || role === "ORG_ADMIN";
         const canAccessCMS = canManageUsers || role === "CMS_EDITOR";
@@ -198,6 +211,7 @@ export async function proxy(req: NextRequest) {
         }
 
         if (
+            !clerkUserId &&
             (path.startsWith("/admin/users") || path.startsWith("/admin/invites") || path.startsWith("/api/admin/users") || path.startsWith("/api/admin/invites")) &&
             !canManageUsers
         ) {
@@ -322,3 +336,8 @@ export const config = {
         '/((?!_next/static|_next/image|favicon.ico|favicon.svg).*)',
     ],
 };
+
+const clerkProxy = clerkMiddleware(async (auth, req) => appProxy(req, auth));
+
+export default clerkProxy;
+export const proxy = clerkProxy;

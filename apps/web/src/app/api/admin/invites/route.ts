@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { clerkClient } from "@clerk/nextjs/server";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
 import {
     createInviteToken,
     getInviteLink,
+    getAppBaseUrl,
     hashInviteToken,
     INVITE_TTL_MS,
     isAssignableInviteRole,
@@ -20,6 +23,9 @@ type AdminActor = {
 };
 
 async function getActor(): Promise<AdminActor | null> {
+    const clerkActor = await findOrCreateClerkAppUser();
+    if (clerkActor) return clerkActor as AdminActor;
+
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
@@ -33,6 +39,19 @@ async function getActor(): Promise<AdminActor | null> {
 function getAllowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
     return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
+}
+
+async function maybeSendClerkInvite(email: string, inviteRequestId: string) {
+    if (!process.env["CLERK_SECRET_KEY"]) return false;
+
+    const client = await clerkClient();
+    await client.invitations.createInvitation({
+        emailAddress: email,
+        redirectUrl: `${getAppBaseUrl()}/signup`,
+        publicMetadata: { inviteRequestId }
+    });
+
+    return true;
 }
 
 export async function GET() {
@@ -249,8 +268,12 @@ export async function PATCH(req: NextRequest) {
         });
 
         let emailed = false;
+        let clerkInvited = false;
         try {
-            emailed = await maybeSendInviteEmail(inviteRequest.email, inviteLink);
+            clerkInvited = await maybeSendClerkInvite(inviteRequest.email, inviteRequest.id);
+            if (!clerkInvited) {
+                emailed = await maybeSendInviteEmail(inviteRequest.email, inviteLink);
+            }
         } catch (error) {
             console.error("[Invitations] Failed to email approved invite request:", error);
         }
@@ -258,10 +281,11 @@ export async function PATCH(req: NextRequest) {
         await AuditService.log(teamId, actor.id, "invite_request_approved", "InviteRequest", inviteRequest.id, {
             email: inviteRequest.email,
             invitationId: invitation.id,
-            emailed
+            emailed,
+            clerkInvited
         });
 
-        return NextResponse.json({ invitation, inviteLink, emailed });
+        return NextResponse.json({ invitation, inviteLink, emailed, clerkInvited });
     }
 
     if (!id || status !== "revoked") {

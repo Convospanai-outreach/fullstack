@@ -1113,6 +1113,7 @@ model TeamMember {
 
 model User {
   id                  String             @id @default(uuid())
+  clerkUserId         String?            @unique @map("clerk_user_id")
   email               String             @unique
   password            String? // <-- Add this line
   emailVerified       DateTime?

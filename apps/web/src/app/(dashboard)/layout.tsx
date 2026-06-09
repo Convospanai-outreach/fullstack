@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import OnboardingChecklist from "@/modules/onboarding/ui/OnboardingChecklist";
@@ -16,12 +17,21 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showSetupBanner, setShowSetupBanner] = useState(false);
     const [setupPercent, setSetupPercent] = useState(0);
 
     useEffect(() => {
         let cancelled = false;
+
+        fetch("/api/auth/clerk-sync", { cache: "no-store" })
+            .then((res) => {
+                if (!cancelled && res.status === 403) {
+                    router.replace("/login?invite=required");
+                }
+            })
+            .catch(() => {});
 
         fetch(getBrowserApiUrl("/setup/status"))
             .then(res => res.ok ? res.json() : null)
@@ -40,7 +50,7 @@ export default function DashboardLayout({
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [router]);
 
     return (
         <div className="flex min-h-screen bg-surface-app text-foreground selection:bg-brand-500/30">
