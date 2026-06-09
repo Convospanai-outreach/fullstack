@@ -10,48 +10,27 @@
     <header class="header">
       <div>
         <h1>CraftMyFunnel</h1>
-        <p>LinkedIn-assisted lead capture</p>
+        <p>LinkedIn visible profile capture</p>
       </div>
-      <button id="pauseToggle" class="icon-btn" type="button" title="Pause or resume polling">Pause</button>
     </header>
 
-    <section class="settings">
-      <label>
-        API base
-        <input id="apiBaseInput" type="url" placeholder="http://localhost:3000/api" />
-      </label>
-      <label>
-        API token
-        <input id="tokenInput" type="password" placeholder="Paste CraftMyFunnel token" />
-      </label>
-      <label>
-        Extension key
-        <input id="extensionKeyInput" type="password" placeholder="CraftMyFunnel extension key" />
-      </label>
-      <label>
-        Team ID
-        <input id="teamIdInput" type="text" placeholder="Optional team ID" />
-      </label>
-      <button id="saveSettings" class="primary" type="button">Save Settings</button>
-    </section>
-
-    <section class="stats" aria-label="Extension stats">
-      <div><strong id="leadsAdded">0</strong><span>Leads</span></div>
-      <div><strong id="draftsInserted">0</strong><span>Drafts</span></div>
-      <div><strong id="tasksCompleted">0</strong><span>Tasks</span></div>
-      <div><strong id="errors">0</strong><span>Errors</span></div>
-    </section>
-
     <section class="actions">
-      <button id="addLead" class="secondary" type="button">Add to CMF</button>
-      <textarea id="draftText" rows="4" placeholder="Draft note to insert into the active LinkedIn text box"></textarea>
-      <button id="insertDraft" class="secondary" type="button">Insert Draft</button>
-      <select id="manualTaskType" aria-label="Manual task label">
-        <option value="LINKEDIN_TASK">LINKEDIN_TASK</option>
-        <option value="WHATSAPP_TASK">WHATSAPP_TASK</option>
-        <option value="CALL_TASK">CALL_TASK</option>
-      </select>
-      <button id="logTask" class="secondary" type="button">Log Manual LinkedIn Task</button>
+      <button id="captureProfile" class="primary" type="button">Capture Visible Profile</button>
+    </section>
+
+    <section class="capture" aria-label="Latest captured profile">
+      <div class="section-title">Latest Capture</div>
+      <dl id="latestCapture">
+        <dt>Name</dt>
+        <dd id="captureName">-</dd>
+        <dt>Headline</dt>
+        <dd id="captureHeadline">-</dd>
+        <dt>Company</dt>
+        <dd id="captureCompany">-</dd>
+        <dt>Profile URL</dt>
+        <dd id="captureUrl">-</dd>
+      </dl>
+      <button id="copyCapture" class="secondary" type="button">Copy Capture</button>
     </section>
 
     <section class="activity">
@@ -59,7 +38,7 @@
       <ol id="activityLog"></ol>
     </section>
 
-    <footer id="statusMsg">Ready</footer>
+    <footer id="statusMsg">V1 approval scope: visible LinkedIn profile capture only.</footer>
   </main>
   <script src="utils.js"></script>
   <script src="popup.js"></script>

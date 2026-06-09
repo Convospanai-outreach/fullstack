@@ -4,7 +4,7 @@
 
 body {
   width: 360px;
-  min-height: 560px;
+  min-height: 420px;
   margin: 0;
   font-family: Arial, sans-serif;
   color: #111827;
@@ -57,15 +57,6 @@ select {
   font-size: 13px;
 }
 
-textarea {
-  resize: vertical;
-  min-height: 84px;
-}
-
-select {
-  margin: 0 0 8px;
-}
-
 button {
   border-radius: 6px;
   border: 1px solid #cbd5e1;
@@ -101,40 +92,38 @@ button {
   min-height: 32px;
 }
 
-.settings,
 .actions,
+.capture,
 .activity {
   margin-bottom: 14px;
 }
 
-.stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.stats div {
+#latestCapture {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
   background: #fff;
-  padding: 8px 6px;
-  text-align: center;
+  padding: 10px;
+  margin: 0 0 10px;
 }
 
-.stats strong,
-.stats span {
-  display: block;
-}
-
-.stats strong {
-  font-size: 16px;
-}
-
-.stats span {
+#latestCapture dt {
   color: #64748b;
   font-size: 11px;
-  margin-top: 2px;
+  font-weight: 700;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+#latestCapture dt:first-child {
+  margin-top: 0;
+}
+
+#latestCapture dd {
+  margin: 2px 0 0;
+  color: #111827;
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .section-title {

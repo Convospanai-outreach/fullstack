@@ -1,78 +1,37 @@
 const CMF_SIDEBAR_ID = "cmf-linkedin-assistant";
 
-let lastFocusedEditor = null;
-
-document.addEventListener("focusin", (event) => {
-  if (isEditable(event.target)) {
-    lastFocusedEditor = event.target;
-  }
-});
+// Version 1 is limited to visible LinkedIn profile capture for manual review.
+// Version 2 task execution and draft insertion remain planned, but disabled.
+const CMF_CONTENT_FEATURES = {
+  visibleProfileCapture: true,
+  backendLeadSync: false,
+  draftInsertion: false,
+  taskExecution: false,
+  manualTaskLogging: false
+};
 
 initAssistant();
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.type !== "EXECUTE_TASK") return false;
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "CMF_CAPTURE_VISIBLE_PROFILE") {
+    try {
+      const profile = captureVisibleProfile();
+      chrome.runtime
+        .sendMessage({ type: "CMF_STORE_VISIBLE_PROFILE", profile })
+        .then(sendResponse);
+      return true;
+    } catch (error) {
+      sendResponse({ ok: false, error: error.message });
+      return false;
+    }
+  }
 
-  executeTask(msg.task)
-    .then((result) => sendResponse(result))
-    .catch((error) => sendResponse({ ok: false, error: error.message }));
-  return true;
+  return false;
 });
 
 function initAssistant() {
-  if (!isLinkedInProfilePage()) return;
+  if (!CMF_CONTENT_FEATURES.visibleProfileCapture || !isLinkedInProfilePage()) return;
   injectSidebar();
-}
-
-async function executeTask(task) {
-  const startTime = Date.now();
-  const type = task.type;
-
-  try {
-    if (type === "ADD_LEAD") {
-      const profile = captureVisibleProfile();
-      const response = await chrome.runtime.sendMessage({
-        type: "ADD_LEAD",
-        taskId: task.id,
-        data: profile
-      });
-      return response || { ok: true };
-    }
-
-    if (type === "INSERT_DRAFT") {
-      const text = task.payload?.draft || task.payload?.text || task.payload?.note || "";
-      const inserted = insertDraft(text);
-      const status = inserted ? "SUCCESS" : "ERROR";
-      reportTask(task, status, {
-        profileUrl: cleanProfileUrl(),
-        error: inserted ? undefined : "No active LinkedIn text box found. Click into the editor first.",
-        durationMs: Date.now() - startTime
-      });
-      return { ok: inserted };
-    }
-
-    if (type === "LOG_MANUAL_LINKEDIN_ACTION") {
-      await chrome.runtime.sendMessage({
-        type: "LOG_MANUAL_LINKEDIN_ACTION",
-        payload: {
-          profileUrl: cleanProfileUrl(),
-          action: task.payload?.action || "LINKEDIN_TASK",
-          note: task.payload?.note || ""
-        }
-      });
-      reportTask(task, "SUCCESS", { profileUrl: cleanProfileUrl() });
-      return { ok: true };
-    }
-
-    reportTask(task, "ERROR", { error: `Unsupported content task: ${type}` });
-    return { ok: false, error: `Unsupported content task: ${type}` };
-  } catch (error) {
-    reportTask(task, "ERROR", {
-      error: error.message,
-      durationMs: Date.now() - startTime
-    });
-    return { ok: false, error: error.message };
-  }
 }
 
 function injectSidebar() {
@@ -81,18 +40,10 @@ function injectSidebar() {
   const root = document.createElement("div");
   root.id = CMF_SIDEBAR_ID;
   root.innerHTML = `
-    <button class="cmf-toggle" type="button" aria-label="Open CraftMyFunnel Assistant">CMF</button>
-    <section class="cmf-panel" aria-label="CraftMyFunnel Assistant">
+    <button class="cmf-toggle" type="button" aria-label="Open CraftMyFunnel capture">CMF</button>
+    <section class="cmf-panel" aria-label="CraftMyFunnel visible profile capture">
       <div class="cmf-title">CraftMyFunnel</div>
-      <button id="cmf-add-lead" type="button">Add to CMF</button>
-      <textarea id="cmf-draft" rows="4" placeholder="Draft note to insert"></textarea>
-      <button id="cmf-insert-draft" type="button">Insert Draft</button>
-      <select id="cmf-task-label" aria-label="Manual task label">
-        <option value="LINKEDIN_TASK">LINKEDIN_TASK</option>
-        <option value="WHATSAPP_TASK">WHATSAPP_TASK</option>
-        <option value="CALL_TASK">CALL_TASK</option>
-      </select>
-      <button id="cmf-log-action" type="button">Log Manual LinkedIn Task</button>
+      <button id="cmf-capture-profile" type="button">Capture Visible Profile</button>
       <div id="cmf-status" role="status"></div>
     </section>
   `;
@@ -136,40 +87,21 @@ function injectSidebar() {
       font-weight: 700;
       margin-bottom: 10px;
     }
-    #${CMF_SIDEBAR_ID} button:not(.cmf-toggle),
-    #${CMF_SIDEBAR_ID} select,
-    #${CMF_SIDEBAR_ID} textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border-radius: 6px;
-      font-size: 13px;
-    }
     #${CMF_SIDEBAR_ID} button:not(.cmf-toggle) {
+      width: 100%;
       min-height: 34px;
       border: 1px solid #cbd5e1;
+      border-radius: 6px;
       background: #f8fafc;
       color: #0f172a;
       cursor: pointer;
       margin-bottom: 8px;
+      font-size: 13px;
       font-weight: 600;
     }
     #${CMF_SIDEBAR_ID} button:not(.cmf-toggle):hover {
       background: #eef4ff;
       border-color: #93b4f6;
-    }
-    #${CMF_SIDEBAR_ID} textarea {
-      resize: vertical;
-      border: 1px solid #cbd5e1;
-      padding: 8px;
-      margin-bottom: 8px;
-      color: #0f172a;
-    }
-    #${CMF_SIDEBAR_ID} select {
-      min-height: 32px;
-      border: 1px solid #cbd5e1;
-      background: #fff;
-      color: #0f172a;
-      margin-bottom: 8px;
     }
     #${CMF_SIDEBAR_ID} #cmf-status {
       min-height: 16px;
@@ -186,35 +118,25 @@ function injectSidebar() {
     root.classList.toggle("open");
   });
 
-  root.querySelector("#cmf-add-lead").addEventListener("click", addLeadFromSidebar);
-  root.querySelector("#cmf-insert-draft").addEventListener("click", () => {
-    const draft = root.querySelector("#cmf-draft").value;
-    setSidebarStatus(insertDraft(draft) ? "Draft inserted. Review it before posting manually." : "Click into a LinkedIn text box first.");
-  });
-  root.querySelector("#cmf-log-action").addEventListener("click", async () => {
-    const action = root.querySelector("#cmf-task-label").value;
-    await chrome.runtime.sendMessage({
-      type: "LOG_MANUAL_LINKEDIN_ACTION",
-      payload: {
-        profileUrl: cleanProfileUrl(),
-        action,
-        note: "Manual LinkedIn task completed by user."
-      }
-    });
-    setSidebarStatus("Manual LinkedIn task logged.");
-  });
+  root.querySelector("#cmf-capture-profile").addEventListener("click", captureFromSidebar);
 }
 
-async function addLeadFromSidebar() {
-  const profile = captureVisibleProfile();
-  setSidebarStatus("Adding lead...");
-  const response = await chrome.runtime.sendMessage({ type: "ADD_LEAD", data: profile });
-  setSidebarStatus(response?.ok ? "Lead added to CraftMyFunnel." : response?.error || "Could not add lead.");
+async function captureFromSidebar() {
+  try {
+    const profile = captureVisibleProfile();
+    const response = await chrome.runtime.sendMessage({
+      type: "CMF_STORE_VISIBLE_PROFILE",
+      profile
+    });
+    setSidebarStatus(response?.ok ? "Visible profile captured." : response?.error || "Could not capture profile.");
+  } catch (error) {
+    setSidebarStatus(error.message || "Could not capture profile.");
+  }
 }
 
 function captureVisibleProfile() {
   if (!isLinkedInProfilePage()) {
-    throw new Error("Open a LinkedIn profile page before adding a lead.");
+    throw new Error("Open a LinkedIn profile page before capturing.");
   }
 
   const name = textFromSelectors([
@@ -229,13 +151,11 @@ function captureVisibleProfile() {
     "main section .text-body-medium"
   ]);
 
-  const company = findCompany();
-
   return {
     profileUrl: cleanProfileUrl(),
     name,
     headline,
-    company
+    company: findCompany()
   };
 }
 
@@ -253,56 +173,6 @@ function findCompany() {
 
   const candidate = experienceSection.querySelector('span[aria-hidden="true"], .t-14.t-normal');
   return normalizeText(candidate?.textContent || "");
-}
-
-function insertDraft(text) {
-  if (!text.trim()) return false;
-
-  const editor = getActiveEditor();
-  if (!editor) return false;
-
-  editor.focus();
-  if (editor.isContentEditable) {
-    editor.textContent = text;
-  } else {
-    editor.value = text;
-  }
-
-  editor.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
-  editor.dispatchEvent(new Event("change", { bubbles: true }));
-  return true;
-}
-
-function getActiveEditor() {
-  const active = document.activeElement;
-  if (isEditable(active)) return active;
-  if (isEditable(lastFocusedEditor)) return lastFocusedEditor;
-
-  return document.querySelector([
-    '[contenteditable="true"][role="textbox"]',
-    '[contenteditable="true"]',
-    "textarea",
-    'input[type="text"]'
-  ].join(","));
-}
-
-function isEditable(element) {
-  if (!element) return false;
-  if (element.isContentEditable) return true;
-  const tag = element.tagName?.toLowerCase();
-  return tag === "textarea" || (tag === "input" && ["text", "search"].includes(element.type));
-}
-
-function reportTask(task, status, details = {}) {
-  chrome.runtime.sendMessage({
-    type: "TASK_RESULT",
-    result: {
-      taskId: task.id,
-      type: task.type,
-      status,
-      ...details
-    }
-  });
 }
 
 function textFromSelectors(selectors) {

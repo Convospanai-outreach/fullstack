@@ -1,20 +1,14 @@
 {
   "manifest_version": 3,
   "name": "CraftMyFunnel Assistant",
-  "description": "LinkedIn-assisted lead capture and task companion for CraftMyFunnel.",
-  "version": "2.0.0",
+  "description": "Capture visible LinkedIn profile details for manual CraftMyFunnel review.",
+  "version": "1.0.0",
   "permissions": [
     "activeTab",
-    "alarms",
-    "notifications",
-    "storage",
-    "tabs"
+    "storage"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*",
-    "http://localhost:3000/*",
-    "https://api.craftmyfunnel.com/*",
-    "https://*.craftmyfunnel.com/*"
+    "https://www.linkedin.com/in/*"
   ],
   "icons": {
     "16": "icons/icon-16.png",
@@ -32,7 +26,6 @@
       "128": "icons/icon-128.png"
     }
   },
-  "options_page": "options.html",
   "content_scripts": [
     {
       "matches": [
