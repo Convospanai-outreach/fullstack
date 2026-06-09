@@ -48,9 +48,15 @@ export default function BillingPage() {
                 throw new Error(data.error || 'Failed to create order');
             }
 
+            const razorpayKey = process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'];
+
+            if (!razorpayKey) {
+                throw new Error("NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured");
+            }
+
             // Open Razorpay checkout
             const options = {
-                key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'],
+                key: razorpayKey,
                 amount: data.amount,
                 currency: data.currency,
                 name: 'CraftMyFunnel',

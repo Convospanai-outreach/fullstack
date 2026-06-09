@@ -338,7 +338,7 @@ export const config = {
     ],
 };
 
-const clerkProxy = clerkMiddleware(async (auth, req) => appProxy(req, auth));
+const clerkProxy = clerkMiddleware(async (auth, req) => appProxy(req as NextRequest, auth));
 
 export default clerkProxy;
 export const proxy = clerkProxy;

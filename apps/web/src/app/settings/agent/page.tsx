@@ -33,8 +33,9 @@ export default function AgentSettingsPage() {
                 if (Array.isArray(data)) {
                     const newSettings = { ...settings };
                     data.forEach((m: any) => {
-                        if (isAgentSettingKey(m.key) && typeof m.value === "string") {
-                            newSettings[m.key] = m.value;
+                        const key = m?.key;
+                        if (isAgentSettingKey(key) && typeof m.value === "string") {
+                            newSettings[key] = m.value;
                         }
                     });
                     setSettings(newSettings);

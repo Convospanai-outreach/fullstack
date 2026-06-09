@@ -39,10 +39,12 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId}`);
   }
 
-  const subject = typeof payload.subject === "string" && payload.subject.trim()
-    ? payload.subject.trim()
+  const payloadSubject = payload["subject"];
+  const payloadBody = payload["body"];
+  const subject = typeof payloadSubject === "string" && payloadSubject.trim()
+    ? payloadSubject.trim()
     : `Follow-up from ${campaign.name}`;
-  const body = typeof payload.body === "string" ? payload.body : "";
+  const body = typeof payloadBody === "string" ? payloadBody : "";
 
   // 4. Record email row, then send via the connected Google mailbox.
   const email = await prisma.email.create({
@@ -81,8 +83,8 @@ export async function handleEmailSending(payload: JobPayload) {
     where: { id: email.id },
     data: {
       status: "sent",
-      providerId: result.messageId,
-      threadId: result.threadId,
+      ...(result.messageId ? { providerId: result.messageId } : {}),
+      ...(result.threadId ? { threadId: result.threadId } : {}),
     },
   });
 

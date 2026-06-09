@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
 import { syncClerkUserToApp } from "@/lib/clerkAuth";
 
@@ -22,7 +22,7 @@ function getDisplayName(data: ClerkUserPayload) {
     return [data.first_name, data.last_name].filter(Boolean).join(" ").trim() || null;
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     let event: any;
     try {
         event = await verifyWebhook(req);

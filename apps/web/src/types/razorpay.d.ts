@@ -17,5 +17,6 @@ type RazorpayCheckoutOptions = {
 interface Window {
     Razorpay: new (options: RazorpayCheckoutOptions) => {
         open: () => void;
+        on: (event: string, handler: (response: unknown) => void) => void;
     };
 }
