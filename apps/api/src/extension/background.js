@@ -125,6 +125,7 @@ async function storeVisibleProfile(profile = {}) {
     companyName: String(profile.currentCompany || profile.companyName || profile.company || ""),
     company: String(profile.currentCompany || profile.companyName || profile.company || ""),
     location: String(profile.location || ""),
+    debug: profile.debug || {},
     capturedAt: new Date().toISOString()
   };
 

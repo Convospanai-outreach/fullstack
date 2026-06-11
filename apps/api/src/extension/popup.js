@@ -22,6 +22,7 @@ const els = {
   captureProfile: document.getElementById("captureProfile"),
   retryCapture: document.getElementById("retryCapture"),
   copyCapture: document.getElementById("copyCapture"),
+  deepCaptureDebug: document.getElementById("deepCaptureDebug"),
   generateDraft: document.getElementById("generateDraft"),
   copyDraft: document.getElementById("copyDraft"),
   saveLead: document.getElementById("saveLead"),
@@ -47,6 +48,9 @@ const fields = {
   captureHeadline: document.getElementById("captureHeadline"),
   captureCompany: document.getElementById("captureCompany"),
   captureLocation: document.getElementById("captureLocation"),
+  captureHint: document.getElementById("captureHint"),
+  captureSources: document.getElementById("captureSources"),
+  deepDebugPanel: document.getElementById("deepDebugPanel"),
   noteCompany: document.getElementById("noteCompany"),
   noteRole: document.getElementById("noteRole"),
   noteLocation: document.getElementById("noteLocation"),
@@ -80,6 +84,7 @@ function bindEvents() {
   els.captureProfile.addEventListener("click", captureProfile);
   els.retryCapture.addEventListener("click", captureProfile);
   els.copyCapture.addEventListener("click", copyCapture);
+  els.deepCaptureDebug.addEventListener("click", showDeepCaptureDebug);
   els.generateDraft.addEventListener("click", generateDraft);
   els.copyDraft.addEventListener("click", copyDraft);
   els.saveLead.addEventListener("click", saveLead);
@@ -155,11 +160,37 @@ function renderAll() {
 
 function renderCapture() {
   const profile = state.latestCapture || {};
+  const hasMissingOptional = !profile.headline || !(profile.currentCompany || profile.companyName || profile.company) || !profile.location;
   setText(fields.captureName, profile.name || "Not captured yet.", !profile.name);
   setText(fields.captureUrl, profile.profileUrl || "Not captured yet.", !profile.profileUrl);
   setText(fields.captureHeadline, profile.headline || NOT_DETECTED, !profile.headline);
   setText(fields.captureCompany, profile.currentCompany || profile.companyName || profile.company || NOT_DETECTED, !(profile.currentCompany || profile.companyName || profile.company));
   setText(fields.captureLocation, profile.location || NOT_DETECTED, !profile.location);
+  fields.captureHint.classList.toggle("hidden", !profile.name || !hasMissingOptional);
+  renderCaptureSources(profile.debug?.fieldMeta || {});
+}
+
+function renderCaptureSources(fieldMeta) {
+  fields.captureSources.innerHTML = "";
+  const rows = [
+    ["Name", "name"],
+    ["Profile URL", "profileUrl"],
+    ["Headline", "headline"],
+    ["Company", "currentCompany"],
+    ["Location", "location"]
+  ];
+
+  rows.forEach(([label, key]) => {
+    const meta = fieldMeta[key] || { value: NOT_DETECTED, source: "fallback", confidence: "low" };
+    const item = document.createElement("div");
+    item.className = "source-item";
+    item.innerHTML = `
+      <strong>${label}</strong>
+      <span>${escapeHtml(meta.value || NOT_DETECTED)}</span>
+      <small>Source: ${escapeHtml(meta.source || "fallback")} - Confidence: ${escapeHtml(meta.confidence || "low")}</small>
+    `;
+    fields.captureSources.appendChild(item);
+  });
 }
 
 function renderNotes() {
@@ -277,6 +308,32 @@ async function copyCapture() {
   await navigator.clipboard.writeText(JSON.stringify(buildLeadPayload(), null, 2));
   await addLocalActivity("Copied capture");
   setStatus("Capture copied.", "success");
+}
+
+async function showDeepCaptureDebug() {
+  const tab = await getActiveTab();
+  if (!cmfIsLinkedInProfileUrl(tab?.url)) {
+    setStatus("Open a LinkedIn profile page to inspect capture debug.", "error");
+    return;
+  }
+
+  chrome.tabs.sendMessage(tab.id, { type: "CMF_DEEP_CAPTURE_DEBUG" }, (response) => {
+    if (chrome.runtime.lastError || !response?.ok) {
+      setStatus(response?.error || "Refresh the LinkedIn profile page and try again.", "error");
+      return;
+    }
+    const debug = response.debug || {};
+    fields.deepDebugPanel.textContent = JSON.stringify({
+      documentTitle: debug.title || "",
+      ogTitle: debug.ogTitle || "",
+      ogDescription: debug.ogDescription || "",
+      metaDescription: debug.metaDescription || "",
+      jsonLdPerson: debug.jsonLdPerson || null,
+      topViewportLines: (debug.topViewportLines || []).map((line) => line.text || line)
+    }, null, 2);
+    fields.deepDebugPanel.classList.remove("hidden");
+    setStatus("Deep capture debug loaded. No cookies or tokens are included.", "success");
+  });
 }
 
 async function generateDraft() {
@@ -479,6 +536,15 @@ async function getActiveTab() {
 function setText(element, text, muted) {
   element.textContent = text;
   element.classList.toggle("not-detected", Boolean(muted));
+}
+
+function escapeHtml(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 function setStatus(message, type = "") {

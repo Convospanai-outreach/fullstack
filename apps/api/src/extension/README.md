@@ -70,6 +70,19 @@ V1 uses content-script DOM inspection and `chrome.runtime` messages only. It doe
 
 The content script is passive on page load. It reads visible profile details only after the popup sends a user-triggered `CMF_CAPTURE_VISIBLE_PROFILE` message.
 
+## Capture Extraction Strategy
+
+V1 profile capture avoids LinkedIn private APIs and unstable DOM-first scraping. It uses layered browser-visible extraction:
+
+1. profile URL from `window.location.href` without query params
+2. JSON-LD `Person` data from `script[type="application/ld+json"]`
+3. Open Graph, Twitter, and standard meta title/description tags
+4. `document.title`
+5. visible text in the top 45 percent of the viewport
+6. top-card DOM selectors as the final fallback
+
+Each captured field records a value, source, and confidence in the popup debug panel. The Deep Capture Debug button shows only page title/meta, JSON-LD Person data, and top viewport lines used for extraction. It does not expose cookies, tokens, auth headers, or session data.
+
 ## Intentionally Disabled
 
 The following are intentionally disabled in the V1 approval build:
