@@ -1,41 +1,97 @@
 // CraftMyFunnel Chrome Extension V1 approval scope.
 //
-// Active V1 behavior is intentionally narrow:
-// - no background crawling
-// - no backend sync
-// - no tab creation/query orchestration
-// - no notifications, cookies, or broad host access
+// Permissions stay minimal in manifest.json:
+// - storage: local user-approved lead prep data
+// - activeTab: popup-initiated capture on the current tab
+// - LinkedIn profile host only: content script visibility on profile pages
 //
-// Planned V2 background task polling is preserved in
-// background.v2-planned.js but is not referenced by manifest.json.
+// This worker does not crawl LinkedIn, read credentials, collect session data,
+// schedule LinkedIn jobs, or automate outreach.
 const CMF_FEATURES = {
-  backendSync: false,
-  taskPolling: false,
-  draftInsertion: false,
-  manualTaskLogging: false
+  visibleProfileCapture: true,
+  linkedinApiCapture: false,
+  backendLeadSync: false,
+  outreachAutomation: false,
+  messageDrafting: false,
+  connectionAutomation: false
 };
 
 const DEFAULT_STATE = {
   latestCapture: null,
+  leadNotes: {
+    company: "",
+    role: "",
+    location: "",
+    industry: "",
+    notes: "",
+    priority: "Medium",
+    leadType: "Founder"
+  },
+  outreachAngle: "Sales introduction",
+  customAngle: "",
+  draft: {
+    tone: "Friendly",
+    channel: "LinkedIn DM",
+    cta: "Reply if relevant",
+    customCta: "",
+    message: ""
+  },
+  qualification: {
+    fitScore: 3,
+    need: "Unknown",
+    timing: "Unknown",
+    status: "Captured"
+  },
+  settings: {
+    workspaceUrl: "",
+    apiKey: "",
+    defaultTone: "Friendly",
+    defaultOutreachAngle: "Sales introduction"
+  },
+  savedLead: null,
   captureCount: 0,
   activityLog: []
 };
 
 chrome.runtime.onInstalled.addListener(async () => {
-  const stored = await chrome.storage.local.get(Object.keys(DEFAULT_STATE));
-  await chrome.storage.local.set({ ...DEFAULT_STATE, ...stored });
-  updateBadge(stored.captureCount || 0);
+  const state = await getState();
+  await chrome.storage.local.set(state);
+  updateBadge(state.captureCount || 0);
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "CMF_GET_V1_STATE") {
-    getState().then(sendResponse);
+  if (msg?.type === "CMF_GET_V1_STATE" || msg?.type === "CMF_GET_LAST_CAPTURE") {
+    getState().then((state) => sendResponse({ ok: true, ...state, features: CMF_FEATURES }));
     return true;
   }
 
   if (msg?.type === "CMF_STORE_VISIBLE_PROFILE") {
     storeVisibleProfile(msg.profile).then(sendResponse);
     return true;
+  }
+
+  if (msg?.type === "CMF_UPDATE_ASSISTANT_STATE") {
+    updateAssistantState(msg.patch || {}).then(sendResponse);
+    return true;
+  }
+
+  if (msg?.type === "CMF_SAVE_PREPARED_LEAD") {
+    savePreparedLead(msg.payload || {}).then(sendResponse);
+    return true;
+  }
+
+  if (msg?.type === "CMF_CLEAR_LOCAL_DATA") {
+    clearLocalData().then(sendResponse);
+    return true;
+  }
+
+  if (msg?.type === "CMF_V2_API_CAPTURE_DISABLED") {
+    sendResponse({
+      ok: false,
+      disabled: true,
+      message: "LinkedIn API-assisted capture is prepared but disabled in V1 approval build."
+    });
+    return false;
   }
 
   if (msg?.type === "CMF_GET_FEATURES") {
@@ -48,31 +104,37 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 async function getState() {
   const stored = await chrome.storage.local.get(Object.keys(DEFAULT_STATE));
-  return { ...DEFAULT_STATE, ...stored, features: CMF_FEATURES };
+  return {
+    ...DEFAULT_STATE,
+    ...stored,
+    leadNotes: { ...DEFAULT_STATE.leadNotes, ...(stored.leadNotes || {}) },
+    draft: { ...DEFAULT_STATE.draft, ...(stored.draft || {}) },
+    qualification: { ...DEFAULT_STATE.qualification, ...(stored.qualification || {}) },
+    settings: { ...DEFAULT_STATE.settings, ...(stored.settings || {}) },
+    activityLog: (stored.activityLog || []).slice(0, 5)
+  };
 }
 
 async function storeVisibleProfile(profile = {}) {
   const cleaned = {
+    source: "linkedin",
     profileUrl: String(profile.profileUrl || ""),
     name: String(profile.name || ""),
     headline: String(profile.headline || ""),
-    company: String(profile.company || ""),
+    currentCompany: String(profile.currentCompany || profile.companyName || profile.company || ""),
+    companyName: String(profile.currentCompany || profile.companyName || profile.company || ""),
+    company: String(profile.currentCompany || profile.companyName || profile.company || ""),
+    location: String(profile.location || ""),
     capturedAt: new Date().toISOString()
   };
 
-  if (!isLinkedInProfileUrl(cleaned.profileUrl)) {
-    return { ok: false, error: "Open a LinkedIn profile page before capturing." };
+  if (!isLinkedInProfileUrl(cleaned.profileUrl) || !cleaned.name) {
+    return { ok: false, error: "Open a LinkedIn profile page to capture a lead." };
   }
 
   const state = await getState();
-  const activityLog = [
-    {
-      at: cleaned.capturedAt,
-      message: `Captured visible LinkedIn profile: ${cleaned.name || cleaned.profileUrl}`
-    },
-    ...(state.activityLog || [])
-  ].slice(0, 10);
   const captureCount = Number(state.captureCount || 0) + 1;
+  const activityLog = addActivity(state.activityLog, `Captured profile: ${cleaned.name}`);
 
   await chrome.storage.local.set({
     latestCapture: cleaned,
@@ -80,7 +142,85 @@ async function storeVisibleProfile(profile = {}) {
     activityLog
   });
   updateBadge(captureCount);
-  return { ok: true, profile: cleaned };
+  return { ok: true, profile: cleaned, activityLog };
+}
+
+async function updateAssistantState(patch) {
+  const state = await getState();
+  const next = {
+    leadNotes: { ...state.leadNotes, ...(patch.leadNotes || {}) },
+    outreachAngle: patch.outreachAngle ?? state.outreachAngle,
+    customAngle: patch.customAngle ?? state.customAngle,
+    draft: { ...state.draft, ...(patch.draft || {}) },
+    qualification: { ...state.qualification, ...(patch.qualification || {}) },
+    settings: { ...state.settings, ...(patch.settings || {}) },
+    activityLog: patch.activityLog ? patch.activityLog.slice(0, 5) : state.activityLog
+  };
+  await chrome.storage.local.set(next);
+  return { ok: true, ...next };
+}
+
+async function savePreparedLead(payload) {
+  const state = await getState();
+  const lead = {
+    source: "linkedin",
+    ...payload,
+    capturedAt: payload.capturedAt || state.latestCapture?.capturedAt || new Date().toISOString(),
+    savedAt: new Date().toISOString()
+  };
+
+  const syncResult = await trySyncLead(lead, state.settings);
+  const status = syncResult.ok ? "synced" : "local";
+  const activityLog = addActivity(
+    state.activityLog,
+    syncResult.ok ? "Lead synced to workspace" : "Lead saved locally"
+  );
+
+  await chrome.storage.local.set({
+    savedLead: { ...lead, status, syncError: syncResult.error || "" },
+    activityLog
+  });
+
+  return {
+    ok: true,
+    synced: syncResult.ok,
+    status,
+    message: syncResult.ok
+      ? "Synced to CraftMyFunnel workspace."
+      : "Saved locally. Connect CraftMyFunnel workspace to sync.",
+    error: syncResult.error || "",
+    activityLog
+  };
+}
+
+async function trySyncLead(lead, settings) {
+  const workspaceUrl = String(settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  if (!workspaceUrl) return { ok: false, error: "Workspace URL not configured." };
+
+  try {
+    const response = await fetch(`${workspaceUrl}/api/extension/push`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {})
+      },
+      body: JSON.stringify(lead)
+    });
+    if (!response.ok) return { ok: false, error: `Workspace returned ${response.status}.` };
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+async function clearLocalData() {
+  await chrome.storage.local.set(DEFAULT_STATE);
+  updateBadge(0);
+  return { ok: true, ...DEFAULT_STATE };
+}
+
+function addActivity(items, message) {
+  return [{ at: new Date().toISOString(), message }, ...(items || [])].slice(0, 5);
 }
 
 function updateBadge(captureCount) {

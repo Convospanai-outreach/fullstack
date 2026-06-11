@@ -1,190 +1,134 @@
-const CMF_SIDEBAR_ID = "cmf-linkedin-assistant";
-
-// Version 1 is limited to visible LinkedIn profile capture for manual review.
-// Version 2 task execution and draft insertion remain planned, but disabled.
-const CMF_CONTENT_FEATURES = {
-  visibleProfileCapture: true,
-  backendLeadSync: false,
-  draftInsertion: false,
-  taskExecution: false,
-  manualTaskLogging: false
-};
-
-initAssistant();
+// CraftMyFunnel V1 content script.
+// It stays passive on LinkedIn pages and only reads visible profile details
+// after the popup sends an explicit user-triggered capture message.
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "CMF_CAPTURE_VISIBLE_PROFILE") {
+    captureVisibleProfileWithRetries()
+      .then((profile) => chrome.runtime.sendMessage({ type: "CMF_STORE_VISIBLE_PROFILE", profile }))
+      .then(sendResponse)
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
+
+  if (msg?.type === "CMF_DEBUG_PROFILE_CAPTURE") {
     try {
-      const profile = captureVisibleProfile();
-      chrome.runtime
-        .sendMessage({ type: "CMF_STORE_VISIBLE_PROFILE", profile })
-        .then(sendResponse);
-      return true;
+      sendResponse({ ok: true, debug: captureVisibleProfile().debug });
     } catch (error) {
       sendResponse({ ok: false, error: error.message });
-      return false;
     }
+    return false;
   }
 
   return false;
 });
 
-function initAssistant() {
-  if (!CMF_CONTENT_FEATURES.visibleProfileCapture || !isLinkedInProfilePage()) return;
-  injectSidebar();
-}
+async function captureVisibleProfileWithRetries() {
+  const attempts = [0, 700, 1600];
+  let bestProfile = null;
 
-function injectSidebar() {
-  if (document.getElementById(CMF_SIDEBAR_ID)) return;
-
-  const root = document.createElement("div");
-  root.id = CMF_SIDEBAR_ID;
-  root.innerHTML = `
-    <button class="cmf-toggle" type="button" aria-label="Open CraftMyFunnel capture">CMF</button>
-    <section class="cmf-panel" aria-label="CraftMyFunnel visible profile capture">
-      <div class="cmf-title">CraftMyFunnel</div>
-      <button id="cmf-capture-profile" type="button">Capture Visible Profile</button>
-      <div id="cmf-status" role="status"></div>
-    </section>
-  `;
-
-  const style = document.createElement("style");
-  style.textContent = `
-    #${CMF_SIDEBAR_ID} {
-      position: fixed;
-      right: 16px;
-      top: 148px;
-      z-index: 2147483647;
-      font-family: Arial, sans-serif;
-      color: #0f172a;
-    }
-    #${CMF_SIDEBAR_ID} .cmf-toggle {
-      width: 48px;
-      height: 48px;
-      border: 0;
-      border-radius: 8px;
-      background: #2563eb;
-      color: #fff;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
-    }
-    #${CMF_SIDEBAR_ID} .cmf-panel {
-      display: none;
-      width: 236px;
-      margin-top: 8px;
-      padding: 12px;
-      background: #fff;
-      border: 1px solid #dbe3ef;
-      border-radius: 8px;
-      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.22);
-    }
-    #${CMF_SIDEBAR_ID}.open .cmf-panel {
-      display: block;
-    }
-    #${CMF_SIDEBAR_ID} .cmf-title {
-      font-size: 14px;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-    #${CMF_SIDEBAR_ID} button:not(.cmf-toggle) {
-      width: 100%;
-      min-height: 34px;
-      border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      background: #f8fafc;
-      color: #0f172a;
-      cursor: pointer;
-      margin-bottom: 8px;
-      font-size: 13px;
-      font-weight: 600;
-    }
-    #${CMF_SIDEBAR_ID} button:not(.cmf-toggle):hover {
-      background: #eef4ff;
-      border-color: #93b4f6;
-    }
-    #${CMF_SIDEBAR_ID} #cmf-status {
-      min-height: 16px;
-      color: #475569;
-      font-size: 12px;
-      line-height: 1.35;
-    }
-  `;
-
-  document.documentElement.appendChild(style);
-  document.body.appendChild(root);
-
-  root.querySelector(".cmf-toggle").addEventListener("click", () => {
-    root.classList.toggle("open");
-  });
-
-  root.querySelector("#cmf-capture-profile").addEventListener("click", captureFromSidebar);
-}
-
-async function captureFromSidebar() {
-  try {
+  for (const delayMs of attempts) {
+    if (delayMs) await delay(delayMs);
     const profile = captureVisibleProfile();
-    const response = await chrome.runtime.sendMessage({
-      type: "CMF_STORE_VISIBLE_PROFILE",
-      profile
-    });
-    setSidebarStatus(response?.ok ? "Visible profile captured." : response?.error || "Could not capture profile.");
-  } catch (error) {
-    setSidebarStatus(error.message || "Could not capture profile.");
+    if (scoreProfile(profile) > scoreProfile(bestProfile)) bestProfile = profile;
+    if (bestProfile?.name && bestProfile?.profileUrl) break;
   }
+
+  return bestProfile;
 }
 
 function captureVisibleProfile() {
   if (!isLinkedInProfilePage()) {
-    throw new Error("Open a LinkedIn profile page before capturing.");
+    throw new Error("Open a LinkedIn profile page to capture a lead.");
   }
 
-  const name = textFromSelectors([
-    "main h1",
-    "h1.text-heading-xlarge",
-    ".pv-text-details__left-panel h1"
-  ]);
-
-  const headline = textFromSelectors([
-    ".text-body-medium.break-words",
-    ".pv-text-details__left-panel .text-body-medium",
-    "main section .text-body-medium"
-  ]);
+  const profileUrl = cleanProfileUrl(window.location.href);
+  const topCard = findTopCard();
+  const nameNode = findNameNode(topCard);
+  const rawName = cleanText(nameNode?.innerText || nameNode?.textContent || "");
+  const name = isValidName(stripLinkedInBadges(rawName)) ? stripLinkedInBadges(rawName) : fallbackName();
+  const headline = safeHeadline(topCard, name);
+  const location = safeLocation(topCard);
+  const currentCompany = safeCurrentCompany(topCard);
 
   return {
-    profileUrl: cleanProfileUrl(),
+    profileUrl,
     name,
     headline,
-    company: findCompany()
+    currentCompany,
+    companyName: currentCompany,
+    company: currentCompany,
+    location,
+    debug: {
+      topCardFound: Boolean(topCard),
+      nameFound: Boolean(name),
+      headlineFound: Boolean(headline),
+      companyFound: Boolean(currentCompany),
+      locationFound: Boolean(location),
+      rawName
+    }
   };
 }
 
-function findCompany() {
-  const companyLink = Array.from(document.querySelectorAll('a[href*="/company/"]'))
-    .map((el) => normalizeText(el.textContent))
-    .find(Boolean);
-
-  if (companyLink) return companyLink;
-
-  const experienceSection = Array.from(document.querySelectorAll("section"))
-    .find((section) => normalizeText(section.textContent).startsWith("Experience"));
-
-  if (!experienceSection) return "";
-
-  const candidate = experienceSection.querySelector('span[aria-hidden="true"], .t-14.t-normal');
-  return normalizeText(candidate?.textContent || "");
+function findTopCard() {
+  const main = document.querySelector("main");
+  if (!isVisible(main)) return null;
+  const h1 = getVisibleElements(["h1"], main).find((node) => isValidName(stripLinkedInBadges(textOf(node))));
+  if (!h1) return null;
+  return h1.closest(".pv-top-card") ||
+    h1.closest("section.artdeco-card") ||
+    h1.closest("section") ||
+    h1.parentElement;
 }
 
-function textFromSelectors(selectors) {
-  for (const selector of selectors) {
-    const value = normalizeText(document.querySelector(selector)?.textContent || "");
-    if (value) return value;
-  }
-  return "";
+function findNameNode(topCard) {
+  return getVisibleElements(["h1"], topCard).find((node) => isValidName(stripLinkedInBadges(textOf(node)))) || null;
 }
 
-function cleanProfileUrl() {
-  const url = new URL(window.location.href);
+function safeHeadline(topCard, name) {
+  if (!topCard || !name) return "";
+  const nameNode = findNameNode(topCard);
+  const nameRect = nameNode?.getBoundingClientRect();
+  if (!nameRect) return "";
+
+  const candidate = getVisibleElements([".text-body-medium", "div", "span", "p"], topCard)
+    .map((node) => ({ node, text: stripLinkedInBadges(textOf(node)), rect: node.getBoundingClientRect() }))
+    .filter((item) => item.rect.top >= nameRect.bottom - 8 && item.rect.top <= nameRect.bottom + 120)
+    .find((item) => isValidHeadline(item.text, name));
+
+  return candidate?.text || "";
+}
+
+function safeLocation(topCard) {
+  if (!topCard) return "";
+  const candidate = getVisibleElements([".text-body-small", "span", "div"], topCard)
+    .map((node) => cleanText(textOf(node)))
+    .find((text) => isLikelyLocation(text));
+  return candidate || "";
+}
+
+function safeCurrentCompany(topCard) {
+  if (!topCard) return "";
+  const selectors = [
+    ".pv-text-details__right-panel span[aria-hidden='true']",
+    ".pv-text-details__right-panel a span[aria-hidden='true']",
+    ".pv-top-card--experience-list-item span[aria-hidden='true']"
+  ];
+  const candidate = getVisibleElements(selectors, topCard)
+    .map((node) => stripLinkedInBadges(textOf(node)))
+    .find((text) => isValidCompany(text));
+  return candidate || "";
+}
+
+function fallbackName() {
+  const title = cleanText(document.querySelector("meta[property='og:title']")?.getAttribute("content") || document.title || "");
+  const withoutLinkedIn = title.replace(/\s*\|\s*LinkedIn\s*$/i, "");
+  const firstPart = stripLinkedInBadges(withoutLinkedIn.split(" - ")[0] || "");
+  return isValidName(firstPart) ? firstPart : "";
+}
+
+function cleanProfileUrl(value) {
+  const url = new URL(value);
   return `${url.origin}${url.pathname}`.replace(/\/+$/, "/");
 }
 
@@ -192,20 +136,81 @@ function isLinkedInProfilePage() {
   return location.hostname.endsWith("linkedin.com") && location.pathname.includes("/in/");
 }
 
-function normalizeText(value) {
+function getVisibleElements(selectors, root = document) {
+  if (!root) return [];
+  return selectors.flatMap((selector) => Array.from(root.querySelectorAll(selector))).filter(isVisible);
+}
+
+function isVisible(element) {
+  if (!element) return false;
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0;
+}
+
+function textOf(node) {
+  return cleanText(node?.innerText || node?.textContent || "");
+}
+
+function cleanText(value = "") {
   return value.replace(/\s+/g, " ").trim();
 }
 
-function setSidebarStatus(message) {
-  const status = document.querySelector(`#${CMF_SIDEBAR_ID} #cmf-status`);
-  if (status) status.textContent = message;
+function stripLinkedInBadges(value = "") {
+  return cleanText(value)
+    .replace(/\s*(?:·|Â·|\|)\s*(1st|2nd|3rd).*$/i, "")
+    .replace(/\b(1st|2nd|3rd)\b.*$/i, "")
+    .replace(/\s*\|\s*LinkedIn\s*$/i, "")
+    .trim();
 }
 
-let lastUrl = location.href;
-new MutationObserver(() => {
-  if (location.href === lastUrl) return;
-  lastUrl = location.href;
-  if (isLinkedInProfilePage()) {
-    window.setTimeout(initAssistant, 250);
-  }
-}).observe(document.documentElement, { subtree: true, childList: true });
+function hasBadgeText(value = "") {
+  return /\b(1st|2nd|3rd|followers?|connections?)\b/i.test(value);
+}
+
+function isValidName(value = "") {
+  const text = stripLinkedInBadges(value);
+  if (!text || hasBadgeText(text)) return false;
+  if (text.split(/\s+/).filter(Boolean).length < 2) return false;
+  return text.length >= 3 && text.length <= 100;
+}
+
+function isValidHeadline(value = "", name = "") {
+  const text = stripLinkedInBadges(value);
+  if (!text || sameText(text, name) || hasBadgeText(text)) return false;
+  if (isLikelyLocation(text) || looksLikeEducation(text) || isSectionLabel(text)) return false;
+  if (/^(contact info|connect|message|follow|open to|available for)$/i.test(text)) return false;
+  return text.length > 3 && text.length < 180;
+}
+
+function isValidCompany(value = "") {
+  const text = stripLinkedInBadges(value);
+  if (!text || hasBadgeText(text) || looksLikeEducation(text) || isLikelyLocation(text) || isSectionLabel(text)) return false;
+  return text.length > 1 && text.length < 120;
+}
+
+function looksLikeEducation(value = "") {
+  return /\b(university|college|school|b\.?a\.?|bcom|b\.?tech|mba|philosophy|education|degree)\b/i.test(value);
+}
+
+function isLikelyLocation(value = "") {
+  return /,\s*[A-Za-z]/.test(value) || /\b(area|region|india|united states|remote)\b/i.test(value);
+}
+
+function isSectionLabel(value = "") {
+  return /^(experience|education|activity|about|skills|licenses|certifications|recommendations|interests|current company|company)$/i.test(value);
+}
+
+function sameText(a = "", b = "") {
+  return cleanText(a).toLowerCase() === cleanText(b).toLowerCase();
+}
+
+function scoreProfile(profile) {
+  if (!profile) return 0;
+  return [profile.name, profile.profileUrl, profile.headline, profile.currentCompany, profile.location].filter(Boolean).length;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
