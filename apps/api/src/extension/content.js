@@ -2,7 +2,7 @@
 // Passive on LinkedIn pages: it only reads browser-visible profile details
 // after the popup sends an explicit user-triggered capture message.
 
-const CMF_NOT_DETECTED = "Not detected from visible profile.";
+const CMF_NOT_DETECTED = "We couldn't confidently identify this field from the visible profile. You may enter it manually.";
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === "CMF_CAPTURE_VISIBLE_PROFILE") {
@@ -48,19 +48,25 @@ function runExtraction() {
   const profileUrl = cleanProfileUrl(window.location.href);
   const meta = collectMeta();
   const jsonLdPeople = collectJsonLdPeople();
+  const metadata = extractMetadataLayer(meta, jsonLdPeople);
+  const hero = extractHeroLayer();
+  const experience = extractExperienceLayer();
+  const locationIntel = extractLocationLayer();
   const viewportLines = collectTopViewportLines();
   const domSnapshot = collectDomFallbackSnapshot();
   const candidates = {
-    profileUrl: [{ value: profileUrl, source: "url", confidence: "high" }],
+    profileUrl: [{ value: profileUrl, source: "metadata", confidence: 100 }],
     name: [],
     headline: [],
     currentCompany: [],
-    location: []
+    location: [],
+    currentRole: []
   };
 
-  addJsonLdCandidates(candidates, jsonLdPeople);
-  addMetaCandidates(candidates, meta);
-  addTitleCandidates(candidates, meta);
+  addLayerCandidates(candidates, metadata);
+  addLayerCandidates(candidates, hero);
+  addLayerCandidates(candidates, experience);
+  addLayerCandidates(candidates, locationIntel);
   addViewportCandidates(candidates, viewportLines);
   addDomCandidates(candidates, domSnapshot);
 
@@ -68,13 +74,15 @@ function runExtraction() {
   const headline = chooseCandidate(candidates.headline, (value) => isValidHeadline(value, name.value));
   const currentCompany = chooseCandidate(candidates.currentCompany, isValidCompany);
   const location = chooseCandidate(candidates.location, isLikelyLocation);
+  const currentRole = chooseCandidate(candidates.currentRole, (value) => isValidHeadline(value, name.value));
 
   const fieldMeta = {
     name: toFieldMeta(name, "Name"),
-    profileUrl: { value: profileUrl, source: "url", confidence: "high" },
+    profileUrl: { value: profileUrl, source: "metadata", confidence: 100, label: "Profile URL" },
     headline: toFieldMeta(headline, "Headline"),
     currentCompany: toFieldMeta(currentCompany, "Current Company"),
-    location: toFieldMeta(location, "Location")
+    location: toFieldMeta(location, "Location"),
+    currentRole: toFieldMeta(currentRole, "Current Role")
   };
 
   const profile = {
@@ -85,8 +93,38 @@ function runExtraction() {
     companyName: currentCompany.value || "",
     company: currentCompany.value || "",
     location: location.value || "",
+    currentRole: currentRole.value || "",
+    confidence: {
+      name: fieldMeta.name.confidence,
+      headline: fieldMeta.headline.confidence,
+      company: fieldMeta.currentCompany.confidence,
+      location: fieldMeta.location.confidence,
+      currentRole: fieldMeta.currentRole.confidence
+    },
+    sources: {
+      name: fieldMeta.name.source,
+      headline: fieldMeta.headline.source,
+      company: fieldMeta.currentCompany.source,
+      location: fieldMeta.location.source,
+      currentRole: fieldMeta.currentRole.source
+    },
     debug: {
       fieldMeta,
+      layers: {
+        metadata,
+        hero,
+        experience,
+        location: locationIntel,
+        viewport: viewportLines,
+        fallback: domSnapshot
+      },
+      winners: {
+        name,
+        headline,
+        currentCompany,
+        location,
+        currentRole
+      },
       title: meta.title,
       ogTitle: meta.ogTitle,
       ogDescription: meta.ogDescription,
@@ -103,38 +141,139 @@ function runExtraction() {
   return { profile, debug: profile.debug };
 }
 
-function addJsonLdCandidates(candidates, people) {
+function extractMetadataLayer(meta, people) {
+  const layer = createLayer("metadata");
+  addJsonLdCandidates(layer, people);
+  addMetaCandidates(layer, meta);
+  addTitleCandidates(layer, meta);
+  return layer;
+}
+
+function extractHeroLayer() {
+  const lines = collectHeroLines();
+  const nameLine = lines.find((line) => line.isStrongName) || null;
+  const name = nameLine?.text || "";
+  const afterName = nameLine ? lines.filter((line) => line.top >= nameLine.top && !sameText(line.text, name)) : lines;
+  const headlineLine = afterName.find((line) => isMeaningfulViewportLine(line.text) && isValidHeadline(line.text, name)) || null;
+  const locationLine = afterName.find((line) => isLikelyLocation(line.text)) || null;
+  const companyLine = afterName.find((line) => line.isRightPanel && isValidCompany(line.text)) || null;
+
+  return {
+    source: "hero",
+    name: candidate(name, "hero", scoreByProximity(94, nameLine, nameLine)),
+    headline: candidate(headlineLine?.text, "hero", scoreByProximity(88, headlineLine, nameLine)),
+    company: candidate(companyLine?.text, "hero", scoreByProximity(86, companyLine, nameLine)),
+    location: candidate(locationLine?.text, "hero", scoreByProximity(84, locationLine, nameLine)),
+    currentRole: candidate(headlineLine?.text, "hero", scoreByProximity(72, headlineLine, nameLine)),
+    lines
+  };
+}
+
+function extractExperienceLayer() {
+  const section = findNamedSection("experience");
+  if (!section) return createLayer("experience");
+
+  const items = Array.from(section.querySelectorAll("li, .artdeco-list__item, [data-view-name*='profile-component']"))
+    .filter(isVisible)
+    .map((item) => ({
+      text: cleanText(item.innerText || item.textContent || ""),
+      lines: getVisibleTextLines(item)
+    }))
+    .filter((item) => item.text && !looksLikeEducation(item.text));
+
+  const current = items.find((item) => /\b(present|current)\b/i.test(item.text)) || items[0];
+  if (!current) return createLayer("experience");
+
+  const lines = current.lines.filter((line) => !isIgnoredViewportText(line));
+  const role = lines.find(isLikelyRole) || "";
+  const roleIndex = role ? lines.findIndex((line) => sameText(line, role)) : -1;
+  const companySearch = roleIndex >= 0 ? lines.slice(roleIndex + 1, roleIndex + 5) : lines;
+  const company = companySearch.find((line) => isValidCompany(line) && !isLikelyRole(line)) || extractCompanyFromText(current.text);
+
+  return {
+    source: "experience",
+    currentCompany: candidate(company, "experience", 96),
+    currentRole: candidate(role, "experience", 90),
+    rawLines: lines.slice(0, 8)
+  };
+}
+
+function extractLocationLayer() {
+  const topCard = document.querySelector("main section:first-of-type") || document.querySelector("main");
+  const lines = getVisibleTextLines(topCard)
+    .filter((line) => !looksLikeEducation(line) && !/\b(event|experience|education)\b/i.test(line))
+    .slice(0, 40);
+  const location = lines.find(isLikelyLocation) || "";
+  return {
+    source: "location",
+    location: candidate(location, "location", 82),
+    rawLines: lines
+  };
+}
+
+function addJsonLdCandidates(layer, people) {
   for (const person of people) {
-    addCandidate(candidates.name, person.name, "jsonld", "high");
-    addCandidate(candidates.headline, person.jobTitle || person.description, "jsonld", "high");
-    addCandidate(candidates.currentCompany, readWorksForName(person.worksFor), "jsonld", "high");
-    addCandidate(candidates.location, formatAddress(person.address), "jsonld", "high");
+    layer.name = bestCandidate(layer.name, candidate(person.name, "metadata", 92));
+    layer.headline = bestCandidate(layer.headline, candidate(person.jobTitle || person.description, "metadata", 88));
+    layer.company = bestCandidate(layer.company, candidate(readWorksForName(person.worksFor), "metadata", 74));
+    layer.location = bestCandidate(layer.location, candidate(formatAddress(person.address), "metadata", 76));
+    layer.jsonLdPerson = person;
   }
 }
 
-function addMetaCandidates(candidates, meta) {
+function addMetaCandidates(layer, meta) {
   const titleValues = [meta.ogTitle, meta.twitterTitle].filter(Boolean);
   for (const value of titleValues) {
     const parsed = parseLinkedInTitle(value);
-    addCandidate(candidates.name, parsed.name, "meta title", "high");
-    addCandidate(candidates.headline, parsed.headline, "meta title", "medium");
+    layer.name = bestCandidate(layer.name, candidate(parsed.name, "metadata", 94));
+    layer.headline = bestCandidate(layer.headline, candidate(parsed.headline, "metadata", 72));
   }
 
   const descriptionValues = [meta.ogDescription, meta.description, meta.twitterDescription].filter(Boolean);
-  const knownName = firstValid(candidates.name, isValidName)?.value || "";
+  const knownName = layer.name?.value || "";
   for (const value of descriptionValues) {
     const parsed = parseLinkedInDescription(value, knownName);
-    addCandidate(candidates.name, parsed.name, "meta description", "medium");
-    addCandidate(candidates.headline, parsed.headline, "meta description", "medium");
-    addCandidate(candidates.currentCompany, parsed.company, "meta description", "medium");
-    addCandidate(candidates.location, parsed.location, "meta description", "medium");
+    layer.name = bestCandidate(layer.name, candidate(parsed.name, "metadata", 82));
+    layer.headline = bestCandidate(layer.headline, candidate(parsed.headline, "metadata", 78));
+    layer.company = bestCandidate(layer.company, candidate(parsed.company, "metadata", 68));
+    layer.location = bestCandidate(layer.location, candidate(parsed.location, "metadata", 66));
   }
 }
 
-function addTitleCandidates(candidates, meta) {
+function addTitleCandidates(layer, meta) {
   const parsed = parseLinkedInTitle(meta.title);
-  addCandidate(candidates.name, parsed.name, "document.title", "high");
-  addCandidate(candidates.headline, parsed.headline, "document.title", "low");
+  layer.name = bestCandidate(layer.name, candidate(parsed.name, "metadata", 90));
+  layer.headline = bestCandidate(layer.headline, candidate(parsed.headline, "metadata", 48));
+}
+
+function addLayerCandidates(candidates, layer) {
+  addCandidate(candidates.name, layer.name?.value, layer.name?.source || layer.source, layer.name?.confidence);
+  addCandidate(candidates.headline, layer.headline?.value, layer.headline?.source || layer.source, layer.headline?.confidence);
+  addCandidate(candidates.currentCompany, layer.company?.value || layer.currentCompany?.value, layer.company?.source || layer.currentCompany?.source || layer.source, layer.company?.confidence || layer.currentCompany?.confidence);
+  addCandidate(candidates.location, layer.location?.value, layer.location?.source || layer.source, layer.location?.confidence);
+  addCandidate(candidates.currentRole, layer.currentRole?.value, layer.currentRole?.source || layer.source, layer.currentRole?.confidence);
+}
+
+function createLayer(source) {
+  return { source };
+}
+
+function candidate(value, source, confidence) {
+  const cleaned = stripLinkedInBadges(String(value || ""));
+  return cleaned ? { value: cleaned, source, confidence: Number(confidence || 0) } : null;
+}
+
+function bestCandidate(current, next) {
+  if (!next?.value) return current || null;
+  if (!current?.value) return next;
+  return Number(next.confidence || 0) > Number(current.confidence || 0) ? next : current;
+}
+
+function scoreByProximity(base, line, anchor) {
+  if (!line) return 0;
+  if (!anchor || line === anchor) return base;
+  const distance = Math.abs(Number(line.top || 0) - Number(anchor.top || 0));
+  return Math.max(40, Math.round(base - Math.min(distance / 8, 28)));
 }
 
 function addViewportCandidates(candidates, lines) {
@@ -147,16 +286,16 @@ function addViewportCandidates(candidates, lines) {
   const location = afterName.find((line) => isLikelyLocation(line.text))?.text || "";
   const company = afterName.find((line) => isValidCompany(line.text) && line.isRightPanel)?.text || "";
 
-  addCandidate(candidates.headline, headline, "viewport", "medium");
-  addCandidate(candidates.location, location, "viewport", "medium");
-  addCandidate(candidates.currentCompany, company, "viewport", "medium");
+  addCandidate(candidates.headline, headline, "viewport", 62);
+  addCandidate(candidates.location, location, "viewport", 60);
+  addCandidate(candidates.currentCompany, company, "viewport", 58);
 }
 
 function addDomCandidates(candidates, snapshot) {
-  addCandidate(candidates.name, snapshot.name, "dom", "medium");
-  addCandidate(candidates.headline, snapshot.headline, "dom", "low");
-  addCandidate(candidates.currentCompany, snapshot.company, "dom", "medium");
-  addCandidate(candidates.location, snapshot.location, "dom", "low");
+  addCandidate(candidates.name, snapshot.name, "fallback", 55);
+  addCandidate(candidates.headline, snapshot.headline, "fallback", 42);
+  addCandidate(candidates.currentCompany, snapshot.company, "fallback", 50);
+  addCandidate(candidates.location, snapshot.location, "fallback", 40);
 }
 
 function collectJsonLdPeople() {
@@ -183,7 +322,15 @@ function collectMeta() {
 }
 
 function collectTopViewportLines() {
-  const maxTop = window.innerHeight * 0.45;
+  return collectViewportLines(0.45).slice(0, 30);
+}
+
+function collectHeroLines() {
+  return collectViewportLines(0.35).slice(0, 24);
+}
+
+function collectViewportLines(viewportRatio) {
+  const maxTop = window.innerHeight * viewportRatio;
   const ignoredSelector = [
     "nav",
     "aside",
@@ -199,7 +346,7 @@ function collectTopViewportLines() {
   ].join(",");
   const seen = new Set();
 
-  return Array.from(document.querySelectorAll("main h1, main h2, main h3, main p, main div, main span, main a"))
+  return Array.from(document.querySelectorAll("main h1, main h2, main h3, main p, main div, main span, main a, main img"))
     .filter((element) => !element.closest(ignoredSelector))
     .filter(isVisible)
     .map((element) => {
@@ -234,7 +381,7 @@ function collectTopViewportLines() {
       ...line,
       isStrongName: line.tagName === "h1" || (line.fontSize >= 22 && isValidName(line.text))
     }))
-    .slice(0, 30);
+    .slice(0, 50);
 }
 
 function collectDomFallbackSnapshot() {
@@ -246,6 +393,30 @@ function collectDomFallbackSnapshot() {
     company: firstVisibleText([".pv-text-details__right-panel span[aria-hidden='true']", ".pv-top-card--experience-list-item span[aria-hidden='true']"], firstSection || document),
     location: firstVisibleText([".text-body-small.inline.t-black--light.break-words", ".pv-text-details__left-panel .text-body-small"], firstSection || document)
   };
+}
+
+function findNamedSection(label) {
+  const sections = Array.from(document.querySelectorAll("main section, section")).filter(isVisible);
+  return sections.find((section) => {
+    const heading = Array.from(section.querySelectorAll("h2, h3, span[aria-hidden='true']"))
+      .map(textOf)
+      .find((text) => text && text.length < 80);
+    return new RegExp(`^${label}$`, "i").test(cleanText(heading || ""));
+  }) || null;
+}
+
+function getVisibleTextLines(root) {
+  if (!root) return [];
+  const seen = new Set();
+  return Array.from(root.querySelectorAll("h1, h2, h3, span, div, p, a"))
+    .filter(isVisible)
+    .map((node) => stripLinkedInBadges(textOf(node)))
+    .filter((text) => {
+      const key = text.toLowerCase();
+      if (!text || text.length > 160 || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function parseLinkedInTitle(value = "") {
@@ -295,28 +466,28 @@ function extractLocationFromText(value = "") {
 }
 
 function chooseCandidate(items, validator) {
-  return firstValid(items, validator) || { value: "", source: "fallback", confidence: "low" };
+  return firstValid(items, validator) || { value: "", source: "fallback", confidence: 0 };
 }
 
 function firstValid(items, validator) {
-  const rank = { high: 3, medium: 2, low: 1 };
+  const sourcePriority = { experience: 18, hero: 14, metadata: 10, location: 8, viewport: 6, fallback: 1 };
   return [...items]
     .map((item) => ({ ...item, value: cleanText(item.value || "") }))
     .filter((item) => item.value && validator(item.value))
-    .sort((a, b) => rank[b.confidence] - rank[a.confidence])[0] || null;
+    .sort((a, b) => ((b.confidence || 0) + (sourcePriority[b.source] || 0)) - ((a.confidence || 0) + (sourcePriority[a.source] || 0)))[0] || null;
 }
 
 function addCandidate(list, value, source, confidence) {
   const cleaned = stripLinkedInBadges(String(value || ""));
   if (!cleaned || cleaned === CMF_NOT_DETECTED) return;
-  list.push({ value: cleaned, source, confidence });
+  list.push({ value: cleaned, source: source || "fallback", confidence: Number(confidence || 0) });
 }
 
 function toFieldMeta(candidate, label) {
   return {
     value: candidate.value || CMF_NOT_DETECTED,
     source: candidate.value ? candidate.source : "fallback",
-    confidence: candidate.value ? candidate.confidence : "low",
+    confidence: candidate.value ? Number(candidate.confidence || 0) : 0,
     label
   };
 }
@@ -450,6 +621,12 @@ function isValidCompany(value = "") {
   if (!text || hasBadgeText(text) || looksLikeEducation(text) || isLikelyLocation(text) || isSectionLabel(text)) return false;
   if (/\b(past|former|previous|experience)\b/i.test(text)) return false;
   return text.length > 1 && text.length < 120;
+}
+
+function isLikelyRole(value = "") {
+  const text = stripLinkedInBadges(value);
+  if (!text || isLikelyLocation(text) || looksLikeEducation(text) || isSectionLabel(text)) return false;
+  return /\b(founder|co-founder|ceo|cto|cfo|coo|chief|director|manager|head|lead|trainer|consultant|advisor|engineer|developer|designer|marketer|sales|recruiter|analyst|specialist|owner|partner|president|vp)\b/i.test(text);
 }
 
 function looksLikeEducation(value = "") {

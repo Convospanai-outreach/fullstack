@@ -1,4 +1,4 @@
-const NOT_DETECTED = "Not detected from visible profile.";
+const NOT_DETECTED = "We couldn't confidently identify this field from the visible profile. You may enter it manually.";
 
 const ANGLES = [
   "Partnership",
@@ -47,6 +47,7 @@ const fields = {
   captureUrl: document.getElementById("captureUrl"),
   captureHeadline: document.getElementById("captureHeadline"),
   captureCompany: document.getElementById("captureCompany"),
+  captureRole: document.getElementById("captureRole"),
   captureLocation: document.getElementById("captureLocation"),
   captureHint: document.getElementById("captureHint"),
   captureSources: document.getElementById("captureSources"),
@@ -161,11 +162,15 @@ function renderAll() {
 function renderCapture() {
   const profile = state.latestCapture || {};
   const hasMissingOptional = !profile.headline || !(profile.currentCompany || profile.companyName || profile.company) || !profile.location;
-  setText(fields.captureName, profile.name || "Not captured yet.", !profile.name);
-  setText(fields.captureUrl, profile.profileUrl || "Not captured yet.", !profile.profileUrl);
-  setText(fields.captureHeadline, profile.headline || NOT_DETECTED, !profile.headline);
-  setText(fields.captureCompany, profile.currentCompany || profile.companyName || profile.company || NOT_DETECTED, !(profile.currentCompany || profile.companyName || profile.company));
-  setText(fields.captureLocation, profile.location || NOT_DETECTED, !profile.location);
+  const manualCompany = state.leadNotes.company;
+  const manualRole = state.leadNotes.role;
+  const manualLocation = state.leadNotes.location;
+  renderCaptureField(fields.captureName, profile.name || "Not captured yet.", profile.debug?.fieldMeta?.name, !profile.name);
+  renderCaptureField(fields.captureUrl, profile.profileUrl || "Not captured yet.", profile.debug?.fieldMeta?.profileUrl, !profile.profileUrl);
+  renderCaptureField(fields.captureHeadline, manualRole || profile.headline || NOT_DETECTED, manualRole ? userAddedMeta() : profile.debug?.fieldMeta?.headline, !manualRole && !profile.headline);
+  renderCaptureField(fields.captureCompany, manualCompany || profile.currentCompany || profile.companyName || profile.company || NOT_DETECTED, manualCompany ? userAddedMeta() : profile.debug?.fieldMeta?.currentCompany, !manualCompany && !(profile.currentCompany || profile.companyName || profile.company));
+  renderCaptureField(fields.captureRole, manualRole || profile.currentRole || NOT_DETECTED, manualRole ? userAddedMeta() : profile.debug?.fieldMeta?.currentRole, !manualRole && !profile.currentRole);
+  renderCaptureField(fields.captureLocation, manualLocation || profile.location || NOT_DETECTED, manualLocation ? userAddedMeta() : profile.debug?.fieldMeta?.location, !manualLocation && !profile.location);
   fields.captureHint.classList.toggle("hidden", !profile.name || !hasMissingOptional);
   renderCaptureSources(profile.debug?.fieldMeta || {});
 }
@@ -177,6 +182,7 @@ function renderCaptureSources(fieldMeta) {
     ["Profile URL", "profileUrl"],
     ["Headline", "headline"],
     ["Company", "currentCompany"],
+    ["Current Role", "currentRole"],
     ["Location", "location"]
   ];
 
@@ -187,7 +193,7 @@ function renderCaptureSources(fieldMeta) {
     item.innerHTML = `
       <strong>${label}</strong>
       <span>${escapeHtml(meta.value || NOT_DETECTED)}</span>
-      <small>Source: ${escapeHtml(meta.source || "fallback")} - Confidence: ${escapeHtml(meta.confidence || "low")}</small>
+      <small>Winner: ${formatSource(meta.source)} - Confidence: ${formatConfidencePercent(meta.confidence)}</small>
     `;
     fields.captureSources.appendChild(item);
   });
@@ -329,6 +335,8 @@ async function showDeepCaptureDebug() {
       ogDescription: debug.ogDescription || "",
       metaDescription: debug.metaDescription || "",
       jsonLdPerson: debug.jsonLdPerson || null,
+      winners: debug.winners || {},
+      detectedSources: debug.layers || {},
       topViewportLines: (debug.topViewportLines || []).map((line) => line.text || line)
     }, null, 2);
     fields.deepDebugPanel.classList.remove("hidden");
@@ -426,9 +434,12 @@ function buildLeadPayload() {
     source: "linkedin",
     name: capture.name || "",
     profileUrl: capture.profileUrl || "",
-    headline: capture.headline || "",
-    company: capture.currentCompany || capture.companyName || capture.company || notes.company || "",
-    location: capture.location || notes.location || "",
+    headline: notes.role || capture.headline || "",
+    company: notes.company || capture.currentCompany || capture.companyName || capture.company || "",
+    location: notes.location || capture.location || "",
+    currentRole: notes.role || capture.currentRole || "",
+    confidence: capture.confidence || {},
+    sources: capture.sources || {},
     userAddedCompany: notes.company,
     userAddedRole: notes.role,
     userAddedLocation: notes.location,
@@ -536,6 +547,51 @@ async function getActiveTab() {
 function setText(element, text, muted) {
   element.textContent = text;
   element.classList.toggle("not-detected", Boolean(muted));
+}
+
+function renderCaptureField(element, value, meta, muted) {
+  const confidence = Number(meta?.confidence || 0);
+  const badge = meta?.source === "user" ? "User Added" : confidenceLabel(confidence);
+  element.classList.toggle("not-detected", Boolean(muted));
+  element.innerHTML = `
+    <span>${escapeHtml(value)}</span>
+    <span class="confidence-badge ${confidenceClass(confidence, meta?.source)}">${badge}</span>
+  `;
+}
+
+function userAddedMeta() {
+  return { source: "user", confidence: 100 };
+}
+
+function confidenceLabel(value) {
+  if (value >= 80) return "High Confidence";
+  if (value >= 55) return "Medium Confidence";
+  if (value > 0) return "Low Confidence";
+  return "Needs Review";
+}
+
+function confidenceClass(value, source) {
+  if (source === "user") return "user";
+  if (value >= 80) return "high";
+  if (value >= 55) return "medium";
+  return "low";
+}
+
+function formatConfidencePercent(value) {
+  const numeric = Number(value || 0);
+  return numeric ? `${numeric}%` : "0%";
+}
+
+function formatSource(value = "fallback") {
+  const labels = {
+    metadata: "Metadata",
+    hero: "Hero",
+    experience: "Experience Section",
+    location: "Location Layer",
+    viewport: "Viewport",
+    fallback: "Fallback"
+  };
+  return labels[value] || value;
 }
 
 function escapeHtml(value = "") {

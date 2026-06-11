@@ -125,6 +125,9 @@ async function storeVisibleProfile(profile = {}) {
     companyName: String(profile.currentCompany || profile.companyName || profile.company || ""),
     company: String(profile.currentCompany || profile.companyName || profile.company || ""),
     location: String(profile.location || ""),
+    currentRole: String(profile.currentRole || ""),
+    confidence: profile.confidence || {},
+    sources: profile.sources || {},
     debug: profile.debug || {},
     capturedAt: new Date().toISOString()
   };

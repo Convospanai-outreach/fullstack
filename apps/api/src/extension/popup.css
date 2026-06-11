@@ -254,6 +254,47 @@ dd {
   line-height: 1.35;
 }
 
+dd .confidence-badge {
+  display: inline-flex;
+  margin-left: 6px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  vertical-align: middle;
+}
+
+.confidence-badge.high {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.confidence-badge.medium {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.confidence-badge.low {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.confidence-badge.user {
+  color: #0f766e;
+  background: #ccfbf1;
+}
+
+.debug-details {
+  margin: 10px 0;
+}
+
+.debug-details summary {
+  cursor: pointer;
+  color: var(--brand);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .not-detected {
   color: var(--muted);
 }

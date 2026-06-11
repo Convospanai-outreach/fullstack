@@ -35,20 +35,25 @@
           <button id="captureProfile" class="primary" type="button">Capture Profile</button>
           <button id="retryCapture" class="secondary" type="button">Retry Capture</button>
         </div>
-        <p id="captureHint" class="hint hidden">LinkedIn hides some fields depending on page layout. Add missing context manually below.</p>
+        <p id="captureHint" class="hint hidden">LinkedIn hides some fields depending on page layout. We couldn't confidently identify every field from the visible profile. You may enter missing context manually below.</p>
         <dl class="capture-grid">
           <dt>Name</dt>
           <dd id="captureName">Not captured yet.</dd>
           <dt>Profile URL</dt>
           <dd id="captureUrl">Not captured yet.</dd>
           <dt>Headline</dt>
-          <dd id="captureHeadline">Not detected from visible profile.</dd>
+          <dd id="captureHeadline">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
           <dt>Current Company</dt>
-          <dd id="captureCompany">Not detected from visible profile.</dd>
+          <dd id="captureCompany">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
+          <dt>Current Role</dt>
+          <dd id="captureRole">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
           <dt>Location</dt>
-          <dd id="captureLocation">Not detected from visible profile.</dd>
+          <dd id="captureLocation">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
         </dl>
-        <div id="captureSources" class="source-grid" aria-label="Capture sources"></div>
+        <details class="debug-details">
+          <summary>Profile Intelligence Debug</summary>
+          <div id="captureSources" class="source-grid" aria-label="Detected sources"></div>
+        </details>
         <div class="actions two">
           <button id="copyCapture" class="secondary" type="button">Copy Capture</button>
           <button id="deepCaptureDebug" class="secondary" type="button">Deep Capture Debug</button>

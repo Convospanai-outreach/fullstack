@@ -70,18 +70,21 @@ V1 uses content-script DOM inspection and `chrome.runtime` messages only. It doe
 
 The content script is passive on page load. It reads visible profile details only after the popup sends a user-triggered `CMF_CAPTURE_VISIBLE_PROFILE` message.
 
-## Capture Extraction Strategy
+## Profile Intelligence Engine
 
-V1 profile capture avoids LinkedIn private APIs and unstable DOM-first scraping. It uses layered browser-visible extraction:
+V1 profile capture avoids LinkedIn private APIs and unstable DOM-first scraping. It uses a browser-visible Profile Intelligence Engine:
 
-1. profile URL from `window.location.href` without query params
-2. JSON-LD `Person` data from `script[type="application/ld+json"]`
-3. Open Graph, Twitter, and standard meta title/description tags
-4. `document.title`
-5. visible text in the top 45 percent of the viewport
-6. top-card DOM selectors as the final fallback
+1. Structured Metadata Layer: title, meta description, Open Graph, Twitter tags, and JSON-LD Person blocks.
+2. Visible Hero Extraction Layer: largest/strongest visible text and nearby hero lines in the top 35 percent of the viewport.
+3. Experience Intelligence Layer: first current experience only, with education/certification/course/publication text rejected.
+4. Location Intelligence Layer: profile intro/top-card location patterns only.
+5. Confidence Engine: each field gets a value, source, and numeric confidence score.
+6. Conflict Resolution: current experience beats hero, hero beats metadata, and education is never accepted as company.
+7. DOM selectors: used only as the final fallback.
 
-Each captured field records a value, source, and confidence in the popup debug panel. The Deep Capture Debug button shows only page title/meta, JSON-LD Person data, and top viewport lines used for extraction. It does not expose cookies, tokens, auth headers, or session data.
+Each captured field records a value, source, and confidence in the popup debug panel. The Deep Capture Debug button shows only page title/meta, JSON-LD Person data, source layer output, winners, and top viewport lines used for extraction. It does not expose cookies, tokens, auth headers, or session data.
+
+Future enrichment provider interfaces are prepared in `src/prospects/enrichment.types.ts` for backend enrichment, Apollo, People Data Labs, Proxycurl, and NetJana signals. They are intentionally not implemented or called in V1.
 
 ## Intentionally Disabled
 
