@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search") || "";
         const status = searchParams.get("status") || "";
         const campaignId = searchParams.get("campaignId") || "";
+        const channelFilter = searchParams.get("channelFilter") || "";
         const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 500);
         const offset = parseInt(searchParams.get("offset") || "0");
 
@@ -36,6 +37,34 @@ export async function GET(req: NextRequest) {
         }
         if (status) where.status = status;
         if (campaignId) where.campaignId = campaignId;
+        if (channelFilter === "email_sent_linkedin_not_contacted") {
+            where.AND = [
+                { channelStatuses: { some: { channel: "EMAIL", status: { in: ["CONTACTED", "REPLIED"] } } } },
+                {
+                    OR: [
+                        { channelStatuses: { none: { channel: "LINKEDIN" } } },
+                        { channelStatuses: { some: { channel: "LINKEDIN", status: { not: "CONTACTED" } } } }
+                    ]
+                }
+            ];
+        }
+        if (channelFilter === "linkedin_captured_not_contacted") {
+            where.channelStatuses = { some: { channel: "LINKEDIN", status: { in: ["CAPTURED", "DRAFTED"] } } };
+        }
+        if (channelFilter === "multi_channel_contacted") {
+            where.status = "MULTI_CHANNEL_CONTACTED";
+        }
+        if (channelFilter === "follow_up_needed") {
+            where.AND = [
+                ...(Array.isArray(where.AND) ? where.AND : []),
+                {
+                    OR: [
+                        { status: "FOLLOW_UP_NEEDED" },
+                        { channelStatuses: { some: { status: "FOLLOW_UP" } } }
+                    ]
+                }
+            ];
+        }
 
         const [leads, total] = await Promise.all([
             db.lead.findMany({
@@ -43,6 +72,7 @@ export async function GET(req: NextRequest) {
                 take: limit,
                 skip: offset,
                 orderBy: { updatedAt: "desc" },
+                include: { channelStatuses: true },
             }),
             db.lead.count({ where }),
         ]);

@@ -26,6 +26,8 @@ const els = {
   generateDraft: document.getElementById("generateDraft"),
   copyDraft: document.getElementById("copyDraft"),
   saveLead: document.getElementById("saveLead"),
+  markLinkedInDone: document.getElementById("markLinkedInDone"),
+  openLead: document.getElementById("openLead"),
   clearLocalData: document.getElementById("clearLocalData"),
   activityLog: document.getElementById("activityLog"),
   statusMsg: document.getElementById("statusMsg"),
@@ -89,6 +91,8 @@ function bindEvents() {
   els.generateDraft.addEventListener("click", generateDraft);
   els.copyDraft.addEventListener("click", copyDraft);
   els.saveLead.addEventListener("click", saveLead);
+  els.markLinkedInDone.addEventListener("click", markLinkedInDone);
+  els.openLead.addEventListener("click", openLeadInWorkspace);
   els.clearLocalData.addEventListener("click", clearLocalData);
 
   Object.values(fields).forEach((field) => {
@@ -235,11 +239,12 @@ function renderSettings() {
 
 function renderBadges() {
   const savedStatus = state.savedLead?.status;
-  const text = savedStatus === "synced" ? "Synced" : "Local only";
+  const text = savedStatus === "synced" ? "Synced" : savedStatus === "pending_sync" ? "Pending Sync" : "Local only";
   els.syncBadge.textContent = text;
   els.saveBadge.textContent = text;
   els.syncBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
   els.saveBadge.className = savedStatus === "synced" ? "badge accent" : "badge muted";
+  els.openLead.classList.toggle("hidden", !(state.savedLead?.leadId && state.settings?.workspaceUrl));
 }
 
 function renderStaticOptions() {
@@ -377,6 +382,30 @@ async function saveLead() {
   setBusy(els.saveLead, false);
   await loadState();
   setStatus(response?.message || "Saved locally. Connect CraftMyFunnel workspace to sync.", response?.synced ? "success" : "");
+}
+
+async function markLinkedInDone() {
+  const leadId = state.savedLead?.leadId;
+  if (!leadId) {
+    setStatus("Sync the lead before marking LinkedIn outreach done.", "error");
+    return;
+  }
+  setBusy(els.markLinkedInDone, true, "Marking...");
+  const response = await chrome.runtime.sendMessage({
+    type: "CMF_MARK_LINKEDIN_OUTREACH_DONE",
+    leadId,
+    notes: fields.messageDraft.value.trim()
+  });
+  setBusy(els.markLinkedInDone, false);
+  await loadState();
+  setStatus(response?.ok ? "LinkedIn outreach marked as done." : response?.error || "Could not update LinkedIn status.", response?.ok ? "success" : "error");
+}
+
+function openLeadInWorkspace() {
+  const workspaceUrl = String(state.settings?.workspaceUrl || "").replace(/\/+$/, "");
+  const leadId = state.savedLead?.leadId;
+  if (!workspaceUrl || !leadId) return;
+  window.open(`${workspaceUrl}/leads/${leadId}`, "_blank");
 }
 
 async function clearLocalData() {

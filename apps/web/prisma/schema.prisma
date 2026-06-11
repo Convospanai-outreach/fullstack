@@ -25,6 +25,8 @@ model Lead {
   jobTitle   String?
   location   String?
   status     String   @default("NEW")
+  source     String?
+  priority   String?
   tags       String[]
   isEnriched Boolean  @default(false)
 
@@ -98,6 +100,8 @@ model Lead {
   consentLedger       ConsentLedger[]
   replies             ReplyTracker[]
   shadowSignals       ShadowSignal[]
+  channelStatuses     LeadChannelStatus[]
+  leadActivities      LeadActivity[]
 
   @@index([teamId])
   @@index([email])
@@ -110,6 +114,40 @@ model Lead {
   @@index([teamId, status])
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
+}
+
+model LeadChannelStatus {
+  id             String   @id @default(uuid())
+  leadId         String
+  channel        String
+  status         String   @default("NOT_STARTED")
+  lastActivityAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, channel])
+  @@index([channel, status])
+  @@index([lastActivityAt])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String
+  channel   String
+  type      String
+  title     String
+  notes     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@index([channel, type])
+  @@index([createdBy])
 }
 
 model Generation {

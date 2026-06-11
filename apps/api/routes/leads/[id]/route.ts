@@ -16,6 +16,8 @@ async function requireLeadContext(id: string, requiredRole: TeamRole) {
         where: { id, teamId },
         include: {
             campaign: true,
+            channelStatuses: true,
+            leadActivities: { orderBy: { createdAt: "desc" }, take: 50 },
         },
     });
 
@@ -77,7 +79,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         const lead = await prisma.lead.findFirst({
             where: { id, teamId },
-            include: { campaign: true },
+            include: { campaign: true, channelStatuses: true, leadActivities: { orderBy: { createdAt: "desc" }, take: 50 } },
         });
 
         return NextResponse.json(lead);

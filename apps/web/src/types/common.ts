@@ -22,6 +22,7 @@ export interface Lead {
     jobTitle?: string | null;
     linkedIn?: string | null;
     status: string;
+    channelStatuses?: Array<{ channel: string; status: string; lastActivityAt?: Date | string | null }>;
     isEnriched: boolean;
     teamId: string;
     createdAt: Date;

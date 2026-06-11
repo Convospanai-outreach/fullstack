@@ -80,6 +80,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg?.type === "CMF_MARK_LINKEDIN_OUTREACH_DONE") {
+    markLinkedInOutreachDone(msg.leadId, msg.notes || "").then(sendResponse);
+    return true;
+  }
+
   if (msg?.type === "CMF_CLEAR_LOCAL_DATA") {
     clearLocalData().then(sendResponse);
     return true;
@@ -174,24 +179,26 @@ async function savePreparedLead(payload) {
   };
 
   const syncResult = await trySyncLead(lead, state.settings);
-  const status = syncResult.ok ? "synced" : "local";
+  const status = syncResult.ok ? "synced" : "pending_sync";
   const activityLog = addActivity(
     state.activityLog,
     syncResult.ok ? "Lead synced to workspace" : "Lead saved locally"
   );
 
   await chrome.storage.local.set({
-    savedLead: { ...lead, status, syncError: syncResult.error || "" },
+    savedLead: { ...lead, status, leadId: syncResult.leadId || state.savedLead?.leadId || "", syncError: syncResult.error || "" },
     activityLog
   });
 
   return {
     ok: true,
     synced: syncResult.ok,
+    leadId: syncResult.leadId || "",
+    matchedExisting: Boolean(syncResult.matchedExisting),
     status,
     message: syncResult.ok
       ? "Synced to CraftMyFunnel workspace."
-      : "Saved locally. Connect CraftMyFunnel workspace to sync.",
+      : "Pending Sync. Saved locally until CraftMyFunnel is reachable.",
     error: syncResult.error || "",
     activityLog
   };
@@ -202,16 +209,55 @@ async function trySyncLead(lead, settings) {
   if (!workspaceUrl) return { ok: false, error: "Workspace URL not configured." };
 
   try {
-    const response = await fetch(`${workspaceUrl}/api/extension/push`, {
+    const response = await fetch(`${workspaceUrl}/api/extension/leads/capture`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {})
+        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}`, "x-extension-key": settings.apiKey } : {})
       },
-      body: JSON.stringify(lead)
+      body: JSON.stringify({
+        ...lead,
+        source: "chrome_extension",
+        channel: "LINKEDIN",
+        linkedinUrl: lead.profileUrl || lead.linkedinUrl
+      })
     });
-    if (!response.ok) return { ok: false, error: `Workspace returned ${response.status}.` };
-    return { ok: true };
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    return { ok: true, leadId: data.leadId || "", matchedExisting: Boolean(data.matchedExisting) };
+  } catch (error) {
+    return { ok: false, error: error?.message || "Workspace unavailable." };
+  }
+}
+
+async function markLinkedInOutreachDone(leadId, notes) {
+  const state = await getState();
+  const workspaceUrl = String(state.settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
+  const resolvedLeadId = leadId || state.savedLead?.leadId;
+  if (!workspaceUrl || !state.settings?.apiKey || !resolvedLeadId) {
+    return { ok: false, error: "Sync the lead before marking LinkedIn outreach done." };
+  }
+
+  try {
+    const response = await fetch(`${workspaceUrl}/api/extension/leads/${resolvedLeadId}/linkedin-contacted`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${state.settings.apiKey}`,
+        "x-extension-key": state.settings.apiKey
+      },
+      body: JSON.stringify({ notes })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.success === false) {
+      return { ok: false, error: data.error || `Workspace returned ${response.status}.` };
+    }
+    const activityLog = addActivity(state.activityLog, "LinkedIn outreach marked as done");
+    await chrome.storage.local.set({
+      savedLead: { ...(state.savedLead || {}), status: "synced", leadId: resolvedLeadId, linkedinStatus: "CONTACTED" },
+      activityLog
+    });
+    return { ok: true, ...data, activityLog };
   } catch (error) {
     return { ok: false, error: error?.message || "Workspace unavailable." };
   }
