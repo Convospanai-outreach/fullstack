@@ -8,6 +8,28 @@ import { DashboardController } from "@/components/dashboard/DashboardController"
 import { Button } from "@/components/ui/button";
 import { IntelCapsule, IntelSignal } from "@/components/intel/IntelCapsule";
 
+type FunnelItem = {
+    key: string;
+    label: string;
+    count: number;
+    percentageOfTotal: number;
+};
+
+type FunnelResponse = {
+    funnel: FunnelItem[];
+    cards: {
+        totalLeads: number;
+        contactedLeads: number;
+        hotLeads: number;
+        meetingsConfirmed: number;
+        wonLeads: number;
+        lostLeads: number;
+        emailsSent: number;
+        repliesReceived: number;
+        connectedMailboxes: number;
+    };
+};
+
 const quickActions = [
     {
         href: "/leads/import",
@@ -45,6 +67,7 @@ const quickActions = [
 
 export default function DashboardPage() {
     const [signals, setSignals] = useState<IntelSignal[]>([]);
+    const [funnel, setFunnel] = useState<FunnelResponse | null>(null);
     const [intelLoading, setIntelLoading] = useState(true);
 
     useEffect(() => {
@@ -67,6 +90,30 @@ export default function DashboardPage() {
         load();
         return () => { cancelled = true; };
     }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        fetch("/api/dashboard/funnel", { cache: "no-store" })
+            .then((res) => res.ok ? res.json() : null)
+            .then((data) => {
+                if (!cancelled && data) setFunnel(data);
+            })
+            .catch(() => {
+                if (!cancelled) setFunnel(null);
+            });
+
+        return () => { cancelled = true; };
+    }, []);
+
+    const funnelCards = [
+        ["Total Leads", funnel?.cards.totalLeads ?? 0],
+        ["Emails Sent", funnel?.cards.emailsSent ?? 0],
+        ["Contacted", funnel?.cards.contactedLeads ?? 0],
+        ["High Intent", funnel?.cards.hotLeads ?? 0],
+        ["Meetings", funnel?.cards.meetingsConfirmed ?? 0],
+        ["Won", funnel?.cards.wonLeads ?? 0],
+    ];
 
     return (
         <AppShell>
@@ -141,6 +188,58 @@ export default function DashboardPage() {
             </section>
 
             {/* ── Intel Signals ── */}
+            <section className="mb-8 rounded-3xl border border-white/8 bg-white/[0.02] p-6">
+                <div className="mb-5 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">CRM Funnel</p>
+                        <h2 className="mt-1 text-xl font-bold text-white">Lead journey from first touch to close</h2>
+                        <p className="mt-1 max-w-xl text-sm text-slate-400">
+                            Funnel stages update from real lead and email activity.
+                        </p>
+                    </div>
+                    <Link href="/leads/import" className="inline-flex items-center gap-1 text-sm font-medium text-emerald-400 transition hover:text-emerald-300">
+                        Import leads <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                </div>
+
+                <div className="mb-5 grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    {funnelCards.map(([label, value]) => (
+                        <div key={label} className="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                            <p className="text-xs text-slate-500">{label}</p>
+                            <p className="mt-1 text-2xl font-black text-white">{value}</p>
+                        </div>
+                    ))}
+                </div>
+
+                {!funnel || funnel.cards.totalLeads === 0 ? (
+                    <div className="rounded-2xl border border-white/8 bg-white/[0.02] p-6 text-sm text-slate-400">
+                        <p className="font-medium text-slate-200">Import leads to start your first campaign</p>
+                        <p className="mt-1">Send your first campaign email to activate funnel tracking.</p>
+                        {(funnel?.cards.connectedMailboxes ?? 0) === 0 && (
+                            <p className="mt-1">Connect Gmail or SMTP to begin outreach.</p>
+                        )}
+                    </div>
+                ) : (
+                    <div className="grid gap-3 lg:grid-cols-4">
+                        {funnel.funnel.map((stage) => (
+                            <div key={stage.key} className="rounded-2xl border border-white/8 bg-slate-950/40 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-sm font-semibold text-white">{stage.label}</p>
+                                    <span className="text-sm font-mono text-slate-300">{stage.count}</span>
+                                </div>
+                                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/8">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500"
+                                        style={{ width: `${stage.percentageOfTotal}%` }}
+                                    />
+                                </div>
+                                <p className="mt-2 text-xs text-slate-500">{stage.percentageOfTotal}% of leads</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
             <section className="mb-8 rounded-3xl border border-white/8 bg-white/[0.02] p-6">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>

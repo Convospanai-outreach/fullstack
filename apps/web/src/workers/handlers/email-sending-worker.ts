@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import type { JobPayload } from "@/lib/queue";
+import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 
 export async function handleEmailSending(payload: JobPayload) {
@@ -88,6 +89,40 @@ export async function handleEmailSending(payload: JobPayload) {
     },
   });
 
+  const sentAt = new Date();
+  await prisma.emailEvent.create({
+    data: {
+      teamId: resolvedTeamId,
+      emailId: sent.id,
+      mailboxId: mailbox.id,
+      leadId,
+      campaignId,
+      type: "SENT",
+      provider: "GOOGLE_WORKSPACE",
+      providerMessageId: sent.providerId || sent.id,
+      payload: {
+        threadId: sent.threadId,
+        subject,
+        sentAt: sentAt.toISOString()
+      }
+    }
+  });
+
+  const leadStage = await advanceLeadAfterEmailSent(prisma, {
+    leadId,
+    teamId: resolvedTeamId,
+    campaignId,
+    emailId: sent.id
+  });
+
   logger.info("[email_sending] Email sent", { emailId: sent.id, leadId, mailboxId: mailbox.id });
-  return { emailId: sent.id, status: "sent", providerId: sent.providerId, threadId: sent.threadId };
+  return {
+    emailId: sent.id,
+    status: "sent",
+    providerId: sent.providerId,
+    threadId: sent.threadId,
+    leadStageChanged: leadStage.leadStageChanged,
+    leadStatus: leadStage.leadStatus,
+    pipelineState: leadStage.pipelineState
+  };
 }
