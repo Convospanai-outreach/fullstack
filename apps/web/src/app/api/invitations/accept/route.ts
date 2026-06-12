@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { acceptInvitation, findValidInvitation } from "@/lib/invitations";
+import { findValidInvitation } from "@/lib/invitations";
 
 export async function GET(req: NextRequest) {
     const token = req.nextUrl.searchParams.get("token") || "";
@@ -24,24 +24,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    try {
-        const body = await req.json();
-        const token = typeof body.token === "string" ? body.token : "";
-        const password = typeof body.password === "string" ? body.password : "";
-        const name = typeof body.name === "string" ? body.name.trim() : "";
+    const body = await req.json().catch(() => null);
+    const token = typeof body?.token === "string" ? body.token : "";
+    const redirectTo = token ? `/signup?token=${encodeURIComponent(token)}` : "/signup";
 
-        if (!token) {
-            return NextResponse.json({ error: "Invitation token is required." }, { status: 400 });
-        }
-
-        if (password.length < 8) {
-            return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
-        }
-
-        await acceptInvitation(token, { name, password });
-        return NextResponse.json({ ok: true, redirectTo: "/dashboard" });
-    } catch (error) {
-        const message = error instanceof Error ? error.message : "Unable to accept invitation.";
-        return NextResponse.json({ error: message }, { status: 400 });
-    }
+    return NextResponse.json({
+        error: "Password-based invitation acceptance is disabled. Use Clerk signup to accept the invitation.",
+        redirectTo
+    }, { status: 410 });
 }

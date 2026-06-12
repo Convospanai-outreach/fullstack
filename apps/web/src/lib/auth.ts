@@ -10,29 +10,11 @@ if (!process.env['CI'] && !process.env['GITHUB_ACTIONS']) {
 
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProvider from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
 import type { JWT } from "next-auth/jwt";
 
-import CredentialsProvider from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
 import { redirect } from "next/navigation";
 import { UserRole } from "@/types/prisma-safe";
-
-// Conditional Google Provider
-const googleClientId = process.env['GOOGLE_CLIENT_ID'];
-const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
-
-const providers = [];
-
-if (googleClientId && googleClientSecret) {
-    providers.push(
-        GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-        })
-    );
-}
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -49,60 +31,9 @@ function applyDefaultClaims(token: JWT) {
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
-    providers: [
-        ...providers,
-        CredentialsProvider({
-            name: "Credentials",
-            credentials: {
-                email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
-            },
-            async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
-                    throw new Error("Invalid credentials");
-                }
-
-                try {
-                    const { checkRateLimit } = await import("@/lib/rateLimit");
-                    const rateLimitKey = `login:${credentials.email}`;
-                    const { allowed } = await checkRateLimit(rateLimitKey, { maxRequests: 5, windowMs: 900 * 1000 }, "login");
-                    if (!allowed) {
-                        throw new Error("Too many login attempts. Please try again in 15 minutes.");
-                    }
-                    const user = await prisma.user.findUnique({
-                        where: { email: credentials.email },
-                        include: { memberships: true }
-                    });
-
-                    if (!user || !user.password) {
-                        throw new Error("User not found or password not set");
-                    }
-
-                    const isValid = await compare(credentials.password, user.password);
-
-                    if (!isValid) {
-                        throw new Error("Invalid password");
-                    }
-
-                    const hasActiveMembership = user.memberships.some((membership: { status: string }) => membership.status === "active");
-                    if (!isSuperAdminRole(user.enterpriseRole) && user.memberships.length > 0 && !hasActiveMembership) {
-                        throw new Error("User is inactive");
-                    }
-
-                    return user;
-                } catch (error: any) {
-                    console.error("[Auth] Authorize Fallback Failure:", error.message);
-                    throw new Error("Authentication service temporarily unavailable. Please try again later.");
-                }
-            }
-        })
-    ],
+    providers: [],
     callbacks: {
-        signIn: async ({ user, account }) => {
-            if (account?.provider === "credentials") {
-                return true;
-            }
-
+        signIn: async ({ user }) => {
             if (!user.email) {
                 return false;
             }

@@ -2,9 +2,13 @@
 
 import { SignIn } from "@clerk/nextjs";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 export default function LoginPage() {
+    const searchParams = useSearchParams();
+    const redirectUrl = searchParams.get("redirect_url") || "/dashboard";
+
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
             <div className="w-full max-w-md">
@@ -16,8 +20,8 @@ export default function LoginPage() {
                     routing="path"
                     path="/login"
                     signUpUrl="/signup"
-                    fallbackRedirectUrl="/dashboard"
-                    forceRedirectUrl="/dashboard"
+                    fallbackRedirectUrl={redirectUrl}
+                    forceRedirectUrl={redirectUrl}
                 />
             </div>
         </main>

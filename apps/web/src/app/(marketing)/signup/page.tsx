@@ -13,7 +13,7 @@ export default function SignupPage() {
                     CraftMyFunnel
                 </Link>
                 <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
-                    Signup is invite-only. Use the email address approved in Supabase or the invite link emailed by Clerk.
+                    Signup is invite-only. Use the approved workspace email or the invite link emailed by Clerk.
                 </div>
                 <SignUp
                     routing="path"

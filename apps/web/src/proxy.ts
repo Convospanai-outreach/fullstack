@@ -21,7 +21,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     );
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
-    const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
+    const authApiPrefixes = ["/api/auth", "/api/proxy/auth"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
