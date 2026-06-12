@@ -21,24 +21,23 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
     testDir: './e2e',
+    timeout: 120_000,
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
-    webServer: process.env.CI
-        ? {
-            command: 'npm run start',
-            port: 3000,
-            timeout: 180_000,
-            reuseExistingServer: false,
-            env: {
-                ...process.env,
-                PORT: '3000',
-                DISABLE_RATE_LIMIT: 'true',
-            },
-        }
-        : undefined,
+    webServer: {
+        command: process.env.CI ? 'npm run start' : 'npm run dev',
+        port: 3000,
+        timeout: 180_000,
+        reuseExistingServer: !process.env.CI,
+        env: {
+            ...process.env,
+            PORT: '3000',
+            DISABLE_RATE_LIMIT: 'true',
+        },
+    },
     use: {
         baseURL: 'http://localhost:3000',
         trace: 'on-first-retry',
