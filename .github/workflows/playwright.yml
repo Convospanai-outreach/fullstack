@@ -1,10 +1,12 @@
 
 name: Playwright Tests
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "Optional Playwright spec path, for example e2e/auth.spec.ts"
+        required: false
+        default: "e2e/auth.spec.ts e2e/dashboard.spec.ts"
 
 # Node.js 24 native runtimes active via v6+ actions
 jobs:
@@ -82,7 +84,7 @@ jobs:
 
     - name: Run Playwright tests
       working-directory: apps/web
-      run: npx playwright test e2e/auth.spec.ts e2e/dashboard.spec.ts
+      run: npx playwright test ${{ github.event.inputs.spec }}
       env:
         DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
