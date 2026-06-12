@@ -135,3 +135,20 @@ Shared root changes such as lockfile, root scripts, or schema changes should tri
 - [docs/PRODUCTION_READINESS_ASSESSMENT_2026-06-02.md](./docs/PRODUCTION_READINESS_ASSESSMENT_2026-06-02.md)
 - [docs/context/ARCHITECTURE.md](./docs/context/ARCHITECTURE.md)
 - [docs/context/LAUNCH_READINESS.md](./docs/context/LAUNCH_READINESS.md)
+
+## Chrome Extension Release Plan
+
+### V1.0.0
+
+- Minimal LinkedIn Assistant.
+- Runs only on LinkedIn pages.
+- User-triggered only.
+- Reads visible profile/company/search information after user action.
+- Saves selected data to CraftMyFunnel workspace.
+- No automated outreach.
+
+### V2.0.0
+
+- Advanced workflow features may be added later after approval.
+- Any additional permissions will be requested through an update to the same Chrome Web Store listing.
+- No separate duplicate extension will be created.
