@@ -88,8 +88,8 @@ export async function authorizeRole(userId: string, teamId: string, requiredRole
 }
 
 export function canManageMembers(role: string): boolean {
-    // @ts-ignore
-    return ROLE_PERMISSIONS[role]?.includes(Permission.INVITE_MEMBERS) || false;
+    const teamRole = role as TeamRole;
+    return ROLE_PERMISSIONS[teamRole]?.includes(Permission.INVITE_MEMBERS) || false;
 }
 
 
@@ -113,5 +113,5 @@ export function canExportData(role: UserRole): boolean {
 }
 
 export function canManageSystem(role: UserRole): boolean {
-    return role === UserRole.SYSTEM_ADMIN || role === UserRole.ORG_ADMIN;
+    return role === UserRole.SUPER_ADMIN || role === UserRole.SYSTEM_ADMIN || role === UserRole.ORG_ADMIN;
 }

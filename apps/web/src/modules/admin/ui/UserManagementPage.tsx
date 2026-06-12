@@ -1,27 +1,30 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function UserManagementPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [showCreate, setShowCreate] = useState(false);
+    const [latestInviteLink, setLatestInviteLink] = useState("");
     const [newUser, setNewUser] = useState({
         email: "",
-        name: "",
-        role: "user",
         enterpriseRole: "SALES_USER"
     });
     const [roleEdits, setRoleEdits] = useState<Record<string, { role: string; enterpriseRole: string }>>({});
 
     const roleOptions = ["user", "admin", "superadmin"];
     const enterpriseRoleOptions = [
+        "SUPER_ADMIN",
         "SYSTEM_ADMIN",
         "ORG_ADMIN",
+        "CMS_EDITOR",
         "SALES_MANAGER",
         "SALES_USER",
         "CALLER",
+        "VIEWER",
         "COMPLIANCE_OFFICER"
     ];
 
@@ -31,7 +34,7 @@ export default function UserManagementPage() {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/users");
+            const res = await fetch("/api/admin/users");
             if (res.ok) {
                 const data = await res.json();
                 setUsers(data);
@@ -57,17 +60,20 @@ export default function UserManagementPage() {
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/users", {
+            const res = await fetch("/api/admin/invites", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newUser)
             });
             if (res.ok) {
+                const data = await res.json();
+                setLatestInviteLink(data.inviteLink || "");
                 setShowCreate(false);
-                setNewUser({ email: "", name: "", role: "user", enterpriseRole: "SALES_USER" });
+                setNewUser({ email: "", enterpriseRole: "SALES_USER" });
                 fetchUsers();
             } else {
-                alert("Failed to create user");
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || "Failed to invite user");
             }
         } catch (error) {
             console.error(error);
@@ -79,7 +85,7 @@ export default function UserManagementPage() {
         if (!update) return;
 
         try {
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/admin/users", {
+            const res = await fetch("/api/admin/users", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -110,20 +116,37 @@ export default function UserManagementPage() {
 
             <div className="relative z-10 max-w-6xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
-                    <SectionHeader title="User Management" subtitle="Admin Console" />
-                    <button
-                        onClick={() => setShowCreate(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                    >
-                        + Create User
-                    </button>
+                    <SectionHeader title="User Management" subtitle="Invite-only Admin Console" />
+                    <div className="flex gap-3">
+                        <Link href="/admin/invites" className="border border-white/10 text-white px-4 py-2 rounded-lg font-medium transition-colors hover:bg-white/5">
+                            View Invites
+                        </Link>
+                        <button
+                            onClick={() => setShowCreate(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                            + Invite User
+                        </button>
+                    </div>
                 </div>
+
+                {latestInviteLink && (
+                    <div className="mb-6 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-emerald-100">
+                        <div className="mb-2 text-sm font-semibold">Invite link</div>
+                        <div className="flex gap-2">
+                            <input readOnly value={latestInviteLink} className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" />
+                            <button onClick={() => navigator.clipboard.writeText(latestInviteLink)} className="rounded-lg bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-500">
+                                Copy
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 {/* Create User Modal */}
                 {showCreate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                         <div className="bg-gray-900 border border-white/10 p-8 rounded-xl w-full max-w-md">
-                            <h3 className="text-xl font-bold text-white mb-6">Create New User</h3>
+                            <h3 className="text-xl font-bold text-white mb-6">Invite User</h3>
                             <form onSubmit={handleCreate} className="space-y-4">
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-1">Email</label>
@@ -134,29 +157,6 @@ export default function UserManagementPage() {
                                         className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
                                         required
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Name</label>
-                                    <input
-                                        type="text"
-                                        value={newUser.name}
-                                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm text-gray-400 mb-1">Role</label>
-                                    <select
-                                        value={newUser.role}
-                                        onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white"
-                                    >
-                                        {roleOptions.map((role) => (
-                                            <option key={role} value={role}>
-                                                {role}
-                                            </option>
-                                        ))}
-                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm text-gray-400 mb-1">Enterprise Role</label>
@@ -184,7 +184,7 @@ export default function UserManagementPage() {
                                         type="submit"
                                         className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                                     >
-                                        Create
+                                        Send Invite
                                     </button>
                                 </div>
                             </form>

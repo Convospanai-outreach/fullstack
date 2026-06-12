@@ -9,8 +9,13 @@ test.describe('Production Readiness Audit', () => {
         expect(body.status).toBe('UP');
     });
 
-    test('Observability: /api/metrics should expose Prometheus data', async ({ request }) => {
-        const response = await request.get('/api/metrics');
+    test('Observability: /api/metrics should expose Prometheus data to authorized scrapers', async ({ request }) => {
+        const metricsToken = process.env.METRICS_TOKEN || 'ci-metrics-token';
+        const response = await request.get('/api/metrics', {
+            headers: {
+                Authorization: `Bearer ${metricsToken}`,
+            },
+        });
         expect(response.status()).toBe(200);
         const text = await response.text();
         expect(text).toContain('# HELP');

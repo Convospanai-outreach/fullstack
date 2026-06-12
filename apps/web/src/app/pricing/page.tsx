@@ -144,7 +144,7 @@ export default function PricingPage() {
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan",
+                name: "CraftMyFunnel",
                 description: `${plan} Plan Subscription`,
                 order_id: data.orderId,
                 handler: function () {

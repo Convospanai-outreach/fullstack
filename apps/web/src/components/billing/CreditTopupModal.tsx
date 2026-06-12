@@ -49,7 +49,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan",
+                name: "CraftMyFunnel",
                 description: `Top-up: ${pack.credits} Credits`,
                 order_id: data.id,
                 handler: function (_response: any) {

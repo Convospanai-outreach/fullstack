@@ -87,7 +87,7 @@ export default function SecurityKeysPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h2 className="text-xl font-bold text-white">System Access Keys</h2>
-                    <p className="text-text-secondary text-sm">Automate your workspace using the CovoSpan Public API.</p>
+                    <p className="text-text-secondary text-sm">Automate your workspace using the CraftMyFunnel Public API.</p>
                 </div>
                 <Button onClick={() => setIsModalOpen(true)} className="gap-2">
                     <Plus className="w-4 h-4" />
@@ -102,7 +102,7 @@ export default function SecurityKeysPage() {
                     <div className="glass p-12 rounded-3xl border-dashed border-2 border-white/10 flex flex-col items-center text-center">
                         <Key className="w-12 h-12 text-text-muted mb-4" />
                         <h4 className="text-lg font-bold text-white">No active API keys</h4>
-                        <p className="text-sm text-text-secondary max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with ConvoSpan.</p>
+                        <p className="text-sm text-text-secondary max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with CraftMyFunnel.</p>
                         <Button variant="outline" onClick={() => setIsModalOpen(true)}>Get Started with API</Button>
                     </div>
                 ) : (

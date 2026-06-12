@@ -16,7 +16,7 @@ export class ZKVault {
      * 5. Local Extension (SafeRun) fetches EncryptedBlob.
      * 6. Local Extension decrypts with Private Key stored in its own extension storage.
      * 
-     * RESULT: Plaintext never touches the ConvoSpan servers.
+     * RESULT: Plaintext never touches the CraftMyFunnel servers.
      */
 
     static async prepareForStorage(plaintext: string, publicKey: string): Promise<string> {

@@ -32,6 +32,10 @@ const leadStatusLabels: Record<string, string> = {
     CONVERTED: "Converted",
     LOST: "Lost",
     STOPPED: "Stopped",
+    LINKEDIN_CAPTURED: "LinkedIn Captured",
+    MULTI_CHANNEL_ENGAGED: "Multi-channel Engaged",
+    MULTI_CHANNEL_CONTACTED: "Multi-channel Contacted",
+    FOLLOW_UP_NEEDED: "Follow-up Needed",
 };
 
 const TIER_CONFIG: Record<string, { label: string; classes: string }> = {
@@ -59,17 +63,40 @@ function TierBadge({ pipelineState }: { pipelineState?: string }) {
     );
 }
 
+function channelBadgeLabel(channel: string, status: string) {
+    if (channel === "EMAIL" && status === "CONTACTED") return "Email Sent";
+    if (channel === "LINKEDIN" && status === "CAPTURED") return "LinkedIn Captured";
+    if (channel === "LINKEDIN" && status === "DRAFTED") return "LinkedIn Drafted";
+    if (channel === "LINKEDIN" && status === "CONTACTED") return "LinkedIn Contacted";
+    if (status === "FOLLOW_UP") return "Follow-up Needed";
+    return `${channel} ${status}`.replaceAll("_", " ");
+}
+
+function ChannelBadges({ statuses = [] }: { statuses?: Array<{ channel: string; status: string }> }) {
+    if (!statuses.length) return null;
+    return (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+            {statuses.map((item) => (
+                <span key={`${item.channel}-${item.status}`} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                    {channelBadgeLabel(item.channel, item.status)}
+                </span>
+            ))}
+        </div>
+    );
+}
+
 export default function LeadsPage() {
     const [leads, setLeads] = useState<Lead[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [channelFilter, setChannelFilter] = useState("");
     const [search, setSearch] = useState("");
     const [enriching, setEnriching] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         loadLeads();
-    }, [statusFilter, search]);
+    }, [statusFilter, search, channelFilter]);
 
     const loadLeads = async () => {
         setLoading(true);
@@ -77,6 +104,7 @@ export default function LeadsPage() {
         try {
             const filters: any = {};
             if (statusFilter) filters.status = statusFilter;
+            if (channelFilter) filters.channelFilter = channelFilter;
             if (search) filters.search = search;
 
             const data = await getLeads(filters);
@@ -178,6 +206,20 @@ export default function LeadsPage() {
                     }}
                     placeholder="Search leads by name, email, company, or status..."
                 />
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground">Channel filter</span>
+                    <select
+                        value={channelFilter}
+                        onChange={(event) => setChannelFilter(event.target.value)}
+                        className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+                    >
+                        <option value="">All channels</option>
+                        <option value="email_sent_linkedin_not_contacted">Email sent but LinkedIn not contacted</option>
+                        <option value="linkedin_captured_not_contacted">LinkedIn captured but not contacted</option>
+                        <option value="multi_channel_contacted">Multi-channel contacted</option>
+                        <option value="follow_up_needed">Follow-up needed</option>
+                    </select>
+                </div>
             </Card>
 
             {error && (
@@ -239,6 +281,7 @@ export default function LeadsPage() {
                                     <Globe className="w-3.5 h-3.5" /> {lead.company || "Independent"}
                                 </div>
                             </div>
+                            <ChannelBadges statuses={(lead as any).channelStatuses || []} />
 
                             <div className="mt-6 pt-6 border-t border-border space-y-3">
                                 {/* Intent Score Bar */}

@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 export function Providers({ children, session }: any) {
     const pathname = usePathname();
+
     const sessionFreePrefixes = [
         "/", "/about", "/contact", "/pricing",
         "/login", "/signup", "/privacy", "/terms",

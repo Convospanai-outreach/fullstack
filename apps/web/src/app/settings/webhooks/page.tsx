@@ -262,7 +262,7 @@ export default function WebhooksPage() {
                             <Shield className="w-3 h-3 text-green-500" /> Security
                         </h3>
                         <p className="text-xs text-gray-400 leading-relaxed">
-                            Webhooks are signed with an <span className="text-white">HMAC-SHA256</span> signature in the <code className="text-blue-400">X-ConvoSpan-Signature</code> header.
+                            Webhooks are signed with an <span className="text-white">HMAC-SHA256</span> signature in the <code className="text-blue-400">X-CraftMyFunnel-Signature</code> header.
                         </p>
                     </GlassCard>
 

@@ -1,4 +1,4 @@
-# How to Run ConvoSpan Locally
+# How to Run CraftMyFunnel Locally
 
 This repo is a monorepo. The recommended local fast path is the beta orchestrator script, which starts Postgres + Redis (Docker) and then starts/reuses `apps/api` + `apps/web`.
 

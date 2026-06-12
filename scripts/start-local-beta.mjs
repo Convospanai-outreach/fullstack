@@ -1,10 +1,11 @@
 import path from "node:path";
 import { createConnection } from "node:net";
 import { spawn } from "node:child_process";
+import pg from "pg";
 
 const rootDir = process.cwd();
 const prismaCli = path.join(rootDir, "node_modules", "prisma", "build", "index.js");
-const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5433/convospan?schema=public";
+const databaseUrl = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5433/craftmyfunnel?schema=public";
 const isWindows = process.platform === "win32";
 const withEdge = process.argv.includes("--with-edge") || process.env.START_EDGE === "true";
 
@@ -73,9 +74,32 @@ async function isApiHealthy() {
             return false;
         }
         const json = await response.json().catch(() => null);
-        return json?.service === "convospan-api";
+        return json?.service === "craftmyfunnel-api";
     } catch {
         return false;
+    }
+}
+
+async function hasApiSchema() {
+    const pool = new pg.Pool({
+        connectionString: databaseUrl,
+    });
+
+    try {
+        const result = await pool.query(`
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name IN ('User', 'Lead', 'Campaign')
+            ) AS schema_ready
+        `);
+
+        return Boolean(result.rows[0]?.schema_ready);
+    } catch {
+        return false;
+    } finally {
+        await pool.end().catch(() => {});
     }
 }
 
@@ -154,26 +178,30 @@ process.on("SIGTERM", () => shutdown(0));
 async function main() {
     await runStep("Starting Docker services (db, redis)", "docker", ["compose", "up", "-d", "db", "redis"]);
 
-    await runStep(
-        "Pushing Prisma schema for API",
-        "node",
-        [
-            prismaCli,
-            "db",
-            "push",
-            "--schema",
-            "apps/api/prisma/schema.prisma",
-            "--url",
-            databaseUrl,
-            "--accept-data-loss",
-        ],
-        {
-            env: {
-                ...process.env,
-                PRISMA_CLIENT_ENGINE_TYPE: process.env.PRISMA_CLIENT_ENGINE_TYPE || "binary",
-            },
-        }
-    );
+    if (await hasApiSchema()) {
+        console.log("\n[beta:start] API schema already present. Skipping Prisma sync.");
+    } else {
+        await runStep(
+            "Pushing Prisma schema for API",
+            "node",
+            [
+                prismaCli,
+                "db",
+                "push",
+                "--schema",
+                "apps/api/prisma/schema.prisma",
+                "--url",
+                databaseUrl,
+                "--accept-data-loss",
+            ],
+            {
+                env: {
+                    ...process.env,
+                    PRISMA_CLIENT_ENGINE_TYPE: process.env.PRISMA_CLIENT_ENGINE_TYPE || "binary",
+                },
+            }
+        );
+    }
 
     console.log("\n[beta:start] Launching API and Web");
 
@@ -200,7 +228,7 @@ async function main() {
             throw new Error("Port 3000 is in use by an unhealthy web process (likely stale CSS chunks). Stop that process and rerun beta:start.");
         }
     } else {
-        const web = spawnCommand("npm", ["run", "start:web"]);
+        const web = spawnCommand("npm", ["run", "dev:web"]);
         childProcesses.push(web);
         startedServices.push({ name: "Web", process: web });
     }
@@ -241,7 +269,7 @@ async function main() {
                 ...process.env,
                 EDGE_DATABASE_URL:
                     process.env.EDGE_DATABASE_URL ||
-                    "postgresql://postgres:postgres@host.docker.internal:5433/convospan",
+                    "postgresql://postgres:postgres@host.docker.internal:5433/craftmyfunnel",
             },
         }
     );

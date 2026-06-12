@@ -27,6 +27,7 @@ interface Lead {
     linkedIn: string;
     email?: string;
     status: string;
+    channelStatuses?: Array<{ channel: string; status: string; lastActivityAt?: string | Date | null }>;
     campaign?: { name: string };
     isEnriched?: boolean;
     enrichedData?: any;
@@ -59,9 +60,29 @@ interface LeadDetailProps {
     lead: Lead;
 }
 
+type TimelineItem = {
+    id: string;
+    type: string;
+    title: string;
+    subject?: string;
+    status?: string;
+    campaignName?: string;
+    createdAt: string | Date;
+};
+
+function channelBadgeLabel(channel: string, status: string) {
+    if (channel === "EMAIL" && status === "CONTACTED") return "Email Sent";
+    if (channel === "LINKEDIN" && status === "CAPTURED") return "LinkedIn Captured";
+    if (channel === "LINKEDIN" && status === "DRAFTED") return "LinkedIn Drafted";
+    if (channel === "LINKEDIN" && status === "CONTACTED") return "LinkedIn Contacted";
+    if (status === "FOLLOW_UP") return "Follow-up Needed";
+    return `${channel} ${status}`.replaceAll("_", " ");
+}
+
 export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [lead, setLead] = useState(initialLead);
     const [loading, setLoading] = useState(false);
+    const [timeline, setTimeline] = useState<TimelineItem[]>([]);
 
     const handleAction = async (action: string) => {
         setLoading(true);
@@ -159,6 +180,21 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
         };
     }, []);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        fetch(`/api/leads/${lead.id}/timeline`, { cache: "no-store" })
+            .then((res) => res.ok ? res.json() : null)
+            .then((data) => {
+                if (!cancelled) setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
+            })
+            .catch(() => {
+                if (!cancelled) setTimeline([]);
+            });
+
+        return () => { cancelled = true; };
+    }, [lead.id]);
+
     return (
         <div className="space-y-6">
             {isOffline && (
@@ -233,12 +269,47 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 <Badge variant={lead.status === "enriched" ? "success" : "default"} className="mt-0.5">
                                     {lead.status}
                                 </Badge>
+                                {lead.channelStatuses?.length ? (
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {lead.channelStatuses.map((item) => (
+                                            <span key={`${item.channel}-${item.status}`} className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/70">
+                                                {channelBadgeLabel(item.channel, item.status)}
+                                            </span>
+                                        ))}
+                                    </div>
+                                ) : null}
                             </div>
                             <div>
                                 <p className="text-white/60">Active Campaign</p>
                                 <p className="text-white font-medium">{lead.campaign?.name || "None"}</p>
                             </div>
                         </div>
+                    </GlassCard>
+
+                    <GlassCard className="space-y-4">
+                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                            <Activity className="w-5 h-5 text-cyan-400" />
+                            Activity Timeline
+                        </h3>
+                        {timeline.length === 0 ? (
+                            <p className="text-sm text-white/50">No email, LinkedIn, or campaign activity has been recorded for this lead yet.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {timeline.slice(0, 12).map((item) => (
+                                    <div key={item.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-sm font-semibold text-white">{item.title}</p>
+                                            <span className="text-xs text-white/40">{new Date(item.createdAt).toLocaleString()}</span>
+                                        </div>
+                                        {item.subject && <p className="mt-1 text-sm text-white/70">{item.subject}</p>}
+                                        <div className="mt-2 flex flex-wrap gap-2 text-xs text-white/50">
+                                            {item.campaignName && <span>Campaign: {item.campaignName}</span>}
+                                            {item.status && <span>Status: {item.status}</span>}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </GlassCard>
 
                     {/* Premium Intent Scoring Breakdown */}

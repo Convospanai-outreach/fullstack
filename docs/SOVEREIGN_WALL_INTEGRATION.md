@@ -1,6 +1,6 @@
 # Sovereign Wall: Hardware Integration Guide
 
-This document outlines the technical specifications and integration protocols for the **Sovereign Wall** hardware (the Edge Node) within the ConvoSpan ecosystem.
+This document outlines the technical specifications and integration protocols for the **Sovereign Wall** hardware (the Edge Node) within the CraftMyFunnel ecosystem.
 
 ## 1. Overview
 
@@ -48,7 +48,7 @@ The `HardwareService` in the main application enforces a **Strict Attestation** 
 
 ```mermaid
 sequenceDiagram
-    participant App as ConvoSpan App
+    participant App as CraftMyFunnel App
     participant Edge as Sovereign Wall (Hardware)
     
     App->>Edge: GET /health

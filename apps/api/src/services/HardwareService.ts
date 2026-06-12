@@ -2,6 +2,14 @@ import { logger } from "@/lib/logger";
 
 const EDGE_NODE_URI = process.env['EDGE_NODE_URL'] || process.env['EDGE_NODE_URI'] || 'http://localhost:8000';
 
+function edgeHeaders(extra: Record<string, string> = {}) {
+    const apiKey = process.env['EDGE_API_KEY'];
+    return {
+        ...extra,
+        ...(apiKey ? { 'x-api-key': apiKey } : {}),
+    };
+}
+
 export interface SanitizeResponse {
     sanitized_text: string;
     token_map_id: string;
@@ -48,6 +56,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 2000);
             
             const response = await fetch(`${EDGE_NODE_URI}/health`, {
+                headers: edgeHeaders(),
                 signal: controller.signal,
             });
             clearTimeout(timeoutId);
@@ -89,7 +98,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/v1/sanitize`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text }),
                 signal: controller.signal
             });
@@ -107,7 +116,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/v1/critique`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text, context }),
                 signal: controller.signal
             });
@@ -126,7 +135,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/search`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ query, limit: 3 }),
                 signal: controller.signal
             });
@@ -147,7 +156,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/execute`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ action, payload }),
                 signal: controller.signal
             });
@@ -169,7 +178,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/workflows/save`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ workflow }),
                 signal: controller.signal
             });
@@ -186,7 +195,7 @@ export class HardwareService {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const res = await fetch(`${EDGE_NODE_URI}/workflows`, { signal: controller.signal });
+            const res = await fetch(`${EDGE_NODE_URI}/workflows`, { headers: edgeHeaders(), signal: controller.signal });
             clearTimeout(timeoutId);
             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
             return await res.json();
@@ -202,7 +211,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/compliance/mode`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ region }),
                 signal: controller.signal
             });
@@ -220,7 +229,7 @@ export class HardwareService {
             const timeoutId = setTimeout(() => controller.abort(), 5000);
             const response = await fetch(`${EDGE_NODE_URI}/v1/reidentify`, { 
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ token: maskedId }),
                 signal: controller.signal
             });

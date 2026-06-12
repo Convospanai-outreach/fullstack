@@ -51,7 +51,7 @@ export default function RunnerPage() {
                             <h2 className="text-lg font-semibold text-white">Recommended: Chrome Extension</h2>
                         </div>
                         <p className="mt-3 text-sm text-slate-300">
-                            Local extension keeps LinkedIn session on the browser machine and reports approved actions back to ConvoSpan.
+                            Local extension keeps LinkedIn session on the browser machine and reports approved actions back to CraftMyFunnel.
                         </p>
                         <div className="mt-4 rounded-lg border border-white/10 bg-slate-900/60 p-3 text-xs text-slate-300">
                             Endpoint: <span className="text-slate-100 break-all">{extensionBase}</span>

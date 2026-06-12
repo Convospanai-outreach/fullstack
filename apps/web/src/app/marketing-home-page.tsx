@@ -1,90 +1,128 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, CheckCircle, Lock, Mail, Sparkles, TrendingUp, Users, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, CheckCircle, ChevronDown, ClipboardCheck, Cpu, Database, HardDrive, LayoutDashboard, Network, PhoneCall, Sparkles, TrendingUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { InviteRequestForm } from "@/components/marketing/InviteRequestForm";
+import { LogoMark } from "@/components/brand/LogoMark";
 
-const stats = [
-    { number: "6", label: "funnel workflow stages" },
-    { number: "100%", label: "human approval control" },
-    { number: "ICP", label: "vertical playbooks" },
-    { number: "Meetings", label: "primary outcome" },
+const navGroups = [
+  { label: "Product", href: "#workflow", items: ["Buyer Signals", "Sequences", "Approvals", "Human Calling"] },
+  { label: "Use Cases", href: "#industries", items: ["Facility Management", "Security", "Staffing", "L&D", "Consulting"] },
+  { label: "Platform", href: "#platform", items: ["NetJana", "CMF Core", "Human Layer", "Covospan EDGE"] },
+  { label: "Pilot", href: "#pilot", items: ["30-Day Launch", "Setup", "Qualification", "Meetings"] },
 ];
 
-const features = [
-    { icon: TrendingUp, color: "from-violet-500/20 to-violet-600/5 border-violet-500/20 text-violet-400", title: "Detect buyer signals", description: "Spot companies showing intent and prioritize the accounts most likely to become qualified conversations." },
-    { icon: Users, color: "from-emerald-500/20 to-emerald-600/5 border-emerald-500/20 text-emerald-400", title: "Enrich and qualify leads", description: "Turn raw targets into review-ready records with company context, contact data, and fit checks." },
-    { icon: Mail, color: "from-amber-500/20 to-amber-600/5 border-amber-500/20 text-amber-400", title: "Create campaigns and funnels", description: "Prepare approved outreach and campaign landing funnels around one ICP, geography, and offer." },
-    { icon: Lock, color: "from-cyan-500/20 to-cyan-600/5 border-cyan-500/20 text-cyan-400", title: "Launch with governance", description: "Keep humans in control of critical sends, approvals, and brand-risk decisions before campaigns go live." },
-    { icon: Zap, color: "from-pink-500/20 to-pink-600/5 border-pink-500/20 text-pink-400", title: "Manage follow-ups", description: "Coordinate replies, caller notes, and next steps so warm leads do not stall after the first response." },
-    { icon: BarChart3, color: "from-orange-500/20 to-orange-600/5 border-orange-500/20 text-orange-400", title: "Track meetings and pipeline", description: "Measure qualified leads, booked meetings, follow-up progress, and conversion outcomes." },
+const trustBadges = ["Human approved", "Email + LinkedIn + WhatsApp", "Caller layer", "Sovereign EDGE optional"];
+const serviceTeams = ["Facility Management", "Security Services", "Staffing", "Consulting", "L&D", "Managed Services"];
+const flowSteps = ["Find buyer signals", "Create approved sequences", "Review before sending", "Run outreach", "Assign caller", "Book qualified meeting"];
+const netjanaSignals = ["Hiring Expansion", "Branch Openings", "Tender Activity", "Facility Expansion", "Procurement Changes", "Technology Adoption"];
+const architectureLayers = [
+  { title: "NetJana", tag: "Buyer Signals", solves: "Who should I contact?", points: ["Intent detection engine", "Corporate activity tracking", "Decision-maker tracking"] },
+  { title: "CMF Core", tag: "AI Outreach SaaS", solves: "How do I reach them?", points: ["Email sequences", "LinkedIn rails", "WhatsApp workflows"] },
+  { title: "Human Layer", tag: "Conversion Moat", solves: "How do I secure meetings?", points: ["Managed callers", "Appointment fixing", "Pipeline nurturing"] },
+  { title: "Covospan EDGE", tag: "Sovereign Edge Node", solves: "How do I deploy safely?", points: ["Raspberry Pi 5 node", "Encrypted local storage", "On-device logs"] },
 ];
-
-const serviceTeams = ["Facility & security services", "Staffing & manpower services", "L&D and training companies", "Consulting and managed services", "Managed service providers", "B2B support teams"];
-
-const workflowExamples = [
-    { title: "Signal-led funnel start", description: "Identify accounts showing demand signals and prepare them for human review." },
-    { title: "Governed outreach launch", description: "Keep approvals, sender readiness, and brand controls in the same workflow." },
-    { title: "Meeting-focused follow-up", description: "Track replies, warm leads, booked meetings, and next-step ownership." },
+const edgeTiers = [
+  { title: "Tier 1 — Edge Hardware", text: "Raspberry Pi 5 edge node with secure boot, encrypted storage and firmware control." },
+  { title: "Tier 2 — On-Device AI", text: "PII tokenisation, micro-LLM checks, adversarial critic and intent engine run close to the data." },
+  { title: "Tier 3 — Hybrid Workflow", text: "AI outreach engine, human caller layer and optional external LLM support work through governed handoffs." },
 ];
-
-const playbooks = [
-    { n: "01", title: "Facility and security services", desc: "Target enterprises with signal-led outreach, proof assets, and approval-safe follow-ups." },
-    { n: "02", title: "Staffing and manpower services", desc: "Run role-specific plays around hiring pressure, geography, and urgency." },
-    { n: "03", title: "L&D and training companies", desc: "Convert training demand signals into qualified conversations with buyer-context messaging." },
-    { n: "04", title: "Consulting and managed services", desc: "Package expertise into focused campaigns, landing funnels, and meeting-ready handoffs." },
-];
-
+const pilotWeeks = [["Week 1", "Signal Setup"], ["Week 2", "Qualification Rules"], ["Week 3", "Multi Channel Outreach"], ["Week 4", "Qualified Meetings"]];
 const footerLinks = [
-    { href: "/privacy", label: "Privacy Policy" },
-    { href: "/terms", label: "Terms of Service" },
-    { href: "/support", label: "Support" },
-    { href: "/data-deletion", label: "Data Deletion" },
-    { href: "/security", label: "Security" },
-    { href: "/google-api-disclosure", label: "Google API Disclosure" },
+  { href: "/privacy", label: "Privacy Policy" },
+  { href: "/terms", label: "Terms & Conditions" },
+  { href: "/support", label: "Support" },
+  { href: "/data-deletion", label: "Data Deletion" },
+  { href: "/security", label: "Security" },
+  { href: "/google-api-disclosure", label: "Google API Disclosure" },
 ];
+
+function GlassCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return <div className={`rounded-[28px] border border-white/10 bg-white/[0.06] shadow-2xl shadow-black/25 backdrop-blur-2xl ${className}`}>{children}</div>;
+}
+
+function Header() {
+  return (
+    <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080b1a]/88 backdrop-blur-2xl">
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <Link href="/" className="flex items-center gap-2 text-lg font-black text-white"><LogoMark priority className="h-8 w-8" />CraftMyFunnel</Link>
+        <nav className="hidden items-center gap-1 lg:flex">
+          {navGroups.map((group) => (
+            <div key={group.label} className="group relative">
+              <a href={group.href} className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold text-slate-300 transition hover:bg-white/[0.07] hover:text-white">{group.label}<ChevronDown className="h-3.5 w-3.5" /></a>
+              <div className="invisible absolute left-0 top-full mt-3 w-64 translate-y-2 rounded-2xl border border-white/10 bg-[#11152a]/95 p-3 opacity-0 shadow-2xl shadow-black/40 backdrop-blur-2xl transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                {group.items.map((item) => <a key={item} href={group.href} className="block rounded-xl px-4 py-3 text-sm font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white">{item}</a>)}
+              </div>
+            </div>
+          ))}
+        </nav>
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="hidden text-sm font-semibold text-slate-300 hover:text-white sm:block">Login</Link>
+          <a href="#request-invite"><Button className="rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-5 font-bold text-white shadow-lg shadow-violet-500/25 hover:opacity-95">Request Invite</Button></a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function OutreachWidget({ className = "" }: { className?: string }) {
+  return <div className={`rounded-2xl border border-white/10 bg-white/[0.08] p-4 text-white shadow-2xl shadow-black/20 backdrop-blur-2xl ${className}`}><div className="mb-3 flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-cyan-400" /><span className="text-xs font-black uppercase tracking-widest text-cyan-200">Approval ready</span></div><p className="text-xs text-slate-300">Review and approve this sequence before it goes live.</p><div className="mt-3 rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-3 py-2 text-center text-xs font-bold text-white">Approve</div></div>;
+}
+
+function RealDashboardPreview({ large = false }: { large?: boolean }) {
+  const rows = [["Titan Facilities", "Expansion", "92", "Review"], ["NorthStar Security", "Hiring", "87", "Ready"], ["Urban Estates", "Procurement", "81", "Caller"], ["MetroWorks", "Tender", "78", "Queued"]];
+  return (
+    <div className="relative mx-auto max-w-6xl">
+      <div className="absolute -inset-10 rounded-[44px] bg-[radial-gradient(circle_at_30%_20%,rgba(124,58,237,0.34),transparent_32%),radial-gradient(circle_at_80%_60%,rgba(34,211,238,0.2),transparent_32%)] blur-3xl" />
+      {!large && <OutreachWidget className="absolute -right-3 -top-10 hidden w-52 rotate-[2deg] xl:block" />}
+      {!large && <OutreachWidget className="absolute -right-6 bottom-8 hidden w-52 rotate-[-2deg] xl:block" />}
+      <GlassCard className="relative overflow-hidden p-3 ring-1 ring-white/10">
+        <div className="grid overflow-hidden rounded-[24px] border border-white/10 bg-[#090d21] text-white lg:grid-cols-[220px_1fr]">
+          <aside className="hidden border-r border-white/10 bg-white/[0.035] p-5 lg:block">
+            <div className="mb-8 flex items-center gap-2 font-black"><LogoMark className="h-8 w-8" />CMF</div>
+            {[["Dashboard", LayoutDashboard], ["Leads", Users], ["Campaigns", Sparkles], ["Governance", ClipboardCheck]].map(([label, Icon]) => <div key={String(label)} className="mb-2 flex items-center gap-3 rounded-xl bg-white/[0.04] px-3 py-3 text-sm text-slate-300"><Icon className="h-4 w-4 text-cyan-300" />{String(label)}</div>)}
+          </aside>
+          <main className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-center lg:justify-between"><div><p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Guided Growth Workflow</p><h3 className="mt-2 text-2xl font-black">Executive view</h3><p className="mt-1 text-sm text-slate-400">Qualified leads, meetings, pipeline, follow-ups and approvals in one view.</p></div><div className="flex rounded-xl bg-white/[0.06] p-1 text-xs font-bold text-slate-300"><span className="rounded-lg bg-white/10 px-3 py-2 text-white">Executive</span><span className="px-3 py-2">Manager</span><span className="px-3 py-2">Operator</span></div></div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-3"><GlassCard className="p-4"><BarChart3 className="mb-3 h-5 w-5 text-cyan-300" /><p className="text-sm text-slate-400">Qualified leads</p><p className="mt-2 text-4xl font-black">128</p><p className="text-xs text-emerald-300">+18% this month</p></GlassCard><GlassCard className="p-4"><PhoneCall className="mb-3 h-5 w-5 text-violet-300" /><p className="text-sm text-slate-400">Caller follow-ups</p><p className="mt-2 text-4xl font-black">42</p><p className="text-xs text-cyan-300">14 assigned today</p></GlassCard><GlassCard className="p-4"><CheckCircle className="mb-3 h-5 w-5 text-emerald-300" /><p className="text-sm text-slate-400">Approvals</p><p className="mt-2 text-4xl font-black">7</p><p className="text-xs text-amber-300">needs review</p></GlassCard></div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-[1.3fr_0.7fr]"><GlassCard className="p-4"><div className="mb-4 flex items-center justify-between"><h4 className="font-black">Buyer signal table</h4><span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-bold text-cyan-200">Live signals</span></div><div className="space-y-2">{rows.map(([company, signal, score, status]) => <div key={company} className="grid grid-cols-[1.2fr_0.8fr_0.4fr_0.7fr] items-center gap-2 rounded-xl border border-white/8 bg-white/[0.055] px-3 py-3 text-xs"><span className="font-bold text-white">{company}</span><span className="text-slate-400">{signal}</span><span className="font-black text-cyan-300">{score}</span><span className="rounded-full bg-white/10 px-2 py-1 text-center font-bold text-slate-300">{status}</span></div>)}</div></GlassCard><GlassCard className="p-4"><h4 className="font-black">Approval queue</h4><div className="mt-4 space-y-3">{["Facility services ICP", "LinkedIn follow-up", "Caller script"].map((item) => <div key={item} className="rounded-xl bg-white/[0.055] p-3 text-sm text-slate-300"><p className="font-bold text-white">{item}</p><p className="text-xs text-slate-500">Pending manager approval</p></div>)}</div></GlassCard></div>
+          </main>
+        </div>
+      </GlassCard>
+    </div>
+  );
+}
 
 export default function Home() {
-    return (
-        <div className="min-h-screen overflow-hidden bg-[#050d17] text-slate-100">
-            <section className="relative overflow-hidden">
-                <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute left-1/4 top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-violet-600/10 blur-[120px]" />
-                    <div className="absolute right-1/4 top-1/3 h-[400px] w-[400px] rounded-full bg-cyan-600/8 blur-[100px]" />
-                    <div className="absolute bottom-0 left-1/2 h-[300px] w-[800px] -translate-x-1/2 rounded-full bg-indigo-600/6 blur-[120px]" />
-                </div>
-                <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 text-center">
-                    <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-400/25 bg-violet-400/10 px-5 py-2 text-sm text-violet-200 backdrop-blur-sm">
-                        <Sparkles className="h-3.5 w-3.5 text-violet-400" />
-                        <span className="font-medium">AI-supported funnel workflows for B2B service companies</span>
-                        <span className="ml-1 rounded-full bg-violet-500/30 px-2 py-0.5 text-xs font-semibold text-violet-200">New ✦</span>
-                    </div>
-                    <p className="mb-5 text-lg font-black text-white">CraftMyFunnel</p>
-                    <h1 className="mx-auto max-w-5xl text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
-                        Craft your funnel from buyer signal to <span className="relative inline-block"><span className="relative z-10 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400">qualified meeting.</span><span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-500 opacity-60" /></span>
-                    </h1>
-                    <p className="mx-auto mt-8 max-w-2xl text-xl leading-8 text-slate-300">CraftMyFunnel helps B2B service teams manage buyer signals, lead review, approved outreach, follow-ups, and qualified meeting tracking in one governed workflow.</p>
-                    <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-400">Google Workspace and Gmail connections are used for user-approved mailbox setup and sending. Humans remain in control of approvals, launch decisions, and brand-sensitive sends.</p>
-                    <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                        <Link href="/signup"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:shadow-violet-500/40 hover:-translate-y-0.5">Start Guided Growth Pilot<ArrowRight className="h-4 w-4" /></Button></Link>
-                        <Link href="/help"><Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.03] px-8 py-4 text-base text-white backdrop-blur-sm hover:bg-white/[0.08] hover:border-white/25">See Qualified Meeting Workflow</Button></Link>
-                    </div>
-                    <p className="mt-5 text-sm text-slate-400">Built for service companies that need qualified enterprise conversations without building a large inside-sales team.</p>
-                    <div className="mt-16 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        {stats.map((stat) => <div key={stat.label} className="rounded-2xl border border-white/8 bg-white/[0.03] py-5 px-4 backdrop-blur-sm"><p className="text-3xl font-black text-white">{stat.number}</p><p className="mt-1 text-sm text-slate-400">{stat.label}</p></div>)}
-                    </div>
-                </div>
-            </section>
-
-            <section className="border-y border-white/8 bg-white/[0.015] py-8"><div className="mx-auto max-w-7xl px-6"><p className="mb-6 text-center text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Designed for service-led growth teams</p><div className="flex flex-wrap items-center justify-center gap-4">{serviceTeams.map((team) => <span key={team} className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-sm font-semibold text-slate-300">{team}</span>)}</div></div></section>
-
-            <section className="mx-auto max-w-7xl px-6 py-24"><div className="mb-16 text-center"><p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-violet-400">From Buyer Signal to Qualified Meeting</p><h2 className="text-4xl font-black text-white sm:text-5xl">One managed workflow, not another tool to operate</h2><p className="mx-auto mt-4 max-w-xl text-lg text-slate-400">CraftMyFunnel supports signal detection, lead enrichment, campaign preparation, approved outreach, follow-up review, and qualified-meeting tracking.</p></div><div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{features.map((f) => <div key={f.title} className={`group relative overflow-hidden rounded-3xl border bg-gradient-to-br p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30 ${f.color}`}><div className="mb-5 inline-flex rounded-2xl bg-white/10 p-3"><f.icon className="h-5 w-5" /></div><h3 className="text-xl font-bold text-white">{f.title}</h3><p className="mt-2 text-sm leading-7 text-slate-300">{f.description}</p></div>)}</div></section>
-
-            <section className="mx-auto max-w-7xl px-6 py-8 pb-24"><div className="mb-12 text-center"><p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-emerald-400">Pilot workflow examples</p><h2 className="text-4xl font-black text-white sm:text-5xl">Review-ready workflows without fake customer claims.</h2></div><div className="grid gap-6 sm:grid-cols-3">{workflowExamples.map((example) => <div key={example.title} className="rounded-3xl border border-white/8 bg-white/[0.03] p-7 transition-all duration-300 hover:border-violet-500/20 hover:bg-white/[0.05]"><div className="mb-4 inline-flex rounded-2xl bg-emerald-400/10 p-3 text-emerald-300"><CheckCircle className="h-5 w-5" /></div><h3 className="text-xl font-bold text-white">{example.title}</h3><p className="mt-3 text-sm leading-7 text-slate-300">{example.description}</p></div>)}</div></section>
-
-            <section className="bg-white/[0.015] py-24 border-y border-white/8"><div className="mx-auto max-w-4xl px-6 text-center"><p className="mb-4 text-sm font-semibold uppercase tracking-[0.22em] text-cyan-400">Vertical playbooks</p><h2 className="text-4xl font-black text-white sm:text-5xl">Built around service-company markets</h2><div className="mt-14 grid gap-6 sm:grid-cols-2 text-left">{playbooks.map((step) => <div key={step.n} className="flex gap-5 rounded-2xl border border-white/8 bg-white/[0.03] p-6"><span className="text-4xl font-black text-white/10">{step.n}</span><div><h3 className="text-lg font-bold text-white">{step.title}</h3><p className="mt-1 text-sm leading-7 text-slate-400">{step.desc}</p></div></div>)}</div></div></section>
-
-            <section className="mx-auto max-w-4xl px-6 py-28 text-center"><div className="relative overflow-hidden rounded-[40px] border border-violet-500/20 bg-gradient-to-br from-violet-900/30 via-indigo-900/20 to-transparent p-14 shadow-2xl shadow-violet-900/20"><div className="pointer-events-none absolute inset-0"><div className="absolute left-1/2 top-0 h-48 w-72 -translate-x-1/2 rounded-full bg-violet-500/15 blur-[80px]" /></div><div className="relative"><div className="mb-6 inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-5 py-2 text-sm text-emerald-300"><CheckCircle className="h-4 w-4" />Qualified meeting pilot path</div><h2 className="text-4xl font-black text-white sm:text-5xl">Launch your funnel workflow</h2><p className="mx-auto mt-5 max-w-xl text-lg text-slate-300">Prepare approved outreach, managed follow-ups, and qualified meeting tracking for your service business.</p><div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center"><Link href="/signup"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-10 py-4 text-base font-semibold text-white shadow-lg shadow-violet-500/25 transition-all duration-300 hover:from-violet-500 hover:to-indigo-500 hover:-translate-y-0.5">Start Guided Growth Pilot<ArrowRight className="h-4 w-4" /></Button></Link><Link href="/pricing"><Button variant="ghost" className="h-auto rounded-full px-8 py-4 text-base text-slate-300 hover:bg-white/[0.06] hover:text-white">See pilot options &rarr;</Button></Link></div><div className="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs text-slate-500"><span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Human approval</span><span className="flex items-center gap-1.5"><CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> Vertical playbooks</span><span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-emerald-500" /> Human support</span><span className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5 text-emerald-500" /> Team collaboration</span></div></div></div></section>
-
-            <footer className="border-t border-white/8 bg-black/20 px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><p className="font-semibold text-white">CraftMyFunnel</p><p className="mt-1">© 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
+  return (
+    <div className="min-h-screen bg-[#070a18] text-white">
+      <Header />
+      <section className="relative overflow-hidden bg-[radial-gradient(circle_at_25%_20%,rgba(37,99,235,0.28),transparent_32%),radial-gradient(circle_at_68%_22%,rgba(124,58,237,0.34),transparent_34%),radial-gradient(circle_at_72%_80%,rgba(103,24,122,0.34),transparent_34%),linear-gradient(135deg,#070a18_0%,#11174a_48%,#2b0b3d_100%)] pt-20">
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:72px_72px] opacity-40" />
+        <div className="relative mx-auto max-w-7xl px-6 pb-20 pt-10 text-center">
+          <div className="mb-6 inline-flex items-center rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-bold text-cyan-200 backdrop-blur-xl"><Sparkles className="mr-2 h-4 w-4" />AI-approved funnel workflows for B2B service teams</div>
+          <h1 className="mx-auto max-w-5xl text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl">Convert buyer signals into <span className="bg-gradient-to-r from-violet-300 to-cyan-300 bg-clip-text text-transparent">qualified meetings</span></h1>
+          <p className="mx-auto mt-6 max-w-3xl text-xl leading-8 text-slate-300">CraftMyFunnel helps service companies run signal-led outreach, human-approved sequences, WhatsApp follow-ups and caller-assisted meeting qualification from one clean workspace.</p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row"><a href="#request-invite"><Button className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-9 py-4 text-base font-bold text-white shadow-xl shadow-violet-500/25 hover:opacity-95">Request Invite<ArrowRight className="h-4 w-4" /></Button></a><a href="#dashboard-preview"><Button variant="outline" className="h-auto rounded-full border-white/15 bg-white/[0.08] px-9 py-4 text-base font-bold text-white shadow-lg backdrop-blur-xl hover:bg-white/[0.12]">View dashboard</Button></a></div>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">{trustBadges.map((badge) => <span key={badge} className="rounded-full border border-white/10 bg-white/[0.08] px-4 py-2 text-sm font-semibold text-slate-200 shadow-sm backdrop-blur-xl"><CheckCircle className="mr-2 inline h-4 w-4 text-cyan-300" />{badge}</span>)}</div>
+          <div className="relative mx-auto mt-14 max-w-5xl"><OutreachWidget className="absolute -left-4 top-10 hidden w-52 -rotate-3 xl:block" /><OutreachWidget className="absolute -right-4 bottom-10 hidden w-52 rotate-3 xl:block" /><RealDashboardPreview /></div>
         </div>
-    );
+      </section>
+
+      <section id="dashboard-preview" className="relative bg-[#11174a] py-24 text-white"><div className="mx-auto max-w-7xl px-6"><div className="mx-auto mb-12 max-w-3xl text-center"><h2 className="text-4xl font-black sm:text-5xl">Inside the dashboard: signals, approvals, follow-ups and meetings.</h2><p className="mt-4 text-lg text-slate-300">The dashboard is organized like the real product: executive, manager and operator views connected to the same growth workflow.</p></div><RealDashboardPreview large /></div></section>
+
+      <section className="bg-[#11174a] py-20 text-white"><div className="mx-auto max-w-7xl px-6"><div className="mx-auto max-w-3xl text-center"><h2 className="text-4xl font-black sm:text-5xl">From full TAM to your top accounts, outreach still feels controlled.</h2><p className="mt-4 text-lg text-slate-300">Run outbound across email, LinkedIn, WhatsApp and phone without losing governance.</p></div><div className="mt-12 grid gap-5 md:grid-cols-3">{flowSteps.map((step, index) => <GlassCard key={step} className="p-6"><p className="text-xs font-black uppercase tracking-widest text-cyan-300">Step {index + 1}</p><h3 className="mt-3 text-xl font-black text-white">{step}</h3><p className="mt-2 text-sm leading-6 text-slate-300">Keep every action visible, approved and assigned before the next step starts.</p></GlassCard>)}</div></div></section>
+
+      <section id="platform" className="bg-[#080b1a] py-24"><div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[0.8fr_1.2fr]"><div><div className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-cyan-200"><Network className="mr-2 h-4 w-4" />NetJana</div><h2 className="text-4xl font-black text-white sm:text-5xl">Buyer signals before your competitors notice them.</h2><p className="mt-4 text-lg text-slate-300">Use market movement to prioritize the accounts most likely to respond.</p></div><div className="grid gap-4 sm:grid-cols-2">{netjanaSignals.map((signal) => <GlassCard key={signal} className="p-6"><TrendingUp className="mb-4 h-5 w-5 text-cyan-300" /><h3 className="font-black text-white">{signal}</h3><p className="mt-2 text-sm leading-6 text-slate-300">Prioritize accounts showing visible buying movement and outreach timing.</p></GlassCard>)}</div></div></section>
+
+      <section id="workflow" className="bg-[#0b1020] py-24 text-white"><div className="mx-auto max-w-7xl px-6"><h2 className="text-4xl font-black sm:text-5xl">The CMF ecosystem</h2><p className="mt-4 max-w-2xl text-lg text-slate-300">NetJana, CMF Core, the Human Layer and Covospan EDGE work as one governed funnel system.</p><div className="mt-12 grid gap-5 lg:grid-cols-4">{architectureLayers.map((layer, index) => <GlassCard key={layer.title} className="p-6"><div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400/10 text-cyan-200">{index === 0 ? <Network className="h-5 w-5" /> : index === 1 ? <Sparkles className="h-5 w-5" /> : index === 2 ? <PhoneCall className="h-5 w-5" /> : <HardDrive className="h-5 w-5" />}</div><h3 className="text-2xl font-black">{layer.title}</h3><p className="mt-2 inline-flex rounded-full bg-cyan-400/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-cyan-200">{layer.tag}</p><p className="mt-5 text-sm font-bold text-slate-200">Solves: {layer.solves}</p><ul className="mt-4 space-y-3 text-sm text-slate-300">{layer.points.map((point) => <li key={point} className="flex gap-2"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />{point}</li>)}</ul></GlassCard>)}</div></div></section>
+
+      <section className="bg-[#11174a] py-24"><div className="mx-auto max-w-7xl px-6"><div className="max-w-3xl"><div className="mb-5 inline-flex rounded-full bg-white/[0.08] px-4 py-2 text-xs font-black uppercase tracking-widest text-cyan-200"><Cpu className="mr-2 h-4 w-4" />Covospan EDGE</div><h2 className="text-4xl font-black text-white sm:text-5xl">Optional Raspberry Pi 5 edge node for sovereign deployment.</h2><p className="mt-4 text-lg text-slate-300">Secure boot, encrypted storage, local memory logs and governed processing close to the data.</p></div><div className="mt-10 grid gap-5 lg:grid-cols-3">{edgeTiers.map((tier) => <GlassCard key={tier.title} className="p-6"><Database className="mb-4 h-6 w-6 text-cyan-300" /><h3 className="text-xl font-black text-white">{tier.title}</h3><p className="mt-3 text-sm leading-7 text-slate-300">{tier.text}</p></GlassCard>)}</div></div></section>
+
+      <section id="industries" className="bg-[#080b1a] py-24"><div className="mx-auto max-w-7xl px-6"><h2 className="text-4xl font-black text-white sm:text-5xl">Built for service-company markets</h2><div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">{serviceTeams.map((team) => <GlassCard key={team} className="p-6"><h3 className="text-xl font-black text-white">{team}</h3><p className="mt-4 text-sm leading-7 text-slate-300"><b>Signals:</b> hiring, expansion, tenders or growth activity.<br /><b>Workflow:</b> approved email, LinkedIn, WhatsApp and caller follow-up.<br /><b>Outcome:</b> qualified meeting with context.</p></GlassCard>)}</div></div></section>
+
+      <section id="request-invite" className="bg-[#080b1a] px-6 py-24"><div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center text-white shadow-2xl shadow-black/30 sm:p-14"><h2 className="text-4xl font-black sm:text-5xl">Request access to Manual Mode</h2><p className="mx-auto mt-4 max-w-2xl text-slate-300">We are approving a small set of teams for the invite-only MVP focused on manual lead and meeting workflow tracking.</p><div className="mt-10 grid gap-4 sm:grid-cols-4">{pilotWeeks.map(([week, title]) => <div key={week} className="rounded-2xl bg-white/10 p-5"><p className="text-xs font-bold uppercase tracking-widest text-cyan-200">{week}</p><p className="mt-3 font-black">{title}</p></div>)}</div><InviteRequestForm /></div></section>
+
+      <footer className="border-t border-white/10 bg-[#070a18] px-6 py-10"><div className="mx-auto flex max-w-7xl flex-col gap-6 text-center text-sm text-slate-400 md:flex-row md:items-center md:justify-between md:text-left"><div><Link href="/" className="inline-flex items-center gap-2 font-semibold text-white"><LogoMark className="h-7 w-7" />CraftMyFunnel</Link><p className="mt-1">Copyright 2026 CraftMyFunnel. All rights reserved.</p><a className="mt-1 inline-block text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a></div><nav className="flex flex-wrap justify-center gap-4 md:justify-end">{footerLinks.map((link) => <Link key={link.href} href={link.href} className="hover:text-white">{link.label}</Link>)}</nav></div></footer>
+    </div>
+  );
 }

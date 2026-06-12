@@ -67,7 +67,7 @@ export class McpClient {
                 tools: {}
             },
             clientInfo: {
-                name: "ConvoSpan",
+                name: "CraftMyFunnel",
                 version: "1.0.0"
             }
         });

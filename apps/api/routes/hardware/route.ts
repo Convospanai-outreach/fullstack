@@ -1,9 +1,22 @@
 import { HardwareService } from "@/services/HardwareService";
+import { getCurrentContext } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { EdgeRuntimeError, requireEdgePiiAvailable } from "@/lib/edgeRuntime";
+
+const PII_EDGE_ACTIONS = new Set(["SANITIZE", "RE_IDENTIFY", "CRITIQUE", "SEARCH", "EXECUTE"]);
 
 export async function POST(req: Request) {
     try {
         const body = await req.json();
         const { action, payload, text, query, workflow, region, maskedId, purpose } = body;
+
+        if (PII_EDGE_ACTIONS.has(action)) {
+            const ctx = await getCurrentContext();
+            if (!ctx.teamId) {
+                return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+            }
+            await requireEdgePiiAvailable(ctx.teamId, prisma);
+        }
 
         let result;
         switch (action) {
@@ -36,6 +49,9 @@ export async function POST(req: Request) {
         }
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {
+        if (e instanceof EdgeRuntimeError) {
+            return new Response(JSON.stringify({ error: e.code, message: e.message }), { status: e.statusCode, headers: { 'Content-Type': 'application/json' } });
+        }
         return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
 }

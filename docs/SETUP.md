@@ -1,4 +1,4 @@
-# ConvoSpan Setup Guide
+# CraftMyFunnel Setup Guide
 
 ## Prerequisites
 
@@ -34,7 +34,7 @@ Edit `.env` and configure the following **required** variables:
 
 ```bash
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/convospan
+DATABASE_URL=postgresql://user:password@localhost:5432/craftmyfunnel
 
 # Authentication
 NEXTAUTH_SECRET=<generate with: openssl rand -base64 32>
@@ -56,7 +56,7 @@ OPENAI_API_KEY=sk-xxxxx
 Create a PostgreSQL database:
 
 ```bash
-createdb convospan
+createdb craftmyfunnel
 ```
 
 Run Prisma migrations:
@@ -98,12 +98,12 @@ Visit [http://localhost:3000](http://localhost:3000)
 
 2. **Create Database**:
    ```bash
-   createdb convospan
+   createdb craftmyfunnel
    ```
 
 3. **Update DATABASE_URL** in `.env`:
    ```
-   DATABASE_URL=postgresql://username:password@localhost:5432/convospan
+   DATABASE_URL=postgresql://username:password@localhost:5432/craftmyfunnel
    ```
 
 ### Authentication Setup
@@ -151,7 +151,7 @@ Use this when the sender mailbox is a Gmail or Google Workspace account.
 1. Sign in to the sender Google account.
 2. Enable 2-Step Verification in **Google Account > Security**.
 3. Create an app password from **Security > 2-Step Verification > App passwords**.
-4. Choose **Mail** or create a custom app name such as `ConvoSpan SMTP`.
+4. Choose **Mail** or create a custom app name such as `CraftMyFunnel SMTP`.
 5. Copy the generated 16-character app password and remove any spaces before storing it.
 6. Add these values to the Vercel and Railway environments that send email:
 
@@ -161,7 +161,7 @@ SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER=sender@yourdomain.com
 SMTP_PASSWORD=your-16-character-app-password
-SMTP_FROM_NAME=ConvoSpan
+SMTP_FROM_NAME=CraftMyFunnel
 SMTP_FROM_EMAIL=sender@yourdomain.com
 ```
 
@@ -361,7 +361,7 @@ npm run type-check       # TypeScript check
 - **Documentation**: Check `/docs` folder
 - **API Reference**: See `docs/API_REFERENCE.md`
 - **Issues**: Create an issue on GitHub
-- **Email**: support@convospan.com
+- **Email**: support@craftmyfunnel.com
 
 ---
 

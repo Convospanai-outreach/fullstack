@@ -9,7 +9,7 @@ export interface BrandingConfig {
 
 export const DEFAULT_BRANDING: BrandingConfig = {
     primaryColor: "#3B82F6", // Default Blue
-    portalTitle: "ConvoSpan AI",
+    portalTitle: "CraftMyFunnel AI",
 };
 
 export class BrandingService {
@@ -21,7 +21,7 @@ export class BrandingService {
     static async getBranding(host: string): Promise<BrandingConfig> {
         // Simple optimization: Ignore localhost and main domain to save DB calls
         // In production, we'd cache this heavily
-        if (host.includes("localhost") || host === "convospan.com") {
+        if (host.includes("localhost") || host === "craftmyfunnel.com") {
             return DEFAULT_BRANDING;
         }
 

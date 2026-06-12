@@ -35,7 +35,7 @@ async function testVectorSearch() {
             `INSERT INTO "KnowledgeItem" (id, content, "knowledgeBaseId", metadata, embedding, "embeddingModel", version, "createdAt") 
              VALUES ($1, $2, $3, $4::jsonb, $5::vector, $6, $7, NOW())`,
             crypto.randomUUID(),
-            "The CEO of ConvoSpan is Jane Doe.",
+            "The CEO of CraftMyFunnel is Jane Doe.",
             kb.id,
             '{}',
             `[${Array(768).fill(0.1).join(",")}]`,
@@ -45,12 +45,12 @@ async function testVectorSearch() {
 
         console.log(`Created Test Knowledge Base: ${kb.id}`);
 
-        const testContent = "ConvoSpan is a world-class AI platform for personalized outreach. It uses pgvector for precision grounding. The CEO is Jane Doe.";
+        const testContent = "CraftMyFunnel is a world-class AI platform for personalized outreach. It uses pgvector for precision grounding. The CEO is Jane Doe.";
         await vectorStore.addDocument(testContent, kb.id, { source: "Test Doc" });
         console.log("Added Test Document (Chunking and Vectorizing successful)");
 
-        console.log("Searching for: 'Who is the CEO of ConvoSpan?'");
-        const results = await vectorStore.search("Who is the CEO of ConvoSpan?", team.id);
+        console.log("Searching for: 'Who is the CEO of CraftMyFunnel?'");
+        const results = await vectorStore.search("Who is the CEO of CraftMyFunnel?", team.id);
 
         console.log(`Found ${results.length} results.`);
         results.forEach((r: any, i) => {

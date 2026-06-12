@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS deps
 WORKDIR /repo
 
@@ -9,7 +10,12 @@ COPY apps/api/package.json ./apps/api/package.json
 COPY packages ./packages
 # apps/web postinstall executes scripts/repair-package-exports.mjs during npm ci.
 COPY apps/web/scripts ./apps/web/scripts
-RUN npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+RUN sh -c 'for attempt in 1 2 3; do \
+      npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps --prefer-offline --fetch-retries=5 --fetch-retry-maxtimeout=120000 && exit 0; \
+      echo "npm ci failed on attempt ${attempt}, retrying..." >&2; \
+      sleep 5; \
+    done; \
+    exit 1'
 
 # =============================================================================
 # Builder Stage: compile Next.js with Prisma client
@@ -22,7 +28,11 @@ ENV NODE_ENV=production
 
 # Build-time DB URL (no real DB needed to build)
 ARG DATABASE_URL="postgresql://dummy:dummy@localhost/dummy"
+ARG ENCRYPTION_KEY="buildtime-encryption-key-123456"
+ARG NEXT_PUBLIC_API_URL="http://localhost:3000/api/proxy"
 ENV DATABASE_URL=$DATABASE_URL
+ENV ENCRYPTION_KEY=$ENCRYPTION_KEY
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY --from=deps /repo/node_modules ./node_modules
 COPY . .
@@ -32,6 +42,7 @@ WORKDIR /repo/apps/web
 # Generate Prisma client and build Next.js
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate && \
     DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" \
+    ENCRYPTION_KEY="${ENCRYPTION_KEY}" \
     NEXT_OUTPUT_MODE="standalone" \
     NODE_OPTIONS="--max-old-space-size=4096" \
     npx next build

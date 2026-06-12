@@ -7,8 +7,8 @@ const events = [
     category: "International Holiday",
     leadGenAngle: "Perfect time for a 'Fresh Start' outreach focusing on 2026 growth strategies and pipeline scaling.",
     newsletter: {
-      subjectLine: "New Year, New Pipeline: Scaling ConvoSpan in 2026",
-      emailBodyHtml: "<p><b>Happy New Year!</b></p><p>As we enter 2026, it's time to synchronize your AI agent army for the year ahead. ConvoSpan Edge is ready to amplify your outreach while keeping your data sovereign.</p><p>Is your 2026 growth strategy AI-powered?</p>",
+      subjectLine: "New Year, New Pipeline: Scaling CraftMyFunnel in 2026",
+      emailBodyHtml: "<p><b>Happy New Year!</b></p><p>As we enter 2026, it's time to synchronize your AI agent army for the year ahead. CraftMyFunnel Edge is ready to amplify your outreach while keeping your data sovereign.</p><p>Is your 2026 growth strategy AI-powered?</p>",
       cta: "Reply 'STRATEGY' for a 2026 roadmap consultation"
     }
   },
@@ -19,7 +19,7 @@ const events = [
     leadGenAngle: "Celebrates progress and sovereignty—aligned with our 'Sovereign Core' value proposition for Indian enterprises.",
     newsletter: {
       subjectLine: "Celebrating Progress & Data Sovereignty this Republic Day",
-      emailBodyHtml: "<p>Wishing you a <b>Happy Republic Day</b>.</p><p>Just as our nation values sovereignty, ConvoSpan values the sovereignty of your data. Our local SLM execution ensures your lead intelligence never leaves your control.</p>",
+      emailBodyHtml: "<p>Wishing you a <b>Happy Republic Day</b>.</p><p>Just as our nation values sovereignty, CraftMyFunnel values the sovereignty of your data. Our local SLM execution ensures your lead intelligence never leaves your control.</p>",
       cta: "Explore our Sovereign Core features"
     }
   },
@@ -29,8 +29,8 @@ const events = [
     category: "Business/Tech Summit",
     leadGenAngle: "Direct tie-in to our core technology; ideal for engaging tech-forward founders and investors.",
     newsletter: {
-      subjectLine: "ConvoSpan + AI Impact Summit: The Future of Agentic Growth",
-      emailBodyHtml: "<p>The AI Impact Summit 2026 is here.</p><p>We are showcasing how <b>ConvoSpan Edge</b> bridges the gap between raw AI power and localized, secure execution. Don't let your growth be bottlenecked by cloud latency or data risks.</p>",
+      subjectLine: "CraftMyFunnel + AI Impact Summit: The Future of Agentic Growth",
+      emailBodyHtml: "<p>The AI Impact Summit 2026 is here.</p><p>We are showcasing how <b>CraftMyFunnel Edge</b> bridges the gap between raw AI power and localized, secure execution. Don't let your growth be bottlenecked by cloud latency or data risks.</p>",
       cta: "Book a meeting at the Summit"
     }
   },
@@ -52,7 +52,7 @@ const events = [
     leadGenAngle: "Crucial touchpoint for UAE and global market leads, focusing on community and shared success.",
     newsletter: {
       subjectLine: "Eid Mubarak: Synchronizing Growth across Regions",
-      emailBodyHtml: "<p><b>Eid Mubarak</b> to you and your team.</p><p>As we celebrate this day of gratitude and community, ConvoSpan is proud to support your global growth with region-specific data sharding and compliance.</p>",
+      emailBodyHtml: "<p><b>Eid Mubarak</b> to you and your team.</p><p>As we celebrate this day of gratitude and community, CraftMyFunnel is proud to support your global growth with region-specific data sharding and compliance.</p>",
       cta: "Learn about our UAE Regional Lock"
     }
   },
@@ -63,7 +63,7 @@ const events = [
     leadGenAngle: "Focus on 'Independence from manual outreach' and the freedom of autonomous agent execution.",
     newsletter: {
       subjectLine: "Independence from Manual Outreach: Let the Agents Scale",
-      emailBodyHtml: "<p>Happy Independence Day.</p><p>Achieve <b>freedom from the grind</b>. With ConvoSpan's Genkit flows, your prospecting runs at 10x scale while you focus on closing high-value deals.</p>",
+      emailBodyHtml: "<p>Happy Independence Day.</p><p>Achieve <b>freedom from the grind</b>. With CraftMyFunnel's Genkit flows, your prospecting runs at 10x scale while you focus on closing high-value deals.</p>",
       cta: "Enable Autonomous Mode"
     }
   },
@@ -74,7 +74,7 @@ const events = [
     leadGenAngle: "The biggest gifting and business season; perfect for year-end deal-closing campaigns.",
     newsletter: {
       subjectLine: "Lighting up your Q4 Targets this Diwali",
-      emailBodyHtml: "<p>Wishing you a prosperous <b>Diwali</b>.</p><p>As the festival of lights approaches, let ConvoSpan illuminate your path to exceeding Q4 targets with our Bulls-Eye RAG signal detection.</p>",
+      emailBodyHtml: "<p>Wishing you a prosperous <b>Diwali</b>.</p><p>As the festival of lights approaches, let CraftMyFunnel illuminate your path to exceeding Q4 targets with our Bulls-Eye RAG signal detection.</p>",
       cta: "Upgrade to Pro for Diwali Deals"
     }
   },
@@ -85,7 +85,7 @@ const events = [
     leadGenAngle: "A warm year-end thank you and a soft pitch for 2027 planning.",
     newsletter: {
       subjectLine: "Season's Greetings: A Sovereign Year in Review",
-      emailBodyHtml: "<p><b>Merry Christmas and Season's Greetings!</b></p><p>Thank you for being part of the ConvoSpan ecosystem in 2026. Your AI agents are working through the holidays to ensure you start 2027 with a full pipeline.</p>",
+      emailBodyHtml: "<p><b>Merry Christmas and Season's Greetings!</b></p><p>Thank you for being part of the CraftMyFunnel ecosystem in 2026. Your AI agents are working through the holidays to ensure you start 2027 with a full pipeline.</p>",
       cta: "View your 2026 Performance Report"
     }
   }

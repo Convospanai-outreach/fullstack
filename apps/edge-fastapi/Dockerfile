@@ -1,10 +1,15 @@
 # Stage 1: Build dependencies and artifacts
 FROM python:3.11-slim AS builder
-LABEL org.opencontainers.image.source="https://github.com/Convospanai-outreach/fullstack"
+LABEL org.opencontainers.image.source="https://github.com/craftmyfunnel-outreach/fullstack"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
+
+ARG CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_OPENMP=ON"
+ARG FORCE_CMAKE=0
+ENV CMAKE_ARGS=${CMAKE_ARGS} \
+    FORCE_CMAKE=${FORCE_CMAKE}
 
 WORKDIR /app
 
@@ -14,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     g++ \
     curl \
+    libopenblas-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Pre-install specific libraries to avoid huge layer rebuilds
@@ -31,7 +37,10 @@ FROM python:3.11-slim AS runner
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/home/appuser \
-    PATH="/home/appuser/.local/bin:${PATH}"
+    PATH="/home/appuser/.local/bin:${PATH}" \
+    OMP_NUM_THREADS=4 \
+    OPENBLAS_NUM_THREADS=4 \
+    TOKENIZERS_PARALLELISM=false
 
 WORKDIR /app
 
@@ -42,6 +51,7 @@ RUN adduser --system --group --home /home/appuser appuser && \
     apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
     libgomp1 \
+    libopenblas0-pthread \
     libpq-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*

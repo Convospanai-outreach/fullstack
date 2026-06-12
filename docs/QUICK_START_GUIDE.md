@@ -8,7 +8,7 @@
 
 ## 📋 Overview
 
-This guide provides a quick reference for implementing the AI Agentic Automation System. The system transforms ConvoSpan into a comprehensive, multi-channel outreach platform with intelligent automation.
+This guide provides a quick reference for implementing the AI Agentic Automation System. The system transforms CraftMyFunnel into a comprehensive, multi-channel outreach platform with intelligent automation.
 
 ---
 

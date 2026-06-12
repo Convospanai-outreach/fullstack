@@ -93,7 +93,7 @@ export default function KnowledgeBaseManager() {
                             chunks={14}
                         />
                         <ActiveKnowledgeItem
-                            title="https://docs.convospan.ai/pricing"
+                            title="https://docs.craftmyfunnel.ai/pricing"
                             type="Web"
                             date="1 hour ago"
                             chunks={32}

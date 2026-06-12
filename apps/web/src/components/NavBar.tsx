@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 const marketingLinks = [
     { href: "/pricing", label: "Pricing" },
@@ -16,11 +17,9 @@ export function NavBar() {
         <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/10 bg-slate-950/70 backdrop-blur-xl">
             <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                 <Link href="/" className="group flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-cyan-500 text-sm font-black text-white shadow-lg shadow-indigo-500/30">
-                        C
-                    </span>
+                    <LogoMark priority className="h-8 w-8" />
                     <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-bold text-transparent">
-                        ConvoSpan
+                        CraftMyFunnel
                     </span>
                 </Link>
 

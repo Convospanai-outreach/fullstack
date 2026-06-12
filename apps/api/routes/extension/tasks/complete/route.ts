@@ -82,9 +82,6 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Trigger side-effects if needed? (e.g. if VIEW_PROFILE success, enrich lead)
-        // This is handled by Orchestrator usually, but here we just update DB.
-
         return NextResponse.json({
             success: true,
             jobId: job.id,

@@ -120,11 +120,11 @@ function verifyInternalAuthHeaders(headers: Record<string, unknown>) {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return null;
 
-  const userId = typeof headers['x-convospan-user-id'] === 'string' ? headers['x-convospan-user-id'] : '';
-  const email = typeof headers['x-convospan-user-email'] === 'string' ? headers['x-convospan-user-email'] : '';
-  const role = typeof headers['x-convospan-user-role'] === 'string' ? headers['x-convospan-user-role'] : '';
-  const timestamp = typeof headers['x-convospan-auth-ts'] === 'string' ? headers['x-convospan-auth-ts'] : '';
-  const signature = typeof headers['x-convospan-auth-signature'] === 'string' ? headers['x-convospan-auth-signature'] : '';
+  const userId = typeof headers['x-craftmyfunnel-user-id'] === 'string' ? headers['x-craftmyfunnel-user-id'] : '';
+  const email = typeof headers['x-craftmyfunnel-user-email'] === 'string' ? headers['x-craftmyfunnel-user-email'] : '';
+  const role = typeof headers['x-craftmyfunnel-user-role'] === 'string' ? headers['x-craftmyfunnel-user-role'] : '';
+  const timestamp = typeof headers['x-craftmyfunnel-auth-ts'] === 'string' ? headers['x-craftmyfunnel-auth-ts'] : '';
+  const signature = typeof headers['x-craftmyfunnel-auth-signature'] === 'string' ? headers['x-craftmyfunnel-auth-signature'] : '';
 
   if (!userId || !timestamp || !signature) return null;
 
@@ -154,7 +154,9 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/webhooks",
       "/auth",
       "/register",
-      "/test-auth",
+      "/health",
+      "/metrics",
+      // "/test-auth" removed for production security
       "/scheduler",
       "/integrations/google/oauth/callback",
       "/integrations/google/pubsub",
@@ -344,7 +346,7 @@ const start = async () => {
     }
 
     await fastify.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`\x1b[32m✔ ConvoSpan Production API launched on port ${PORT}\x1b[0m`);
+    console.log(`\x1b[32m✔ CraftMyFunnel Production API launched on port ${PORT}\x1b[0m`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

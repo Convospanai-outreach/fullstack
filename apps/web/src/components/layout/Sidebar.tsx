@@ -7,7 +7,6 @@ import {
     Megaphone,
     CreditCard,
     Settings,
-    Zap,
     Mail,
     Activity,
     ArrowRightLeft,
@@ -16,6 +15,7 @@ import {
     Bot,
 } from 'lucide-react';
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 export function Sidebar() {
     const pathname = usePathname();
@@ -42,10 +42,8 @@ export function Sidebar() {
     return (
         <aside className="w-72 glass-strong h-screen flex flex-col p-6 sticky top-0 border-r border-white/5">
             <div className="flex items-center gap-3 px-2 mb-10">
-                <div className="bg-accent-blue rounded-xl p-2 shadow-glow">
-                    <Zap className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-2xl font-bold text-white tracking-tight">ConvoSpan</span>
+                <LogoMark className="h-10 w-10 rounded-xl shadow-glow" />
+                <span className="text-2xl font-bold text-white tracking-tight">CraftMyFunnel</span>
             </div>
 
             <nav className="flex-1 space-y-2">

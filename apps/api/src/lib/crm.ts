@@ -48,7 +48,7 @@ export class HubSpotService {
             jobtitle: lead.jobTitle,
             linkedin_url: lead.linkedIn,
             lifecyclestage: "lead", // Default
-            convospan_status: lead.status // Custom property
+            craftmyfunnel_status: lead.status // Custom property
         };
 
         if (contactId) {

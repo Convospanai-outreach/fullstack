@@ -1,85 +1,78 @@
-# ConvoSpan Architecture (Current)
+# CraftMyFunnel Architecture Wiki
 
-## High-Level Diagram (Mermaid)
+## Short Version
+
+CraftMyFunnel currently runs as a three-app monorepo:
+
+- `apps/web` - public Next.js UI
+- `apps/api` - public Fastify API and worker runtime
+- `apps/edge-fastapi` - optional private FastAPI edge runtime
+
+The required launch path is **web + API + Postgres**. Redis is recommended but optional. Edge is optional and should stay private unless there is a deliberate reason to expose it.
+
+## Current Flow
 
 ```mermaid
 flowchart LR
-  subgraph SaaS["ConvoSpan Cloud (Next.js Control Plane)"]
-    UI["UI + Auth + Billing + Campaigns"]
-    Orchestrator["Runtime Dispatch + Task Contracts"]
-    DB["Neon Postgres (SaaS DB)"]
-  end
-
-  subgraph Managed["Managed Runtime API (FastAPI)"]
-    MR["Runtime Exec (tokenize/generate/classify/execute)"]
-    MRDB["Runtime State / Cache / Usage"]
-  end
-
-  subgraph Edge["Edge Runtime (FastAPI - Optional)"]
-    ER["Local Exec + PII Vault + Browser"]
-    EDB["Local PII + Sessions + Audit"]
-  end
-
-  subgraph Intel["NetJana / Intel Layer (External)"]
-    NJ["Signals + Intent Scoring"]
-  end
-
-  UI --> Orchestrator
-  Orchestrator --> DB
-  Orchestrator --> MR
-  Orchestrator --> ER
-  MR --> MRDB
-  ER --> EDB
-  NJ --> MR
-  MR --> DB
-  ER --> DB
+  Browser --> Web[apps/web]
+  Visitor --> Web
+  Web --> API[apps/api]
+  Signals --> API
+  API --> Postgres
+  API -. optional .-> Redis
+  API -. optional private .-> Edge
 ```
 
-## Service-to-Service API Map
+## Ownership Rules
 
-- Control Plane ? Managed Runtime
-  - `/v1/tokenize`
-  - `/v1/generate`
-  - `/v1/classify`
-  - `/v1/execute`
-  - `/v1/tasks/{id}`
-  - `/v1/runtime/status`
+### Web owns
 
-- Control Plane ? Edge Runtime
-  - `/health`
-  - `/version`
-  - `/capabilities`
-  - (runtime task endpoints, compatible subset)
+- marketing
+- dashboard
+- setup flows
+- public landing rendering
+- browser-facing auth/session UX
 
-- Control Plane ? Neon (DB)
-  - Leads, campaigns, tasks, billing, audit
+### API owns
 
-- Managed Runtime ? Neon
-  - Task results, audit, usage
+- business mutations
+- Prisma/data access
+- workers
+- webhooks
+- governance and audit
+- AI runtime enforcement
+- readiness, health, and metrics
 
-- Edge Runtime ? Neon
-  - Task results, audit (if permitted)
+### Edge owns
 
-- NetJana ? Managed Runtime
-  - Signal ingestion + scoring
+- optional isolated execution
+- hardware or browser-adjacent private work
 
-## Execution Modes
+## Product Positioning Guardrail
 
-- `saas_only` ? control plane only
-- `managed_runtime` ? cloud FastAPI
-- `edge_runtime` ? local FastAPI edge
+Describe the product as helping teams prepare, review, manage, and track outreach and landing workflows.
 
-## Repo References
+Do not describe the current system as guaranteeing meetings, fully autonomously running outreach, or charging only on outcomes unless those claims are implemented and verified.
 
-- Control Plane
-  - `src/contracts/`
-  - `src/domains/runtime-control/dispatchService.ts`
-  - `src/lib/aiService.ts`
-  - `src/lib/queue.ts`
-  - `src/middleware.ts`
+## Current Readiness Read
 
-- Managed Runtime
-  - `services/managed-runtime-api/`
+### Strong
 
-- Edge Runtime
-  - `services/edge-node/`
+- API readiness audit can pass at `100/100`
+- core service boundaries are clear
+- AI generation has centralized guardrails and billing hooks
+
+### Weak
+
+- web coverage is currently flaky in this working tree
+- fresh GitHub green runs still need confirmation
+- dependency security debt remains
+
+## Source Of Truth
+
+For longer versions, use:
+
+- `README.md`
+- `MASTER_SYSTEM_ARCHITECTURE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/PRODUCTION_READINESS_ASSESSMENT_2026-06-02.md`

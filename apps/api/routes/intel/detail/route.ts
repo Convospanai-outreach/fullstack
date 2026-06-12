@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
             timeout: 6000,
             headers: {
                 "x-api-key": pullKey,
-                "x-source": "convospan",
+                "x-source": "craftmyfunnel",
             },
         });
 

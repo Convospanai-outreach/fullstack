@@ -9,7 +9,8 @@ import {
     Menu,
 } from "lucide-react";
 import { QuickActions } from "./QuickActions";
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
+import { LogoMark } from "@/components/brand/LogoMark";
 
 function getUserInitials(name?: string | null): string {
     if (!name) return "U";
@@ -21,8 +22,8 @@ function getUserInitials(name?: string | null): string {
 }
 
 export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSidebar?: () => void; bannerOffset?: boolean }) {
-    const { data: session } = useSession();
-    const initials = getUserInitials(session?.user?.name);
+    const { user } = useUser();
+    const initials = getUserInitials(user?.fullName || user?.firstName);
 
     return (
         <header className={`fixed ${bannerOffset ? 'top-12' : 'top-0'} left-0 lg:left-64 right-0 h-16 border-b border-border z-40 flex items-center justify-between px-4 lg:px-8 bg-surface-app/80 backdrop-blur-md transition-all duration-300`}>
@@ -38,10 +39,8 @@ export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSid
                 </button>
 
                 <Link href="/dashboard" className="flex items-center gap-2 group lg:hidden">
-                    <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                        <Sparkles className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-lg font-black tracking-tight text-foreground font-outfit">ConvoSpan</span>
+                    <LogoMark className="h-7 w-7" />
+                    <span className="text-lg font-black tracking-tight text-foreground font-outfit">CraftMyFunnel</span>
                 </Link>
             </div>
 

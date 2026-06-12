@@ -4,12 +4,6 @@ import { useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useSession } from "next-auth/react";
 
-declare global {
-    interface Window {
-        Razorpay: any;
-    }
-}
-
 const PLANS = [
     {
         name: "Free",
@@ -76,7 +70,7 @@ export default function BillingPage() {
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan AI",
+                name: "CraftMyFunnel AI",
                 description: "Subscription Upgrade",
                 order_id: data.orderId,
                 handler: function (response: any) {
@@ -85,8 +79,8 @@ export default function BillingPage() {
                     // window.location.href = "/dashboard?upgrade=success";
                 },
                 prefill: {
-                    name: session?.user?.name,
-                    email: session?.user?.email,
+                    name: session?.user?.name || "",
+                    email: session?.user?.email || "",
                 },
                 theme: {
                     color: "#3B82F6",
@@ -129,15 +123,15 @@ export default function BillingPage() {
                 key: data.key,
                 amount: data.amount,
                 currency: data.currency,
-                name: "ConvoSpan AI",
+                name: "CraftMyFunnel AI",
                 description: "Credits Top-up",
                 order_id: data.id, // ID from backend is order_id
                 handler: function (response: any) {
                     alert(`Top-up Successful! Payment ID: ${response.razorpay_payment_id}`);
                 },
                 prefill: {
-                    name: session?.user?.name,
-                    email: session?.user?.email,
+                    name: session?.user?.name || "",
+                    email: session?.user?.email || "",
                 },
                 theme: {
                     color: "#10B981", // Green for top-up

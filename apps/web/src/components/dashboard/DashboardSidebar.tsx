@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut, useSession } from "next-auth/react";
+import { useClerk, useUser } from "@clerk/nextjs";
 import {
     LayoutDashboard,
     Megaphone,
@@ -61,10 +61,12 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     const pathname = usePathname();
-    const { data: session } = useSession();
+    const { signOut } = useClerk();
+    const { user } = useUser();
 
-    const userName = session?.user?.name ?? "User";
-    const userEmail = session?.user?.email ?? "";
+    const userName = user?.fullName ?? user?.firstName ?? "User";
+    const userEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+    const userImage = user?.imageUrl;
     const userInitial = userName.charAt(0).toUpperCase();
 
     return (
@@ -141,9 +143,8 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                     {/* User info */}
                     <div className="flex items-center gap-3 px-2 py-1.5">
                         <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-lg">
-                            {session?.user?.image ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={session.user.image} alt={userName} className="w-8 h-8 rounded-full object-cover" />
+                            {userImage ? (
+                                <img src={userImage} alt={userName} className="w-8 h-8 rounded-full object-cover" />
                             ) : (
                                 userInitial
                             )}
@@ -159,7 +160,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
                     {/* Sign out */}
                     <button
-                        onClick={() => signOut({ callbackUrl: "/login" })}
+                        onClick={() => signOut({ redirectUrl: "/login" })}
                         className="flex items-center gap-3 px-4 py-2.5 w-full rounded-xl text-sm font-medium text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
                     >
                         <LogOut className="w-4 h-4" />

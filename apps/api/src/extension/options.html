@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>CraftMyFunnel Assistant Settings</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main>
+    <h1>CraftMyFunnel Assistant Settings</h1>
+    <p>Configure API access, polling, and task behavior.</p>
+
+    <label>
+      API base
+      <input id="apiBaseInput" type="url" placeholder="http://localhost:3000/api" />
+    </label>
+
+    <label>
+      API token
+      <input id="tokenInput" type="password" placeholder="CraftMyFunnel API token" />
+    </label>
+
+    <label>
+      Extension key
+      <input id="extensionKeyInput" type="password" placeholder="CraftMyFunnel extension key" />
+    </label>
+
+    <label>
+      Team ID
+      <input id="teamIdInput" type="text" placeholder="Optional team ID" />
+    </label>
+
+    <label>
+      Polling interval seconds
+      <input id="pollSecondsInput" type="number" min="15" step="5" />
+    </label>
+
+    <label class="check">
+      <input id="pausedInput" type="checkbox" />
+      Pause task polling
+    </label>
+
+    <button id="saveOptions" type="button">Save Settings</button>
+    <div id="status" role="status"></div>
+  </main>
+
+  <script src="utils.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

@@ -1,4 +1,3 @@
-
 import { test, expect } from '@playwright/test';
 import path from 'path';
 import fs from 'fs';
@@ -9,15 +8,10 @@ test.describe('Dashboard Journey Map', () => {
         fs.mkdirSync(screenshotDir, { recursive: true });
     }
 
-    test.use({ viewport: { width: 1280, height: 720 } });
+    test.use({ viewport: { width: 1280, height: 720 }, storageState: 'e2e/.auth/user.json' });
 
     test('Authenticated Dashboard Flow', async ({ page }) => {
         test.setTimeout(120000);
-        test.skip(!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD, 'Authenticated dashboard flow requires TEST_USER_EMAIL and TEST_USER_PASSWORD.');
-
-        // 1. Login
-        console.log('Navigating to Login...');
-        await page.goto('/login'); // or /api/auth/signin if NextAuth default
 
         // Listen for console logs
         page.on('console', msg => console.log(`[BROWSER] ${msg.text()}`));
@@ -28,47 +22,22 @@ test.describe('Dashboard Journey Map', () => {
             }
         });
 
-        console.log('Filling Credentials...');
-        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL!);
-        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD!);
-
-        // Wait for potential submit button
-        const submitBtn = page.locator('button[type="submit"]');
-        await expect(submitBtn).toBeVisible();
-        await submitBtn.click();
-
         // 2. Verify Dashboard Access
-        console.log('Waiting for Dashboard...');
+        console.log('Navigating to Dashboard...');
+        await page.goto('/dashboard');
         await expect(page).toHaveURL(/.*dashboard/, { timeout: 30000 });
-        await page.waitForLoadState('networkidle');
+        await page.waitForLoadState('domcontentloaded');
 
-        // Wait for key dashboard elements to confirm loading (e.g. sidebar, widgets)
-        // Adjust these selectors based on your actual dashboard components
-        try {
-            await expect(page.locator('text=Overview')).toBeVisible({ timeout: 10000 });
-        } catch (e) {
-            console.log('Overview header not found immediately, checking screenshot...');
-        }
+        // Wait for the dashboard shell and primary heading instead of background network idle.
+        await expect(page.getByRole('heading', { name: /guided growth workflow/i })).toBeVisible({ timeout: 15000 });
 
         await page.screenshot({ path: path.join(screenshotDir, '01-dashboard-overview.png') });
 
-        // 3. Map Widgets (if identifiable)
-        // Just general screenshot for now
-
         // 4. Test Navigation (e.g., Settings)
         console.log('Navigating to Settings...');
-        try {
-            // Assume sidebar link for settings
-            const settingsLink = page.locator('a[href*="/settings"]').first();
-            if (await settingsLink.isVisible()) {
-                await settingsLink.click();
-            } else {
-                await page.goto('/settings/profile');
-            }
-            await expect(page).toHaveURL(/.*settings/);
-            await page.screenshot({ path: path.join(screenshotDir, '02-settings.png') });
-        } catch (e) {
-            console.log('Settings navigation failed');
-        }
+        await page.goto('/settings/general');
+        await expect(page).toHaveURL(/.*settings/);
+        await expect(page.getByRole('heading', { name: /^general$/i })).toBeVisible({ timeout: 15000 });
+        await page.screenshot({ path: path.join(screenshotDir, '02-settings.png') });
     });
 });

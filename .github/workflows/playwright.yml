@@ -1,24 +1,26 @@
 
 name: Playwright Tests
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: "Optional Playwright spec path, for example e2e/auth.spec.ts"
+        required: false
+        default: "e2e/auth.spec.ts e2e/dashboard.spec.ts"
 
 # Node.js 24 native runtimes active via v6+ actions
 jobs:
   test:
     name: Playwright (apps/web)
     timeout-minutes: 60
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     services:
       postgres:
         image: ankane/pgvector:latest
         env:
           POSTGRES_PASSWORD: password
-          POSTGRES_DB: convospan
+          POSTGRES_DB: craftmyfunnel
         ports:
           - 5432:5432
         options: >-
@@ -38,8 +40,8 @@ jobs:
           --health-retries 5
     
     steps:
-    - uses: actions/checkout@v6
-    - uses: actions/setup-node@v6
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
       with:
         node-version: '22.x'
         cache: 'npm'
@@ -48,29 +50,30 @@ jobs:
     - name: Install dependencies
       run: npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
     
-    - name: Generate Prisma Client & Push Schema
+    - name: Generate Prisma Client & Apply Migrations
       working-directory: apps/web
       run: |
         npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
-        npx prisma db push --config prisma/prisma.config.ts --schema prisma/schema.prisma
+        npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
       env:
-        DATABASE_URL: postgresql://postgres:password@localhost:5432/convospan
-        DIRECT_URL: postgresql://postgres:password@localhost:5432/convospan
+        DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
+        DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
     
     - name: Create test user
       working-directory: apps/web
       run: npx tsx scripts/create-test-user.ts
       env:
-        DATABASE_URL: postgresql://postgres:password@localhost:5432/convospan
-        DIRECT_URL: postgresql://postgres:password@localhost:5432/convospan
+        DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
+        DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
     
     - name: Build application
       working-directory: apps/web
       run: npm run build
       env:
-        DATABASE_URL: postgresql://postgres:password@localhost:5432/convospan
-        DIRECT_URL: postgresql://postgres:password@localhost:5432/convospan
+        DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
+        DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         NEXTAUTH_SECRET: ci-playwright-secret
+        METRICS_TOKEN: ci-metrics-token
         NEXTAUTH_URL: http://localhost:3000
         NEXT_PUBLIC_API_URL: http://localhost:3001
         REDIS_URL: redis://localhost:6379
@@ -81,17 +84,18 @@ jobs:
 
     - name: Run Playwright tests
       working-directory: apps/web
-      run: npx playwright test
+      run: npx playwright test ${{ github.event.inputs.spec }}
       env:
-        DATABASE_URL: postgresql://postgres:password@localhost:5432/convospan
-        DIRECT_URL: postgresql://postgres:password@localhost:5432/convospan
+        DATABASE_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
+        DIRECT_URL: postgresql://postgres:password@localhost:5432/craftmyfunnel
         NEXTAUTH_SECRET: ci-playwright-secret
         NEXTAUTH_URL: http://localhost:3000
+        METRICS_TOKEN: ci-metrics-token
         TEST_USER_EMAIL: audit_user@example.com
         TEST_USER_PASSWORD: AuditPassword123!
         REDIS_URL: redis://localhost:6379
     
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@v4
       if: always()
       with:
         name: playwright-report

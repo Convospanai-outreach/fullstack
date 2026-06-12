@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $SourceDir = "$PSScriptRoot\..\apps\api\src\extension"
 $DistDir = "$PSScriptRoot\..\dist\chrome-extension"
-$ZipPath = "$PSScriptRoot\..\dist\convospan-extension.zip"
+$ZipPath = "$PSScriptRoot\..\dist\CraftMyFunnel-extension.zip"
 
 Write-Host "Cleaning dist directory..."
 if (Test-Path $DistDir) {
@@ -18,6 +18,8 @@ Write-Host "Copying extension files..."
 $Files = @(
     "manifest.json",
     "popup.html",
+    "popup.css",
+    "utils.js",
     "background.js",
     "content.js",
     "popup.js"
@@ -31,6 +33,9 @@ foreach ($File in $Files) {
         Write-Warning "File not found: $File"
     }
 }
+
+Write-Host "Copying extension icons..."
+Copy-Item -Path (Join-Path $SourceDir "icons") -Destination $DistDir -Recurse
 
 Write-Host "Creating extension archive..."
 Compress-Archive -Path "$DistDir\*" -DestinationPath $ZipPath -Force

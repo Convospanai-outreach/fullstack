@@ -1,31 +1,35 @@
-﻿{
+{
   "manifest_version": 3,
-  "name": "ConvoSpan LinkedIn Agent",
-  "description": "SafeRun™ AI Assistant for LinkedIn compliance & drafting.",
-  "version": "1.1.0",
+  "name": "CraftMyFunnel Assistant",
+  "description": "Capture visible LinkedIn profile details and prepare manual outreach drafts.",
+  "version": "1.0.0",
   "permissions": [
     "activeTab",
-    "storage",
-    "scripting",
-    "alarms",
-    "tabs"
+    "storage"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*",
-    "http://localhost:3000/*",
-    "https://api.convospan.com/*",
-    "https://*.convospan.com/*"
+    "https://www.linkedin.com/in/*"
   ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
   },
   "content_scripts": [
     {
       "matches": [
-        "https://www.linkedin.com/*"
+        "https://www.linkedin.com/in/*"
       ],
       "js": [
         "content.js"

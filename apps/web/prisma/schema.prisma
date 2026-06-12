@@ -25,6 +25,8 @@ model Lead {
   jobTitle   String?
   location   String?
   status     String   @default("NEW")
+  source     String?
+  priority   String?
   tags       String[]
   isEnriched Boolean  @default(false)
 
@@ -33,7 +35,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
-  embedding    String? // Temporarily String to match DB state and unblock push
+  embedding    Unsupported("vector(1536)")? // Vector embedding for similarity search
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
   lostAt       DateTime? // When it was marked CLOSED_LOST
@@ -98,6 +100,8 @@ model Lead {
   consentLedger       ConsentLedger[]
   replies             ReplyTracker[]
   shadowSignals       ShadowSignal[]
+  channelStatuses     LeadChannelStatus[]
+  leadActivities      LeadActivity[]
 
   @@index([teamId])
   @@index([email])
@@ -110,6 +114,40 @@ model Lead {
   @@index([teamId, status])
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
+}
+
+model LeadChannelStatus {
+  id             String   @id @default(uuid())
+  leadId         String
+  channel        String
+  status         String   @default("NOT_STARTED")
+  lastActivityAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, channel])
+  @@index([channel, status])
+  @@index([lastActivityAt])
+}
+
+model LeadActivity {
+  id        String   @id @default(uuid())
+  leadId    String
+  channel   String
+  type      String
+  title     String
+  notes     String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId, createdAt])
+  @@index([channel, type])
+  @@index([createdBy])
 }
 
 model Generation {
@@ -924,6 +962,8 @@ model Team {
   sequenceEnrollments        SequenceEnrollment[]
   sequenceStepRuns           SequenceStepRun[]
   domainAuthenticationChecks DomainAuthenticationCheck[]
+  userInvitations            UserInvitation[]
+  edgeNode                   EdgeNode?
 }
 
 model CrmIntegration {
@@ -1111,6 +1151,7 @@ model TeamMember {
 
 model User {
   id                  String             @id @default(uuid())
+  clerkUserId         String?            @unique @map("clerk_user_id")
   email               String             @unique
   password            String? // <-- Add this line
   emailVerified       DateTime?
@@ -1141,6 +1182,8 @@ model User {
   reviewedApprovals  ApprovalRequest[] @relation("reviewer")
   agentTasks         AgentTask[]
   datasetReviews     DatasetReview[]
+  sentInvitations    UserInvitation[]
+  approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
@@ -1149,6 +1192,56 @@ model User {
   callerActiveAt     DateTime? // Last activity timestamp
   callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
   edgeNodeUri        String? // Individual Phi-3 Edge Node binding
+}
+
+model UserInvitation {
+  id          String           @id @default(uuid())
+  email       String
+  role        UserRole
+  teamId      String
+  invitedById String
+  tokenHash   String           @unique
+  status      InvitationStatus @default(pending)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  inviteRequestId String?          @map("invite_request_id")
+  createdAt   DateTime         @default(now())
+
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy     User           @relation(fields: [invitedById], references: [id])
+  inviteRequest InviteRequest? @relation(fields: [inviteRequestId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([teamId])
+  @@index([invitedById])
+  @@index([inviteRequestId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model InviteRequest {
+  id          String              @id @default(uuid())
+  name        String
+  email       String
+  company     String
+  linkedinUrl String              @map("linkedin_url")
+  useCase     String              @map("use_case") @db.Text
+  status      InviteRequestStatus @default(WAITLISTED)
+  inviteToken String?             @unique @map("invite_token")
+  approvedById String?            @map("approved_by_id")
+  approvedAt  DateTime?           @map("approved_at")
+  usedAt      DateTime?           @map("used_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  approvedBy User?            @relation("InviteRequestApprovedBy", fields: [approvedById], references: [id])
+  invitations UserInvitation[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([approvedById])
+  @@map("invite_requests")
 }
 
 model Account {
@@ -1402,7 +1495,7 @@ model MarketplaceTemplate {
   config      Json // The JSON config (Workflow structure or Campaign steps)
   metrics     Json? // e.g. { "avgOpenRate": 0.45, "users": 1000 }
   isOfficial  Boolean  @default(true)
-  author      String   @default("ConvoSpan")
+  author      String   @default("CraftMyFunnel")
   createdAt   DateTime @default(now())
 
   @@index([type])
@@ -1696,12 +1789,31 @@ model LLMUsageLog {
 
 // 1. Hardware Binding (Grant Requirement: Proof of Physical Device)
 model EdgeNode {
-  id         String   @id @default(cuid())
-  teamId     String   @unique
-  hardwareId String   @unique // Matches the HARDWARE_SIGNATURE env var
-  ipAddress  String // e.g., "http://192.168.1.50:8000"
-  status     String   @default("OFFLINE") // Heartbeat check
-  lastSync   DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  teamId                  String    @unique
+  hardwareId              String    @unique // Legacy compatibility with HARDWARE_SIGNATURE; do not expose publicly.
+  hardwareFingerprintHash String?   @unique
+  publicKey               String?   @db.Text
+  ipAddress               String? // e.g., "http://192.168.1.50:8000"
+  status                  String    @default("OFFLINE") // ONLINE, DEGRADED, DISCONNECTED, REVOKED
+  attestationStatus       String    @default("PENDING") // PENDING, TRUSTED, FAILED
+  runtimeVersion          String?
+  buildHash               String?
+  capabilities            Json?
+  sessionTokenHash        String?
+  sessionTokenExpiresAt   DateTime?
+  piiStorageMode          String    @default("edge_only")
+  vaultState              String    @default("LOCKED") // LOCKED, UNLOCKED, UNKNOWN
+  lastSeenAt              DateTime?
+  pairedAt                DateTime  @default(now())
+  revokedAt               DateTime?
+  removalReason           String?
+  lastSync                DateTime  @updatedAt
+  team                    Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([sessionTokenExpiresAt])
+  @@index([lastSeenAt])
 }
 
 // 2. FTO (Freedom to Operate) Guardrails
@@ -1907,12 +2019,31 @@ enum ProductMode {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   SYSTEM_ADMIN
   ORG_ADMIN
+  CMS_EDITOR
   SALES_MANAGER
   SALES_USER
   CALLER
+  VIEWER
   COMPLIANCE_OFFICER
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum InviteRequestStatus {
+  WAITLISTED
+  APPROVED
+  INVITED
+  ACTIVE
+  USED
+  REJECTED
 }
 
 model FeatureFlag {

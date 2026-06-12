@@ -1,6 +1,6 @@
 /**
  * Frontend shell for DataMappingAgent.
- * Logic has been migrated to the backend (convospan-api).
+ * Logic has been migrated to the backend (craftmyfunnel-api).
  */
 export class DataMappingAgent {
     async suggestMapping(_headers: string[]): Promise<Record<string, string>> {

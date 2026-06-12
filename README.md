@@ -1,83 +1,58 @@
-# ConvoSpan
+# CraftMyFunnel
 
-ConvoSpan is a multi-app monorepo for AI-assisted outbound, campaign operations, landing-page funnels, governance, and launch-readiness workflows.
+CraftMyFunnel is a multi-app monorepo for AI-assisted outbound operations, landing-page funnels, buyer-signal review, and team governance. The repo ships three deployable services with shared contracts and shared operational docs.
 
-The repository is organized as one codebase with multiple deployable services. The root is orchestration only: scripts, shared config, CI, and documentation.
+## Current Status
 
-## What This Repo Contains
+As of **June 2, 2026**:
 
-| Path | Service | Purpose |
+- `apps/api` production-readiness audit: **100/100**
+- broader launch readiness: **not fully green yet**
+- biggest remaining risk: the web coverage lane is **not stable** in the current tree
+- GitHub Actions still need a fresh confirmed green run after the latest local fixes
+
+That means the platform is in good shape for controlled beta work, but not yet at the confidence bar for broad production traffic.
+
+## Monorepo Layout
+
+| Path | Service | Role |
 | --- | --- | --- |
-| `apps/web` | Next.js web app | Marketing pages, authenticated dashboard, setup wizard, public landing pages, and web route handlers |
-| `apps/api` | Fastify API app | Core backend APIs, workers, Prisma access, auth-aware route adapter, landing-agent APIs |
-| `apps/edge-fastapi` | FastAPI edge runtime | Optional private edge execution service |
-| `packages/*` | Shared packages | Shared contracts, helpers, and cross-app code |
-| `docs/*` | Documentation | Architecture, setup, runbooks, diagrams, and implementation notes |
+| `apps/web` | Next.js app | Marketing pages, authenticated product UI, public landing pages, selected route handlers |
+| `apps/api` | Fastify app | Core API, workers, Prisma access, webhooks, AI runtime integration, readiness checks |
+| `apps/edge-fastapi` | FastAPI edge runtime | Optional private execution service for edge or hardware-backed tasks |
+| `packages/toon-core` | Shared package | Shared serialization/helpers for AI context handling |
+| `docs/*` | Docs | Architecture, readiness, deployment, QA, and implementation records |
 
-## System Architecture
-
-For the full GitHub-renderable Mermaid architecture, see [docs/architecture-diagram.md](./docs/architecture-diagram.md). It includes the layered system design, request lifecycle, control/data plane split, platform runtime, Netjana buyer-signal flow, email/LinkedIn channel flow, and Landing Agent funnel.
+## Runtime Topology
 
 ```mermaid
 flowchart LR
-    GitHub[GitHub Repo and Actions] --> Vercel[Vercel - apps/web Next.js]
-    GitHub --> RailwayAPI[Railway - apps/api Fastify]
-    GitHub -. optional .-> RailwayEdge[Railway Private - apps/edge-fastapi]
-
-    Browser[Authenticated User Browser] --> Vercel
-    Visitor[Public Landing Visitor] --> Vercel
-    Netjana[Netjana Buyer Signals] --> RailwayAPI
-
-    Vercel --> WebRoutes[Marketing, Dashboard, Setup, Landing Pages]
-    Vercel --> Proxy["/api/proxy/*"]
-    Proxy --> RailwayAPI
-
-    RailwayAPI --> Postgres[(Managed Postgres)]
-    RailwayAPI -. recommended .-> Redis[(Managed Redis)]
-    RailwayAPI --> Signals[(Signals, Jobs, Knowledge, Audit)]
-    RailwayAPI --> Channels[Email and LinkedIn Workers]
-    RailwayAPI --> AI[OpenAI / Anthropic / Gemini]
-    RailwayAPI --> Billing[Razorpay]
-    RailwayAPI --> CRM[HubSpot / Salesforce Optional]
-    RailwayAPI -. private optional .-> RailwayEdge
-
-    Channels --> GmailSMTP[Gmail / Google Workspace SMTP]
-    Channels -. optional .-> WhatsApp[Meta WhatsApp / Twilio]
-    Vercel -. errors .-> Sentry[Sentry Optional]
-    Cloudflare[Cloudflare DNS / WAF Optional] --> Vercel
+    Browser[Signed-in user] --> Web[apps/web]
+    Visitor[Public landing visitor] --> Web
+    Netjana[Buyer signals] --> API[apps/api]
+    Web --> API
+    API --> Postgres[(Postgres)]
+    API -. optional .-> Redis[(Redis)]
+    API --> Workers[Jobs, audit, signals, follow-up workers]
+    API --> Models[OpenAI / Anthropic / Gemini]
+    API -. optional private .-> Edge[apps/edge-fastapi]
 ```
 
-## Product Surfaces
+## What The Product Actually Does Today
 
-- Outreach campaigns, leads, analytics, approvals, and inbox workflows.
-- Netjana Intel dashboard and webhook path for buyer-intent signals, lead/campaign matching, knowledge enrichment, and hot-signal follow-up review.
-- Landing Agent funnel builder with prompt intake, brief generation, wireframes, constrained editor, public publish path, lead capture, and event tracking.
-- Setup wizard for brand, email, AI, LinkedIn extension, readiness, and launch configuration.
-- Governance, audit, feature gating, team settings, and approval controls.
-- Optional private edge runtime for hardware or browser-backed execution.
+The safe description is:
 
-## Security And AI Guardrails
+- helps teams manage outreach campaigns, leads, approvals, landing funnels, and setup
+- ingests buyer-intent signals and turns them into review-ready follow-up context
+- supports AI-assisted drafting and analysis with centralized guardrails and credit enforcement
+- tracks landing-page leads and events
+- keeps governance, audit, and feature gating inside the runtime path
 
-Recent hardening is now active across AI generation and outbound surfaces:
-
-- legacy queue endpoints are auth-gated, team-scoped, and claim-aware
-- prompt-injection and script payload checks are centralized in `apps/api/src/lib/aiInputGuardrails.ts`
-- route-level size limits are enforced for helper/chat/email/landing generation paths
-- AI generation uses atomic credit reservation + settlement in `apps/api/src/lib/aiService.ts`
-- embedding requests now go through guarded billing and usage logging
-- landing-page rendering now sanitizes stored HTML before public render
-- setup, SMTP, policy, guardrail, key, and team-management routes are explicitly role-gated
-- token usage and cost are recorded in `LLMUsageLog` and usage deductions are recorded in `CreditTransaction`
-
-For the full policy contract and Mermaid visual:
-
-- [AI guardrails and token usage](./docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
-- [Hardening implementation status](./docs/HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md)
-- [Swarm critique report](./docs/SWARM_CRITIQUE_REPORT_2026-04-24.md)
+The docs and UI should avoid stronger claims such as guaranteed meetings, fully autonomous outreach, or outcome-based billing unless the implementation is explicitly verified.
 
 ## Local Development
 
-Install dependencies from the repository root:
+Install dependencies from the repo root:
 
 ```bash
 npm install
@@ -89,102 +64,91 @@ Start the local beta stack:
 npm run beta:start
 ```
 
-This starts or reuses Postgres, Redis, `apps/web`, and `apps/api`, then pushes the API Prisma schema to the local database.
+This brings up or reuses:
 
-Start web, API, and optional edge runtime:
+- Postgres
+- Redis
+- `apps/web`
+- `apps/api`
+
+To include the optional edge runtime:
 
 ```bash
 npm run beta:start:all
 ```
 
-## Build And Verification
+## Verification Commands
+
+Useful local checks:
 
 ```bash
-npm run build:web
-npm run build:api
-npm run typecheck:web
-npm run typecheck:api
+npm run readiness:audit --workspace apps/api
+npm run lint --workspace apps/web
+npm run test:coverage --workspace apps/web
+npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts
 ```
 
-App-level checks are available from each workspace:
+## Readiness Snapshot
 
-```bash
-cd apps/web
-npm run test:unit
-npm run test:e2e
+The repo is not judged by the API readiness audit alone.
 
-cd ../api
-npm run typecheck
-```
+### Green
 
-## Repository Structure
+- required local runtime stack boots with Docker-backed Postgres and Redis
+- API readiness audit passes at `100/100`
+- architecture is cleanly split by service boundary
+- edge runtime is optional and can remain private
+- AI guardrails, team scoping, and landing sanitization are present in the active code path
 
-```text
-fullstack/
-|-- apps/
-|   |-- web/                 # Next.js web app
-|   |-- api/                 # Fastify API service
-|   |-- edge-fastapi/        # Optional private edge runtime
-|
-|-- packages/                # Shared packages and contracts
-|-- docs/                    # Documentation, diagrams, runbooks
-|-- scripts/                 # Repository orchestration scripts
-|-- docker/                  # Docker support files
-|-- .github/                 # GitHub Actions workflows
-|
-|-- docker-compose.yml       # Local infrastructure and services
-|-- MASTER_SYSTEM_ARCHITECTURE.md
-|-- README.md
-|-- package.json             # Workspace scripts
-|-- package-lock.json
-```
+### Still Blocking Broader Launch
 
-See [docs/SIMPLE_REPO_TREE.md](./docs/SIMPLE_REPO_TREE.md) for the expanded service map.
+- web coverage is currently flaky in this tree: `health-route`, `metrics-route`, and `worker-dispatch` tests timed out during reassessment
+- no newly confirmed green GitHub Actions run for `CI`, `Playwright`, and `docker-ghcr` after the latest local changes
+- dependency security debt remains, especially in the API dependency graph
+- some older docs previously described a stale managed-runtime/control-plane architecture and have now been corrected
 
 ## Deployment Model
 
-Deploy each app as a separate service from this single repository:
+Deploy each app separately from this monorepo:
 
-| Service | Root directory | Visibility |
+| Service | Root | Visibility |
 | --- | --- | --- |
 | Web | `apps/web` | Public |
 | API | `apps/api` | Public |
-| Edge | `apps/edge-fastapi` | Private/internal, optional |
-| Postgres | Managed database | Private |
-| Redis | Managed cache/queue | Private, optional |
+| Edge | `apps/edge-fastapi` | Private/internal |
+| Postgres | Managed service | Private |
+| Redis | Managed service | Private, optional |
 
-Use path-based deploy triggers:
+Path-based deploy triggers should remain the norm:
 
-- `apps/web/**` deploys web.
-- `apps/api/**` deploys API.
-- `apps/edge-fastapi/**` deploys edge.
-- Shared changes such as `package-lock.json`, root scripts, or Prisma schema changes deploy affected services.
+- `apps/web/**` -> web deploy
+- `apps/api/**` -> API deploy
+- `apps/edge-fastapi/**` -> edge deploy
 
-## Docker And Registry
+Shared root changes such as lockfile, root scripts, or schema changes should trigger deploys for impacted services.
 
-- Local image builds are available via `npm run docker:web`, `npm run docker:api`, and `npm run docker:edge`.
-- GitHub Container Registry publishing is defined in `.github/workflows/docker-ghcr.yml`.
-- The web image builds from the monorepo root context so it can use the workspace lockfile consistently.
-- On pushes to `main`, the workflow builds and publishes `web`, `api`, and `edge-fastapi` images to `ghcr.io/convospanai-outreach/fullstack/*`.
+## Source Of Truth Docs
 
-## Documentation Map
+- [MASTER_SYSTEM_ARCHITECTURE.md](./MASTER_SYSTEM_ARCHITECTURE.md)
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+- [docs/README.md](./docs/README.md)
+- [docs/PRODUCTION_READINESS_ASSESSMENT_2026-06-02.md](./docs/PRODUCTION_READINESS_ASSESSMENT_2026-06-02.md)
+- [docs/context/ARCHITECTURE.md](./docs/context/ARCHITECTURE.md)
+- [docs/context/LAUNCH_READINESS.md](./docs/context/LAUNCH_READINESS.md)
 
-- [Master system architecture](./MASTER_SYSTEM_ARCHITECTURE.md)
-- [Mermaid architecture diagram](./docs/architecture-diagram.md)
-- [AI guardrails and token usage](./docs/AI_GUARDRAILS_AND_TOKEN_USAGE.md)
-- [Hardening implementation status](./docs/HARDENING_IMPLEMENTATION_STATUS_2026-04-25.md)
-- [Swarm critique report](./docs/SWARM_CRITIQUE_REPORT_2026-04-24.md)
-- [Netjana signal integration plan](./docs/NETJANA_SIGNAL_INTEGRATION_PLAN.md)
-- [Landing Agent architecture](./docs/landing-agent-architecture.md)
-- [Landing Agent API examples](./docs/landing-agent-api-examples.md)
-- [Repository structure](./docs/SIMPLE_REPO_TREE.md)
-- [Deployment runbook](./docs/DEPLOYMENT_RUNBOOK.md)
-- [CI verification](./docs/CI_VERIFICATION.md)
-- [Setup guide](./docs/SETUP.md)
+## Chrome Extension Release Plan
 
-## Infrastructure Expectations
+### V1.0.0
 
-- Postgres is required for real runtime functionality.
-- Redis is optional for cache and queue features; the app should boot without Redis unless a specific workflow provisions it.
-- CI jobs that need Postgres or Redis should define GitHub Actions `services:` containers and run `prisma db push` before integration tests.
-- Edge runtime is optional for the email-first beta and should remain private unless explicitly exposed.
+- Minimal LinkedIn Assistant.
+- Runs only on LinkedIn pages.
+- User-triggered only.
+- Reads visible profile/company/search information after user action.
+- Saves selected data to CraftMyFunnel workspace.
+- No automated outreach.
+
+### V2.0.0
+
+- Advanced workflow features may be added later after approval.
+- Any additional permissions will be requested through an update to the same Chrome Web Store listing.
+- No separate duplicate extension will be created.

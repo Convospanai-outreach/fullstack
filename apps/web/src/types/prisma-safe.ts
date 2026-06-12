@@ -33,14 +33,19 @@ export enum ProductMode {
     ALL_FEATURES = "ALL_FEATURES"
 }
 
-export enum UserRole {
-    SYSTEM_ADMIN = "SYSTEM_ADMIN",
-    ORG_ADMIN = "ORG_ADMIN",
-    SALES_MANAGER = "SALES_MANAGER",
-    SALES_USER = "SALES_USER",
-    CALLER = "CALLER",
-    COMPLIANCE_OFFICER = "COMPLIANCE_OFFICER"
-}
+export const UserRole = {
+    SUPER_ADMIN: "SUPER_ADMIN",
+    SYSTEM_ADMIN: "SYSTEM_ADMIN",
+    ORG_ADMIN: "ORG_ADMIN",
+    CMS_EDITOR: "CMS_EDITOR",
+    SALES_MANAGER: "SALES_MANAGER",
+    SALES_USER: "SALES_USER",
+    CALLER: "CALLER",
+    VIEWER: "VIEWER",
+    COMPLIANCE_OFFICER: "COMPLIANCE_OFFICER"
+} as const;
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export enum TrainingTaskType {
     TONE_NORMALIZATION = "TONE_NORMALIZATION",

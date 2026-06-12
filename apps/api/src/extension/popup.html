@@ -1,196 +1,223 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ConvoSpan Agent</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-    body { 
-        font-family: 'Inter', sans-serif; 
-        padding: 0; 
-        margin: 0;
-        width: 340px;
-        height: 450px;
-        background: #0f172a;
-        color: white;
-        overflow: hidden;
-        position: relative;
-    }
-
-    /* Background Blobs */
-    .blob {
-        position: absolute;
-        border-radius: 50%;
-        filter: blur(60px);
-        opacity: 0.4;
-        z-index: 0;
-    }
-    .blob-1 { top: -50px; left: -50px; width: 200px; height: 200px; background: #3b82f6; }
-    .blob-2 { bottom: -50px; right: -50px; width: 200px; height: 200px; background: #8b5cf6; }
-
-    .container {
-        position: relative;
-        z-index: 10;
-        padding: 24px;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    h2 {
-        background: linear-gradient(to right, #60a5fa, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-top: 0;
-        font-size: 20px;
-        font-weight: 700;
-        text-align: center;
-        margin-bottom: 4px;
-    }
-
-    p.subtitle {
-        text-align: center;
-        color: #94a3b8;
-        font-size: 12px;
-        margin-bottom: 24px;
-        margin-top: 0;
-    }
-
-    input {
-        width: 100%;
-        padding: 12px 16px;
-        background: rgba(0, 0, 0, 0.2);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        color: white;
-        margin-bottom: 12px;
-        box-sizing: border-box;
-        font-size: 13px;
-        transition: all 0.2s;
-    }
-    input:focus {
-        outline: none;
-        border-color: #3b82f6;
-        background: rgba(0, 0, 0, 0.4);
-    }
-
-    button {
-        width: 100%;
-        padding: 12px;
-        border: none;
-        border-radius: 12px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.2s;
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-        color: white;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-    }
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-    }
-    .btn-primary:active {
-        transform: translateY(0);
-    }
-
-    .btn-secondary {
-        background: rgba(255, 255, 255, 0.05);
-        color: #e2e8f0;
-        border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-    .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    .status {
-        font-size: 11px;
-        text-align: center;
-        margin-top: auto;
-        color: #64748b;
-        padding-top: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .status.success { color: #4ade80; }
-    .status.error { color: #f87171; }
-
-    .divider {
-        height: 1px;
-        background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
-        margin: 16px 0;
-    }
-
-    /* Icons */
-    .icon { width: 16px; height: 16px; fill: currentColor; }
-  </style>
+  <meta charset="utf-8" />
+  <title>CraftMyFunnel Assistant</title>
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">CraftMyFunnel Assistant</p>
+        <h1>LinkedIn lead capture & outreach prep</h1>
+      </div>
+      <span id="syncBadge" class="badge muted">Local only</span>
+    </header>
 
-<div class="blob blob-1"></div>
-<div class="blob blob-2"></div>
+    <nav class="tabs" aria-label="Assistant sections">
+      <button class="tab active" data-tab="prep" type="button">Prep</button>
+      <button class="tab" data-tab="draft" type="button">Draft</button>
+      <button class="tab" data-tab="qualify" type="button">Qualify</button>
+      <button class="tab" data-tab="settings" type="button">Settings</button>
+    </nav>
 
-<div class="container">
-    <h2>ConvoSpan</h2>
-    <p class="subtitle">AI Agent Command Center</p>
-
-    <div id="loginSection">
-        <input id="tokenInput" placeholder="Paste your API Token here..." />
-        <button id="saveToken" class="btn-primary">
-            <span>Connect Agent</span>
-        </button>
-    </div>
-
-    <div id="actionsSection" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <span style="background: rgba(74, 222, 128, 0.1); color: #4ade80; padding: 4px 12px; border-radius: 20px; font-size: 11px; border: 1px solid rgba(74, 222, 128, 0.2);">
-                ● Active
-            </span>
-            <button id="logoutBtn" style="width: auto; margin: 0; padding: 4px 8px; font-size: 10px; background: rgba(248, 113, 113, 0.1); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.2);">Logout</button>
+    <section id="prep" class="tab-panel active">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Capture</h2>
+            <p>Name and profile URL are the primary captured fields.</p>
+          </div>
+          <span class="badge">Auto-detected</span>
         </div>
-
-        <div style="margin-bottom: 16px;">
-            <label style="font-size: 11px; color: #94a3b8; display: block; margin-bottom: 4px;">Active Team</label>
-            <select id="teamSelect" style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white; padding: 8px; font-size: 12px;"></select>
+        <div class="actions two">
+          <button id="captureProfile" class="primary" type="button">Capture Profile</button>
+          <button id="retryCapture" class="secondary" type="button">Retry Capture</button>
         </div>
-
-        <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.05);">
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #94a3b8; margin-bottom: 6px;">
-                <span>Daily Outreach Cap</span>
-                <span id="capRatio">0 / 0</span>
-            </div>
-            <div style="height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden;">
-                <div id="capBar" style="height: 100%; width: 0%; background: linear-gradient(to right, #3b82f6, #8b5cf6); transition: width 0.3s;"></div>
-            </div>
+        <p id="captureHint" class="hint hidden">LinkedIn hides some fields depending on page layout. We couldn't confidently identify every field from the visible profile. You may enter missing context manually below.</p>
+        <dl class="capture-grid">
+          <dt>Name</dt>
+          <dd id="captureName">Not captured yet.</dd>
+          <dt>Profile URL</dt>
+          <dd id="captureUrl">Not captured yet.</dd>
+          <dt>Headline</dt>
+          <dd id="captureHeadline">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
+          <dt>Current Company</dt>
+          <dd id="captureCompany">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
+          <dt>Current Role</dt>
+          <dd id="captureRole">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
+          <dt>Location</dt>
+          <dd id="captureLocation">We couldn't confidently identify this field from the visible profile. You may enter it manually.</dd>
+        </dl>
+        <details class="debug-details">
+          <summary>Profile Intelligence Debug</summary>
+          <div id="captureSources" class="source-grid" aria-label="Detected sources"></div>
+        </details>
+        <div class="actions two">
+          <button id="copyCapture" class="secondary" type="button">Copy Capture</button>
+          <button id="deepCaptureDebug" class="secondary" type="button">Deep Capture Debug</button>
         </div>
-        
-        <button id="scrapeProfile" class="btn-secondary">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-            Scrape Profile
-        </button>
-        
-        <button id="likePost" class="btn-secondary">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-1.91l-.01-.01L23 10z"/></svg>
-            Like Post
-        </button>
-    </div>
-    
-    <div id="statusMsg" class="status">Ready to deploy</div>
-</div>
+        <pre id="deepDebugPanel" class="debug-panel hidden"></pre>
+      </section>
 
-<script src="popup.js"></script>
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Lead Notes</h2>
+            <p>Add context when LinkedIn fields are missing.</p>
+          </div>
+          <span class="badge accent">User-added</span>
+        </div>
+        <div class="form-grid">
+          <label>Company<input id="noteCompany" type="text" autocomplete="off" /></label>
+          <label>Role/Title<input id="noteRole" type="text" autocomplete="off" /></label>
+          <label>Location<input id="noteLocation" type="text" autocomplete="off" /></label>
+          <label>Industry<input id="noteIndustry" type="text" autocomplete="off" /></label>
+          <label>Priority
+            <select id="notePriority">
+              <option>Low</option>
+              <option>Medium</option>
+              <option>High</option>
+            </select>
+          </label>
+          <label>Lead Type
+            <select id="noteLeadType">
+              <option>Founder</option>
+              <option>CXO</option>
+              <option>Marketing</option>
+              <option>Sales</option>
+              <option>HR</option>
+              <option>Operations</option>
+              <option>Other</option>
+            </select>
+          </label>
+        </div>
+        <label>Notes<textarea id="noteNotes" rows="3"></textarea></label>
+      </section>
+
+      <section class="card">
+        <h2>Outreach Angle</h2>
+        <div id="angleOptions" class="chips" role="group" aria-label="Outreach angle"></div>
+        <label id="customAngleWrap" class="hidden">Custom angle<input id="customAngle" type="text" autocomplete="off" /></label>
+      </section>
+    </section>
+
+    <section id="draft" class="tab-panel">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Message Draft</h2>
+            <p>Draft only. Nothing is sent automatically.</p>
+          </div>
+          <span class="badge muted">Manual copy</span>
+        </div>
+        <div class="form-grid">
+          <label>Tone
+            <select id="draftTone">
+              <option>Friendly</option>
+              <option>Professional</option>
+              <option>Direct</option>
+              <option>Founder-style</option>
+            </select>
+          </label>
+          <label>Channel
+            <select id="draftChannel">
+              <option>LinkedIn DM</option>
+              <option>Email</option>
+              <option>WhatsApp</option>
+              <option>Call note</option>
+            </select>
+          </label>
+          <label>CTA
+            <select id="draftCta">
+              <option>Book a call</option>
+              <option>Try demo</option>
+              <option>Reply if relevant</option>
+              <option>Visit website</option>
+              <option>Custom CTA</option>
+            </select>
+          </label>
+          <label id="customCtaWrap" class="hidden">Custom CTA<input id="customCta" type="text" autocomplete="off" /></label>
+        </div>
+        <textarea id="messageDraft" rows="7" placeholder="Generate or write a draft here."></textarea>
+        <div class="actions two">
+          <button id="generateDraft" class="primary" type="button">Generate Draft</button>
+          <button id="copyDraft" class="secondary" type="button">Copy Draft</button>
+        </div>
+      </section>
+    </section>
+
+    <section id="qualify" class="tab-panel">
+      <section class="card">
+        <h2>Qualification</h2>
+        <label>Fit Score <input id="fitScore" type="range" min="1" max="5" step="1" /></label>
+        <div class="score-row"><span>1</span><strong id="fitScoreValue">3</strong><span>5</span></div>
+        <div class="field-group">
+          <span class="label">Need</span>
+          <div id="needOptions" class="chips"></div>
+        </div>
+        <div class="field-group">
+          <span class="label">Timing</span>
+          <div id="timingOptions" class="chips"></div>
+        </div>
+        <div class="field-group">
+          <span class="label">Status</span>
+          <div id="statusOptions" class="chips"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Save / Sync</h2>
+            <p>Save locally first. Workspace sync is optional.</p>
+          </div>
+          <span id="saveBadge" class="badge muted">Local only</span>
+        </div>
+        <div class="actions">
+          <button id="saveLead" class="primary" type="button">Sync to CraftMyFunnel</button>
+          <button id="markLinkedInDone" class="secondary" type="button">Mark LinkedIn Outreach Done</button>
+          <button id="openLead" class="secondary hidden" type="button">Open Lead in CraftMyFunnel</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Activity Log</h2>
+        <ol id="activityLog" class="activity-log"></ol>
+      </section>
+    </section>
+
+    <section id="settings" class="tab-panel">
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2>Settings</h2>
+            <p>No passwords, LinkedIn session data, or cookies are stored.</p>
+          </div>
+        </div>
+        <label>CraftMyFunnel workspace URL<input id="workspaceUrl" type="url" placeholder="https://app.craftmyfunnel.com" autocomplete="off" /></label>
+        <label>API key/token<input id="apiKey" type="password" placeholder="Optional workspace token" autocomplete="off" /></label>
+        <div class="form-grid">
+          <label>Default tone
+            <select id="defaultTone">
+              <option>Friendly</option>
+              <option>Professional</option>
+              <option>Direct</option>
+              <option>Founder-style</option>
+            </select>
+          </label>
+          <label>Default angle
+            <select id="defaultAngle"></select>
+          </label>
+        </div>
+        <button id="clearLocalData" class="danger" type="button">Clear Local Data</button>
+      </section>
+    </section>
+
+    <footer id="statusMsg" class="status">V1 approval scope: visible LinkedIn profile capture and outreach prep only.</footer>
+  </main>
+  <script src="utils.js"></script>
+  <script src="popup.js"></script>
 </body>
 </html>

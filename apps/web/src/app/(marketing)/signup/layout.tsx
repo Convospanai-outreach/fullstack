@@ -1,5 +1,5 @@
 export const metadata = {
-    title: "Create Account | ConvoSpan",
+    title: "Create Account | CraftMyFunnel",
     description: "Launch an AI-managed growth operations autopilot for buyer-signal-to-meeting workflows.",
 };
 

@@ -224,7 +224,6 @@ export async function getCurrentContext() {
         return { userId: null, teamId: null };
     }
 
-    // @ts-ignore
     const userId = session.user.id;
 
     // Check for workspace cookie
@@ -313,11 +312,11 @@ function verifyInternalAuthHeaders(headers: Headers) {
     const secret = process.env['NEXTAUTH_SECRET'];
     if (!secret) return null;
 
-    const userId = headers.get("x-convospan-user-id") || "";
-    const email = headers.get("x-convospan-user-email") || "";
-    const role = headers.get("x-convospan-user-role") || "";
-    const timestamp = headers.get("x-convospan-auth-ts") || "";
-    const signature = headers.get("x-convospan-auth-signature") || "";
+    const userId = headers.get("x-craftmyfunnel-user-id") || "";
+    const email = headers.get("x-craftmyfunnel-user-email") || "";
+    const role = headers.get("x-craftmyfunnel-user-role") || "";
+    const timestamp = headers.get("x-craftmyfunnel-auth-ts") || "";
+    const signature = headers.get("x-craftmyfunnel-auth-signature") || "";
 
     if (!userId || !timestamp || !signature) return null;
 

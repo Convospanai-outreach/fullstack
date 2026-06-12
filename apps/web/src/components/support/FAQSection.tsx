@@ -11,7 +11,7 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
     {
         question: "How do I connect my LinkedIn account?",
-        answer: "Install the ConvoSpan Chrome Extension. This secure companion handles the connection locally on your device, so your credentials never leave your browser."
+        answer: "Install the CraftMyFunnel Chrome Extension. This secure companion handles the connection locally on your device, so your credentials never leave your browser."
     },
     {
         question: "What is the daily limit for connection requests?",

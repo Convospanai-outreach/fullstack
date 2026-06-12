@@ -20,7 +20,7 @@ async function main() {
             },
             metrics: { successRate: '92%', users: 120 },
             isOfficial: true,
-            author: 'ConvoSpan'
+            author: 'CraftMyFunnel'
         },
         {
             name: 'Lead Scoring Workflow',
@@ -33,7 +33,7 @@ async function main() {
             },
             metrics: { avgTime: '450ms', cost: '$0.01' },
             isOfficial: true,
-            author: 'ConvoSpan Workflows'
+            author: 'CraftMyFunnel Workflows'
         },
         {
             name: 'SaaS Launch Playbook',

@@ -17,14 +17,14 @@ async function checkDatabase(): Promise<ServiceStatus> {
     try {
         await prisma.$queryRaw`SELECT 1`;
         return {
-            name: "ConvoSpan DB",
+            name: "CraftMyFunnel DB",
             status: "online",
             latencyMs: Date.now() - start,
             detail: "PostgreSQL connected",
         };
     } catch (e: any) {
         return {
-            name: "ConvoSpan DB",
+            name: "CraftMyFunnel DB",
             status: "offline",
             latencyMs: Date.now() - start,
             detail: e.message?.slice(0, 80) ?? "DB unreachable",
@@ -90,7 +90,7 @@ export async function GET() {
     ]);
 
     const results: ServiceStatus[] = [
-        db.status === "fulfilled" ? db.value : { name: "ConvoSpan DB", status: "offline", detail: "Check failed" },
+        db.status === "fulfilled" ? db.value : { name: "CraftMyFunnel DB", status: "offline", detail: "Check failed" },
         edgeNode.status === "fulfilled" ? edgeNode.value : { name: "Raspberry Pi Node", status: "offline", detail: "Check failed" },
         netjana.status === "fulfilled" ? netjana.value : { name: "Netjana Signals", status: "offline", detail: "Check failed" },
     ];

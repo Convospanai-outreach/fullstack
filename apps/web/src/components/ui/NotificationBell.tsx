@@ -4,26 +4,40 @@ import { useState, useEffect } from "react";
 
 import Link from "next/link";
 
-import { useSession } from "next-auth/react";
+import { useAuth } from "@clerk/nextjs";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export function NotificationBell() {
-    const { status } = useSession();
+    const { isSignedIn, isLoaded } = useAuth();
     const [count, setCount] = useState(0);
 
     useEffect(() => {
-        if (status === "authenticated") {
+        let cancelled = false;
+
+        if (isLoaded && isSignedIn) {
             fetch(getBrowserApiUrl("/notifications"))
                 .then(res => {
                     if (res.ok) return res.json();
                     return [];
                 })
-                .then(data => setCount(Array.isArray(data) ? data.length : 0))
-                .catch(err => console.error(err));
+                .then(data => {
+                    if (!cancelled) {
+                        setCount(Array.isArray(data) ? data.length : 0);
+                    }
+                })
+                .catch(() => {
+                    if (!cancelled) {
+                        setCount(0);
+                    }
+                });
         }
-    }, [status]);
 
-    if (status !== "authenticated") {
+        return () => {
+            cancelled = true;
+        };
+    }, [isLoaded, isSignedIn]);
+
+    if (!isLoaded || !isSignedIn) {
         return null;
     }
 

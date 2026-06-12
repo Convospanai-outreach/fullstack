@@ -14,12 +14,12 @@ concurrency:
 jobs:
   verify-safety-invariants:
     name: Verify Phi-3 Safety Enforcement
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 5
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
       
@@ -50,7 +50,7 @@ jobs:
   merge-gate:
     name: Merge Gate
     needs: verify-safety-invariants
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     if: always()
     steps:
       - name: Check verification result

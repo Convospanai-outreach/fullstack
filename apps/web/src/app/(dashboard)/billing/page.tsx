@@ -48,12 +48,18 @@ export default function BillingPage() {
                 throw new Error(data.error || 'Failed to create order');
             }
 
+            const razorpayKey = process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'];
+
+            if (!razorpayKey) {
+                throw new Error("NEXT_PUBLIC_RAZORPAY_KEY_ID is not configured");
+            }
+
             // Open Razorpay checkout
             const options = {
-                key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'],
+                key: razorpayKey,
                 amount: data.amount,
                 currency: data.currency,
-                name: 'ConvoSpan',
+                name: 'CraftMyFunnel',
                 description: 'Credit Top-up',
                 order_id: data.id,
                 handler: function (_response: any) {
@@ -68,7 +74,6 @@ export default function BillingPage() {
                 }
             };
 
-            // @ts-ignore - Razorpay is loaded via script
             const rzp = new window.Razorpay(options);
             rzp.open();
         } catch (error: any) {

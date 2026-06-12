@@ -15,6 +15,7 @@ export interface Lead {
 export interface LeadFilters {
     campaignId?: string;
     status?: string;
+    channelFilter?: string;
     search?: string;
     limit?: number;
     offset?: number;
@@ -24,6 +25,7 @@ export async function getLeads(filters?: LeadFilters) {
     const params = new URLSearchParams();
     if (filters?.campaignId) params.set("campaignId", filters.campaignId);
     if (filters?.status) params.set("status", filters.status);
+    if (filters?.channelFilter) params.set("channelFilter", filters.channelFilter);
     if (filters?.search) params.set("search", filters.search);
     if (filters?.limit) params.set("limit", filters.limit.toString());
     if (filters?.offset) params.set("offset", filters.offset.toString());

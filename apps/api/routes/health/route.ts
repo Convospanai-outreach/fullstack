@@ -31,12 +31,12 @@ export async function GET(req: Request) {
       status: "alive",
       probe,
       timestamp: new Date().toISOString(),
-      service: "convospan-api",
+      service: "craftmyfunnel-api",
       durationMs: Date.now() - startedAt
     }, { status: 200 });
   }
 
-  const runtimeMode = process.env["CONVOSPAN_RUNTIME_MODE"] || "";
+  const runtimeMode = process.env["CRAFTMYFUNNEL_RUNTIME_MODE"] || "";
   const skipHardwareVerification = process.env["BETA_SKIP_HARDWARE_VERIFY"] === "true" || runtimeMode === "email_first_beta";
   const edgeRequired = !skipHardwareVerification && isEdgeRuntimeRequired();
   const strictReadiness = process.env["NODE_ENV"] === "production" && edgeRequired;
@@ -53,7 +53,7 @@ export async function GET(req: Request) {
       status: "unhealthy",
       probe,
       timestamp: new Date().toISOString(),
-      service: "convospan-api",
+      service: "craftmyfunnel-api",
       checks: {
         database,
         edge
@@ -83,7 +83,7 @@ export async function GET(req: Request) {
     status,
     probe,
     timestamp: new Date().toISOString(),
-    service: "convospan-api",
+    service: "craftmyfunnel-api",
     checks: {
       database,
       edge,

@@ -1,5 +1,6 @@
 import { slackServer } from "@/modules/integration/mcp/slack-server";
 import { gmailServer } from "@/modules/integration/mcp/gmail-server";
+import { logger } from "@/lib/logger";
 
 export type ApprovalStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
@@ -29,7 +30,7 @@ export class OutreachAgent {
         };
 
         this.taskQueue.set(id, task);
-        console.log(`[OutreachAgent] Drafted ${type} task ${id} for approval.`);
+        logger.info("[OutreachAgent] Drafted task for approval", { type, id });
         return task;
     }
 

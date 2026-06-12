@@ -1,6 +1,6 @@
-# ConvoSpan Local Setup Script (Powershell)
+# CraftMyFunnel Local Setup Script (Powershell)
 
-Write-Host "🚀 Setting up ConvoSpan for local development..." -ForegroundColor Cyan
+Write-Host "🚀 Setting up CraftMyFunnel for local development..." -ForegroundColor Cyan
 
 if (-Not (Test-Path .env)) {
     Write-Host "📄 Creating .env from .env.example..." -ForegroundColor Yellow

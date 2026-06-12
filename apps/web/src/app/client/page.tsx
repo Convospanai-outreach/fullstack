@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, BarChart3, CheckCircle2, Clock3, LogOut, Megaphone } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LogoMark } from "@/components/brand/LogoMark";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import type { Campaign } from "@/types/common";
@@ -63,8 +64,8 @@ export default function ClientPortalPage() {
                 <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-center md:justify-between">
                     <div>
                         <Link href="/" className="inline-flex items-center gap-2 text-sm font-bold text-cyan-300">
-                            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-xs">CS</span>
-                            ConvoSpan Client Portal
+                            <LogoMark className="h-7 w-7" />
+                            CraftMyFunnel Client Portal
                         </Link>
                         <h1 className="mt-4 text-3xl font-black tracking-tight">Campaign progress</h1>
                         <p className="mt-2 max-w-2xl text-sm text-slate-400">

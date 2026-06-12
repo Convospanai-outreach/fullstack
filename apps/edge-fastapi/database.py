@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, String, Float, Integer, JSON, DateTime
+from sqlalchemy import create_engine, Column, String, Float, Integer, JSON, DateTime, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from pgvector.sqlalchemy import Vector
@@ -12,10 +12,10 @@ if not DATABASE_URL:
 
 engine = create_engine(
     DATABASE_URL,
-    pool_size=3,
-    max_overflow=5,
+    pool_size=int(os.getenv("DB_POOL_SIZE", "2")),
+    max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "2")),
     pool_pre_ping=True,
-    pool_recycle=300,
+    pool_recycle=int(os.getenv("DB_POOL_RECYCLE_SECONDS", "300")),
 )
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -35,12 +35,15 @@ class PIITokenMap(Base):
     __tablename__ = "pii_token_map"
 
     token_id = Column(String, primary_key=True)
-    original_text = Column(String)
+    original_text = Column(Text)
     token_type = Column(String) # PERSON, EMAIL, etc.
     session_id = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 def init_db():
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
     Base.metadata.create_all(bind=engine)
 
 def get_db():

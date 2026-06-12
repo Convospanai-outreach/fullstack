@@ -33,7 +33,7 @@ describe("Prisma Vector Storage Tests", () => {
     if (!dbReady || !prisma) return;
     const client = prisma;
     const textContent =
-      "ConvoSpan is an AI automation platform that integrates LinkedIn scraping, Gemini-based personalization, and SendPulse outreach.";
+      "CraftMyFunnel is an AI automation platform that integrates LinkedIn scraping, Gemini-based personalization, and SendPulse outreach.";
 
     // Generate mock embedding
     const mockEmbedding = generateMockEmbedding(textContent);

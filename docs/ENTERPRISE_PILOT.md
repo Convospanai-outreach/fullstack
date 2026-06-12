@@ -1,10 +1,10 @@
 # Enterprise Pilot Onboarding Guide
 
 ## Overview
-This guide walks through onboarding a new enterprise customer onto ConvoSpan in **ENTERPRISE_CORE** mode with full governance, compliance, and audit capabilities.
+This guide walks through onboarding a new enterprise customer onto CraftMyFunnel in **ENTERPRISE_CORE** mode with full governance, compliance, and audit capabilities.
 
 ## Prerequisites
-- Admin access to ConvoSpan platform
+- Admin access to CraftMyFunnel platform
 - Customer's organization details
 - SSO configuration (if required)
 - List of initial users and their roles
@@ -180,6 +180,6 @@ For compliance issues:
 
 ## Support Contacts
 
-- Technical: support@convospan.com
-- Compliance: compliance@convospan.com
+- Technical: support@craftmyfunnel.com
+- Compliance: compliance@craftmyfunnel.com
 - Emergency: [On-call number]

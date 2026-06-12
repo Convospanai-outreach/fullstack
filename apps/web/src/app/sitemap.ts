@@ -1,42 +1,43 @@
-export default function sitemap() {
-    const baseUrl = "https://convospan.com";
+import type { MetadataRoute } from "next";
+
+function getBaseUrl() {
+    return (process.env["NEXT_PUBLIC_SITE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000").replace(/\/$/, "");
+}
+
+export default function sitemap(): MetadataRoute.Sitemap {
+    const baseUrl = getBaseUrl();
+    const lastModified = new Date();
 
     return [
         {
             url: baseUrl,
-            lastModified: new Date(),
-            changeFrequency: "yearly",
+            lastModified,
+            changeFrequency: "weekly",
             priority: 1,
         },
         {
             url: `${baseUrl}/pricing`,
-            lastModified: new Date(),
+            lastModified,
             changeFrequency: "monthly",
             priority: 0.8,
         },
         {
-            url: `${baseUrl}/login`,
-            lastModified: new Date(),
-            changeFrequency: "yearly",
-            priority: 0.5,
+            url: `${baseUrl}/contact`,
+            lastModified,
+            changeFrequency: "monthly",
+            priority: 0.7,
         },
         {
-            url: `${baseUrl}/signup`,
-            lastModified: new Date(),
-            changeFrequency: "yearly",
-            priority: 0.5,
+            url: `${baseUrl}/blog`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.6,
         },
         {
-            url: `${baseUrl}/terms`,
-            lastModified: new Date(),
-            changeFrequency: "yearly",
-            priority: 0.3,
-        },
-        {
-            url: `${baseUrl}/privacy`,
-            lastModified: new Date(),
-            changeFrequency: "yearly",
-            priority: 0.3,
+            url: `${baseUrl}/case-studies`,
+            lastModified,
+            changeFrequency: "monthly",
+            priority: 0.6,
         },
     ];
 }

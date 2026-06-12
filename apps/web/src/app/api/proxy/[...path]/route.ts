@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getToken } from "next-auth/jwt";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
 const INTERNAL_API_ORIGIN =
     process.env["API_INTERNAL_ORIGIN"] ||
@@ -37,6 +38,22 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) return;
 
+    const clerkUser = await findOrCreateClerkAppUser();
+    if (clerkUser?.id) {
+        const timestamp = String(Date.now());
+        const email = clerkUser.email || "";
+        const role = typeof clerkUser.enterpriseRole === "string" ? clerkUser.enterpriseRole : "";
+        const payload = `v1.${timestamp}.${clerkUser.id}.${email}.${role}`;
+        const signature = createHmac("sha256", secret).update(payload).digest("hex");
+
+        headers.set("x-craftmyfunnel-user-id", clerkUser.id);
+        headers.set("x-craftmyfunnel-user-email", email);
+        headers.set("x-craftmyfunnel-user-role", role);
+        headers.set("x-craftmyfunnel-auth-ts", timestamp);
+        headers.set("x-craftmyfunnel-auth-signature", signature);
+        return;
+    }
+
     const token = await getToken({ req, secret });
     const userId = typeof token?.sub === "string"
         ? token.sub
@@ -52,11 +69,11 @@ async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
     const payload = `v1.${timestamp}.${userId}.${email}.${role}`;
     const signature = createHmac("sha256", secret).update(payload).digest("hex");
 
-    headers.set("x-convospan-user-id", userId);
-    headers.set("x-convospan-user-email", email);
-    headers.set("x-convospan-user-role", role);
-    headers.set("x-convospan-auth-ts", timestamp);
-    headers.set("x-convospan-auth-signature", signature);
+    headers.set("x-craftmyfunnel-user-id", userId);
+    headers.set("x-craftmyfunnel-user-email", email);
+    headers.set("x-craftmyfunnel-user-role", role);
+    headers.set("x-craftmyfunnel-auth-ts", timestamp);
+    headers.set("x-craftmyfunnel-auth-signature", signature);
 }
 
 async function forwardRequest(req: NextRequest, pathParts: string[] | undefined) {

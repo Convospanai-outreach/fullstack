@@ -29,6 +29,7 @@ const allowed = new Set([
   path.normalize("apps/web/src/scripts/test-conversation-flow.ts"),
   path.normalize("apps/web/src/scripts/test-hybrid-ai.ts"),
   path.normalize("apps/web/src/scripts/validate-production-readiness.ts"),
+  path.normalize("apps/web/src/workers/index.ts"),
 ]);
 
 const bad = [];

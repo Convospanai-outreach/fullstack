@@ -130,7 +130,7 @@ export default function AuditLogsPage() {
                                                 <LucideUser className="w-3.5 h-3.5 text-text-muted" />
                                                 <div className="text-xs">
                                                     <p className="text-white font-medium">{log.user?.name || "System"}</p>
-                                                    <p className="text-text-muted">{log.user?.email || "internal@convospan.ai"}</p>
+                                                    <p className="text-text-muted">{log.user?.email || "internal@craftmyfunnel.ai"}</p>
                                                 </div>
                                             </div>
                                         </td>

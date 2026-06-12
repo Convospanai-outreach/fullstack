@@ -13,8 +13,8 @@ Why this is the best fit for the current repo:
 
 ### Target layout
 
-- `app.convospan.com` -> `apps/web` as a public Railway web service
-- `api.convospan.com` -> `apps/api` as a public Railway web service
+- `app.craftmyfunnel.com` -> `apps/web` as a public Railway web service
+- `api.craftmyfunnel.com` -> `apps/api` as a public Railway web service
 - `edge-internal` -> `apps/edge-fastapi` as a private Railway service
 - `postgres` -> Railway PostgreSQL service
 - `redis` -> Railway Redis service if Redis-backed queues/rate limits are needed in production
@@ -25,7 +25,7 @@ Why this is the best fit for the current repo:
 
 Deploy everything on Railway first.
 
-- `apps/web` talks to `apps/api` over HTTPS using `NEXT_PUBLIC_API_URL=https://api.convospan.com`
+- `apps/web` talks to `apps/api` over HTTPS using `NEXT_PUBLIC_API_URL=https://api.craftmyfunnel.com`
 - `apps/api` talks to Postgres, Redis, and `apps/edge-fastapi` over Railway private networking
 - `apps/edge-fastapi` remains private unless an external integration truly requires direct access
 
@@ -114,8 +114,8 @@ Use Upstash only if the web app must hit Redis directly from a serverless fronte
 
 Use:
 
-- `app.convospan.com` for `apps/web`
-- `api.convospan.com` for `apps/api`
+- `app.craftmyfunnel.com` for `apps/web`
+- `api.craftmyfunnel.com` for `apps/api`
 - no public domain for `apps/edge-fastapi`
 
 Keep marketing and app traffic on the same web deployment unless you deliberately split them later.

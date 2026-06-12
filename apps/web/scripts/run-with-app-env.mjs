@@ -1,7 +1,8 @@
 import { spawn } from "node:child_process";
 import dotenv from "dotenv";
 
-dotenv.config({ path: ".env", override: true });
+// Load defaults from .env without clobbering explicitly provided runtime env vars.
+dotenv.config({ path: ".env" });
 
 const commandArgs = process.argv.slice(2);
 if (commandArgs.length === 0) {

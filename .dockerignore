@@ -1,7 +1,21 @@
-**
+.git
+.github
+.env
+.env.*
 
-!package.json
-!package-lock.json
+node_modules
+.next
+dist
+build
+coverage
+tmp
+.tmp
+test-results
+playwright-report
+.playwright-cache
+audit-screenshots
+tsconfig.tsbuildinfo
+*.log
 
 !apps
 !apps/web

@@ -297,7 +297,6 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
         }
 
         setConfig((current) => (current.intelSignalId ? current : { ...current, intelSignalId }));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

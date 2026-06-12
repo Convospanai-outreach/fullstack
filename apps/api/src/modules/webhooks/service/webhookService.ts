@@ -94,7 +94,7 @@ class WebhookService {
 
         const headers: Record<string, string> = {
             "Content-Type": "application/json",
-            "X-ConvoSpan-Event": event,
+            "X-CraftMyFunnel-Event": event,
         };
 
         // Add Signature if secret exists
@@ -103,7 +103,7 @@ class WebhookService {
                 .createHmac("sha256", webhook.secret)
                 .update(body)
                 .digest("hex");
-            headers["X-ConvoSpan-Signature"] = signature;
+            headers["X-CraftMyFunnel-Signature"] = signature;
         }
 
         const startTime = Date.now();

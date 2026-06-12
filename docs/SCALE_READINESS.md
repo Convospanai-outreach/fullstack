@@ -1,7 +1,7 @@
 # Production Scale Readiness Checklist
 
 ## Overview
-This checklist validates ConvoSpan's readiness for production deployment at enterprise scale.
+This checklist validates CraftMyFunnel's readiness for production deployment at enterprise scale.
 
 ## Database Optimization
 

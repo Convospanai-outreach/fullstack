@@ -1,26 +1,26 @@
-# NetJana → ConvoSpan Intel: Sender + Pull API Changes
+# NetJana → CraftMyFunnel Intel: Sender + Pull API Changes
 
 This doc is written for an AI agent (or engineer) updating the **NetJana app**.
 
 Goal:
-- Keep webhook pushes **small, secure, replay-safe** (non-bloating for ConvoSpan).
+- Keep webhook pushes **small, secure, replay-safe** (non-bloating for CraftMyFunnel).
 - Allow **user-initiated** retrieval of the full lead card / signal graph for enterprise/top-tier customers.
 
-ConvoSpan receiver assumptions:
-- Webhook receiver: `POST /webhooks/netjana-intel` (in ConvoSpan `apps/api`)
-- Full report pull (ConvoSpan → NetJana): `GET /v1/intel/leads/{lead_id}`
+CraftMyFunnel receiver assumptions:
+- Webhook receiver: `POST /webhooks/netjana-intel` (in CraftMyFunnel `apps/api`)
+- Full report pull (CraftMyFunnel → NetJana): `GET /v1/intel/leads/{lead_id}`
 
 ---
 
 ## 1) Webhook Push (Minimal Payload)
 
-### Endpoint (ConvoSpan)
+### Endpoint (CraftMyFunnel)
 - `POST https://<api-host>/webhooks/netjana-intel`
 - Content-Type: `application/json`
 
 ### Required headers
 - `x-source: netjana-intel`
-- `x-api-key: <CONVOSPAN_API_KEY>` (ConvoSpan-provided key)
+- `x-api-key: <CRAFTMYFUNNEL_API_KEY>` (CraftMyFunnel-provided key)
 - `x-netjana-signature: <hex-hmac>` (required in production)
 - `x-netjana-timestamp: <unix-seconds>` (required)
 - `x-netjana-nonce: <uuid>` (required)
@@ -41,7 +41,7 @@ Keep this payload stable and small (matches the shared schema file, but only the
 ```json
 {
   "event": "LEAD_CARD_READY",
-  "source": "NetJana.AI / ConvoSpan Intel",
+  "source": "NetJana.AI / CraftMyFunnel Intel",
   "timestamp": "2026-04-04T08:42:00Z",
   "lead": {
     "lead_id": "b7e452a1-cf56-4b88-9d22-12a8934520bc",
@@ -67,7 +67,7 @@ Notes:
 
 ## 2) Full Lead Card Pull API (User-Initiated)
 
-This is called only after a ConvoSpan user explicitly “Unlocks full report”.
+This is called only after a CraftMyFunnel user explicitly “Unlocks full report”.
 
 ### Endpoint (NetJana must implement)
 - `GET /v1/intel/leads/{lead_id}`
@@ -78,10 +78,10 @@ Choose one:
 2) `Authorization: Bearer <token>` (recommended long-term)
 
 Also allow:
-- `x-source: convospan`
+- `x-source: craftmyfunnel`
 
 ### Response body (full detail)
-Return the full lead card fields that ConvoSpan may turn into a report and optional campaign copy:
+Return the full lead card fields that CraftMyFunnel may turn into a report and optional campaign copy:
 
 ```json
 {
@@ -108,7 +108,7 @@ Return the full lead card fields that ConvoSpan may turn into a report and optio
 }
 ```
 
-Graph is optional. If omitted, ConvoSpan will still use the lead card text.
+Graph is optional. If omitted, CraftMyFunnel will still use the lead card text.
 
 ### Security + abuse controls
 - Rate limit by API key / tenant.
@@ -120,7 +120,7 @@ Graph is optional. If omitted, ConvoSpan will still use the lead card text.
 
 ## 3) Size / Storage philosophy (why this design)
 
-- Minimal push keeps bandwidth low and prevents long-term ConvoSpan DB bloat.
+- Minimal push keeps bandwidth low and prevents long-term CraftMyFunnel DB bloat.
 - Full report is pulled only when a user decides a signal is worth pursuing (paid tiers).
 - Replay protection prevents an attacker (or misconfigured retries) from spamming duplicates.
 

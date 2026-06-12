@@ -5,11 +5,13 @@
  */
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { getSmtpConfig } from "./smtpConfigService";
 
 export type EmailSendResult = {
     success: boolean;
     providerId?: string;
+    messageId?: string;
     error?: string;
 };
 
@@ -57,7 +59,7 @@ class EmailService {
 
         // Record in DB if we have context
         if (metadata?.leadId && metadata?.campaignId) {
-            await prisma.email.create({
+            const email = await prisma.email.create({
                 data: {
                     leadId: metadata.leadId,
                     campaignId: metadata.campaignId,
@@ -67,6 +69,32 @@ class EmailService {
                     ...(result.messageId ? { providerId: result.messageId } : {}),
                 },
             });
+
+            if (teamId) {
+                const sentAt = new Date();
+                await prisma.emailEvent.create({
+                    data: {
+                        teamId,
+                        emailId: email.id,
+                        leadId: metadata.leadId,
+                        campaignId: metadata.campaignId,
+                        type: "SENT",
+                        provider: "SMTP",
+                        providerMessageId: result.messageId || email.id,
+                        payload: {
+                            subject,
+                            sentAt: sentAt.toISOString()
+                        }
+                    }
+                });
+
+                await advanceLeadAfterEmailSent(prisma, {
+                    leadId: metadata.leadId,
+                    teamId,
+                    campaignId: metadata.campaignId,
+                    emailId: email.id
+                });
+            }
         }
         return result.messageId 
             ? { success: true, providerId: result.messageId }

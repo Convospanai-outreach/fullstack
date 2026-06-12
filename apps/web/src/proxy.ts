@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
 import {
     getDefaultEnabledHiddenFeatureKeys,
@@ -11,7 +12,7 @@ import {
     PRODUCT_FLAGS,
 } from './lib/productFlags';
 
-export async function proxy(req: NextRequest) {
+async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
     const hiddenFeature = getHiddenFeatureForPath(path);
     const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
@@ -20,13 +21,34 @@ export async function proxy(req: NextRequest) {
     );
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
-    const authApiPrefixes = ["/api/auth", "/api/register", "/api/proxy/auth", "/api/proxy/register"];
+    const authApiPrefixes = ["/api/auth", "/api/proxy/auth"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/metrics", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
+    const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
+
+    if (
+        process.env['NODE_ENV'] === 'production' &&
+        process.env['ENABLE_TEST_DIAGNOSTIC_ROUTES'] !== 'true' &&
+        testDiagnosticPaths.some((prefix) => path.startsWith(prefix))
+    ) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    if (metricsApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+        const metricsToken = process.env['METRICS_TOKEN'];
+        const authorization = req.headers.get("authorization");
+        if (metricsToken && authorization !== `Bearer ${metricsToken}`) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!metricsToken && process.env['NODE_ENV'] === 'production') {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+    }
 
     if (PRODUCT_FLAGS.betaMode && !isPathEnabled(path, enabledHiddenFeatures)) {
         if (path.startsWith("/api")) {
@@ -44,10 +66,22 @@ export async function proxy(req: NextRequest) {
         return NextResponse.redirect(url);
     }
 
+    let clerkUserId: string | undefined;
+    let clerkClaims: Record<string, unknown> | undefined;
+    if (clerkAuth) {
+        try {
+            const authState = await clerkAuth();
+            clerkUserId = authState?.userId || undefined;
+            clerkClaims = authState?.sessionClaims as Record<string, unknown> | undefined;
+        } catch {
+            clerkUserId = undefined;
+        }
+    }
+
     const { getToken } = await import("next-auth/jwt");
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     token = (await getToken({ req, secret })) as Record<string, unknown> | null;
-    userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
+    userId = clerkUserId || (typeof token?.['sub'] === "string" ? token['sub'] : undefined);
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
@@ -110,11 +144,13 @@ export async function proxy(req: NextRequest) {
         "/agent-login",
         "/client-login",
         "/signup",
+        "/accept-invite",
         "/forgot-password",
         "/magic-link",
         "/verify-email",
         "/favicon.ico",
         "/favicon.svg",
+        "/craftmyfunnel-logo.png",
         "/about",
         "/contact",
         "/pricing",
@@ -124,6 +160,14 @@ export async function proxy(req: NextRequest) {
         "/privacy",
         "/help",
     ];
+
+    if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/login";
+        url.searchParams.set("invite", "required");
+        return NextResponse.redirect(url);
+    }
+
     const isPublic = publicPaths.some(p => path === p) ||
         path.startsWith("/p/") ||
         authApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
@@ -137,7 +181,7 @@ export async function proxy(req: NextRequest) {
         // Token already fetched at the top for rate limiting
 
 
-        if (!token) {
+        if (!token && !clerkUserId) {
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -149,8 +193,53 @@ export async function proxy(req: NextRequest) {
         }
 
         // 3. Caller Page Protection (RBAC)
+        const role = (token?.['enterpriseRole'] || clerkClaims?.['enterpriseRole']) as string;
+        const superAdminRoles = ["SUPER_ADMIN", "SYSTEM_ADMIN"];
+        const canManageUsers = superAdminRoles.includes(role) || role === "ORG_ADMIN";
+        const canAccessCMS = canManageUsers || role === "CMS_EDITOR";
+
+        if (
+            role === "CMS_EDITOR" &&
+            !path.startsWith("/admin/content") &&
+            !path.startsWith("/admin/cms") &&
+            !path.startsWith("/api/admin/cms") &&
+            !path.startsWith("/api/auth")
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/admin/content", req.url));
+        }
+
+        if (
+            !clerkUserId &&
+            (path.startsWith("/admin/users") || path.startsWith("/admin/invites") || path.startsWith("/api/admin/users") || path.startsWith("/api/admin/invites")) &&
+            !canManageUsers
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
+
+        if (
+            (path.startsWith("/admin/content") || path.startsWith("/admin/cms") || path.startsWith("/api/admin/cms")) &&
+            !canAccessCMS
+        ) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/dashboard", req.url));
+        }
+
+        if (role === "CALLER" && !path.startsWith("/caller") && !path.startsWith("/api/auth") && !path.startsWith("/api/proxy/caller")) {
+            if (path.startsWith("/api")) {
+                return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            }
+            return NextResponse.redirect(new URL("/caller", req.url));
+        }
+
         if (path.startsWith("/caller")) {
-            const role = token?.['enterpriseRole'] as string;
             // Strict RBAC: Caller UI is for Callers only. Managers use Dashboard.
             const allowed = ["CALLER"];
 
@@ -248,3 +337,8 @@ export const config = {
         '/((?!_next/static|_next/image|favicon.ico|favicon.svg).*)',
     ],
 };
+
+const clerkProxy = clerkMiddleware(async (auth, req) => appProxy(req as NextRequest, auth));
+
+export default clerkProxy;
+export const proxy = clerkProxy;
