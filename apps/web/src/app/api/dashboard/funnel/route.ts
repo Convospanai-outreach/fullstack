@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { normalizeFunnel } from "@/lib/crm/funnel";
@@ -15,6 +14,7 @@ async function resolveTeamId() {
 }
 
 export async function GET() {
+    const { prisma } = await import("@/lib/db");
     const teamId = await resolveTeamId();
     if (!teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

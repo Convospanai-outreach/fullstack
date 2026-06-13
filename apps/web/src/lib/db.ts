@@ -1,9 +1,6 @@
 // import "server-only";
-import { PrismaClient, Prisma } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as {
-    prisma: ReturnType<typeof createPrismaClient> | undefined;
-};
+import { PrismaClient } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 const createPrismaClient = () => {
     const databaseUrl = process.env["DATABASE_URL"];
@@ -63,10 +60,26 @@ const createPrismaClient = () => {
     return client;
 };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+type PrismaClientInstance = ReturnType<typeof createPrismaClient>;
 
-if (process.env['NODE_ENV'] !== "production") {
-    globalForPrisma.prisma = prisma;
+const globalForPrisma = globalThis as unknown as {
+    prisma: PrismaClientInstance | undefined;
+};
+
+export function getPrisma() {
+    if (!globalForPrisma.prisma) {
+        globalForPrisma.prisma = createPrismaClient();
+    }
+
+    return globalForPrisma.prisma;
 }
 
-export { Prisma };
+export const prisma = new Proxy({} as PrismaClientInstance, {
+    get(_target, prop) {
+        const client = getPrisma();
+        const value = Reflect.get(client, prop, client);
+        return typeof value === "function" ? value.bind(client) : value;
+    },
+});
+
+export type { Prisma };

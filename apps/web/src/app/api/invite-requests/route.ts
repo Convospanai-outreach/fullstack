@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
 
 function getString(value: unknown) {
     return typeof value === "string" ? value.trim() : "";
@@ -15,6 +14,7 @@ function isValidLinkedInUrl(value: string) {
 }
 
 export async function POST(req: NextRequest) {
+    const { prisma } = await import("@/lib/db");
     const body = await req.json().catch(() => null);
     const name = getString(body?.name);
     const email = getString(body?.email).toLowerCase();

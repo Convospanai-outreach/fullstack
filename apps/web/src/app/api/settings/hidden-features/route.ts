@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
 import {
     getDefaultEnabledHiddenFeatureKeys,
@@ -20,6 +19,7 @@ type ReadinessState = {
 };
 
 async function loadFeatureContext(teamId: string) {
+    const { prisma } = await import("@/lib/db");
     const [team, callerCount, agentTaskCount, marketplaceTemplateCount, policy, edgeAvailability] = await Promise.all([
         prisma.team.findUnique({
             where: { id: teamId },
