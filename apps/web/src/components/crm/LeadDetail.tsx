@@ -11,7 +11,13 @@ import {
     ShieldAlert,
     RefreshCw,
     Activity,
-    Compass
+    Compass,
+    Mail,
+    Linkedin,
+    MessageCircle,
+    PhoneCall,
+    Sparkles,
+    X
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -70,6 +76,36 @@ type TimelineItem = {
     createdAt: string | Date;
 };
 
+type JourneySuggestion = {
+    id: string;
+    severity: "high" | "medium" | "low";
+    title: string;
+    reason: string;
+    recommendation: string;
+    suggestedAction?: {
+        channel: string;
+        status: string;
+    };
+};
+
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+
+const CHANNEL_OPTIONS = [
+    { value: "EMAIL", label: "Email", icon: Mail },
+    { value: "LINKEDIN", label: "LinkedIn", icon: Linkedin },
+    { value: "WHATSAPP", label: "WhatsApp", icon: MessageCircle },
+    { value: "CALL", label: "Human Call", icon: PhoneCall },
+];
+
+const CHANNEL_STATUS_OPTIONS = [
+    { value: "CAPTURED", label: "Captured" },
+    { value: "DRAFTED", label: "Drafted" },
+    { value: "CONTACTED", label: "Contacted" },
+    { value: "REPLIED", label: "Replied" },
+    { value: "FOLLOW_UP", label: "Follow-up" },
+    { value: "CLOSED", label: "Closed" },
+];
+
 function channelBadgeLabel(channel: string, status: string) {
     if (channel === "EMAIL" && status === "CONTACTED") return "Email Sent";
     if (channel === "LINKEDIN" && status === "CAPTURED") return "LinkedIn Captured";
@@ -83,11 +119,93 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [lead, setLead] = useState(initialLead);
     const [loading, setLoading] = useState(false);
     const [timeline, setTimeline] = useState<TimelineItem[]>([]);
+    const [journeyUpdate, setJourneyUpdate] = useState({
+        channel: "EMAIL",
+        status: "CONTACTED",
+        outcome: "",
+        notes: "",
+    });
+    const [journeySaving, setJourneySaving] = useState(false);
+    const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestions, setSuggestions] = useState<JourneySuggestion[]>([]);
+
+    const refreshTimeline = async () => {
+        try {
+            const res = await fetch(`/api/leads/${lead.id}/timeline`, { cache: "no-store" });
+            const data = res.ok ? await res.json() : null;
+            setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
+        } catch {
+            setTimeline([]);
+        }
+    };
+
+    const refreshLead = async () => {
+        const res = await fetch(`${API_BASE}/leads/${lead.id}`, { cache: "no-store" });
+        const freshLead = await res.json();
+        if (freshLead && !freshLead.error) {
+            setLead(freshLead);
+        }
+    };
+
+    const handleJourneyUpdate = async () => {
+        setJourneySaving(true);
+        try {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}/journey`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    channel: journeyUpdate.channel,
+                    status: journeyUpdate.status,
+                    outcome: journeyUpdate.outcome || undefined,
+                    notes: journeyUpdate.notes || undefined,
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || "Journey update failed");
+            if (data?.lead) setLead(data.lead);
+            setJourneyUpdate((prev) => ({ ...prev, notes: "", outcome: "" }));
+            await Promise.all([refreshLead(), refreshTimeline()]);
+        } catch (error) {
+            console.error("Failed to update lead journey", error);
+            alert(error instanceof Error ? error.message : "Failed to update lead journey");
+        } finally {
+            setJourneySaving(false);
+        }
+    };
+
+    const loadSuggestions = async () => {
+        setSuggestionsOpen(true);
+        setSuggestionsLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}/journey/suggestions`, { cache: "no-store" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || "Unable to load suggestions");
+            setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+        } catch (error) {
+            console.error("Failed to load journey suggestions", error);
+            setSuggestions([]);
+            alert(error instanceof Error ? error.message : "Unable to load suggestions");
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    };
+
+    const applySuggestionToForm = (suggestion: JourneySuggestion) => {
+        if (!suggestion.suggestedAction) return;
+        setJourneyUpdate((prev) => ({
+            ...prev,
+            channel: suggestion.suggestedAction?.channel || prev.channel,
+            status: suggestion.suggestedAction?.status || prev.status,
+            notes: prev.notes || suggestion.recommendation,
+        }));
+        setSuggestionsOpen(false);
+    };
 
     const handleAction = async (action: string) => {
         setLoading(true);
         try {
-            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}/action`, {
+            await fetch(`${API_BASE}/leads/${lead.id}/action`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action })
@@ -104,7 +222,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const handleEnrich = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}/enrich`, {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}/enrich`, {
                 method: "POST"
             });
             const data = await res.json();
@@ -121,7 +239,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const handleReScore = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/scoring/persist`, {
+            const res = await fetch(`${API_BASE}/scoring/persist`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leadId: lead.id })
@@ -129,7 +247,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             if (!res.ok) throw new Error("Re-scoring failed");
 
             // Reload the lead details
-            const leadRes = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}`);
+            const leadRes = await fetch(`${API_BASE}/leads/${lead.id}`);
             const freshLead = await leadRes.json();
             if (freshLead && !freshLead.error) {
                 setLead(freshLead);
@@ -146,7 +264,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const handleToggleConsent = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/leads/${lead.id}`, {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ consentObtained: !lead.consentObtained })
@@ -181,18 +299,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     }, []);
 
     useEffect(() => {
-        let cancelled = false;
-
-        fetch(`/api/leads/${lead.id}/timeline`, { cache: "no-store" })
-            .then((res) => res.ok ? res.json() : null)
-            .then((data) => {
-                if (!cancelled) setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
-            })
-            .catch(() => {
-                if (!cancelled) setTimeline([]);
-            });
-
-        return () => { cancelled = true; };
+        refreshTimeline().finally(() => undefined);
     }, [lead.id]);
 
     return (
@@ -228,6 +335,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     >
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         Re-Score Intent
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-1.5 hover:bg-white/5"
+                        onClick={loadSuggestions}
+                        disabled={suggestionsLoading || loading || isOffline}
+                    >
+                        <Sparkles className={`w-4 h-4 ${suggestionsLoading ? "animate-pulse" : ""}`} />
+                        Assistant Suggestions
                     </Button>
                     {lead.linkedIn && (
                         <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
@@ -310,6 +426,100 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 ))}
                             </div>
                         )}
+                    </GlassCard>
+
+                    <GlassCard className="space-y-4">
+                        <div>
+                            <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                                <PhoneCall className="w-5 h-5 text-emerald-400" />
+                                Update Lead Journey
+                            </h3>
+                            <p className="mt-1 text-sm text-white/50">
+                                Log approved outreach progress across email, LinkedIn, WhatsApp, or a human caller.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Channel</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {CHANNEL_OPTIONS.map((option) => {
+                                        const Icon = option.icon;
+                                        const active = journeyUpdate.channel === option.value;
+                                        return (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                onClick={() => setJourneyUpdate((prev) => ({ ...prev, channel: option.value }))}
+                                                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                                    active
+                                                        ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100"
+                                                        : "border-white/10 bg-white/[0.03] text-white/65 hover:bg-white/[0.06]"
+                                                }`}
+                                            >
+                                                <Icon className="h-4 w-4" />
+                                                {option.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Progress</label>
+                                <select
+                                    value={journeyUpdate.status}
+                                    onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, status: event.target.value }))}
+                                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                                >
+                                    {CHANNEL_STATUS_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {journeyUpdate.status === "CLOSED" && (
+                            <div>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Outcome</label>
+                                <select
+                                    value={journeyUpdate.outcome}
+                                    onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, outcome: event.target.value }))}
+                                    className="h-10 w-full rounded-lg border border-white/10 bg-slate-950 px-3 text-sm text-white outline-none transition focus:border-cyan-400/50"
+                                >
+                                    <option value="">No outcome yet</option>
+                                    <option value="WON">Converted / won</option>
+                                    <option value="LOST">Lost</option>
+                                    <option value="NOT_RELEVANT">Not relevant</option>
+                                </select>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-white/45">Notes</label>
+                            <textarea
+                                value={journeyUpdate.notes}
+                                onChange={(event) => setJourneyUpdate((prev) => ({ ...prev, notes: event.target.value }))}
+                                rows={3}
+                                className="w-full resize-none rounded-lg border border-white/10 bg-slate-950 px-3 py-2 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-cyan-400/50"
+                                placeholder="Add caller notes, reply context, follow-up timing, or manual send confirmation."
+                            />
+                        </div>
+
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                            <p className="text-xs text-white/45">
+                                Updates appear in the timeline and refresh the lead funnel state.
+                            </p>
+                            <Button
+                                variant="default"
+                                onClick={handleJourneyUpdate}
+                                disabled={journeySaving || loading || isOffline}
+                                className="gap-2"
+                            >
+                                <Activity className={`h-4 w-4 ${journeySaving ? "animate-pulse" : ""}`} />
+                                {journeySaving ? "Updating..." : "Update Journey"}
+                            </Button>
+                        </div>
                     </GlassCard>
 
                     {/* Premium Intent Scoring Breakdown */}
@@ -612,6 +822,78 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </GlassCard>
                 </div>
             </div>
+
+            {suggestionsOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/40">
+                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                            <div>
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                                    <Sparkles className="h-5 w-5 text-cyan-300" />
+                                    Lead Journey Suggestions
+                                </h3>
+                                <p className="mt-1 text-sm text-white/50">
+                                    Advisory analysis only. Nothing changes unless you update the journey.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSuggestionsOpen(false)}
+                                className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                                aria-label="Close suggestions"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5">
+                            {suggestionsLoading ? (
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                    Analyzing stalled channels and stage-change gaps...
+                                </div>
+                            ) : suggestions.length === 0 ? (
+                                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                                    No common journey issues detected right now.
+                                </div>
+                            ) : (
+                                suggestions.map((suggestion) => (
+                                    <div key={suggestion.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <h4 className="font-semibold text-white">{suggestion.title}</h4>
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                                suggestion.severity === "high"
+                                                    ? "bg-rose-400/15 text-rose-200"
+                                                    : suggestion.severity === "medium"
+                                                        ? "bg-amber-400/15 text-amber-200"
+                                                        : "bg-cyan-400/15 text-cyan-200"
+                                            }`}>
+                                                {suggestion.severity}
+                                            </span>
+                                        </div>
+                                        <p className="mt-2 text-sm text-white/65">{suggestion.reason}</p>
+                                        <p className="mt-2 text-sm text-white/85">{suggestion.recommendation}</p>
+                                        {suggestion.suggestedAction && (
+                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                                                <span className="text-xs text-white/45">
+                                                    Suggested form fill: {suggestion.suggestedAction.channel} / {suggestion.suggestedAction.status}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="h-8 text-xs"
+                                                    onClick={() => applySuggestionToForm(suggestion)}
+                                                >
+                                                    Use in form
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -20,7 +20,27 @@ export default defineConfig({
             "**/dist/**",
             "src/modules/rag/__tests__/rag-integration.test.ts"
         ],
-        testTimeout: 15000
+        testTimeout: 15000,
+        coverage: {
+            provider: "v8",
+            reporter: ["text", "json", "html"],
+            thresholds: {
+                statements: 48,
+                branches: 37,
+                functions: 54,
+                lines: 49
+            },
+            exclude: [
+                "node_modules/",
+                "dist/",
+                "**/*.d.ts",
+                "**/*.config.*",
+                "prisma/",
+                "scripts/",
+                "src/scripts/",
+                "src/extension/**/*.js"
+            ]
+        }
     },
     resolve: {
         alias: {

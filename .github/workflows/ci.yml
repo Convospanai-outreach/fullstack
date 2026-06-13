@@ -55,7 +55,7 @@ jobs:
 
     - name: Security Audit
       working-directory: apps/web
-      run: npm audit --audit-level=critical --omit=dev
+      run: npm audit --audit-level=high --omit=dev
 
     - name: Generate Prisma Client
       working-directory: apps/web
@@ -175,6 +175,14 @@ jobs:
     - name: API Tests
       working-directory: apps/api
       run: npm run test
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
+        DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
+        REDIS_URL: "redis://localhost:6379"
+
+    - name: API Coverage Gate
+      working-directory: apps/api
+      run: npm run test:coverage
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_api_ci"
