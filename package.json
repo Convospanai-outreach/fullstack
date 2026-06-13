@@ -25,6 +25,12 @@
     "docker:edge:pi5": "docker buildx build --platform linux/arm64 --build-arg REQUIREMENTS_FILE=requirements.pi.txt --build-arg FORCE_CMAKE=1 --build-arg CMAKE_ARGS=\"-DGGML_NATIVE=OFF -DGGML_OPENMP=ON\" -t craftmyfunnel-edge-fastapi:pi5 -f apps/edge-fastapi/Dockerfile apps/edge-fastapi",
     "verify:before-push": "node scripts/check-web-prisma-imports.mjs && npm --workspace apps/web run build"
   },
+  "overrides": {
+    "@hono/node-server": "1.19.13",
+    "esbuild": "0.28.1",
+    "postcss": "8.5.10",
+    "uuid": "13.0.0"
+  },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.8"
   }

@@ -31,11 +31,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     let token: Record<string, unknown> | null = null;
     let userId: string | undefined;
 
-    if (
-        process.env['NODE_ENV'] === 'production' &&
-        process.env['ENABLE_TEST_DIAGNOSTIC_ROUTES'] !== 'true' &&
-        testDiagnosticPaths.some((prefix) => path.startsWith(prefix))
-    ) {
+    if (process.env['ENABLE_TEST_DIAGNOSTIC_ROUTES'] !== 'true' && testDiagnosticPaths.some((prefix) => path.startsWith(prefix))) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 

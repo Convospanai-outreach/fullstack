@@ -15,6 +15,7 @@ import type { JWT } from "next-auth/jwt";
 
 import { redirect } from "next/navigation";
 import { UserRole } from "@/types/prisma-safe";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -227,6 +228,19 @@ export async function setupUser(user: { id: string, email: string, name?: string
 }
 
 export async function getCurrentContext() {
+    const clerkUser = await findOrCreateClerkAppUser();
+    if (clerkUser) {
+        const cookieStore = await cookies();
+        const workspaceId = cookieStore.get("convo-workspace-id")?.value;
+        if (workspaceId) {
+            const membership = clerkUser.memberships.find((member) => member.teamId === workspaceId && member.status === "active");
+            if (membership) return { userId: clerkUser.id, teamId: workspaceId };
+        }
+
+        const activeMemberships = clerkUser.memberships.filter((member) => member.status === "active");
+        return { userId: clerkUser.id, teamId: activeMemberships[0]?.teamId || null };
+    }
+
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -286,6 +300,31 @@ export type AuthenticatedUser = {
 };
 
 export async function requireAuth(): Promise<AuthenticatedUser> {
+    const clerkUser = await findOrCreateClerkAppUser();
+    if (clerkUser) {
+        const user = await prisma.user.findUnique({
+            where: { id: clerkUser.id },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                enterpriseRole: true,
+                memberships: {
+                    select: {
+                        id: true,
+                        teamId: true,
+                        role: true,
+                        status: true
+                    }
+                }
+            }
+        });
+
+        if (!user) redirect("/login");
+        return user;
+    }
+
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 

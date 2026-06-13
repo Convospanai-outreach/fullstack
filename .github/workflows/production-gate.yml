@@ -53,6 +53,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci --workspace apps/web --include-workspace-root --no-audit --no-fund --legacy-peer-deps
 
+      - name: Security Audit
+        working-directory: apps/web
+        run: npm audit --audit-level=high --omit=dev
+
       - name: Generate Prisma Client
         working-directory: apps/web
         run: npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
