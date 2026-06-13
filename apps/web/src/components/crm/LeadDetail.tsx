@@ -15,7 +15,9 @@ import {
     Mail,
     Linkedin,
     MessageCircle,
-    PhoneCall
+    PhoneCall,
+    Sparkles,
+    X
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -74,6 +76,18 @@ type TimelineItem = {
     createdAt: string | Date;
 };
 
+type JourneySuggestion = {
+    id: string;
+    severity: "high" | "medium" | "low";
+    title: string;
+    reason: string;
+    recommendation: string;
+    suggestedAction?: {
+        channel: string;
+        status: string;
+    };
+};
+
 const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
 
 const CHANNEL_OPTIONS = [
@@ -112,6 +126,9 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
         notes: "",
     });
     const [journeySaving, setJourneySaving] = useState(false);
+    const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    const [suggestions, setSuggestions] = useState<JourneySuggestion[]>([]);
 
     const refreshTimeline = async () => {
         try {
@@ -155,6 +172,34 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
         } finally {
             setJourneySaving(false);
         }
+    };
+
+    const loadSuggestions = async () => {
+        setSuggestionsOpen(true);
+        setSuggestionsLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}/journey/suggestions`, { cache: "no-store" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || "Unable to load suggestions");
+            setSuggestions(Array.isArray(data?.suggestions) ? data.suggestions : []);
+        } catch (error) {
+            console.error("Failed to load journey suggestions", error);
+            setSuggestions([]);
+            alert(error instanceof Error ? error.message : "Unable to load suggestions");
+        } finally {
+            setSuggestionsLoading(false);
+        }
+    };
+
+    const applySuggestionToForm = (suggestion: JourneySuggestion) => {
+        if (!suggestion.suggestedAction) return;
+        setJourneyUpdate((prev) => ({
+            ...prev,
+            channel: suggestion.suggestedAction?.channel || prev.channel,
+            status: suggestion.suggestedAction?.status || prev.status,
+            notes: prev.notes || suggestion.recommendation,
+        }));
+        setSuggestionsOpen(false);
     };
 
     const handleAction = async (action: string) => {
@@ -290,6 +335,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     >
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         Re-Score Intent
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-1.5 hover:bg-white/5"
+                        onClick={loadSuggestions}
+                        disabled={suggestionsLoading || loading || isOffline}
+                    >
+                        <Sparkles className={`w-4 h-4 ${suggestionsLoading ? "animate-pulse" : ""}`} />
+                        Assistant Suggestions
                     </Button>
                     {lead.linkedIn && (
                         <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
@@ -768,6 +822,78 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </GlassCard>
                 </div>
             </div>
+
+            {suggestionsOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/40">
+                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                            <div>
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                                    <Sparkles className="h-5 w-5 text-cyan-300" />
+                                    Lead Journey Suggestions
+                                </h3>
+                                <p className="mt-1 text-sm text-white/50">
+                                    Advisory analysis only. Nothing changes unless you update the journey.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setSuggestionsOpen(false)}
+                                className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                                aria-label="Close suggestions"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[70vh] space-y-3 overflow-y-auto p-5">
+                            {suggestionsLoading ? (
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                    Analyzing stalled channels and stage-change gaps...
+                                </div>
+                            ) : suggestions.length === 0 ? (
+                                <div className="rounded-xl border border-emerald-400/20 bg-emerald-400/10 p-4 text-sm text-emerald-100">
+                                    No common journey issues detected right now.
+                                </div>
+                            ) : (
+                                suggestions.map((suggestion) => (
+                                    <div key={suggestion.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <h4 className="font-semibold text-white">{suggestion.title}</h4>
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                                suggestion.severity === "high"
+                                                    ? "bg-rose-400/15 text-rose-200"
+                                                    : suggestion.severity === "medium"
+                                                        ? "bg-amber-400/15 text-amber-200"
+                                                        : "bg-cyan-400/15 text-cyan-200"
+                                            }`}>
+                                                {suggestion.severity}
+                                            </span>
+                                        </div>
+                                        <p className="mt-2 text-sm text-white/65">{suggestion.reason}</p>
+                                        <p className="mt-2 text-sm text-white/85">{suggestion.recommendation}</p>
+                                        {suggestion.suggestedAction && (
+                                            <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-3">
+                                                <span className="text-xs text-white/45">
+                                                    Suggested form fill: {suggestion.suggestedAction.channel} / {suggestion.suggestedAction.status}
+                                                </span>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    className="h-8 text-xs"
+                                                    onClick={() => applySuggestionToForm(suggestion)}
+                                                >
+                                                    Use in form
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
