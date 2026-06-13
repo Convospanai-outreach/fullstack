@@ -3,7 +3,6 @@ import { getServerSession } from "next-auth";
 import { clerkClient } from "@clerk/nextjs/server";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
-import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
 import {
@@ -22,6 +21,11 @@ type AdminActor = {
     memberships: Array<{ teamId: string; status: string }>;
 };
 
+async function loadPrisma() {
+    const { prisma } = await import("@/lib/db");
+    return prisma;
+}
+
 async function getActor(): Promise<AdminActor | null> {
     const clerkActor = await findOrCreateClerkAppUser();
     if (clerkActor) return clerkActor as AdminActor;
@@ -30,6 +34,7 @@ async function getActor(): Promise<AdminActor | null> {
     const userId = session?.user?.id;
     if (!userId) return null;
 
+    const prisma = await loadPrisma();
     return prisma.user.findUnique({
         where: { id: userId },
         include: { memberships: true }
@@ -60,6 +65,7 @@ export async function GET() {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const prisma = await loadPrisma();
     const allowedTeamIds = getAllowedTeamIds(actor);
     const invites = await prisma.userInvitation.findMany({
         ...(allowedTeamIds ? { where: { teamId: { in: allowedTeamIds } } } : {}),
@@ -120,6 +126,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Cannot invite users outside your team." }, { status: 403 });
     }
 
+    const prisma = await loadPrisma();
     const token = createInviteToken();
     const inviteLink = getInviteLink(token);
     const invitation = await prisma.userInvitation.create({
@@ -182,6 +189,7 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
         }
 
+        const prisma = await loadPrisma();
         const updated = await prisma.inviteRequest.update({
             where: { id },
             data: action === "reject-request"
@@ -197,6 +205,7 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
         }
 
+        const prisma = await loadPrisma();
         const inviteRequest = await prisma.inviteRequest.findUnique({ where: { id } });
         if (!inviteRequest) {
             return NextResponse.json({ error: "Invite request not found." }, { status: 404 });
@@ -292,6 +301,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "Only invite revocation is supported." }, { status: 400 });
     }
 
+    const prisma = await loadPrisma();
     const invitation = await prisma.userInvitation.findUnique({ where: { id } });
     if (!invitation) {
         return NextResponse.json({ error: "Invite not found." }, { status: 404 });

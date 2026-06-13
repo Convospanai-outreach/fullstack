@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, canManageUsers, isSuperAdminRole } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
 
@@ -16,11 +15,17 @@ type ManagedUser = AdminActor & {
     memberships: TeamMembership[];
 };
 
+async function loadPrisma() {
+    const { prisma } = await import("@/lib/db");
+    return prisma;
+}
+
 async function getActor(): Promise<AdminActor | null> {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
 
+    const prisma = await loadPrisma();
     return prisma.user.findUnique({
         where: { id: userId },
         include: { memberships: true }
@@ -38,6 +43,7 @@ export async function GET() {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const prisma = await loadPrisma();
     const teamIds = allowedTeamIds(actor);
     const users = await prisma.user.findMany({
         ...(teamIds ? { where: { memberships: { some: { teamId: { in: teamIds } } } } } : {}),
@@ -68,6 +74,7 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "User id is required." }, { status: 400 });
     }
 
+    const prisma = await loadPrisma();
     const target = await prisma.user.findUnique({
         where: { id },
         include: { memberships: true }
