@@ -24,6 +24,34 @@ const DEFAULT_ROLES = [
     "Audit Sentinel",
 ];
 
+const USER_BEHAVIOR_ROLES = [
+    "First-time Founder User",
+    "Sales Operator User",
+    "RevOps Manager User",
+    "Workspace Admin User",
+    "UI/UX Frontend",
+    "Adversarial Red Team",
+    "Test Executor",
+    "Product Head",
+];
+
+type SwarmType = "GENERAL_REVIEW" | "USER_BEHAVIOR";
+
+type BehaviorReport = {
+    persona?: string;
+    scenario?: string;
+    journey?: string[];
+    frictionScore?: number;
+    confidence?: string;
+    findings?: Array<{
+        scenario?: string;
+        severity?: string;
+        friction?: string;
+        recommendation?: string;
+    }>;
+    nextBestTests?: string[];
+};
+
 type SwarmTask = {
     taskId: string;
     role: string;
@@ -33,6 +61,8 @@ type SwarmTask = {
     agentName: string;
     agentStatus: string;
     summary: string | null;
+    swarmType?: string;
+    behaviorReport?: BehaviorReport | null;
     failureReason: string | null;
 };
 
@@ -63,6 +93,7 @@ export default function AgentSwarmPage() {
     const [goal, setGoal] = useState(
         "Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness."
     );
+    const [swarmType, setSwarmType] = useState<SwarmType>("GENERAL_REVIEW");
     const [selectedRoles, setSelectedRoles] = useState<string[]>(DEFAULT_ROLES);
     const [swarmId, setSwarmId] = useState<string>("");
     const [status, setStatus] = useState<SwarmStatusResponse | null>(null);
@@ -70,7 +101,8 @@ export default function AgentSwarmPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string>("");
 
-    const allSelected = selectedRoles.length === DEFAULT_ROLES.length;
+    const activeRoles = swarmType === "USER_BEHAVIOR" ? USER_BEHAVIOR_ROLES : DEFAULT_ROLES;
+    const allSelected = selectedRoles.length === activeRoles.length;
     const completionPercent = useMemo(() => {
         if (!status?.counts?.total) return 0;
         return Math.round((status.counts.completed / status.counts.total) * 100);
@@ -114,7 +146,8 @@ export default function AgentSwarmPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     goal,
-                    roles: selectedRoles
+                    roles: selectedRoles,
+                    swarmType
                 })
             });
 
@@ -144,6 +177,18 @@ export default function AgentSwarmPage() {
         return () => clearInterval(handle);
     }, [swarmId]);
 
+    function setMode(nextType: SwarmType) {
+        setSwarmType(nextType);
+        if (nextType === "USER_BEHAVIOR") {
+            setGoal("Simulate real user behavior across signup, onboarding, lead capture, email outreach, LinkedIn follow-up, and funnel status updates. Report friction, stuck points, and suggested fixes without changing user data.");
+            setSelectedRoles(USER_BEHAVIOR_ROLES);
+            return;
+        }
+
+        setGoal("Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness.");
+        setSelectedRoles(DEFAULT_ROLES);
+    }
+
     return (
         <div className="space-y-8">
             <section className="rounded-3xl border border-white/10 bg-gradient-to-br from-cyan-500/15 via-slate-900/80 to-emerald-500/10 p-6 lg:p-8">
@@ -158,8 +203,8 @@ export default function AgentSwarmPage() {
                         </h1>
                         <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-300">
                             Run role-based checks simultaneously across product, technical, UX, and campaign layers.
-                            The new <strong className="text-white">Frontend Integrator</strong> role is included to
-                            connect outputs into a smoother user journey.
+                            Use <strong className="text-white">User Behavior Test</strong> mode to simulate signup,
+                            onboarding, lead capture, email, LinkedIn, and funnel update behavior.
                         </p>
                     </div>
                     <div className="flex gap-3">
@@ -182,6 +227,28 @@ export default function AgentSwarmPage() {
                     <p className="mt-2 text-sm text-slate-400">
                         Set one shared objective. Every selected role runs its own specialist pass in parallel.
                     </p>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        {[
+                            { value: "GENERAL_REVIEW" as const, label: "General Review", text: "Product, engineering, readiness, and launch checks." },
+                            { value: "USER_BEHAVIOR" as const, label: "User Behavior Test", text: "Persona journeys, friction scoring, and stuck-point suggestions." },
+                        ].map((option) => {
+                            const active = swarmType === option.value;
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setMode(option.value)}
+                                    className={`rounded-2xl border p-4 text-left transition ${active
+                                        ? "border-cyan-400/50 bg-cyan-500/10 text-cyan-100"
+                                        : "border-white/10 bg-slate-950/40 text-slate-300 hover:border-white/20"
+                                        }`}
+                                >
+                                    <span className="block text-sm font-semibold text-white">{option.label}</span>
+                                    <span className="mt-1 block text-xs leading-5 text-slate-400">{option.text}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
                     <textarea
                         value={goal}
                         onChange={(event) => setGoal(event.target.value)}
@@ -194,7 +261,7 @@ export default function AgentSwarmPage() {
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setSelectedRoles(allSelected ? [] : DEFAULT_ROLES)}
+                            onClick={() => setSelectedRoles(allSelected ? [] : activeRoles)}
                         >
                             {allSelected ? "Clear all roles" : "Select all roles"}
                         </Button>
@@ -220,7 +287,7 @@ export default function AgentSwarmPage() {
                     <h2 className="text-xl font-semibold text-white">Specialist Roles</h2>
                     <p className="mt-2 text-sm text-slate-400">Choose the roles you want in this run.</p>
                     <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {DEFAULT_ROLES.map((role) => {
+                        {activeRoles.map((role) => {
                             const checked = selectedRoles.includes(role);
                             return (
                                 <label
@@ -310,6 +377,41 @@ export default function AgentSwarmPage() {
                                     </div>
                                     {task.summary && (
                                         <p className="mt-3 text-sm leading-6 text-slate-300">{task.summary}</p>
+                                    )}
+                                    {task.behaviorReport && (
+                                        <div className="mt-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 p-4">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-cyan-100">
+                                                        {task.behaviorReport.persona || "User behavior persona"}
+                                                    </p>
+                                                    <p className="mt-1 text-xs leading-5 text-slate-400">
+                                                        {task.behaviorReport.scenario}
+                                                    </p>
+                                                </div>
+                                                <span className="w-fit rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+                                                    Friction {task.behaviorReport.frictionScore ?? 0}/100
+                                                </span>
+                                            </div>
+                                            {Array.isArray(task.behaviorReport.journey) && task.behaviorReport.journey.length > 0 && (
+                                                <p className="mt-3 text-xs text-slate-400">
+                                                    Journey: {task.behaviorReport.journey.join(" -> ")}
+                                                </p>
+                                            )}
+                                            {Array.isArray(task.behaviorReport.findings) && task.behaviorReport.findings.length > 0 && (
+                                                <div className="mt-3 space-y-2">
+                                                    {task.behaviorReport.findings.slice(0, 3).map((finding, index) => (
+                                                        <div key={`${task.taskId}-finding-${index}`} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
+                                                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
+                                                                {finding.severity || "medium"} friction
+                                                            </p>
+                                                            <p className="mt-1 text-sm text-slate-200">{finding.friction}</p>
+                                                            <p className="mt-1 text-xs leading-5 text-slate-400">{finding.recommendation}</p>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     {task.failureReason && (
                                         <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200">

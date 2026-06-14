@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { logger } from "@/lib/logger";
+import { buildUserBehaviorReport } from "./user-behavior-swarm";
 
 type AgentTaskContext = Record<string, any>;
 
@@ -110,6 +111,7 @@ export async function handleAgentRun(payload: JobPayload) {
         ? payload.goal.trim()
         : "Execute assigned specialist checks";
     const swarmId = typeof payload.swarmId === "string" ? payload.swarmId : null;
+    const swarmType = typeof payload.swarmType === "string" ? payload.swarmType : "GENERAL_REVIEW";
 
     if (!agentId) {
         throw new Error("Missing agentId");
@@ -151,19 +153,40 @@ export async function handleAgentRun(payload: JobPayload) {
             })
         ]);
 
-        const checks = getRoleSpecificChecks(role);
+        const metrics = {
+            campaigns: campaignCount,
+            activeCampaigns: activeCampaignCount,
+            leads: leadCount,
+            pendingApprovals: approvalCount
+        };
+        const behaviorReport = swarmType === "USER_BEHAVIOR"
+            ? buildUserBehaviorReport(role, goal, metrics)
+            : null;
+        const checks = behaviorReport
+            ? [
+                `Simulated ${behaviorReport.persona}: ${behaviorReport.scenario}`,
+                `Friction score ${behaviorReport.frictionScore}/100 with ${behaviorReport.findings.length} finding(s).`
+            ]
+            : getRoleSpecificChecks(role);
+
         if (taskId) {
             await appendTaskLog(taskId, stepNumber++, "ACTION", checks[0], {
                 campaigns: campaignCount,
-                leads: leadCount
+                leads: leadCount,
+                swarmType,
+                behaviorReport: behaviorReport ?? undefined
             });
             await appendTaskLog(taskId, stepNumber++, "OBSERVATION", checks[1], {
                 activeCampaigns: activeCampaignCount,
-                pendingApprovals: approvalCount
+                pendingApprovals: approvalCount,
+                swarmType,
+                behaviorFindings: behaviorReport?.findings
             });
         }
 
-        const summary = `${role} completed checks for goal "${goal}". Campaigns: ${campaignCount}, active: ${activeCampaignCount}, leads: ${leadCount}, pending approvals: ${approvalCount}.`;
+        const summary = behaviorReport
+            ? `${role} simulated ${behaviorReport.persona}. Friction score: ${behaviorReport.frictionScore}/100. Top issue: ${behaviorReport.findings[0]?.friction ?? "No major behavior blocker detected."}`
+            : `${role} completed checks for goal "${goal}". Campaigns: ${campaignCount}, active: ${activeCampaignCount}, leads: ${leadCount}, pending approvals: ${approvalCount}.`;
 
         if (taskId) {
             const task = await prisma.agentTask.findUnique({
@@ -182,15 +205,12 @@ export async function handleAgentRun(payload: JobPayload) {
                         ...existingContext,
                         role,
                         swarmId,
+                        swarmType,
                         completedAt: new Date().toISOString(),
                         result: {
                             summary,
-                            metrics: {
-                                campaigns: campaignCount,
-                                activeCampaigns: activeCampaignCount,
-                                leads: leadCount,
-                                pendingApprovals: approvalCount
-                            }
+                            metrics,
+                            behaviorReport: behaviorReport ?? undefined
                         }
                     },
                     plan: [
@@ -216,9 +236,11 @@ export async function handleAgentRun(payload: JobPayload) {
                 agentId,
                 meta: {
                     swarmId,
+                    swarmType,
                     role,
                     goal,
-                    summary
+                    summary,
+                    behaviorReport: behaviorReport ?? undefined
                 }
             }
         });
@@ -233,6 +255,8 @@ export async function handleAgentRun(payload: JobPayload) {
             role,
             summary,
             swarmId,
+            swarmType,
+            behaviorReport,
             metrics: {
                 campaigns: campaignCount,
                 activeCampaigns: activeCampaignCount,
@@ -257,12 +281,13 @@ export async function handleAgentRun(payload: JobPayload) {
                     data: {
                         status: "FAILED",
                         context: {
-                            ...existingContext,
-                            role,
-                            swarmId,
-                            failedAt: new Date().toISOString(),
-                            failureReason: message
-                        }
+                        ...existingContext,
+                        role,
+                        swarmId,
+                        swarmType,
+                        failedAt: new Date().toISOString(),
+                        failureReason: message
+                    }
                     }
                 });
 
