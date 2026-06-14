@@ -8,6 +8,30 @@ export class SemanticCache {
     private readonly SIMILARITY_THRESHOLD = 0.95;
     private lru = new LRUCache<string, string>({ max: 500 });
 
+    async getExact(prompt: string): Promise<string | null> {
+        try {
+            const memHit = this.lru.get(prompt);
+            if (memHit) {
+                return memHit;
+            }
+
+            const promptHash = this.hashPrompt(prompt);
+            const exactMatch = await prisma.lLMCache.findUnique({
+                where: { promptHash }
+            });
+
+            if (!exactMatch) {
+                return null;
+            }
+
+            this.lru.set(prompt, exactMatch.response);
+            return exactMatch.response;
+        } catch (error) {
+            console.error("[SemanticCache] Exact lookup failed:", error);
+            return null;
+        }
+    }
+
     /**
      * Retrieves a cached response if a semantically similar prompt exists.
      */
