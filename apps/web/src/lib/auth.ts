@@ -32,6 +32,9 @@ function applyDefaultClaims(token: JWT) {
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
+    // Clerk is the primary signup/sign-in provider. NextAuth is retained for
+    // legacy JWT/session compatibility only, so it intentionally exposes no
+    // direct OAuth or password providers.
     providers: [],
     callbacks: {
         signIn: async ({ user }) => {

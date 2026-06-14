@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 
 const args = process.argv.slice(2);
 const separatorIndex = args.indexOf('--');
@@ -22,6 +24,16 @@ for (const entry of envArgs) {
   const key = entry.slice(0, equalsIndex);
   const value = entry.slice(equalsIndex + 1);
   env[key] = value;
+}
+
+const tempValue = env.TEMP || env.TMP || env.TMPDIR;
+if (tempValue) {
+  const tempPath = path.resolve(process.cwd(), tempValue);
+  fs.mkdirSync(tempPath, { recursive: true });
+  env.TEMP = tempPath;
+  env.TMP = tempPath;
+  env.TMPDIR = tempPath;
+  env.npm_config_tmp = tempPath;
 }
 
 const child = spawn(commandArgs[0], commandArgs.slice(1), {
