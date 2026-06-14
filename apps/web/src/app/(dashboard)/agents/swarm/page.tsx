@@ -36,6 +36,7 @@ const USER_BEHAVIOR_ROLES = [
 ];
 
 type SwarmType = "GENERAL_REVIEW" | "USER_BEHAVIOR";
+type AdvisorySwarmType = "GENERAL_REVIEW" | "USER_BEHAVIOR" | "LAUNCH_READINESS" | "LEAD_JOURNEY" | "ADMIN_SETUP";
 
 type BehaviorReport = {
     persona?: string;
@@ -45,9 +46,13 @@ type BehaviorReport = {
     confidence?: string;
     findings?: Array<{
         scenario?: string;
+        priority?: string;
         severity?: string;
+        affectedSurface?: string;
+        ownerArea?: string;
         friction?: string;
         recommendation?: string;
+        testNeeded?: string;
     }>;
     nextBestTests?: string[];
 };
@@ -93,7 +98,7 @@ export default function AgentSwarmPage() {
     const [goal, setGoal] = useState(
         "Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness."
     );
-    const [swarmType, setSwarmType] = useState<SwarmType>("GENERAL_REVIEW");
+    const [swarmType, setSwarmType] = useState<AdvisorySwarmType>("GENERAL_REVIEW");
     const [selectedRoles, setSelectedRoles] = useState<string[]>(DEFAULT_ROLES);
     const [swarmId, setSwarmId] = useState<string>("");
     const [status, setStatus] = useState<SwarmStatusResponse | null>(null);
@@ -101,7 +106,14 @@ export default function AgentSwarmPage() {
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string>("");
 
-    const activeRoles = swarmType === "USER_BEHAVIOR" ? USER_BEHAVIOR_ROLES : DEFAULT_ROLES;
+    const modeRoles: Record<AdvisorySwarmType, string[]> = {
+        GENERAL_REVIEW: DEFAULT_ROLES,
+        USER_BEHAVIOR: USER_BEHAVIOR_ROLES,
+        LAUNCH_READINESS: ["Workspace Admin User", "Technical Auditor", "DevOps Specialist", "Audit Sentinel", "Product Head"],
+        LEAD_JOURNEY: ["Sales Operator User", "RevOps Manager User", "Test Executor", "UI/UX Frontend", "Adversarial Red Team"],
+        ADMIN_SETUP: ["Workspace Admin User", "Admin Operator", "Technical Auditor", "DevOps Specialist", "Audit Sentinel"],
+    };
+    const activeRoles = modeRoles[swarmType];
     const allSelected = selectedRoles.length === activeRoles.length;
     const completionPercent = useMemo(() => {
         if (!status?.counts?.total) return 0;
@@ -177,16 +189,17 @@ export default function AgentSwarmPage() {
         return () => clearInterval(handle);
     }, [swarmId]);
 
-    function setMode(nextType: SwarmType) {
+    function setMode(nextType: AdvisorySwarmType) {
         setSwarmType(nextType);
-        if (nextType === "USER_BEHAVIOR") {
-            setGoal("Simulate real user behavior across signup, onboarding, lead capture, email outreach, LinkedIn follow-up, and funnel status updates. Report friction, stuck points, and suggested fixes without changing user data.");
-            setSelectedRoles(USER_BEHAVIOR_ROLES);
-            return;
-        }
-
-        setGoal("Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness.");
-        setSelectedRoles(DEFAULT_ROLES);
+        const goals: Record<AdvisorySwarmType, string> = {
+            GENERAL_REVIEW: "Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness.",
+            USER_BEHAVIOR: "Simulate real user behavior across signup, onboarding, lead capture, email outreach, LinkedIn follow-up, and funnel status updates. Report friction, stuck points, and suggested fixes without changing user data.",
+            LAUNCH_READINESS: "Simulate workspace admin launch readiness across Clerk auth, Postgres sync, setup, env configuration, team invites, and governance checks.",
+            LEAD_JOURNEY: "Simulate one lead journey across email, LinkedIn, WhatsApp, call, manual status updates, follow-up suggestions, and funnel progression.",
+            ADMIN_SETUP: "Simulate admin setup for invite approval, permissions, feature readiness, audit trail, and deployment confidence.",
+        };
+        setGoal(goals[nextType]);
+        setSelectedRoles(modeRoles[nextType]);
     }
 
     return (
@@ -231,6 +244,9 @@ export default function AgentSwarmPage() {
                         {[
                             { value: "GENERAL_REVIEW" as const, label: "General Review", text: "Product, engineering, readiness, and launch checks." },
                             { value: "USER_BEHAVIOR" as const, label: "User Behavior Test", text: "Persona journeys, friction scoring, and stuck-point suggestions." },
+                            { value: "LAUNCH_READINESS" as const, label: "Launch Readiness", text: "Auth, env, setup, team, and governance readiness." },
+                            { value: "LEAD_JOURNEY" as const, label: "Lead Journey", text: "Email, LinkedIn, WhatsApp, call, follow-up, and funnel movement." },
+                            { value: "ADMIN_SETUP" as const, label: "Admin Setup", text: "Invite approval, permissions, feature exposure, and audit confidence." },
                         ].map((option) => {
                             const active = swarmType === option.value;
                             return (
@@ -403,10 +419,18 @@ export default function AgentSwarmPage() {
                                                     {task.behaviorReport.findings.slice(0, 3).map((finding, index) => (
                                                         <div key={`${task.taskId}-finding-${index}`} className="rounded-xl border border-white/10 bg-slate-950/50 p-3">
                                                             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-200">
-                                                                {finding.severity || "medium"} friction
+                                                                {finding.priority || "P1"} · {finding.severity || "medium"} friction
+                                                            </p>
+                                                            <p className="mt-1 text-xs text-cyan-200">
+                                                                {finding.affectedSurface || "Surface unknown"} · Owner: {finding.ownerArea || "web"}
                                                             </p>
                                                             <p className="mt-1 text-sm text-slate-200">{finding.friction}</p>
                                                             <p className="mt-1 text-xs leading-5 text-slate-400">{finding.recommendation}</p>
+                                                            {finding.testNeeded && (
+                                                                <p className="mt-2 text-xs leading-5 text-emerald-200">
+                                                                    Test: {finding.testNeeded}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>

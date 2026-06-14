@@ -159,8 +159,8 @@ export async function handleAgentRun(payload: JobPayload) {
             leads: leadCount,
             pendingApprovals: approvalCount
         };
-        const behaviorReport = swarmType === "USER_BEHAVIOR"
-            ? buildUserBehaviorReport(role, goal, metrics)
+        const behaviorReport = ["USER_BEHAVIOR", "LAUNCH_READINESS", "LEAD_JOURNEY", "ADMIN_SETUP"].includes(swarmType)
+            ? buildUserBehaviorReport(role, goal, metrics, swarmType)
             : null;
         const checks = behaviorReport
             ? [

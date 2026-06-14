@@ -11,10 +11,14 @@ type BehaviorReport = {
     confidence?: string;
     findings?: Array<{
         scenario?: string;
+        priority?: string;
         persona?: string;
         severity?: string;
+        affectedSurface?: string;
+        ownerArea?: string;
         friction?: string;
         recommendation?: string;
+        testNeeded?: string;
     }>;
     nextBestTests?: string[];
 };

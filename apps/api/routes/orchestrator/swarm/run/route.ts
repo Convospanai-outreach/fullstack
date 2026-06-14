@@ -36,13 +36,39 @@ const USER_BEHAVIOR_ROLES = [
     "Product Head",
 ];
 
+const MODE_DEFAULTS = {
+    GENERAL_REVIEW: {
+        goal: "Audit, debug, and improve campaigns and onboarding execution",
+        roles: DEFAULT_SWARM_ROLES,
+    },
+    USER_BEHAVIOR: {
+        goal: "Simulate core user behavior across signup, lead capture, email outreach, LinkedIn follow-up, and funnel updates",
+        roles: USER_BEHAVIOR_ROLES,
+    },
+    LAUNCH_READINESS: {
+        goal: "Simulate workspace admin launch readiness across Clerk auth, Postgres sync, setup, env configuration, team invites, and governance checks",
+        roles: ["Workspace Admin User", "Technical Auditor", "DevOps Specialist", "Audit Sentinel", "Product Head"],
+    },
+    LEAD_JOURNEY: {
+        goal: "Simulate one lead journey across email, LinkedIn, WhatsApp, call, manual status updates, follow-up suggestions, and funnel progression",
+        roles: ["Sales Operator User", "RevOps Manager User", "Test Executor", "UI/UX Frontend", "Adversarial Red Team"],
+    },
+    ADMIN_SETUP: {
+        goal: "Simulate admin setup for invite approval, permissions, feature readiness, audit trail, and deployment confidence",
+        roles: ["Workspace Admin User", "Admin Operator", "Technical Auditor", "DevOps Specialist", "Audit Sentinel"],
+    },
+} as const;
+
 function normalizeSwarmType(input: unknown) {
-    return input === "USER_BEHAVIOR" ? "USER_BEHAVIOR" : "GENERAL_REVIEW";
+    if (input === "USER_BEHAVIOR" || input === "LAUNCH_READINESS" || input === "LEAD_JOURNEY" || input === "ADMIN_SETUP") {
+        return input;
+    }
+    return "GENERAL_REVIEW";
 }
 
-function normalizeRoles(input: unknown): string[] {
+function normalizeRoles(input: unknown, fallbackRoles: readonly string[]): string[] {
     if (!Array.isArray(input)) {
-        return DEFAULT_SWARM_ROLES;
+        return [...fallbackRoles];
     }
 
     const cleaned = input
@@ -50,7 +76,7 @@ function normalizeRoles(input: unknown): string[] {
         .filter((role) => role.length > 0);
 
     if (cleaned.length === 0) {
-        return DEFAULT_SWARM_ROLES;
+        return [...fallbackRoles];
     }
 
     const uniqueByKey = new Map<string, string>();
@@ -76,12 +102,11 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
     const swarmType = normalizeSwarmType(body.swarmType);
+    const modeDefaults = MODE_DEFAULTS[swarmType];
     const goal = typeof body.goal === "string" && body.goal.trim().length > 0
         ? body.goal.trim()
-        : swarmType === "USER_BEHAVIOR"
-            ? "Simulate core user behavior across signup, lead capture, email outreach, LinkedIn follow-up, and funnel updates"
-            : "Audit, debug, and improve campaigns and onboarding execution";
-    const roles = normalizeRoles(Array.isArray(body.roles) ? body.roles : swarmType === "USER_BEHAVIOR" ? USER_BEHAVIOR_ROLES : undefined);
+        : modeDefaults.goal;
+    const roles = normalizeRoles(body.roles, modeDefaults.roles);
     const campaignId = typeof body.campaignId === "string" ? body.campaignId : null;
     const swarmId = `swarm_${crypto.randomUUID()}`;
 
