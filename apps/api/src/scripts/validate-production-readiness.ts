@@ -87,8 +87,7 @@ async function validateEnvironmentConfig() {
     const required = [
         "DATABASE_URL",
         "NEXTAUTH_SECRET",
-        "NEXTAUTH_URL",
-        "CONTENT_ASSET_API_URL"
+        "NEXTAUTH_URL"
     ];
 
     const optional = [
@@ -104,6 +103,19 @@ async function validateEnvironmentConfig() {
         const exists = !!process.env[key];
         addResult("Environment", key, exists, exists ? "Configured" : "MISSING (required)");
     }
+
+    const contentAssetsEnabled = process.env["CONTENT_ASSETS_ENABLED"] === "true";
+    const contentAssetUrl = !!process.env["CONTENT_ASSET_API_URL"];
+    addResult(
+        "Environment",
+        "CONTENT_ASSET_API_URL",
+        contentAssetUrl || !contentAssetsEnabled,
+        contentAssetUrl
+            ? "Configured"
+            : contentAssetsEnabled
+                ? "MISSING while CONTENT_ASSETS_ENABLED=true"
+                : "Not set; content asset generation disabled"
+    );
 
     for (const key of optional) {
         const exists = !!process.env[key];
