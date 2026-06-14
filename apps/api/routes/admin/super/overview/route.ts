@@ -35,6 +35,7 @@ export async function GET(req: Request) {
             teams,
             apiKeys,
             usageByTeam,
+            usageByActor,
             usageByProvider,
             usageByModel,
             creditTransactions,
@@ -112,6 +113,15 @@ export async function GET(req: Request) {
                 _avg: { latency: true },
             }),
             prisma.lLMUsageLog.groupBy({
+                by: ["actorId"],
+                where: {
+                    createdAt: { gte: startDate },
+                    actorId: { not: null },
+                },
+                _sum: { tokensIn: true, tokensOut: true, cost: true },
+                _count: { _all: true },
+            }),
+            prisma.lLMUsageLog.groupBy({
                 by: ["provider"],
                 where: { createdAt: { gte: startDate } },
                 _sum: { tokensIn: true, tokensOut: true, cost: true },
@@ -163,6 +173,12 @@ export async function GET(req: Request) {
             cost: usage._sum.cost || 0,
             avgLatencyMs: usage._avg.latency || 0,
         }]));
+        const actorUsageMap = new Map(usageByActor.map((usage) => [usage.actorId, {
+            requests: usage._count._all || 0,
+            tokensIn: usage._sum.tokensIn || 0,
+            tokensOut: usage._sum.tokensOut || 0,
+            cost: usage._sum.cost || 0,
+        }]));
 
         const creditMap = new Map<string, { spent: number; topup: number; bonus: number }>();
         for (const entry of creditTransactions) {
@@ -200,8 +216,9 @@ export async function GET(req: Request) {
         });
 
         const usersRows = users.map((user) => {
+            const actorUsage = actorUsageMap.get(user.id);
             const teamIds = user.memberships.map((membership) => membership.teamId);
-            const teamUsage = teamIds.reduce(
+            const fallbackTeamUsage = teamIds.reduce(
                 (acc, teamId) => {
                     const usage = usageMap.get(teamId);
                     if (usage) {
@@ -214,6 +231,14 @@ export async function GET(req: Request) {
                 },
                 { llmRequests: 0, tokensIn: 0, tokensOut: 0, tokenCost: 0 }
             );
+            const userUsage = actorUsage
+                ? {
+                    llmRequests: actorUsage.requests,
+                    tokensIn: actorUsage.tokensIn,
+                    tokensOut: actorUsage.tokensOut,
+                    tokenCost: actorUsage.cost,
+                }
+                : fallbackTeamUsage;
             const creditsSpent = user.creditLedger
                 .filter((entry) => entry.amount < 0)
                 .reduce((sum, entry) => sum + Math.abs(entry.amount), 0);
@@ -235,10 +260,12 @@ export async function GET(req: Request) {
                     status: membership.status,
                 })),
                 creditsSpent,
-                usageAttribution: "team",
-                ...teamUsage,
+                usageAttribution: actorUsage ? "user" : "team",
+                ...userUsage,
             };
         });
+        const userAttributedRequests = Array.from(actorUsageMap.values()).reduce((sum, usage) => sum + usage.requests, 0);
+        const userAttributedTokens = Array.from(actorUsageMap.values()).reduce((sum, usage) => sum + usage.tokensIn + usage.tokensOut, 0);
 
         const totals = teamRows.reduce(
             (acc, team) => {
@@ -269,6 +296,8 @@ export async function GET(req: Request) {
                 creditsSpent: 0,
                 auditEvents: auditCount,
                 systemEvents: systemEventCount,
+                userAttributedRequests,
+                userAttributedTokens,
             }
         );
 

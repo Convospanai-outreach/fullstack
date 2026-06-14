@@ -56,6 +56,7 @@ describe("super admin overview route", () => {
         ]);
         mockPrisma.lLMUsageLog.groupBy
             .mockResolvedValueOnce([{ teamId: "team-1", _sum: { tokensIn: 100, tokensOut: 50, cost: 0.25 }, _count: { _all: 2 }, _avg: { latency: 100 } }])
+            .mockResolvedValueOnce([{ actorId: "user-1", _sum: { tokensIn: 80, tokensOut: 40, cost: 0.2 }, _count: { _all: 1 } }])
             .mockResolvedValueOnce([{ provider: "openai", _sum: { tokensIn: 100, tokensOut: 50, cost: 0.25 }, _count: { provider: 2 } }])
             .mockResolvedValueOnce([{ model: "gpt-4o-mini", _sum: { tokensIn: 100, tokensOut: 50, cost: 0.25 }, _count: { model: 2 } }]);
         mockPrisma.creditTransaction.groupBy.mockResolvedValue([{ teamId: "team-1", type: "usage", _sum: { amount: -5 } }]);
@@ -88,7 +89,7 @@ describe("super admin overview route", () => {
             tokensOut: 50,
             tokenCost: 0.25,
         });
-        expect(body.users[0]).toMatchObject({ email: "admin@example.com", usageAttribution: "team" });
+        expect(body.users[0]).toMatchObject({ email: "admin@example.com", usageAttribution: "user", llmRequests: 1 });
         expect(body.apiKeys[0]).toMatchObject({ name: "Prod", teamName: "Team One" });
     });
 });

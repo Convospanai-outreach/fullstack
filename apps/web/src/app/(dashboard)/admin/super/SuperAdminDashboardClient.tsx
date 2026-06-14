@@ -24,6 +24,8 @@ type SuperOverview = {
         creditsSpent: number;
         auditEvents: number;
         systemEvents: number;
+        userAttributedRequests: number;
+        userAttributedTokens: number;
     };
     users: Array<{
         id: string;
@@ -38,7 +40,7 @@ type SuperOverview = {
         tokensIn: number;
         tokensOut: number;
         tokenCost: number;
-        usageAttribution: "team";
+        usageAttribution: "user" | "team";
         teams: Array<{ id: string; name: string; role: string; status: string }>;
     }>;
     teams: Array<{
@@ -142,6 +144,7 @@ export default function SuperAdminDashboardClient() {
             { label: "Teams", value: data.totals.teams.toLocaleString(), icon: Database },
             { label: "Active API Keys", value: `${data.totals.activeApiKeys}/${data.totals.apiKeys}`, icon: KeyRound },
             { label: "LLM Requests", value: compactNumber(data.totals.llmRequests), icon: Cpu },
+            { label: "User-Attributed", value: compactNumber(data.totals.userAttributedRequests), icon: Shield },
             { label: "Tokens", value: compactNumber(data.totals.tokensIn + data.totals.tokensOut), icon: Activity },
             { label: "Token Cost", value: money(data.totals.tokenCost), icon: Wallet },
         ];
@@ -169,7 +172,7 @@ export default function SuperAdminDashboardClient() {
                 </div>
 
                 <GlassCard className="border-amber-300/20 bg-amber-300/5 p-4 text-sm text-amber-100">
-                    Token usage is currently logged by workspace. User token columns are team-attributed until LLM usage logs include actor IDs.
+                    New LLM usage is attributed to users when the request carries an actor. Older rows without actor IDs fall back to workspace attribution.
                 </GlassCard>
 
                 {loading && <GlassCard className="p-6 text-slate-200">Loading platform overview...</GlassCard>}
@@ -199,6 +202,7 @@ export default function SuperAdminDashboardClient() {
                                         <th className="py-3 pr-4 text-left">Role</th>
                                         <th className="py-3 pr-4 text-right">Teams</th>
                                         <th className="py-3 pr-4 text-right">Credits Spent</th>
+                                        <th className="py-3 pr-4 text-left">Usage Source</th>
                                         <th className="py-3 pr-4 text-right">Requests</th>
                                         <th className="py-3 text-right">Cost</th>
                                     </tr>
@@ -213,6 +217,15 @@ export default function SuperAdminDashboardClient() {
                                             <td className="py-3 pr-4">{user.enterpriseRole || user.role}</td>
                                             <td className="py-3 pr-4 text-right">{user.teamCount}</td>
                                             <td className="py-3 pr-4 text-right">{user.creditsSpent.toLocaleString()}</td>
+                                            <td className="py-3 pr-4">
+                                                <span className={`rounded-full px-2 py-1 text-xs ${
+                                                    user.usageAttribution === "user"
+                                                        ? "bg-emerald-400/10 text-emerald-200"
+                                                        : "bg-amber-400/10 text-amber-200"
+                                                }`}>
+                                                    {user.usageAttribution === "user" ? "User exact" : "Team fallback"}
+                                                </span>
+                                            </td>
                                             <td className="py-3 pr-4 text-right">{user.llmRequests.toLocaleString()}</td>
                                             <td className="py-3 text-right">{money(user.tokenCost)}</td>
                                         </tr>
