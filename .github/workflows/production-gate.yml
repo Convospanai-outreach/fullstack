@@ -43,6 +43,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Web Import Guards
+        run: |
+          node scripts/check-web-prisma-imports.mjs
+          node scripts/check-web-route-db-imports.mjs
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

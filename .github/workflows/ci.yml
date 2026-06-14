@@ -43,6 +43,11 @@ jobs:
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
+    - name: Web Import Guards
+      run: |
+        node scripts/check-web-prisma-imports.mjs
+        node scripts/check-web-route-db-imports.mjs
+
     - name: Use Node.js
       uses: actions/setup-node@v4
       with:
