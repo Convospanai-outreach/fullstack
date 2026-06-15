@@ -16,6 +16,7 @@ import {
     enforceAIPromptPolicy,
     resolveSurfaceFromTaskType
 } from "@/lib/aiInputGuardrails";
+import { RequestContext } from "@/lib/requestContext";
 
 type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -153,6 +154,7 @@ function extractJsonBlock(text: string): string {
 
 async function logUsage(params: {
     teamId?: string;
+    actorId?: string;
     provider: LLMProvider;
     model: string;
     taskType: string;
@@ -167,6 +169,7 @@ async function logUsage(params: {
         await prisma.lLMUsageLog.create({
             data: {
                 teamId: params.teamId,
+                actorId: params.actorId,
                 provider: params.provider,
                 model: params.model,
                 taskType: params.taskType,
@@ -253,8 +256,10 @@ async function callLLM(
         complexity?: TaskComplexity;
         taskTypeLabel?: string;
         creditDescription?: string;
+        actorId?: string;
     }
 ) {
+    const actorId = options.actorId || RequestContext.get()?.userId;
     const providers = await loadTeamProviders(options.teamId);
     const resolved = resolveProvider(providers, options.complexity);
     const start = Date.now();
@@ -281,6 +286,7 @@ async function callLLM(
             const tokensOut = usage.candidatesTokenCount || 0;
             await logUsage({
                 teamId: options.teamId,
+                actorId,
                 provider: resolved.provider,
                 model: resolved.model,
                 taskType: options.complexity || TaskComplexity.ROUTINE,
@@ -318,6 +324,7 @@ async function callLLM(
             const tokensOut = response.usage?.completion_tokens || 0;
             await logUsage({
                 teamId: options.teamId,
+                actorId,
                 provider: resolved.provider,
                 model: resolved.model,
                 taskType: options.complexity || TaskComplexity.ROUTINE,
@@ -354,6 +361,7 @@ async function callLLM(
         const tokensOut = (message.usage as any)?.output_tokens || 0;
         await logUsage({
             teamId: options.teamId,
+            actorId,
             provider: resolved.provider,
             model: resolved.model,
             taskType: options.complexity || TaskComplexity.ROUTINE,
@@ -403,6 +411,7 @@ async function callLLM(
 
         await logUsage({
             teamId: options.teamId,
+            actorId,
             provider: resolved.provider,
             model: resolved.model,
             taskType: options.complexity || TaskComplexity.ROUTINE,
@@ -426,6 +435,7 @@ export class AIService {
             groundingContext?: string;
             taskType?: string;
             surface?: AISurface;
+            actorId?: string;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
@@ -437,7 +447,8 @@ export class AIService {
             teamId,
             complexity: TaskComplexity.STRATEGIC,
             taskTypeLabel: taskContext?.taskType || surface,
-            creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`
+            creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
+            actorId: taskContext?.actorId
         });
 
         const expectsJson = !!taskContext?.expectsJson;
@@ -464,7 +475,8 @@ export class AIService {
         return clampGeneratedText(guarded.text, OUTPUT_MAX_CHARS[surface]);
     }
 
-    async getEmbeddings(text: string, teamId?: string): Promise<number[]> {
+    async getEmbeddings(text: string, teamId?: string, actorId?: string): Promise<number[]> {
+        const resolvedActorId = actorId || RequestContext.get()?.userId;
         const safeText = enforceAIPromptPolicy(text, {
             surface: "HELPER",
             label: "Embedding input",
@@ -503,6 +515,7 @@ export class AIService {
             const tokensOut = 0;
             await logUsage({
                 teamId,
+                actorId: resolvedActorId,
                 provider: LLMProvider.OPENAI,
                 model,
                 taskType: "EMBEDDING",
@@ -538,6 +551,7 @@ export class AIService {
             const tokensOut = 0;
             await logUsage({
                 teamId,
+                actorId: resolvedActorId,
                 provider: LLMProvider.GEMINI,
                 model: embeddingModelName,
                 taskType: "EMBEDDING",
@@ -589,6 +603,7 @@ export class AIService {
 
             await logUsage({
                 teamId,
+                actorId: resolvedActorId,
                 provider: resolved.provider,
                 model: resolved.model,
                 taskType: "EMBEDDING",

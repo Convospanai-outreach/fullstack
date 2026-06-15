@@ -3,6 +3,25 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 
 type TaskStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "PAUSED";
+type BehaviorReport = {
+    persona?: string;
+    scenario?: string;
+    journey?: string[];
+    frictionScore?: number;
+    confidence?: string;
+    findings?: Array<{
+        scenario?: string;
+        priority?: string;
+        persona?: string;
+        severity?: string;
+        affectedSurface?: string;
+        ownerArea?: string;
+        friction?: string;
+        recommendation?: string;
+        testNeeded?: string;
+    }>;
+    nextBestTests?: string[];
+};
 
 function getStatusCounts(statuses: string[]) {
     const counts = {
@@ -77,6 +96,10 @@ export async function GET(req: NextRequest) {
         const summary = typeof context?.result?.summary === "string"
             ? context.result.summary
             : null;
+        const behaviorReport = typeof context?.result?.behaviorReport === "object" && context.result.behaviorReport !== null
+            ? context.result.behaviorReport as BehaviorReport
+            : null;
+        const swarmType = typeof context.swarmType === "string" ? context.swarmType : "GENERAL_REVIEW";
         const failureReason = typeof context.failureReason === "string" ? context.failureReason : null;
         const agent = agentById.get(agentId);
 
@@ -89,6 +112,8 @@ export async function GET(req: NextRequest) {
             agentName: agent?.name ?? role,
             agentStatus: agent?.status ?? "unknown",
             summary,
+            swarmType,
+            behaviorReport,
             failureReason
         };
     });
@@ -100,4 +125,3 @@ export async function GET(req: NextRequest) {
         tasks: taskDetails
     });
 }
-

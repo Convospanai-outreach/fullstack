@@ -162,6 +162,8 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/integrations/google/pubsub",
     ];
     const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
+    let authUserId: string | undefined;
+    let authTeamId: string | undefined;
 
     if (!isPublic) {
       const secret = process.env.NEXTAUTH_SECRET;
@@ -179,6 +181,8 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
         reply.status(401).send({ error: 'Unauthorized' });
         return;
       }
+      authUserId = typeof token.sub === 'string' ? token.sub : typeof (token as any).id === 'string' ? (token as any).id : undefined;
+      authTeamId = typeof (token as any).teamId === 'string' ? (token as any).teamId : undefined;
       
       if (registeredPath.startsWith('/admin')) {
         const role = token.enterpriseRole as string;
@@ -209,7 +213,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
 
     const paramsPayload = Promise.resolve((request.params || {}) as Record<string, string>);
     const correlationId = headers.get('x-correlation-id') || randomUUID();
-    const response = await RequestContext.run({ correlationId, request: nextReq }, async () => (
+    const response = await RequestContext.run({ correlationId, request: nextReq, userId: authUserId, teamId: authTeamId }, async () => (
       handler.length >= 2
         ? await handler(nextReq as any, { params: paramsPayload })
         : await handler(nextReq as any)

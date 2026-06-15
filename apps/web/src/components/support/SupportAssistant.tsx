@@ -21,6 +21,9 @@ type AssistantAction = {
 
 type AssistantResponse = {
     answer: string;
+    source?: "faq" | "knowledge" | "cache" | "llm" | "not_found" | "local";
+    confidence?: number;
+    usedLLM?: boolean;
     suggestions: string[];
     matches: AssistantMatch[];
     actions: AssistantAction[];
@@ -33,6 +36,15 @@ type Message = {
 
 const DEFAULT_ANSWER =
     "Ask about setup, billing, imports, or API keys. I will point you to the fastest path and give you a human handoff when needed.";
+
+const SOURCE_LABELS: Record<NonNullable<AssistantResponse["source"]>, string> = {
+    faq: "Answered from help",
+    knowledge: "Answered from workspace knowledge",
+    cache: "Answered from cache",
+    llm: "AI generated",
+    not_found: "Needs more context",
+    local: "Answered from help",
+};
 
 export function SupportAssistant() {
     const [isOpen, setIsOpen] = useState(false);
@@ -153,6 +165,15 @@ export function SupportAssistant() {
 
                         {response && (
                             <div className="space-y-4 rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-medium text-amber-100">
+                                        {SOURCE_LABELS[response.source || "local"]}
+                                    </span>
+                                    {typeof response.confidence === "number" && (
+                                        <span className="text-xs text-slate-400">{response.confidence}% confidence</span>
+                                    )}
+                                </div>
+
                                 {response.matches.length > 0 && (
                                     <div className="space-y-2">
                                         <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Closest guides</p>

@@ -1173,6 +1173,7 @@ model User {
   credits            Int               @default(0)
   subscription       Subscription?
   creditLedger       CreditLedger[]
+  llmUsageLogs       LLMUsageLog[]     @relation("LLMUsageActor")
   auditLogs          AuditLog[]
   tasks              Task[]
   userQuotas         UserQuota[]
@@ -1717,6 +1718,7 @@ model AgentFeedbackLoop {
 model LLMUsageLog {
   id        String   @id @default(uuid())
   teamId    String
+  actorId   String?
   provider  String // "openai", "groq", "gemini", "anthropic"
   model     String // "gpt-4o", "llama-3.1-70b", "gemini-1.5-flash"
   taskType  String // "ROUTINE", "STRATEGIC"
@@ -1727,8 +1729,10 @@ model LLMUsageLog {
   success   Boolean
   error     String?
   createdAt DateTime @default(now())
+  actor     User?    @relation("LLMUsageActor", fields: [actorId], references: [id])
 
   @@index([teamId, createdAt])
+  @@index([actorId, createdAt])
   @@index([provider, createdAt])
   @@index([taskType])
 }

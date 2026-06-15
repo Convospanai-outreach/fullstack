@@ -25,9 +25,50 @@ const DEFAULT_SWARM_ROLES = [
     "Audit Sentinel",
 ];
 
-function normalizeRoles(input: unknown): string[] {
+const USER_BEHAVIOR_ROLES = [
+    "First-time Founder User",
+    "Sales Operator User",
+    "RevOps Manager User",
+    "Workspace Admin User",
+    "UI/UX Frontend",
+    "Adversarial Red Team",
+    "Test Executor",
+    "Product Head",
+];
+
+const MODE_DEFAULTS = {
+    GENERAL_REVIEW: {
+        goal: "Audit, debug, and improve campaigns and onboarding execution",
+        roles: DEFAULT_SWARM_ROLES,
+    },
+    USER_BEHAVIOR: {
+        goal: "Simulate core user behavior across signup, lead capture, email outreach, LinkedIn follow-up, and funnel updates",
+        roles: USER_BEHAVIOR_ROLES,
+    },
+    LAUNCH_READINESS: {
+        goal: "Simulate workspace admin launch readiness across Clerk auth, Postgres sync, setup, env configuration, team invites, and governance checks",
+        roles: ["Workspace Admin User", "Technical Auditor", "DevOps Specialist", "Audit Sentinel", "Product Head"],
+    },
+    LEAD_JOURNEY: {
+        goal: "Simulate one lead journey across email, LinkedIn, WhatsApp, call, manual status updates, follow-up suggestions, and funnel progression",
+        roles: ["Sales Operator User", "RevOps Manager User", "Test Executor", "UI/UX Frontend", "Adversarial Red Team"],
+    },
+    ADMIN_SETUP: {
+        goal: "Simulate admin setup for invite approval, permissions, feature readiness, audit trail, and deployment confidence",
+        roles: ["Workspace Admin User", "Admin Operator", "Technical Auditor", "DevOps Specialist", "Audit Sentinel"],
+    },
+} as const;
+
+function normalizeSwarmType(input: unknown) {
+    if (input === "USER_BEHAVIOR" || input === "LAUNCH_READINESS" || input === "LEAD_JOURNEY" || input === "ADMIN_SETUP") {
+        return input;
+    }
+    return "GENERAL_REVIEW";
+}
+
+function normalizeRoles(input: unknown, fallbackRoles: readonly string[]): string[] {
     if (!Array.isArray(input)) {
-        return DEFAULT_SWARM_ROLES;
+        return [...fallbackRoles];
     }
 
     const cleaned = input
@@ -35,7 +76,7 @@ function normalizeRoles(input: unknown): string[] {
         .filter((role) => role.length > 0);
 
     if (cleaned.length === 0) {
-        return DEFAULT_SWARM_ROLES;
+        return [...fallbackRoles];
     }
 
     const uniqueByKey = new Map<string, string>();
@@ -60,10 +101,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
+    const swarmType = normalizeSwarmType(body.swarmType);
+    const modeDefaults = MODE_DEFAULTS[swarmType];
     const goal = typeof body.goal === "string" && body.goal.trim().length > 0
         ? body.goal.trim()
-        : "Audit, debug, and improve campaigns and onboarding execution";
-    const roles = normalizeRoles(body.roles);
+        : modeDefaults.goal;
+    const roles = normalizeRoles(body.roles, modeDefaults.roles);
     const campaignId = typeof body.campaignId === "string" ? body.campaignId : null;
     const swarmId = `swarm_${crypto.randomUUID()}`;
 
@@ -73,7 +116,7 @@ export async function POST(req: Request) {
             orgId: teamId,
             userId,
             action: "AGENT_RUN",
-            payload: { swarmId, roles, campaignId, goal }
+            payload: { swarmId, roles, campaignId, goal, swarmType }
         });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 403 });
@@ -128,6 +171,7 @@ export async function POST(req: Request) {
                 ],
                 context: {
                     swarmId,
+                    swarmType,
                     role,
                     goal,
                     campaignId,
@@ -144,6 +188,7 @@ export async function POST(req: Request) {
                 agentId: agent.id,
                 meta: {
                     swarmId,
+                    swarmType,
                     taskId: task.id,
                     role,
                     goal,
@@ -161,6 +206,7 @@ export async function POST(req: Request) {
                 role,
                 taskId: task.id,
                 swarmId,
+                swarmType,
                 goal,
                 campaignId
             },
@@ -187,6 +233,7 @@ export async function POST(req: Request) {
         entityId: swarmId,
         metadata: {
             goal,
+            swarmType,
             roles,
             campaignId,
             launchedCount: launched.length,
@@ -198,6 +245,7 @@ export async function POST(req: Request) {
         ok: true,
         swarmId,
         goal,
+        swarmType,
         launched: launched.length,
         jobs: launched
     });
