@@ -278,21 +278,25 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     // === Content Security Policy (Enterprise Grade) ===
     const edgeNodeUri = process.env['EDGE_NODE_URI'] || '';
     const onPremAI = process.env['ON_PREM_AI_ENDPOINT'] || '';
+    const clerkFrontendApi = process.env['NEXT_PUBLIC_CLERK_FRONTEND_API'] || 'clerk.craftmyfunnel.live';
+    const clerkFrontendHost = clerkFrontendApi.startsWith('http')
+        ? clerkFrontendApi
+        : `https://${clerkFrontendApi}`;
     
     const cspValues = [
         "default-src 'self'",
-        // Scripts: Allow self, Google Auth, and Razorpay
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com",
+        // Scripts: Allow self, Clerk, Google Auth, and Razorpay
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://accounts.google.com https://checkout.razorpay.com`,
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        // Images: Allow self, Google placeholders, and data URLs for icons
-        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
+        // Images: Allow self, Clerk avatars, Google placeholders, and data URLs for icons
+        `img-src 'self' data: blob: ${clerkFrontendHost} https://img.clerk.com https://lh3.googleusercontent.com https://*.google.com`,
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
-        // Connect: Self, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
-        // Frames: Google Auth & Razorpay
-        "frame-src 'self' https://accounts.google.com https://api.razorpay.com",
+        // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
+        `connect-src 'self' ${clerkFrontendHost} https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
+        // Frames: Clerk, Google Auth & Razorpay
+        `frame-src 'self' ${clerkFrontendHost} https://accounts.google.com https://api.razorpay.com`,
         // Media/Workers: Stricter constraints
         "worker-src 'self' blob:",
         "object-src 'none'",
