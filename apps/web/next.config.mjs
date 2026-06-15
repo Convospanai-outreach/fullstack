@@ -10,6 +10,9 @@ const isDevelopment = process.env.NODE_ENV !== 'production';
 const useStandaloneOutput =
     process.env.NEXT_OUTPUT_MODE === 'standalone' ||
     process.env.NEXT_USE_STANDALONE === 'true';
+const usePackageImportOptimization =
+    process.env.NEXT_OPTIMIZE_PACKAGE_IMPORTS !== 'false' &&
+    process.env.NEXT_DISABLE_OPTIMIZE_PACKAGE_IMPORTS !== 'true';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -19,9 +22,17 @@ const nextConfig = {
     turbopack: {
         root: repoRoot,
     },
-    serverExternalPackages: ['ssh2', 'docker-modem', '@genkit-ai/googleai', '@cfworker/json-schema'],
+    serverExternalPackages: [
+        'ssh2',
+        'docker-modem',
+        '@genkit-ai/googleai',
+        '@cfworker/json-schema',
+        '@prisma/client',
+        '@prisma/adapter-pg',
+        'pg',
+    ],
     experimental: {
-        optimizePackageImports: isDevelopment ? [] : ['lucide-react', 'recharts', 'date-fns'],
+        optimizePackageImports: isDevelopment || !usePackageImportOptimization ? [] : ['lucide-react', 'recharts', 'date-fns'],
     },
     images: {
         remotePatterns: [

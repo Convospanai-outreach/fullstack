@@ -1,9 +1,13 @@
-import { razorpay } from "@/lib/razorpay";
+import { razorpay, isRazorpayConfigured } from "@/lib/razorpay";
 import { prisma } from "@/lib/db";
 
 class BillingService {
     async createOrder(amount: number, currency: string = "INR", receipt: string, notes: any = {}) {
         try {
+            if (!isRazorpayConfigured || !razorpay) {
+                throw new Error("Razorpay is not configured");
+            }
+
             const options = {
                 amount: amount * 100, // Razorpay accepts amount in smallest currency unit
                 currency,
