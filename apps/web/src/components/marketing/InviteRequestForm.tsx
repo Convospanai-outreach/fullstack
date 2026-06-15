@@ -83,13 +83,16 @@ export function InviteRequestForm() {
                 value={form.use_case}
                 onChange={(event) => setForm({ ...form, use_case: event.target.value })}
                 className="min-h-28 rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-300/60 sm:col-span-2"
-                placeholder="Primary use case"
+                placeholder="What kind of outreach are you trying to govern?"
             />
             <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
-                <Button disabled={loading} className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-8 py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60">
-                    {loading ? "Requesting..." : "Request Invite"}
-                    {!loading && <ArrowRight className="h-4 w-4" />}
-                </Button>
+                <div className="flex flex-col gap-3">
+                    <Button disabled={loading} className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-8 py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60">
+                        {loading ? "Requesting..." : "Request Invite"}
+                        {!loading && <ArrowRight className="h-4 w-4" />}
+                    </Button>
+                    <p className="text-sm text-slate-500">We review every request manually. You'll hear back within 2 business days.</p>
+                </div>
                 {message && <p className="flex items-center gap-2 text-sm text-emerald-200"><CheckCircle className="h-4 w-4" />{message}</p>}
                 {error && <p className="text-sm text-red-200">{error}</p>}
             </div>
