@@ -15,15 +15,18 @@ export default function BrandingSettingsPage() {
     const handleSave = async () => {
         setLoading(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/branding", {
+            const res = await fetch("/api/settings/branding", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ logoUrl, primaryColor, portalTitle })
             });
-            if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.gated) {
+                toast.info(data.message || "Branding customization is not enabled for this workspace yet.");
+            } else if (res.ok) {
                 toast.success("Branding updated");
             } else {
-                toast.error("Failed to update branding");
+                toast.error(data?.error || "Failed to update branding");
             }
         } catch (e) {
             toast.error("Error updating branding");

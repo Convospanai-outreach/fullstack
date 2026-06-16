@@ -34,6 +34,12 @@ function getWebAuthUrl(req: NextRequest, pathParts: string[]): URL | null {
     return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
 }
 
+function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
+    if (!["auth", "leads"].includes(pathParts[0] || "")) return null;
+    const apiPath = pathParts.join("/");
+    return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+}
+
 async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) return;
@@ -82,14 +88,15 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
             throw new Error("Proxy path is required");
         }
 
-        const target = getWebAuthUrl(req, pathParts) ?? getTargetUrl(req, pathParts);
+        const webOwnedTarget = getWebOwnedApiUrl(req, pathParts);
+        const target = webOwnedTarget ?? getTargetUrl(req, pathParts);
         const headers = new Headers(req.headers);
 
         headers.delete("host");
         headers.delete("connection");
         headers.delete("content-length");
 
-        if (!getWebAuthUrl(req, pathParts)) {
+        if (!webOwnedTarget) {
             await addInternalAuthHeaders(req, headers);
         }
 
@@ -117,7 +124,11 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Proxy failure";
-        return NextResponse.json({ error: message }, { status: 502 });
+        return NextResponse.json({
+            error: message === "fetch failed" ? "Upstream API is unavailable or API_INTERNAL_ORIGIN is misconfigured." : message,
+            code: "PROXY_UPSTREAM_UNAVAILABLE",
+            upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
+        }, { status: 502 });
     }
 }
 

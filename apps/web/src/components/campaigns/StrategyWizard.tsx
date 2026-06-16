@@ -398,8 +398,8 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-            <GlassCard className="relative m-0 flex h-[88vh] w-full max-w-5xl flex-col overflow-hidden border-2 border-white/10 p-0">
+        <div className="mx-auto w-full max-w-6xl">
+            <GlassCard className="relative m-0 flex w-full flex-col overflow-hidden border border-white/10 p-0 shadow-none">
                 <div className="space-y-4 border-b border-white/10 bg-black/20 p-6">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="space-y-2">
@@ -456,7 +456,7 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
                         })}
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto p-8">
+                <div className="p-6 sm:p-8">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={step}
@@ -501,7 +501,7 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
                     </AnimatePresence>
                 </div>
 
-                <div className="flex flex-col gap-4 border-t border-white/10 bg-black/20 p-6 md:flex-row md:items-center md:justify-between">
+                <div className="sticky bottom-0 flex flex-col gap-4 border-t border-white/10 bg-black/80 p-6 backdrop-blur md:flex-row md:items-center md:justify-between">
                     <div>
                         <p className="text-sm font-medium text-white">
                             {step === "review"

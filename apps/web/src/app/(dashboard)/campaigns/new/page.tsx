@@ -7,7 +7,7 @@ export default function NewCampaignPage() {
     const router = useRouter();
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex items-center justify-center p-4">
+        <div className="w-full px-4 py-6 sm:px-6 lg:px-8">
             <StrategyWizard onClose={() => router.push("/campaigns")} />
         </div>
     );

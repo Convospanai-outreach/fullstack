@@ -337,7 +337,22 @@ export async function GET() {
             features,
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message || "Failed to load hidden features" }, { status: 500 });
+        console.error("[settings:hidden-features:get]", error);
+        const enabledFeatures = readEnabledFeaturesFromCookie((await cookies()).get(HIDDEN_FEATURES_COOKIE)?.value);
+        const features = Object.values(HIDDEN_FEATURES).map((feature) => ({
+            ...feature,
+            enabled: enabledFeatures.has(feature.key),
+            ready: false,
+            readinessReason: "Readiness checks are temporarily unavailable.",
+            recommendedAction: "Try again after the workspace finishes setup.",
+        }));
+
+        return NextResponse.json({
+            defaults: Array.from(getDefaultEnabledHiddenFeatureKeys()),
+            features,
+            degraded: true,
+            errorCode: "HIDDEN_FEATURE_CONTEXT_FAILED",
+        });
     }
 }
 
