@@ -312,12 +312,12 @@ function readEnabledFeaturesFromCookie(cookieValue?: string | null) {
 }
 
 export async function GET() {
-    const { userId, teamId } = await getCurrentContext();
-    if (!userId || !teamId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     try {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
+            return NextResponse.json(buildFallbackFeatures("No active workspace was found for this account."));
+        }
+
         const cookieStore = await cookies();
         const enabledFeatures = readEnabledFeaturesFromCookie(cookieStore.get(HIDDEN_FEATURES_COOKIE)?.value);
         const context = await loadFeatureContext(teamId);
@@ -338,22 +338,26 @@ export async function GET() {
         });
     } catch (error: any) {
         console.error("[settings:hidden-features:get]", error);
-        const enabledFeatures = readEnabledFeaturesFromCookie((await cookies()).get(HIDDEN_FEATURES_COOKIE)?.value);
-        const features = Object.values(HIDDEN_FEATURES).map((feature) => ({
-            ...feature,
-            enabled: enabledFeatures.has(feature.key),
-            ready: false,
-            readinessReason: "Readiness checks are temporarily unavailable.",
-            recommendedAction: "Try again after the workspace finishes setup.",
-        }));
-
-        return NextResponse.json({
-            defaults: Array.from(getDefaultEnabledHiddenFeatureKeys()),
-            features,
-            degraded: true,
-            errorCode: "HIDDEN_FEATURE_CONTEXT_FAILED",
-        });
+        return NextResponse.json(buildFallbackFeatures("Readiness checks are temporarily unavailable."));
     }
+}
+
+function buildFallbackFeatures(reason: string) {
+    const defaults = getDefaultEnabledHiddenFeatureKeys();
+    const features = Object.values(HIDDEN_FEATURES).map((feature) => ({
+        ...feature,
+        enabled: defaults.has(feature.key),
+        ready: false,
+        readinessReason: reason,
+        recommendedAction: "Try again after the workspace finishes setup.",
+    }));
+
+    return {
+        defaults: Array.from(defaults),
+        features,
+        degraded: true,
+        errorCode: "HIDDEN_FEATURE_CONTEXT_FAILED",
+    };
 }
 
 export async function PUT(req: NextRequest) {
