@@ -286,17 +286,17 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const cspValues = [
         "default-src 'self'",
         // Scripts: Allow self, Clerk, Google Auth, and Razorpay
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://accounts.google.com https://checkout.razorpay.com`,
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com`,
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         // Images: Allow self, Clerk avatars, Google placeholders, and data URLs for icons
-        `img-src 'self' data: blob: ${clerkFrontendHost} https://img.clerk.com https://lh3.googleusercontent.com https://*.google.com`,
+        `img-src 'self' data: blob: ${clerkFrontendHost} https://*.clerk.accounts.dev https://img.clerk.com https://lh3.googleusercontent.com https://*.google.com`,
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
         // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' ${clerkFrontendHost} https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
+        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
         // Frames: Clerk, Google Auth & Razorpay
-        `frame-src 'self' ${clerkFrontendHost} https://accounts.google.com https://api.razorpay.com`,
+        `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com`,
         // Media/Workers: Stricter constraints
         "worker-src 'self' blob:",
         "object-src 'none'",
