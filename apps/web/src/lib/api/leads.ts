@@ -1,6 +1,7 @@
 // Client-side API wrapper for lead operations
 
-const API_BASE = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/leads";
+const API_BASE = "/api/leads";
+const API_PROXY_BASE = "/api/proxy/leads";
 
 export interface Lead {
     id: string;
@@ -37,7 +38,7 @@ export async function getLeads(filters?: LeadFilters) {
 }
 
 export async function getLead(id: string) {
-    const res = await fetch(`${API_BASE}/${id}`);
+    const res = await fetch(`${API_PROXY_BASE}/${id}`);
     if (!res.ok) throw new Error("Failed to fetch lead");
     return res.json();
 }
@@ -68,7 +69,7 @@ export async function updateLead(
         campaignId?: string;
     }
 ) {
-    const res = await fetch(`${API_BASE}/${id}`, {
+    const res = await fetch(`${API_PROXY_BASE}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -78,7 +79,7 @@ export async function updateLead(
 }
 
 export async function deleteLead(id: string) {
-    const res = await fetch(`${API_BASE}/${id}`, {
+    const res = await fetch(`${API_PROXY_BASE}/${id}`, {
         method: "DELETE",
     });
     if (!res.ok) throw new Error("Failed to delete lead");
