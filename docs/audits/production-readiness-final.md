@@ -18,6 +18,23 @@ Vercel deployment evidence exists, and Supabase is active, but production readin
 6. GitHub Actions green status was not verified because `gh` is unavailable in this environment.
 7. PR #6 is broad and must not be merged as-is.
 
+## Implementation REPLAN d3086c0
+
+Status: REPLAN completed; production remains blocked.
+
+- REPLAN artifact: `docs/codex/IMPLEMENTATION_REPLAN_D3086C0.md`
+- Canonical schema decision draft: `docs/audits/prisma-canonical-schema-decision.md`
+- Unsafe migration quarantine: `docs/audits/unsafe-migration-quarantine.md`
+- Auth/onboarding repair plan: `docs/audits/auth-schema-repair-plan.md`
+- Read-only verifier: `apps/web/src/scripts/verify-schema-readiness.ts`
+- Package entry point: `npm run schema:verify:readonly`
+
+The canonical decision currently proposes one shared production Prisma schema because `apps/web` and `apps/api` point at the same logical production database. `apps/web/prisma/schema.prisma` is the canonical candidate because it contains the Clerk and invite objects required by web runtime, but it must not be applied as-is until `Lead.embedding` is reconciled.
+
+The migration `20260604140000_edge_runtime_pairing` remains quarantined for production because it contains `DELETE FROM "EdgeNode"`. The replacement path must be preflight check, audit/backup if needed, non-destructive migration, and manual approval before any cleanup.
+
+No production migration was run. No `prisma db push` was run. PR #6 was not merged.
+
 ## Evidence
 
 - Branch updated: `codex/db-linkage-swarm-orchestration`
@@ -37,9 +54,9 @@ Vercel deployment evidence exists, and Supabase is active, but production readin
 
 ## Recommended Next Work
 
-1. Choose canonical Prisma source for production.
-2. Split unsafe/destructive migration behavior into audited preflight plus approved migration.
-3. Apply only reviewed, non-destructive migrations through `prisma migrate deploy`, never `db push`.
-4. Verify live DB migrations, required tables/columns, app environment marker, and schema fingerprint.
+1. Approve or revise the canonical Prisma decision before generating migrations.
+2. Prepare a reviewed replacement for the quarantined EdgeNode migration path.
+3. Generate an additive auth/onboarding draft migration after canonical schema approval.
+4. Run the read-only schema verifier with approved expected values against the intended database.
 5. Verify Vercel env keys/targets without exposing values.
 6. Re-run GitHub Actions and require green checks before launch.

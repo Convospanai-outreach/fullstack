@@ -7,12 +7,12 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Stage 13 - Final readiness |
-| Current agent | release-readiness-agent |
+| Current stage | Implementation REPLAN d3086c0 |
+| Current agent | orchestrator |
 | Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | 12174245a1af55d32c0b46a04b5d9f7b0a2948cd |
+| Baseline commit inspected | d3086c094d145eed0b7f5a5c7eed495bd302fb19 |
 | Last updated | 2026-06-18 |
-| Next action | Resolve schema/migration/auth/env blockers before implementation or production migration |
+| Next action | Review canonical schema decision and unsafe migration quarantine before generating migrations |
 
 ## Status values
 
@@ -58,6 +58,7 @@ Use only these values:
 | 11. Redis/cache/queue isolation | redis-cache-agent | READY_FOR_NEXT_STAGE | production-readiness-final.md | Redis degrades gracefully; production Redis env still unverified |
 | 12. CI and PR strategy | ci-gate-agent | NEEDS_REPLAN | production-readiness-final.md | CI structure exists; live Actions green not verified |
 | 13. Final readiness | release-readiness-agent | NEEDS_REPLAN | production-readiness-final.md | Final status: not launch-ready |
+| Implementation REPLAN d3086c0 | orchestrator | READY_FOR_NEXT_STAGE | IMPLEMENTATION_REPLAN_D3086C0.md | Produced canonical schema decision, unsafe migration quarantine, auth repair plan, and read-only schema verifier |
 
 ## Latest findings
 
@@ -72,6 +73,11 @@ Use only these values:
 - `20260604140000_edge_runtime_pairing` includes `DELETE FROM "EdgeNode"` and must not run in production as-is.
 - Vercel runtime logs showed recent production `200` responses for `/` and `/login`; local DNS maps custom domains to `127.0.0.1`, so direct local smoke checks were not reliable.
 - PR #2 is focused but `mergeable=false`; PR #6 is broad, `mergeable=false`, and must be split.
+- Implementation REPLAN from commit `d3086c094d145eed0b7f5a5c7eed495bd302fb19` is documented in `docs/codex/IMPLEMENTATION_REPLAN_D3086C0.md`.
+- Shared production DB should use a single canonical Prisma schema; `apps/web/prisma/schema.prisma` is the current canonical candidate only after reconciling `Lead.embedding`.
+- Unsafe migration `20260604140000_edge_runtime_pairing` is quarantined for production because it deletes orphaned `EdgeNode` rows.
+- Additive auth/onboarding repair is planned for `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; no production migration has been generated or applied.
+- A read-only verifier now exists at `apps/web/src/scripts/verify-schema-readiness.ts` and can be run with `npm run schema:verify:readonly`; it is not wired as a blocking CI gate.
 
 ## Decisions
 
@@ -81,16 +87,20 @@ Use only these values:
 | SELECT 1 is insufficient | 2026-06-18 | runtime-db-agent | Health routes only check `SELECT 1`; schema drift exists | ACCEPTED |
 | Do not run production migrations yet | 2026-06-18 | migration-safety-agent | Pending migration contains destructive delete | ACCEPTED |
 | Do not merge PR #6 as-is | 2026-06-18 | pr-strategy-agent | PR #6 broad/conflicting diff | ACCEPTED |
+| Shared production DB requires one canonical Prisma schema | 2026-06-18 | orchestrator | `docs/audits/prisma-canonical-schema-decision.md` | PROPOSED |
+| Quarantine `20260604140000_edge_runtime_pairing` before production deploy | 2026-06-18 | migration-safety-agent | `docs/audits/unsafe-migration-quarantine.md` | ACCEPTED |
+| Auth/onboarding repair must be additive and review-gated | 2026-06-18 | auth-tenant-agent | `docs/audits/auth-schema-repair-plan.md` | ACCEPTED |
 
 ## Next action queue
 
-1. Choose canonical Prisma source for production (`apps/web` vs `apps/api`) and reconcile migration directories.
-2. Split `20260604140000_edge_runtime_pairing` into safe preflight/backup/review plus non-destructive migration.
-3. Verify Vercel env keys and targets without exposing values.
-4. Add or run a readiness check that verifies migrations, required tables, required columns, app environment marker, and schema fingerprint.
-5. Resolve Clerk/invite schema mismatch before auth smoke.
-6. Verify GitHub Actions are green on the target branch.
-7. Split PR #6 into docs, env/auth alias, schema, runtime/API, and UI/test PRs.
+1. Approve or revise the shared canonical Prisma strategy in `docs/audits/prisma-canonical-schema-decision.md`.
+2. Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, audit/backup, non-destructive migration, and manual cleanup approval.
+3. Generate a draft additive auth/onboarding migration only after the canonical schema decision is approved.
+4. Run `npm run schema:verify:readonly` against the intended database using redacted env handling; do not wire it as blocking CI until expected values are approved.
+5. Verify Vercel env keys and targets without exposing values.
+6. Resolve Clerk/invite schema mismatch before auth smoke.
+7. Verify GitHub Actions are green on the target branch.
+8. Split PR #6 into docs, env/auth alias, schema, runtime/API, and UI/test PRs.
 
 ## Handoff note template
 

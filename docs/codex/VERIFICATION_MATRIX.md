@@ -44,7 +44,7 @@ Use only these verdicts:
 | --- | --- | --- | --- | --- | --- |
 | vector extension | Required if Lead.embedding is vector | Installed extension `vector` found | PASS | supabase-inspector | Live `Lead.embedding` is currently text |
 | _prisma_migrations | Present and latest expected migration applied | Present with 17 rows | MIGRATION_DRIFT | supabase-inspector | Local web has 25 migrations; API has 22 |
-| Lead.embedding | Must match canonical schema | Live column is nullable `text`; local web dirty change also uses `String?`; original schema expected vector | SCHEMA_DRIFT | supabase-inspector | Canonical type unresolved |
+| Lead.embedding | Must match canonical schema | Live column is nullable `text`; `apps/web` schema uses `Unsupported("vector(1536)")?`; `apps/api` schema uses `String?` | SCHEMA_DRIFT | supabase-inspector | Canonical type unresolved; see `docs/audits/prisma-canonical-schema-decision.md` |
 | Email | Must include final canonical email fields | NOT_CHECKED | NOT_CHECKED | supabase-inspector |  |
 | ConnectedMailbox | Must match canonical mailbox model | NOT_CHECKED | NOT_CHECKED | supabase-inspector | PR #6 conflict risk |
 | EmailEvent | Prefer canonical event table | NOT_CHECKED | NOT_CHECKED | supabase-inspector | Duplicate with EmailActivityLog risk |
@@ -61,7 +61,7 @@ Use only these verdicts:
 
 | Model/table | apps/web schema | apps/api schema | Actual Supabase | PR #6 expectation | Verdict | Fix strategy |
 | --- | --- | --- | --- | --- | --- | --- |
-| Lead.embedding | `String?` in dirty local web schema | `Unsupported("vector(1536)")?` or previous API lineage to verify before canonicalizing | Live nullable `text` | PR #6 expects `String?` | SCHEMA_DRIFT | Choose canonical vector/text type and generate reviewed migration if needed |
+| Lead.embedding | `Unsupported("vector(1536)")?` | `String?` | Live nullable `text` | PR #6 expectation unresolved | SCHEMA_DRIFT | Choose canonical vector/text type before generating any migration |
 | ConnectedMailbox | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | Email | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | EmailEvent / EmailActivityLog | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
@@ -93,6 +93,7 @@ Use only these verdicts:
 | Health live | No external IO | NOT_CHECKED | NOT_CHECKED | health-smoke-agent |  |
 | Health ready | DB/schema/migration/env marker | Current health routes use `SELECT 1`; Vercel alias returned 401; custom-domain local DNS mapped to 127.0.0.1 | FAIL | health-smoke-agent | Needs deep readiness check |
 | Health deep | Protected, includes auth/cache/internal checks | NOT_CHECKED | NOT_CHECKED | health-smoke-agent |  |
+| Read-only schema verifier | Verify migrations, required auth objects, `Lead.embedding`, and schema fingerprint without mutation | `apps/web/src/scripts/verify-schema-readiness.ts` added; package script `schema:verify:readonly` added; not run against production | PASS | orchestrator | Non-mutating evidence tool only; not a CI blocker yet |
 
 ## CI gate matrix
 
@@ -101,6 +102,7 @@ Use only these verdicts:
 | Prisma validate web | CI enforced | `ci.yml`, `production-gate.yml`, and `web-prisma-migrate.yml` include Prisma validation/generate/migrate paths | PASS | ci-gate-agent | Live Actions status not checked |
 | Prisma validate API | CI enforced | `ci.yml` API job generates Prisma and runs migrate deploy | PASS | ci-gate-agent | Live Actions status not checked |
 | Schema drift check | CI enforced | No production schema fingerprint/live drift gate found | MISSING | ci-gate-agent | Add gate before launch |
+| Read-only schema verifier script | Available but not blocking CI yet | `npm run schema:verify:readonly` available at root/web workspace | PASS | ci-gate-agent | Per REPLAN, do not make blocking until expected values and env targets are approved |
 | Migration drift check | CI enforced against disposable DB | CI uses disposable Postgres and `prisma migrate deploy` | PASS | ci-gate-agent | Does not prove live Supabase is current |
 | Typecheck | CI enforced | Web/API typecheck jobs present | PASS | ci-gate-agent | Live Actions status not checked |
 | Lint | CI enforced | Web lint present | PASS | ci-gate-agent | API lint not confirmed |
