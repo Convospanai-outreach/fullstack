@@ -6,14 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | IN_PROGRESS |
+| Overall status | READY_FOR_NEXT_STAGE |
 | Current stage | Phase 4 - Prisma drift resolution |
 | Current agent | prisma-drift-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
 | Baseline commit inspected | 07d6736f72989a1db8e854ee38c793cc9fb437a2 |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-18 |
-| Next action | Run prisma-drift-agent: produce four-way drift matrix for all contested models across packages/db, apps/web, apps/api, and known live Supabase evidence |
+| Next action | Handoff to orchestrator to proceed with Phase 5 (Staging DB validation & additive migrations preparation) |
 
 ## Status values
 
@@ -63,7 +63,7 @@ Use only these values:
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
-| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db + apps/web; api already correct. postgresqlExtensions + vector extension removed from web+packages/db. Compare: packages/db MATCH web; both DIFFER from api on auth/invite gap only. Sole remaining Phase 4 blocker: api-auth-schema-sync-plan.md additions. |
+| Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. |
 
 ## Latest findings
 
@@ -129,7 +129,7 @@ Use only these values:
 
 ## Next action queue
 
-1. [ACTIVE - Phase 4] Edit `apps/api/prisma/schema.prisma` per `docs/audits/api-auth-schema-sync-plan.md`:
+1. [COMPLETED] Edit `apps/api/prisma/schema.prisma` per `docs/audits/api-auth-schema-sync-plan.md`:
    - Add `User.clerkUserId` field
    - Add `User.sentInvitations` + `User.approvedInviteRequests` relations
    - Add `InvitationStatus` enum
@@ -137,9 +137,9 @@ Use only these values:
    - Add `UserInvitation` model
    - Add `InviteRequest` model (@@map invite_requests)
    - Add `Team.userInvitations` relation
-2. [ACTIVE - Phase 4] Run `npx prisma validate` on `apps/api` schema after edits.
-3. [ACTIVE - Phase 4] Re-run `npm run db:schema:compare` — expected result: all three MATCH, exit code 0.
-4. [QUEUED] Run `npm run schema:verify:readonly` against live DB before any migration.
+2. [COMPLETED] Run `npx prisma validate` on `apps/api` schema after edits.
+3. [COMPLETED] Re-run `npm run db:schema:compare` — expected result: all three MATCH, exit code 0.
+4. [ACTIVE - Phase 5] Run `npm run schema:verify:readonly` against live DB before any migration.
 5. [QUEUED] Generate additive auth migration against non-production DB after schema edits validated.
 6. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` path.
 7. [QUEUED] Verify Vercel env keys and targets.

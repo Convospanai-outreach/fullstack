@@ -1,12 +1,10 @@
 generator client {
   provider        = "prisma-client-js"
   engineType      = "library"
-  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider   = "postgresql"
-  extensions = [vector]
+  provider = "postgresql"
 }
 
 enum Region {
@@ -35,7 +33,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
-  embedding    String? // Temporarily String to match DB state and unblock push
+  embedding    String? // Controlled-beta canonical type: String/text (matches live DB). Vector(1536) upgrade is a future migration phase.
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
   lostAt       DateTime? // When it was marked CLOSED_LOST
@@ -962,6 +960,7 @@ model Team {
   sequenceEnrollments        SequenceEnrollment[]
   sequenceStepRuns           SequenceStepRun[]
   domainAuthenticationChecks DomainAuthenticationCheck[]
+  userInvitations            UserInvitation[]
   edgeNode                   EdgeNode?
 }
 
@@ -1150,6 +1149,7 @@ model TeamMember {
 
 model User {
   id                  String             @id @default(uuid())
+  clerkUserId         String?            @unique @map("clerk_user_id")
   email               String             @unique
   password            String? // <-- Add this line
   emailVerified       DateTime?
@@ -1181,6 +1181,8 @@ model User {
   reviewedApprovals  ApprovalRequest[] @relation("reviewer")
   agentTasks         AgentTask[]
   datasetReviews     DatasetReview[]
+  sentInvitations    UserInvitation[]
+  approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
@@ -1189,6 +1191,56 @@ model User {
   callerActiveAt     DateTime? // Last activity timestamp
   callerAssignments  MeetingCoordinationQueue[] @relation("caller_assignments")
   edgeNodeUri        String? // Individual Phi-3 Edge Node binding
+}
+
+model UserInvitation {
+  id          String           @id @default(uuid())
+  email       String
+  role        UserRole
+  teamId      String
+  invitedById String
+  tokenHash   String           @unique
+  status      InvitationStatus @default(pending)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  inviteRequestId String?          @map("invite_request_id")
+  createdAt   DateTime         @default(now())
+
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  invitedBy     User           @relation(fields: [invitedById], references: [id])
+  inviteRequest InviteRequest? @relation(fields: [inviteRequestId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([teamId])
+  @@index([invitedById])
+  @@index([inviteRequestId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model InviteRequest {
+  id          String              @id @default(uuid())
+  name        String
+  email       String
+  company     String
+  linkedinUrl String              @map("linkedin_url")
+  useCase     String              @map("use_case") @db.Text
+  status      InviteRequestStatus @default(WAITLISTED)
+  inviteToken String?             @unique @map("invite_token")
+  approvedById String?            @map("approved_by_id")
+  approvedAt  DateTime?           @map("approved_at")
+  usedAt      DateTime?           @map("used_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+  updatedAt   DateTime            @updatedAt @map("updated_at")
+
+  approvedBy User?            @relation("InviteRequestApprovedBy", fields: [approvedById], references: [id])
+  invitations UserInvitation[]
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+  @@index([approvedById])
+  @@map("invite_requests")
 }
 
 model Account {
@@ -1969,12 +2021,31 @@ enum ProductMode {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   SYSTEM_ADMIN
   ORG_ADMIN
+  CMS_EDITOR
   SALES_MANAGER
   SALES_USER
   CALLER
+  VIEWER
   COMPLIANCE_OFFICER
+}
+
+enum InvitationStatus {
+  pending
+  accepted
+  expired
+  revoked
+}
+
+enum InviteRequestStatus {
+  WAITLISTED
+  APPROVED
+  INVITED
+  ACTIVE
+  USED
+  REJECTED
 }
 
 model FeatureFlag {

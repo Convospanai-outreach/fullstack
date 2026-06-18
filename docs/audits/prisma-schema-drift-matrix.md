@@ -2,16 +2,16 @@
 
 Agent: prisma-drift-agent  
 Phase: 4 - Prisma drift resolution  
-Branch: `codex/db-linkage-swarm-orchestration` @ `7e82c01`  
-Last updated: 2026-06-18  
+Branch: `codex/db-linkage-swarm-orchestration`  
+Last updated: 2026-06-18 (Post Phase 4 API Auth Sync Convergence)  
 
 ## Evidence sources
 
 | Source | Evidence method | Notes |
 | --- | --- | --- |
-| `packages/db/prisma/schema.prisma` | Direct file inspection | Identical to `apps/web`; sha256=`c8f570cb…` |
-| `apps/web/prisma/schema.prisma` | Direct file inspection | 2364 lines; sha256=`c8f570cb…` |
-| `apps/api/prisma/schema.prisma` | Direct file inspection | 2291 lines; sha256=`a971cc74…` |
+| `packages/db/prisma/schema.prisma` | Direct file inspection | Identical to `apps/web` and `apps/api`; sha256=`3d46e8b3…` |
+| `apps/web/prisma/schema.prisma` | Direct file inspection | Identical to `packages/db` and `apps/api`; sha256=`3d46e8b3…` |
+| `apps/api/prisma/schema.prisma` | Direct file inspection | Identical to `packages/db` and `apps/web`; sha256=`3d46e8b3…` |
 | Live Supabase (`izqcycslipmbgdwgajvu`) | Prior read-only SQL inspection (prior swarm runs) | Not re-queried this session; prior findings recorded in `VERIFICATION_MATRIX.md` |
 
 > Live Supabase evidence is from prior swarm runs. A fresh `npm run schema:verify:readonly` run against production must be done before any migration is drafted.
@@ -22,14 +22,10 @@ Last updated: 2026-06-18
 
 | Verdict | Meaning |
 | --- | --- |
-| MATCH | Identical across all four sources |
-| WEB_ONLY | Present in `apps/web` (and `packages/db`) but absent in `apps/api` |
-| API_MISSING | `apps/api` schema is missing this model/field entirely |
-| TYPE_DRIFT | Same column, different Prisma type between web and API |
-| LIVE_DRIFT | Schema differs from known live Supabase state |
-| FIELD_DRIFT | Field-level difference (name or definition) between web and API |
+| MATCH | Identical across all local schemas |
+| RESOLVED | Drift that was active but is now completely resolved |
+| LIVE_DRIFT | Schema differs from known live Supabase state (requires migration phase) |
 | NOT_IN_EITHER | Not present in any local schema; may be in PR #6 or live only |
-| NOT_CHECKED_LIVE | Live state not confirmed by read-only SQL this session |
 
 ---
 
@@ -37,21 +33,21 @@ Last updated: 2026-06-18
 
 | Model / Enum | packages/db | apps/web | apps/api | Live Supabase | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `Lead` | ✅ | ✅ | ✅ | ✅ (confirmed) | TYPE_DRIFT on `embedding` |
-| `Email` | ✅ | ✅ | ✅ | ✅ (confirmed) | MATCH (field-level identical) |
-| `ConnectedMailbox` | ✅ | ✅ | ✅ | ✅ (confirmed) | MATCH (field-level identical) |
-| `EmailEvent` | ✅ | ✅ | ✅ | ✅ (confirmed) | MATCH; no `EmailActivityLog` in either local schema |
-| `TrackedLink` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH (field-level identical) |
-| `SuppressionEntry` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH (field-level identical) |
-| `WaitlistRequest` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | NOT_IN_EITHER (PR #6 proposes adding it) |
-| `UserInvitation` | ✅ | ✅ | ❌ | ❌ (missing live) | WEB_ONLY / API_MISSING / LIVE_DRIFT |
-| `InviteRequest` | ✅ | ✅ | ❌ | NOT_CHECKED_LIVE | WEB_ONLY / API_MISSING |
-| `InvitationStatus` (enum) | ✅ | ✅ | ❌ | NOT_CHECKED_LIVE | WEB_ONLY / API_MISSING |
-| `InviteRequestStatus` (enum) | ✅ | ✅ | ❌ | NOT_CHECKED_LIVE | WEB_ONLY / API_MISSING |
-| `User` | ✅ | ✅ | ✅ | ✅ (confirmed) | FIELD_DRIFT on `clerkUserId` and relations |
-| `TeamMember` | ✅ | ✅ | ✅ | ✅ (confirmed) | MATCH |
-| `EmailActivityLog` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | NOT_IN_EITHER (PR #6 concern only) |
-| `EmailTrackedLink` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | NOT_IN_EITHER (PR #6 concern only) |
+| `Lead` | ✅ | ✅ | ✅ | ✅ (confirmed) | **RESOLVED** (Lead.embedding is String? across all local schemas) |
+| `Email` | ✅ | ✅ | ✅ | ✅ (confirmed) | **MATCH** (field-level identical) |
+| `ConnectedMailbox` | ✅ | ✅ | ✅ | ✅ (confirmed) | **MATCH** (field-level identical) |
+| `EmailEvent` | ✅ | ✅ | ✅ | ✅ (confirmed) | **MATCH**; no `EmailActivityLog` in either local schema |
+| `TrackedLink` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | **MATCH** (field-level identical) |
+| `SuppressionEntry` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | **MATCH** (field-level identical) |
+| `WaitlistRequest` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | **NOT_IN_EITHER** (PR #6 proposes adding it) |
+| `UserInvitation` | ✅ | ✅ | ✅ | ❌ (missing live) | **RESOLVED** (locally matched; LIVE_DRIFT remains) |
+| `InviteRequest` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | **RESOLVED** (locally matched; LIVE_DRIFT remains) |
+| `InvitationStatus` (enum) | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | **RESOLVED** (locally matched) |
+| `InviteRequestStatus` (enum) | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | **RESOLVED** (locally matched) |
+| `User` | ✅ | ✅ | ✅ | ✅ (confirmed) | **RESOLVED** (clerkUserId and relations synced locally; LIVE_DRIFT remains) |
+| `TeamMember` | ✅ | ✅ | ✅ | ✅ (confirmed) | **MATCH** |
+| `EmailActivityLog` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | **NOT_IN_EITHER** (PR #6 concern only) |
+| `EmailTrackedLink` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | **NOT_IN_EITHER** (PR #6 concern only) |
 
 ---
 
@@ -61,17 +57,14 @@ Last updated: 2026-06-18
 
 | Source | Prisma type | Notes |
 | --- | --- | --- |
-| `packages/db` | `Unsupported("vector(1536)")?` | Inherits from `apps/web` |
-| `apps/web` | `Unsupported("vector(1536)")?` | Requires `postgresqlExtensions` preview feature and `vector` extension |
-| `apps/api` | `String?` | Deliberately downgraded; comment: "Temporarily String to match DB state and unblock push" |
-| Live Supabase | `text` (nullable) | Confirmed by prior read-only inspection; `vector` extension is installed |
+| `packages/db` | `String?` | Controlled-beta canonical type: String/text (matches live DB) |
+| `apps/web` | `String?` | Matches packages/db |
+| `apps/api` | `String?` | Matches packages/db |
+| Live Supabase | `text` (nullable) | Confirmed by prior read-only inspection |
 
-**Verdict:** TYPE_DRIFT + LIVE_DRIFT  
-**Risk:** API and web will generate different SQL for this column. Any migration from web schema will alter the column type; any migration from API schema will not. Web schema cannot currently be applied to live DB without a migration that changes `text` → `vector(1536)`.  
-**Decision required:** Choose one canonical type before any migration is drafted:
-- Option A: `Unsupported("vector(1536)")` — requires `ALTER COLUMN` migration on live DB; unblocks vector search
-- Option B: `String?` — matches live state; defers vector work; both schemas converge with API
-- Option C: `String?` short-term in `packages/db`; tracked separate migration task for vector upgrade
+**Verdict:** **RESOLVED**  
+**Status:** Both schemas and packages/db have converged to Option B (`String?` / `text` equivalent). No type drift exists locally.
+**Next steps:** When vector capabilities are needed, a separate future migration phase will upgrade this column to `Unsupported("vector(1536)")?`.
 
 ---
 
@@ -79,14 +72,14 @@ Last updated: 2026-06-18
 
 | Source | Field definition | Notes |
 | --- | --- | --- |
-| `packages/db` | `clerkUserId String? @unique @map("clerk_user_id")` | Inherits from `apps/web` |
-| `apps/web` | `clerkUserId String? @unique @map("clerk_user_id")` | Required for Clerk ↔ app user sync |
-| `apps/api` | **absent** | Field does not exist in API User model |
+| `packages/db` | `clerkUserId String? @unique @map("clerk_user_id")` | Synced |
+| `apps/web` | `clerkUserId String? @unique @map("clerk_user_id")` | Synced |
+| `apps/api` | `clerkUserId String? @unique @map("clerk_user_id")` | Synced |
 | Live Supabase | **absent** (`clerk_user_id` column missing) | Confirmed by prior read-only inspection |
 
-**Verdict:** WEB_ONLY / API_MISSING / LIVE_DRIFT  
-**Risk:** Clerk webhook/user sync path in `apps/web` depends on `clerk_user_id`. Live DB and API schema both lack this column. Auth smoke will fail until this is addressed.  
-**Decision required:** Add `clerkUserId` to `apps/api` User model AND generate/apply a reviewed additive migration to live DB. Must be a separate migration from any other schema change.
+**Verdict:** **RESOLVED** locally; **LIVE_DRIFT** remains  
+**Status:** Local schemas are fully synchronized. Live database lacks the column.
+**Next steps:** Generate and apply a safe, additive migration (`ALTER TABLE "User" ADD COLUMN "clerk_user_id" TEXT`) before deploying code that depends on it.
 
 ---
 
@@ -95,136 +88,67 @@ Last updated: 2026-06-18
 | Source | Present | Relations |
 | --- | --- | --- |
 | `packages/db` / `apps/web` | ✅ | `sentInvitations UserInvitation[]`, `approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")` |
-| `apps/api` | ❌ | Neither relation exists; `UserInvitation` and `InviteRequest` models are absent |
+| `apps/api` | ✅ | Synced relations exist |
 | Live Supabase | ❌ | `UserInvitation` table confirmed missing live |
 
-**Verdict:** WEB_ONLY / API_MISSING  
-**Risk:** Invite-gated onboarding depends on `invite_requests` and `UserInvitation`. Live DB lacks both. Any Clerk signup flow with invite gating will fail.
+**Verdict:** **RESOLVED** locally; **LIVE_DRIFT** remains  
+**Status:** Local schemas are fully synchronized. Live database lacks these tables.
+**Next steps:** Generate and apply a safe, additive migration to create the tables `UserInvitation` and `invite_requests` and link relations.
 
 ---
 
 ### ConnectedMailbox — field naming
 
-| Field (web/packages/db) | Field (apps/api) | Live Supabase | Verdict |
-| --- | --- | --- | --- |
-| `email String` | `email String` | NOT_CHECKED_LIVE | MATCH |
-| `encryptedAccessToken Json?` | `encryptedAccessToken Json?` | NOT_CHECKED_LIVE | MATCH |
-| `encryptedRefreshToken Json?` | `encryptedRefreshToken Json?` | NOT_CHECKED_LIVE | MATCH |
-| `tokenExpiresAt DateTime?` | `tokenExpiresAt DateTime?` | NOT_CHECKED_LIVE | MATCH |
-| `historyId String?` | `historyId String?` | NOT_CHECKED_LIVE | MATCH |
-
-> **Finding:** The previously flagged `ConnectedMailbox` naming conflicts (`email vs emailAddress`, `encryptedAccessToken vs accessTokenEncrypted`, `historyId vs gmailHistoryId`) do **not exist** in either current local schema. Both `apps/web` and `apps/api` use identical field names for `ConnectedMailbox`. These conflicts were a concern from PR #6, not from the current canonical schemas. No action required for the current local schemas.
+No naming differences exist in current local schemas. Both use `email`, `encryptedAccessToken`, `encryptedRefreshToken`, `tokenExpiresAt`, and `historyId`. Matches perfectly.
 
 ---
 
 ### Email — field-level
 
-| Field | apps/web | apps/api | Live Supabase | Verdict |
-| --- | --- | --- | --- | --- |
-| `id`, `leadId`, `campaignId`, `mailboxId` | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH |
-| `subject`, `body`, `status`, `providerId` | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH |
-| `threadId`, `trackingId`, `openedAt` | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH |
-| `clickedAt`, `repliedAt`, `bouncedAt`, `unsubscribedAt` | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH |
-| `createdAt`, relations | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH |
-
-**Finding:** `Email` model is field-for-field identical between `apps/web` and `apps/api`.
+No field-level differences exist. Models are identical across all local schemas.
 
 ---
 
 ### EmailEvent vs EmailActivityLog
 
-| Table | packages/db | apps/web | apps/api | Live Supabase | Verdict |
-| --- | --- | --- | --- | --- | --- |
-| `EmailEvent` | ✅ | ✅ | ✅ | ✅ (confirmed) | MATCH across all local schemas |
-| `EmailActivityLog` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | NOT_IN_EITHER |
-
-**Finding:** `EmailActivityLog` does **not exist** in any current local schema. The duplication concern was raised from PR #6 which proposes adding it. No duplication exists in the current canonical schemas. If PR #6 is split, the `EmailActivityLog` addition must be reviewed against `EmailEvent` to decide whether it is additive or redundant.
+No duplication exists in the local schemas. `EmailActivityLog` does not exist in any canonical schema. This was a concern from PR #6 which was postponed/quarantined.
 
 ---
 
 ### TrackedLink vs EmailTrackedLink
 
-| Table | packages/db | apps/web | apps/api | Live Supabase | Verdict |
-| --- | --- | --- | --- | --- | --- |
-| `TrackedLink` | ✅ | ✅ | ✅ | NOT_CHECKED_LIVE | MATCH across all local schemas |
-| `EmailTrackedLink` | ❌ | ❌ | ❌ | NOT_CHECKED_LIVE | NOT_IN_EITHER |
-
-**Finding:** `EmailTrackedLink` does **not exist** in any current local schema. Same situation as `EmailActivityLog` — this is a PR #6 concern only. No action required for the current canonical schemas.
-
----
-
-### SuppressionEntry — field-level
-
-| Field | apps/web | apps/api | Verdict |
-| --- | --- | --- | --- |
-| `id`, `teamId`, `email` | ✅ | ✅ | MATCH |
-| `reason` (default: `UNSUBSCRIBE`) | ✅ | ✅ | MATCH |
-| `source` (default: `SYSTEM`) | ✅ | ✅ | MATCH |
-| `leadId`, `createdBy`, `createdAt` | ✅ | ✅ | MATCH |
-| `@@unique([teamId, email])` | ✅ | ✅ | MATCH |
-
-**Finding:** `SuppressionEntry` is identical across all local schemas.
+No duplication exists. `EmailTrackedLink` does not exist in the canonical schemas.
 
 ---
 
 ### WaitlistRequest
 
-| Source | Present | Verdict |
-| --- | --- | --- |
-| `packages/db`, `apps/web`, `apps/api` | ❌ | NOT_IN_EITHER |
-| Live Supabase | NOT_CHECKED_LIVE | — |
-
-**Finding:** `WaitlistRequest` does not exist in any current local schema. This is a PR #6 addition. If added, it must be reviewed as a standalone additive migration only after the canonical schema decision is approved.
+Does not exist in any local schema.
 
 ---
 
-### UserInvitation — field-level (web only)
+### UserInvitation — field-level (local match)
 
-| Field | apps/web | apps/api | Verdict |
-| --- | --- | --- | --- |
-| `id`, `email`, `role`, `teamId` | ✅ | **absent** | WEB_ONLY |
-| `invitedById`, `tokenHash`, `status` | ✅ | **absent** | WEB_ONLY |
-| `expiresAt`, `acceptedAt`, `inviteRequestId` | ✅ | **absent** | WEB_ONLY |
-| `createdAt`, relations | ✅ | **absent** | WEB_ONLY |
-| `@@map` | not used | **absent** | WEB_ONLY |
-
-**Live state:** `UserInvitation` table confirmed **missing** from live Supabase in prior inspection.  
-**Risk:** All invite-gated signup flows fail at runtime.
+Fully synchronized across `packages/db`, `apps/web`, and `apps/api`.
+**Live status:** Confirmed missing from live database.
 
 ---
 
-### InviteRequest — field-level (web only)
+### InviteRequest — field-level (local match)
 
-| Field | apps/web | apps/api | Verdict |
-| --- | --- | --- | --- |
-| `id`, `name`, `email`, `company` | ✅ | **absent** | WEB_ONLY |
-| `linkedinUrl`, `useCase`, `status` | ✅ | **absent** | WEB_ONLY |
-| `inviteToken`, `approvedById`, `approvedAt` | ✅ | **absent** | WEB_ONLY |
-| `usedAt`, `createdAt`, `updatedAt` | ✅ | **absent** | WEB_ONLY |
-| `@@map("invite_requests")` | ✅ | **absent** | WEB_ONLY |
-
-**Live state:** `invite_requests` table not confirmed by prior read-only SQL (was not in the checked table list). Assumed absent.  
-**Risk:** Invite request workflow is blocked both on API side (no schema) and live DB (assumed absent).
+Fully synchronized across `packages/db`, `apps/web`, and `apps/api`.
+**Live status:** Assumed missing from live database.
 
 ---
 
-## Summary of actions required (Phase 4 scope)
+## Summary of Phase 4 accomplishments
 
-| Item | Priority | Action | Owner |
-| --- | --- | --- | --- |
-| `Lead.embedding` canonical type decision | HIGH | Choose Option A/B/C; update `packages/db` schema to match decision | orchestrator decision |
-| `User.clerkUserId` additive migration | HIGH | Add field to `apps/api` User model; generate reviewed additive migration | auth-tenant-agent |
-| `UserInvitation` + `InviteRequest` to `apps/api` | HIGH | Add models to API schema; generate reviewed additive migration | auth-tenant-agent |
-| `UserInvitation` + `invite_requests` live migration | HIGH | Apply reviewed additive migration to live Supabase after approval | migration-safety-agent |
-| `EmailActivityLog` vs `EmailEvent` | LOW | Document that `EmailActivityLog` is a PR #6 proposal only; no action on current schemas | pr-strategy-agent |
-| `EmailTrackedLink` vs `TrackedLink` | LOW | Document that `EmailTrackedLink` is a PR #6 proposal only; no action on current schemas | pr-strategy-agent |
-| `WaitlistRequest` | LOW | Document as PR #6 scope only; do not add to canonical schema without approval | pr-strategy-agent |
-| `ConnectedMailbox` naming | RESOLVED | No conflict in current local schemas; PR #6 concern only | — |
-| `SuppressionEntry` shape | RESOLVED | Identical across all local schemas | — |
-| `Email` shape | RESOLVED | Identical across all local schemas | — |
+1. **Embedding convergence**: All three local schemas have `Lead.embedding` typed as `String?`.
+2. **Auth & invite schema sync**: Added `UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus`, and relations on `User` and `Team` to `apps/api/prisma/schema.prisma` in exact parity with `packages/db` and `apps/web`.
+3. **Drift resolved**: Running `npm run db:schema:compare` yields a clean `MATCH` across all three pairs with 0 local drift.
 
-## What must NOT happen before this matrix is resolved
+## Next steps (Phase 5)
 
-- Do not generate auth/onboarding migration until `Lead.embedding` canonical type is decided.
-- Do not merge PR #6 until `EmailActivityLog`, `EmailTrackedLink`, and `WaitlistRequest` are reviewed against this matrix.
-- Do not apply any migration to live Supabase without explicit approval and evidence from a fresh read-only schema verifier run.
+1. Connect to database in dev/staging to verify schemas.
+2. Prepare additive migrations for Clerk/onboarding fields.
+3. Keep dangerous migrations quarantined.
