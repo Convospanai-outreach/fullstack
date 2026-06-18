@@ -26,7 +26,7 @@ Status: REPLAN completed; production remains blocked.
 - Canonical schema decision draft: `docs/audits/prisma-canonical-schema-decision.md`
 - Unsafe migration quarantine: `docs/audits/unsafe-migration-quarantine.md`
 - Auth/onboarding repair plan: `docs/audits/auth-schema-repair-plan.md`
-- Read-only verifier: `apps/web/src/scripts/verify-schema-readiness.ts`
+- Read-only verifier: initially added under `apps/web/src`, then moved to `scripts/db/verify-schema-readiness.mjs` during Phase 1/2
 - Package entry point: `npm run schema:verify:readonly`
 
 The canonical decision currently proposes one shared production Prisma schema because `apps/web` and `apps/api` point at the same logical production database. `apps/web/prisma/schema.prisma` is the canonical candidate because it contains the Clerk and invite objects required by web runtime, but it must not be applied as-is until `Lead.embedding` is reconciled.
@@ -34,6 +34,20 @@ The canonical decision currently proposes one shared production Prisma schema be
 The migration `20260604140000_edge_runtime_pairing` remains quarantined for production because it contains `DELETE FROM "EdgeNode"`. The replacement path must be preflight check, audit/backup if needed, non-destructive migration, and manual approval before any cleanup.
 
 No production migration was run. No `prisma db push` was run. PR #6 was not merged.
+
+## Phase 1/2 Update
+
+Status: Canonical schema architecture and migration safety gates prepared; production remains blocked.
+
+- Canonical architecture plan added: `docs/audits/canonical-schema-architecture-plan.md`
+- Permanent schema target proposed: `packages/db/prisma/schema.prisma`
+- `apps/web/prisma/schema.prisma` remains a temporary reference candidate only.
+- Read-only verifier moved out of `apps/web/src` to `scripts/db/verify-schema-readiness.mjs`.
+- Vercel failure on commit `3b2d7069ac839a5559fa729f28ab913954e52dea` was caused by Next.js typechecking the old verifier and missing `@types/pg`; moving the verifier out of web source fixes that failure path.
+- Production verifier mode now requires expected migration count, latest migration, schema fingerprint, and migration names or manifest path.
+- Migration manifest format added at `scripts/db/migration-manifest.schema.json`; it is advisory only.
+- Unsafe EdgeNode migration was not modified in place.
+- Auth additive migration was not generated.
 
 ## Evidence
 

@@ -27,7 +27,6 @@
         "db:generate": "node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS=--max-old-space-size=8192 -- prisma generate",
         "readiness:seed": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/seed-readiness.ts",
         "readiness:audit": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/validate-production-readiness.ts",
-        "schema:verify:readonly": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- tsx src/scripts/verify-schema-readiness.ts",
         "db:archive": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/archive-audit-logs.ts"
     },
     "devDependencies": {

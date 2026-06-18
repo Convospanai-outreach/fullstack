@@ -30,6 +30,7 @@ Use only these verdicts:
 | Linked repo | Convospanai-outreach/fullstack | Deployment metadata links to `Convospanai-outreach/fullstack` | PASS | vercel-linkage-agent |  |
 | Production branch | main or documented release branch | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
 | Latest deployment commit | should match intended release | Latest inspected deployment was `READY` from `codex/db-linkage-swarm-orchestration` commit `12174245a1af55d32c0b46a04b5d9f7b0a2948cd`; recent production deployment from `main` commit `86e918c35f9c2c4b1c7a6265564f26bead62e25c` | RUNTIME_RISK | vercel-linkage-agent | Vercel READY is not launch readiness |
+| Commit `3b2d7069` Vercel deployment failure | Root cause identified and corrected before continuing | Deployment `dpl_ABSFvNfhHYfePwfijM8sgR9xrxBe` failed TypeScript on `apps/web/src/scripts/verify-schema-readiness.ts` importing `pg` without declarations; verifier moved out of web source | PASS | vercel-linkage-agent | New deployment still must be observed after commit/push |
 | DATABASE_URL production | expected Supabase ref izqcycslipmbgdwgajvu; runtime/pooler allowed | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | DIRECT_URL production | expected direct host db.izqcycslipmbgdwgajvu.supabase.co | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | Preview DB isolation | preview must not write prod DB unless explicitly allowed | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
@@ -45,6 +46,7 @@ Use only these verdicts:
 | vector extension | Required if Lead.embedding is vector | Installed extension `vector` found | PASS | supabase-inspector | Live `Lead.embedding` is currently text |
 | _prisma_migrations | Present and latest expected migration applied | Present with 17 rows | MIGRATION_DRIFT | supabase-inspector | Local web has 25 migrations; API has 22 |
 | Lead.embedding | Must match canonical schema | Live column is nullable `text`; `apps/web` schema uses `Unsupported("vector(1536)")?`; `apps/api` schema uses `String?` | SCHEMA_DRIFT | supabase-inspector | Canonical type unresolved; see `docs/audits/prisma-canonical-schema-decision.md` |
+| Canonical schema ownership | Should move to shared DB package | Plan added for `packages/db/prisma/schema.prisma`; no schema move yet | PASS | orchestrator | `apps/web` is temporary reference only |
 | Email | Must include final canonical email fields | NOT_CHECKED | NOT_CHECKED | supabase-inspector |  |
 | ConnectedMailbox | Must match canonical mailbox model | NOT_CHECKED | NOT_CHECKED | supabase-inspector | PR #6 conflict risk |
 | EmailEvent | Prefer canonical event table | NOT_CHECKED | NOT_CHECKED | supabase-inspector | Duplicate with EmailActivityLog risk |
@@ -93,7 +95,7 @@ Use only these verdicts:
 | Health live | No external IO | NOT_CHECKED | NOT_CHECKED | health-smoke-agent |  |
 | Health ready | DB/schema/migration/env marker | Current health routes use `SELECT 1`; Vercel alias returned 401; custom-domain local DNS mapped to 127.0.0.1 | FAIL | health-smoke-agent | Needs deep readiness check |
 | Health deep | Protected, includes auth/cache/internal checks | NOT_CHECKED | NOT_CHECKED | health-smoke-agent |  |
-| Read-only schema verifier | Verify migrations, required auth objects, `Lead.embedding`, and schema fingerprint without mutation | `apps/web/src/scripts/verify-schema-readiness.ts` added; package script `schema:verify:readonly` added; not run against production | PASS | orchestrator | Non-mutating evidence tool only; not a CI blocker yet |
+| Read-only schema verifier | Verify migrations, required auth objects, mailbox/email canonical shape, `Lead.embedding`, EdgeNode orphan preflight, and schema fingerprint without mutation | Moved to `scripts/db/verify-schema-readiness.mjs`; root scripts added; not run against production | PASS | orchestrator | Non-mutating evidence tool only; not a CI blocker yet |
 
 ## CI gate matrix
 
@@ -102,7 +104,8 @@ Use only these verdicts:
 | Prisma validate web | CI enforced | `ci.yml`, `production-gate.yml`, and `web-prisma-migrate.yml` include Prisma validation/generate/migrate paths | PASS | ci-gate-agent | Live Actions status not checked |
 | Prisma validate API | CI enforced | `ci.yml` API job generates Prisma and runs migrate deploy | PASS | ci-gate-agent | Live Actions status not checked |
 | Schema drift check | CI enforced | No production schema fingerprint/live drift gate found | MISSING | ci-gate-agent | Add gate before launch |
-| Read-only schema verifier script | Available but not blocking CI yet | `npm run schema:verify:readonly` available at root/web workspace | PASS | ci-gate-agent | Per REPLAN, do not make blocking until expected values and env targets are approved |
+| Read-only schema verifier script | Available but not blocking CI yet | `npm run schema:verify:readonly` and `npm run schema:verify:production` available at root | PASS | ci-gate-agent | Production mode requires expected count, latest migration, fingerprint, and migration names/manifest |
+| Migration manifest format | Available but not enforced yet | `scripts/db/migration-manifest.schema.json` plus docs added | PASS | migration-safety-agent | Advisory only; no CI enforcement |
 | Migration drift check | CI enforced against disposable DB | CI uses disposable Postgres and `prisma migrate deploy` | PASS | ci-gate-agent | Does not prove live Supabase is current |
 | Typecheck | CI enforced | Web/API typecheck jobs present | PASS | ci-gate-agent | Live Actions status not checked |
 | Lint | CI enforced | Web lint present | PASS | ci-gate-agent | API lint not confirmed |

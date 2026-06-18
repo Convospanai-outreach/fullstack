@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://craftmyfunnel.local/schemas/migration-manifest.schema.json",
+  "title": "CraftMyFunnel Migration Manifest",
+  "description": "Advisory manifest format for reviewed Prisma migration rollout. Not enforced yet.",
+  "type": "object",
+  "required": [
+    "manifestVersion",
+    "canonicalSchemaPath",
+    "environment",
+    "expectedMigrations",
+    "expectedLatestMigration",
+    "expectedSchemaFingerprint",
+    "safety"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "manifestVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "canonicalSchemaPath": {
+      "type": "string",
+      "examples": ["packages/db/prisma/schema.prisma"]
+    },
+    "environment": {
+      "type": "string",
+      "enum": ["development", "preview", "staging", "production"]
+    },
+    "expectedMigrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "sha256", "destructiveReviewed"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[0-9]{14}_[a-z0-9_]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "destructiveReviewed": {
+            "type": "boolean"
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "expectedLatestMigration": {
+      "type": "string"
+    },
+    "expectedSchemaFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "safety": {
+      "type": "object",
+      "required": [
+        "productionDbPushAllowed",
+        "destructiveStatementsAllowed",
+        "requiresManualApproval",
+        "requiresBackupOrAudit"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "productionDbPushAllowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "destructiveStatementsAllowed": {
+          "type": "boolean",
+          "const": false
+        },
+        "requiresManualApproval": {
+          "type": "boolean",
+          "const": true
+        },
+        "requiresBackupOrAudit": {
+          "type": "boolean"
+        },
+        "edgeNodeOrphanPreflight": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "required": {
+              "type": "boolean"
+            },
+            "expectedOrphanCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    }
+  }
+}

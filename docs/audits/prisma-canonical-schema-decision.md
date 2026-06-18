@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-18
 
-Status: Decision proposed; no migrations modified.
+Status: Superseded by architecture plan; no migrations modified.
 
 ## Decision
 
@@ -10,7 +10,7 @@ CraftMyFunnel should use one shared canonical Prisma schema for the shared produ
 
 Because `apps/web` and `apps/api` both read and write the same Supabase-backed application database, divergent Prisma schemas are a production risk. The canonical production schema should be maintained once, then consumed or mirrored by deployable services through a controlled process.
 
-For the next migration planning step, use `apps/web/prisma/schema.prisma` as the canonical candidate because it contains the currently required Clerk/invite onboarding objects:
+For the next migration planning step, use `apps/web/prisma/schema.prisma` as a temporary reference candidate because it contains the currently required Clerk/invite onboarding objects:
 
 - `User.clerkUserId` mapped to `clerk_user_id`
 - `UserInvitation`
@@ -45,6 +45,17 @@ Migration directory comparison:
   - `20260609090000_invite_requests`
   - `20260609110000_clerk_user_mapping`
 
+## Updated Architecture Direction
+
+Do not permanently make `apps/web` canonical. Move toward:
+
+```text
+packages/db/prisma/schema.prisma
+packages/db/prisma/migrations/
+```
+
+See `docs/audits/canonical-schema-architecture-plan.md`.
+
 ## Strategy
 
 1. Treat the production DB as a shared contract.
@@ -55,9 +66,10 @@ Migration directory comparison:
    - Option A: keep `text` for compatibility with live DB and current API runtime.
    - Option B: migrate to `vector(1536)` only with an explicit data conversion/backfill plan and query/runtime support.
 
-Recommended immediate canonical target:
+Recommended immediate reference target:
 
-- Canonical candidate: `apps/web/prisma/schema.prisma`
+- Temporary reference candidate: `apps/web/prisma/schema.prisma`
+- Permanent target: `packages/db/prisma/schema.prisma`
 - Required adjustment before migration generation: align `Lead.embedding` with the approved live-compatible type.
 - Do not modify migration SQL in this pass.
 
