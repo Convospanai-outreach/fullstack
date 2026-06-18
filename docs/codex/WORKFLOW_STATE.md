@@ -6,13 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | NEEDS_REPLAN |
-| Current stage | Phase 3 - Shared DB package skeleton |
-| Current agent | orchestrator |
+| Overall status | READY_FOR_NEXT_STAGE |
+| Current stage | Phase 4 - Prisma drift resolution |
+| Current agent | prisma-drift-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
 | Baseline commit inspected | 07d6736f72989a1db8e854ee38c793cc9fb437a2 |
+| Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-18 |
-| Next action | Review shared DB package skeleton and schema compare output before app wiring or auth migration planning |
+| Next action | Run prisma-drift-agent: produce four-way drift matrix for all contested models across packages/db, apps/web, apps/api, and known live Supabase evidence |
 
 ## Status values
 
@@ -62,6 +63,7 @@ Use only these values:
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
+| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md | Four-way drift matrix: packages/db vs apps/web vs apps/api vs known live Supabase evidence; contested models: Lead.embedding, ConnectedMailbox, Email, EmailEvent, TrackedLink, SuppressionEntry, WaitlistRequest, UserInvitation |
 
 ## Latest findings
 
@@ -86,9 +88,11 @@ Use only these values:
 - Production verifier mode requires expected migration count, latest migration, schema fingerprint, and either expected migration names or a manifest path.
 - Migration manifest format exists at `scripts/db/migration-manifest.schema.json`; it is not enforced yet.
 - Vercel deployment `dpl_8dfuT5xwLDeoHfdxQfeuqh6qTFGU` for commit `07d6736f72989a1db8e854ee38c793cc9fb437a2` is `READY`.
+- Vercel build for Phase 3 commit `fc500fa7b4735c5ce8809c0dda5ead10f426759b` confirmed `READY` by user on 2026-06-18.
 - Shared DB package skeleton now exists at `packages/db`.
 - `packages/db/prisma/schema.prisma` is a starting snapshot copied from `apps/web/prisma/schema.prisma`; app-local schemas were not deleted or rewired.
 - Schema comparison is available with `npm run db:schema:compare`; it exits non-zero on current API drift and is not wired into CI.
+- Live compare output (2026-06-18): `packages/db` matches `apps/web` (MATCH); `apps/api` differs by `InviteRequest`, `UserInvitation`, `InvitationStatus`, `InviteRequestStatus` (DIFFER, expected known drift).
 
 ## Decisions
 
@@ -107,16 +111,20 @@ Use only these values:
 
 ## Next action queue
 
-1. Review `npm run db:schema:compare` output; current expected drift is shared/web match and API differs on invite/onboarding schema.
-2. Decide how app-local schemas will be kept in sync before any wiring changes.
-3. Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, audit/backup, non-destructive migration, and manual cleanup approval.
-4. Decide whether the advisory migration manifest should become a CI gate.
-5. Generate a draft additive auth/onboarding migration only after the shared schema decision is approved.
-6. Run `npm run schema:verify:readonly` against the intended database using redacted env handling; production mode requires approved expected values.
-7. Verify Vercel env keys and targets without exposing values.
-8. Resolve Clerk/invite schema mismatch before auth smoke.
-9. Verify GitHub Actions are green on the target branch.
-10. Split PR #6 later, after schema and runtime readiness strategy is stable.
+1. [ACTIVE - Phase 4] Run prisma-drift-agent: produce four-way drift matrix across `packages/db`, `apps/web`, `apps/api`, and known live Supabase evidence for all contested models.
+2. [ACTIVE - Phase 4] Resolve canonical type for `Lead.embedding` (vector(1536) vs String vs text live).
+3. [ACTIVE - Phase 4] Resolve `ConnectedMailbox` field naming conflicts (encryptedAccessToken vs accessTokenEncrypted, email vs emailAddress, historyId vs gmailHistoryId).
+4. [ACTIVE - Phase 4] Resolve `EmailEvent` vs `EmailActivityLog` and `TrackedLink` vs `EmailTrackedLink` duplication.
+5. [ACTIVE - Phase 4] Update `docs/audits/prisma-schema-drift-matrix.md` with full NOT_CHECKED rows for all contested tables.
+6. [QUEUED] Decide how app-local schemas will be kept in sync before any wiring changes.
+7. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, audit/backup, non-destructive migration, and manual cleanup approval.
+8. [QUEUED] Decide whether the advisory migration manifest should become a CI gate.
+9. [QUEUED] Generate a draft additive auth/onboarding migration only after the shared schema decision is approved.
+10. [QUEUED] Run `npm run schema:verify:readonly` against the intended database using redacted env handling.
+11. [QUEUED] Verify Vercel env keys and targets without exposing values.
+12. [QUEUED] Resolve Clerk/invite schema mismatch before auth smoke.
+13. [QUEUED] Verify GitHub Actions are green on the target branch.
+14. [QUEUED] Split PR #6 later, after schema and runtime readiness strategy is stable.
 
 ## Handoff note template
 

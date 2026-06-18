@@ -32,6 +32,7 @@ Use only these verdicts:
 | Latest deployment commit | should match intended release | Latest inspected deployment was `READY` from `codex/db-linkage-swarm-orchestration` commit `12174245a1af55d32c0b46a04b5d9f7b0a2948cd`; recent production deployment from `main` commit `86e918c35f9c2c4b1c7a6265564f26bead62e25c` | RUNTIME_RISK | vercel-linkage-agent | Vercel READY is not launch readiness |
 | Commit `3b2d7069` Vercel deployment failure | Root cause identified and corrected before continuing | Deployment `dpl_ABSFvNfhHYfePwfijM8sgR9xrxBe` failed TypeScript on `apps/web/src/scripts/verify-schema-readiness.ts` importing `pg` without declarations; verifier moved out of web source | PASS | vercel-linkage-agent | New deployment still must be observed after commit/push |
 | Commit `07d6736f` Vercel deployment | Preview build should pass before Phase 3 | Deployment `dpl_8dfuT5xwLDeoHfdxQfeuqh6qTFGU` for commit `07d6736f72989a1db8e854ee38c793cc9fb437a2` is `READY` | PASS | vercel-linkage-agent | Vercel READY still does not prove DB/auth/cache readiness |
+| Commit `fc500fa7` Vercel deployment | Phase 3 build should pass | Confirmed `READY` by user on 2026-06-18; no TypeScript or build errors reported | PASS | orchestrator | Phase 4 work begins on top of this green commit |
 | DATABASE_URL production | expected Supabase ref izqcycslipmbgdwgajvu; runtime/pooler allowed | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | DIRECT_URL production | expected direct host db.izqcycslipmbgdwgajvu.supabase.co | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | Preview DB isolation | preview must not write prod DB unless explicitly allowed | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
@@ -73,6 +74,12 @@ Use only these verdicts:
 | WaitlistRequest | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | UserInvitation | Present in web schema/migration | Missing from API migration history | Missing live | PR #6 broad auth/mailbox work overlaps | SCHEMA_DRIFT | Add through canonical migration only after auth strategy confirmed |
 | Shared DB schema snapshot | Same as current approved starting candidate | `packages/db/prisma/schema.prisma` copied from `apps/web/prisma/schema.prisma`; compare script added | PASS | orchestrator | Snapshot only; no migrations generated |
+| Lead.embedding canonical type | Must be resolved before any migration | `apps/web`: `Unsupported("vector(1536)")?`; `apps/api`: `String?`; live Supabase: nullable `text`; `packages/db`: inherits web value | SCHEMA_DRIFT | prisma-drift-agent | Phase 4 must decide canonical type |
+| ConnectedMailbox field naming | Must be consistent across web/api/live | web/api NOT_CHECKED in detail; known naming conflict: email vs emailAddress, encryptedAccessToken vs accessTokenEncrypted, historyId vs gmailHistoryId | NOT_CHECKED | prisma-drift-agent | Phase 4 scope |
+| EmailEvent vs EmailActivityLog | One canonical event table or documented split | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 overlap risk |
+| TrackedLink vs EmailTrackedLink | One canonical link table or documented split | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 overlap risk |
+| SuppressionEntry canonical shape | Must match final canonical schema | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 shape conflict risk |
+| WaitlistRequest | Present only if feature requires it | NOT_CHECKED in live | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 adds it |
 
 ## Runtime linkage matrix
 
