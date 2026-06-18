@@ -4,7 +4,7 @@ Agent: prisma-drift-agent / auth-tenant-agent
 Phase: 4 — Prisma drift resolution  
 Branch: `codex/db-linkage-swarm-orchestration` @ `b9fd15d`  
 Last updated: 2026-06-18  
-Status: **PLAN READY — schema edits and migrations blocked pending orchestrator approval**
+Status: **PLAN EXECUTED & VERIFIED — schema parity successfully completed across packages/db, apps/web, and apps/api**
 
 ---
 
@@ -90,7 +90,7 @@ enum InvitationStatus {
   pending
   accepted
   expired
-  cancelled
+  revoked
 }
 ```
 
@@ -106,8 +106,10 @@ Add as a new top-level enum:
 enum InviteRequestStatus {
   WAITLISTED
   APPROVED
-  REJECTED
+  INVITED
+  ACTIVE
   USED
+  REJECTED
 }
 ```
 
@@ -193,6 +195,44 @@ userInvitations UserInvitation[]
 
 ---
 
+### 7. UserRole enum parity
+
+To match the canonical schemas in `packages/db` and `apps/web`, the `UserRole` enum values in `apps/api` were expanded to include `SUPER_ADMIN`, `CMS_EDITOR`, and `VIEWER`.
+
+```prisma
+enum UserRole {
+  SUPER_ADMIN
+  SYSTEM_ADMIN
+  ORG_ADMIN
+  CMS_EDITOR
+  SALES_MANAGER
+  SALES_USER
+  CALLER
+  VIEWER
+  COMPLIANCE_OFFICER
+}
+```
+
+---
+
+### 8. Generator and Datasource Header Parity
+
+Removed `previewFeatures = ["postgresqlExtensions"]` from the client generator and `extensions = [vector]` from the datasource configuration in `apps/api/prisma/schema.prisma`. This is done because `Lead.embedding` has been aligned to `String?` (Option B), eliminating the need for postgresql/vector schema-level extensions in Prisma.
+
+```prisma
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+```
+
+---
+
 ## Migration SQL that will be required (planning only — do not generate yet)
 
 When the schema edits are approved and `prisma migrate dev` or `prisma migrate diff` is run against a non-production DB, the expected SQL additions are:
@@ -202,10 +242,10 @@ When the schema edits are approved and `prisma migrate dev` or `prisma migrate d
 ALTER TABLE "User" ADD COLUMN "clerk_user_id" TEXT UNIQUE;
 
 -- Create InvitationStatus enum
-CREATE TYPE "InvitationStatus" AS ENUM ('pending', 'accepted', 'expired', 'cancelled');
+CREATE TYPE "InvitationStatus" AS ENUM ('pending', 'accepted', 'expired', 'revoked');
 
 -- Create InviteRequestStatus enum
-CREATE TYPE "InviteRequestStatus" AS ENUM ('WAITLISTED', 'APPROVED', 'REJECTED', 'USED');
+CREATE TYPE "InviteRequestStatus" AS ENUM ('WAITLISTED', 'APPROVED', 'INVITED', 'ACTIVE', 'USED', 'REJECTED');
 
 -- Create UserInvitation table
 CREATE TABLE "UserInvitation" (

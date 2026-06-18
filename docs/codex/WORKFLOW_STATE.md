@@ -63,7 +63,7 @@ Use only these values:
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
-| Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. |
+| Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 
 ## Latest findings
 
