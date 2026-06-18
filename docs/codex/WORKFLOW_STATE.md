@@ -6,14 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | READY_FOR_NEXT_STAGE |
+| Overall status | BLOCKED_EXTERNAL_ACCESS |
 | Current stage | Phase 5 - Live/Staging DB verification and additive migration preparation |
 | Current agent | prisma-drift-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
 | Baseline commit inspected | 07d6736f72989a1db8e854ee38c793cc9fb437a2 |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-18 |
-| Next action | Handoff to orchestrator to proceed with Phase 6 (generating/applying additive auth migration or env checks) |
+| Next action | Provision staging/production connection credentials (DATABASE_URL/DIRECT_URL) to unblock read-only verification |
 
 ## Status values
 
@@ -64,7 +64,7 @@ Use only these values:
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
-| Phase 5. DB verification & additive prep | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md | Created live schema verification plan and safety-reviewed additive SQL plan for auth/invite models. Unsafe EdgeNode migration remains blocked. |
+| Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
 
 ## Latest findings
 
@@ -140,8 +140,8 @@ Use only these values:
    - Add `Team.userInvitations` relation
 2. [COMPLETED] Run `npx prisma validate` on `apps/api` schema after edits.
 3. [COMPLETED] Re-run `npm run db:schema:compare` — expected result: all three MATCH, exit code 0.
-4. [COMPLETED] Created live schema verification plan (`live-schema-verify-plan.md`) and additive migration plan (`auth-invite-additive-migration-plan.md`).
-5. [ACTIVE - Phase 6] Generate/apply additive auth migration against non-production/staging DB after manual approval.
+4. [BLOCKED_EXTERNAL_ACCESS - Phase 5] Run `live-schema-verify-plan.md` read-only verification against remote Supabase project `izqcycslipmbgdwgajvu` (blocked: missing remote connection strings).
+5. [QUEUED] Generate/apply additive auth migration against staging/production DB (requires unblocking verification).
 6. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` path.
 7. [QUEUED] Verify Vercel env keys and targets.
 8. [QUEUED] Verify GitHub Actions green on target branch.
