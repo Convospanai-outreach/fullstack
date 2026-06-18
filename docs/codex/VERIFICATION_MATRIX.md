@@ -126,3 +126,5 @@ Use only these verdicts:
 | Lint | CI enforced | Web lint present | PASS | ci-gate-agent | API lint not confirmed |
 | Tests | CI enforced | Web unit/coverage and API tests/coverage present | PASS | ci-gate-agent | Live Actions status not checked |
 | Production build | CI enforced | Web build and Vercel parity build present | PASS | ci-gate-agent | Live Actions status not checked |
+| Live/staging DB verification plan | fresh read-only verification queries list | `docs/audits/live-schema-verify-plan.md` created 2026-06-18; contains 10 comprehensive read-only checks covering enums, tables, cols, types, and EdgeNode orphan count | PASS | prisma-drift-agent | Ready for execution |
+| Additive auth migration plan | Plan additive changes safely | `docs/audits/auth-invite-additive-migration-plan.md` created 2026-06-18; outlines SQL script, enum expansion risk, rollback limits, preflight checks, backups | PASS | prisma-drift-agent | Non-destructive plan drafted |
