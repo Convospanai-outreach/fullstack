@@ -6,12 +6,13 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | NOT_STARTED |
-| Current stage | Stage 0 - Branch and baseline |
-| Current agent | orchestrator |
-| Working branch | codex/vercel-supabase-db-linkage-fix |
-| Last updated | TBD by Codex |
-| Next action | Read IMPLEMENTATION_PLAN.md and AGENTS.md, then start Stage 0 |
+| Overall status | NEEDS_REPLAN |
+| Current stage | Stage 13 - Final readiness |
+| Current agent | release-readiness-agent |
+| Working branch | codex/db-linkage-swarm-orchestration |
+| Baseline commit inspected | 12174245a1af55d32c0b46a04b5d9f7b0a2948cd |
+| Last updated | 2026-06-18 |
+| Next action | Resolve schema/migration/auth/env blockers before implementation or production migration |
 
 ## Status values
 
@@ -32,44 +33,64 @@ Use only these values:
 
 | Blocker | Owner agent | Evidence | Next action | Status |
 | --- | --- | --- | --- | --- |
-| None recorded yet | orchestrator | n/a | Start Stage 0 | NOT_STARTED |
+| Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
+| Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
+| Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
+| Vercel env-key/target mapping unverified | env-guard-agent | Vercel connector did not expose env listing; local Vercel CLI scope failed | Verify env keys/targets without exposing values | BLOCKED_EXTERNAL_ACCESS |
+| GitHub Actions green status unverified | ci-gate-agent | `gh` CLI unavailable in environment | Verify checks on target branch before launch | BLOCKED_EXTERNAL_ACCESS |
+| PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
 
 | Stage | Agent | Status | Evidence file | Notes |
 | --- | --- | --- | --- | --- |
-| 0. Branch and baseline | orchestrator | NOT_STARTED | db-linkage-fix-log.md | Create safe branch and baseline |
-| 1. Repo cartography | repo-cartographer | NOT_STARTED | vercel-supabase-reassessment.md | Map all linkage files |
-| 2. Vercel linkage inspection | vercel-linkage-agent | NOT_STARTED | VERIFICATION_MATRIX.md | Safe environment fingerprints only |
-| 3. Supabase live schema inspection | supabase-inspector | NOT_STARTED | prisma-schema-drift-matrix.md | Read-only SQL only |
-| 4. Prisma ownership and drift | prisma-drift-agent | NOT_STARTED | prisma-schema-drift-matrix.md | Four-way matrix required |
-| 5. Gmail/mailbox conflict resolution | prisma-drift-agent | NOT_STARTED | prisma-schema-drift-matrix.md | Do not merge PR #6 as-is |
-| 6. Migration safety | migration-safety-agent | NOT_STARTED | database-production-runbook.md | DIRECT_URL required |
-| 7. Runtime DB alignment | runtime-db-agent | NOT_STARTED | db-linkage-fix-log.md | Engine/client/adapter consistency |
-| 8. Env linkage guards | env-guard-agent | NOT_STARTED | vercel-supabase-smoke-runbook.md | Redacted diagnostics only |
-| 9. Health and smoke tests | health-smoke-agent | NOT_STARTED | vercel-supabase-smoke-runbook.md | live/ready/deep probes |
-| 10. Clerk/app DB linkage | auth-tenant-agent | NOT_STARTED | production-readiness-final.md | Clerk to User to TeamMember |
-| 11. Redis/cache/queue isolation | redis-cache-agent | NOT_STARTED | production-readiness-final.md | Namespace and environment isolation |
-| 12. CI and PR strategy | ci-gate-agent | NOT_STARTED | production-readiness-final.md | Drift gates and PR #6 split |
-| 13. Final readiness | release-readiness-agent | NOT_STARTED | production-readiness-final.md | Final evidence and status |
+| 0. Branch and baseline | orchestrator | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Branch `codex/db-linkage-swarm-orchestration`, baseline `12174245a1af55d32c0b46a04b5d9f7b0a2948cd` |
+| 1. Repo cartography | repo-cartographer | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Apps: web/API/edge-fastapi; web/API Prisma schemas; CI workflows mapped |
+| 2. Vercel linkage inspection | vercel-linkage-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Project/deployment found; env mapping not verified |
+| 3. Supabase live schema inspection | supabase-inspector | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Active project found; live schema drift found |
+| 4. Prisma ownership and drift | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | web/API schemas validate but histories diverge |
+| 5. Gmail/mailbox conflict resolution | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | PR #6 conflicts with canonical schema strategy |
+| 6. Migration safety | migration-safety-agent | BLOCKED | VERIFICATION_MATRIX.md | Destructive `DELETE FROM "EdgeNode"` found |
+| 7. Runtime DB alignment | runtime-db-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | App health checks still rely on `SELECT 1` |
+| 8. Env linkage guards | env-guard-agent | BLOCKED_EXTERNAL_ACCESS | VERIFICATION_MATRIX.md | Vercel env-key/target proof unavailable |
+| 9. Health and smoke tests | health-smoke-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Vercel logs show `/` and `/login` 200; readiness endpoint not proven |
+| 10. Clerk/app DB linkage | auth-tenant-agent | BLOCKED_BY_SCHEMA_CONFLICT | production-readiness-final.md | Clerk sync depends on missing live DB objects |
+| 11. Redis/cache/queue isolation | redis-cache-agent | READY_FOR_NEXT_STAGE | production-readiness-final.md | Redis degrades gracefully; production Redis env still unverified |
+| 12. CI and PR strategy | ci-gate-agent | NEEDS_REPLAN | production-readiness-final.md | CI structure exists; live Actions green not verified |
+| 13. Final readiness | release-readiness-agent | NEEDS_REPLAN | production-readiness-final.md | Final status: not launch-ready |
 
 ## Latest findings
 
-No findings recorded yet.
+- Vercel project `fullstack-web-xkxn` / `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` is linked to `Convospanai-outreach/fullstack`.
+- Latest Vercel deployment inspected was `READY` from `codex/db-linkage-swarm-orchestration`; recent production deployments from `main` were also `READY`, but readiness is not proven by deploy state.
+- Supabase project `Fullstack2026` / `izqcycslipmbgdwgajvu` is `ACTIVE_HEALTHY` on Postgres 17.
+- Live Supabase schema fingerprint: `c277e899b339aeb93d8dfaef77426b78`.
+- Live DB has 90 public tables and 17 Prisma migration rows.
+- Local migration directories exceed live: web 25, API 22.
+- Live DB is missing `User.clerk_user_id`, `UserInvitation`, and `invite_requests`, while web Clerk auth depends on them.
+- `Lead.embedding` is nullable `text` live; vector extension is installed.
+- `20260604140000_edge_runtime_pairing` includes `DELETE FROM "EdgeNode"` and must not run in production as-is.
+- Vercel runtime logs showed recent production `200` responses for `/` and `/login`; local DNS maps custom domains to `127.0.0.1`, so direct local smoke checks were not reliable.
+- PR #2 is focused but `mergeable=false`; PR #6 is broad, `mergeable=false`, and must be split.
 
 ## Decisions
 
 | Decision | Date | Agent | Evidence | Status |
 | --- | --- | --- | --- | --- |
-| No decisions yet | TBD | orchestrator | n/a | PENDING |
+| Vercel READY is insufficient | 2026-06-18 | orchestrator | Deployment metadata and runtime/db blockers | ACCEPTED |
+| SELECT 1 is insufficient | 2026-06-18 | runtime-db-agent | Health routes only check `SELECT 1`; schema drift exists | ACCEPTED |
+| Do not run production migrations yet | 2026-06-18 | migration-safety-agent | Pending migration contains destructive delete | ACCEPTED |
+| Do not merge PR #6 as-is | 2026-06-18 | pr-strategy-agent | PR #6 broad/conflicting diff | ACCEPTED |
 
 ## Next action queue
 
-1. Confirm working branch and baseline commit.
-2. Read the orchestration files.
-3. Start Stage 0.
-4. Update this file after Stage 0.
-5. Continue to Stage 1 only after the baseline is recorded.
+1. Choose canonical Prisma source for production (`apps/web` vs `apps/api`) and reconcile migration directories.
+2. Split `20260604140000_edge_runtime_pairing` into safe preflight/backup/review plus non-destructive migration.
+3. Verify Vercel env keys and targets without exposing values.
+4. Add or run a readiness check that verifies migrations, required tables, required columns, app environment marker, and schema fingerprint.
+5. Resolve Clerk/invite schema mismatch before auth smoke.
+6. Verify GitHub Actions are green on the target branch.
+7. Split PR #6 into docs, env/auth alias, schema, runtime/API, and UI/test PRs.
 
 ## Handoff note template
 
