@@ -1,12 +1,10 @@
 generator client {
   provider        = "prisma-client-js"
   engineType      = "library"
-  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider   = "postgresql"
-  extensions = [vector]
+  provider = "postgresql"
 }
 
 enum Region {
@@ -35,7 +33,7 @@ model Lead {
   marketContext Json? // Stores { detectedCountry: "AE", frictionScore: 0.8 }
 
   enrichedData Json?
-  embedding    Unsupported("vector(1536)")? // Vector embedding for similarity search
+  embedding    String? // Controlled-beta canonical type: String/text (matches live DB). Vector(1536) upgrade is a future migration phase.
   value        Float?    @default(0.0) // Potential Deal Value
   wonAt        DateTime? // When it was marked CLOSED_WON
   lostAt       DateTime? // When it was marked CLOSED_LOST

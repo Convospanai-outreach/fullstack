@@ -2,9 +2,9 @@
 
 Agent: prisma-drift-agent  
 Phase: 4 — Prisma drift resolution  
-Branch: `codex/db-linkage-swarm-orchestration` @ `b9fd15d`  
+Branch: `codex/db-linkage-swarm-orchestration` @ `253096d`  
 Last updated: 2026-06-18  
-Status: **RECOMMENDATION READY — awaiting orchestrator acceptance**
+Status: **OPTION B ACCEPTED — CTO-approved controlled-beta decision. Schema edits applied. No migration generated.**
 
 ---
 
@@ -116,7 +116,49 @@ Status: **RECOMMENDATION READY — awaiting orchestrator acceptance**
 
 ---
 
-## Recommendation for controlled beta: **Option C**
+## Accepted decision: **Option B — `String?` canonical now**
+
+**Decision date:** 2026-06-18  
+**Approved by:** CTO (controlled-beta decision)  
+**Supersedes:** Option C recommendation from prior draft  
+
+### Rationale accepted
+
+- Immediate schema convergence across all three sources (`packages/db`, `apps/web`, `apps/api`) with no migration.
+- Matches live Supabase `text` column exactly — zero DB change needed for this field.
+- Removes `Unsupported("vector(1536)")` from both `packages/db` and `apps/web`, eliminating Prisma validation friction.
+- Vector search is not a controlled-beta requirement; upgrade is tracked as a separate future migration phase.
+
+### Schema edits applied (2026-06-18)
+
+| File | Before | After |
+| --- | --- | --- |
+| `packages/db/prisma/schema.prisma` line 38 | `Unsupported("vector(1536)")?` | `String?` |
+| `apps/web/prisma/schema.prisma` line 38 | `Unsupported("vector(1536)")?` | `String?` |
+| `apps/api/prisma/schema.prisma` line 38 | `String?` (already correct) | No change |
+
+### No migration generated
+
+No `prisma migrate dev` or `prisma migrate diff` was run. The live DB column is already `text` (nullable). No ALTER COLUMN is required for this change.
+
+### Future vector upgrade (tracked separately)
+
+When vector search is required:
+1. Plan a dedicated migration phase.
+2. Run `prisma migrate diff` against a non-production clone.
+3. Review generated `ALTER COLUMN "embedding" TYPE vector(1536)` SQL for safety on production data.
+4. Apply with explicit DBA approval, VACUUM, index rebuild plan, and rollback procedure.
+
+---
+
+## Option C — superseded
+
+Option C (String short-term in `packages/db` only, web unchanged) is **superseded** by Option B. The full convergence approach was chosen to eliminate all schema drift on this field for the beta.
+
+---
+
+## Recommendation for controlled beta: ~~Option C~~ **Option B (accepted)**
+
 
 **Rationale:**
 

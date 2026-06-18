@@ -1,31 +1,28 @@
 # Schema Compare Output
 
-Captured: 2026-06-18  
-Command: `npm run db:schema:compare`  
-Exit code: 1 (DIFFER — expected; API drift is known)  
-Branch: `codex/db-linkage-swarm-orchestration` @ `7e82c01`
+Captured: 2026-06-18 (post Option B embedding convergence)  
+Command: `node scripts/db/compare-prisma-schemas.mjs`  
+Exit code: 1 (DIFFER — expected; remaining drift is auth/invite gap only)  
+Branch: `codex/db-linkage-swarm-orchestration`  
 
 ## Raw output
 
 ```
-> db:schema:compare
-> node scripts/db/compare-prisma-schemas.mjs
-
 Prisma schema comparison
-- packages/db/prisma/schema.prisma: 2364 lines, sha256=c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
-- apps/web/prisma/schema.prisma: 2364 lines, sha256=c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
+- packages/db/prisma/schema.prisma: 2362 lines, sha256=3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
+- apps/web/prisma/schema.prisma: 2362 lines, sha256=3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
 - apps/api/prisma/schema.prisma: 2291 lines, sha256=a971cc7405c2d35046b36f07214785e44d9c2cddc14f4d911f61cf3e7d632bd4
 
 packages/db/prisma/schema.prisma <-> apps/web/prisma/schema.prisma
   status: MATCH
-  left sha256:  c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
-  right sha256: c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
+  left sha256:  3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
+  right sha256: 3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
 
 packages/db/prisma/schema.prisma <-> apps/api/prisma/schema.prisma
   status: DIFFER
-  left sha256:  c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
+  left sha256:  3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
   right sha256: a971cc7405c2d35046b36f07214785e44d9c2cddc14f4d911f61cf3e7d632bd4
-  left semantic sha256:  90907caf499f820ed535789f79034b36d7aa131ab48c2801f4b261b91df476a3
+  left semantic sha256:  4724b17d267e9655154b00b41f1a4d61d589f2cddd074a62ad35eb14e442c8e7
   right semantic sha256: 92128eba6e10877d782656f9906a161135a92c2621d92e4041b0a83c4aef0328
   models only in left: InviteRequest, UserInvitation
   models only in right: none
@@ -34,9 +31,9 @@ packages/db/prisma/schema.prisma <-> apps/api/prisma/schema.prisma
 
 apps/web/prisma/schema.prisma <-> apps/api/prisma/schema.prisma
   status: DIFFER
-  left sha256:  c8f570cbcbf6ae64369e7a884d49ac6ad582856f53407fc988eff992d1660303
+  left sha256:  3d46e8b3432ee226c287bdca5b4ab544dea88842c27f9c159e27f387bb905827
   right sha256: a971cc7405c2d35046b36f07214785e44d9c2cddc14f4d911f61cf3e7d632bd4
-  left semantic sha256:  90907caf499f820ed535789f79034b36d7aa131ab48c2801f4b261b91df476a3
+  left semantic sha256:  4724b17d267e9655154b00b41f1a4d61d589f2cddd074a62ad35eb14e442c8e7
   right semantic sha256: 92128eba6e10877d782656f9906a161135a92c2621d92e4041b0a83c4aef0328
   models only in left: InviteRequest, UserInvitation
   models only in right: none
@@ -51,19 +48,38 @@ Summary
 
 ## Interpretation
 
-| Pair | Result | Reason |
+| Pair | Result | Cause |
 | --- | --- | --- |
-| `packages/db` ↔ `apps/web` | **MATCH** | `packages/db` is a direct copy of `apps/web` schema |
-| `packages/db` ↔ `apps/api` | **DIFFER** | `apps/api` is missing `UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus` |
-| `apps/web` ↔ `apps/api` | **DIFFER** | Same gap as above |
+| `packages/db` ↔ `apps/web` | **MATCH** | ✅ Embedding convergence confirmed. Both identical. |
+| `packages/db` ↔ `apps/api` | **DIFFER** | Auth/invite gap only: `UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus` |
+| `apps/web` ↔ `apps/api` | **DIFFER** | Same auth/invite gap |
 
-## What the compare script does NOT catch
+## What changed since last run
 
-The script compares only model and enum block names at a high level, plus semantic content hashes. It does **not** perform a field-level diff. The following known field-level differences require manual inspection and are captured in `docs/audits/prisma-schema-drift-matrix.md`:
+Previous run (commit `b9fd15d`): `Lead.embedding` was `Unsupported("vector(1536)")` in `packages/db` and `apps/web`, causing a type-level semantic gap vs `apps/api` (`String?`).
 
-- `Lead.embedding`: `Unsupported("vector(1536)")?` in web/packages vs `String?` in API
-- `User.clerkUserId`: present in web (mapped to `clerk_user_id`), absent in API
-- `User` relations: `sentInvitations`, `approvedInviteRequests` in web; absent in API
+This run: `Lead.embedding` is now `String?` in **all three schemas**. The embedding TYPE_DRIFT is **resolved**.
+
+## Remaining DIFFER — auth/invite gap
+
+The only remaining schema gap between `packages/db`/`apps/web` and `apps/api` is the auth and onboarding models:
+
+| Missing from `apps/api` | Type |
+| --- | --- |
+| `UserInvitation` | Model |
+| `InviteRequest` | Model |
+| `InvitationStatus` | Enum |
+| `InviteRequestStatus` | Enum |
+
+This gap is documented in `docs/audits/api-auth-schema-sync-plan.md` and is the **sole remaining Phase 4 action item** before schemas can fully converge.
+
+## Expected state after auth sync
+
+Once `apps/api` schema additions from `api-auth-schema-sync-plan.md` are applied, the expected compare result is:
+- `packages/db` ↔ `apps/web`: MATCH
+- `packages/db` ↔ `apps/api`: MATCH
+- `apps/web` ↔ `apps/api`: MATCH
+- Exit code: 0
 
 ## Safety note
 
