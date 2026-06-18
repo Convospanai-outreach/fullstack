@@ -6,7 +6,7 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | READY_FOR_NEXT_STAGE |
+| Overall status | IN_PROGRESS |
 | Current stage | Phase 4 - Prisma drift resolution |
 | Current agent | prisma-drift-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
@@ -63,7 +63,7 @@ Use only these values:
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
-| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md | Four-way drift matrix: packages/db vs apps/web vs apps/api vs known live Supabase evidence; contested models: Lead.embedding, ConnectedMailbox, Email, EmailEvent, TrackedLink, SuppressionEntry, WaitlistRequest, UserInvitation |
+| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md | Four-way matrix complete. Key findings: Lead.embedding TYPE_DRIFT (web=vector(1536), api=String, live=text); User.clerkUserId WEB_ONLY/LIVE_DRIFT; UserInvitation+InviteRequest WEB_ONLY/API_MISSING/LIVE_DRIFT; ConnectedMailbox/Email/SuppressionEntry/TrackedLink identical; EmailActivityLog+EmailTrackedLink+WaitlistRequest NOT_IN_EITHER (PR #6 only) |
 
 ## Latest findings
 
@@ -93,6 +93,12 @@ Use only these values:
 - `packages/db/prisma/schema.prisma` is a starting snapshot copied from `apps/web/prisma/schema.prisma`; app-local schemas were not deleted or rewired.
 - Schema comparison is available with `npm run db:schema:compare`; it exits non-zero on current API drift and is not wired into CI.
 - Live compare output (2026-06-18): `packages/db` matches `apps/web` (MATCH); `apps/api` differs by `InviteRequest`, `UserInvitation`, `InvitationStatus`, `InviteRequestStatus` (DIFFER, expected known drift).
+- Phase 4 drift matrix completed (2026-06-18): `ConnectedMailbox` naming conflicts do NOT exist in current local schemas (PR #6 concern only). `Email`, `SuppressionEntry`, `TrackedLink` are field-for-field identical across web and API. `EmailActivityLog`, `EmailTrackedLink`, `WaitlistRequest` do not exist in any local schema (PR #6 proposals only).
+- `Lead.embedding` TYPE_DRIFT confirmed: web/packages=`Unsupported("vector(1536)")?`, API=`String?` (comment: "Temporarily String to match DB state"), live=`text` nullable.
+- `User.clerkUserId` (`clerk_user_id`) is present in `apps/web` and `packages/db`, absent from `apps/api` User model, and absent from live Supabase.
+- `UserInvitation` model present in web/packages, absent from `apps/api`, confirmed absent from live Supabase.
+- `InviteRequest` model (mapped to `invite_requests`) present in web/packages, absent from `apps/api`, live state not confirmed this session.
+- See `docs/audits/prisma-schema-drift-matrix.md` for full evidence and `docs/audits/schema-compare-output.md` for raw compare output.
 
 ## Decisions
 
@@ -107,24 +113,23 @@ Use only these values:
 | Auth/onboarding repair must be additive and review-gated | 2026-06-18 | auth-tenant-agent | `docs/audits/auth-schema-repair-plan.md` | ACCEPTED |
 | Permanent canonical schema target should be `packages/db/prisma/schema.prisma`, not `apps/web` | 2026-06-18 | orchestrator | `docs/audits/canonical-schema-architecture-plan.md` | PROPOSED |
 | Migration manifest format is advisory only until explicitly enforced | 2026-06-18 | migration-safety-agent | `scripts/db/migration-manifest.schema.json` | ACCEPTED |
-| Phase 3 only creates shared DB skeleton and local compare gate; no app wiring or CI enforcement yet | 2026-06-18 | orchestrator | `packages/db/package.json` | ACCEPTED |
+| `Lead.embedding` canonical type | Choose vector(1536) vs String vs leave as live text | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix evidence | NEEDS_DECISION |
+| `ConnectedMailbox` naming conflicts | No conflict in current local schemas | 2026-06-18 | prisma-drift-agent | Direct schema inspection | RESOLVED |
+| `EmailActivityLog` / `EmailTrackedLink` / `WaitlistRequest` | Not in any current local schema; PR #6 proposals only | 2026-06-18 | prisma-drift-agent | Direct schema inspection | RESOLVED |
+| `UserInvitation` + `InviteRequest` API gap | Must be added to `apps/api` and applied to live DB | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix | ACCEPTED — blocked on auth-tenant-agent execution |
 
 ## Next action queue
 
-1. [ACTIVE - Phase 4] Run prisma-drift-agent: produce four-way drift matrix across `packages/db`, `apps/web`, `apps/api`, and known live Supabase evidence for all contested models.
-2. [ACTIVE - Phase 4] Resolve canonical type for `Lead.embedding` (vector(1536) vs String vs text live).
-3. [ACTIVE - Phase 4] Resolve `ConnectedMailbox` field naming conflicts (encryptedAccessToken vs accessTokenEncrypted, email vs emailAddress, historyId vs gmailHistoryId).
-4. [ACTIVE - Phase 4] Resolve `EmailEvent` vs `EmailActivityLog` and `TrackedLink` vs `EmailTrackedLink` duplication.
-5. [ACTIVE - Phase 4] Update `docs/audits/prisma-schema-drift-matrix.md` with full NOT_CHECKED rows for all contested tables.
-6. [QUEUED] Decide how app-local schemas will be kept in sync before any wiring changes.
-7. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, audit/backup, non-destructive migration, and manual cleanup approval.
-8. [QUEUED] Decide whether the advisory migration manifest should become a CI gate.
-9. [QUEUED] Generate a draft additive auth/onboarding migration only after the shared schema decision is approved.
-10. [QUEUED] Run `npm run schema:verify:readonly` against the intended database using redacted env handling.
-11. [QUEUED] Verify Vercel env keys and targets without exposing values.
-12. [QUEUED] Resolve Clerk/invite schema mismatch before auth smoke.
-13. [QUEUED] Verify GitHub Actions are green on the target branch.
-14. [QUEUED] Split PR #6 later, after schema and runtime readiness strategy is stable.
+1. [ACTIVE - Phase 4] Decide canonical type for `Lead.embedding`: vector(1536), String, or deferred migration — update `packages/db` schema once decided.
+2. [ACTIVE - Phase 4] Add `User.clerkUserId` to `apps/api` User model (no migration yet; schema sync only).
+3. [ACTIVE - Phase 4] Add `UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus` to `apps/api` schema (no migration yet).
+4. [QUEUED] Run `npm run schema:verify:readonly` against live DB (requires env access) to confirm fresh live state before any migration.
+5. [QUEUED] Generate additive auth migration for `clerk_user_id`, `UserInvitation`, `invite_requests` after schema decision is approved.
+6. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, non-destructive migration, and manual cleanup approval.
+7. [QUEUED] Decide whether the advisory migration manifest should become a CI gate.
+8. [QUEUED] Verify Vercel env keys and targets without exposing values.
+9. [QUEUED] Verify GitHub Actions are green on the target branch.
+10. [QUEUED] Split PR #6 later, after schema and runtime readiness strategy is stable.
 
 ## Handoff note template
 

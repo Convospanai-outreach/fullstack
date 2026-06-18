@@ -74,12 +74,12 @@ Use only these verdicts:
 | WaitlistRequest | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | UserInvitation | Present in web schema/migration | Missing from API migration history | Missing live | PR #6 broad auth/mailbox work overlaps | SCHEMA_DRIFT | Add through canonical migration only after auth strategy confirmed |
 | Shared DB schema snapshot | Same as current approved starting candidate | `packages/db/prisma/schema.prisma` copied from `apps/web/prisma/schema.prisma`; compare script added | PASS | orchestrator | Snapshot only; no migrations generated |
-| Lead.embedding canonical type | Must be resolved before any migration | `apps/web`: `Unsupported("vector(1536)")?`; `apps/api`: `String?`; live Supabase: nullable `text`; `packages/db`: inherits web value | SCHEMA_DRIFT | prisma-drift-agent | Phase 4 must decide canonical type |
-| ConnectedMailbox field naming | Must be consistent across web/api/live | web/api NOT_CHECKED in detail; known naming conflict: email vs emailAddress, encryptedAccessToken vs accessTokenEncrypted, historyId vs gmailHistoryId | NOT_CHECKED | prisma-drift-agent | Phase 4 scope |
-| EmailEvent vs EmailActivityLog | One canonical event table or documented split | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 overlap risk |
-| TrackedLink vs EmailTrackedLink | One canonical link table or documented split | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 overlap risk |
-| SuppressionEntry canonical shape | Must match final canonical schema | NOT_CHECKED | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 shape conflict risk |
-| WaitlistRequest | Present only if feature requires it | NOT_CHECKED in live | NOT_CHECKED | prisma-drift-agent | Phase 4 scope; PR #6 adds it |
+| Lead.embedding canonical type | Must be resolved before any migration | `apps/web`: `Unsupported("vector(1536)")?`; `apps/api`: `String?` (comment: temporarily String to match DB state); live Supabase: nullable `text`; `packages/db`: inherits web value | SCHEMA_DRIFT | prisma-drift-agent | Phase 4 must decide canonical type; see drift matrix |
+| ConnectedMailbox field naming | Must be consistent across web/api/live | Direct inspection: `email`, `encryptedAccessToken`, `encryptedRefreshToken`, `tokenExpiresAt`, `historyId` identical in both web and API schemas | PASS | prisma-drift-agent | No naming conflict in current local schemas; PR #6 concern only |
+| EmailEvent vs EmailActivityLog | One canonical event table or documented split | `EmailEvent` exists in all local schemas; `EmailActivityLog` does NOT exist in any local schema | PASS | prisma-drift-agent | PR #6 proposes adding EmailActivityLog; no duplication exists now |
+| TrackedLink vs EmailTrackedLink | One canonical link table or documented split | `TrackedLink` exists in all local schemas; `EmailTrackedLink` does NOT exist in any local schema | PASS | prisma-drift-agent | PR #6 concern only; no duplication exists now |
+| SuppressionEntry canonical shape | Must match final canonical schema | Field-for-field identical across web and API: id, teamId, email, reason, source, leadId, createdBy, createdAt, @@unique([teamId, email]) | PASS | prisma-drift-agent | Resolved |
+| WaitlistRequest | Present only if feature requires it | Not in any local schema (web, API, or packages/db) | PASS | prisma-drift-agent | PR #6 proposes adding it; not yet in any canonical schema |
 
 ## Runtime linkage matrix
 
@@ -115,7 +115,8 @@ Use only these verdicts:
 | Schema drift check | CI enforced | No production schema fingerprint/live drift gate found | MISSING | ci-gate-agent | Add gate before launch |
 | Read-only schema verifier script | Available but not blocking CI yet | `npm run schema:verify:readonly` and `npm run schema:verify:production` available at root | PASS | ci-gate-agent | Production mode requires expected count, latest migration, fingerprint, and migration names/manifest |
 | Migration manifest format | Available but not enforced yet | `scripts/db/migration-manifest.schema.json` plus docs added | PASS | migration-safety-agent | Advisory only; no CI enforcement |
-| Schema comparison script | Available but not blocking CI yet | `npm run db:schema:compare` compares shared, web, and API Prisma schemas and exits non-zero on semantic drift | PASS | orchestrator | Current expected result: shared matches web; API differs on invite/onboarding schema |
+| Schema comparison script | Available but not blocking CI yet | `npm run db:schema:compare` ran 2026-06-18; output in `docs/audits/schema-compare-output.md`; shared matches web; API differs on invite/onboarding schema (exit code 1) | PASS | orchestrator | Not blocking CI |
+| Phase 4 drift matrix | Evidence file must exist before VERIFICATION_MATRIX update | `docs/audits/prisma-schema-drift-matrix.md` created 2026-06-18; full four-way matrix including field-level detail for all contested models | PASS | prisma-drift-agent | See drift matrix for open decisions |
 | Migration drift check | CI enforced against disposable DB | CI uses disposable Postgres and `prisma migrate deploy` | PASS | ci-gate-agent | Does not prove live Supabase is current |
 | Typecheck | CI enforced | Web/API typecheck jobs present | PASS | ci-gate-agent | Live Actions status not checked |
 | Lint | CI enforced | Web lint present | PASS | ci-gate-agent | API lint not confirmed |
