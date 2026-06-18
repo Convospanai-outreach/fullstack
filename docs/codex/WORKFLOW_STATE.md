@@ -63,7 +63,7 @@ Use only these values:
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
-| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md | Four-way matrix complete. Key findings: Lead.embedding TYPE_DRIFT (web=vector(1536), api=String, live=text); User.clerkUserId WEB_ONLY/LIVE_DRIFT; UserInvitation+InviteRequest WEB_ONLY/API_MISSING/LIVE_DRIFT; ConnectedMailbox/Email/SuppressionEntry/TrackedLink identical; EmailActivityLog+EmailTrackedLink+WaitlistRequest NOT_IN_EITHER (PR #6 only) |
+| Phase 4. Prisma drift resolution | prisma-drift-agent | IN_PROGRESS | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md | Four-way matrix complete. Decision docs produced. Lead.embedding: Option C recommended (String short-term; vector deferred). API auth sync plan: exact Prisma additions listed for clerkUserId, UserInvitation, InviteRequest, enums, and User relations. Blocked on orchestrator decision. |
 
 ## Latest findings
 
@@ -99,6 +99,8 @@ Use only these values:
 - `UserInvitation` model present in web/packages, absent from `apps/api`, confirmed absent from live Supabase.
 - `InviteRequest` model (mapped to `invite_requests`) present in web/packages, absent from `apps/api`, live state not confirmed this session.
 - See `docs/audits/prisma-schema-drift-matrix.md` for full evidence and `docs/audits/schema-compare-output.md` for raw compare output.
+- Phase 4 decision prep complete (2026-06-18): `docs/audits/lead-embedding-decision.md` compares Option A/B/C and recommends Option C (String/text short-term in `packages/db`; vector deferred to a future dedicated migration).
+- Phase 4 decision prep complete (2026-06-18): `docs/audits/api-auth-schema-sync-plan.md` lists exact Prisma additions for `apps/api`: `User.clerkUserId`, `InvitationStatus` enum, `InviteRequestStatus` enum, `UserInvitation` model, `InviteRequest` model, and two User relations. No schema edits or migrations generated yet.
 
 ## Decisions
 
@@ -114,22 +116,26 @@ Use only these values:
 | Permanent canonical schema target should be `packages/db/prisma/schema.prisma`, not `apps/web` | 2026-06-18 | orchestrator | `docs/audits/canonical-schema-architecture-plan.md` | PROPOSED |
 | Migration manifest format is advisory only until explicitly enforced | 2026-06-18 | migration-safety-agent | `scripts/db/migration-manifest.schema.json` | ACCEPTED |
 | `Lead.embedding` canonical type | Choose vector(1536) vs String vs leave as live text | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix evidence | NEEDS_DECISION |
+| `Lead.embedding` Option C recommended | String/text short-term in `packages/db` + `apps/api`; vector upgrade deferred to separate future migration | 2026-06-18 | prisma-drift-agent | `docs/audits/lead-embedding-decision.md` | PROPOSED — awaiting orchestrator acceptance |
 | `ConnectedMailbox` naming conflicts | No conflict in current local schemas | 2026-06-18 | prisma-drift-agent | Direct schema inspection | RESOLVED |
 | `EmailActivityLog` / `EmailTrackedLink` / `WaitlistRequest` | Not in any current local schema; PR #6 proposals only | 2026-06-18 | prisma-drift-agent | Direct schema inspection | RESOLVED |
-| `UserInvitation` + `InviteRequest` API gap | Must be added to `apps/api` and applied to live DB | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix | ACCEPTED — blocked on auth-tenant-agent execution |
+| `UserInvitation` + `InviteRequest` API gap | Must be added to `apps/api` and applied to live DB | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix | ACCEPTED — blocked on orchestrator approval of sync plan |
+| API auth schema sync plan | Exact Prisma additions listed; no schema edits or migrations generated yet | 2026-06-18 | prisma-drift-agent | `docs/audits/api-auth-schema-sync-plan.md` | PROPOSED — awaiting orchestrator approval |
 
 ## Next action queue
 
-1. [ACTIVE - Phase 4] Decide canonical type for `Lead.embedding`: vector(1536), String, or deferred migration — update `packages/db` schema once decided.
-2. [ACTIVE - Phase 4] Add `User.clerkUserId` to `apps/api` User model (no migration yet; schema sync only).
-3. [ACTIVE - Phase 4] Add `UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus` to `apps/api` schema (no migration yet).
-4. [QUEUED] Run `npm run schema:verify:readonly` against live DB (requires env access) to confirm fresh live state before any migration.
-5. [QUEUED] Generate additive auth migration for `clerk_user_id`, `UserInvitation`, `invite_requests` after schema decision is approved.
-6. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, non-destructive migration, and manual cleanup approval.
-7. [QUEUED] Decide whether the advisory migration manifest should become a CI gate.
-8. [QUEUED] Verify Vercel env keys and targets without exposing values.
-9. [QUEUED] Verify GitHub Actions are green on the target branch.
-10. [QUEUED] Split PR #6 later, after schema and runtime readiness strategy is stable.
+1. [NEEDS_DECISION] Accept or reject Option C for `Lead.embedding` canonical type (`docs/audits/lead-embedding-decision.md`).
+2. [NEEDS_APPROVAL] Approve `docs/audits/api-auth-schema-sync-plan.md` to unblock Phase 4 schema edits.
+3. [BLOCKED_ON_DECISION] Edit `packages/db/prisma/schema.prisma`: change `Lead.embedding` to `String?` if Option C accepted.
+4. [BLOCKED_ON_APPROVAL] Edit `apps/api/prisma/schema.prisma`: add `clerkUserId`, `UserInvitation`, `InviteRequest`, enums, and User relations per sync plan.
+5. [BLOCKED_ON_APPROVAL] Run `npx prisma validate` on both schemas after edits.
+6. [BLOCKED_ON_APPROVAL] Re-run `npm run db:schema:compare` to verify new expected state.
+7. [QUEUED] Run `npm run schema:verify:readonly` against live DB before any migration.
+8. [QUEUED] Generate additive auth migration against non-production DB after schema edits are approved.
+9. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` path.
+10. [QUEUED] Verify Vercel env keys and targets.
+11. [QUEUED] Verify GitHub Actions green on target branch.
+12. [QUEUED] Split PR #6 after schema strategy is stable.
 
 ## Handoff note template
 
