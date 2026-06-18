@@ -76,6 +76,7 @@ Before any auth additive migration:
 | `Lead.embedding` type | live-compatible `text` vs `vector(1536)` | Decide before migration generation |
 | Migration manifest enforcement | advisory docs vs CI gate | Advisory now, CI gate later |
 | App-local schemas | keep copies vs remove after shared package | Remove or generate from shared package after migration path is stable |
+| Schema compare gate | local required check vs CI enforcement | Local script now fails on semantic drift; CI enforcement later |
 
 ## Safety Gate Before Phase 2
 
@@ -84,4 +85,5 @@ Phase 2 should not begin until:
 1. The shared schema ownership plan is approved.
 2. The migration manifest fields are accepted.
 3. The read-only verifier is runnable from root tooling.
-4. Vercel build failure from commit `3b2d7069ac839a5559fa729f28ab913954e52dea` is fixed.
+4. The schema compare gate has an approved sync plan for API drift.
+5. Vercel build failure from commit `3b2d7069ac839a5559fa729f28ab913954e52dea` is fixed.

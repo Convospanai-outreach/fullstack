@@ -1,0 +1,12 @@
+{
+  "name": "@craftmyfunnel/db",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shared database schema package skeleton for CraftMyFunnel.",
+  "scripts": {
+    "schema:compare": "node ../../scripts/db/compare-prisma-schemas.mjs"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  }
+}

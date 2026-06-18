@@ -31,6 +31,7 @@ Use only these verdicts:
 | Production branch | main or documented release branch | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
 | Latest deployment commit | should match intended release | Latest inspected deployment was `READY` from `codex/db-linkage-swarm-orchestration` commit `12174245a1af55d32c0b46a04b5d9f7b0a2948cd`; recent production deployment from `main` commit `86e918c35f9c2c4b1c7a6265564f26bead62e25c` | RUNTIME_RISK | vercel-linkage-agent | Vercel READY is not launch readiness |
 | Commit `3b2d7069` Vercel deployment failure | Root cause identified and corrected before continuing | Deployment `dpl_ABSFvNfhHYfePwfijM8sgR9xrxBe` failed TypeScript on `apps/web/src/scripts/verify-schema-readiness.ts` importing `pg` without declarations; verifier moved out of web source | PASS | vercel-linkage-agent | New deployment still must be observed after commit/push |
+| Commit `07d6736f` Vercel deployment | Preview build should pass before Phase 3 | Deployment `dpl_8dfuT5xwLDeoHfdxQfeuqh6qTFGU` for commit `07d6736f72989a1db8e854ee38c793cc9fb437a2` is `READY` | PASS | vercel-linkage-agent | Vercel READY still does not prove DB/auth/cache readiness |
 | DATABASE_URL production | expected Supabase ref izqcycslipmbgdwgajvu; runtime/pooler allowed | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | DIRECT_URL production | expected direct host db.izqcycslipmbgdwgajvu.supabase.co | Env listing unavailable via connector; local Vercel CLI scope failed | BLOCKED_EXTERNAL_ACCESS | vercel-linkage-agent | host/ref only; no secret |
 | Preview DB isolation | preview must not write prod DB unless explicitly allowed | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
@@ -46,7 +47,7 @@ Use only these verdicts:
 | vector extension | Required if Lead.embedding is vector | Installed extension `vector` found | PASS | supabase-inspector | Live `Lead.embedding` is currently text |
 | _prisma_migrations | Present and latest expected migration applied | Present with 17 rows | MIGRATION_DRIFT | supabase-inspector | Local web has 25 migrations; API has 22 |
 | Lead.embedding | Must match canonical schema | Live column is nullable `text`; `apps/web` schema uses `Unsupported("vector(1536)")?`; `apps/api` schema uses `String?` | SCHEMA_DRIFT | supabase-inspector | Canonical type unresolved; see `docs/audits/prisma-canonical-schema-decision.md` |
-| Canonical schema ownership | Should move to shared DB package | Plan added for `packages/db/prisma/schema.prisma`; no schema move yet | PASS | orchestrator | `apps/web` is temporary reference only |
+| Canonical schema ownership | Should move to shared DB package | `packages/db/prisma/schema.prisma` skeleton added as starting snapshot copied from `apps/web/prisma/schema.prisma` | PASS | orchestrator | App-local schemas remain in place and are not wired to shared package yet |
 | Email | Must include final canonical email fields | NOT_CHECKED | NOT_CHECKED | supabase-inspector |  |
 | ConnectedMailbox | Must match canonical mailbox model | NOT_CHECKED | NOT_CHECKED | supabase-inspector | PR #6 conflict risk |
 | EmailEvent | Prefer canonical event table | NOT_CHECKED | NOT_CHECKED | supabase-inspector | Duplicate with EmailActivityLog risk |
@@ -71,6 +72,7 @@ Use only these verdicts:
 | SuppressionEntry | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | WaitlistRequest | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED | NOT_CHECKED |  |
 | UserInvitation | Present in web schema/migration | Missing from API migration history | Missing live | PR #6 broad auth/mailbox work overlaps | SCHEMA_DRIFT | Add through canonical migration only after auth strategy confirmed |
+| Shared DB schema snapshot | Same as current approved starting candidate | `packages/db/prisma/schema.prisma` copied from `apps/web/prisma/schema.prisma`; compare script added | PASS | orchestrator | Snapshot only; no migrations generated |
 
 ## Runtime linkage matrix
 
@@ -106,6 +108,7 @@ Use only these verdicts:
 | Schema drift check | CI enforced | No production schema fingerprint/live drift gate found | MISSING | ci-gate-agent | Add gate before launch |
 | Read-only schema verifier script | Available but not blocking CI yet | `npm run schema:verify:readonly` and `npm run schema:verify:production` available at root | PASS | ci-gate-agent | Production mode requires expected count, latest migration, fingerprint, and migration names/manifest |
 | Migration manifest format | Available but not enforced yet | `scripts/db/migration-manifest.schema.json` plus docs added | PASS | migration-safety-agent | Advisory only; no CI enforcement |
+| Schema comparison script | Available but not blocking CI yet | `npm run db:schema:compare` compares shared, web, and API Prisma schemas and exits non-zero on semantic drift | PASS | orchestrator | Current expected result: shared matches web; API differs on invite/onboarding schema |
 | Migration drift check | CI enforced against disposable DB | CI uses disposable Postgres and `prisma migrate deploy` | PASS | ci-gate-agent | Does not prove live Supabase is current |
 | Typecheck | CI enforced | Web/API typecheck jobs present | PASS | ci-gate-agent | Live Actions status not checked |
 | Lint | CI enforced | Web lint present | PASS | ci-gate-agent | API lint not confirmed |

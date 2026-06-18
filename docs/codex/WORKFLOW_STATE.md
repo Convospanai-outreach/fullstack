@@ -7,12 +7,12 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Phase 1/2 - Canonical schema architecture and migration safety gates |
+| Current stage | Phase 3 - Shared DB package skeleton |
 | Current agent | orchestrator |
 | Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | 3b2d7069ac839a5559fa729f28ab913954e52dea |
+| Baseline commit inspected | 07d6736f72989a1db8e854ee38c793cc9fb437a2 |
 | Last updated | 2026-06-18 |
-| Next action | Review shared `packages/db/prisma/schema.prisma` architecture and migration manifest before auth migration planning |
+| Next action | Review shared DB package skeleton and schema compare output before app wiring or auth migration planning |
 
 ## Status values
 
@@ -61,6 +61,7 @@ Use only these values:
 | Implementation REPLAN d3086c0 | orchestrator | READY_FOR_NEXT_STAGE | IMPLEMENTATION_REPLAN_D3086C0.md | Produced canonical schema decision, unsafe migration quarantine, auth repair plan, and read-only schema verifier |
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
+| Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 
 ## Latest findings
 
@@ -84,6 +85,10 @@ Use only these values:
 - Root scripts now expose `npm run schema:verify:readonly` and `npm run schema:verify:production`.
 - Production verifier mode requires expected migration count, latest migration, schema fingerprint, and either expected migration names or a manifest path.
 - Migration manifest format exists at `scripts/db/migration-manifest.schema.json`; it is not enforced yet.
+- Vercel deployment `dpl_8dfuT5xwLDeoHfdxQfeuqh6qTFGU` for commit `07d6736f72989a1db8e854ee38c793cc9fb437a2` is `READY`.
+- Shared DB package skeleton now exists at `packages/db`.
+- `packages/db/prisma/schema.prisma` is a starting snapshot copied from `apps/web/prisma/schema.prisma`; app-local schemas were not deleted or rewired.
+- Schema comparison is available with `npm run db:schema:compare`; it exits non-zero on current API drift and is not wired into CI.
 
 ## Decisions
 
@@ -98,11 +103,12 @@ Use only these values:
 | Auth/onboarding repair must be additive and review-gated | 2026-06-18 | auth-tenant-agent | `docs/audits/auth-schema-repair-plan.md` | ACCEPTED |
 | Permanent canonical schema target should be `packages/db/prisma/schema.prisma`, not `apps/web` | 2026-06-18 | orchestrator | `docs/audits/canonical-schema-architecture-plan.md` | PROPOSED |
 | Migration manifest format is advisory only until explicitly enforced | 2026-06-18 | migration-safety-agent | `scripts/db/migration-manifest.schema.json` | ACCEPTED |
+| Phase 3 only creates shared DB skeleton and local compare gate; no app wiring or CI enforcement yet | 2026-06-18 | orchestrator | `packages/db/package.json` | ACCEPTED |
 
 ## Next action queue
 
-1. Approve or revise `docs/audits/canonical-schema-architecture-plan.md`.
-2. Create the shared `packages/db/prisma/schema.prisma` structure in a focused follow-up after approval.
+1. Review `npm run db:schema:compare` output; current expected drift is shared/web match and API differs on invite/onboarding schema.
+2. Decide how app-local schemas will be kept in sync before any wiring changes.
 3. Replace the quarantined `20260604140000_edge_runtime_pairing` production path with reviewed preflight, audit/backup, non-destructive migration, and manual cleanup approval.
 4. Decide whether the advisory migration manifest should become a CI gate.
 5. Generate a draft additive auth/onboarding migration only after the shared schema decision is approved.

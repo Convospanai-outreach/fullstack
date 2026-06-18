@@ -49,6 +49,24 @@ Status: Canonical schema architecture and migration safety gates prepared; produ
 - Unsafe EdgeNode migration was not modified in place.
 - Auth additive migration was not generated.
 
+## Phase 3 Update
+
+Status: Shared DB package skeleton created; production remains blocked.
+
+- Vercel deployment for `07d6736f72989a1db8e854ee38c793cc9fb437a2` is `READY`: `dpl_8dfuT5xwLDeoHfdxQfeuqh6qTFGU`.
+- Added `packages/db/package.json`.
+- Added `packages/db/prisma/schema.prisma` as a starting snapshot copied from `apps/web/prisma/schema.prisma`.
+- Added `packages/db/prisma/migrations/README.md` to document migration ownership and guardrails.
+- Added `scripts/db/compare-prisma-schemas.mjs`.
+- Added root script `npm run db:schema:compare`; it exits non-zero on semantic drift and is not wired into CI yet.
+- Current compare output is expected to fail because the shared snapshot matches web, while API lacks invite/onboarding schema.
+- App-local schemas were not deleted.
+- Apps were not wired to the shared schema.
+- No production migration was run.
+- No auth migration was generated.
+- Unsafe EdgeNode migration was not modified.
+- PR #6 was not merged.
+
 ## Evidence
 
 - Branch updated: `codex/db-linkage-swarm-orchestration`
@@ -68,9 +86,9 @@ Status: Canonical schema architecture and migration safety gates prepared; produ
 
 ## Recommended Next Work
 
-1. Approve or revise the canonical Prisma decision before generating migrations.
+1. Review `npm run db:schema:compare` output and approve how API should sync with `packages/db`.
 2. Prepare a reviewed replacement for the quarantined EdgeNode migration path.
-3. Generate an additive auth/onboarding draft migration after canonical schema approval.
+3. Generate an additive auth/onboarding draft migration only after canonical schema approval.
 4. Run the read-only schema verifier with approved expected values against the intended database.
 5. Verify Vercel env keys/targets without exposing values.
 6. Re-run GitHub Actions and require green checks before launch.
