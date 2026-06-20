@@ -2,7 +2,7 @@
 
 Date: 2026-06-20
 Agent: approval-readiness-agent
-Status: NEEDS_REPLAN
+Status: IN_PROGRESS
 
 ## Scope
 
@@ -67,11 +67,11 @@ The trust pages inspected for this workstream are implemented as Next.js routes 
 
 Before Google Workspace API or Chrome Web Store submission:
 
-- Make `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` publicly accessible without login.
-- Align public support/contact email domains to `support@craftmyfunnel.live`, especially on `/terms` and `/contact`.
+- Make `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` publicly accessible without login. Implemented in `apps/web/src/proxy.ts`; awaiting deploy and live recheck.
+- Align public support/contact email domains to `support@craftmyfunnel.live`, especially on `/terms` and `/contact`. Implemented in `apps/web/src/app/terms/page.tsx` and `apps/web/src/app/contact/page.tsx`; awaiting deploy and live recheck.
 - Re-run this live URL checklist from the public internet after the route/auth and email-domain fixes are deployed.
 - Keep DB Phase 5 blocked separately; no DB migration work is required for this approval URL fix.
 
 ## Current Status Summary
 
-Overall status is `NEEDS_REPLAN`. Six routes are public `200` approval/support pages, but four required approval URLs redirect to login, and two public pages contain support email/domain mismatches.
+Overall status is `IN_PROGRESS`. The route allowlist and email-domain fixes have been implemented locally, but live URL status remains based on the last public check until Vercel deploys this commit and the required URLs are rechecked.

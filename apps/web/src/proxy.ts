@@ -155,6 +155,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/terms",
         "/privacy",
         "/help",
+        "/security",
+        "/support",
+        "/data-deletion",
+        "/google-api-disclosure",
     ];
 
     if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {
