@@ -6,14 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | IN_PROGRESS |
+| Overall status | NEEDS_REPLAN |
 | Current stage | Approval readiness |
 | Current agent | approval-readiness-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
 | Baseline commit inspected | 871e2ab210b2755451c5c01be4bed7604aa2d51c |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-20 |
-| Next action | Wait for Vercel deployment of approval page fix, then re-run live URL verification |
+| Next action | Investigate why the live custom domain still serves pre-fix route protection and stale email content despite Vercel `READY`, then re-run live URL verification |
 
 ## Status values
 
@@ -65,7 +65,7 @@ Use only these values:
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
-| Approval readiness | approval-readiness-agent | IN_PROGRESS | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/public-approval-pages-fix.md | Implemented public route allowlist and support email-domain fixes. Vercel/live URL recheck still required before `READY_FOR_NEXT_STAGE`. No DB, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
+| Approval readiness | approval-readiness-agent | NEEDS_REPLAN | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/public-approval-pages-fix.md | Vercel is `READY` for commit `74423bc`, but live custom-domain recheck still shows `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` redirecting to login and `/terms` + `/contact` still serving old email content. No DB, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
 
 ## Latest findings
 
@@ -114,6 +114,7 @@ Use only these values:
 - Four required approval URLs are not public: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` return initial `307` redirects to `/login?callbackUrl=...`.
 - Support/contact domain mismatches found: `/terms` uses `bizcomm.soulutions@gmail.com`; `/contact` uses `support@craftmyfunnel.com` and `enterprise@craftmyfunnel.com` instead of the approval-domain support address.
 - Approval page fix implemented on 2026-06-20: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` added to the public web allowlist; `/terms` and `/contact` email references standardized to `support@craftmyfunnel.live`. Live recheck is still required after Vercel deploys this commit.
+- Live approval recheck after Vercel `READY` for commit `74423bc` still fails on the public custom domain: the four approval pages continue to redirect to login, and `/terms` + `/contact` still serve old email addresses.
 - `postgresqlExtensions` preview feature and `extensions = [vector]` datasource entry removed from `packages/db` and `apps/web` — now orphaned since no `Unsupported` types remain in either schema.
 - Post-convergence compare run (2026-06-18): `packages/db` MATCH `apps/web` sha256=`3d46e8b3…`. Both DIFFER from `apps/api` on auth/invite gap only (`UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus`). `Lead.embedding` TYPE_DRIFT is RESOLVED.
 - Sole remaining Phase 4 schema gap: auth/invite models in `apps/api`. Documented in `docs/audits/api-auth-schema-sync-plan.md`.
@@ -140,7 +141,7 @@ Use only these values:
 | API auth schema sync plan | Exact Prisma additions documented; no edits made yet | 2026-06-18 | prisma-drift-agent | `docs/audits/api-auth-schema-sync-plan.md` | ACCEPTED — execution pending orchestrator go-ahead |
 | Approval readiness split | Move from DB/edge work to Google Workspace and Chrome Web Store approval docs; do not continue DB migrations | 2026-06-20 | approval-readiness-agent | `docs/audits/google-workspace-api-approval-plan.md`, `docs/audits/linkedin-chrome-store-approval-plan.md`, `docs/audits/live-url-approval-readiness-checklist.md` | ACCEPTED |
 | Approval URL gate | Required approval URLs must be public before Google Workspace or Chrome Web Store submission | 2026-06-20 | approval-readiness-agent | `docs/audits/live-url-approval-readiness-output.md` | NEEDS_REPLAN |
-| Public approval page fix | Public route allowlist and email-domain fixes are implemented locally but not yet live-verified | 2026-06-20 | approval-readiness-agent | `docs/audits/public-approval-pages-fix.md` | IN_PROGRESS |
+| Public approval page fix | Public route allowlist and email-domain fixes are implemented in source, but live custom-domain recheck still serves pre-fix behavior/content | 2026-06-20 | approval-readiness-agent | `docs/audits/public-approval-pages-fix.md`, `docs/audits/live-url-approval-readiness-output.md` | NEEDS_REPLAN |
 
 ## Next action queue
 
@@ -169,10 +170,11 @@ Use only these values:
    - Login-gated: `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`
    - Domain mismatch: `/terms`, `/contact`
 12. [QUEUED] Prepare Google Workspace G1 send-only submission and Chrome Web Store V1 manual-capture submission artifacts after URL gate is fixed.
-13. [IN_PROGRESS] Public approval page fix implemented:
+13. [NEEDS_REPLAN] Public approval page fix implemented, but live custom-domain recheck still fails:
    - Public allowlist: `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`
    - Email standardization: `/terms`, `/contact`
-   - Awaiting Vercel deploy and live URL recheck
+   - Vercel commit `74423bc` is `READY`
+   - Live domain still shows login redirects and stale emails
 
 ## Handoff note template
 
