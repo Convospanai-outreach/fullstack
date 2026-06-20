@@ -1,0 +1,464 @@
+"use client";
+
+import { useRef, useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { useLenis } from "@/lib/useLenis";
+import HudGrid from "./3d/HudGrid";
+import { PILLARS, SCROLL_ACTS } from "./3d/sceneConfig";
+import { InviteRequestForm } from "./InviteRequestForm";
+
+const FunnelScene = dynamic(() => import("./3d/FunnelScene"), { ssr: false });
+
+// ─── Static data for post-funnel sections ────────────────────────────────────
+const WORKFLOW_STEPS = [
+  { title: "Import or capture leads", body: "Pull contacts from LinkedIn, landing pages, or CSV. Every lead enters a shared funnel with full visibility — not someone's private inbox." },
+  { title: "Draft approved email", body: "AI drafts the first message based on the buyer signal. A manager reviews it. It goes out only when cleared. No rogue sends." },
+  { title: "Sync LinkedIn context", body: "Before a follow-up goes out, your team sees the full LinkedIn snapshot — recent posts, role changes, company moves." },
+  { title: "Track channel status", body: "Email sent? LinkedIn messaged? Call logged? One activity timeline, one view. No &lsquo;did anyone follow up?&rsquo; conversations." },
+  { title: "Review stuck leads", body: "Leads that have not moved surface automatically. Your team sees exactly what was sent and what the recommended next action is." },
+  { title: "Advance funnel stage", body: "Every stage move is a deliberate, logged decision. When a lead is meeting-ready, the whole team sees it at the same time." },
+];
+
+const CRM_COMPARISON = [
+  { title: "What CRMs do", items: ["Record outreach activity", "Show lead history", "Sync contacts", "Store email logs", "Log calls"] },
+  { title: "What CraftMyFunnel does", items: ["Govern outreach before it happens", "Surface what needs to move now", "Sync intent signals and contact context", "Manage email drafts through approval", "Guide callers with stage-specific next steps"] },
+];
+
+const INDUSTRIES = [
+  { title: "Facility Management", body: "NetJana signals — hiring surges, new locations, construction permits — tell you which accounts are in market this month. Get in early before the RFP lands." },
+  { title: "Security Services", body: "Every piece of outreach touches a compliance-sensitive relationship. CraftMyFunnel routes every message through manager approval before it goes out." },
+  { title: "Staffing", body: "Hiring signals are your signal. When a target company posts a wave of new roles, your team gets the LinkedIn context and a drafted outreach message in one place." },
+  { title: "Consulting", body: "Relationship-led sales fall apart when context lives in one inbox. CraftMyFunnel gives every team member the full activity timeline so handoffs are smooth." },
+  { title: "L&D / Training", body: "Technology adoption is your strongest buying signal. Spot new platform rollouts with NetJana and reach out with a message that is relevant, not generic." },
+  { title: "Managed Services", body: "Retainer relationships start with the first impression. Governed outreach means your team presents as coordinated and professional from the very first email." },
+];
+
+const PILOT_WEEKS: [string, string][] = [
+  ["Week 1", "Signal Setup"],
+  ["Week 2", "Qualification Rules"],
+  ["Week 3", "Multi-Channel Outreach"],
+  ["Week 4", "Qualified Meetings"],
+];
+
+
+
+const HUD_STAGES = SCROLL_ACTS.map((a) => ({ id: a.id, label: a.label, shortLabel: a.shortLabel }));
+
+// ─── Act copy ────────────────────────────────────────────────────────────────
+const ACTS = [
+  {
+    id: "intake",
+    eyebrow: "Act 0",
+    headline: "Somewhere out there, a company needs exactly what you sell.",
+    sub: "Most teams spend their week guessing who to contact. The market is moving. Your pipeline is not.",
+    tag: null,
+  },
+  {
+    id: "leak",
+    eyebrow: "The problem",
+    headline: "Signals disappear. Follow-ups stall. Deals die between messages.",
+    sub: "Manual prospecting, ungoverned outreach, and no rescue layer turn warm intent into lost revenue every day.",
+    tag: null,
+  },
+  {
+    id: "shift",
+    eyebrow: "The system",
+    headline: "Market intent goes in. Governed pipeline comes out. Revenue keeps feeding the loop.",
+    sub: "CraftMyFunnel connects four purpose-built layers so nothing leaks between signal and signed contract.",
+    tag: null,
+  },
+  {
+    id: "signal",
+    eyebrow: "Layer 01 — NetJana",
+    headline: "Be the first call. Never the second.",
+    sub: "Monitors hiring, expansion, tenders, and decision-maker movement so your team works active-market accounts — not cold lists.",
+    tag: "Buyer Signals",
+    solves: "Who should I reach out to this week?",
+    color: "cyan",
+  },
+  {
+    id: "outreach",
+    eyebrow: "Layer 02 — CMF Core",
+    headline: "AI drafts. Managers approve. Nothing goes out unchecked.",
+    sub: "Drafts outreach, prepares channel context, tracks every action, and keeps manager approval in the loop before anything goes out.",
+    tag: "AI Outreach SaaS",
+    solves: "How do I reach them, and how do I know it went well?",
+    color: "violet",
+  },
+  {
+    id: "human",
+    eyebrow: "Layer 03 — Human Layer",
+    headline: "The deals email cannot close, your people can.",
+    sub: "Caller tasks, manual stage updates, and follow-up suggestions keep high-value leads moving between message and contract.",
+    tag: "Conversion Moat",
+    solves: "What happens when the digital channel is not enough?",
+    color: "mint",
+  },
+  {
+    id: "edge",
+    eyebrow: "Layer 04 — Covospan EDGE",
+    headline: "Their trust is the contract. Keep it with you.",
+    sub: "Runs sensitive AI checks, memory logs, and outreach processing close to your own data — with encrypted local storage and on-device audit trails.",
+    tag: "Sovereign Edge Node",
+    solves: "How do I run this without putting sensitive client data in someone else's cloud?",
+    color: "crystal",
+  },
+  {
+    id: "revenue",
+    eyebrow: "The output",
+    headline: "From scattered follow-ups to qualified meetings.",
+    sub: "Every signal captured, every outreach governed, every conversation rescued — compresses into pipeline your team can actually close.",
+    tag: "Qualified Revenue",
+    color: "amber",
+  },
+  {
+    id: "launch",
+    eyebrow: "Ready to start",
+    headline: "Stop losing the deals you have already earned.",
+    sub: "Request early access to the CraftMyFunnel pilot programme and see the full funnel working on your own accounts.",
+    tag: null,
+  },
+] as const;
+
+const TAG_COLORS: Record<string, string> = {
+  cyan:    "border-cyan-400/40 text-cyan-300 bg-cyan-400/10",
+  violet:  "border-violet-400/40 text-violet-300 bg-violet-400/10",
+  mint:    "border-emerald-400/40 text-emerald-300 bg-emerald-400/10",
+  crystal: "border-blue-400/40 text-blue-300 bg-blue-400/10",
+  amber:   "border-amber-400/40 text-amber-300 bg-amber-400/10",
+};
+
+const HEADLINE_COLORS: Record<string, string> = {
+  cyan:    "from-cyan-300 to-sky-400",
+  violet:  "from-violet-300 to-indigo-400",
+  mint:    "from-emerald-300 to-teal-400",
+  crystal: "from-blue-300 to-cyan-400",
+  amber:   "from-amber-300 to-yellow-400",
+};
+
+function getPrefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export default function CinematicHome() {
+  const mainRef      = useRef<HTMLDivElement>(null);
+  const progressRef  = useRef(0);
+  const [stage,        setStage]        = useState("INTAKE");
+  const [depthPercent, setDepthPercent] = useState(0);
+  const [activeRail,   setActiveRail]   = useState(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  // Hide the fixed canvas + HUD once the funnel section scrolls out of view
+  const [canvasVisible, setCanvasVisible] = useState(true);
+
+  useLenis(true);
+
+  useEffect(() => {
+    setReduceMotion(getPrefersReducedMotion());
+  }, []);
+
+  const updateHud = useCallback((progress: number) => {
+    const pct = Math.round(progress * 100);
+    setDepthPercent(pct);
+
+    // Find active act index
+    for (let i = SCROLL_ACTS.length - 1; i >= 0; i--) {
+      if (progress >= SCROLL_ACTS[i]!.progress) {
+        setStage(SCROLL_ACTS[i]!.shortLabel);
+        setActiveRail(i);
+        break;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    gsap.registerPlugin(ScrollTrigger);
+
+    const ctx = gsap.context(() => {
+      ScrollTrigger.create({
+        trigger: mainRef.current,
+        start: "top top",
+        end: "bottom bottom",
+        scrub: true,
+        onUpdate: (self) => {
+          progressRef.current = self.progress;
+          updateHud(self.progress);
+          // Hide canvas immediately when sequence reaches the end/CTA section
+          if (self.progress >= 0.99) {
+            setCanvasVisible(false);
+          } else {
+            setCanvasVisible(true);
+          }
+        },
+      });
+    }, mainRef);
+
+    return () => ctx.revert();
+  }, [updateHud]);
+
+  // IntersectionObserver: hide canvas + HUD once the funnel <main> leaves viewport
+  useEffect(() => {
+    if (!mainRef.current) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        setCanvasVisible(entry?.isIntersecting ?? true);
+      },
+      { threshold: 0 },
+    );
+    obs.observe(mainRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <>
+    <main
+      ref={mainRef}
+      className="relative"
+      style={{ minHeight: `${ACTS.length * 100}vh` }}
+    >
+      {/* ── Fixed 3D canvas (behind everything) ─────────────────────────── */}
+      <FunnelScene progressRef={progressRef} reduceMotion={reduceMotion} visible={canvasVisible} />
+
+      {/* ── HUD — only while canvas is visible ──────────────────────────── */}
+      {canvasVisible && (
+        <HudGrid
+          stage={stage}
+          depthPercent={depthPercent}
+          activeRailIndex={activeRail}
+          items={HUD_STAGES}
+        />
+      )}
+
+      {/* ── Scroll sections ──────────────────────────────────────────────── */}
+      <div className="relative z-20 pointer-events-none">
+        {ACTS.map((act, idx) => (
+          <section
+            key={act.id}
+            id={`act-${act.id}`}
+            className="flex min-h-screen items-center justify-center px-6"
+          >
+            <ActCard act={act} idx={idx} />
+          </section>
+        ))}
+      </div>
+
+      {/* ── CTA / invite section ─────────────────────────────────────────── */}
+      <section
+        id="act-cta"
+        className="relative z-20 flex min-h-screen flex-col items-center justify-center px-6 py-24"
+      >
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.28em] text-cyan-300/70">
+            Early Access
+          </p>
+          <h2 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+            Ready to govern your pipeline?
+          </h2>
+          <p className="mx-auto mb-4 max-w-2xl text-lg text-slate-400">
+            CraftMyFunnel is in private pilot. Request access and we will review your outreach context before onboarding your team.
+          </p>
+          <div className="pointer-events-auto">
+            <InviteRequestForm />
+          </div>
+        </div>
+      </section>
+
+      {/* Gradient overlay at top */}
+      <div
+        className="pointer-events-none fixed inset-x-0 top-0 z-10 h-32"
+        style={{ background: "linear-gradient(to bottom, #020617 0%, transparent 100%)" }}
+      />
+
+      {/* ── Solid opaque seal at the funnel bottom ───────────────────────
+           This sits at the very end of the <main> scroll area and covers
+           the fixed canvas so no 3D bleed shows when post-funnel content
+           scrolls into view. Position: sticky bottom so it's always the
+           last thing visible before the normal-scroll sections begin.    */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-0 inset-x-0 h-64 z-30"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent 0%, #070a18 55%, #070a18 100%)",
+        }}
+      />
+    </main>
+
+    {/* --- POST-FUNNEL SECTIONS (normal scroll, no fixed canvas) --- */}
+
+    <div className="relative z-30 bg-[#070a18] text-white">
+
+      {/* ── Workflow steps ──────────────────────────────────────────────── */}
+      <section className="py-24 px-6" id="workflow">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.28em] text-cyan-300/70">How it works</p>
+            <h2 className="text-4xl font-black sm:text-5xl">From first signal to booked meeting — every step is governed.</h2>
+            <p className="mt-4 text-lg text-slate-400">Outreach that runs like a coordinated team, not someone&apos;s solo inbox.</p>
+          </div>
+          <div className="mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {WORKFLOW_STEPS.map((step, i) => (
+              <div key={step.title} className="glass-card p-6">
+                <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.24em] text-cyan-300">Step {i + 1}</p>
+                <h3 className="mt-1 text-lg font-bold text-white">{step.title}</h3>
+                <p className="mt-2 text-sm leading-7 text-slate-400">{step.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CRM comparison ──────────────────────────────────────────────── */}
+      <section className="py-20 px-6 bg-[#07111f]">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-4xl font-black sm:text-5xl">You have a CRM. So why are deals still slipping?</h2>
+            <p className="mt-4 text-lg text-slate-400">CRMs record what happened. CraftMyFunnel governs what happens next.</p>
+          </div>
+          <div className="mt-12 grid gap-5 md:grid-cols-2">
+            {CRM_COMPARISON.map((col) => (
+              <div key={col.title} className="glass-card p-6">
+                <h3 className="mb-4 text-xl font-bold text-white">{col.title}</h3>
+                <ul className="space-y-3">
+                  {col.items.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-sm text-slate-400">
+                      <span className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300">✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Industries ──────────────────────────────────────────────────── */}
+      <section className="py-24 px-6" id="industries">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="text-4xl font-black sm:text-5xl">Built for industries where a missed follow-up costs a contract.</h2>
+          <p className="mt-4 max-w-2xl text-lg text-slate-400">Designed for service companies with long B2B cycles, multiple decision-makers, and real consequences when outreach goes quiet.</p>
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {INDUSTRIES.map((ind) => (
+              <div key={ind.title} className="glass-card p-6">
+                <h3 className="text-lg font-bold text-white">{ind.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-400">{ind.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pilot timeline ──────────────────────────────────────────────── */}
+      <section className="py-24 px-6 bg-[#07111f]" id="pilot">
+        <div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center shadow-2xl sm:p-14">
+          <h2 className="text-4xl font-black sm:text-5xl">Join the pilot. Run your first governed campaign in 4 weeks.</h2>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-400">We are onboarding a small group of B2B service teams who want structured, approved outreach. Invite-only. No setup fees. No long-term commitment.</p>
+          <div className="mt-10 grid gap-4 sm:grid-cols-4">
+            {PILOT_WEEKS.map(([week, title]) => (
+              <div key={week} className="rounded-2xl bg-white/10 p-5">
+                <p className="text-xs font-bold uppercase tracking-widest text-cyan-200">{week}</p>
+                <p className="mt-3 font-black">{title}</p>
+              </div>
+            ))}
+          </div>
+          <div className="pointer-events-auto mt-10">
+            <InviteRequestForm />
+          </div>
+        </div>
+      </section>
+    </div>
+    </>
+  );
+}
+
+// ─── Act card sub-component ──────────────────────────────────────────────────
+function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
+  const isLeft = idx % 2 === 0;
+  const colorKey = "color" in act ? (act.color as string) : null;
+  const tagCls = colorKey ? TAG_COLORS[colorKey] : "border-slate-500/30 text-slate-400 bg-slate-400/5";
+  const gradientClass = colorKey && HEADLINE_COLORS[colorKey] ? `bg-gradient-to-r ${HEADLINE_COLORS[colorKey]}` : "";
+
+  return (
+    <div
+      className={`pointer-events-auto max-w-xl w-full ${isLeft ? "ml-0 mr-auto lg:ml-16" : "mr-0 ml-auto lg:mr-16"}`}
+    >
+      <div className="glass-premium rounded-3xl p-8 shadow-glow">
+        {/* Eyebrow */}
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400">
+          {act.eyebrow}
+        </p>
+
+        {/* Tag pill */}
+        {"tag" in act && act.tag && (
+          <span
+            className={`mb-4 inline-block rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${tagCls}`}
+          >
+            {act.tag}
+          </span>
+        )}
+
+        {/* Headline */}
+        <h2
+          className={`mb-4 text-2xl font-bold leading-tight sm:text-3xl ${
+            gradientClass
+              ? `text-transparent bg-clip-text ${gradientClass}`
+              : "text-white"
+          }`}
+        >
+          {act.headline}
+        </h2>
+
+        {/* Solves line */}
+        {"solves" in act && act.solves && (
+          <p className="mb-3 text-sm font-medium text-slate-400">
+            <span className="text-slate-500">Solves: </span>
+            <span className="italic text-slate-300">&ldquo;{act.solves}&rdquo;</span>
+          </p>
+        )}
+
+        {/* Body */}
+        <p className="text-base leading-relaxed text-slate-400">{act.sub}</p>
+
+        {/* Pillar data pills */}
+        {getPillarForAct(act.id) && (
+          <PillarPill pillar={getPillarForAct(act.id)!} colorKey={colorKey} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PillarPill({
+  pillar,
+  colorKey,
+}: {
+  pillar: typeof PILLARS[number];
+  colorKey: string | null;
+}) {
+  return (
+    <div className="mt-5 flex flex-wrap gap-2">
+      {["Governed", "Traceable", pillar.tag].map((label) => (
+        <span
+          key={label}
+          className="rounded-full bg-slate-800/60 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-400 border border-slate-700/50"
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function getPillarForAct(id: string) {
+  const map: Record<string, typeof PILLARS[number]> = {
+    signal:   PILLARS[0]!,
+    outreach: PILLARS[1]!,
+    human:    PILLARS[2]!,
+    edge:     PILLARS[3]!,
+  };
+  return map[id] ?? null;
+}

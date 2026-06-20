@@ -15,7 +15,7 @@ const DASHBOARD_PREFIXES = [
 const MARKETING_PREFIXES = [
     "/", "/about", "/pricing", "/contact",
     "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/privacy", "/terms", "/p",
+    "/verify-email", "/privacy", "/terms", "/p", "/funnel",
 ];
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
