@@ -6,14 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | READY_FOR_NEXT_STAGE |
+| Overall status | NEEDS_REPLAN |
 | Current stage | Approval readiness |
 | Current agent | approval-readiness-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
 | Baseline commit inspected | 871e2ab210b2755451c5c01be4bed7604aa2d51c |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-20 |
-| Next action | Verify public approval URLs live, then prepare Google Workspace G1 send-only and Chrome Web Store V1 manual-capture submissions |
+| Next action | Make approval trust pages public without login and align support email domains, then re-run live URL verification |
 
 ## Status values
 
@@ -65,7 +65,7 @@ Use only these values:
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
-| Approval readiness | approval-readiness-agent | READY_FOR_NEXT_STAGE | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md | Created docs-only Google Workspace API, Gmail OAuth, Chrome Web Store, LinkedIn extension, and live URL approval readiness plans. No code, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
+| Approval readiness | approval-readiness-agent | NEEDS_REPLAN | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md, docs/audits/live-url-approval-readiness-output.md | Vercel is READY for commit `6d012ea`; live URL verification found four required approval pages redirect to login and two public pages with support/contact domain mismatches. No code, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
 
 ## Latest findings
 
@@ -109,6 +109,10 @@ Use only these values:
 - Exact Google OAuth approval endpoints documented: `/api/proxy/integrations/google/oauth/start?next=/setup?step=3` and `/api/proxy/integrations/google/oauth/callback`.
 - Chrome extension approval plan recommends first submission as manual user-triggered visible LinkedIn profile capture only, with no mass automation, no background scraping, no auto-connect, and no auto-like.
 - Live approval URL checklist marks all public URLs `UNKNOWN` until verified live; repo route evidence was found for privacy, terms, security, support, data deletion, Google API disclosure, contact, help, and FAQ.
+- Vercel deployment for approval docs commit `6d012ea382ec324cdb73bcdcff9c5d00a843d795` is `READY`: `dpl_5S2oME2vqrWV1NdKrhsKjqZNXCF7`.
+- Live approval URL verification completed on 2026-06-20. Six required URLs return public HTTPS `200`: `/`, `/privacy`, `/terms`, `/contact`, `/help`, and `/faq`.
+- Four required approval URLs are not public: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` return initial `307` redirects to `/login?callbackUrl=...`.
+- Support/contact domain mismatches found: `/terms` uses `bizcomm.soulutions@gmail.com`; `/contact` uses `support@craftmyfunnel.com` and `enterprise@craftmyfunnel.com` instead of the approval-domain support address.
 - `postgresqlExtensions` preview feature and `extensions = [vector]` datasource entry removed from `packages/db` and `apps/web` — now orphaned since no `Unsupported` types remain in either schema.
 - Post-convergence compare run (2026-06-18): `packages/db` MATCH `apps/web` sha256=`3d46e8b3…`. Both DIFFER from `apps/api` on auth/invite gap only (`UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus`). `Lead.embedding` TYPE_DRIFT is RESOLVED.
 - Sole remaining Phase 4 schema gap: auth/invite models in `apps/api`. Documented in `docs/audits/api-auth-schema-sync-plan.md`.
@@ -134,6 +138,7 @@ Use only these values:
 | `UserInvitation` + `InviteRequest` API gap | Must be added to `apps/api` — sole remaining Phase 4 blocker | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix | ACCEPTED — execution pending orchestrator go-ahead |
 | API auth schema sync plan | Exact Prisma additions documented; no edits made yet | 2026-06-18 | prisma-drift-agent | `docs/audits/api-auth-schema-sync-plan.md` | ACCEPTED — execution pending orchestrator go-ahead |
 | Approval readiness split | Move from DB/edge work to Google Workspace and Chrome Web Store approval docs; do not continue DB migrations | 2026-06-20 | approval-readiness-agent | `docs/audits/google-workspace-api-approval-plan.md`, `docs/audits/linkedin-chrome-store-approval-plan.md`, `docs/audits/live-url-approval-readiness-checklist.md` | ACCEPTED |
+| Approval URL gate | Required approval URLs must be public before Google Workspace or Chrome Web Store submission | 2026-06-20 | approval-readiness-agent | `docs/audits/live-url-approval-readiness-output.md` | NEEDS_REPLAN |
 
 ## Next action queue
 
@@ -157,8 +162,11 @@ Use only these values:
    - `docs/audits/google-workspace-api-approval-plan.md`
    - `docs/audits/linkedin-chrome-store-approval-plan.md`
    - `docs/audits/live-url-approval-readiness-checklist.md`
-11. [QUEUED] Verify required approval URLs live from the public internet.
-12. [QUEUED] Prepare Google Workspace G1 send-only submission and Chrome Web Store V1 manual-capture submission artifacts.
+11. [NEEDS_REPLAN] Verify required approval URLs live from the public internet:
+   - Public `200`: `/`, `/privacy`, `/terms`, `/contact`, `/help`, `/faq`
+   - Login-gated: `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`
+   - Domain mismatch: `/terms`, `/contact`
+12. [QUEUED] Prepare Google Workspace G1 send-only submission and Chrome Web Store V1 manual-capture submission artifacts after URL gate is fixed.
 
 ## Handoff note template
 
