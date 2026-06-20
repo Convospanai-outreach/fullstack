@@ -6,14 +6,14 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | BLOCKED_EXTERNAL_ACCESS |
-| Current stage | Phase 5 - Live/Staging DB verification and additive migration preparation |
-| Current agent | prisma-drift-agent |
+| Overall status | READY_FOR_NEXT_STAGE |
+| Current stage | Approval readiness |
+| Current agent | approval-readiness-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | 07d6736f72989a1db8e854ee38c793cc9fb437a2 |
+| Baseline commit inspected | 871e2ab210b2755451c5c01be4bed7604aa2d51c |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
-| Last updated | 2026-06-18 |
-| Next action | Provision staging/production connection credentials (DATABASE_URL/DIRECT_URL) to unblock read-only verification |
+| Last updated | 2026-06-20 |
+| Next action | Verify public approval URLs live, then prepare Google Workspace G1 send-only and Chrome Web Store V1 manual-capture submissions |
 
 ## Status values
 
@@ -65,6 +65,7 @@ Use only these values:
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
+| Approval readiness | approval-readiness-agent | READY_FOR_NEXT_STAGE | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md | Created docs-only Google Workspace API, Gmail OAuth, Chrome Web Store, LinkedIn extension, and live URL approval readiness plans. No code, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
 
 ## Latest findings
 
@@ -103,6 +104,11 @@ Use only these values:
 - Phase 4 decision prep complete (2026-06-18): `docs/audits/lead-embedding-decision.md` compares Option A/B/C and recommends Option C (String/text short-term in `packages/db`; vector deferred to a future dedicated migration).
 - Phase 4 decision prep complete (2026-06-18): `docs/audits/api-auth-schema-sync-plan.md` lists exact Prisma additions for `apps/api`: `User.clerkUserId`, `InvitationStatus` enum, `InviteRequestStatus` enum, `UserInvitation` model, `InviteRequest` model, and two User relations. No schema edits or migrations generated yet.
 - Option B ACCEPTED by CTO (2026-06-18): `Lead.embedding` changed to `String?` in `packages/db/prisma/schema.prisma` (line 38) and `apps/web/prisma/schema.prisma` (line 38). `apps/api` was already `String?`. No migration generated; live DB column is already `text` nullable.
+- Approval readiness docs created (2026-06-20): Google Workspace API approval plan, LinkedIn Chrome Web Store approval plan, and live URL approval checklist.
+- Gmail OAuth code currently requests `openid`, `email`, `profile`, `gmail.send`, and `gmail.readonly`; approval plan recommends G1 send-only with `gmail.send` first and G2 `gmail.readonly` reply/bounce sync later.
+- Exact Google OAuth approval endpoints documented: `/api/proxy/integrations/google/oauth/start?next=/setup?step=3` and `/api/proxy/integrations/google/oauth/callback`.
+- Chrome extension approval plan recommends first submission as manual user-triggered visible LinkedIn profile capture only, with no mass automation, no background scraping, no auto-connect, and no auto-like.
+- Live approval URL checklist marks all public URLs `UNKNOWN` until verified live; repo route evidence was found for privacy, terms, security, support, data deletion, Google API disclosure, contact, help, and FAQ.
 - `postgresqlExtensions` preview feature and `extensions = [vector]` datasource entry removed from `packages/db` and `apps/web` — now orphaned since no `Unsupported` types remain in either schema.
 - Post-convergence compare run (2026-06-18): `packages/db` MATCH `apps/web` sha256=`3d46e8b3…`. Both DIFFER from `apps/api` on auth/invite gap only (`UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus`). `Lead.embedding` TYPE_DRIFT is RESOLVED.
 - Sole remaining Phase 4 schema gap: auth/invite models in `apps/api`. Documented in `docs/audits/api-auth-schema-sync-plan.md`.
@@ -127,6 +133,7 @@ Use only these values:
 | `EmailActivityLog` / `EmailTrackedLink` / `WaitlistRequest` | Not in any current local schema; PR #6 proposals only | 2026-06-18 | prisma-drift-agent | Direct schema inspection | RESOLVED |
 | `UserInvitation` + `InviteRequest` API gap | Must be added to `apps/api` — sole remaining Phase 4 blocker | 2026-06-18 | prisma-drift-agent | Phase 4 drift matrix | ACCEPTED — execution pending orchestrator go-ahead |
 | API auth schema sync plan | Exact Prisma additions documented; no edits made yet | 2026-06-18 | prisma-drift-agent | `docs/audits/api-auth-schema-sync-plan.md` | ACCEPTED — execution pending orchestrator go-ahead |
+| Approval readiness split | Move from DB/edge work to Google Workspace and Chrome Web Store approval docs; do not continue DB migrations | 2026-06-20 | approval-readiness-agent | `docs/audits/google-workspace-api-approval-plan.md`, `docs/audits/linkedin-chrome-store-approval-plan.md`, `docs/audits/live-url-approval-readiness-checklist.md` | ACCEPTED |
 
 ## Next action queue
 
@@ -146,6 +153,12 @@ Use only these values:
 7. [QUEUED] Verify Vercel env keys and targets.
 8. [QUEUED] Verify GitHub Actions green on target branch.
 9. [QUEUED] Split PR #6 after schema strategy is stable.
+10. [READY_FOR_NEXT_STAGE] Approval readiness docs-only pass completed:
+   - `docs/audits/google-workspace-api-approval-plan.md`
+   - `docs/audits/linkedin-chrome-store-approval-plan.md`
+   - `docs/audits/live-url-approval-readiness-checklist.md`
+11. [QUEUED] Verify required approval URLs live from the public internet.
+12. [QUEUED] Prepare Google Workspace G1 send-only submission and Chrome Web Store V1 manual-capture submission artifacts.
 
 ## Handoff note template
 
