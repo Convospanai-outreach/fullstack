@@ -50,6 +50,32 @@ export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
     const t        = clock.getElapsedTime();
     const progress = progressRef.current;
 
+    // ── Dynamic Position & Scale (Ride down and shrink along the funnel) ────
+    if (groupRef.current) {
+      // Y goes from 9 to -9
+      const targetY = 9 - progress * 18;
+      groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, 0.1);
+
+      // Scale shrinks from 1.0 down to 0.28 to fit the narrowing funnel profile
+      const targetScale = 1.0 - progress * 0.72;
+      groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, 0.1));
+
+      // Turn/point the flywheel towards the active text card (left or right)
+      // NetJana (0.40) -> right (0 rad), CMF Core (0.54) -> left (PI rad),
+      // Human (0.68) -> right (0 rad), EDGE (0.82) -> left (PI rad).
+      let targetRotY = t * 0.15; // base spin
+      if (progress >= 0.82 && progress < 0.92) {
+        targetRotY = Math.PI; // EDGE (left)
+      } else if (progress >= 0.68 && progress < 0.82) {
+        targetRotY = 0; // Human Layer (right)
+      } else if (progress >= 0.54 && progress < 0.68) {
+        targetRotY = Math.PI; // CMF Core (left)
+      } else if (progress >= 0.40 && progress < 0.54) {
+        targetRotY = 0; // NetJana (right)
+      }
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, 0.08);
+    }
+
     // ── Compute active colour & target opacities per ring ─────────────────
     let innerColor  = SLATE,  innerOp  = 0.12;
     let midColor    = SLATE,  midOp    = 0.10;
