@@ -164,12 +164,22 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         if (y < -9.5) { y = 7.0; states[i] = 3; }
         setParticleColor(colAttr, sizeAttr, i, 0.38, 0.65, 0.98, 2.4);
       } else {
-        // Revenue output — amber burst at throat
+        // Revenue output — amber convergence toward the chest at [0, -10.5, 0]
         const angle = Math.atan2(z, x) + dt * 0.9 * speed;
         x = Math.cos(angle) * Math.min(r2 + 0.04, 2.5);
         z = Math.sin(angle) * Math.min(r2 + 0.04, 2.5);
         y -= dt * 2.2 * speed;
-        if (y < -9.5) { y = -7 + Math.random() * 2; x = (Math.random() - 0.5) * 2; z = (Math.random() - 0.5) * 2; }
+        // Once past the funnel throat, spiral inward toward the chest centre
+        if (y < -9.0) {
+          x *= 0.93;
+          z *= 0.93;
+        }
+        if (y < -11.5) {
+          // Respawn above the funnel to keep the loop going
+          y = -7 + Math.random() * 2;
+          x = (Math.random() - 0.5) * 2;
+          z = (Math.random() - 0.5) * 2;
+        }
         setParticleColor(colAttr, sizeAttr, i, 0.98, 0.75, 0.14, 4.0);
       }
 

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import type { FormEvent } from "react";
-import { ArrowRight, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { CheckCircle } from "lucide-react";
 
 const initialForm = {
     name: "",
@@ -87,11 +86,19 @@ export function InviteRequestForm() {
             />
             <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-col gap-3">
-                    <Button disabled={loading} className="h-auto gap-2 rounded-full bg-gradient-to-r from-violet-600 to-cyan-500 px-8 py-3 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60">
-                        {loading ? "Requesting..." : "Request Invite"}
-                        {!loading && <ArrowRight className="h-4 w-4" />}
-                    </Button>
-                    <p className="text-sm text-slate-500">We review every request manually. You'll hear back within 2 business days.</p>
+                    {/* Native button — shadcn Button base styles wash out the gradient */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{
+                            background: "linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)",
+                            boxShadow: "0 0 32px 6px rgba(124,58,237,0.50), 0 0 14px 2px rgba(6,182,212,0.40)",
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-full px-10 py-4 text-sm font-black text-white transition-all duration-200 hover:scale-105 hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? "Requesting…" : "Request Early Access →"}
+                    </button>
+                    <p className="text-sm text-slate-500">We review every request manually. You&apos;ll hear back within 2 business days.</p>
                 </div>
                 {message && <p className="flex items-center gap-2 text-sm text-emerald-200"><CheckCircle className="h-4 w-4" />{message}</p>}
                 {error && <p className="text-sm text-red-200">{error}</p>}

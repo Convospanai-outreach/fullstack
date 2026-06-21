@@ -6,6 +6,8 @@ import CameraRig from "./CameraRig";
 import FunnelGeometry from "./FunnelGeometry";
 import ParticleFlow from "./ParticleFlow";
 import PillarNode from "./PillarNode";
+import FlywheelCore from "./FlywheelCore";
+import RevenueChest from "./RevenueChest";
 import { PILLARS } from "./sceneConfig";
 
 interface FunnelSceneProps {
@@ -38,7 +40,11 @@ export default function FunnelScene({
 
       <CameraRig progressRef={progressRef} reduceMotion={reduceMotion} />
       <FunnelGeometry progressRef={progressRef} />
+      {/* Flywheel sits at the funnel centre (y=0) */}
+      <FlywheelCore progressRef={progressRef} />
       <ParticleFlow progressRef={progressRef} reduceMotion={reduceMotion} />
+      {/* Revenue chest materialises at the spiral throat (y=-10.5) */}
+      <RevenueChest progressRef={progressRef} />
       {PILLARS.map((pillar) => (
         <PillarNode key={pillar.id} pillar={pillar} progressRef={progressRef} />
       ))}
