@@ -52,12 +52,12 @@ export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
 
     // ── Dynamic Position & Scale (Ride down and shrink along the funnel) ────
     if (groupRef.current) {
-      // Y goes from 9 to -9
-      const targetY = 9 - progress * 18;
+      // Y goes from 9 to -10.5 (exactly inside the Revenue Chest)
+      const targetY = 9 - progress * 19.5;
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, 0.1);
 
-      // Scale shrinks from 1.0 down to 0.28 to fit the narrowing funnel profile
-      const targetScale = 1.0 - progress * 0.72;
+      // Scale shrinks from 1.0 down to 0.18 to fit perfectly inside the chest box
+      const targetScale = 1.0 - progress * 0.82;
       groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, 0.1));
 
       // Turn/point the flywheel towards the active text card (left or right)

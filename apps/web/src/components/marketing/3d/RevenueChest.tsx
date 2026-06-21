@@ -84,8 +84,8 @@ export default function RevenueChest({ progressRef }: RevenueChestProps) {
             whiteSpace: "nowrap",
           }}
         >
-          <p style={{ color: "#e2e8f0", fontSize: "10px", margin: "0 0 2px", letterSpacing: "0.18em", textTransform: "uppercase" }}>
-            Governed Pipeline
+          <p style={{ color: "#fbbf24", fontSize: "10px", margin: "0 0 2px", letterSpacing: "0.08em", textTransform: "uppercase", fontWeight: "bold" }}>
+            Measurable Results & ROI
           </p>
           <p style={{ color: "#ffffff", fontSize: "12px", fontWeight: 600, margin: "0 0 4px", letterSpacing: "0.06em" }}>
             47 Qualified Leads
