@@ -99,10 +99,10 @@ function SpiralRail({
 
   const points = useMemo(() => {
     const pts: THREE.Vector3[] = [];
-    const steps = 120;
+    const steps = 180;
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
-      const angle = offsetAngle + t * Math.PI * 6;
+      const angle = offsetAngle + t * Math.PI * 7;
       const y = 9 - t * 18;
       const r = 5.2 - t * 3.8 + Math.sin(t * Math.PI) * 0.6;
       pts.push(new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r));
@@ -110,20 +110,27 @@ function SpiralRail({
     return pts;
   }, [offsetAngle]);
 
-  const geo = useMemo(() => {
-    const g = new THREE.BufferGeometry().setFromPoints(points);
-    return g;
+  // Create the Three.js line object ONCE — not inline in JSX.
+  // Inline `new THREE.Line(...)` inside JSX re-creates a new object every render
+  // which breaks React Three Fiber's scene graph tracking in production.
+  const lineObject = useMemo(() => {
+    const geo = new THREE.BufferGeometry().setFromPoints(points);
+    const mat = new THREE.LineBasicMaterial({
+      color: 0x22d3ee,
+      transparent: true,
+      opacity: 0.35,
+    });
+    return new THREE.Line(geo, mat);
   }, [points]);
 
   useFrame(({ clock }) => {
     const progress = progressRef.current;
     if (meshRef.current) {
       const mat = meshRef.current.material as THREE.LineBasicMaterial;
-      mat.opacity = 0.08 + progress * 0.18;
+      // Base opacity 0.35 at start; brightens to 0.7 as user scrolls deeper
+      mat.opacity = 0.35 + progress * 0.35;
     }
   });
 
-  return (
-    <primitive object={new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.1 }))} ref={meshRef} />
-  );
+  return <primitive object={lineObject} ref={meshRef} />;
 }
