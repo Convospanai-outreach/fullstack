@@ -53,7 +53,7 @@ function resolveExecutable(command) {
   const commandHasPath = command.includes('\\') || command.includes('/');
   const searchDirs = commandHasPath
     ? [process.cwd()]
-    : (env.PATH || '').split(path.delimiter).filter(Boolean);
+    : (env.PATH || env.Path || env.path || '').split(path.delimiter).filter(Boolean);
 
   for (const dir of searchDirs) {
     for (const candidate of candidates) {

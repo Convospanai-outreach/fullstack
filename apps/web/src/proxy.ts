@@ -169,14 +169,15 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         return NextResponse.redirect(url);
     }
 
-    const isPublic = publicPaths.some(p => path === p) ||
-        path.startsWith("/p/") ||
-        authApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
-        path.startsWith("/_next") ||
-        path.startsWith("/static") ||
-        path.startsWith("/images") ||
-        webhookApiPrefixes.some((prefix) => path.startsWith(prefix)) ||
-        publicApiPrefixes.some((prefix) => path.startsWith(prefix));
+    const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
+    const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
+        cleanPath.startsWith("/p/") ||
+        authApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        cleanPath.startsWith("/_next") ||
+        cleanPath.startsWith("/static") ||
+        cleanPath.startsWith("/images") ||
+        webhookApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        publicApiPrefixes.some((prefix) => cleanPath.startsWith(prefix));
 
     if (!isPublic) {
         // Token already fetched at the top for rate limiting

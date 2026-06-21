@@ -90,7 +90,7 @@ export default function HudGrid({
       {/* Top-left system label */}
       {!compact && (
         <div className="absolute left-[30px] top-[30px] hidden rounded-full border border-cyan-300/15 bg-slate-950/30 px-4 py-2 text-[10px] uppercase tracking-[0.24em] text-cyan-100/70 backdrop-blur-md sm:block">
-          CraftMyFunnel // Fluid Funnel Engine
+          CraftMyFunnel {"//"} Fluid Funnel Engine
         </div>
       )}
 
@@ -98,7 +98,7 @@ export default function HudGrid({
       <div className="absolute bottom-[34px] left-[30px] max-w-[calc(100vw-80px)] rounded-2xl border border-cyan-300/10 bg-slate-950/25 px-3.5 py-3 text-[10px] tracking-[0.18em] text-cyan-200/70 backdrop-blur-md sm:text-[11px]">
         <div>
           DEPTH <b className="font-semibold text-slate-50">{formatDepth(progress)}</b>
-          <span className="text-slate-500"> // </span>
+          <span className="text-slate-500"> {"//"} </span>
           STAGE <b className="font-semibold text-slate-50">{safeStage}</b>
         </div>
         {!compact && activeItem?.label && (
