@@ -19,6 +19,9 @@ const nextConfig = {
     output: useStandaloneOutput ? 'standalone' : undefined,
     reactStrictMode: true,
     compress: true,
+    // Three.js / R3F are ESM-only packages — Next.js webpack must transpile them
+    // or the 3D canvas will silently fail to load in production.
+    transpilePackages: ['three', '@react-three/fiber', '@react-three/drei'],
     turbopack: {
         root: repoRoot,
     },
@@ -32,7 +35,9 @@ const nextConfig = {
         'pg',
     ],
     experimental: {
-        optimizePackageImports: isDevelopment || !usePackageImportOptimization ? [] : ['lucide-react', 'recharts', 'date-fns'],
+        optimizePackageImports: isDevelopment || !usePackageImportOptimization
+            ? []
+            : ['lucide-react', 'recharts', 'date-fns', 'three', '@react-three/fiber', '@react-three/drei'],
     },
     images: {
         remotePatterns: [
@@ -40,6 +45,14 @@ const nextConfig = {
             { protocol: 'https', hostname: '*.google.com' },
             { protocol: 'https', hostname: 'media.licdn.com' },
         ],
+    },
+    webpack(config) {
+        // Ensure three.js ESM builds resolve correctly in the webpack graph
+        config.resolve.extensionAlias = {
+            ...config.resolve.extensionAlias,
+            '.js': ['.ts', '.tsx', '.js', '.jsx'],
+        };
+        return config;
     },
 };
 

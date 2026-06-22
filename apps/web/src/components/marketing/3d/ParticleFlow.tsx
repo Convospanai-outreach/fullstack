@@ -111,6 +111,12 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
 
       const dt = 0.016;
 
+      // ── Flywheel churning integration ────────────────────────────────────
+      const flywheelY = 9 - progress * 18;
+      const distY = Math.abs(y - flywheelY);
+      // Boost angular speed dynamically as particles approach the flywheel's Y
+      const speedBoost = distY < 2.5 ? 1.5 + (2.5 - distY) * 1.8 : 1.0;
+
       if (state === 0) {
         // Market noise — drift outside
         const angle = Math.atan2(z, x) + dt * 0.08 * speed;
@@ -125,8 +131,8 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         }
         setParticleColor(colAttr, sizeAttr, i, 0.18, 0.38, 0.52, 1.8);
       } else if (state === 1) {
-        // Captured — spiral into funnel
-        const angle = Math.atan2(z, x) + dt * 0.35 * speed;
+        // Captured — spiral into funnel (churned by flywheel)
+        const angle = Math.atan2(z, x) + dt * 0.35 * speed * speedBoost;
         const targetR = Math.max(0.4, r2 * 0.992 - 0.02);
         x = Math.cos(angle) * targetR;
         z = Math.sin(angle) * targetR;
@@ -134,8 +140,8 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         if (y < -9.5) { y = 8.5; x = (Math.random() - 0.5) * 10; z = (Math.random() - 0.5) * 10; states[i] = 0; }
         setParticleColor(colAttr, sizeAttr, i, 0.13, 0.83, 0.93, 2.6);
       } else if (state === 2) {
-        // Outreach packet — violet spiral
-        const angle = Math.atan2(z, x) + dt * 0.5 * speed;
+        // Outreach packet — violet spiral (churned by flywheel)
+        const angle = Math.atan2(z, x) + dt * 0.5 * speed * speedBoost;
         const targetR = Math.max(0.3, r2 * 0.994 - 0.015);
         x = Math.cos(angle) * targetR;
         z = Math.sin(angle) * targetR;
@@ -145,8 +151,8 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         if (y < -9.5) { y = 8.0; x = (Math.random() - 0.5) * 8; z = (Math.random() - 0.5) * 8; states[i] = 1; }
         setParticleColor(colAttr, sizeAttr, i, 0.55, 0.36, 0.96, 2.8);
       } else if (state === 3) {
-        // Human rescue — mint loop
-        const angle = Math.atan2(z, x) + dt * 0.3 * speed;
+        // Human rescue — mint loop (churned by flywheel)
+        const angle = Math.atan2(z, x) + dt * 0.3 * speed * speedBoost;
         const wobble = Math.sin(t * 1.2 + phase) * 0.06;
         const targetR = Math.max(0.3, r2 * 0.995 + wobble);
         x = Math.cos(angle) * targetR;
@@ -155,8 +161,8 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         if (y < -9.5) { y = 7.5; states[i] = 2; }
         setParticleColor(colAttr, sizeAttr, i, 0.2, 0.83, 0.6, 3.0);
       } else if (state === 4) {
-        // Edge secured — crystal tight spiral
-        const angle = Math.atan2(z, x) + dt * 0.6 * speed;
+        // Edge secured — crystal tight spiral (churned by flywheel)
+        const angle = Math.atan2(z, x) + dt * 0.6 * speed * speedBoost;
         const targetR = Math.max(0.2, r2 * 0.996 - 0.01);
         x = Math.cos(angle) * targetR;
         z = Math.sin(angle) * targetR;
@@ -164,12 +170,22 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
         if (y < -9.5) { y = 7.0; states[i] = 3; }
         setParticleColor(colAttr, sizeAttr, i, 0.38, 0.65, 0.98, 2.4);
       } else {
-        // Revenue output — amber burst at throat
+        // Revenue output — amber convergence toward the chest at [0, -10.5, 0]
         const angle = Math.atan2(z, x) + dt * 0.9 * speed;
         x = Math.cos(angle) * Math.min(r2 + 0.04, 2.5);
         z = Math.sin(angle) * Math.min(r2 + 0.04, 2.5);
         y -= dt * 2.2 * speed;
-        if (y < -9.5) { y = -7 + Math.random() * 2; x = (Math.random() - 0.5) * 2; z = (Math.random() - 0.5) * 2; }
+        // Once past the funnel throat, spiral inward toward the chest centre
+        if (y < -9.0) {
+          x *= 0.93;
+          z *= 0.93;
+        }
+        if (y < -11.5) {
+          // Respawn above the funnel to keep the loop going
+          y = -7 + Math.random() * 2;
+          x = (Math.random() - 0.5) * 2;
+          z = (Math.random() - 0.5) * 2;
+        }
         setParticleColor(colAttr, sizeAttr, i, 0.98, 0.75, 0.14, 4.0);
       }
 

@@ -40,7 +40,7 @@ export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
   // Attachment point: the funnel spiral surface at the pillar's y-level,
   // at the same radial angle as the pillar so the spoke is perpendicular
   // to the funnel axis and clearly connects to the ring.
-  const { spokeGeo, connectorGeo, attachPt } = useMemo(() => {
+  const { spokeGeo, connectorGeo, spokeObj, connectorObj, attachPt } = useMemo(() => {
     const funnelR = funnelRadiusAtY(py);
     const angle   = Math.atan2(pz, px);   // radial angle of pillar
 
@@ -50,10 +50,8 @@ export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
     const attach = new THREE.Vector3(ax, py, az);
 
     // Pillar node is at local (0,0,0) because the group is translated to [px,py,pz]
-    // So spoke goes from local origin out to the (negative) pillar-to-funnel direction
     const localPillar  = new THREE.Vector3(0, 0, 0);
-    // The attach point in local space (subtract pillar world position)
-    const localAttach  = new THREE.Vector3(ax - px, py - py, az - pz);
+    const localAttach  = new THREE.Vector3(ax - px, 0, az - pz);
 
     const sg = new THREE.BufferGeometry().setFromPoints([localPillar, localAttach]);
 
@@ -65,8 +63,19 @@ export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
     );
     const cg = new THREE.BufferGeometry().setFromPoints([localAttach, innerPt]);
 
-    return { spokeGeo: sg, connectorGeo: cg, attachPt: attach };
-  }, [px, py, pz]);
+    // Create the Line objects once here — NOT inline in JSX (breaks R3F scene tracking)
+    const pillarColor = new THREE.Color(pillar.color);
+    const sObj = new THREE.Line(
+      sg,
+      new THREE.LineBasicMaterial({ color: pillarColor, transparent: true, opacity: 0, linewidth: 1 }),
+    );
+    const cObj = new THREE.Line(
+      cg,
+      new THREE.LineBasicMaterial({ color: pillarColor, transparent: true, opacity: 0 }),
+    );
+
+    return { spokeGeo: sg, connectorGeo: cg, spokeObj: sObj, connectorObj: cObj, attachPt: attach };
+  }, [px, py, pz, pillar.color]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
@@ -172,19 +181,13 @@ export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
 
       {/* ── Spoke: pillar → funnel spiral surface ────────────────────── */}
       <primitive
-        object={new THREE.Line(
-          spokeGeo,
-          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0, linewidth: 1 }),
-        )}
+        object={spokeObj}
         ref={spokeLineRef}
       />
 
       {/* ── Short connector tick at the spiral attachment point ───────── */}
       <primitive
-        object={new THREE.Line(
-          connectorGeo,
-          new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0 }),
-        )}
+        object={connectorObj}
         ref={connectorRef}
       />
 
