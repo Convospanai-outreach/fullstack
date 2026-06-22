@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 Agent: approval-readiness-agent
-Status: NEEDS_REPLAN
+Status: NEEDS_REPLAN until post-deploy production smoke confirms the source fix
 
 ## Scope
 
@@ -36,6 +36,18 @@ Public browser pages repeatedly attempted `/api/auth/session` and received `500`
 
 Observed on `/funnel`, `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` during Chromium smoke. These did not block page rendering, but they are production runtime noise and should be treated as a frontend smoke risk before controlled beta.
 
+## Follow-Up Auth Session Recheck
+
+Fresh public HTTPS checks on the currently deployed production build reproduced the issue:
+
+- Direct `/api/auth/session` returned `500` with `X-Matched-Path: /api/auth/[...nextauth]`.
+- Vercel runtime logs showed NextAuth `NO_SECRET` for `/api/auth/session`.
+- Chromium reproduced `/api/auth/session` client errors on `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel`.
+
+A minimal source fix was applied in `apps/web/src/app/providers.tsx` to stop those public routes from mounting NextAuth `SessionProvider`.
+
+Local production smoke after the fix showed `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` each made zero `/api/auth/session` browser requests and emitted no NextAuth console errors. Production still needs a post-deploy recheck.
+
 ## Artifacts
 
 Screenshots captured:
@@ -47,10 +59,10 @@ Screenshots captured:
 
 | Command | Result |
 | --- | --- |
-| `npm run lint --workspace apps/web` | Timed out after 180s; not counted as pass |
-| `npm run typecheck --workspace apps/web` | Passed in 206s |
-| `npm run build --workspace apps/web` | Timed out after 600s; not counted as pass |
+| `npm run lint --workspace apps/web` | Passed in 182.3s with one warning |
+| `npm run typecheck --workspace apps/web` | Passed in 212.4s |
+| `npm run build --workspace apps/web` | Passed in 805.2s |
 
 ## Verdict
 
-No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. Overall frontend smoke remains `NEEDS_REPLAN` because public pages emit `/api/auth/session` client errors and local lint/build validation did not complete.
+No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. Source now prevents the checked public pages from polling `/api/auth/session`, and local validation passes. Overall frontend smoke remains `NEEDS_REPLAN` until the fix is deployed and production confirms the client errors are gone; Vercel env mapping also remains unverified.

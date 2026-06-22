@@ -13,7 +13,7 @@ This file is the source of truth for current task status. Update it after every 
 | Baseline commit inspected | 9788d84db4afce78964aa9da90b22d606ef988a2 |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-22 |
-| Next action | Replan frontend production smoke risks: public pages emit `/api/auth/session` 500/429 client errors, and local lint/build validation timed out despite Vercel success |
+| Next action | Deploy and production-smoke the public-page SessionProvider fix; verify correct Vercel env key presence for `fullstack-web-xkxn`; trigger/verify GitHub Actions on target branch |
 
 ## Status values
 
@@ -37,8 +37,8 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| Vercel env-key/target mapping unverified | env-guard-agent | Vercel connector did not expose env listing; local Vercel CLI scope failed | Verify env keys/targets without exposing values | BLOCKED_EXTERNAL_ACCESS |
-| GitHub Actions green status unverified | ci-gate-agent | `gh` CLI unavailable in environment | Verify checks on target branch before launch | BLOCKED_EXTERNAL_ACCESS |
+| Vercel env-key/target mapping unverified | env-guard-agent | Vercel connector confirms project metadata/log access but does not expose env listing; local CLI is linked to a different project and wrong scope; runtime logs show NextAuth `NO_SECRET` | Verify env keys/targets without exposing values in Vercel dashboard/API/CLI scoped to `fullstack-web-xkxn` | BLOCKED_EXTERNAL_ACCESS |
+| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible, but Actions runs API returned `total_count: 0` for current branch; no Actions check runs for lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -65,7 +65,8 @@ Use only these values:
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
-| Approval readiness rebaseline 9788d84 | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-custom-domain-alias-check.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/frontend-production-smoke-output.md | Vercel/GitHub status for `9788d84` is success. Custom domain now serves public approval URLs with expected content and no old email values. Overall remains NEEDS_REPLAN because Chromium smoke found `/api/auth/session` 500/429 client errors on public pages, lint timed out after 180s, and build timed out after 600s. No DB, schema, migration, production DB, unsafe EdgeNode migration, OAuth scope, Chrome permission, automation behavior, or PR #6 work performed. |
+| Approval readiness rebaseline 9788d84 | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-custom-domain-alias-check.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/frontend-production-smoke-output.md | Vercel/GitHub status for `9788d84` is success. Custom domain now serves public approval URLs with expected content and no old email values. Follow-up auth/session investigation found `NEXTAUTH_SECRET` missing/unavailable in production and applied a source fix to stop checked public pages from polling `/api/auth/session`. Full local typecheck/lint/build now pass. No DB, schema, migration, production DB, unsafe EdgeNode migration, OAuth scope, Chrome permission, automation behavior, or PR #6 work performed. |
+| Auth session runtime recheck | approval-readiness-agent | NEEDS_REPLAN | docs/audits/frontend-auth-session-runtime-check.md, docs/audits/frontend-production-smoke-output.md, docs/audits/local-validation-output.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Production reproduces `/api/auth/session` `500`; Vercel logs show NextAuth `NO_SECRET`. Source fix prevents public trust/help/funnel pages from mounting NextAuth `SessionProvider`; local production smoke shows zero `/api/auth/session` browser requests on checked public pages. Full local typecheck/lint/build pass. Needs deploy and production recheck; env presence and Actions remain unresolved. |
 
 ## Latest findings
 
@@ -78,6 +79,14 @@ Use only these values:
 - Frontend smoke found homepage and `/funnel` render on desktop and mobile, with no CinematicHome, GSAP, Lenis, or React Three Fiber crash observed; Chromium emitted WebGL performance warnings only.
 - Frontend smoke risk remains: public pages emitted NextAuth `/api/auth/session` client errors with `500` or `429`, including on `/funnel` and approval pages.
 - Validation results on `9788d84`: `npm run typecheck --workspace apps/web` passed; `npm run lint --workspace apps/web` timed out after 180s; `npm run build --workspace apps/web` timed out after 600s.
+- Auth session runtime recheck on 2026-06-22 reproduced direct production `/api/auth/session` `500`; response matched local web route `X-Matched-Path: /api/auth/[...nextauth]`.
+- Vercel runtime logs for `fullstack-web-xkxn` showed NextAuth `NO_SECRET` on `/api/auth/session` and `/api/auth/_log`, classifying the server-side failure as env-driven (`NEXTAUTH_SECRET` missing/unavailable).
+- Public page session noise was also code-driven: `apps/web/src/app/providers.tsx` did not list `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/funnel`, `/help`, or `/faq` in `sessionFreePrefixes`, so those fully public pages mounted `SessionProvider`.
+- Minimal source fix added those public trust/help/funnel routes to the session-free list. Protected dashboard/app routes still mount `SessionProvider`; auth rules were not weakened.
+- Local production smoke after build verified `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` returned `200`, made zero `/api/auth/session` requests, and emitted no NextAuth console errors.
+- Validation after the auth/session fix: typecheck passed in 212.4s, lint passed in 182.3s with one warning, and build passed in 805.2s.
+- Vercel env key presence remains blocked: connector exposes project/log metadata but no env listing; local CLI is linked to a different `fullstack` project and wrong scope. `NEXTAUTH_SECRET` is missing or unavailable by runtime-log evidence.
+- GitHub Actions status remains not green for the current branch: GitHub API returned `total_count: 0` Actions runs for `codex/db-linkage-swarm-orchestration`; only Vercel/Supabase app check runs were found on `cddb234`.
 - Vercel project `fullstack-web-xkxn` / `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` is linked to `Convospanai-outreach/fullstack`.
 - Latest Vercel deployment inspected was `READY` from `codex/db-linkage-swarm-orchestration`; recent production deployments from `main` were also `READY`, but readiness is not proven by deploy state.
 - Supabase project `Fullstack2026` / `izqcycslipmbgdwgajvu` is `ACTIVE_HEALTHY` on Postgres 17.
@@ -150,7 +159,7 @@ Use only these values:
 | API auth schema sync plan | Exact Prisma additions documented; no edits made yet | 2026-06-18 | prisma-drift-agent | `docs/audits/api-auth-schema-sync-plan.md` | ACCEPTED — execution pending orchestrator go-ahead |
 | Approval readiness split | Move from DB/edge work to Google Workspace and Chrome Web Store approval docs; do not continue DB migrations | 2026-06-20 | approval-readiness-agent | `docs/audits/google-workspace-api-approval-plan.md`, `docs/audits/linkedin-chrome-store-approval-plan.md`, `docs/audits/live-url-approval-readiness-checklist.md` | ACCEPTED |
 | Approval URL gate | Required approval URLs must be public before Google Workspace or Chrome Web Store submission | 2026-06-20 | approval-readiness-agent | `docs/audits/live-url-approval-readiness-output.md` | NEEDS_REPLAN |
-| Public approval page fix | Public route allowlist and email-domain fixes are implemented in source, but live custom-domain recheck still serves pre-fix behavior/content | 2026-06-20 | approval-readiness-agent | `docs/audits/public-approval-pages-fix.md`, `docs/audits/live-url-approval-readiness-output.md` | NEEDS_REPLAN |
+| Public approval page fix | Public route allowlist and email-domain fixes are implemented and verified live; follow-up auth/session public-page polling fix is implemented in source and awaits deploy/recheck | 2026-06-22 | approval-readiness-agent | `docs/audits/live-url-approval-readiness-output.md`, `docs/audits/frontend-auth-session-runtime-check.md` | NEEDS_REPLAN |
 
 ## Next action queue
 
@@ -185,9 +194,12 @@ Use only these values:
    - Vercel/GitHub status for `9788d84` is `success`
    - Live domain no longer shows login redirects or checked stale email values
 14. [NEEDS_REPLAN] Resolve latest frontend smoke and validation gaps:
-   - Public pages emit `/api/auth/session` `500` or `429` client errors in Chromium smoke
-   - `npm run lint --workspace apps/web` timed out after 180s
-   - `npm run build --workspace apps/web` timed out after 600s
+   - [FIXED IN SOURCE, NEEDS DEPLOY] Public pages emit `/api/auth/session` `500` or `429` client errors in current production; source now prevents checked public pages from polling `/api/auth/session`
+   - [COMPLETED] `npm run lint --workspace apps/web` passed in 182.3s with one warning
+   - [COMPLETED] `npm run build --workspace apps/web` passed in 805.2s
+15. [NEEDS_REPLAN] Verify post-deploy production smoke for public pages after `apps/web/src/app/providers.tsx` change.
+16. [BLOCKED_EXTERNAL_ACCESS] Verify Vercel env key presence for `fullstack-web-xkxn`; runtime logs indicate `NEXTAUTH_SECRET` is missing/unavailable.
+17. [NEEDS_REPLAN] Trigger or verify GitHub Actions on `codex/db-linkage-swarm-orchestration`; no Actions runs were found by API.
 
 ## Handoff note template
 
