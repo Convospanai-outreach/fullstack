@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Dependency security and GitHub alert remediation |
-| Current agent | dependency-security-agent |
-| Working branch | codex/dependency-security-alerts-phase |
+| Current stage | Root npm ci lockfile sync repair |
+| Current agent | npm-lockfile-ci-stability-agent |
+| Working branch | codex/repair-root-lockfile-npm-ci |
 | Baseline commit inspected | 7fcfff7eee29f7dbc37aa9623faab0c1924c67f7 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-23 |
-| Next action | Run Stage 13 dependency security alert remediation, resolve failing web GitHub Actions gates, confirm canonical API origin for `API_INTERNAL_ORIGIN`, and keep DB/migration/PR #6 blockers isolated |
+| Next action | Verify GitHub Actions on the lockfile repair PR, then continue dependency alert remediation and API_INTERNAL_ORIGIN confirmation without DB/env changes |
 
 ## Status values
 
@@ -38,7 +38,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| GitHub Actions green status unverified | ci-gate-agent | Latest main `a232648` has failing GitHub Actions: `Web Build (apps/web)`, `vercel-parity-build`, and `Production Stability Audit (apps/web)`; Railway and Vercel commit statuses are green | Inspect CI logs; web audit gate reproduces locally, while Prisma generation and web build pass locally | NEEDS_REPLAN |
+| GitHub Actions green status unverified | ci-gate-agent | Latest main `7fcfff7` had a visible `vercel-parity-build` failure at root `npm ci`; local lockfile repair now passes root `npm ci`, Prisma import guard, web Prisma generate, and web build | Verify Actions on the lockfile repair PR after local workflow-equivalent validation passes | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
@@ -76,6 +76,11 @@ Use only these values:
 
 ## Latest findings
 
+- Root npm ci lockfile sync repair on 2026-06-23 used base `7fcfff7eee29f7dbc37aa9623faab0c1924c67f7`, where PR #33 had reverted the PR #32 Dependabot grouped bump.
+- The visible `vercel-parity-build` failure was reproduced with `npx -p npm@10 npm ci --no-audit --no-fund --loglevel=error`; npm 10 reported missing root lockfile entries for `@emnapi/core@1.11.1`, `@emnapi/runtime@1.11.1`, and `uuid@14.0.1`.
+- The fix was lockfile-only: `npx -p npm@10 npm install --package-lock-only --ignore-scripts --no-audit --no-fund --loglevel=error` updated root `package-lock.json` without changing package manifests.
+- Validation passed with `npx -p npm@10 npm ci --no-audit --no-fund` in 789.2s, local `npm ci` in 847.2s, `node scripts/check-web-prisma-imports.mjs` in 5.2s, web Prisma generate in 35.0s, and web build in 917.5s. The local `vercel-parity-build` lockfile blocker is READY_FOR_NEXT_STAGE, but GitHub Actions still need to run green on the target branch before the CI blocker is fully closed.
+- `@emnapi/core@1.11.1` and `@emnapi/runtime@1.11.1` are now present in root `package-lock.json`; dependency-chain proof points to `@napi-rs/wasm-runtime` peers used by optional WASI bindings under `rolldown`/`vite` and `unrs-resolver`/`eslint-config-next`.
 - Stage 13 was added on 2026-06-23 for dependency security and GitHub alert remediation. It must run after CI/PR strategy and before DB performance/security hardening or final readiness.
 - High severity current alerts are `ws` alert #250, `picomatch` alert #158, and `nodemailer` alert #261. These block final readiness unless fixed or proven unreachable in production.
 - Moderate alerts now require explicit reachability/risk mapping: `brace-expansion` alert #24, `uuid` alerts #262/#216/#105, `postcss` alerts #182/#54, `picomatch` alerts #161/#160, `@hono/node-server` alerts #170/#36, and `@opentelemetry/core` alert #255.

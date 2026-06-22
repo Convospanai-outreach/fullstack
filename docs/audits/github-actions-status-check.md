@@ -75,3 +75,41 @@ GitHub Actions must include or be accompanied by dependency security validation 
 
 Current high severity GitHub alert classes for `ws`, `picomatch`, and `nodemailer` remain release blockers unless fixed or proven unreachable in production. Do not mark `PRODUCTION_READY` or `CONTROLLED_BETA_READY` while high severity production dependency alerts remain unresolved.
 
+## Root npm ci Lockfile Sync Repair
+
+Date: 2026-06-23
+Agent: npm-lockfile-ci-stability-agent
+Branch: `codex/repair-root-lockfile-npm-ci`
+Base commit: `7fcfff7eee29f7dbc37aa9623faab0c1924c67f7`
+Status: READY_FOR_NEXT_STAGE
+
+The visible `vercel-parity-build` failure was reproduced locally with npm 10, matching GitHub Actions Node 22 behavior:
+
+```powershell
+npx -p npm@10 npm ci --no-audit --no-fund --loglevel=error
+```
+
+The command failed because root `package-lock.json` was missing npm 10-resolved entries for `@emnapi/core@1.11.1`, `@emnapi/runtime@1.11.1`, and workspace-local `uuid@14.0.1`.
+
+The repair ran:
+
+```powershell
+npx -p npm@10 npm install --package-lock-only --ignore-scripts --no-audit --no-fund --loglevel=error
+```
+
+Validation passed:
+
+```powershell
+npx -p npm@10 npm ci --no-audit --no-fund
+```
+
+The validation completed in 789.2s with exit code `0`. A later local `npm ci` with Node `v24.11.0` and npm `11.6.2` also passed in 847.2s.
+
+Workflow-equivalent validation also passed locally:
+
+- `node scripts/check-web-prisma-imports.mjs`
+- `npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma` from `apps/web` with dummy DB URLs
+- `npm run build` from `apps/web` with dummy DB URLs and CI placeholder auth env
+
+This verifies the local `vercel-parity-build` lockfile blocker as READY_FOR_NEXT_STAGE. GitHub Actions still need to run green for the target commit before the CI blocker is fully closed.
+
