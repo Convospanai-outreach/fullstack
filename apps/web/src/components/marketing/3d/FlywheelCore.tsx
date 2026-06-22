@@ -18,25 +18,25 @@ const SLATE   = 0x334155;
 
 export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
   const groupRef   = useRef<THREE.Group>(null);
-  const innerRef   = useRef<THREE.Mesh>(null);   // radius 1.4
-  const midRef     = useRef<THREE.Mesh>(null);   // radius 2.1
-  const outerRef   = useRef<THREE.Mesh>(null);   // radius 2.9
+  const innerRef   = useRef<THREE.Mesh>(null);   // radius 1.75
+  const midRef     = useRef<THREE.Mesh>(null);   // radius 2.55
+  const outerRef   = useRef<THREE.Mesh>(null);   // radius 3.45
   const hubRef     = useRef<THREE.Mesh>(null);
 
   // ── Spoke lines created ONCE via useMemo ───────────────────────────────────
   const spokeObjects = useMemo(() => {
     const spokes: THREE.Line[] = [];
-    const count = 8;
+    const count = 10;
     const mat = new THREE.LineBasicMaterial({
       color: SLATE,
       transparent: true,
-      opacity: 0.08,
+      opacity: 0.18,
     });
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
       const geo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(Math.cos(angle) * 2.9, 0, Math.sin(angle) * 2.9),
+        new THREE.Vector3(Math.cos(angle) * 3.45, 0, Math.sin(angle) * 3.45),
       ]);
       // Each spoke gets its OWN material instance so opacity can be mutated
       spokes.push(new THREE.Line(geo, mat.clone()));
@@ -50,14 +50,14 @@ export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
     const t        = clock.getElapsedTime();
     const progress = progressRef.current;
 
-    // ── Dynamic Position & Scale (Ride down and shrink along the funnel) ────
+    // ── Dynamic Position & Scale (Ride down and stay visually readable) ──────
     if (groupRef.current) {
-      // Y goes from 9 to -10.5 (exactly inside the Revenue Chest)
-      const targetY = 9 - progress * 19.5;
+      // Y now starts higher so the flywheel participates in the opening hero.
+      const targetY = 12.2 - progress * 22.7;
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, 0.1);
 
-      // Scale shrinks from 1.0 down to 0.18 to fit perfectly inside the chest box
-      const targetScale = 1.0 - progress * 0.82;
+      // Keep the flywheel significantly larger through the journey.
+      const targetScale = Math.max(0.42, 1.45 - progress * 1.03);
       groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, 0.1));
 
       // Turn/point the flywheel towards the active text card (left or right)
@@ -77,38 +77,38 @@ export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
     }
 
     // ── Compute active colour & target opacities per ring ─────────────────
-    let innerColor  = SLATE,  innerOp  = 0.12;
-    let midColor    = SLATE,  midOp    = 0.10;
-    let outerColor  = SLATE,  outerOp  = 0.08;
-    let hubColor    = SLATE,  hubOp    = 0.20;
-    let spokeOp = 0.06 + progress * 0.22;
+    let innerColor  = SLATE,  innerOp  = 0.28;
+    let midColor    = SLATE,  midOp    = 0.22;
+    let outerColor  = SLATE,  outerOp  = 0.18;
+    let hubColor    = SLATE,  hubOp    = 0.38;
+    let spokeOp = 0.18 + progress * 0.34;
 
     if (progress >= 0.92) {
-      innerColor = AMBER;  innerOp  = 0.80 + 0.20 * Math.sin(t * 3.0);
-      midColor   = AMBER;  midOp    = 0.70 + 0.20 * Math.sin(t * 2.4 + 1);
-      outerColor = AMBER;  outerOp  = 0.60 + 0.20 * Math.sin(t * 1.8 + 2);
-      hubColor   = AMBER;  hubOp    = 0.90;
-      spokeOp = 0.55 + 0.25 * Math.sin(t * 2.0);
+      innerColor = AMBER;  innerOp  = 0.88 + 0.12 * Math.sin(t * 3.0);
+      midColor   = AMBER;  midOp    = 0.78 + 0.18 * Math.sin(t * 2.4 + 1);
+      outerColor = AMBER;  outerOp  = 0.68 + 0.18 * Math.sin(t * 1.8 + 2);
+      hubColor   = AMBER;  hubOp    = 0.95;
+      spokeOp = 0.65 + 0.25 * Math.sin(t * 2.0);
     } else if (progress >= 0.82) {
-      innerColor = CRYSTAL; innerOp  = 0.70 + 0.20 * Math.sin(t * 2.8);
-      midColor   = CRYSTAL; midOp    = 0.60 + 0.20 * Math.sin(t * 2.1);
-      outerColor = CRYSTAL; outerOp  = 0.50 + 0.20 * Math.sin(t * 1.6);
-      hubColor   = CRYSTAL; hubOp    = 0.75;
+      innerColor = CRYSTAL; innerOp  = 0.78 + 0.18 * Math.sin(t * 2.8);
+      midColor   = CRYSTAL; midOp    = 0.68 + 0.18 * Math.sin(t * 2.1);
+      outerColor = CRYSTAL; outerOp  = 0.58 + 0.18 * Math.sin(t * 1.6);
+      hubColor   = CRYSTAL; hubOp    = 0.82;
     } else if (progress >= 0.68) {
-      outerColor = MINT;   outerOp  = 0.55 + 0.20 * Math.sin(t * 1.8);
-      midColor   = VIOLET; midOp    = 0.30;
-      innerColor = CYAN;   innerOp  = 0.30;
-      hubColor   = MINT;   hubOp    = 0.60;
+      outerColor = MINT;   outerOp  = 0.66 + 0.18 * Math.sin(t * 1.8);
+      midColor   = VIOLET; midOp    = 0.44;
+      innerColor = CYAN;   innerOp  = 0.44;
+      hubColor   = MINT;   hubOp    = 0.70;
     } else if (progress >= 0.54) {
-      midColor   = VIOLET; midOp    = 0.50 + 0.20 * Math.sin(t * 2.2);
-      innerColor = CYAN;   innerOp  = 0.30;
-      outerColor = SLATE;  outerOp  = 0.08;
-      hubColor   = VIOLET; hubOp    = 0.55;
+      midColor   = VIOLET; midOp    = 0.62 + 0.18 * Math.sin(t * 2.2);
+      innerColor = CYAN;   innerOp  = 0.44;
+      outerColor = SLATE;  outerOp  = 0.20;
+      hubColor   = VIOLET; hubOp    = 0.66;
     } else if (progress >= 0.40) {
-      innerColor = CYAN;   innerOp  = 0.45 + 0.20 * Math.sin(t * 2.6);
-      midColor   = SLATE;  midOp    = 0.10;
-      outerColor = SLATE;  outerOp  = 0.08;
-      hubColor   = CYAN;   hubOp    = 0.50;
+      innerColor = CYAN;   innerOp  = 0.58 + 0.20 * Math.sin(t * 2.6);
+      midColor   = SLATE;  midOp    = 0.24;
+      outerColor = SLATE;  outerOp  = 0.18;
+      hubColor   = CYAN;   hubOp    = 0.62;
     }
 
     // ── Apply rotation ─────────────────────────────────────────────────────
@@ -151,29 +151,29 @@ export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
     <group ref={groupRef} position={[0, 0, 0]}>
       {/* Hub */}
       <mesh ref={hubRef}>
-        <sphereGeometry args={[0.22, 16, 16]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.2} />
+        <sphereGeometry args={[0.32, 20, 20]} />
+        <meshBasicMaterial color={SLATE} transparent opacity={0.38} />
       </mesh>
 
-      {/* Inner ring — radius 1.4, fastest CW */}
+      {/* Inner ring — radius 1.75, fastest CW */}
       <mesh ref={innerRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.4, 0.035, 8, 64]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.12} />
+        <torusGeometry args={[1.75, 0.055, 10, 80]} />
+        <meshBasicMaterial color={SLATE} transparent opacity={0.28} />
       </mesh>
 
-      {/* Middle ring — radius 2.1, CCW */}
+      {/* Middle ring — radius 2.55, CCW */}
       <mesh ref={midRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.1, 0.035, 8, 64]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.10} />
+        <torusGeometry args={[2.55, 0.055, 10, 88]} />
+        <meshBasicMaterial color={SLATE} transparent opacity={0.22} />
       </mesh>
 
-      {/* Outer ring — radius 2.9, slowest CW */}
+      {/* Outer ring — radius 3.45, slowest CW */}
       <mesh ref={outerRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.9, 0.038, 8, 80]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.08} />
+        <torusGeometry args={[3.45, 0.06, 10, 96]} />
+        <meshBasicMaterial color={SLATE} transparent opacity={0.18} />
       </mesh>
 
-      {/* 8 Radial spokes — created in useMemo, never inline */}
+      {/* 10 Radial spokes — created in useMemo, never inline */}
       {spokeObjects.map((obj, i) => (
         <primitive key={i} object={obj} />
       ))}
