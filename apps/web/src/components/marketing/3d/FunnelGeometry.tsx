@@ -12,10 +12,37 @@ const FUNNEL_TOP_Y = 12.5;
 const FUNNEL_BOTTOM_Y = -10.5;
 const FUNNEL_HEIGHT = FUNNEL_TOP_Y - FUNNEL_BOTTOM_Y;
 const FUNNEL_CENTER_Y = (FUNNEL_TOP_Y + FUNNEL_BOTTOM_Y) / 2;
+const CYAN = 0x22d3ee;
+const VIOLET = 0x8b5cf6;
+const SLATE = 0x64748b;
 
 export default function FunnelGeometry({ progressRef }: FunnelGeometryProps) {
   const groupRef = useRef<THREE.Group>(null);
   const ringRefs = useRef<THREE.Mesh[]>([]);
+
+  const openingLinks = useMemo(() => [
+    { from: new THREE.Vector3(-7.6, 13.8, -1.8), to: new THREE.Vector3(-3.8, 12.8, -0.8), connectedAt: 0.04 },
+    { from: new THREE.Vector3(6.8, 13.2, -2.2), to: new THREE.Vector3(3.2, 12.2, -0.7), connectedAt: 0.08 },
+    { from: new THREE.Vector3(-5.4, 11.1, -2.5), to: new THREE.Vector3(-1.8, 11.4, -0.4), connectedAt: 0.12 },
+    { from: new THREE.Vector3(5.6, 10.7, -2.8), to: new THREE.Vector3(1.6, 11.1, -0.4), connectedAt: 0.16 },
+  ], []);
+
+  const openingLineObjects = useMemo(() => openingLinks.map((link) => {
+    const geometry = new THREE.BufferGeometry().setFromPoints([link.from, link.to]);
+    const material = new THREE.LineBasicMaterial({ color: SLATE, transparent: true, opacity: 0.16 });
+    return new THREE.Line(geometry, material);
+  }), [openingLinks]);
+
+  const openingNodeObjects = useMemo(() => {
+    const points = openingLinks.flatMap((link) => [link.from, link.to]);
+    return points.map((point, index) => {
+      const geometry = new THREE.SphereGeometry(index % 2 === 0 ? 0.12 : 0.16, 16, 16);
+      const material = new THREE.MeshBasicMaterial({ color: index % 2 === 0 ? SLATE : CYAN, transparent: true, opacity: 0.5 });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.copy(point);
+      return mesh;
+    });
+  }, [openingLinks]);
 
   const rings = useMemo(() => {
     const count = 22;
@@ -30,6 +57,21 @@ export default function FunnelGeometry({ progressRef }: FunnelGeometryProps) {
   useFrame(({ clock }) => {
     const time = clock.getElapsedTime();
     const progress = progressRef.current;
+
+    openingLineObjects.forEach((line, index) => {
+      const mat = line.material as THREE.LineBasicMaterial;
+      const connected = progress >= openingLinks[index]!.connectedAt;
+      mat.color.setHex(connected ? CYAN : SLATE);
+      mat.opacity = connected ? 0.56 + Math.sin(time * 2.1 + index) * 0.12 : 0.12;
+    });
+
+    openingNodeObjects.forEach((mesh, index) => {
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      const activated = progress > 0.06 || index % 2 === 1;
+      mat.color.setHex(activated ? (index % 3 === 0 ? VIOLET : CYAN) : SLATE);
+      mat.opacity = activated ? 0.55 + Math.sin(time * 1.8 + index) * 0.12 : 0.26;
+      mesh.scale.setScalar(activated ? 1.0 + Math.sin(time * 2 + index) * 0.12 : 0.8);
+    });
 
     ringRefs.current.forEach((mesh, i) => {
       if (!mesh) return;
@@ -55,6 +97,10 @@ export default function FunnelGeometry({ progressRef }: FunnelGeometryProps) {
 
   return (
     <group ref={groupRef}>
+      {/* Opening link map: loose outreach nodes become connected pipeline links before the spiral. */}
+      {openingLineObjects.map((line, index) => <primitive key={`opening-line-${index}`} object={line} />)}
+      {openingNodeObjects.map((node, index) => <primitive key={`opening-node-${index}`} object={node} />)}
+
       {/* Funnel torus rings */}
       {rings.map((ring, i) => (
         <mesh
