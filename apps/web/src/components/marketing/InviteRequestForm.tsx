@@ -47,6 +47,25 @@ export function InviteRequestForm() {
 
     return (
         <form onSubmit={submitInviteRequest} className="mx-auto grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+            <div className="sm:col-span-2 rounded-[28px] border border-amber-200/30 bg-gradient-to-br from-amber-200/16 via-slate-950/80 to-cyan-300/12 p-5 shadow-[0_20px_80px_rgba(251,191,36,0.18)] backdrop-blur-xl">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-amber-200/80">Pilot outcome preview</p>
+                        <h3 className="mt-2 text-xl font-black text-white">Signals become governed meetings.</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">A quick metric story before the form: captured intent, approved outreach, and pipeline your team can control.</p>
+                    </div>
+                    <div className="grid min-w-[180px] grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                        <div>
+                            <p className="text-2xl font-black text-cyan-200">47</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Qualified leads</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-black text-amber-200">12</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Meetings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <input
                 required
                 value={form.name}
