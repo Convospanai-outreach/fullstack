@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Post-revert deployment triage |
-| Current agent | deployment-triage-agent |
-| Working branch | codex/post-revert-deployment-triage |
-| Baseline commit inspected | 094663f21804fa858a28763af9a0f0e0383b4880 |
+| Current stage | Latest-main release gate recheck |
+| Current agent | release-gate-recheck-agent |
+| Working branch | codex/latest-main-release-gate-recheck |
+| Baseline commit inspected | a232648be04aae66ed89c6779503486bd76d32a4 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-22 |
-| Next action | Resolve Railway duplicate/stale service mapping and confirm canonical API origin for `API_INTERNAL_ORIGIN`; investigate remaining GitHub Actions web build failures |
+| Next action | Resolve failing web GitHub Actions gates, confirm canonical API origin for `API_INTERNAL_ORIGIN`, and keep DB/migration/PR #6 blockers isolated |
 
 ## Status values
 
@@ -38,7 +38,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| GitHub Actions green status unverified | ci-gate-agent | Latest main `094663f` has failing GitHub Actions: `vercel-parity-build`, `Production Stability Audit (apps/web)`, `build-and-push`, and `Web Build (apps/web)` | Inspect CI logs and reconcile CI environment with local passing web/API validations | NEEDS_REPLAN |
+| GitHub Actions green status unverified | ci-gate-agent | Latest main `a232648` has failing GitHub Actions: `Web Build (apps/web)`, `vercel-parity-build`, and `Production Stability Audit (apps/web)`; Railway and Vercel commit statuses are green | Inspect CI logs; web audit gate reproduces locally, while Prisma generation and web build pass locally | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -70,6 +70,7 @@ Use only these values:
 | Production branch alignment `94a23d` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-production-branch-alignment-check.md, docs/audits/github-actions-status-check.md, docs/audits/vercel-env-key-presence-check.md | Current Codex head `94a23d` has Vercel Preview success, but custom-domain production is branch `main`. Safe path is Production env repair plus PR/cherry-pick of only the minimal `providers.tsx` fix to `main` after checks. |
 | Post-env-redeploy verification `ef4eaf2` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-env-redeploy-auth-session-check.md, docs/audits/vercel-production-branch-alignment-check.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel Production successfully redeployed by user with env updates. Direct `/api/auth/session` now returns `200 OK` on custom domain. Blocker resolved. Public pages still poll session because production serves `main`. `API_INTERNAL_ORIGIN` is not set and remains an API-backed feature blocker. |
 | Post-revert deployment triage `094663f` | deployment-triage-agent | NEEDS_REPLAN | docs/audits/post-revert-deployment-triage.md | PR #28 reverted Dependabot package bumps; PR #25 provider fix and PR #23 hero merge remain preserved. Vercel status is success, one Railway API service succeeds, three Railway statuses fail across duplicate projects/services, and several GitHub Actions web/Docker checks fail. No source/env/DB changes made. |
+| Latest-main release gate recheck `a232648` | release-gate-recheck-agent | NEEDS_REPLAN | docs/audits/latest-main-release-gate-recheck.md | Vercel and all Railway contexts are green on latest main. GitHub Actions still fail for web build, vercel parity, and production stability audit. Local web/API typecheck/build pass; web audit gate fails locally with high vulnerabilities. `API_INTERNAL_ORIGIN` remains unproven. |
 
 ## Latest findings
 
@@ -83,6 +84,12 @@ Use only these values:
 - Latest main still contains PR #25 public session-free provider routes and PR #23 is an ancestor of `origin/main`.
 - Local validation on latest main passed: `npm run typecheck --workspace apps/web`, `npm run typecheck --workspace apps/api`, `npm run build --workspace apps/api`, and `npm run build --workspace apps/web`. Docker/Railway-style image build could not be run locally because Docker is not installed.
 - `API_INTERNAL_ORIGIN` must be the canonical absolute backend API origin for production web proxy requests. The repo does not prove whether the correct value is the observed Railway API service host, a custom API domain, or another dashboard-managed backend origin.
+- Latest-main release gate recheck on `a232648be04aae66ed89c6779503486bd76d32a4` found Vercel `success` and all Railway contexts `success` with `No deployment needed - watched paths not modified`.
+- GitHub Actions still fail on latest main: `Web Build (apps/web)`, `vercel-parity-build`, and `Production Stability Audit (apps/web)`. `build-and-push` was not present for this docs-only commit.
+- Direct production `https://www.craftmyfunnel.live/api/auth/session` returned `200 OK` with `{}` using public HTTPS SNI/DNS override.
+- Local validation on latest main passed: web typecheck, API typecheck, API build, and web build. Web build completed in 917.7s.
+- Local `npm audit --workspace apps/web --audit-level=high --omit=dev` fails with 18 vulnerabilities including 6 high, matching the kind of blocking gate present in the failing web/stability workflows.
+- Exact CI `npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma` passed locally with dummy DB URLs, so `vercel-parity-build`'s Prisma-generation annotation remains CI-specific until full logs are inspected.
 - Rebaseline on 2026-06-22 used `origin/codex/db-linkage-swarm-orchestration` commit `9788d84db4afce78964aa9da90b22d606ef988a2`.
 - GitHub commit status for `9788d84` returned Vercel `success` with description `Deployment has completed`; GitHub deployments listed preview URL `https://fullstack-web-xkxn-jifhkvhbk-convo2026s-projects.vercel.app`, but that immutable preview URL is Vercel SSO-protected (`401`).
 - Local DNS maps `www.craftmyfunnel.live` and `craftmyfunnel.live` to `127.0.0.1`; live checks bypassed this with public HTTPS SNI/TLS using `curl --resolve ...:76.76.21.21`.
