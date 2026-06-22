@@ -13,7 +13,7 @@ This file is the source of truth for current task status. Update it after every 
 | Baseline commit inspected | 9788d84db4afce78964aa9da90b22d606ef988a2 |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
 | Last updated | 2026-06-22 |
-| Next action | Deploy and production-smoke the public-page SessionProvider fix; verify correct Vercel env key presence for `fullstack-web-xkxn`; trigger/verify GitHub Actions on target branch |
+| Next action | Align custom production domain with the intended branch/fix or deploy `c3cbfbf` to production; add/fix `NEXTAUTH_SECRET`; then rerun public-page auth/session smoke |
 
 ## Status values
 
@@ -38,7 +38,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | Vercel env-key/target mapping unverified | env-guard-agent | Vercel connector confirms project metadata/log access but does not expose env listing; local CLI is linked to a different project and wrong scope; runtime logs show NextAuth `NO_SECRET` | Verify env keys/targets without exposing values in Vercel dashboard/API/CLI scoped to `fullstack-web-xkxn` | BLOCKED_EXTERNAL_ACCESS |
-| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible, but Actions runs API returned `total_count: 0` for current branch; no Actions check runs for lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
+| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible; older branch Actions runs exist, but no Actions run/check-run was found for current commit `c3cbfbf` covering lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -66,7 +66,7 @@ Use only these values:
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
 | Approval readiness rebaseline 9788d84 | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-custom-domain-alias-check.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/frontend-production-smoke-output.md | Vercel/GitHub status for `9788d84` is success. Custom domain now serves public approval URLs with expected content and no old email values. Follow-up auth/session investigation found `NEXTAUTH_SECRET` missing/unavailable in production and applied a source fix to stop checked public pages from polling `/api/auth/session`. Full local typecheck/lint/build now pass. No DB, schema, migration, production DB, unsafe EdgeNode migration, OAuth scope, Chrome permission, automation behavior, or PR #6 work performed. |
-| Auth session runtime recheck | approval-readiness-agent | NEEDS_REPLAN | docs/audits/frontend-auth-session-runtime-check.md, docs/audits/frontend-production-smoke-output.md, docs/audits/local-validation-output.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Production reproduces `/api/auth/session` `500`; Vercel logs show NextAuth `NO_SECRET`. Source fix prevents public trust/help/funnel pages from mounting NextAuth `SessionProvider`; local production smoke shows zero `/api/auth/session` browser requests on checked public pages. Full local typecheck/lint/build pass. Needs deploy and production recheck; env presence and Actions remain unresolved. |
+| Post-deploy auth/session smoke `c3cbfbf` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-deploy-auth-session-smoke-c3cbfbf.md, docs/audits/frontend-auth-session-runtime-check.md, docs/audits/frontend-production-smoke-output.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel status for `c3cbfbf` is success and preview deployment exists, but the custom domain still requests `/api/auth/session` and `/api/auth/_log` on public pages. Fresh production logs identify custom-domain deployment as branch `main` and still show NextAuth `NO_SECRET`. No source changes made in this post-deploy smoke pass. |
 
 ## Latest findings
 
@@ -86,7 +86,12 @@ Use only these values:
 - Local production smoke after build verified `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` returned `200`, made zero `/api/auth/session` requests, and emitted no NextAuth console errors.
 - Validation after the auth/session fix: typecheck passed in 212.4s, lint passed in 182.3s with one warning, and build passed in 805.2s.
 - Vercel env key presence remains blocked: connector exposes project/log metadata but no env listing; local CLI is linked to a different `fullstack` project and wrong scope. `NEXTAUTH_SECRET` is missing or unavailable by runtime-log evidence.
-- GitHub Actions status remains not green for the current branch: GitHub API returned `total_count: 0` Actions runs for `codex/db-linkage-swarm-orchestration`; only Vercel/Supabase app check runs were found on `cddb234`.
+- GitHub Actions status remains not green for the current head: GitHub API returned older branch workflow runs, but no Actions run/check-run was found for `c3cbfbf`; only Vercel/Supabase app check runs were found on the current commit.
+- Post-deploy smoke on 2026-06-22 for `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e`: GitHub/Vercel commit status is `success`; deployment `5147717423` status is `success`; preview URL is `https://fullstack-web-xkxn-gjs0zzkhv-convo2026s-projects.vercel.app`.
+- Custom-domain freshness did not pass for the auth/session fix: `www.craftmyfunnel.live` still requested `/api/auth/session` and `/api/auth/_log` on `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/funnel`, `/help`, and `/faq`.
+- Fresh production runtime logs for the smoke window identify deployment `dpl_8rrycQGHzaBXXPCkLQK2dS2fxWYH`, domain `www.craftmyfunnel.live`, environment `production`, branch `main`, with NextAuth `NO_SECRET`.
+- Direct `https://www.craftmyfunnel.live/api/auth/session` still returns `500` with `X-Matched-Path: /api/auth/[...nextauth]`.
+- GitHub Actions API now returns older branch workflow runs, but no Actions run/check-run was found for current commit `c3cbfbf`; required Actions are still not proven green for the current head.
 - Vercel project `fullstack-web-xkxn` / `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` is linked to `Convospanai-outreach/fullstack`.
 - Latest Vercel deployment inspected was `READY` from `codex/db-linkage-swarm-orchestration`; recent production deployments from `main` were also `READY`, but readiness is not proven by deploy state.
 - Supabase project `Fullstack2026` / `izqcycslipmbgdwgajvu` is `ACTIVE_HEALTHY` on Postgres 17.
@@ -197,9 +202,12 @@ Use only these values:
    - [FIXED IN SOURCE, NEEDS DEPLOY] Public pages emit `/api/auth/session` `500` or `429` client errors in current production; source now prevents checked public pages from polling `/api/auth/session`
    - [COMPLETED] `npm run lint --workspace apps/web` passed in 182.3s with one warning
    - [COMPLETED] `npm run build --workspace apps/web` passed in 805.2s
-15. [NEEDS_REPLAN] Verify post-deploy production smoke for public pages after `apps/web/src/app/providers.tsx` change.
+15. [NEEDS_REPLAN] Post-deploy production smoke for `c3cbfbf` failed:
+   - `c3cbfbf` Vercel preview status is success
+   - Custom domain production logs identify branch `main`
+   - Public pages still call `/api/auth/session` and `/api/auth/_log`
 16. [BLOCKED_EXTERNAL_ACCESS] Verify Vercel env key presence for `fullstack-web-xkxn`; runtime logs indicate `NEXTAUTH_SECRET` is missing/unavailable.
-17. [NEEDS_REPLAN] Trigger or verify GitHub Actions on `codex/db-linkage-swarm-orchestration`; no Actions runs were found by API.
+17. [NEEDS_REPLAN] Trigger or verify GitHub Actions on `c3cbfbf`; older branch runs exist, but no Actions run/check-run was found for current commit.
 
 ## Handoff note template
 

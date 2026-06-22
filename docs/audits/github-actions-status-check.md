@@ -10,11 +10,11 @@ Status: NEEDS_REPLAN
 | --- | --- |
 | Repository | `Convospanai-outreach/fullstack` |
 | Branch | `codex/db-linkage-swarm-orchestration` |
-| Commit checked | `cddb2349ab60b18c277ff24720786320debe70b1` |
+| Commit checked | `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e` |
 
 ## Check Runs API
 
-GitHub check-runs API for `cddb2349ab60b18c277ff24720786320debe70b1` returned two app check runs:
+GitHub check-runs API for `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e` returned two app check runs:
 
 | Check | Status | Conclusion | Notes |
 | --- | --- | --- | --- |
@@ -31,7 +31,9 @@ GitHub Actions API query:
 
 Result:
 
-`total_count: 0`
+`total_count: 6`
+
+The returned branch workflow runs were for older head SHAs, including `cddb2349ab60b18c277ff24720786320debe70b1`, not for `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e`.
 
 ## Workflow Files Present
 
@@ -49,6 +51,6 @@ Workflow files exist in `.github/workflows`:
 
 ## Verdict
 
-GitHub Actions are not proven green for the current branch/commit. The API was accessible, but no Actions runs were found for the branch. This remains `NEEDS_REPLAN` rather than `BLOCKED_EXTERNAL_ACCESS`.
+GitHub Actions are not proven green for the current commit. The API was accessible, and older branch Actions runs exist, but no Actions run or Actions check-run was found for `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e`.
 
 Next action: trigger or configure the required Actions for this branch/PR and verify lint, typecheck, build, and test jobs are green before launch readiness.

@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 Agent: approval-readiness-agent
-Status: NEEDS_REPLAN until post-deploy production smoke confirms the source fix
+Status: NEEDS_REPLAN
 
 ## Scope
 
@@ -46,7 +46,17 @@ Fresh public HTTPS checks on the currently deployed production build reproduced 
 
 A minimal source fix was applied in `apps/web/src/app/providers.tsx` to stop those public routes from mounting NextAuth `SessionProvider`.
 
-Local production smoke after the fix showed `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` each made zero `/api/auth/session` browser requests and emitted no NextAuth console errors. Production still needs a post-deploy recheck.
+Local production smoke after the fix showed `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` each made zero `/api/auth/session` browser requests and emitted no NextAuth console errors.
+
+## Post-Deploy Smoke For `c3cbfbf`
+
+Post-deploy smoke against `www.craftmyfunnel.live` did not confirm the source fix on the custom production domain:
+
+- `c3cbfbf48a353a3bf8ee1202b15cbb09e3f7632e` has Vercel `success` and a preview URL.
+- Fresh production runtime logs identify the custom domain deployment as production branch `main`, not `codex/db-linkage-swarm-orchestration`.
+- `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/funnel`, `/help`, and `/faq` still requested `/api/auth/session` and `/api/auth/_log` in Chromium.
+- Direct `/api/auth/session` still returned `500` with `X-Matched-Path: /api/auth/[...nextauth]`.
+- Runtime logs still show NextAuth `NO_SECRET`.
 
 ## Artifacts
 
@@ -65,4 +75,4 @@ Screenshots captured:
 
 ## Verdict
 
-No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. Source now prevents the checked public pages from polling `/api/auth/session`, and local validation passes. Overall frontend smoke remains `NEEDS_REPLAN` until the fix is deployed and production confirms the client errors are gone; Vercel env mapping also remains unverified.
+No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. Local source validation passes, but production public-page session noise remains `NEEDS_REPLAN` because the custom domain still calls `/api/auth/session` and `/api/auth/_log`, and Vercel logs still show NextAuth `NO_SECRET`.

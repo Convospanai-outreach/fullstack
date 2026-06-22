@@ -2,7 +2,7 @@
 
 Date: 2026-06-22
 Agent: approval-readiness-agent
-Status: Source fix applied; production recheck required after deployment.
+Status: Source fix applied locally; custom-domain production smoke still fails.
 
 ## Files Inspected
 
@@ -95,4 +95,8 @@ After `npm run build --workspace apps/web`, a local production server was starte
 
 ## Remaining Risk
 
-Production still needs a post-deploy public smoke check. Direct `/api/auth/session` may still return `500` until `NEXTAUTH_SECRET` is present in the correct Vercel production environment, but public trust/funnel pages should no longer call it after this source fix is deployed.
+Post-deploy production smoke for `c3cbfbf` did not confirm the source fix on `www.craftmyfunnel.live`.
+
+The commit has a successful Vercel preview deployment, but fresh runtime logs for the custom domain identify production branch `main`, and the checked public pages still requested `/api/auth/session` and `/api/auth/_log`.
+
+Direct `/api/auth/session` still returns `500` until `NEXTAUTH_SECRET` is present in the correct Vercel production environment. Public-page session noise remains unresolved on the custom production domain until the session-free source behavior is deployed to the domain and rechecked.

@@ -23,6 +23,12 @@ Result:
 
 `Error: The specified scope does not exist`
 
+`npx vercel env ls production --scope team_ju8AaZfJ8hE4jmsMW0tTnAJ5`
+
+Result:
+
+`Error: The specified scope does not exist`
+
 `npx vercel env ls production`
 
 Result:
@@ -63,5 +69,7 @@ Marketplace-managed Supabase/Postgres, Redis/Upstash, GitHub, and Clerk keys wer
 ## Verdict
 
 Env-key presence remains `BLOCKED_EXTERNAL_ACCESS`. The strongest available evidence is runtime logs showing `NEXTAUTH_SECRET` is missing or unavailable to the deployed NextAuth route.
+
+Fresh post-deploy smoke for `c3cbfbf` still shows direct `/api/auth/session` returning `500`, and Vercel production runtime logs still show NextAuth `NO_SECRET` on `/api/auth/session` and `/api/auth/_log`.
 
 Next action: use Vercel dashboard/API/CLI access scoped to `team_ju8AaZfJ8hE4jmsMW0tTnAJ5` and project `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` to verify key presence without printing values.
