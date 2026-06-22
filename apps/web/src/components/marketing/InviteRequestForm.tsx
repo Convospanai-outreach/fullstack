@@ -46,7 +46,7 @@ export function InviteRequestForm() {
     }
 
     return (
-        <form onSubmit={submitInviteRequest} className="mx-auto mt-10 grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+        <form onSubmit={submitInviteRequest} className="mx-auto grid max-w-3xl gap-4 text-left sm:grid-cols-2">
             <input
                 required
                 value={form.name}
@@ -91,10 +91,10 @@ export function InviteRequestForm() {
                         type="submit"
                         disabled={loading}
                         style={{
-                            background: "linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)",
-                            boxShadow: "0 0 32px 6px rgba(124,58,237,0.50), 0 0 14px 2px rgba(6,182,212,0.40)",
+                            background: "linear-gradient(135deg, #facc15 0%, #22d3ee 48%, #38bdf8 100%)",
+                            boxShadow: "0 18px 45px rgba(34,211,238,0.35), 0 0 0 1px rgba(255,255,255,0.55) inset",
                         }}
-                        className="inline-flex items-center justify-center gap-2 rounded-full px-10 py-4 text-sm font-black text-white transition-all duration-200 hover:scale-105 hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-100/70 px-10 py-4 text-sm font-black text-slate-950 shadow-xl transition-all duration-200 hover:scale-105 hover:brightness-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-80"
                     >
                         {loading ? "Requesting…" : "Request Early Access →"}
                     </button>
