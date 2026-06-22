@@ -1,63 +1,49 @@
 # Live URL Approval Readiness Output
 
-Date: 2026-06-20
+Date: 2026-06-22
 Agent: approval-readiness-agent
-Status: NEEDS_REPLAN
+Status: PASS for public approval URL gate; overall workflow remains NEEDS_REPLAN due frontend smoke and local validation gaps.
 
-## Vercel Gate
-
-Vercel was checked before URL verification.
+## Tested Commit
 
 | Field | Value |
 | --- | --- |
-| Project | `fullstack-web-xkxn` |
-| Project ID | `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` |
-| Team | `team_ju8AaZfJ8hE4jmsMW0tTnAJ5` |
-| Deployment | `dpl_J8U8CjWQtgZV74erY8Mhg3teYjCW` |
-| Commit | `74423bcb39184754a13f7cc43d4f9c3ebe2a70ec` |
-| Branch | `codex/db-linkage-swarm-orchestration` |
-| State | `READY` |
-
-Proceeding condition was satisfied.
+| Commit | `9788d84db4afce78964aa9da90b22d606ef988a2` |
+| Branch | `origin/codex/db-linkage-swarm-orchestration` |
+| Commit subject | `fix(web): stabilize cinematic hero rendering, path normalization, and studio UI build` |
 
 ## Public Access Method
 
-Normal local requests to `https://www.craftmyfunnel.live/*` fail on this workstation because hosts entries map both `craftmyfunnel.live` and `www.craftmyfunnel.live` to `127.0.0.1`.
+Local DNS for both `www.craftmyfunnel.live` and `craftmyfunnel.live` resolves to `127.0.0.1` on this workstation, so direct local requests would not be valid public-internet evidence.
 
-Public DNS-over-HTTPS returned:
-
-- `www.craftmyfunnel.live` CNAME `d6db2f592966d5f8.vercel-dns-017.com`
-- A `216.198.79.65`
-- A `64.29.17.65`
-
-The verification used a read-only HTTPS checker that connected to `216.198.79.65` with SNI `www.craftmyfunnel.live`, preserving TLS certificate verification while bypassing the local hosts override.
+Verification used public HTTPS with SNI/TLS verification and `curl --resolve www.craftmyfunnel.live:443:76.76.21.21` to bypass the local DNS override while still requesting the real public host.
 
 ## Results
 
-| URL | Initial HTTP status | Final HTTP status | Final URL | Redirects to `/login` | Public without authentication | SSL works | Approval-relevant content present | `support@craftmyfunnel.live` appears | Old email search result |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `https://www.craftmyfunnel.live/security` | `307` | `200` | `https://www.craftmyfunnel.live/login?callbackUrl=%2Fsecurity` | Yes | No | Yes | No: final page is sign-in, not security content | No | none |
-| `https://www.craftmyfunnel.live/support` | `307` | `200` | `https://www.craftmyfunnel.live/login?callbackUrl=%2Fsupport` | Yes | No | Yes | No: final page is sign-in, not support content | No | none |
-| `https://www.craftmyfunnel.live/data-deletion` | `307` | `200` | `https://www.craftmyfunnel.live/login?callbackUrl=%2Fdata-deletion` | Yes | No | Yes | No: final page is sign-in, not data deletion content | No | none |
-| `https://www.craftmyfunnel.live/google-api-disclosure` | `307` | `200` | `https://www.craftmyfunnel.live/login?callbackUrl=%2Fgoogle-api-disclosure` | Yes | No | Yes | No: final page is sign-in, not Google API disclosure content | No | none |
-| `https://www.craftmyfunnel.live/terms` | `200` | `200` | `https://www.craftmyfunnel.live/terms` | No | Yes | Yes | Yes: Terms & Conditions content is present | No | `bizcomm.soulutions@gmail.com` |
-| `https://www.craftmyfunnel.live/contact` | `200` | `200` | `https://www.craftmyfunnel.live/contact` | No | Yes | Yes | Yes: contact form and support channel content is present | No | `support@craftmyfunnel.com`, `enterprise@craftmyfunnel.com` |
+| URL | Initial HTTP status | Final HTTP status after redirects | Final URL | Redirects to `/login` | Public without authentication | Expected page content present | `support@craftmyfunnel.live` present where expected | `bizcomm.soulutions@gmail.com` present | `support@craftmyfunnel.com` present | `enterprise@craftmyfunnel.com` present |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `https://www.craftmyfunnel.live/` | `200` | `200` | `https://www.craftmyfunnel.live/` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/security` | `200` | `200` | `https://www.craftmyfunnel.live/security` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/support` | `200` | `200` | `https://www.craftmyfunnel.live/support` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/data-deletion` | `200` | `200` | `https://www.craftmyfunnel.live/data-deletion` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/google-api-disclosure` | `200` | `200` | `https://www.craftmyfunnel.live/google-api-disclosure` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/terms` | `200` | `200` | `https://www.craftmyfunnel.live/terms` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/contact` | `200` | `200` | `https://www.craftmyfunnel.live/contact` | No | Yes | Yes | Yes | No | No | No |
+| `https://www.craftmyfunnel.live/funnel` | `200` | `200` | `https://www.craftmyfunnel.live/funnel` | No | Yes | Yes | Yes | No | No | No |
 
 ## Interpretation
 
-- Vercel is `READY` for commit `74423bcb39184754a13f7cc43d4f9c3ebe2a70ec`.
-- The live custom domain still behaves like the pre-fix site:
-  - `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` still redirect to login.
-  - `/terms` still serves `bizcomm.soulutions@gmail.com`.
-  - `/contact` still serves `support@craftmyfunnel.com` and `enterprise@craftmyfunnel.com`.
-- Because the public custom domain does not reflect the expected post-fix behavior/content, approval readiness remains `NEEDS_REPLAN`.
+- The stale 2026-06-20 failure is no longer reproduced for the required approval URLs.
+- `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` are now public and no longer redirect to `/login`.
+- `/terms` and `/contact` no longer expose the old email values checked here.
+- The approval URL gate itself is suitable for the next review stage, subject to the separate frontend smoke and validation findings in `docs/audits/frontend-production-smoke-output.md`.
 
 ## Validation Commands
 
 | Command | Result |
 | --- | --- |
-| `npm run lint --workspace apps/web` | Timed out after 120s |
-| `npm run typecheck --workspace apps/web` | Timed out after 180s |
-| `npm run build --workspace apps/web` | Timed out after 240s |
+| `npm run lint --workspace apps/web` | Timed out after 180s; not counted as pass |
+| `npm run typecheck --workspace apps/web` | Passed |
+| `npm run build --workspace apps/web` | Timed out after 600s; not counted as pass |
 
-No live approval URL should be submitted for Google OAuth or Chrome Web Store review until the public custom domain serves the expected public pages and `support@craftmyfunnel.live` replaces all old email addresses.
+No DB, Prisma schema, migration, unsafe EdgeNode migration, OAuth scope, Chrome extension permission, automation behavior, production DB, or PR #6 work was performed.

@@ -10,10 +10,10 @@ This file is the source of truth for current task status. Update it after every 
 | Current stage | Approval readiness |
 | Current agent | approval-readiness-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | 871e2ab210b2755451c5c01be4bed7604aa2d51c |
+| Baseline commit inspected | 9788d84db4afce78964aa9da90b22d606ef988a2 |
 | Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
-| Last updated | 2026-06-20 |
-| Next action | Investigate why the live custom domain still serves pre-fix route protection and stale email content despite Vercel `READY`, then re-run live URL verification |
+| Last updated | 2026-06-22 |
+| Next action | Replan frontend production smoke risks: public pages emit `/api/auth/session` 500/429 client errors, and local lint/build validation timed out despite Vercel success |
 
 ## Status values
 
@@ -65,10 +65,19 @@ Use only these values:
 | Phase 3. Shared DB package skeleton | orchestrator | READY_FOR_NEXT_STAGE | packages/db/package.json | Added skeleton package, copied web schema as starting snapshot, added migration ownership README and schema compare gate script |
 | Phase 4. Prisma drift resolution | prisma-drift-agent | READY_FOR_NEXT_STAGE | docs/audits/prisma-schema-drift-matrix.md, docs/audits/schema-compare-output.md, docs/audits/lead-embedding-decision.md, docs/audits/api-auth-schema-sync-plan.md, docs/audits/api-prisma-validate-output.md | Option B accepted (CTO). Lead.embedding=String? applied to packages/db, apps/web, and apps/api. API auth schema sync applied. All three schemas are in 100% character-for-character sync (MATCH) and validate successfully. Added API schema validate evidence. |
 | Phase 5. DB verification & additive prep | prisma-drift-agent | BLOCKED_EXTERNAL_ACCESS | docs/audits/live-schema-verify-plan.md, docs/audits/auth-invite-additive-migration-plan.md, docs/audits/live-schema-verify-output.md | Created live schema verification plan and safety-reviewed additive SQL plan. Read-only live verification is blocked due to missing remote staging/production connection strings. |
-| Approval readiness | approval-readiness-agent | NEEDS_REPLAN | docs/audits/google-workspace-api-approval-plan.md, docs/audits/linkedin-chrome-store-approval-plan.md, docs/audits/live-url-approval-readiness-checklist.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/public-approval-pages-fix.md | Vercel is `READY` for commit `74423bc`, but live custom-domain recheck still shows `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` redirecting to login and `/terms` + `/contact` still serving old email content. No DB, schema, migration, production DB, unsafe EdgeNode migration, or PR #6 work performed. |
+| Approval readiness rebaseline 9788d84 | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-custom-domain-alias-check.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/frontend-production-smoke-output.md | Vercel/GitHub status for `9788d84` is success. Custom domain now serves public approval URLs with expected content and no old email values. Overall remains NEEDS_REPLAN because Chromium smoke found `/api/auth/session` 500/429 client errors on public pages, lint timed out after 180s, and build timed out after 600s. No DB, schema, migration, production DB, unsafe EdgeNode migration, OAuth scope, Chrome permission, automation behavior, or PR #6 work performed. |
 
 ## Latest findings
 
+- Rebaseline on 2026-06-22 used `origin/codex/db-linkage-swarm-orchestration` commit `9788d84db4afce78964aa9da90b22d606ef988a2`.
+- GitHub commit status for `9788d84` returned Vercel `success` with description `Deployment has completed`; GitHub deployments listed preview URL `https://fullstack-web-xkxn-jifhkvhbk-convo2026s-projects.vercel.app`, but that immutable preview URL is Vercel SSO-protected (`401`).
+- Local DNS maps `www.craftmyfunnel.live` and `craftmyfunnel.live` to `127.0.0.1`; live checks bypassed this with public HTTPS SNI/TLS using `curl --resolve ...:76.76.21.21`.
+- Custom domain freshness verdict: `www.craftmyfunnel.live` appears to serve the requested `9788d84` public-route and approval-content behavior; `craftmyfunnel.live` redirects to `https://www.craftmyfunnel.live/`.
+- Required public URLs `/`, `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/terms`, `/contact`, and `/funnel` all returned public `200` without login redirects.
+- Old approval email values `bizcomm.soulutions@gmail.com`, `support@craftmyfunnel.com`, and `enterprise@craftmyfunnel.com` were absent from the checked public pages; `support@craftmyfunnel.live` was present where expected.
+- Frontend smoke found homepage and `/funnel` render on desktop and mobile, with no CinematicHome, GSAP, Lenis, or React Three Fiber crash observed; Chromium emitted WebGL performance warnings only.
+- Frontend smoke risk remains: public pages emitted NextAuth `/api/auth/session` client errors with `500` or `429`, including on `/funnel` and approval pages.
+- Validation results on `9788d84`: `npm run typecheck --workspace apps/web` passed; `npm run lint --workspace apps/web` timed out after 180s; `npm run build --workspace apps/web` timed out after 600s.
 - Vercel project `fullstack-web-xkxn` / `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` is linked to `Convospanai-outreach/fullstack`.
 - Latest Vercel deployment inspected was `READY` from `codex/db-linkage-swarm-orchestration`; recent production deployments from `main` were also `READY`, but readiness is not proven by deploy state.
 - Supabase project `Fullstack2026` / `izqcycslipmbgdwgajvu` is `ACTIVE_HEALTHY` on Postgres 17.
@@ -113,8 +122,8 @@ Use only these values:
 - Live approval URL verification completed on 2026-06-20. Six required URLs return public HTTPS `200`: `/`, `/privacy`, `/terms`, `/contact`, `/help`, and `/faq`.
 - Four required approval URLs are not public: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` return initial `307` redirects to `/login?callbackUrl=...`.
 - Support/contact domain mismatches found: `/terms` uses `bizcomm.soulutions@gmail.com`; `/contact` uses `support@craftmyfunnel.com` and `enterprise@craftmyfunnel.com` instead of the approval-domain support address.
-- Approval page fix implemented on 2026-06-20: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` added to the public web allowlist; `/terms` and `/contact` email references standardized to `support@craftmyfunnel.live`. Live recheck is still required after Vercel deploys this commit.
-- Live approval recheck after Vercel `READY` for commit `74423bc` still fails on the public custom domain: the four approval pages continue to redirect to login, and `/terms` + `/contact` still serve old email addresses.
+- Approval page fix implemented on 2026-06-20: `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` added to the public web allowlist; `/terms` and `/contact` email references standardized to `support@craftmyfunnel.live`.
+- Live approval rebaseline on 2026-06-22 for commit `9788d84` passed the public approval URL gate: the required pages are public, no checked page redirects to login, and old email values were absent.
 - `postgresqlExtensions` preview feature and `extensions = [vector]` datasource entry removed from `packages/db` and `apps/web` — now orphaned since no `Unsupported` types remain in either schema.
 - Post-convergence compare run (2026-06-18): `packages/db` MATCH `apps/web` sha256=`3d46e8b3…`. Both DIFFER from `apps/api` on auth/invite gap only (`UserInvitation`, `InviteRequest`, `InvitationStatus`, `InviteRequestStatus`). `Lead.embedding` TYPE_DRIFT is RESOLVED.
 - Sole remaining Phase 4 schema gap: auth/invite models in `apps/api`. Documented in `docs/audits/api-auth-schema-sync-plan.md`.
@@ -170,11 +179,15 @@ Use only these values:
    - Login-gated: `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`
    - Domain mismatch: `/terms`, `/contact`
 12. [QUEUED] Prepare Google Workspace G1 send-only submission and Chrome Web Store V1 manual-capture submission artifacts after URL gate is fixed.
-13. [NEEDS_REPLAN] Public approval page fix implemented, but live custom-domain recheck still fails:
+13. [COMPLETED] Public approval page fix verified live at commit `9788d84`:
    - Public allowlist: `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`
    - Email standardization: `/terms`, `/contact`
-   - Vercel commit `74423bc` is `READY`
-   - Live domain still shows login redirects and stale emails
+   - Vercel/GitHub status for `9788d84` is `success`
+   - Live domain no longer shows login redirects or checked stale email values
+14. [NEEDS_REPLAN] Resolve latest frontend smoke and validation gaps:
+   - Public pages emit `/api/auth/session` `500` or `429` client errors in Chromium smoke
+   - `npm run lint --workspace apps/web` timed out after 180s
+   - `npm run build --workspace apps/web` timed out after 600s
 
 ## Handoff note template
 
