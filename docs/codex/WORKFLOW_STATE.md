@@ -10,10 +10,10 @@ This file is the source of truth for current task status. Update it after every 
 | Current stage | Approval readiness |
 | Current agent | approval-readiness-agent |
 | Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | 9788d84db4afce78964aa9da90b22d606ef988a2 |
-| Phase 3 commit | fc500fa7b4735c5ce8809c0dda5ead10f426759b |
+| Baseline commit inspected | ef4eaf27d2796671927dfc68a082731547fd1d04 |
+| API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-22 |
-| Next action | Add/fix `NEXTAUTH_SECRET` in Vercel Production; cherry-pick or PR only the minimal public-page session fix to `main` after checks; then rerun public-page auth/session smoke |
+| Next action | Cherry-pick or PR only the minimal public-page session fix to `main` after checks; trigger/verify GitHub Actions status |
 
 ## Status values
 
@@ -37,8 +37,8 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| Vercel env-key/target mapping unverified | env-guard-agent | Vercel connector confirms project metadata/log access but does not expose env listing; local CLI is linked to a different project and wrong scope; runtime logs show NextAuth `NO_SECRET` | Verify env keys/targets without exposing values in Vercel dashboard/API/CLI scoped to `fullstack-web-xkxn` | BLOCKED_EXTERNAL_ACCESS |
-| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible; older branch Actions runs exist, but no Actions run/check-run was found for current commit `94a23d` covering lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
+| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed | Identify actual API deployment/custom API origin | NEEDS_INPUT |
+| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible; older branch Actions runs exist, but no Actions run/check-run was found for current commit `ef4eaf2` covering lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -68,9 +68,15 @@ Use only these values:
 | Approval readiness rebaseline 9788d84 | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-custom-domain-alias-check.md, docs/audits/live-url-approval-readiness-output.md, docs/audits/frontend-production-smoke-output.md | Vercel/GitHub status for `9788d84` is success. Custom domain now serves public approval URLs with expected content and no old email values. Follow-up auth/session investigation found `NEXTAUTH_SECRET` missing/unavailable in production and applied a source fix to stop checked public pages from polling `/api/auth/session`. Full local typecheck/lint/build now pass. No DB, schema, migration, production DB, unsafe EdgeNode migration, OAuth scope, Chrome permission, automation behavior, or PR #6 work performed. |
 | Post-deploy auth/session smoke `c3cbfbf` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-deploy-auth-session-smoke-c3cbfbf.md, docs/audits/frontend-auth-session-runtime-check.md, docs/audits/frontend-production-smoke-output.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel status for `c3cbfbf` is success and preview deployment exists, but the custom domain still requests `/api/auth/session` and `/api/auth/_log` on public pages. Fresh production logs identify custom-domain deployment as branch `main` and still show NextAuth `NO_SECRET`. No source changes made in this post-deploy smoke pass. |
 | Production branch alignment `94a23d` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-production-branch-alignment-check.md, docs/audits/github-actions-status-check.md, docs/audits/vercel-env-key-presence-check.md | Current Codex head `94a23d` has Vercel Preview success, but custom-domain production is branch `main`. Safe path is Production env repair plus PR/cherry-pick of only the minimal `providers.tsx` fix to `main` after checks. |
+| Post-env-redeploy verification `ef4eaf2` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-env-redeploy-auth-session-check.md, docs/audits/vercel-production-branch-alignment-check.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel Production successfully redeployed by user with env updates. Direct `/api/auth/session` now returns `200 OK` on custom domain. Blocker resolved. Public pages still poll session because production serves `main`. `API_INTERNAL_ORIGIN` is not set and remains an API-backed feature blocker. |
 
 ## Latest findings
 
+- Post-env-redeploy verification on 2026-06-22 used head commit `ef4eaf27d2796671927dfc68a082731547fd1d04`.
+- User updated Vercel environment variables and redeployed Production (deployment `5147697018` at branch `main`).
+- Direct `/api/auth/session` now returns `200 OK` with `{}` on the custom production domain, indicating the NextAuth `NO_SECRET` blocker is resolved. NextAuth client errors on public pages are no longer emitted.
+- Public pages still call `/api/auth/session` because production is serving branch `main` rather than the Codex branch.
+- `API_INTERNAL_ORIGIN` is intentionally not set and remains an API-backed feature blocker.
 - Rebaseline on 2026-06-22 used `origin/codex/db-linkage-swarm-orchestration` commit `9788d84db4afce78964aa9da90b22d606ef988a2`.
 - GitHub commit status for `9788d84` returned Vercel `success` with description `Deployment has completed`; GitHub deployments listed preview URL `https://fullstack-web-xkxn-jifhkvhbk-convo2026s-projects.vercel.app`, but that immutable preview URL is Vercel SSO-protected (`401`).
 - Local DNS maps `www.craftmyfunnel.live` and `craftmyfunnel.live` to `127.0.0.1`; live checks bypassed this with public HTTPS SNI/TLS using `curl --resolve ...:76.76.21.21`.
