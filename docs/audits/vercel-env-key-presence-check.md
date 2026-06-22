@@ -72,4 +72,6 @@ Env-key presence remains `BLOCKED_EXTERNAL_ACCESS`. The strongest available evid
 
 Fresh post-deploy smoke for `c3cbfbf` still shows direct `/api/auth/session` returning `500`, and Vercel production runtime logs still show NextAuth `NO_SECRET` on `/api/auth/session` and `/api/auth/_log`.
 
-Next action: use Vercel dashboard/API/CLI access scoped to `team_ju8AaZfJ8hE4jmsMW0tTnAJ5` and project `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` to verify key presence without printing values.
+The current checked head `94a23d55c0e9ce14e6593d5feb3c74e63d2db3d6` has a successful Vercel Preview deployment, but production runtime logs for `www.craftmyfunnel.live` still identify the serving path as environment `production`, branch `main`, deployment `dpl_8rrycQGHzaBXXPCkLQK2dS2fxWYH`, with NextAuth `NO_SECRET`.
+
+Next action: use Vercel dashboard/API/CLI access scoped to team `team_ju8AaZfJ8hE4jmsMW0tTnAJ5` and project `prj_CaGvMj7pnHTCMTp3iPTsYHCHSdf8` to verify key presence without printing values across Production and Preview scopes. Add or repair `NEXTAUTH_SECRET` in Production, then redeploy Production before rechecking direct `/api/auth/session`.
