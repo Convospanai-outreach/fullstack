@@ -27,14 +27,26 @@ This bypasses local DNS entries that map the public domains to `127.0.0.1` while
 | Approval pages hidden behind auth | PASS | `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/terms`, `/contact` all returned public `200` |
 | Obvious mobile-breaking layout issues | PASS basic visual with caveat | Mobile screenshots for `/` and `/funnel` show rendered hero, nav, canvas, and text. A lower HUD/metric label is very close to the bottom edge but not a blank-page blocker. |
 
-## Runtime Issues Observed
+## Runtime Issues Resolved
 
-Public browser pages repeatedly attempted `/api/auth/session` and received `500` or `429`, producing NextAuth client errors such as:
+In prior checks, public browser pages repeatedly attempted `/api/auth/session` and received `500` or `429` with `CLIENT_FETCH_ERROR` and NextAuth `NO_SECRET` errors.
 
-- `[next-auth][error][CLIENT_FETCH_ERROR] There is a problem with the server configuration`
-- `[next-auth][error][CLIENT_FETCH_ERROR] Too many requests`
+Following the user's environment variable update and Production redeployment:
+- Direct `/api/auth/session` now returns `200 OK` with `{}`.
+- NextAuth client-side calls on `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/funnel`, `/help`, and `/faq` now successfully return `200 OK` without any `500` or `429` errors.
+- Client-side error logs for NextAuth are no longer emitted.
 
-Observed on `/funnel`, `/security`, `/support`, `/data-deletion`, and `/google-api-disclosure` during Chromium smoke. These did not block page rendering, but they are production runtime noise and should be treated as a frontend smoke risk before controlled beta.
+However, the pages still make client-side requests to `/api/auth/session` and `/api/auth/_log` because the custom domain is still serving branch `main` (commit `4367d7bc374d4a6db9151b00bc40078fca1e2416`), which lacks the Codex branch provider list patch.
+
+## Follow-Up Auth Session Recheck
+
+Fresh public HTTPS checks on the redeployed production build:
+- Direct `/api/auth/session` returned `200 OK` with `{}`.
+- Vercel production logs no longer show NextAuth `NO_SECRET`.
+- The source fix in the Codex branch (`apps/web/src/app/providers.tsx`) remains **NOT PROVEN ON PRODUCTION** because the custom domain serves `main`.
+
+Local production smoke after the `providers.tsx` fix:
+- Showed `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, and `/funnel` each made zero `/api/auth/session` browser requests and emitted no NextAuth console errors.
 
 ## Artifacts
 
@@ -47,10 +59,11 @@ Screenshots captured:
 
 | Command | Result |
 | --- | --- |
-| `npm run lint --workspace apps/web` | Timed out after 180s; not counted as pass |
-| `npm run typecheck --workspace apps/web` | Passed in 206s |
-| `npm run build --workspace apps/web` | Timed out after 600s; not counted as pass |
+| `npm run lint --workspace apps/web` | Passed in 182.3s with one warning |
+| `npm run typecheck --workspace apps/web` | Passed in 212.4s |
+| `npm run build --workspace apps/web` | Passed in 805.2s |
 
 ## Verdict
 
-No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. Overall frontend smoke remains `NEEDS_REPLAN` because public pages emit `/api/auth/session` client errors and local lint/build validation did not complete.
+No blank homepage, public-route, cinematic crash, dashboard-auth, or `/api/proxy` recursion blocker was found. The direct NextAuth `NO_SECRET` issue is resolved in Vercel Production. The client-side session-free fix is not yet live in Production because the custom domain serves branch `main` rather than the Codex branch. The session-noise risk is reduced (the calls now succeed with 200) but remains active until the Codex branch providers fix reaches `main`.
+

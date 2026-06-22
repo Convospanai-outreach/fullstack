@@ -8,6 +8,8 @@ export function Providers({ children, session }: any) {
     const sessionFreePrefixes = [
         "/", "/about", "/contact", "/pricing",
         "/login", "/signup", "/privacy", "/terms",
+        "/security", "/support", "/data-deletion",
+        "/google-api-disclosure", "/funnel", "/help", "/faq",
         "/verify-email", "/forgot-password", "/magic-link",
     ];
 
