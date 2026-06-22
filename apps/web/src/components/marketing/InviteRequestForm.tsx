@@ -46,7 +46,26 @@ export function InviteRequestForm() {
     }
 
     return (
-        <form onSubmit={submitInviteRequest} className="mx-auto mt-10 grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+        <form onSubmit={submitInviteRequest} className="mx-auto grid max-w-3xl gap-4 text-left sm:grid-cols-2">
+            <div className="sm:col-span-2 rounded-[28px] border border-amber-200/30 bg-gradient-to-br from-amber-200/16 via-slate-950/80 to-cyan-300/12 p-5 shadow-[0_20px_80px_rgba(251,191,36,0.18)] backdrop-blur-xl">
+                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <p className="font-mono text-[10px] uppercase tracking-[0.28em] text-amber-200/80">Pilot outcome preview</p>
+                        <h3 className="mt-2 text-xl font-black text-white">Signals become governed meetings.</h3>
+                        <p className="mt-2 text-sm leading-6 text-slate-300">A quick metric story before the form: captured intent, approved outreach, and pipeline your team can control.</p>
+                    </div>
+                    <div className="grid min-w-[180px] grid-cols-2 gap-3 rounded-2xl border border-white/10 bg-black/30 p-4 text-center">
+                        <div>
+                            <p className="text-2xl font-black text-cyan-200">47</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Qualified leads</p>
+                        </div>
+                        <div>
+                            <p className="text-2xl font-black text-amber-200">12</p>
+                            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">Meetings</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <input
                 required
                 value={form.name}
@@ -91,10 +110,10 @@ export function InviteRequestForm() {
                         type="submit"
                         disabled={loading}
                         style={{
-                            background: "linear-gradient(135deg, #7c3aed 0%, #06b6d4 100%)",
-                            boxShadow: "0 0 32px 6px rgba(124,58,237,0.50), 0 0 14px 2px rgba(6,182,212,0.40)",
+                            background: "linear-gradient(135deg, #facc15 0%, #22d3ee 48%, #38bdf8 100%)",
+                            boxShadow: "0 18px 45px rgba(34,211,238,0.35), 0 0 0 1px rgba(255,255,255,0.55) inset",
                         }}
-                        className="inline-flex items-center justify-center gap-2 rounded-full px-10 py-4 text-sm font-black text-white transition-all duration-200 hover:scale-105 hover:brightness-110 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-cyan-100/70 px-10 py-4 text-sm font-black text-slate-950 shadow-xl transition-all duration-200 hover:scale-105 hover:brightness-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-80"
                     >
                         {loading ? "Requesting…" : "Request Early Access →"}
                     </button>
