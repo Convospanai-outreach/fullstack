@@ -6,28 +6,11 @@ export function Providers({ children, session }: any) {
     const pathname = usePathname();
 
     const sessionFreePrefixes = [
-        "/",
-        "/about",
-        "/contact",
-        "/pricing",
-        "/funnel",
-        "/help",
-        "/faq",
-        "/privacy",
-        "/terms",
-        "/security",
-        "/support",
-        "/data-deletion",
-        "/google-api-disclosure",
-        "/p",
-        "/login",
-        "/agent-login",
-        "/client-login",
-        "/signup",
-        "/accept-invite",
-        "/verify-email",
-        "/forgot-password",
-        "/magic-link",
+        "/", "/about", "/contact", "/pricing",
+        "/login", "/signup", "/privacy", "/terms",
+        "/security", "/support", "/data-deletion",
+        "/google-api-disclosure", "/funnel", "/help", "/faq",
+        "/verify-email", "/forgot-password", "/magic-link",
     ];
 
     const disableSessionProvider = sessionFreePrefixes.some(
