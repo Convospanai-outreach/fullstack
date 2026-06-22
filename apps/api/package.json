@@ -24,7 +24,7 @@
         "@next-auth/prisma-adapter": "^1.0.7",
         "@prisma/adapter-pg": "^7.5.0",
         "@prisma/client": "^7.8.0",
-        "axios": "^1.18.0",
+        "axios": "^1.13.2",
         "bcryptjs": "^3.0.3",
         "cron-parser": "^5.4.0",
         "date-fns": "^4.1.0",
@@ -39,7 +39,7 @@
         "lru-cache": "^11.2.4",
         "next": "^16.2.7",
         "next-auth": "^4.24.14",
-        "nodemailer": "^9.0.1",
+        "nodemailer": "^8.0.10",
         "openai": "^6.16.0",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",
@@ -65,6 +65,6 @@
         "@types/pg": "^8.15.6",
         "pino-pretty": "^13.0.0",
         "typescript": "5.9.3",
-        "vitest": "^4.1.9"
+        "vitest": "^4.1.8"
     }
 }
