@@ -55,3 +55,23 @@ GitHub Actions are not proven green for the current commit. The API was accessib
 
 Next action: trigger or configure the required Actions for this branch/PR and verify lint, typecheck, build, and test jobs are green before launch readiness.
 
+## Dependency Security Follow-Up
+
+Date: 2026-06-23
+Agent: dependency-security-agent
+Status: NEEDS_REPLAN
+
+Stage 13, `Dependency security and GitHub alert remediation`, has been added as a required release gate after CI/PR strategy and before DB performance/security hardening or final readiness.
+
+GitHub Actions must include or be accompanied by dependency security validation before final readiness:
+
+- `npm ci`
+- `npm audit --audit-level=high --omit=dev`
+- `npm audit --audit-level=moderate --omit=dev`
+- `npm run typecheck:web`
+- `npm run build:web`
+- `npm --workspace apps/web run lint`
+- exact GitHub workflow-equivalent commands where possible
+
+Current high severity GitHub alert classes for `ws`, `picomatch`, and `nodemailer` remain release blockers unless fixed or proven unreachable in production. Do not mark `PRODUCTION_READY` or `CONTROLLED_BETA_READY` while high severity production dependency alerts remain unresolved.
+
