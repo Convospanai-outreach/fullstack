@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Approval readiness |
-| Current agent | approval-readiness-agent |
-| Working branch | codex/db-linkage-swarm-orchestration |
-| Baseline commit inspected | ef4eaf27d2796671927dfc68a082731547fd1d04 |
+| Current stage | Post-revert deployment triage |
+| Current agent | deployment-triage-agent |
+| Working branch | codex/post-revert-deployment-triage |
+| Baseline commit inspected | 094663f21804fa858a28763af9a0f0e0383b4880 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-22 |
-| Next action | Cherry-pick or PR only the minimal public-page session fix to `main` after checks; trigger/verify GitHub Actions status |
+| Next action | Resolve Railway duplicate/stale service mapping and confirm canonical API origin for `API_INTERNAL_ORIGIN`; investigate remaining GitHub Actions web build failures |
 
 ## Status values
 
@@ -37,8 +37,8 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed | Identify actual API deployment/custom API origin | NEEDS_INPUT |
-| GitHub Actions green status unverified | ci-gate-agent | GitHub API accessible; older branch Actions runs exist, but no Actions run/check-run was found for current commit `ef4eaf2` covering lint/typecheck/build/tests | Trigger or configure Actions for target branch and verify required jobs | NEEDS_REPLAN |
+| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
+| GitHub Actions green status unverified | ci-gate-agent | Latest main `094663f` has failing GitHub Actions: `vercel-parity-build`, `Production Stability Audit (apps/web)`, `build-and-push`, and `Web Build (apps/web)` | Inspect CI logs and reconcile CI environment with local passing web/API validations | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -69,6 +69,7 @@ Use only these values:
 | Post-deploy auth/session smoke `c3cbfbf` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-deploy-auth-session-smoke-c3cbfbf.md, docs/audits/frontend-auth-session-runtime-check.md, docs/audits/frontend-production-smoke-output.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel status for `c3cbfbf` is success and preview deployment exists, but the custom domain still requests `/api/auth/session` and `/api/auth/_log` on public pages. Fresh production logs identify custom-domain deployment as branch `main` and still show NextAuth `NO_SECRET`. No source changes made in this post-deploy smoke pass. |
 | Production branch alignment `94a23d` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/vercel-production-branch-alignment-check.md, docs/audits/github-actions-status-check.md, docs/audits/vercel-env-key-presence-check.md | Current Codex head `94a23d` has Vercel Preview success, but custom-domain production is branch `main`. Safe path is Production env repair plus PR/cherry-pick of only the minimal `providers.tsx` fix to `main` after checks. |
 | Post-env-redeploy verification `ef4eaf2` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-env-redeploy-auth-session-check.md, docs/audits/vercel-production-branch-alignment-check.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel Production successfully redeployed by user with env updates. Direct `/api/auth/session` now returns `200 OK` on custom domain. Blocker resolved. Public pages still poll session because production serves `main`. `API_INTERNAL_ORIGIN` is not set and remains an API-backed feature blocker. |
+| Post-revert deployment triage `094663f` | deployment-triage-agent | NEEDS_REPLAN | docs/audits/post-revert-deployment-triage.md | PR #28 reverted Dependabot package bumps; PR #25 provider fix and PR #23 hero merge remain preserved. Vercel status is success, one Railway API service succeeds, three Railway statuses fail across duplicate projects/services, and several GitHub Actions web/Docker checks fail. No source/env/DB changes made. |
 
 ## Latest findings
 
@@ -77,6 +78,11 @@ Use only these values:
 - Direct `/api/auth/session` now returns `200 OK` with `{}` on the custom production domain, indicating the NextAuth `NO_SECRET` blocker is resolved. NextAuth client errors on public pages are no longer emitted.
 - Public pages still call `/api/auth/session` because production is serving branch `main` rather than the Codex branch.
 - `API_INTERNAL_ORIGIN` is intentionally not set and remains an API-backed feature blocker.
+- Post-revert triage on latest main `094663f21804fa858a28763af9a0f0e0383b4880` found Vercel status `success`, Railway `airy-balance - convospan-api-split` `success`, and three failing Railway statuses: `airy-balance - convospan-full-scaffold`, `illustrious-warmth - convospan-api-split`, and `illustrious-warmth - convospan-full-scaffold`.
+- No committed Railway config (`railway.toml`, Nixpacks, Railpack, or Procfile) was found; Railway service build/root/start/healthcheck/env mapping must be verified in the Railway dashboard.
+- Latest main still contains PR #25 public session-free provider routes and PR #23 is an ancestor of `origin/main`.
+- Local validation on latest main passed: `npm run typecheck --workspace apps/web`, `npm run typecheck --workspace apps/api`, `npm run build --workspace apps/api`, and `npm run build --workspace apps/web`. Docker/Railway-style image build could not be run locally because Docker is not installed.
+- `API_INTERNAL_ORIGIN` must be the canonical absolute backend API origin for production web proxy requests. The repo does not prove whether the correct value is the observed Railway API service host, a custom API domain, or another dashboard-managed backend origin.
 - Rebaseline on 2026-06-22 used `origin/codex/db-linkage-swarm-orchestration` commit `9788d84db4afce78964aa9da90b22d606ef988a2`.
 - GitHub commit status for `9788d84` returned Vercel `success` with description `Deployment has completed`; GitHub deployments listed preview URL `https://fullstack-web-xkxn-jifhkvhbk-convo2026s-projects.vercel.app`, but that immutable preview URL is Vercel SSO-protected (`401`).
 - Local DNS maps `www.craftmyfunnel.live` and `craftmyfunnel.live` to `127.0.0.1`; live checks bypassed this with public HTTPS SNI/TLS using `curl --resolve ...:76.76.21.21`.
