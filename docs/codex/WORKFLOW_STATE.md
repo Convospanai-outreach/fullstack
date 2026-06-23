@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Web Docker GHCR nodemailer hotfix |
-| Current agent | npm-lockfile-ci-stability-agent |
-| Working branch | codex/post-pr35-merge-release-gate |
-| Baseline commit inspected | e14806ca01439219fa3f93214acd07b1d3a9d042 |
+| Current stage | Stale Railway check cleanup and phased improvement plan |
+| Current agent | release-gate-cleanup-agent |
+| Working branch | codex/stale-railway-check-cleanup-plan |
+| Baseline commit inspected | bbd3d472f64ccc9c6ca52be50ddc651bd33d6e73 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-23 |
-| Next action | Confirm the PR-safe GHCR web Docker verification run on PR #37 head, then resolve Railway duplicate/stale service statuses, API_INTERNAL_ORIGIN, DB/schema drift, and Stage 13 dependency alert mapping |
+| Next action | Manually remove stale `illustrious-warmth` required checks if present, confirm new commits no longer receive stale Railway contexts, decide GHCR release-gate policy, then proceed through the phased production-readiness improvement plan |
 
 ## Status values
 
@@ -38,7 +38,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| Main release gate not fully green | ci-gate-agent | Latest main `e14806c` has requested workflows green (`CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`) and Vercel green, but `Register Docker Images to GHCR` fails at web Docker `next build` because `nodemailer` cannot be resolved; Railway statuses include two failures and one pending service. PR #37 applies a Dockerfile hotfix that copies `apps/web/node_modules` from the deps stage into the builder stage, and the GHCR workflow now has a PR-safe no-push trigger to make the web Docker verification observable before merge. | Confirm the PR-safe GHCR run on PR #37 head, then resolve Railway duplicate/stale service statuses | BLOCKED_BY_FAILED_TESTS |
+| Main release gate not fully green | ci-gate-agent | Latest main `bbd3d47` has active `airy-balance` Railway contexts green and Vercel green, but still received stale `illustrious-warmth` Railway contexts, including failing `illustrious-warmth - convospan-full-scaffold`. `Register Docker Images to GHCR / build-and-push` now builds the web image successfully but fails later at Trivy. | Remove stale Railway required checks if present, verify no new stale Railway contexts on future commits, and decide/remediate GHCR policy | BLOCKED_BY_FAILED_TESTS |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
@@ -75,9 +75,15 @@ Use only these values:
 | Latest-main release gate recheck `a232648` | release-gate-recheck-agent | NEEDS_REPLAN | docs/audits/latest-main-release-gate-recheck.md | Vercel and all Railway contexts are green on latest main. GitHub Actions still fail for web build, vercel parity, and production stability audit. Local web/API typecheck/build pass; web audit gate fails locally with high vulnerabilities. `API_INTERNAL_ORIGIN` remains unproven. |
 | Post-PR35 merge release gate `e14806c` | post-pr35-release-gate-agent | NEEDS_REPLAN | docs/audits/post-pr35-merge-release-gate.md | PR #35 is merged. Requested Actions and Vercel are green; public pages no longer fetch `/api/auth/session`; `/dashboard` redirects to login; high npm audit passes. Overall release remains blocked by GHCR Docker image failure, Railway failed/pending statuses, DB/schema drift, API_INTERNAL_ORIGIN, and Stage 13 alert work. |
 | Web Docker GHCR nodemailer hotfix | npm-lockfile-ci-stability-agent | NEEDS_REPLAN | docs/audits/web-docker-nodemailer-build-fix.md | Root cause: npm installs `nodemailer` under `apps/web/node_modules`, but `apps/web/Dockerfile` builder stage copied only root `node_modules`. Fix copies `/repo/apps/web/node_modules` from deps to builder. The GHCR workflow now includes a PR-safe `pull_request` verification path that builds the web image with `load: true` and skips GHCR login/push steps. |
+| Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
 
 ## Latest findings
 
+- Issue #38 audit on latest main `bbd3d472f64ccc9c6ca52be50ddc651bd33d6e73` found active `airy-balance` Railway contexts green, but stale `illustrious-warmth` contexts still present; `illustrious-warmth - convospan-full-scaffold` is failing.
+- Branch protection required status checks could not be read from available tooling; GitHub REST returned `401 Unauthorized`. Manual cleanup path is documented in `docs/audits/stale-railway-check-removal.md`.
+- The next phased production-readiness improvement plan is documented in `docs/plans/next-phased-production-improvements.md`.
+- Latest main `Register Docker Images to GHCR / build-and-push` no longer fails at the web Docker/nodemailer build step; the web image build succeeds and the current failure occurs at Trivy scanning.
+- Validation for the Issue #38 docs PR: web typecheck passed, root `npm ci --no-audit --no-fund` passed, API Prisma generate passed with dummy local DB URLs, API typecheck passed, API build passed, and optional web build passed in 1182.8s.
 - Web Docker GHCR hotfix found that `nodemailer@9.0.1` is correctly declared in `apps/web/package.json` and installed at `apps/web/node_modules/nodemailer`; root `node_modules/nodemailer` is absent.
 - The failing GHCR web Docker build copied only `/repo/node_modules` from the deps stage to the builder stage, so `npx next build` could not resolve the web workspace-local `nodemailer` dependency.
 - Minimal Dockerfile fix copies `/repo/apps/web/node_modules` from deps to builder before running the Next build. No package versions, lockfiles, app source, SMTP behavior, or workflow policy were changed.
