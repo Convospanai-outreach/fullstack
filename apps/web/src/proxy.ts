@@ -171,7 +171,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
     const cleanPath = path.endsWith("/") && path.length > 1 ? path.slice(0, -1) : path;
     const isPublic = publicPaths.some(p => cleanPath === p || cleanPath.startsWith(p + "/")) ||
-        cleanPath.startsWith("/p/") ||
+        path.startsWith("/p/") ||
         authApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
         cleanPath.startsWith("/_next") ||
         cleanPath.startsWith("/static") ||

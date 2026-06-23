@@ -75,3 +75,62 @@ GitHub Actions must include or be accompanied by dependency security validation 
 
 Current high severity GitHub alert classes for `ws`, `picomatch`, and `nodemailer` remain release blockers unless fixed or proven unreachable in production. Do not mark `PRODUCTION_READY` or `CONTROLLED_BETA_READY` while high severity production dependency alerts remain unresolved.
 
+## Root npm ci Lockfile Sync Repair
+
+Date: 2026-06-23
+Agent: npm-lockfile-ci-stability-agent
+Branch: `codex/repair-root-lockfile-npm-ci`
+Base commit: `7fcfff7eee29f7dbc37aa9623faab0c1924c67f7`
+Status: READY_FOR_NEXT_STAGE
+
+The visible `vercel-parity-build` failure was reproduced locally with npm 10, matching GitHub Actions Node 22 behavior:
+
+```powershell
+npx -p npm@10 npm ci --no-audit --no-fund --loglevel=error
+```
+
+The command failed because root `package-lock.json` was missing npm 10-resolved entries for `@emnapi/core@1.11.1`, `@emnapi/runtime@1.11.1`, and workspace-local `uuid@14.0.1`.
+
+The repair ran:
+
+```powershell
+npx -p npm@10 npm install --package-lock-only --ignore-scripts --no-audit --no-fund --loglevel=error
+```
+
+Validation passed:
+
+```powershell
+npx -p npm@10 npm ci --no-audit --no-fund
+```
+
+The validation completed in 789.2s with exit code `0`. A later local `npm ci` with Node `v24.11.0` and npm `11.6.2` also passed in 847.2s.
+
+Workflow-equivalent validation also passed locally:
+
+- `node scripts/check-web-prisma-imports.mjs`
+- `npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma` from `apps/web` with dummy DB URLs
+- `npm run build` from `apps/web` with dummy DB URLs and CI placeholder auth env
+
+This verifies the local `vercel-parity-build` lockfile blocker as READY_FOR_NEXT_STAGE. GitHub Actions still need to run green for the target commit before the CI blocker is fully closed.
+
+## PR #35 Security Audit Follow-Up
+
+Date: 2026-06-23
+Agent: npm-lockfile-ci-stability-agent
+Status: Security Audit fixed; later unit-test rerun pending
+
+PR #35 head `ff381c9a3676b7dbbd8b33cfcd8e18a579eea8ae` advanced past root lockfile install and then failed both web gates at the same command:
+
+```bash
+npm audit --audit-level=high --omit=dev
+```
+
+The failing high findings were:
+
+- `nodemailer <=9.0.0`, fixed by targeted direct dependency update to `^9.0.1` in `apps/web` and `apps/api`.
+- `ws 8.0.0 - 8.20.1`, fixed by targeted transitive resolution to `engine.io@6.6.9`, `socket.io-adapter@2.5.8`, and `ws@8.21.0` via root `overrides.ws`.
+
+Local high audit now exits `0`; low/moderate findings remain for Stage 13. See `docs/audits/pr35-security-audit-failure.md`.
+
+GitHub rerun on head `b08bf9579a7ee5122f8f806ca3387f79ff5666e6` confirmed the Security Audit step passed in both `CI / Web Build (apps/web)` and `Production Readiness Gate / Production Stability Audit (apps/web)`. The workflows then failed later at the landing-agent routing unit test because `tests/unit/landing-agent-routing-regression.test.ts` expected the proxy source to contain `path.startsWith("/p/")`; `apps/web/src/proxy.ts` had equivalent public route behavior via `cleanPath.startsWith("/p/")`. The guard was aligned to `path.startsWith("/p/")`, and the targeted unit test now passes locally. GitHub Actions must rerun again before PR #35 is marked ready.
+
