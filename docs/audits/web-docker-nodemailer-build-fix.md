@@ -4,6 +4,8 @@ Date: 2026-06-23
 Agent: npm-lockfile-ci-stability-agent
 Repository: `Convospanai-outreach/fullstack`
 Latest main inspected: `e14806ca01439219fa3f93214acd07b1d3a9d042`
+PR inspected: `#37`
+PR head inspected: `bc52b95ff814d7763bd5eb3d692905100c669932`
 
 ## Failing Workflow
 
@@ -157,13 +159,16 @@ docker : The term 'docker' is not recognized as the name of a cmdlet, function, 
 GitHub GHCR workflow confirmation:
 
 - Not yet confirmed in this local run.
+- After the fix was pushed to PR #37, the visible PR checks for head `bc52b95ff814d7763bd5eb3d692905100c669932` were green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, Vercel preview, and Netlify preview.
+- GitHub Actions API checks on 2026-06-23 did not expose a `Register Docker Images to GHCR` `workflow_dispatch` run for branch `codex/post-pr35-merge-release-gate` or head `bc52b95ff814d7763bd5eb3d692905100c669932`.
+- The only visible GHCR workflow failures are older `main` push runs, including run `28018282239` on `e14806ca01439219fa3f93214acd07b1d3a9d042`, which failed before this Dockerfile fix.
 - `.github/workflows/docker-ghcr.yml` runs on `push` to `main` and `workflow_dispatch`, not ordinary PR branch pushes.
 - No local `gh` CLI or GitHub token is available to manually dispatch the workflow from this environment.
-- Confirmation must come from a manual `workflow_dispatch` on this branch or the post-merge `main` push.
+- Confirmation must come from a visible manual `workflow_dispatch` on this branch, a supplied run URL/job id, or the post-merge `main` push.
 
 ## Remaining Blockers
 
-- GHCR web Docker image workflow must be rerun and confirmed green.
+- GHCR web Docker image workflow must be rerun and confirmed green. The claimed manual dispatch failure was not visible through the available GitHub API evidence for PR #37's branch/head, so it cannot be classified beyond the older captured `main` failure without a run URL or job id.
 - Railway statuses still include failing duplicate/stale-looking `illustrious-warmth` services and one pending `airy-balance` full scaffold status. This hotfix does not change Railway env or dashboard service mapping.
 - `API_INTERNAL_ORIGIN` remains unproven/not set.
 - Live DB migration/schema drift remains unresolved.

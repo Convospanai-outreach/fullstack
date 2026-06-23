@@ -114,7 +114,7 @@ Verdict: high audit gate passes. Low/moderate dependency work remains for Stage 
 
 ## Remaining Blockers
 
-- GHCR Docker image workflow fails on main because the web Docker build cannot resolve `nodemailer`. A focused Dockerfile hotfix is documented in `docs/audits/web-docker-nodemailer-build-fix.md`; GHCR still needs to be rerun and confirmed green.
+- GHCR Docker image workflow fails on latest inspected `main` because the web Docker build cannot resolve `nodemailer`. PR #37 applies a focused Dockerfile hotfix that copies `apps/web/node_modules` from the deps stage into the builder stage; PR #37's normal checks are green, but no visible post-fix GHCR `workflow_dispatch` run was available for `bc52b95ff814d7763bd5eb3d692905100c669932` during recheck. GHCR still needs a visible rerun and green result before this blocker can close.
 - Railway commit statuses are not all green: two `illustrious-warmth` services fail and one `airy-balance` full scaffold status is pending.
 - `API_INTERNAL_ORIGIN` remains unproven/not set.
 - Live DB migration/schema drift remains unresolved.
