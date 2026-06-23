@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Root npm ci lockfile sync repair |
+| Current stage | Web Docker GHCR nodemailer hotfix |
 | Current agent | npm-lockfile-ci-stability-agent |
-| Working branch | codex/repair-root-lockfile-npm-ci |
-| Baseline commit inspected | 7fcfff7eee29f7dbc37aa9623faab0c1924c67f7 |
+| Working branch | codex/post-pr35-merge-release-gate |
+| Baseline commit inspected | e14806ca01439219fa3f93214acd07b1d3a9d042 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-23 |
-| Next action | Verify GitHub Actions on the lockfile repair PR, then continue dependency alert remediation and API_INTERNAL_ORIGIN confirmation without DB/env changes |
+| Next action | Confirm the PR-safe GHCR web Docker verification run on PR #37 head, then resolve Railway duplicate/stale service statuses, API_INTERNAL_ORIGIN, DB/schema drift, and Stage 13 dependency alert mapping |
 
 ## Status values
 
@@ -38,7 +38,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| GitHub Actions green status unverified | ci-gate-agent | PR #35 Security Audit now passes on GitHub after targeted `nodemailer` and `ws` fixes; CI and Production Readiness Gate then failed later at `tests/unit/landing-agent-routing-regression.test.ts` expecting `path.startsWith("/p/")` in `apps/web/src/proxy.ts`. Local targeted test passes after a one-line equivalent proxy guard alignment. | Verify Actions on PR #35 after pushing the proxy alignment commit; keep PR draft until CI and Production Readiness Gate are green | NEEDS_REPLAN |
+| Main release gate not fully green | ci-gate-agent | Latest main `e14806c` has requested workflows green (`CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`) and Vercel green, but `Register Docker Images to GHCR` fails at web Docker `next build` because `nodemailer` cannot be resolved; Railway statuses include two failures and one pending service. PR #37 applies a Dockerfile hotfix that copies `apps/web/node_modules` from the deps stage into the builder stage, and the GHCR workflow now has a PR-safe no-push trigger to make the web Docker verification observable before merge. | Confirm the PR-safe GHCR run on PR #37 head, then resolve Railway duplicate/stale service statuses | BLOCKED_BY_FAILED_TESTS |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
@@ -73,9 +73,26 @@ Use only these values:
 | Post-env-redeploy verification `ef4eaf2` | approval-readiness-agent | NEEDS_REPLAN | docs/audits/post-env-redeploy-auth-session-check.md, docs/audits/vercel-production-branch-alignment-check.md, docs/audits/vercel-env-key-presence-check.md, docs/audits/github-actions-status-check.md | Vercel Production successfully redeployed by user with env updates. Direct `/api/auth/session` now returns `200 OK` on custom domain. Blocker resolved. Public pages still poll session because production serves `main`. `API_INTERNAL_ORIGIN` is not set and remains an API-backed feature blocker. |
 | Post-revert deployment triage `094663f` | deployment-triage-agent | NEEDS_REPLAN | docs/audits/post-revert-deployment-triage.md | PR #28 reverted Dependabot package bumps; PR #25 provider fix and PR #23 hero merge remain preserved. Vercel status is success, one Railway API service succeeds, three Railway statuses fail across duplicate projects/services, and several GitHub Actions web/Docker checks fail. No source/env/DB changes made. |
 | Latest-main release gate recheck `a232648` | release-gate-recheck-agent | NEEDS_REPLAN | docs/audits/latest-main-release-gate-recheck.md | Vercel and all Railway contexts are green on latest main. GitHub Actions still fail for web build, vercel parity, and production stability audit. Local web/API typecheck/build pass; web audit gate fails locally with high vulnerabilities. `API_INTERNAL_ORIGIN` remains unproven. |
+| Post-PR35 merge release gate `e14806c` | post-pr35-release-gate-agent | NEEDS_REPLAN | docs/audits/post-pr35-merge-release-gate.md | PR #35 is merged. Requested Actions and Vercel are green; public pages no longer fetch `/api/auth/session`; `/dashboard` redirects to login; high npm audit passes. Overall release remains blocked by GHCR Docker image failure, Railway failed/pending statuses, DB/schema drift, API_INTERNAL_ORIGIN, and Stage 13 alert work. |
+| Web Docker GHCR nodemailer hotfix | npm-lockfile-ci-stability-agent | NEEDS_REPLAN | docs/audits/web-docker-nodemailer-build-fix.md | Root cause: npm installs `nodemailer` under `apps/web/node_modules`, but `apps/web/Dockerfile` builder stage copied only root `node_modules`. Fix copies `/repo/apps/web/node_modules` from deps to builder. The GHCR workflow now includes a PR-safe `pull_request` verification path that builds the web image with `load: true` and skips GHCR login/push steps. |
 
 ## Latest findings
 
+- Web Docker GHCR hotfix found that `nodemailer@9.0.1` is correctly declared in `apps/web/package.json` and installed at `apps/web/node_modules/nodemailer`; root `node_modules/nodemailer` is absent.
+- The failing GHCR web Docker build copied only `/repo/node_modules` from the deps stage to the builder stage, so `npx next build` could not resolve the web workspace-local `nodemailer` dependency.
+- Minimal Dockerfile fix copies `/repo/apps/web/node_modules` from deps to builder before running the Next build. No package versions, lockfiles, app source, SMTP behavior, or workflow policy were changed.
+- Local validation for the Docker hotfix: `npm audit --audit-level=high --omit=dev` passed, `npx -p npm@10 npm ci --dry-run --loglevel=error` passed, `npm ls/explain nodemailer --workspace apps/web` confirmed workspace-local install, `npm run typecheck --workspace apps/web` passed, and `npm run build --workspace apps/web` passed in 858.0s.
+- Local Docker validation is blocked because Docker is not installed on this Windows environment; `.github/workflows/docker-ghcr.yml` does not run on ordinary PR branch pushes, so GHCR must be confirmed by manual `workflow_dispatch` or the post-merge `main` push.
+- PR #37 head `bc52b95ff814d7763bd5eb3d692905100c669932` has green normal PR checks, but GitHub Actions API did not expose a post-fix `Register Docker Images to GHCR` workflow_dispatch run for the branch/head during recheck.
+- A PR-safe trigger was added to `.github/workflows/docker-ghcr.yml` so PR #37 can produce a visible `Register Docker Images to GHCR` run without logging in to GHCR or pushing production images on pull_request events.
+- Post-PR35 merge release gate recheck on latest main `e14806ca01439219fa3f93214acd07b1d3a9d042` confirmed PR #35 is included in main.
+- Requested GitHub Actions are green on latest main: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, and `Phi-3 Verification` all completed successfully.
+- Additional main workflow `Register Docker Images to GHCR` failed at `Build Web image (no push)` because Docker `next build` could not resolve `nodemailer` from `apps/web/src/lib/email/smtpClient.ts` via `apps/web/src/app/api/support/contact/route.ts`.
+- Combined commit status for latest main shows Vercel `success`, Railway `airy-balance - convospan-api-split` `success`, Railway `airy-balance - convospan-full-scaffold` `pending`, and two `illustrious-warmth` Railway services `failure`.
+- Production custom-domain Chromium smoke on `/`, `/funnel`, `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/help`, and `/faq` returned `200` and observed zero `/api/auth/session` requests and zero NextAuth/session console errors.
+- `/dashboard` on the production custom domain redirects unauthenticated users to `https://www.craftmyfunnel.live/login?callbackUrl=%2Fdashboard`.
+- `apps/web/src/proxy.ts` still preserves intended public `/p/*` behavior with `"/p"` in `publicPaths` and `path.startsWith("/p/")` in `isPublic`.
+- `npm audit --audit-level=high --omit=dev` passes on latest main with only low/moderate findings remaining for Stage 13.
 - Root npm ci lockfile sync repair on 2026-06-23 used base `7fcfff7eee29f7dbc37aa9623faab0c1924c67f7`, where PR #33 had reverted the PR #32 Dependabot grouped bump.
 - The visible `vercel-parity-build` failure was reproduced with `npx -p npm@10 npm ci --no-audit --no-fund --loglevel=error`; npm 10 reported missing root lockfile entries for `@emnapi/core@1.11.1`, `@emnapi/runtime@1.11.1`, and `uuid@14.0.1`.
 - The fix was lockfile-only: `npx -p npm@10 npm install --package-lock-only --ignore-scripts --no-audit --no-fund --loglevel=error` updated root `package-lock.json` without changing package manifests.
