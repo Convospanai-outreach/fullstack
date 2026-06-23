@@ -35,6 +35,7 @@ ENV ENCRYPTION_KEY=$ENCRYPTION_KEY
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 COPY --from=deps /repo/node_modules ./node_modules
+COPY --from=deps /repo/apps/web/node_modules ./apps/web/node_modules
 COPY . .
 
 WORKDIR /repo/apps/web
