@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Latest-main release gate recheck |
-| Current agent | release-gate-recheck-agent |
-| Working branch | codex/latest-main-release-gate-recheck |
-| Baseline commit inspected | a232648be04aae66ed89c6779503486bd76d32a4 |
+| Current stage | Dependency security and GitHub alert remediation |
+| Current agent | dependency-security-agent |
+| Working branch | codex/dependency-security-alerts-phase |
+| Baseline commit inspected | 7fcfff7eee29f7dbc37aa9623faab0c1924c67f7 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
-| Last updated | 2026-06-22 |
-| Next action | Resolve failing web GitHub Actions gates, confirm canonical API origin for `API_INTERNAL_ORIGIN`, and keep DB/migration/PR #6 blockers isolated |
+| Last updated | 2026-06-23 |
+| Next action | Run Stage 13 dependency security alert remediation, resolve failing web GitHub Actions gates, confirm canonical API origin for `API_INTERNAL_ORIGIN`, and keep DB/migration/PR #6 blockers isolated |
 
 ## Status values
 
@@ -39,6 +39,7 @@ Use only these values:
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
 | GitHub Actions green status unverified | ci-gate-agent | Latest main `a232648` has failing GitHub Actions: `Web Build (apps/web)`, `vercel-parity-build`, and `Production Stability Audit (apps/web)`; Railway and Vercel commit statuses are green | Inspect CI logs; web audit gate reproduces locally, while Prisma generation and web build pass locally | NEEDS_REPLAN |
+| Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -58,7 +59,8 @@ Use only these values:
 | 10. Clerk/app DB linkage | auth-tenant-agent | BLOCKED_BY_SCHEMA_CONFLICT | production-readiness-final.md | Clerk sync depends on missing live DB objects |
 | 11. Redis/cache/queue isolation | redis-cache-agent | READY_FOR_NEXT_STAGE | production-readiness-final.md | Redis degrades gracefully; production Redis env still unverified |
 | 12. CI and PR strategy | ci-gate-agent | NEEDS_REPLAN | production-readiness-final.md | CI structure exists; live Actions green not verified |
-| 13. Final readiness | release-readiness-agent | NEEDS_REPLAN | production-readiness-final.md | Final status: not launch-ready |
+| 13. Dependency security and GitHub alert remediation | dependency-security-agent | NEEDS_REPLAN | docs/audits/dependency-security-alerts-audit.md | Runs after CI/PR strategy and before DB performance/security hardening. High severity production dependency alerts block final readiness unless fixed or proven unreachable. |
+| 14. Final readiness | release-readiness-agent | NEEDS_REPLAN | production-readiness-final.md | Final status: not launch-ready |
 | Implementation REPLAN d3086c0 | orchestrator | READY_FOR_NEXT_STAGE | IMPLEMENTATION_REPLAN_D3086C0.md | Produced canonical schema decision, unsafe migration quarantine, auth repair plan, and read-only schema verifier |
 | Phase 1. Canonical schema architecture | orchestrator | READY_FOR_NEXT_STAGE | canonical-schema-architecture-plan.md | Moves target ownership toward `packages/db/prisma/schema.prisma`; `apps/web` remains temporary reference only |
 | Phase 2. Migration safety gates | migration-safety-agent | READY_FOR_NEXT_STAGE | migration-manifest-format.md | Added advisory manifest format and root read-only verifier; unsafe EdgeNode migration not modified |
@@ -74,6 +76,10 @@ Use only these values:
 
 ## Latest findings
 
+- Stage 13 was added on 2026-06-23 for dependency security and GitHub alert remediation. It must run after CI/PR strategy and before DB performance/security hardening or final readiness.
+- High severity current alerts are `ws` alert #250, `picomatch` alert #158, and `nodemailer` alert #261. These block final readiness unless fixed or proven unreachable in production.
+- Moderate alerts now require explicit reachability/risk mapping: `brace-expansion` alert #24, `uuid` alerts #262/#216/#105, `postcss` alerts #182/#54, `picomatch` alerts #161/#160, `@hono/node-server` alerts #170/#36, and `@opentelemetry/core` alert #255.
+- Stage 13 guardrails forbid `npm audit fix --force`, blind upgrades of Prisma/NextAuth/Next.js/Clerk/React/Prisma adapter packages, downgrades to hide alerts, production env changes, DB/schema edits, migrations, Redis changes, Clerk dashboard changes, and PR #6 changes.
 - Post-env-redeploy verification on 2026-06-22 used head commit `ef4eaf27d2796671927dfc68a082731547fd1d04`.
 - User updated Vercel environment variables and redeployed Production (deployment `5147697018` at branch `main`).
 - Direct `/api/auth/session` now returns `200 OK` with `{}` on the custom production domain, indicating the NextAuth `NO_SECRET` blocker is resolved. NextAuth client errors on public pages are no longer emitted.
@@ -234,6 +240,10 @@ Use only these values:
 16. [BLOCKED_EXTERNAL_ACCESS] Verify Vercel env key presence for `fullstack-web-xkxn`; runtime logs indicate `NEXTAUTH_SECRET` is missing/unavailable.
 17. [NEEDS_REPLAN] Trigger or verify GitHub Actions on `94a23d`; older branch runs exist, but no Actions run/check-run was found for current commit.
 18. [NEEDS_REPLAN] Deploy safely to production by first repairing `NEXTAUTH_SECRET`, then PR/cherry-picking only the minimal public-page session fix to `main` after required checks. Do not manually alias the full Codex preview as the default path.
+19. [NEEDS_REPLAN] Run Stage 13 dependency security and GitHub alert remediation:
+   - Map every listed Dependabot/npm audit alert to package, severity, direct/transitive status, dependency chain, workspace, production runtime reachability, safe fix strategy, validation command, and final verdict.
+   - Fix or prove unreachable all high severity production dependency alerts without `npm audit fix --force`.
+   - Keep final readiness at NEEDS_REPLAN or BLOCKED_BY_FAILED_TESTS until high alerts are resolved, lockfiles are synchronized, root `npm ci` passes, production audit gate passes, and GitHub Actions are green.
 
 ## Handoff note template
 

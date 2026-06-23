@@ -137,6 +137,19 @@ Use only these verdicts:
 | Additive auth migration plan | Plan additive changes safely | `docs/audits/auth-invite-additive-migration-plan.md` created 2026-06-18; outlines SQL script, enum expansion risk, rollback limits, preflight checks, backups | PASS | prisma-drift-agent | Non-destructive plan drafted |
 | Live DB schema verification execution | Execute read-only verification against Supabase | Run queries from live-schema-verify-plan.md; blocked due to missing connection credentials locally; output and missing keys documented in docs/audits/live-schema-verify-output.md | BLOCKED_EXTERNAL_ACCESS | prisma-drift-agent | Requires DATABASE_URL/DIRECT_URL credentials |
 
+## Dependency security gate matrix
+
+| Gate | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Stage 13 exists | Dependency security and GitHub alert remediation must run after CI/PR strategy and before DB performance/security hardening | `docs/audits/dependency-security-alerts-audit.md` created and `docs/codex/WORKFLOW_STATE.md` stage tracker updated | PASS | dependency-security-agent | Documentation gate only; no packages changed |
+| High severity production dependency alerts | No unresolved high severity production dependency alerts before final readiness | High alerts listed for `ws` (#250), `picomatch` (#158), and `nodemailer` (#261); runtime reachability/fix proof still required | FAIL | dependency-security-agent | Blocks final readiness unless fixed or proven unreachable |
+| Moderate dependency alerts | Fixed or documented with reachability and risk verdict | Moderate alerts listed for `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core`; chain proof still required | NOT_CHECKED | dependency-security-agent | May be follow-up only if non-runtime and documented |
+| Root install consistency | `npm ci` passes after dependency changes | Not run in this docs-only phase | NOT_CHECKED | dependency-security-agent | Required during remediation |
+| Production high audit gate | `npm audit --audit-level=high --omit=dev` passes | Prior release-gate notes report web audit high failures; current root gate not rerun in this docs-only phase | FAIL | dependency-security-agent | Required before readiness |
+| Production moderate audit review | `npm audit --audit-level=moderate --omit=dev` passes or remaining moderate risk is accepted | Not run in this docs-only phase | NOT_CHECKED | dependency-security-agent | Documentation-only allowed only after high gate passes |
+| Web validation after dependency remediation | Typecheck, build, and lint pass | Not run in this docs-only phase | NOT_CHECKED | dependency-security-agent | Commands: `npm run typecheck:web`, `npm run build:web`, `npm --workspace apps/web run lint` |
+| GitHub Actions target commit | Actions green for target commit | Existing workflow state says GitHub Actions are not green/proven for latest release-gate commits | FAIL | ci-gate-agent | Required before final readiness |
+
 ## Approval readiness matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
