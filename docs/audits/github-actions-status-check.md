@@ -134,3 +134,36 @@ Local high audit now exits `0`; low/moderate findings remain for Stage 13. See `
 
 GitHub rerun on head `b08bf9579a7ee5122f8f806ca3387f79ff5666e6` confirmed the Security Audit step passed in both `CI / Web Build (apps/web)` and `Production Readiness Gate / Production Stability Audit (apps/web)`. The workflows then failed later at the landing-agent routing unit test because `tests/unit/landing-agent-routing-regression.test.ts` expected the proxy source to contain `path.startsWith("/p/")`; `apps/web/src/proxy.ts` had equivalent public route behavior via `cleanPath.startsWith("/p/")`. The guard was aligned to `path.startsWith("/p/")`, and the targeted unit test now passes locally. GitHub Actions must rerun again before PR #35 is marked ready.
 
+## Post-PR39 Main Gate Check
+
+Date: 2026-06-24
+Agent: post-pr39-production-smoke-agent
+Branch: `main`
+Commit checked: `6d012102ebfeff47e8a95cf72fda5955a76aee1e`
+Status: NEEDS_REPLAN
+
+PR #39 is merged into latest main. Requested GitHub Actions are green:
+
+| Workflow / check | Run ID | Status | Conclusion |
+| --- | --- | --- | --- |
+| `CI` | `28049506210` | completed | success |
+| `Production Readiness Gate` | `28049505924` | completed | success |
+| `Vercel Parity Build` | `28049506236` | completed | success |
+| `Phi-3 Verification` | `28049506579` | completed | success |
+| CodeQL / `Push on main` | `28049502377` | completed | success |
+
+Additional check runs on the same commit were also green: `Analyze (actions)`, `Analyze (javascript-typescript)`, `Analyze (python)`, `API Strict Typecheck (apps/api)`, `Docker Build Smoke (api required, edge-fastapi optional)`, `Merge Gate`, `Production Stability Audit (apps/web)`, `Supabase Preview`, `vercel-parity-build`, `Verify Phi-3 Safety Enforcement`, and `Web Build (apps/web)`.
+
+Vercel status is `success`.
+
+Railway statuses are green but still include stale duplicate `illustrious-warmth` contexts:
+
+- `airy-balance - convospan-full-scaffold`: success
+- `airy-balance - convospan-api-split`: success
+- `illustrious-warmth - convospan-api-split`: success
+- `illustrious-warmth - convospan-full-scaffold`: success
+
+`Register Docker Images to GHCR` did not run for latest main because PR #39 changed docs only and `.github/workflows/docker-ghcr.yml` path filters do not include docs. This is not production image-publishing evidence.
+
+Release status remains conservative because `API_INTERNAL_ORIGIN` is still unproven, production `/api/health` reports database readiness down, stale Railway contexts still appear, GHCR policy remains a manual release-gate decision, and DB/schema/PR #6 blockers remain.
+
