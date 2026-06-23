@@ -117,7 +117,7 @@ This verifies the local `vercel-parity-build` lockfile blocker as READY_FOR_NEXT
 
 Date: 2026-06-23
 Agent: npm-lockfile-ci-stability-agent
-Status: READY_FOR_NEXT_STAGE locally; GitHub Actions recheck required
+Status: Security Audit fixed; later unit-test rerun pending
 
 PR #35 head `ff381c9a3676b7dbbd8b33cfcd8e18a579eea8ae` advanced past root lockfile install and then failed both web gates at the same command:
 
@@ -131,4 +131,6 @@ The failing high findings were:
 - `ws 8.0.0 - 8.20.1`, fixed by targeted transitive resolution to `engine.io@6.6.9`, `socket.io-adapter@2.5.8`, and `ws@8.21.0` via root `overrides.ws`.
 
 Local high audit now exits `0`; low/moderate findings remain for Stage 13. See `docs/audits/pr35-security-audit-failure.md`.
+
+GitHub rerun on head `b08bf9579a7ee5122f8f806ca3387f79ff5666e6` confirmed the Security Audit step passed in both `CI / Web Build (apps/web)` and `Production Readiness Gate / Production Stability Audit (apps/web)`. The workflows then failed later at the landing-agent routing unit test because `tests/unit/landing-agent-routing-regression.test.ts` expected the proxy source to contain `path.startsWith("/p/")`; `apps/web/src/proxy.ts` had equivalent public route behavior via `cleanPath.startsWith("/p/")`. The guard was aligned to `path.startsWith("/p/")`, and the targeted unit test now passes locally. GitHub Actions must rerun again before PR #35 is marked ready.
 

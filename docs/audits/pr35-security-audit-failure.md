@@ -3,8 +3,9 @@
 Date: 2026-06-23
 Agent: npm-lockfile-ci-stability-agent
 PR: #35 `[codex] Repair root npm lockfile sync for CI`
-Head SHA inspected: `ff381c9a3676b7dbbd8b33cfcd8e18a579eea8ae`
-Status after local fix: READY_FOR_NEXT_STAGE locally; GitHub Actions recheck required
+Original failing head SHA inspected: `ff381c9a3676b7dbbd8b33cfcd8e18a579eea8ae`
+Security-fix head SHA checked on GitHub: `b08bf9579a7ee5122f8f806ca3387f79ff5666e6`
+Status after local fix: Security Audit fixed; GitHub rerun exposed a later unit-test blocker
 
 ## Failing Checks
 
@@ -20,6 +21,30 @@ Failed jobs:
 - `Production Readiness Gate / Production Stability Audit (apps/web)`, job `82890812565`, failed at step `Security Audit`.
 
 Both jobs installed dependencies successfully and skipped later Prisma/typecheck/lint/test/build/readiness steps only because the security audit step failed.
+
+## GitHub Recheck After Security Fix
+
+GitHub Actions reran for PR head `b08bf9579a7ee5122f8f806ca3387f79ff5666e6`.
+
+- `Vercel Parity Build`, run `28016508686`, completed `success`.
+- `CI`, run `28016508669`, completed `failure`.
+- `Production Readiness Gate`, run `28016508642`, completed `failure`.
+- Vercel deploy preview status completed `success`.
+- Netlify deploy preview status completed `success`.
+
+The originally failing `Security Audit` step passed in both web jobs on the rerun:
+
+- `CI / Web Build (apps/web)`, job `82922055083`: `Security Audit` passed; `Unit Tests` failed later.
+- `Production Readiness Gate / Production Stability Audit (apps/web)`, job `82922055069`: `Security Audit` passed; `Run Unit Tests` failed later.
+
+The later unit-test failure was:
+
+```text
+tests/unit/landing-agent-routing-regression.test.ts
+AssertionError: expected proxy.ts to contain 'path.startsWith("/p/")'
+```
+
+Root cause: `apps/web/src/proxy.ts` already whitelisted public `/p/*` routes through the equivalent `cleanPath.startsWith("/p/")` expression, while the merged regression test asserted the literal `path.startsWith("/p/")` guard. A one-line proxy alignment changed the guard to `path.startsWith("/p/")` without changing the public-route behavior.
 
 ## Exact Security Audit Command
 
@@ -140,9 +165,17 @@ npm run build --workspace apps/web
 
 Result: passed in 945.8s with dummy DB URLs and CI placeholder auth env.
 
+Targeted landing-agent regression test after the GitHub unit-test failure:
+
+```powershell
+npm --workspace apps/web run test:unit -- tests/unit/landing-agent-routing-regression.test.ts
+```
+
+Result: passed locally with 13 test files and 78 tests passing.
+
 ## Remaining Risks
 
-- GitHub Actions must rerun on the pushed commit and turn green before PR #35 is marked ready.
+- GitHub Actions must rerun on the pushed commit containing the proxy alignment and turn green before PR #35 is marked ready.
 - Vercel and Netlify preview checks must remain green.
 - Low/moderate audit findings remain and are tracked separately in Stage 13.
 - This does not claim production readiness or controlled beta readiness.
