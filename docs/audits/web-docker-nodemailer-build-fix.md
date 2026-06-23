@@ -101,6 +101,21 @@ COPY . .
 
 This is minimal because it does not change app code, dependency versions, package manifests, lockfiles, workflow policy, SMTP behavior, or runtime secrets. It only carries the dependency tree that npm already installed in the previous Docker stage into the stage that runs the Next.js build.
 
+## Observable PR Verification Path
+
+The workflow file is `.github/workflows/docker-ghcr.yml`, and the workflow name is `Register Docker Images to GHCR`.
+
+The workflow already supported `workflow_dispatch` with no branch restriction in the YAML. Because no visible dispatched run appeared for PR #37's branch/head, a PR-safe `pull_request` trigger was added to the same workflow.
+
+For pull request events, the workflow:
+
+- runs the existing `Build Web image (no push)` step with `load: true`;
+- does not log in to GHCR;
+- skips Trivy, production image pushes, API image pushes, and Edge image pushes;
+- emits a PR verification summary stating that no image push ran.
+
+For `push` to `main` and `workflow_dispatch`, the existing publish path remains unchanged.
+
 ## Validation
 
 Security audit:

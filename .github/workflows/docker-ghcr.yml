@@ -12,6 +12,15 @@ on:
       - ".github/workflows/docker-ghcr.yml"
       - "package-lock.json"
       - "package.json"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "apps/web/**"
+      - "packages/**"
+      - ".dockerignore"
+      - ".github/workflows/docker-ghcr.yml"
+      - "package-lock.json"
+      - "package.json"
   workflow_dispatch:
 
 env:
@@ -35,6 +44,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
@@ -65,6 +75,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Run Trivy vulnerability scanner on Web
+        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}/web:test'
@@ -75,6 +86,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Build and push Web image
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -86,6 +98,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Extract metadata (tags, labels) for API
+        if: github.event_name != 'pull_request'
         id: meta-api
         uses: docker/metadata-action@v6
         with:
@@ -95,6 +108,7 @@ jobs:
             type=sha,format=short
 
       - name: Build and push API image
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -106,6 +120,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Extract metadata (tags, labels) for Edge FastAPI
+        if: github.event_name != 'pull_request'
         id: meta-edge
         uses: docker/metadata-action@v6
         with:
@@ -115,6 +130,7 @@ jobs:
             type=sha,format=short
 
       - name: Build and push Edge FastAPI image (optional)
+        if: github.event_name != 'pull_request'
         continue-on-error: true
         uses: docker/build-push-action@v7
         with:
@@ -125,3 +141,9 @@ jobs:
           labels: ${{ steps.meta-edge.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: PR web Docker verification summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "Web Docker image build completed with load:true for PR validation."
+          echo "No GHCR login or image push steps run for pull_request events."
