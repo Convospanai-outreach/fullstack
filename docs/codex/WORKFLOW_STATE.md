@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Stale Railway check cleanup and phased improvement plan |
-| Current agent | release-gate-cleanup-agent |
-| Working branch | codex/stale-railway-check-cleanup-plan |
-| Baseline commit inspected | bbd3d472f64ccc9c6ca52be50ddc651bd33d6e73 |
+| Current stage | Post-PR39 production custom-domain smoke and API proxy readiness |
+| Current agent | post-pr39-production-smoke-agent |
+| Working branch | codex/post-pr39-production-smoke |
+| Baseline commit inspected | 6d012102ebfeff47e8a95cf72fda5955a76aee1e |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
-| Last updated | 2026-06-23 |
-| Next action | Manually remove stale `illustrious-warmth` required checks if present, confirm new commits no longer receive stale Railway contexts, decide GHCR release-gate policy, then proceed through the phased production-readiness improvement plan |
+| Last updated | 2026-06-24 |
+| Next action | Confirm canonical backend API origin and Vercel `API_INTERNAL_ORIGIN`, investigate production `/api/health` database-down readiness, remove stale Railway required checks if present, decide GHCR release-gate policy, then continue phased production-readiness improvement plan |
 
 ## Status values
 
@@ -37,8 +37,9 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; Railway status shows a successful `airy-balance - convospan-api-split` service but repo config does not prove canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| Main release gate not fully green | ci-gate-agent | Latest main `bbd3d47` has active `airy-balance` Railway contexts green and Vercel green, but still received stale `illustrious-warmth` Railway contexts, including failing `illustrious-warmth - convospan-full-scaffold`. `Register Docker Images to GHCR / build-and-push` now builds the web image successfully but fails later at Trivy. | Remove stale Railway required checks if present, verify no new stale Railway contexts on future commits, and decide/remediate GHCR policy | BLOCKED_BY_FAILED_TESTS |
+| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; latest post-PR39 smoke shows `/api/proxy` and `/api/proxy/health` return unauthenticated `401`, so public checks cannot prove the upstream origin; Railway status does not expose canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
+| Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` returned `503` with `checks.database: "down"` on `www.craftmyfunnel.live` | Verify production DB env/connectivity/schema state in dashboards without changing data | BLOCKED_EXTERNAL_ACCESS |
+| Main release gate not fully green | ci-gate-agent | Latest main `6d01210` has Vercel and requested GitHub Actions green. Railway contexts are green but stale `illustrious-warmth` contexts still appear. GHCR did not run for the docs-only PR #39 merge due workflow path filters. | Remove stale Railway required checks if present, verify future commits no longer receive stale contexts, and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
@@ -76,9 +77,18 @@ Use only these values:
 | Post-PR35 merge release gate `e14806c` | post-pr35-release-gate-agent | NEEDS_REPLAN | docs/audits/post-pr35-merge-release-gate.md | PR #35 is merged. Requested Actions and Vercel are green; public pages no longer fetch `/api/auth/session`; `/dashboard` redirects to login; high npm audit passes. Overall release remains blocked by GHCR Docker image failure, Railway failed/pending statuses, DB/schema drift, API_INTERNAL_ORIGIN, and Stage 13 alert work. |
 | Web Docker GHCR nodemailer hotfix | npm-lockfile-ci-stability-agent | NEEDS_REPLAN | docs/audits/web-docker-nodemailer-build-fix.md | Root cause: npm installs `nodemailer` under `apps/web/node_modules`, but `apps/web/Dockerfile` builder stage copied only root `node_modules`. Fix copies `/repo/apps/web/node_modules` from deps to builder. The GHCR workflow now includes a PR-safe `pull_request` verification path that builds the web image with `load: true` and skips GHCR login/push steps. |
 | Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
+| Post-PR39 production custom-domain smoke and API proxy readiness | post-pr39-production-smoke-agent | NEEDS_REPLAN | docs/audits/production-custom-domain-smoke-after-pr39.md, docs/audits/api-proxy-origin-readiness.md | Latest main `6d01210` has requested GitHub Actions, Vercel, and Railway contexts green; public custom-domain smoke passed with zero `/api/auth/session` calls; `/dashboard` redirects to login. Overall remains blocked because `API_INTERNAL_ORIGIN` cannot be proven and `/api/health` reports database down. |
 
 ## Latest findings
 
+- Post-PR39 smoke on latest main `6d012102ebfeff47e8a95cf72fda5955a76aee1e` confirmed PR #39 is merged and requested GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL checks completed successfully.
+- Vercel status for `6d01210` is `success`. Railway statuses are also `success`, but both `illustrious-warmth` stale contexts still appear on the new commit with no-op "No deployment needed" messages.
+- `Register Docker Images to GHCR` did not run for the PR #39 docs-only merge because `.github/workflows/docker-ghcr.yml` path filters do not include docs. This should be resolved by the release-gate policy decision rather than treated as implicit production image evidence.
+- Production custom-domain Chromium smoke on `/`, `/funnel`, `/security`, `/support`, `/data-deletion`, `/google-api-disclosure`, `/terms`, `/contact`, and `/login` returned public `200` responses with zero `/api/auth/session` calls, zero `/api/auth/_log` calls, zero `/api/proxy` calls, and no console/page errors.
+- `/dashboard` on `www.craftmyfunnel.live` redirects unauthenticated users to `/login?callbackUrl=%2Fdashboard`, preserving the expected auth gate.
+- Direct production `/api/auth/session` returns `200 OK` with `{}`. Direct `/api/proxy` and `/api/proxy/health` return `401 Unauthorized`, which confirms unauthenticated middleware protection but does not prove `API_INTERNAL_ORIGIN`.
+- Direct production `/api/health` returns `503 Service Unavailable` with `checks.database: "down"`, which is a release-readiness blocker requiring dashboard/env/DB verification without production data mutation.
+- Local validation for the post-PR39 smoke branch passed: `npm run typecheck --workspace apps/web` in 75.3s, `npm run typecheck --workspace apps/api` in 88.6s, `npm run build --workspace apps/api` in 92.8s, and `npm run build --workspace apps/web` in 962.5s with dummy local DB URLs and CI placeholder auth env.
 - Issue #38 audit on latest main `bbd3d472f64ccc9c6ca52be50ddc651bd33d6e73` found active `airy-balance` Railway contexts green, but stale `illustrious-warmth` contexts still present; `illustrious-warmth - convospan-full-scaffold` is failing.
 - Branch protection required status checks could not be read from available tooling; GitHub REST returned `401 Unauthorized`. Manual cleanup path is documented in `docs/audits/stale-railway-check-removal.md`.
 - The next phased production-readiness improvement plan is documented in `docs/plans/next-phased-production-improvements.md`.
