@@ -39,7 +39,7 @@
         "lru-cache": "^11.2.4",
         "next": "^16.2.7",
         "next-auth": "^4.24.14",
-        "nodemailer": "^8.0.10",
+        "nodemailer": "^9.0.1",
         "openai": "^6.16.0",
         "papaparse": "^5.5.3",
         "pg": "^8.20.0",

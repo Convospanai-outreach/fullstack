@@ -113,3 +113,22 @@ Workflow-equivalent validation also passed locally:
 
 This verifies the local `vercel-parity-build` lockfile blocker as READY_FOR_NEXT_STAGE. GitHub Actions still need to run green for the target commit before the CI blocker is fully closed.
 
+## PR #35 Security Audit Follow-Up
+
+Date: 2026-06-23
+Agent: npm-lockfile-ci-stability-agent
+Status: READY_FOR_NEXT_STAGE locally; GitHub Actions recheck required
+
+PR #35 head `ff381c9a3676b7dbbd8b33cfcd8e18a579eea8ae` advanced past root lockfile install and then failed both web gates at the same command:
+
+```bash
+npm audit --audit-level=high --omit=dev
+```
+
+The failing high findings were:
+
+- `nodemailer <=9.0.0`, fixed by targeted direct dependency update to `^9.0.1` in `apps/web` and `apps/api`.
+- `ws 8.0.0 - 8.20.1`, fixed by targeted transitive resolution to `engine.io@6.6.9`, `socket.io-adapter@2.5.8`, and `ws@8.21.0` via root `overrides.ws`.
+
+Local high audit now exits `0`; low/moderate findings remain for Stage 13. See `docs/audits/pr35-security-audit-failure.md`.
+
