@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Post-PR39 production custom-domain smoke and API proxy readiness |
-| Current agent | post-pr39-production-smoke-agent |
-| Working branch | codex/post-pr39-production-smoke |
-| Baseline commit inspected | 6d012102ebfeff47e8a95cf72fda5955a76aee1e |
+| Current stage | API origin and production health readiness diagnosis |
+| Current agent | api-origin-health-readiness-agent |
+| Working branch | codex/api-origin-health-readiness |
+| Baseline commit inspected | 34c3339c280e0922567cc203b9edd3c435c073c1 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-24 |
-| Next action | Confirm canonical backend API origin and Vercel `API_INTERNAL_ORIGIN`, investigate production `/api/health` database-down readiness, remove stale Railway required checks if present, decide GHCR release-gate policy, then continue phased production-readiness improvement plan |
+| Next action | Use dashboard access to confirm Vercel Production `DATABASE_URL`, canonical Railway/custom API origin for `API_INTERNAL_ORIGIN`, and branch-protection required-check cleanup for stale `illustrious-warmth` contexts |
 
 ## Status values
 
@@ -22,6 +22,7 @@ Use only these values:
 - NOT_STARTED
 - IN_PROGRESS
 - READY_FOR_NEXT_STAGE
+- NEEDS_INPUT
 - NEEDS_REPLAN
 - BLOCKED
 - BLOCKED_EXTERNAL_ACCESS
@@ -37,9 +38,9 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| API_INTERNAL_ORIGIN not set | release-readiness-agent | User intentionally omitted API_INTERNAL_ORIGIN because backend API URL is not confirmed; latest post-PR39 smoke shows `/api/proxy` and `/api/proxy/health` return unauthenticated `401`, so public checks cannot prove the upstream origin; Railway status does not expose canonical production API origin | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` returned `503` with `checks.database: "down"` on `www.craftmyfunnel.live` | Verify production DB env/connectivity/schema state in dashboards without changing data | BLOCKED_EXTERNAL_ACCESS |
-| Main release gate not fully green | ci-gate-agent | Latest main `6d01210` has Vercel and requested GitHub Actions green. Railway contexts are green but stale `illustrious-warmth` contexts still appear. GHCR did not run for the docs-only PR #39 merge due workflow path filters. | Remove stale Railway required checks if present, verify future commits no longer receive stale contexts, and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
+| API_INTERNAL_ORIGIN not set | release-readiness-agent | Latest main `34c3339` still cannot prove backend origin. Generic `/api/proxy` and `/api/proxy/health` return expected unauthenticated `401`; route source reads `API_INTERNAL_ORIGIN`, then `API_BASE_URL`, then `http://localhost:3001`. Latest status metadata exposes Railway service dashboard URLs but no public API origin. | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
+| Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
+| Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
@@ -78,9 +79,18 @@ Use only these values:
 | Web Docker GHCR nodemailer hotfix | npm-lockfile-ci-stability-agent | NEEDS_REPLAN | docs/audits/web-docker-nodemailer-build-fix.md | Root cause: npm installs `nodemailer` under `apps/web/node_modules`, but `apps/web/Dockerfile` builder stage copied only root `node_modules`. Fix copies `/repo/apps/web/node_modules` from deps to builder. The GHCR workflow now includes a PR-safe `pull_request` verification path that builds the web image with `load: true` and skips GHCR login/push steps. |
 | Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
 | Post-PR39 production custom-domain smoke and API proxy readiness | post-pr39-production-smoke-agent | NEEDS_REPLAN | docs/audits/production-custom-domain-smoke-after-pr39.md, docs/audits/api-proxy-origin-readiness.md | Latest main `6d01210` has requested GitHub Actions, Vercel, and Railway contexts green; public custom-domain smoke passed with zero `/api/auth/session` calls; `/dashboard` redirects to login. Overall remains blocked because `API_INTERNAL_ORIGIN` cannot be proven and `/api/health` reports database down. |
+| API origin and production health readiness diagnosis | api-origin-health-readiness-agent | NEEDS_INPUT | docs/audits/api-origin-and-production-db-health.md, docs/audits/production-health-database-down-root-cause.md | Latest main `34c3339` has GitHub Actions, Vercel, and active `airy-balance` statuses green. Health liveness passes but readiness fails DB `SELECT 1`; source already supports `?probe=live`. `API_INTERNAL_ORIGIN` still needs exact dashboard-confirmed HTTPS backend origin. |
 
 ## Latest findings
 
+- API origin and health diagnosis on latest main `34c3339c280e0922567cc203b9edd3c435c073c1` confirmed PR #40 is merged. GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL completed successfully.
+- Vercel status for `34c3339` is `success`. Active `airy-balance` Railway contexts are success. Stale `illustrious-warmth` contexts still appear as no-op success statuses and should not be treated as release gates, but branch-protection required-check cleanup still needs manual admin confirmation.
+- Production `/api/health` defaults to readiness in production and returns `503` with `checks.database: "down"`. Production `/api/health?probe=live` returns `200`, proving process liveness is healthy. Production `/api/health?probe=ready` returns the same DB-down `503`.
+- Health source already has a liveness/readiness split. Readiness imports `@/lib/db` and runs Prisma `SELECT 1` through `DATABASE_URL`; `DIRECT_URL` is not used by this runtime check.
+- Because the health query is `SELECT 1`, the DB-down result is unlikely to be caused by application schema drift itself. The likely class is Vercel Production `DATABASE_URL` missing/wrong/unreachable, SSL/pooler mismatch, or a runtime DB client/connectivity error that requires redacted dashboard/runtime logs.
+- `/api/proxy/health` returns `401 Unauthorized` before proxying. This is expected because generic `/api/proxy/*` is not public in `apps/web/src/proxy.ts`; only specific public proxy prefixes are allowlisted.
+- `API_INTERNAL_ORIGIN` value shape must be an absolute Vercel-reachable origin such as `https://<active-api-service-or-custom-domain>`. Latest status metadata exposes Railway service dashboard URLs only; older `convospan-api-split-production.up.railway.app` evidence remains a candidate, not a confirmed final value.
+- Local validation for this phase passed: `npm run typecheck --workspace apps/web` in 65.5s, `npm run typecheck --workspace apps/api` in 86.4s, `npm run build --workspace apps/api` in 94.5s, and `npm run build --workspace apps/web` in 854.6s with dummy local DB URLs and CI placeholder auth env.
 - Post-PR39 smoke on latest main `6d012102ebfeff47e8a95cf72fda5955a76aee1e` confirmed PR #39 is merged and requested GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL checks completed successfully.
 - Vercel status for `6d01210` is `success`. Railway statuses are also `success`, but both `illustrious-warmth` stale contexts still appear on the new commit with no-op "No deployment needed" messages.
 - `Register Docker Images to GHCR` did not run for the PR #39 docs-only merge because `.github/workflows/docker-ghcr.yml` path filters do not include docs. This should be resolved by the release-gate policy decision rather than treated as implicit production image evidence.
