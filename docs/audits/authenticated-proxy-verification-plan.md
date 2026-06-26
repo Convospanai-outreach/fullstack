@@ -13,10 +13,11 @@ Repository: `Convospanai-outreach/fullstack`
 
 | Item | Evidence | Status |
 | --- | --- | --- |
-| Latest `main` SHA | `33a0efa507dce017a0e0d257d3e55195bcc7bae2` | VERIFIED |
+| Latest `main` SHA | `cb22be7507dce017a0e0d257d3e55195bcc7bae2` | VERIFIED |
 | PR #44 | Merged, security sequencing is on `main` | MERGED |
 | PR #45 | Merged, functional readiness reassessment is on `main` | MERGED |
 | PR #47 | Merged, green health checks recorded on `main` | MERGED |
+| PR #48 | Merged, authenticated proxy verification plan on `main` | MERGED |
 
 ## Verified Green Health Evidence
 

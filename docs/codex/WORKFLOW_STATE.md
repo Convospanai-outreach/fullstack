@@ -9,15 +9,15 @@ This file is the source of truth for current task status. Update it after every 
 | Overall status | NEEDS_REPLAN |
 | Current stage | Authenticated proxy verification planning |
 | Current agent | production-runtime-verification-agent |
-| Working branch | docs/authenticated-proxy-verification-plan |
-| Baseline commit inspected | 33a0efa507dce017a0e0d257d3e55195bcc7bae2 |
+| Working branch | docs/authenticated-proxy-verification-plan-v2 |
+| Baseline commit inspected | cb22be7507dce017a0e0d257d3e55195bcc7bae2 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-26T16:44+05:30 |
+| Last updated | 2026-06-26T17:13+05:30 |
 | Next action | Execute manual authenticated proxy forwarding verification |
 
 ## Status values
