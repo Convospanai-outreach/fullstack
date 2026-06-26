@@ -23,6 +23,20 @@ Use only these verdicts:
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
+## Post-PR44 functional readiness reassessment
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Current `origin/main` SHA must be known before readiness decisions | `git rev-parse origin/main` returned `6377dd3cc0d3179b58136aad7249cd9355910a20` | PASS | functional-readiness-reassessment-agent | Fetched after PR #44 merged. |
+| PR #44 merged | Security sequencing should be on main before treating Stage 12A/12B as canonical | `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20` | PASS | functional-readiness-reassessment-agent | Stage 12A/12B sequencing is now present on main. |
+| DB-health-green docs commit on main | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` should be on main before using it as main evidence | Ancestry check returned `NOT_ON_MAIN` | FAIL | functional-readiness-reassessment-agent | Commit is on `docs/api-db-health-resolved`, not `main`. |
+| Production health documented as 200 on main | Main docs should show `/api/health` and `/api/health?probe=ready` returning 200 before DB readiness is considered resolved | Main docs still record both endpoints as `503` with `checks.database: "down"` | FAIL | functional-readiness-reassessment-agent | The 200/up evidence is off-main only. |
+| DB-health-green branch disposition | Decide whether to merge, cherry-pick, or supersede off-main DB-health docs | `docs/audits/production-readiness-next-actions.md` recommends superseding with a fresh verification pass | PASS | functional-readiness-reassessment-agent | Do not merge/cherry-pick stale off-main evidence as-is. |
+| API_INTERNAL_ORIGIN / Railway backend origin | Canonical backend API origin should be confirmed before Vercel env changes | Existing docs still show backend origin unknown/not set | BLOCKED_EXTERNAL_ACCESS | functional-readiness-reassessment-agent | Requires Railway/Vercel dashboard confirmation without secrets. |
+| Stale Railway required checks | Stale `illustrious-warmth` contexts should not block release | Latest main commit status still includes `illustrious-warmth` success/no-op contexts; required status checks API returns `404 Branch not protected` | PASS | functional-readiness-reassessment-agent | Stale contexts still appear, but are not currently proven required. |
+| Functional readiness blockers | DB linkage, schema/migration proof, Prisma drift, Clerk linkage, Redis isolation, health/deep readiness, CI policy, and feature completeness should be clear | `docs/audits/production-readiness-next-actions.md` lists remaining blockers and next 5 actions | FAIL | functional-readiness-reassessment-agent | Product is not production-ready. |
+| PR #6 status | PR #6 should remain blocked until schema/env/runtime strategy is stable | Existing workflow state keeps PR #6 blocked; next-actions doc confirms it remains blocked | PASS | functional-readiness-reassessment-agent | Do not touch PR #6. |
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
@@ -164,7 +178,7 @@ Use only these verdicts:
 | --- | --- | --- | --- | --- | --- |
 | Functional production readiness path | DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, core features, and CI/build/test gates should be mostly green before security gate execution | Existing matrices still show DB/schema/API origin/CI/env blockers; PR #44 now states this remains the immediate focus | NEEDS_REPLAN | release-readiness-agent | Functional readiness comes first; no production-ready claim yet |
 | Stage 12 exists | Security is split into Stage 12A minimum beta gate and Stage 12B deep public/enterprise hardening | `docs/codex/IMPLEMENTATION_PLAN.md` now defines both sub-stages; `docs/audits/application-security-hardening-plan.md` updated with execution sequencing | PASS | security-hardening-agent | Docs-only change; no runtime code, schema, env, OAuth, extension, or PR #6 changes |
-| Latest main reassessed | Latest `main` SHA must be verified before relying on readiness docs | `origin/main` verified as `88dd014a07c583ce2fd528dcee49c756d937cf6d` after `git fetch origin --prune` | PASS | security-hardening-agent | Reassessment recorded in application security audit |
+| Latest main reassessed | Latest `main` SHA must be verified before relying on readiness docs | `origin/main` verified as `6377dd3cc0d3179b58136aad7249cd9355910a20` after PR #44 merged | PASS | security-hardening-agent | PR #45 refresh records Stage 12A/12B sequencing on main. |
 | DB-health-green commit on main | Gemini/docs DB-health-green commit must be confirmed before treating it as current main state | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved`; ancestry check returned `NOT_ON_MAIN` for `origin/main` | FAIL | security-hardening-agent | Do not rely on that commit as current main evidence |
 | DB health classification | A green `/api/health` DB result should be infrastructure readiness only, not full app readiness | Audit explicitly classifies DB health as infrastructure readiness only until functional readiness and minimum security gate pass | PASS | security-hardening-agent | Prevents false production-ready or controlled-beta-ready claims |
 | Minimum security gate for controlled beta | IDOR/team isolation, role/ownership checks, mass assignment allowlists, basic rate limits, raw SQL audit, JWT/session validation, chat scope guardrails, service-role key exposure, and unbounded sensitive list endpoints must be checked before real customer/team beta | Not executed in this docs-only pass | MISSING | security-hardening-agent | Controlled beta remains blocked until this passes |

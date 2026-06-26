@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Functional production readiness, with staged security gates documented in PR #44 |
-| Current agent | security-hardening-agent |
-| Working branch | docs/app-security-hardening-plan |
-| Baseline commit inspected | 88dd014a07c583ce2fd528dcee49c756d937cf6d |
+| Current stage | Functional production readiness reassessment after PR #44 security sequencing merge |
+| Current agent | functional-readiness-reassessment-agent |
+| Working branch | docs/functional-readiness-reassessment |
+| Baseline commit inspected | 6377dd3cc0d3179b58136aad7249cd9355910a20 |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-26 |
-| Next action | Continue functional production readiness; then run Stage 12A minimum security gate before controlled beta and Stage 12B deep hardening before public/enterprise launch |
+| Next action | Merge PR #45 after checks are green, then start fresh non-mutating production DB/API verification |
 
 ## Status values
 
@@ -83,15 +83,19 @@ Use only these values:
 | Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
 | Post-PR39 production custom-domain smoke and API proxy readiness | post-pr39-production-smoke-agent | NEEDS_REPLAN | docs/audits/production-custom-domain-smoke-after-pr39.md, docs/audits/api-proxy-origin-readiness.md | Latest main `6d01210` has requested GitHub Actions, Vercel, and Railway contexts green; public custom-domain smoke passed with zero `/api/auth/session` calls; `/dashboard` redirects to login. Overall remains blocked because `API_INTERNAL_ORIGIN` cannot be proven and `/api/health` reports database down. |
 | API origin and production health readiness diagnosis | api-origin-health-readiness-agent | NEEDS_INPUT | docs/audits/api-origin-production-health.md, docs/audits/production-health-db-down-root-cause.md | Latest main d3bcbb3 has GitHub Actions, Vercel, and active statuses green. Health liveness passes (200), readiness fails (503 DB down), proxy is auth-protected (401). |
+| Post-PR44 functional readiness reassessment | functional-readiness-reassessment-agent | NEEDS_REPLAN | docs/audits/production-readiness-next-actions.md | Latest main is `6377dd3`; PR #44 is merged and Stage 12A/12B sequencing is on main; DB-health-green commit `2a60a59` is still off-main; main still documents DB readiness down; API origin, live schema proof, Clerk linkage, Redis isolation, deep health, and PR #6 remain blockers. |
 
 ## Latest findings
 
-- Application security hardening docs pass on 2026-06-26 verified latest `origin/main` as `88dd014a07c583ce2fd528dcee49c756d937cf6d`.
+- Post-PR44 refresh on 2026-06-26 inspected latest `origin/main` at `6377dd3cc0d3179b58136aad7249cd9355910a20`.
+- PR #44 is merged: `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, and merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20`.
+- Stage 12A minimum security gate and Stage 12B deep security hardening sequencing is now present on `main`.
 - The DB-health-green docs commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved` / `origin/docs/api-db-health-resolved` but is not on `origin/main`; `git merge-base --is-ancestor 2a60a59 origin/main` returned `NOT_ON_MAIN`.
+- Main currently documents production `/api/health` and `/api/health?probe=ready` as `503` with `checks.database: "down"`; the 200/up documentation exists only on the off-main DB-health branch.
 - If a future Vercel production `/api/health` result returns `200`, treat it as infrastructure readiness only; controlled beta still requires Stage 12A minimum security gate, and public/enterprise readiness still requires Stage 12B deep hardening.
-- PR #44 should not derail functional production-readiness work. Security is now split into Stage 12A minimum beta gate and Stage 12B deep public/enterprise hardening.
 - Current immediate focus remains functional production readiness: DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, feature completeness, and CI/build/test gates.
 - Overall readiness remains `NEEDS_REPLAN`. Controlled beta remains blocked until Stage 12A minimum security gate is complete; public/enterprise readiness remains blocked until Stage 12B deep hardening is complete.
+- Functional readiness remains blocked by DB readiness proof beyond `SELECT 1`, read-only Supabase schema/migration proof, API origin, Clerk user/team linkage, Redis/cache isolation, protected/deep health, CI/live schema policy, feature smoke, and PR #6.
 - API origin and health diagnosis on latest main `d3bcbb3a12d7c184c0258cfaa0ea8cf5ab6fa8e8` confirmed PR #41 is merged. GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL completed successfully.
 - Vercel status for `d3bcbb3` is `success`. Active `airy-balance` Railway contexts are success. Stale `illustrious-warmth` contexts still appear as no-op success statuses and should not be treated as release gates, but branch-protection required-check cleanup still needs manual admin confirmation.
 - Production `/api/health` defaults to readiness in production and returns `503` with `checks.database: "down"`. Production `/api/health?probe=live` returns `200`, proving process liveness is healthy. Production `/api/health?probe=ready` returns the same DB-down `503`.
