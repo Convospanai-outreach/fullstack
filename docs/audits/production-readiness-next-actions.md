@@ -8,14 +8,14 @@ Repository: `Convospanai-outreach/fullstack`
 
 CraftMyFunnel is **not yet production-ready**.
 
-Functional production readiness remains the immediate focus. Security implementation should not start yet; PR #44 is still open and unmerged, and the current main branch does not yet contain the sequenced Stage 12A/12B security plan.
+Functional production readiness remains the immediate focus. Security implementation should not start yet; PR #44 has merged, so the current main branch now contains the sequenced Stage 12A/12B security plan.
 
 ## Current status table
 
 | Check | Current evidence | Status | Notes |
 | --- | --- | --- | --- |
-| Latest `main` SHA | `origin/main` is `88dd014a07c583ce2fd528dcee49c756d937cf6d` | VERIFIED | Fetched from GitHub before this docs update. |
-| PR #44 merged? | `gh pr view 44` reports `state: OPEN`, `mergedAt: null`, `mergeCommit: null`, head `db1499ad3da9457b5aaefbda8c54015f82a37243` | NOT_MERGED | Do not treat Stage 12A/12B as present on main yet. |
+| Latest `main` SHA | `origin/main` is `6377dd3cc0d3179b58136aad7249cd9355910a20` | VERIFIED | Fetched from GitHub after PR #44 merged. |
+| PR #44 merged? | `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20` | MERGED | Stage 12A/12B sequencing is now present on main. |
 | DB-health-green commit on main? | `git merge-base --is-ancestor 2a60a5926275efdbc95eb1df40197371a1004b76 origin/main` returned `NOT_ON_MAIN` | NOT_ON_MAIN | Commit exists on `docs/api-db-health-resolved`, not `main`. |
 | Production `/api/health` documented as 200 on main? | Main docs still record `/api/health` as `503` with `checks.database: "down"` | NO | See `docs/audits/api-origin-production-health.md` and `docs/codex/VERIFICATION_MATRIX.md`. |
 | Production `/api/health?probe=ready` documented as 200 on main? | Main docs still record readiness as `503` with `checks.database: "down"` | NO | The 200/up evidence exists only on off-main commit `2a60a59`. |
@@ -27,10 +27,10 @@ Functional production readiness remains the immediate focus. Security implementa
 
 | Area | Resolution evidence | Caveat |
 | --- | --- | --- |
-| PR #44 contents | PR #44 head `db1499ad3da9457b5aaefbda8c54015f82a37243` adds sequenced security hardening | Not merged to main yet. |
+| PR #44 contents | PR #44 merged at `6377dd3cc0d3179b58136aad7249cd9355910a20` and adds sequenced security hardening | Stage 12A/12B are sequencing docs only; security implementation has not started. |
 | GitHub Actions on latest main | Latest main workflow runs for `CI`, `Production Readiness Gate`, `Push on main`, `Vercel Parity Build`, and `Phi-3 Verification` are `success` | Does not prove live DB/schema or API-origin readiness. |
 | Vercel status on latest main | Combined commit status includes `Vercel: success` | Vercel success does not prove app readiness. |
-| Railway latest-main status contexts | `airy-balance` and `illustrious-warmth` contexts are all success/no-op on `88dd014` | `illustrious-warmth` still appears as stale context family. |
+| Railway latest-main status contexts | `airy-balance` and `illustrious-warmth` contexts were all success/no-op on the prior inspected main; stale-check policy still needs confirmation | `illustrious-warmth` still appears as stale context family. |
 | Public/auth-session smoke from previous work | Existing docs record public pages and `/api/auth/session` improvements | Not sufficient for DB/schema/API-origin readiness. |
 
 ## What remains blocked
@@ -63,9 +63,9 @@ Reason:
 
 ## PR dependency order
 
-PR #44 should merge first because it updates the implementation map with Stage 12A minimum security gate and Stage 12B deep security hardening sequencing.
+PR #44 has merged first and updated the implementation map with Stage 12A minimum security gate and Stage 12B deep security hardening sequencing.
 
-PR #45 should merge after PR #44, or be refreshed after PR #44 merges, so its reassessment language can accurately say whether Stage 12A/12B is present on `main`.
+PR #45 has been refreshed after PR #44 merged. PR #45 should now merge after checks are green.
 
 The DB-health-green branch `docs/api-db-health-resolved` should not be merged as-is. It should be superseded by a fresh production verification PR based on current evidence.
 
@@ -73,11 +73,11 @@ PR #6 remains blocked and must not merge as-is.
 
 ## Exact next 5 actions
 
-1. Merge PR #44.
-2. Refresh or merge PR #45 after PR #44 is handled.
-3. Freshly verify production `/api/health` and `/api/health?probe=ready`.
-4. Create a new DB-health resolution PR only from fresh evidence.
-5. Verify `API_INTERNAL_ORIGIN` / Railway backend origin.
+1. Merge PR #45 after checks are green.
+2. Freshly verify production `/api/health` and `/api/health?probe=ready`.
+3. Create a new DB-health resolution PR only from fresh evidence.
+4. Verify `API_INTERNAL_ORIGIN` / Railway backend origin.
+5. Rebaseline functional smoke for Clerk user/team linkage, Redis/cache isolation, protected/deep health, and core lead/campaign/inbox flows.
 
 ## PR #6 status
 
@@ -93,7 +93,7 @@ PR #6 remains blocked. It should not be merged as-is. Keep it split/blocked unti
 
 Product status: **not production-ready**.
 
-Controlled beta status: **not ready** until functional readiness is mostly green and, after PR #44 or equivalent sequencing is on main, the minimum security gate is completed.
+Controlled beta status: **not ready** until functional readiness is mostly green and the Stage 12A minimum security gate is completed.
 
 Public/enterprise status: **not ready** until functional readiness, minimum beta gate, and deep security hardening are complete.
 
