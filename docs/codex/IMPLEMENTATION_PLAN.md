@@ -15,7 +15,7 @@ Do not skip CHECK. Do not combine unrelated stages. Every stage must produce evi
 Make CraftMyFunnel production-ready by proving and fixing the complete linkage chain:
 
 ```text
-GitHub repo -> Vercel project -> runtime env -> Supabase DB -> Prisma schema -> migrations -> app runtime -> Clerk user/team -> Redis/cache/queue -> health/smoke/CI gates
+GitHub repo -> Vercel project -> runtime env -> Supabase DB -> Prisma schema -> migrations -> app runtime -> Clerk user/team -> Redis/cache/queue -> application security hardening -> health/smoke/CI gates
 ```
 
 ## Known live targets
@@ -56,6 +56,7 @@ Codex must maintain these files during the work:
 | `docs/audits/db-linkage-fix-log.md` | Chronological change log and decisions |
 | `docs/audits/vercel-supabase-reassessment.md` | Vercel and Supabase linkage evidence |
 | `docs/audits/prisma-schema-drift-matrix.md` | Web schema vs API schema vs actual DB vs PR #6 |
+| `docs/audits/application-security-hardening-plan.md` | Mandatory app security hardening, abuse-resistance, and endpoint authorization audit plan |
 | `docs/runbooks/database-production-runbook.md` | Migration and rollback process |
 | `docs/runbooks/vercel-supabase-smoke-runbook.md` | Smoke test process |
 
@@ -74,10 +75,11 @@ Recommended order:
 7. `runtime-db-agent`
 8. `auth-tenant-agent`
 9. `redis-cache-agent`
-10. `health-smoke-agent`
-11. `ci-gate-agent`
-12. `pr-strategy-agent`
-13. `release-readiness-agent`
+10. `security-hardening-agent`
+11. `health-smoke-agent`
+12. `ci-gate-agent`
+13. `pr-strategy-agent`
+14. `release-readiness-agent`
 
 Agents may run in parallel only if they do not edit the same files. When in doubt, serialize.
 
@@ -670,7 +672,86 @@ If Redis is absent, ensure feature flags disable Redis-dependent features or hea
 
 ---
 
-# Stage 12: CI and PR strategy
+# Stage 12: Application security hardening and abuse-resistance
+
+## PLAN
+
+Prove the app resists common tenant, API, database, auth, rate-limit, and AI-chat abuse before any production or controlled-beta readiness claim.
+
+This phase is mandatory for Teams and Enterprise Edition because the app handles multi-tenant team data, campaigns, leads, inboxes, automations, integrations, and AI-assisted workflows.
+
+## CHECK
+
+Map every protected endpoint and server action touching:
+
+- teams
+- users
+- team members
+- roles
+- leads
+- campaigns
+- email sequences
+- connected mailboxes
+- inboxes
+- analytics
+- settings
+- billing
+- invitations
+- integrations
+- API keys
+- chat/assistant routes
+- file/knowledge-base routes
+
+For every route, record:
+
+```text
+Route | Method | Auth required | Team scope required | Resource ownership check | Mutable fields whitelist | Rate limit | Raw SQL used? | JWT/session validation | Test exists? | Verdict
+```
+
+The security-hardening audit must cover, at minimum:
+
+- tenant isolation and IDOR resistance for every team-scoped resource
+- server-side role enforcement for owner/admin/member/viewer style permissions
+- Clerk, NextAuth, API-token, webhook, and service-to-service auth boundaries
+- CSRF posture for cookie-authenticated state-changing routes and server actions
+- runtime input validation and mutable-field allowlists for create/update endpoints
+- raw SQL, Prisma raw query, dynamic query, search, sort, and filter injection risk
+- file upload, knowledge-base ingestion, download, and path traversal risk
+- SSRF risk from import, webhook, URL preview, integration, scraping, and enrichment flows
+- XSS/HTML/markdown rendering and CSP/security-header posture
+- CORS, redirect, host-header, proxy-header, and callback URL validation
+- rate limits and abuse controls for auth, invite, lead import, campaign send, AI chat, webhook, and expensive analytics paths
+- AI-chat prompt injection, data exfiltration, cross-tenant retrieval, tool-calling, and knowledge-base access controls
+- audit logging, sensitive-data redaction, and error-response leakage
+- dependency, secret, and browser-bundle exposure checks relevant to app security
+
+Use `docs/audits/application-security-hardening-plan.md` as the control checklist. Infrastructure health can be marked green only as infrastructure readiness; it does not satisfy this stage.
+
+## ACT
+
+Create or update:
+
+```text
+docs/audits/application-security-hardening-plan.md
+docs/codex/VERIFICATION_MATRIX.md
+docs/codex/WORKFLOW_STATE.md
+```
+
+Required outputs:
+
+- route inventory table with the columns listed above
+- prioritized findings grouped as `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `NEEDS_VERIFICATION`
+- explicit production-readiness blockers for missing auth, tenant scoping, ownership checks, mutation allowlists, rate limits, AI-chat controls, or tests
+- test plan for unit, integration, Playwright/API smoke, and abuse-case coverage
+- sign-off criteria that require all critical/high app-security findings to be fixed or formally risk-accepted before CI/final readiness
+
+## REPLAN
+
+Do not proceed to CI/PR strategy, controlled beta, or production readiness while this stage is `NOT_CHECKED`, `NEEDS_REPLAN`, `BLOCKED`, or has unresolved critical/high findings.
+
+---
+
+# Stage 13: CI and PR strategy
 
 ## PLAN
 
@@ -708,7 +789,7 @@ Continue only after CI gates run locally or are documented as pending external C
 
 ---
 
-# Stage 13: Final readiness
+# Stage 14: Final readiness
 
 ## PLAN
 
@@ -766,6 +847,7 @@ If blockers remain, do not mark complete. Write the next action plan.
 - Health checks verify schema/migrations/project, not just `SELECT 1`.
 - Clerk session to app DB user/team smoke implemented.
 - Redis/cache/queue environment isolation implemented.
+- Application security hardening and abuse-resistance stage completed with no unresolved critical/high blockers.
 - Preview cannot write production DB/cache unless explicitly allowed.
 - CI blocks future DB/schema drift.
 - Runbooks exist.
