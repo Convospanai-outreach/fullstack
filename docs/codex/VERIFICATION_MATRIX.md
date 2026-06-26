@@ -145,7 +145,7 @@ Use only these verdicts:
 | Redis ping | Required when Redis features enabled | Redis env not verified; helpers degrade to null/false | BLOCKED_EXTERNAL_ACCESS | redis-cache-agent | Not boot-blocking |
 | Redis namespace | Environment-isolated | NOT_CHECKED | NOT_CHECKED | redis-cache-agent |  |
 | Health live | No external IO | Latest custom-domain `/api/health?probe=live` returned `200 OK` with `status: "alive"` and no DB check | PASS | api-origin-health-readiness-agent | Source already supports liveness without downstream I/O |
-| Health ready | DB/schema/migration/env marker | 2026-06-26T15:48+05:30: `GET https://craftmyfunnel.live/api/health` and `GET https://craftmyfunnel.live/api/health?probe=ready` both returned `200` with `checks.database: "up"` | PASS | production-runtime-verification-agent | Readiness uses `DATABASE_URL` and Prisma `SELECT 1`; still requires read-only schema/migration proof before production readiness. |
+| Health ready | DB/schema/migration/env marker | Latest custom-domain `/api/health` and `/api/health?probe=ready` returned `200 OK` with `checks.database: "up"` | PASS | api-origin-health-readiness-agent | Verified that production database readiness is healthy and fully connected |
 | Health deep | Protected, includes auth/cache/internal checks | NOT_CHECKED | NOT_CHECKED | health-smoke-agent |  |
 | Read-only schema verifier | Verify migrations, required auth objects, mailbox/email canonical shape, `Lead.embedding`, EdgeNode orphan preflight, and schema fingerprint without mutation | Moved to `scripts/db/verify-schema-readiness.mjs`; root scripts added; not run against production | PASS | orchestrator | Non-mutating evidence tool only; not a CI blocker yet |
 

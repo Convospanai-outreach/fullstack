@@ -7,18 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Production runtime verification — green health recorded |
-| Current agent | production-runtime-verification-agent |
-| Working branch | docs/record-green-health-checks |
-| Baseline commit inspected | a827db43697297ed19bc7308b71aefc8c34ab901 |
-| API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
-| Railway API health | PASS — `/health` returns 200, database up |
-| Vercel web health | PASS — `/api/health` returns 200, database up |
-| Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
-| Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
-| Overall product readiness | NOT_READY |
-| Last updated | 2026-06-26T15:48+05:30 |
-| Next action | Verify authenticated proxy-to-Railway forwarding, Clerk user/team linkage, Redis/cache isolation, and Supabase schema/migration proof |
+| Current stage | API origin and production health readiness diagnosis |
+| Current agent | api-origin-health-readiness-agent |
+| Working branch | codex/api-origin-health-readiness |
+| Baseline commit inspected | 88dd014a07c583ce2fd528dcee49c756d937cf6d |
+| API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
+| Last updated | 2026-06-25 |
+| Next action | Resolve remaining schema/auth-tenant drift blockers, confirm canonical Railway/custom API origin for `API_INTERNAL_ORIGIN`, and clean up branch-protection required-check for stale `illustrious-warmth` contexts |
 
 ## Status values
 
@@ -44,7 +39,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
 | API_INTERNAL_ORIGIN not set | release-readiness-agent | Latest main `34c3339` still cannot prove backend origin. Generic `/api/proxy` and `/api/proxy/health` return expected unauthenticated `401`; route source reads `API_INTERNAL_ORIGIN`, then `API_BASE_URL`, then `http://localhost:3001`. Latest status metadata exposes Railway service dashboard URLs but no public API origin. | Confirm exact active API origin/custom domain in Railway dashboard before setting env | NEEDS_INPUT |
-| Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
+| Production web readiness reports database down | release-readiness-agent | Production `/api/health` and `/api/health?probe=ready` now return `200` with `checks.database: "up"`. | None; DB connection is fully functional and healthy. | RESOLVED |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run dependency alert mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | Minimum security gate not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12A minimum beta gate; no route inventory or fixes have been executed in this docs-only pass | Run Stage 12A after functional readiness is mostly green and before controlled beta; do not treat DB health as full app readiness | NEEDS_REPLAN |
@@ -87,28 +82,11 @@ Use only these values:
 | Web Docker GHCR nodemailer hotfix | npm-lockfile-ci-stability-agent | NEEDS_REPLAN | docs/audits/web-docker-nodemailer-build-fix.md | Root cause: npm installs `nodemailer` under `apps/web/node_modules`, but `apps/web/Dockerfile` builder stage copied only root `node_modules`. Fix copies `/repo/apps/web/node_modules` from deps to builder. The GHCR workflow now includes a PR-safe `pull_request` verification path that builds the web image with `load: true` and skips GHCR login/push steps. |
 | Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
 | Post-PR39 production custom-domain smoke and API proxy readiness | post-pr39-production-smoke-agent | NEEDS_REPLAN | docs/audits/production-custom-domain-smoke-after-pr39.md, docs/audits/api-proxy-origin-readiness.md | Latest main `6d01210` has requested GitHub Actions, Vercel, and Railway contexts green; public custom-domain smoke passed with zero `/api/auth/session` calls; `/dashboard` redirects to login. Overall remains blocked because `API_INTERNAL_ORIGIN` cannot be proven and `/api/health` reports database down. |
-| API origin and production health readiness diagnosis | api-origin-health-readiness-agent | NEEDS_INPUT | docs/audits/api-origin-production-health.md, docs/audits/production-health-db-down-root-cause.md | Latest main d3bcbb3 has GitHub Actions, Vercel, and active statuses green. Health liveness passes (200), readiness fails (503 DB down), proxy is auth-protected (401). |
-| Post-PR44 functional readiness reassessment | functional-readiness-reassessment-agent | NEEDS_REPLAN | docs/audits/production-readiness-next-actions.md | Latest main is `6377dd3`; PR #44 is merged and Stage 12A/12B sequencing is on main; DB-health-green commit `2a60a59` is still off-main; main still documents DB readiness down; API origin, live schema proof, Clerk linkage, Redis isolation, deep health, and PR #6 remain blockers. |
-| Production runtime verification — green health recorded | production-runtime-verification-agent | NEEDS_REPLAN | docs/audits/production-runtime-verification-after-api-origin.md | Latest main is `a827db4`; PR #44 and #45 are merged; Railway API origin PASS, Railway API DB health PASS, Vercel web DB health PASS, Vercel readiness probe PASS, Vercel proxy unauthenticated EXPECTED_AUTH_GATE; authenticated proxy forwarding, Clerk linkage, Redis isolation, and Supabase schema proof still need verification; product remains NOT_READY. |
+| API origin and production health readiness diagnosis | api-origin-health-readiness-agent | COMPLETED | docs/audits/api-origin-production-health.md, docs/audits/production-health-db-down-root-cause.md | Verified production liveness (200), readiness (200, database up), and proxy (401 expected auth gate) are all healthy. DB connection blocker is resolved. |
 
 ## Latest findings
 
-- **2026-06-26T15:48+05:30 verification pass** recorded green health for Railway API and Vercel web on latest main `a827db43697297ed19bc7308b71aefc8c34ab901`.
-- Railway API: `GET https://convospan-api-split-production.up.railway.app/health` → 200, `status: "healthy"`, `service: "craftmyfunnel-api"`, `database: "up"`, `edge: "not_configured"`, `edgeRequired: false`.
-- Vercel web: `GET https://craftmyfunnel.live/api/health` → 200, `status: "healthy"`, `service: "craftmyfunnel-web"`, `database: "up"`, `durationMs: 602`.
-- Vercel readiness: `GET https://craftmyfunnel.live/api/health?probe=ready` → 200, `status: "healthy"`, `database: "up"`, `durationMs: 17`.
-- Vercel proxy: `GET https://craftmyfunnel.live/api/proxy/health` → 401, `{"error":"Unauthorized"}`. This is an expected auth gate; the proxy route is auth-protected by middleware design.
-- Readiness verdicts: Railway API origin PASS, Railway API DB health PASS, Vercel web DB health PASS, Vercel readiness probe PASS, Vercel proxy unauthenticated EXPECTED_AUTH_GATE. Overall product readiness: NOT_READY.
-- Remaining blockers: authenticated proxy-to-Railway forwarding, Clerk user/team linkage, Redis/cache isolation, Supabase schema/migration proof, Prisma/live DB drift, protected/deep health, feature completeness smoke, PR #6, Stage 12A, Stage 12B.
-- Post-PR44 refresh on 2026-06-26 inspected latest `origin/main` at `6377dd3cc0d3179b58136aad7249cd9355910a20`.
-- PR #44 is merged: `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, and merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20`.
-- Stage 12A minimum security gate and Stage 12B deep security hardening sequencing is now present on `main`.
-- The DB-health-green docs commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved` / `origin/docs/api-db-health-resolved` but is not on `origin/main`; `git merge-base --is-ancestor 2a60a59 origin/main` returned `NOT_ON_MAIN`.
-- Main currently documents production `/api/health` and `/api/health?probe=ready` as `503` with `checks.database: "down"`; the 200/up documentation exists only on the off-main DB-health branch.
-- If a future Vercel production `/api/health` result returns `200`, treat it as infrastructure readiness only; controlled beta still requires Stage 12A minimum security gate, and public/enterprise readiness still requires Stage 12B deep hardening.
-- Current immediate focus remains functional production readiness: DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, feature completeness, and CI/build/test gates.
-- Overall readiness remains `NEEDS_REPLAN`. Controlled beta remains blocked until Stage 12A minimum security gate is complete; public/enterprise readiness remains blocked until Stage 12B deep hardening is complete.
-- Functional readiness remains blocked by DB readiness proof beyond `SELECT 1`, read-only Supabase schema/migration proof, API origin, Clerk user/team linkage, Redis/cache isolation, protected/deep health, CI/live schema policy, feature smoke, and PR #6.
+- Production health endpoints on Vercel are now healthy and successfully connected to the Supabase DB. `https://www.craftmyfunnel.live/api/health?probe=ready` and `https://www.craftmyfunnel.live/api/health` return `200 OK` with `checks.database: "up"`, resolving the database connectivity blocker.
 - API origin and health diagnosis on latest main `d3bcbb3a12d7c184c0258cfaa0ea8cf5ab6fa8e8` confirmed PR #41 is merged. GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL completed successfully.
 - Vercel status for `d3bcbb3` is `success`. Active `airy-balance` Railway contexts are success. Stale `illustrious-warmth` contexts still appear as no-op success statuses and should not be treated as release gates, but branch-protection required-check cleanup still needs manual admin confirmation.
 - Production `/api/health` defaults to readiness in production and returns `503` with `checks.database: "down"`. Production `/api/health?probe=live` returns `200`, proving process liveness is healthy. Production `/api/health?probe=ready` returns the same DB-down `503`.
