@@ -23,6 +23,35 @@ Use only these verdicts:
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
+## Post-PR44 functional readiness reassessment
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Current `origin/main` SHA must be known before readiness decisions | `git rev-parse origin/main` returned `6377dd3cc0d3179b58136aad7249cd9355910a20` | PASS | functional-readiness-reassessment-agent | Fetched after PR #44 merged. |
+| PR #44 merged | Security sequencing should be on main before treating Stage 12A/12B as canonical | `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20` | PASS | functional-readiness-reassessment-agent | Stage 12A/12B sequencing is now present on main. |
+| DB-health-green docs commit on main | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` should be on main before using it as main evidence | Ancestry check returned `NOT_ON_MAIN` | FAIL | functional-readiness-reassessment-agent | Commit is on `docs/api-db-health-resolved`, not `main`. |
+| Production health documented as 200 on main | Main docs should show `/api/health` and `/api/health?probe=ready` returning 200 before DB readiness is considered resolved | 2026-06-26T15:48+05:30 verification: both endpoints returned `200` with `checks.database: "up"` on `craftmyfunnel.live` | PASS | production-runtime-verification-agent | Infrastructure readiness only, not full app readiness. |
+| DB-health-green branch disposition | Decide whether to merge, cherry-pick, or supersede off-main DB-health docs | `docs/audits/production-readiness-next-actions.md` recommends superseding with a fresh verification pass | PASS | functional-readiness-reassessment-agent | Do not merge/cherry-pick stale off-main evidence as-is. |
+| API_INTERNAL_ORIGIN / Railway backend origin | Canonical backend API origin should be confirmed before Vercel env changes | Public Railway origin `https://convospan-api-split-production.up.railway.app` confirmed and healthy; `/health` returns 200 with database up | PARTIAL | production-runtime-verification-agent | Authenticated upstream proxy forwarding still needs smoke proof. |
+| Stale Railway required checks | Stale `illustrious-warmth` contexts should not block release | Latest main commit status still includes `illustrious-warmth` success/no-op contexts; required status checks API returns `404 Branch not protected` | PASS | functional-readiness-reassessment-agent | Stale contexts still appear, but are not currently proven required. |
+| Functional readiness blockers | DB linkage, schema/migration proof, Prisma drift, Clerk linkage, Redis isolation, health/deep readiness, CI policy, and feature completeness should be clear | `docs/audits/production-readiness-next-actions.md` lists remaining blockers and next 5 actions | FAIL | functional-readiness-reassessment-agent | Product is not production-ready. |
+| PR #6 status | PR #6 should remain blocked until schema/env/runtime strategy is stable | Existing workflow state keeps PR #6 blocked; next-actions doc confirms it remains blocked | PASS | functional-readiness-reassessment-agent | Do not touch PR #6. |
+
+## Production runtime verification — green health recorded (2026-06-26T15:48+05:30)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Current `origin/main` SHA must be known before runtime verification | `a827db43697297ed19bc7308b71aefc8c34ab901` | PASS | production-runtime-verification-agent | PR #45 is included in main. |
+| PR #44 merged | PR #44 should be on main | Merged at `2026-06-26T07:53:59Z`, merge commit `6377dd3` | PASS | production-runtime-verification-agent | Stage 12A/12B sequencing on main. |
+| PR #45 merged | PR #45 should be on main | Merged at `2026-06-26T08:45:55Z`, merge commit `a827db4` | PASS | production-runtime-verification-agent | Latest main head. |
+| Railway API origin | Public HTTPS Railway origin should be confirmed and healthy | `GET https://convospan-api-split-production.up.railway.app/health` → 200, `status: "healthy"`, `service: "craftmyfunnel-api"`, `database: "up"` | PASS | production-runtime-verification-agent | Do not use `.railway.internal` from Vercel. |
+| Railway API DB health | Railway API database should be up | `/health` response includes `database: "up"` | PASS | production-runtime-verification-agent | Prisma `SELECT 1` only; not schema proof. |
+| Vercel web DB health | Vercel web database should be up | `GET https://craftmyfunnel.live/api/health` → 200, `status: "healthy"`, `database: "up"`, `durationMs: 602` | PASS | production-runtime-verification-agent | Prisma `SELECT 1` only; not schema proof. |
+| Vercel readiness probe | Explicit readiness probe should be green | `GET https://craftmyfunnel.live/api/health?probe=ready` → 200, `status: "healthy"`, `database: "up"`, `durationMs: 17` | PASS | production-runtime-verification-agent | Fast warm response. |
+| Vercel proxy unauthenticated behavior | Should return expected auth gate or upstream response | `GET https://craftmyfunnel.live/api/proxy/health` → 401, `{"error":"Unauthorized"}` | EXPECTED_AUTH_GATE | production-runtime-verification-agent | Proxy is auth-protected; does not prove or disprove upstream forwarding. |
+| Authenticated proxy-to-Railway forwarding | Should be verified with authenticated request | Not tested in this pass | NEEDS_AUTHENTICATED_VERIFICATION | production-runtime-verification-agent | Next verification step. |
+| Overall product readiness | Must not be marked ready until all gates pass | Remaining blockers: proxy auth, Clerk linkage, Redis isolation, Supabase schema proof, feature smoke, PR #6, Stage 12A, Stage 12B | NOT_READY | production-runtime-verification-agent | Infrastructure health is green; product readiness is not. |
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
@@ -53,7 +82,7 @@ Use only these verdicts:
 | Redis production | present if cache/queue enabled | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent | host only; no secret |
 | Redis preview isolation | preview must not share prod namespace | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent |  |
 | Clerk vars | present when Clerk auth enabled | NOT_CHECKED | NOT_CHECKED | vercel-linkage-agent | values must be redacted |
-| API_INTERNAL_ORIGIN | present if web calls API internally | Latest main `34c3339` still cannot prove the canonical API origin. Generic `/api/proxy/health` returns expected unauthenticated `401` before proxying; source reads `API_INTERNAL_ORIGIN`, then `API_BASE_URL`, then `http://localhost:3001`; latest Railway status metadata exposes dashboard service URLs but no public/custom API origin. | BLOCKED_EXTERNAL_ACCESS | api-origin-health-readiness-agent | Exact active HTTPS API origin/custom domain must be confirmed in Railway/Vercel dashboards; do not guess |
+| API_INTERNAL_ORIGIN | present if web calls API internally | 2026-06-26T15:48+05:30: public Railway origin `https://convospan-api-split-production.up.railway.app` confirmed and healthy; Vercel production deployment is READY; direct Railway `/health` returns `200`; production `/api/proxy/health` returns expected unauthenticated `401` | PARTIAL | production-runtime-verification-agent | Public origin is confirmed and no runtime origin errors were found, but authenticated upstream proxy forwarding still needs smoke proof. |
 
 ## Supabase schema matrix
 
@@ -164,7 +193,7 @@ Use only these verdicts:
 | --- | --- | --- | --- | --- | --- |
 | Functional production readiness path | DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, core features, and CI/build/test gates should be mostly green before security gate execution | Existing matrices still show DB/schema/API origin/CI/env blockers; PR #44 now states this remains the immediate focus | NEEDS_REPLAN | release-readiness-agent | Functional readiness comes first; no production-ready claim yet |
 | Stage 12 exists | Security is split into Stage 12A minimum beta gate and Stage 12B deep public/enterprise hardening | `docs/codex/IMPLEMENTATION_PLAN.md` now defines both sub-stages; `docs/audits/application-security-hardening-plan.md` updated with execution sequencing | PASS | security-hardening-agent | Docs-only change; no runtime code, schema, env, OAuth, extension, or PR #6 changes |
-| Latest main reassessed | Latest `main` SHA must be verified before relying on readiness docs | `origin/main` verified as `88dd014a07c583ce2fd528dcee49c756d937cf6d` after `git fetch origin --prune` | PASS | security-hardening-agent | Reassessment recorded in application security audit |
+| Latest main reassessed | Latest `main` SHA must be verified before relying on readiness docs | `origin/main` verified as `6377dd3cc0d3179b58136aad7249cd9355910a20` after PR #44 merged | PASS | security-hardening-agent | PR #45 refresh records Stage 12A/12B sequencing on main. |
 | DB-health-green commit on main | Gemini/docs DB-health-green commit must be confirmed before treating it as current main state | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved`; ancestry check returned `NOT_ON_MAIN` for `origin/main` | FAIL | security-hardening-agent | Do not rely on that commit as current main evidence |
 | DB health classification | A green `/api/health` DB result should be infrastructure readiness only, not full app readiness | Audit explicitly classifies DB health as infrastructure readiness only until functional readiness and minimum security gate pass | PASS | security-hardening-agent | Prevents false production-ready or controlled-beta-ready claims |
 | Minimum security gate for controlled beta | IDOR/team isolation, role/ownership checks, mass assignment allowlists, basic rate limits, raw SQL audit, JWT/session validation, chat scope guardrails, service-role key exposure, and unbounded sensitive list endpoints must be checked before real customer/team beta | Not executed in this docs-only pass | MISSING | security-hardening-agent | Controlled beta remains blocked until this passes |
