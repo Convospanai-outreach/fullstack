@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Stage 12 application security hardening and abuse-resistance documentation |
+| Current stage | Functional production readiness, with staged security gates documented in PR #44 |
 | Current agent | security-hardening-agent |
 | Working branch | docs/app-security-hardening-plan |
 | Baseline commit inspected | 88dd014a07c583ce2fd528dcee49c756d937cf6d |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
 | Last updated | 2026-06-26 |
-| Next action | Complete Stage 12 route/server-action security inventory and fix or risk-accept all critical/high app-security blockers before CI/final readiness |
+| Next action | Continue functional production readiness; then run Stage 12A minimum security gate before controlled beta and Stage 12B deep hardening before public/enterprise launch |
 
 ## Status values
 
@@ -42,7 +42,8 @@ Use only these values:
 | Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run dependency alert mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
-| Application security hardening not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines the required route/server-action inventory and abuse-case controls; no route inventory or fixes have been executed in this docs-only pass | Run Stage 12 before CI/PR strategy or final readiness; do not treat DB health as full app readiness | NEEDS_REPLAN |
+| Minimum security gate not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12A minimum beta gate; no route inventory or fixes have been executed in this docs-only pass | Run Stage 12A after functional readiness is mostly green and before controlled beta; do not treat DB health as full app readiness | NEEDS_REPLAN |
+| Deep security hardening not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12B deep public/enterprise hardening | Run Stage 12B before public launch, enterprise launch, or scale marketing | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -61,7 +62,8 @@ Use only these values:
 | 9. Health and smoke tests | health-smoke-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Vercel logs show `/` and `/login` 200; readiness endpoint not proven |
 | 10. Clerk/app DB linkage | auth-tenant-agent | BLOCKED_BY_SCHEMA_CONFLICT | production-readiness-final.md | Clerk sync depends on missing live DB objects |
 | 11. Redis/cache/queue isolation | redis-cache-agent | READY_FOR_NEXT_STAGE | production-readiness-final.md | Redis degrades gracefully; production Redis env still unverified |
-| 12. Application security hardening and abuse-resistance | security-hardening-agent | NEEDS_REPLAN | docs/audits/application-security-hardening-plan.md | Mandatory blocker before CI/final readiness; requires protected route/server-action inventory, tenant isolation proof, authz checks, rate limits, AI-chat isolation, and tests. DB health green is infrastructure readiness only. |
+| 12A. Minimum security gate for controlled beta | security-hardening-agent | NEEDS_REPLAN | docs/audits/application-security-hardening-plan.md | Runs after functional production readiness is mostly green and before real customer/team beta. Covers IDOR/team isolation, role/ownership checks, mass assignment, basic rate limits, raw SQL, JWT/session validation, chat scope, service-role key exposure, and unbounded sensitive lists. |
+| 12B. Deep security hardening for public/enterprise production | security-hardening-agent | NEEDS_REPLAN | docs/audits/application-security-hardening-plan.md | Runs before public launch, enterprise launch, or scale marketing. Covers full route inventory, abuse tests, prompt injection, SSRF, CSRF/CORS/headers, file/KB hardening, audit logging/redaction, enterprise role matrix, and risk acceptance. |
 | 13. CI and PR strategy | ci-gate-agent | NEEDS_REPLAN | production-readiness-final.md | CI structure exists; live Actions green not verified |
 | 14. Final readiness | release-readiness-agent | NEEDS_REPLAN | production-readiness-final.md | Final status: not launch-ready; blocked until Stage 12 and dependency-security gates are satisfied |
 | Implementation REPLAN d3086c0 | orchestrator | READY_FOR_NEXT_STAGE | IMPLEMENTATION_REPLAN_D3086C0.md | Produced canonical schema decision, unsafe migration quarantine, auth repair plan, and read-only schema verifier |
@@ -86,7 +88,10 @@ Use only these values:
 
 - Application security hardening docs pass on 2026-06-26 verified latest `origin/main` as `88dd014a07c583ce2fd528dcee49c756d937cf6d`.
 - The DB-health-green docs commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved` / `origin/docs/api-db-health-resolved` but is not on `origin/main`; `git merge-base --is-ancestor 2a60a59 origin/main` returned `NOT_ON_MAIN`.
-- If a future Vercel production `/api/health` result returns `200`, treat it as infrastructure readiness only until Stage 12 proves tenant isolation, route authorization, mutation allowlists, rate limits, AI-chat isolation, and security tests.
+- If a future Vercel production `/api/health` result returns `200`, treat it as infrastructure readiness only; controlled beta still requires Stage 12A minimum security gate, and public/enterprise readiness still requires Stage 12B deep hardening.
+- PR #44 should not derail functional production-readiness work. Security is now split into Stage 12A minimum beta gate and Stage 12B deep public/enterprise hardening.
+- Current immediate focus remains functional production readiness: DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, feature completeness, and CI/build/test gates.
+- Overall readiness remains `NEEDS_REPLAN`. Controlled beta remains blocked until Stage 12A minimum security gate is complete; public/enterprise readiness remains blocked until Stage 12B deep hardening is complete.
 - API origin and health diagnosis on latest main `d3bcbb3a12d7c184c0258cfaa0ea8cf5ab6fa8e8` confirmed PR #41 is merged. GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL completed successfully.
 - Vercel status for `d3bcbb3` is `success`. Active `airy-balance` Railway contexts are success. Stale `illustrious-warmth` contexts still appear as no-op success statuses and should not be treated as release gates, but branch-protection required-check cleanup still needs manual admin confirmation.
 - Production `/api/health` defaults to readiness in production and returns `503` with `checks.database: "down"`. Production `/api/health?probe=live` returns `200`, proving process liveness is healthy. Production `/api/health?probe=ready` returns the same DB-down `503`.

@@ -676,9 +676,64 @@ If Redis is absent, ensure feature flags disable Redis-dependent features or hea
 
 ## PLAN
 
-Prove the app resists common tenant, API, database, auth, rate-limit, and AI-chat abuse before any production or controlled-beta readiness claim.
+Sequence security without derailing functional production-readiness work:
 
-This phase is mandatory for Teams and Enterprise Edition because the app handles multi-tenant team data, campaigns, leads, inboxes, automations, integrations, and AI-assisted workflows.
+```text
+Functional Production Readiness -> Minimum Security Gate -> Controlled Beta -> Deep Security Hardening -> Public/Enterprise Production
+```
+
+The immediate production-readiness focus remains DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, feature completeness, and CI/build/test gates.
+
+Security is still mandatory. For Teams and Enterprise Edition, no real customer/team beta may begin until the minimum security gate passes, and no public or enterprise production launch may happen until deep hardening is complete.
+
+## Stage 12A: Minimum security gate for controlled beta
+
+This gate must run after functional production readiness is mostly green, but before any real customer/team beta.
+
+## CHECK
+
+Check only the non-negotiable controls that could cause immediate cross-tenant, privilege, auth, data, or cost risk:
+
+- IDOR and team isolation for Teams and Enterprise Edition
+- server-side role and ownership checks for privileged and team-scoped resources
+- mass assignment allowlists for sensitive fields such as `teamId`, `role`, `ownerId`, billing fields, admin flags, mailbox ownership, and API-key metadata
+- basic rate limiting on auth, invite, AI, campaign, email sending, import, export, webhook, and chat endpoints
+- raw SQL, Prisma raw query, unsafe filter/sort/search, and dynamic query audit
+- JWT/session validation audit for Clerk, NextAuth, API tokens, webhooks, and service-to-service paths
+- chat scope guardrails so app chat cannot retrieve, summarize, tool-call, or exfiltrate data across tenants
+- service-role keys and privileged secrets are not exposed to the browser/client bundle
+- no unbounded list endpoints for sensitive resources
+
+For every route, record:
+
+```text
+Route | Method | Auth required | Team scope required | Resource ownership check | Mutable fields whitelist | Rate limit | Raw SQL used? | JWT/session validation | Test exists? | Verdict
+```
+
+## ACT
+
+Create or update:
+
+```text
+docs/audits/application-security-hardening-plan.md
+docs/codex/VERIFICATION_MATRIX.md
+docs/codex/WORKFLOW_STATE.md
+```
+
+Required Stage 12A outputs:
+
+- focused route/server-action inventory for the minimum gate
+- `CRITICAL` and `HIGH` findings for IDOR, auth, tenant isolation, mass assignment, raw SQL, rate limits, app-chat scope, client-bundle secret exposure, and unbounded sensitive list endpoints
+- fix/risk-acceptance plan for every minimum-gate blocker
+- targeted test plan for unit, integration, API smoke, and abuse-case coverage
+
+## REPLAN
+
+Controlled beta remains blocked until Stage 12A is `READY_FOR_NEXT_STAGE` and no unresolved critical/high minimum-gate findings remain.
+
+## Stage 12B: Deep security hardening for public/enterprise production
+
+This gate runs before public launch, enterprise launch, or scale marketing. It should not block functional production-readiness work, but it must block any public/enterprise readiness claim.
 
 ## CHECK
 
@@ -702,13 +757,7 @@ Map every protected endpoint and server action touching:
 - chat/assistant routes
 - file/knowledge-base routes
 
-For every route, record:
-
-```text
-Route | Method | Auth required | Team scope required | Resource ownership check | Mutable fields whitelist | Rate limit | Raw SQL used? | JWT/session validation | Test exists? | Verdict
-```
-
-The security-hardening audit must cover, at minimum:
+The deep-hardening audit must cover:
 
 - tenant isolation and IDOR resistance for every team-scoped resource
 - server-side role enforcement for owner/admin/member/viewer style permissions
@@ -724,6 +773,13 @@ The security-hardening audit must cover, at minimum:
 - AI-chat prompt injection, data exfiltration, cross-tenant retrieval, tool-calling, and knowledge-base access controls
 - audit logging, sensitive-data redaction, and error-response leakage
 - dependency, secret, and browser-bundle exposure checks relevant to app security
+- full abuse-case tests
+- prompt injection tests
+- SSRF checks
+- CSRF, CORS, redirect, host-header, callback URL, and security-header hardening
+- file upload and knowledge-base hardening
+- enterprise role matrix
+- formal risk acceptance for any remaining high-risk issue
 
 Use `docs/audits/application-security-hardening-plan.md` as the control checklist. Infrastructure health can be marked green only as infrastructure readiness; it does not satisfy this stage.
 
@@ -741,13 +797,13 @@ Required outputs:
 
 - route inventory table with the columns listed above
 - prioritized findings grouped as `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`, or `NEEDS_VERIFICATION`
-- explicit production-readiness blockers for missing auth, tenant scoping, ownership checks, mutation allowlists, rate limits, AI-chat controls, or tests
-- test plan for unit, integration, Playwright/API smoke, and abuse-case coverage
-- sign-off criteria that require all critical/high app-security findings to be fixed or formally risk-accepted before CI/final readiness
+- explicit public/enterprise-readiness blockers for missing auth, tenant scoping, ownership checks, mutation allowlists, rate limits, AI-chat controls, file/KB controls, CSRF/CORS/header posture, audit logging/redaction, enterprise role matrix, or tests
+- test plan for unit, integration, Playwright/API smoke, prompt-injection, SSRF, file/KB, and abuse-case coverage
+- sign-off criteria that require all critical/high deep-hardening findings to be fixed or formally risk-accepted before public/enterprise readiness
 
 ## REPLAN
 
-Do not proceed to CI/PR strategy, controlled beta, or production readiness while this stage is `NOT_CHECKED`, `NEEDS_REPLAN`, `BLOCKED`, or has unresolved critical/high findings.
+Do not mark public/enterprise production ready while Stage 12B is `NOT_CHECKED`, `NEEDS_REPLAN`, `BLOCKED`, or has unresolved critical/high findings.
 
 ---
 
@@ -847,7 +903,7 @@ If blockers remain, do not mark complete. Write the next action plan.
 - Health checks verify schema/migrations/project, not just `SELECT 1`.
 - Clerk session to app DB user/team smoke implemented.
 - Redis/cache/queue environment isolation implemented.
-- Application security hardening and abuse-resistance stage completed with no unresolved critical/high blockers.
+- Minimum security gate completed before controlled beta, and deep security hardening completed before public/enterprise production.
 - Preview cannot write production DB/cache unless explicitly allowed.
 - CI blocks future DB/schema drift.
 - Runbooks exist.

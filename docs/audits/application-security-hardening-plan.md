@@ -7,9 +7,19 @@ Latest verified `main` SHA: `88dd014a07c583ce2fd528dcee49c756d937cf6d`
 
 ## Executive summary
 
-Application security hardening is a mandatory production-readiness blocker for CraftMyFunnel Teams and Enterprise Edition. A green Vercel deployment, a `200` health response, or a basic database connectivity result can prove infrastructure liveness, but it does not prove that protected multi-tenant application behavior is safe.
+Application security hardening is mandatory for CraftMyFunnel Teams and Enterprise Edition, but it must be sequenced so it does not derail functional production-readiness work. A green Vercel deployment, a `200` health response, or a basic database connectivity result can prove infrastructure liveness, but it does not prove that protected multi-tenant application behavior is safe.
 
-This plan adds a required security-hardening phase before CI/PR strategy and final readiness. The phase must prove tenant isolation, authorization, input validation, mutation controls, rate limits, abuse resistance, and AI-chat data boundaries before any controlled-beta or production-ready claim.
+This plan splits security into two levels: a minimum security gate before controlled beta, and deep security hardening before public or enterprise production.
+
+## Execution sequencing
+
+Functional production readiness comes first. The immediate work remains DB linkage, API origin verification, Railway proxy readiness, Supabase schema/migration status, Clerk user/team linkage, Redis/cache isolation, health checks, feature completeness, and CI/build/test gates.
+
+Minimum security gate comes before controlled beta. The app must not be called controlled-beta ready until functional readiness is mostly green and minimum checks pass for IDOR/team isolation, server-side role and ownership checks, mass assignment allowlists, basic rate limits, raw SQL/unsafe query usage, JWT/session validation, chat scope guardrails, service-role key exposure, and unbounded sensitive list endpoints.
+
+Deep security hardening comes before public or enterprise launch. The app must not be called public-ready or enterprise-ready until full route inventory, abuse-case tests, prompt injection tests, SSRF checks, CSRF/CORS/security headers, file upload and knowledge-base hardening, audit logging/redaction, enterprise role matrix, and formal risk acceptance are complete.
+
+DB readiness green is infrastructure readiness only. The app must not be called production-ready until both functional readiness and the minimum security gate are complete. The app must not be called public/enterprise ready until deep hardening is complete.
 
 ## Latest main reassessment
 
@@ -65,23 +75,26 @@ Verdict values:
 
 ## Mandatory control checklist
 
-| Control area | Required proof | Blocks readiness if missing? |
+| Control area | Required proof | Gate classification |
 | --- | --- | --- |
-| Auth coverage | Every protected route/server action validates Clerk, NextAuth, API token, webhook signature, or service identity server-side | Yes |
-| Tenant isolation | Every team-scoped read/write verifies team membership and resource ownership, not just a client-selected `teamId` | Yes |
-| Role enforcement | Privileged actions enforce server-side roles for owners/admins/members/viewers | Yes |
-| Mutable-field allowlists | Create/update endpoints accept only reviewed fields and reject unsafe mass assignment | Yes |
-| Runtime validation | Request params, query, body, form data, files, and server action args are validated at runtime | Yes |
-| Database safety | Prisma raw SQL and dynamic filters/sorts/searches are parameterized and validated | Yes |
-| CSRF posture | Cookie-authenticated state-changing routes/server actions have CSRF or strict origin protections | Yes |
-| Rate limits | Auth, invite, import, send, webhook, analytics, and AI-chat paths have user/IP/team-aware throttles | Yes |
-| AI-chat isolation | Assistant routes cannot retrieve, summarize, tool-call, or exfiltrate data across tenants | Yes |
-| File/KB safety | Upload, ingestion, download, and knowledge-base routes validate type/size/path/access | Yes |
-| SSRF protection | URL import, webhook, scraping, preview, enrichment, and integration fetch paths restrict destinations | Yes |
-| XSS/content safety | User HTML, markdown, email content, and assistant output are sanitized or safely rendered | Yes |
-| Security headers/CORS | CSP, frame protections, CORS, redirect, host/callback URL controls are verified in app or edge | Yes for exploitable gaps |
-| Logging/redaction | Errors and logs avoid secrets, tokens, cookies, PII overexposure, and internal stack leakage | Yes for high-risk leakage |
-| Tests | Critical/high controls have unit, integration, or API smoke coverage | Yes |
+| Auth coverage | Every protected route/server action validates Clerk, NextAuth, API token, webhook signature, or service identity server-side | Minimum gate |
+| Tenant isolation / IDOR | Every team-scoped read/write verifies team membership and resource ownership, not just a client-selected `teamId` | Minimum gate |
+| Role enforcement | Privileged actions enforce server-side roles for owners/admins/members/viewers | Minimum gate |
+| Mutable-field allowlists | Create/update endpoints accept only reviewed fields and reject unsafe mass assignment | Minimum gate |
+| Basic rate limits | Auth, invite, import, export, send, webhook, campaign, and AI-chat paths have user/IP/team-aware throttles | Minimum gate |
+| Database safety | Prisma raw SQL and dynamic filters/sorts/searches are parameterized and validated | Minimum gate |
+| JWT/session validation | Clerk, NextAuth, API-token, webhook, and service-to-service auth cannot be bypassed or confused | Minimum gate |
+| AI-chat scope control | Assistant routes cannot retrieve, summarize, tool-call, or exfiltrate data across tenants | Minimum gate now, deeper prompt-injection testing later |
+| Client-bundle secret exposure | Service-role keys and privileged secrets are not exposed to browser-delivered code | Minimum gate |
+| Sensitive list bounds | Sensitive list endpoints are scoped, paginated, and bounded | Minimum gate |
+| CSRF posture | Cookie-authenticated state-changing routes/server actions have CSRF or strict origin protections | Deep hardening unless an immediate exploit path is found |
+| File/KB safety | Upload, ingestion, download, and knowledge-base routes validate type/size/path/access | Deep hardening unless exposed to beta users |
+| SSRF protection | URL import, webhook, scraping, preview, enrichment, and integration fetch paths restrict destinations | Deep hardening unless exposed to beta users |
+| XSS/content safety | User HTML, markdown, email content, and assistant output are sanitized or safely rendered | Deep hardening unless an immediate exploit path is found |
+| Security headers/CORS | CSP, frame protections, CORS, redirect, host/callback URL controls are verified in app or edge | Deep hardening |
+| Logging/redaction | Errors and logs avoid secrets, tokens, cookies, PII overexposure, and internal stack leakage | Deep hardening unless high-risk leakage is observed |
+| Enterprise role matrix | Enterprise roles and permissions are documented and tested | Deep hardening |
+| Tests | Critical/high controls have unit, integration, API smoke, prompt-injection, SSRF, file/KB, or abuse-case coverage | Minimum for beta-critical risks; complete before public/enterprise |
 
 ## Abuse cases to prove
 
@@ -112,14 +125,23 @@ Do not rely on chat claims. Do not inspect, print, or store secret values. Do no
 
 ## Sign-off criteria
 
-This stage can be marked complete only when:
+Stage 12A can be marked complete only when:
+
+- functional production readiness is mostly green
+- minimum-gate inventory covers IDOR/team isolation, role/ownership checks, mass assignment, rate limits, raw SQL/unsafe queries, JWT/session validation, app-chat scope, service-role key exposure, and unbounded sensitive list endpoints
+- all critical/high minimum-gate findings are fixed or formally risk-accepted by an owner
+- beta-critical controls have tests or documented compensating evidence
+- `docs/codex/VERIFICATION_MATRIX.md` records the minimum security gate as passing
+- `docs/codex/WORKFLOW_STATE.md` records controlled beta as unblocked only after this gate passes
+
+Stage 12B can be marked complete only when:
 
 - the route inventory is complete for all listed domains
-- all `CRITICAL` and `HIGH` application-security findings are fixed or formally risk-accepted by an owner
+- all `CRITICAL` and `HIGH` deep-hardening findings are fixed or formally risk-accepted by an owner
 - all tenant isolation, role, ownership, mutable-field, and auth checks have tests or documented compensating evidence
-- AI-chat and knowledge-base isolation controls have explicit abuse-case coverage
-- rate-limit and expensive-operation abuse controls are verified
-- `docs/codex/VERIFICATION_MATRIX.md` records the app-security gate as passing
-- `docs/codex/WORKFLOW_STATE.md` moves Stage 12 to `READY_FOR_NEXT_STAGE`
+- AI-chat and knowledge-base isolation controls have explicit abuse-case and prompt-injection coverage
+- SSRF, CSRF/CORS/security headers, file upload/KB, audit logging/redaction, and enterprise role matrix controls are verified
+- formal risk acceptance exists for any remaining high-risk issue
+- `docs/codex/VERIFICATION_MATRIX.md` records the deep security hardening gate as passing
 
-Until then, CraftMyFunnel must remain not production-ready and not controlled-beta ready.
+Until Stage 12A passes, CraftMyFunnel must remain not controlled-beta ready. Until Stage 12B passes, CraftMyFunnel must remain not public/enterprise ready.

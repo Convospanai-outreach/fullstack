@@ -17,6 +17,9 @@ Use only these verdicts:
 - ENV_DRIFT
 - MIGRATION_DRIFT
 - RUNTIME_RISK
+- PARTIAL
+- NEEDS_REPLAN
+- SCHEDULED
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
@@ -155,21 +158,18 @@ Use only these verdicts:
 | Additive auth migration plan | Plan additive changes safely | `docs/audits/auth-invite-additive-migration-plan.md` created 2026-06-18; outlines SQL script, enum expansion risk, rollback limits, preflight checks, backups | PASS | prisma-drift-agent | Non-destructive plan drafted |
 | Live DB schema verification execution | Execute read-only verification against Supabase | Run queries from live-schema-verify-plan.md; blocked due to missing connection credentials locally; output and missing keys documented in docs/audits/live-schema-verify-output.md | BLOCKED_EXTERNAL_ACCESS | prisma-drift-agent | Requires DATABASE_URL/DIRECT_URL credentials |
 
-## Application security hardening gate matrix
+## Functional and security sequencing matrix
 
 | Gate | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Stage 12 exists | Application security hardening and abuse-resistance must run after Redis/cache/queue isolation and before CI/PR strategy or final readiness | `docs/codex/IMPLEMENTATION_PLAN.md` now defines Stage 12; `docs/audits/application-security-hardening-plan.md` created | PASS | security-hardening-agent | Docs-only change; no runtime code, schema, env, OAuth, extension, or PR #6 changes |
+| Functional production readiness path | DB linkage, API origin, Railway proxy, Supabase schema/migration proof, Clerk user/team linkage, Redis/cache isolation, health checks, core features, and CI/build/test gates should be mostly green before security gate execution | Existing matrices still show DB/schema/API origin/CI/env blockers; PR #44 now states this remains the immediate focus | NEEDS_REPLAN | release-readiness-agent | Functional readiness comes first; no production-ready claim yet |
+| Stage 12 exists | Security is split into Stage 12A minimum beta gate and Stage 12B deep public/enterprise hardening | `docs/codex/IMPLEMENTATION_PLAN.md` now defines both sub-stages; `docs/audits/application-security-hardening-plan.md` updated with execution sequencing | PASS | security-hardening-agent | Docs-only change; no runtime code, schema, env, OAuth, extension, or PR #6 changes |
 | Latest main reassessed | Latest `main` SHA must be verified before relying on readiness docs | `origin/main` verified as `88dd014a07c583ce2fd528dcee49c756d937cf6d` after `git fetch origin --prune` | PASS | security-hardening-agent | Reassessment recorded in application security audit |
 | DB-health-green commit on main | Gemini/docs DB-health-green commit must be confirmed before treating it as current main state | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` exists on `docs/api-db-health-resolved`; ancestry check returned `NOT_ON_MAIN` for `origin/main` | FAIL | security-hardening-agent | Do not rely on that commit as current main evidence |
-| DB health classification | A green `/api/health` DB result should be infrastructure readiness only, not full app readiness | Audit explicitly classifies DB health as infrastructure readiness only until tenant/authz/abuse controls pass | PASS | security-hardening-agent | Prevents false production-ready or controlled-beta-ready claims |
-| Protected route inventory | Every protected route/server action touching teams, users, roles, leads, campaigns, mailboxes, inboxes, analytics, settings, billing, invitations, integrations, API keys, chat, and files/KB must be mapped | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Blocks final readiness until complete |
-| Tenant isolation and IDOR proof | Team-scoped resources require server-side team membership and resource ownership checks | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Critical/high gaps block readiness |
-| Role and mutation allowlists | Privileged actions enforce server-side roles and create/update endpoints whitelist mutable fields | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Critical/high gaps block readiness |
-| Auth/session/JWT/webhook validation | Protected app/API/service paths validate the right identity primitive server-side | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Critical/high gaps block readiness |
-| Rate limits and abuse controls | Auth, invite, import, campaign send, webhook, analytics, AI chat, and expensive routes have user/IP/team-aware controls | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Missing controls block readiness |
-| AI-chat and knowledge-base isolation | Assistant/tool/RAG routes cannot retrieve or exfiltrate cross-tenant data | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Mandatory before Teams/Enterprise readiness |
-| Test coverage | Critical/high controls have unit, integration, API smoke, or abuse-case tests | Not executed in this docs-only pass | NOT_CHECKED | security-hardening-agent | Missing tests or compensating evidence block readiness |
+| DB health classification | A green `/api/health` DB result should be infrastructure readiness only, not full app readiness | Audit explicitly classifies DB health as infrastructure readiness only until functional readiness and minimum security gate pass | PASS | security-hardening-agent | Prevents false production-ready or controlled-beta-ready claims |
+| Minimum security gate for controlled beta | IDOR/team isolation, role/ownership checks, mass assignment allowlists, basic rate limits, raw SQL audit, JWT/session validation, chat scope guardrails, service-role key exposure, and unbounded sensitive list endpoints must be checked before real customer/team beta | Not executed in this docs-only pass | MISSING | security-hardening-agent | Controlled beta remains blocked until this passes |
+| Deep security hardening for public/enterprise production | Full route inventory, full abuse tests, prompt injection tests, SSRF, CSRF/CORS/security headers, file/KB hardening, audit logging/redaction, enterprise role matrix, and risk acceptance must be complete before public/enterprise launch | Sequenced after functional readiness and the minimum beta gate | SCHEDULED | security-hardening-agent | Public/enterprise readiness remains blocked until this passes |
+| Preserved security attack classes | IDOR, mass assignment, broken rate limiting, SQL injection, JWT/session manipulation, app-chat scope control, and DB/multi-tenant hardening remain in the plan | Stage 12A covers immediate cross-tenant/auth/data/cost risks; Stage 12B covers broader enterprise testing | PASS | security-hardening-agent | Attack classes preserved but sequenced |
 
 ## Dependency security gate matrix
 
