@@ -61,13 +61,23 @@ Reason:
 - It does not resolve API origin, schema/migration proof, Clerk user/team linkage, Redis isolation, deep health, or PR #6.
 - A fresh pass should capture current production evidence, with no secret values and no production mutation.
 
+## PR dependency order
+
+PR #44 should merge first because it updates the implementation map with Stage 12A minimum security gate and Stage 12B deep security hardening sequencing.
+
+PR #45 should merge after PR #44, or be refreshed after PR #44 merges, so its reassessment language can accurately say whether Stage 12A/12B is present on `main`.
+
+The DB-health-green branch `docs/api-db-health-resolved` should not be merged as-is. It should be superseded by a fresh production verification PR based on current evidence.
+
+PR #6 remains blocked and must not merge as-is.
+
 ## Exact next 5 actions
 
-1. Merge or close PR #44 intentionally. If merged, update the implementation map on main to include Stage 12A/12B; if not merged, keep functional readiness work independent of that pending docs PR.
-2. Run a fresh non-mutating production health audit for `/api/health`, `/api/health?probe=ready`, and `/api/health?probe=live`; record whether DB readiness is currently `up` or `down` on main-era production.
-3. Confirm Vercel Production `DATABASE_URL` and `DIRECT_URL` presence/target fingerprints plus canonical Supabase ref without exposing values; then run the read-only schema verifier with approved expected migration count/fingerprint.
-4. Confirm the active Railway backend API service and exact public/custom HTTPS origin for `API_INTERNAL_ORIGIN`; document only the safe origin fingerprint and whether Vercel production is configured.
-5. Rebaseline functional smoke after DB/API-origin proof: Clerk user/team linkage, Redis/cache namespace behavior, protected health/deep health, CI/live schema gates, and a small core feature smoke for leads/campaigns/inbox.
+1. Merge PR #44.
+2. Refresh or merge PR #45 after PR #44 is handled.
+3. Freshly verify production `/api/health` and `/api/health?probe=ready`.
+4. Create a new DB-health resolution PR only from fresh evidence.
+5. Verify `API_INTERNAL_ORIGIN` / Railway backend origin.
 
 ## PR #6 status
 
