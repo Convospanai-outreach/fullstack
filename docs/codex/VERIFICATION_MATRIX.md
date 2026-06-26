@@ -20,6 +20,20 @@ Use only these verdicts:
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
+## Post-PR44 functional readiness reassessment
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Current `origin/main` SHA must be known before readiness decisions | `git rev-parse origin/main` returned `88dd014a07c583ce2fd528dcee49c756d937cf6d` | PASS | functional-readiness-reassessment-agent | Fetched before docs update. |
+| PR #44 merged | Security sequencing should be on main before treating Stage 12A/12B as canonical | `gh pr view 44` reports `state: OPEN`, `mergedAt: null`, `mergeCommit: null`, head `db1499ad3da9457b5aaefbda8c54015f82a37243` | FAIL | functional-readiness-reassessment-agent | PR #44 is ready but not merged. |
+| DB-health-green docs commit on main | Commit `2a60a5926275efdbc95eb1df40197371a1004b76` should be on main before using it as main evidence | Ancestry check returned `NOT_ON_MAIN` | FAIL | functional-readiness-reassessment-agent | Commit is on `docs/api-db-health-resolved`, not `main`. |
+| Production health documented as 200 on main | Main docs should show `/api/health` and `/api/health?probe=ready` returning 200 before DB readiness is considered resolved | Main docs still record both endpoints as `503` with `checks.database: "down"` | FAIL | functional-readiness-reassessment-agent | The 200/up evidence is off-main only. |
+| DB-health-green branch disposition | Decide whether to merge, cherry-pick, or supersede off-main DB-health docs | `docs/audits/production-readiness-next-actions.md` recommends superseding with a fresh verification pass | PASS | functional-readiness-reassessment-agent | Do not merge/cherry-pick stale off-main evidence as-is. |
+| API_INTERNAL_ORIGIN / Railway backend origin | Canonical backend API origin should be confirmed before Vercel env changes | Existing docs still show backend origin unknown/not set | BLOCKED_EXTERNAL_ACCESS | functional-readiness-reassessment-agent | Requires Railway/Vercel dashboard confirmation without secrets. |
+| Stale Railway required checks | Stale `illustrious-warmth` contexts should not block release | Latest main commit status still includes `illustrious-warmth` success/no-op contexts; required status checks API returns `404 Branch not protected` | PASS | functional-readiness-reassessment-agent | Stale contexts still appear, but are not currently proven required. |
+| Functional readiness blockers | DB linkage, schema/migration proof, Prisma drift, Clerk linkage, Redis isolation, health/deep readiness, CI policy, and feature completeness should be clear | `docs/audits/production-readiness-next-actions.md` lists remaining blockers and next 5 actions | FAIL | functional-readiness-reassessment-agent | Product is not production-ready. |
+| PR #6 status | PR #6 should remain blocked until schema/env/runtime strategy is stable | Existing workflow state keeps PR #6 blocked; next-actions doc confirms it remains blocked | PASS | functional-readiness-reassessment-agent | Do not touch PR #6. |
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

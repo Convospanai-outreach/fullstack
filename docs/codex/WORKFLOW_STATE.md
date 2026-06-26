@@ -7,13 +7,13 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | API origin and production health readiness diagnosis |
-| Current agent | api-origin-health-readiness-agent |
-| Working branch | codex/api-origin-health-readiness |
-| Baseline commit inspected | d3bcbb3a12d7c184c0258cfaa0ea8cf5ab6fa8e8 |
+| Current stage | Functional production readiness reassessment after PR #44 sequencing work |
+| Current agent | functional-readiness-reassessment-agent |
+| Working branch | docs/functional-readiness-reassessment |
+| Baseline commit inspected | 88dd014a07c583ce2fd528dcee49c756d937cf6d |
 | API Internal Origin | NOT_SET_BY_USER; backend origin unknown |
-| Last updated | 2026-06-24 |
-| Next action | Use dashboard access to confirm Vercel Production `DATABASE_URL`, canonical Railway/custom API origin for `API_INTERNAL_ORIGIN`, and branch-protection required-check cleanup for stale `illustrious-warmth` contexts |
+| Last updated | 2026-06-26 |
+| Next action | Complete fresh functional readiness verification: DB readiness, read-only schema/migration proof, canonical Railway API origin, Clerk user/team linkage, Redis isolation, protected/deep health, and core feature smoke |
 
 ## Status values
 
@@ -42,6 +42,7 @@ Use only these values:
 | Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run Stage 13 mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
+| PR #44 security sequencing not on main | functional-readiness-reassessment-agent | `gh pr view 44` reports `state: OPEN`, `mergedAt: null`, `mergeCommit: null`, head `db1499ad3da9457b5aaefbda8c54015f82a37243` | Do not assume Stage 12A/12B exists on main until PR #44 merges or equivalent docs land | NEEDS_REPLAN |
 | PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
 
 ## Stage tracker
@@ -80,9 +81,16 @@ Use only these values:
 | Stale Railway check cleanup and phased improvement plan | release-gate-cleanup-agent | NEEDS_REPLAN | docs/audits/stale-railway-check-removal.md, docs/plans/next-phased-production-improvements.md | Latest main `bbd3d47` still received stale `illustrious-warmth` statuses. Branch protection required checks could not be read with current tooling (`401 Unauthorized`), so manual GitHub UI cleanup steps are documented. |
 | Post-PR39 production custom-domain smoke and API proxy readiness | post-pr39-production-smoke-agent | NEEDS_REPLAN | docs/audits/production-custom-domain-smoke-after-pr39.md, docs/audits/api-proxy-origin-readiness.md | Latest main `6d01210` has requested GitHub Actions, Vercel, and Railway contexts green; public custom-domain smoke passed with zero `/api/auth/session` calls; `/dashboard` redirects to login. Overall remains blocked because `API_INTERNAL_ORIGIN` cannot be proven and `/api/health` reports database down. |
 | API origin and production health readiness diagnosis | api-origin-health-readiness-agent | NEEDS_INPUT | docs/audits/api-origin-production-health.md, docs/audits/production-health-db-down-root-cause.md | Latest main d3bcbb3 has GitHub Actions, Vercel, and active statuses green. Health liveness passes (200), readiness fails (503 DB down), proxy is auth-protected (401). |
+| Post-PR44 functional readiness reassessment | functional-readiness-reassessment-agent | NEEDS_REPLAN | docs/audits/production-readiness-next-actions.md | Latest main is `88dd014`; PR #44 is open/unmerged; DB-health-green commit `2a60a59` is off-main; main still documents DB readiness down; API origin, live schema proof, Clerk linkage, Redis isolation, deep health, and PR #6 remain blockers. |
 
 ## Latest findings
 
+- Post-PR44 reassessment on 2026-06-26 inspected latest `origin/main` at `88dd014a07c583ce2fd528dcee49c756d937cf6d`.
+- PR #44 is not merged: `gh pr view 44` reports `state: OPEN`, `mergedAt: null`, and head `db1499ad3da9457b5aaefbda8c54015f82a37243`.
+- DB-health-green docs commit `2a60a5926275efdbc95eb1df40197371a1004b76` remains off-main; `git merge-base --is-ancestor 2a60a59 origin/main` returned `NOT_ON_MAIN`.
+- Main currently documents production `/api/health` and `/api/health?probe=ready` as `503` with `checks.database: "down"`; the 200/up documentation exists only on the off-main DB-health branch.
+- Latest main commit status includes Vercel success and Railway contexts success/no-op, including stale `illustrious-warmth` contexts. GitHub required status checks API returned `404 Branch not protected`, so stale Railway contexts are not currently proven required checks.
+- Functional readiness remains blocked by DB readiness proof beyond `SELECT 1`, read-only Supabase schema/migration proof, API origin, Clerk user/team linkage, Redis/cache isolation, protected/deep health, CI/live schema policy, feature smoke, and PR #6.
 - API origin and health diagnosis on latest main `d3bcbb3a12d7c184c0258cfaa0ea8cf5ab6fa8e8` confirmed PR #41 is merged. GitHub Actions are green: `CI`, `Production Readiness Gate`, `Vercel Parity Build`, `Phi-3 Verification`, and CodeQL completed successfully.
 - Vercel status for `d3bcbb3` is `success`. Active `airy-balance` Railway contexts are success. Stale `illustrious-warmth` contexts still appear as no-op success statuses and should not be treated as release gates, but branch-protection required-check cleanup still needs manual admin confirmation.
 - Production `/api/health` defaults to readiness in production and returns `503` with `checks.database: "down"`. Production `/api/health?probe=live` returns `200`, proving process liveness is healthy. Production `/api/health?probe=ready` returns the same DB-down `503`.
