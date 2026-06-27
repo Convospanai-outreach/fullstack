@@ -53,6 +53,20 @@ module.exports = {
                 mono: ["var(--font-jetbrains-mono)", "monospace"],
                 outfit: ["var(--font-outfit)", "sans-serif"],
             },
+            fontSize: {
+                '2xs': ['10px', { lineHeight: '1.4', letterSpacing: '0.04em' }],
+                'xs':  ['11px', { lineHeight: '1.5' }],
+                'sm':  ['12.5px', { lineHeight: '1.5' }],
+                'base': ['14px', { lineHeight: '1.6' }],
+                'lg':  ['16px', { lineHeight: '1.5' }],
+                'xl':  ['18px', { lineHeight: '1.4' }],
+                '2xl': ['22px', { lineHeight: '1.2', letterSpacing: '-0.02em' }],
+            },
+            fontWeight: {
+                normal: '400',
+                medium: '500',
+                // Do not use semibold (600) or bold (700) in dashboard components
+            },
             boxShadow: {
                 'clerk': '0 0 0 1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.05), 0 12px 24px rgba(0,0,0,0.05)',
                 'glow': '0 0 20px rgba(99, 102, 241, 0.2)',

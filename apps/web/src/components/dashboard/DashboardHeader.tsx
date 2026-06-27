@@ -1,89 +1,74 @@
 "use client";
 
+/*
+ * DashboardHeader.tsx — Redesigned header
+ *
+ * Changes from previous version:
+ * - Removed: user identity widget (avatar, name, plan badge) — lives in sidebar footer
+ * - Removed: bannerOffset prop — setup banner is now inline in page content, not fixed
+ * - Removed: Ask AI button, QuickActions, separate identity widget
+ * - Added: Mode badge ("Manual mode") with pulse indicator
+ * - Added: Single search trigger (⌘K → Omnibox) — replaces dual search surfaces
+ * - Kept: Mobile hamburger, notification bell, help icon
+ * - Height: h-12 (48px), border-b border-white/6
+ */
+
+import { Menu, Search, Bell, HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import Link from "next/link";
-import OfflineIndicator from "@/components/layout/OfflineIndicator";
-import {
-    Search,
-    Sparkles,
-    Menu,
-} from "lucide-react";
-import { QuickActions } from "./QuickActions";
-import { useUser } from "@clerk/nextjs";
-import { LogoMark } from "@/components/brand/LogoMark";
 
-function getUserInitials(name?: string | null): string {
-    if (!name) return "U";
-    const parts = name.trim().split(/\s+/).filter(p => p.length > 0);
-    if (parts.length >= 2 && parts[0] && parts[1]) {
-        return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-    }
-    return (name.trim().charAt(0) || "U").toUpperCase();
+interface DashboardHeaderProps {
+  onToggleSidebar: () => void;
 }
 
-export function DashboardHeader({ onToggleSidebar, bannerOffset }: { onToggleSidebar?: () => void; bannerOffset?: boolean }) {
-    const { user } = useUser();
-    const initials = getUserInitials(user?.fullName || user?.firstName);
+export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
+  return (
+    <header className="fixed top-0 left-0 lg:left-48 right-0 h-12 border-b border-white/6 z-40 flex items-center gap-3 px-5 bg-surface-app/90 backdrop-blur-md">
+      {/* Left: mobile hamburger */}
+      <button
+        onClick={onToggleSidebar}
+        className="lg:hidden p-1.5 rounded-md hover:bg-white/5 text-white/40 hover:text-white/70 transition-colors"
+        aria-label="Toggle sidebar"
+      >
+        <Menu className="w-4 h-4" />
+      </button>
 
-    return (
-        <header className={`fixed ${bannerOffset ? 'top-12' : 'top-0'} left-0 lg:left-64 right-0 h-16 border-b border-border z-40 flex items-center justify-between px-4 lg:px-8 bg-surface-app/80 backdrop-blur-md transition-all duration-300`}>
-            {/* Left: Mobile toggle + Logo */}
-            <div className="flex items-center gap-4">
-                {/* Mobile sidebar toggle */}
-                <button
-                    onClick={onToggleSidebar}
-                    className="lg:hidden p-2 rounded-lg hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Toggle sidebar"
-                >
-                    <Menu className="w-5 h-5" />
-                </button>
+      {/* Center: single search trigger */}
+      <button
+        className="flex items-center gap-2 px-3 h-8 rounded-md text-xs text-white/25
+                   bg-white/4 border border-white/7 hover:bg-white/6 transition-colors flex-1 max-w-64"
+        onClick={() => {
+          // Open the Omnibox — uses the same ⌘K shortcut mechanism
+          window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
+        }}
+        aria-label="Search leads, campaigns… (⌘K)"
+      >
+        <Search className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="flex-1 text-left">Search leads, campaigns…</span>
+        <kbd className="ml-auto text-[10px] bg-white/6 rounded px-1.5">⌘K</kbd>
+      </button>
 
-                <Link href="/dashboard" className="flex items-center gap-2 group lg:hidden">
-                    <LogoMark className="h-7 w-7" />
-                    <span className="text-lg font-black tracking-tight text-foreground font-outfit">CraftMyFunnel</span>
-                </Link>
-            </div>
+      {/* Right zone: mode badge + bell + help */}
+      <div className="ml-auto flex items-center gap-2">
+        {/* Mode badge */}
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+                        text-emerald-400 bg-emerald-500/8 border border-emerald-500/18">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          Manual mode
+        </div>
 
-            {/* Right: Search, Actions & Profile */}
-            <div className="flex items-center gap-3 lg:gap-4">
-                <div 
-                    className="relative max-w-sm w-48 lg:w-64 hidden md:block group cursor-pointer"
-                    onClick={() => window.dispatchEvent(new CustomEvent('convo:open-command-palette'))}
-                >
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-500 transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="Search..."
-                        readOnly
-                        className="w-full bg-surface-accent/50 border border-input rounded-lg pl-10 pr-16 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:bg-surface-accent focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/20 transition-all cursor-pointer"
-                    />
-                    <kbd className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[10px] font-mono font-bold text-muted-foreground/60 bg-white/5 border border-white/10 rounded px-1.5 py-0.5 tracking-wider">⌘K</kbd>
-                </div>
+        {/* Notification bell */}
+        <NotificationBell />
 
-                <div className="h-6 w-px bg-border hidden md:block" />
-
-                <button
-                    className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-brand-500/10 hover:bg-brand-500/20 text-brand-400 border border-brand-500/20 transition-all text-sm font-medium group"
-                    aria-label="Ask AI"
-                >
-                    <Sparkles className="w-4 h-4 group-hover:text-brand-300 transition-colors" />
-                    <span className="hidden lg:inline">Ask AI</span>
-                </button>
-
-                <OfflineIndicator />
-                <QuickActions />
-
-                <div className="h-6 w-px bg-border" />
-
-                <NotificationBell />
-
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 p-[2px] cursor-pointer hover:scale-110 transition-all duration-200 shadow-sm hover:shadow-indigo-500/30">
-                    <div className="w-full h-full rounded-full bg-surface-panel flex items-center justify-center overflow-hidden">
-                        <span className="text-xs font-bold text-white">{initials}</span>
-                    </div>
-                </div>
-            </div>
-        </header>
-    );
+        {/* Help */}
+        <Link
+          href="/help"
+          className="p-1.5 rounded-md text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+          aria-label="Help"
+        >
+          <HelpCircle className="w-4 h-4" />
+        </Link>
+      </div>
+    </header>
+  );
 }
-
