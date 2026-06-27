@@ -53,17 +53,17 @@ Use only these verdicts:
 | Vercel runtime logs | No API origin, recursive proxy, DB, or upstream fetch failures after redeploy | Vercel runtime log query for deployment `dpl_ARQQj8V2Cua47YgvSiRCaVEo4gZN` found no matching `API_INTERNAL_ORIGIN`, `recursive proxy`, `database`, or `fetch failed` logs; error/fatal query returned no errors | PASS | production-runtime-verification-agent | One warning: hardware verification failed and app ran software-only during `/api/health`. |
 | Production readiness verdict | Product should not be marked ready unless all functional gates pass | `docs/audits/production-runtime-verification-after-api-origin.md` keeps explicit not-production-ready verdict and lists remaining blockers | FAIL | production-runtime-verification-agent | Health green is infrastructure readiness only. |
 
-## Authenticated proxy verification planning (2026-06-26T17:13+05:30)
+## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Latest main SHA | Current `origin/main` SHA must be known | `cb22be7507dce017a0e0d257d3e55195bcc7bae2` | PASS | production-runtime-verification-agent | PR #48 is merged. |
+| Latest main SHA | Current `origin/main` SHA must be known | `428bae6fab693196b9e0a3d309446049607f8963` | PASS | production-runtime-verification-agent | PRs #49 and #50 are merged. |
 | PR #47 merged | PR #47 should be on main | Merged and pulled | PASS | production-runtime-verification-agent | Green health checks recorded on main. |
 | PR #48 merged | PR #48 should be on main | Merged and pulled | PASS | production-runtime-verification-agent | Authenticated proxy verification plan on main. |
 | Authenticated proxy plan | Create safe read-only protocol and boundaries | Created `docs/audits/authenticated-proxy-verification-plan.md` | PASS | production-runtime-verification-agent | Does not mutate data or bypass auth. |
-| Authenticated proxy forwarding | Verify proxy routes authenticated calls successfully | Not executed yet | NEEDS_VERIFICATION | production-runtime-verification-agent | Scheduled for manual execution. |
+| Authenticated proxy forwarding | Verify proxy routes authenticated calls successfully | Verified page-driven authenticated proxy requests route to backend returning valid responses | PASS | production-runtime-verification-agent | Verified `/setup`, `/intel`, `/inbox`, `/campaigns`, `/calendar`, `/notifications`, `/audit-logs`, `/billing` in `docs/audits/authenticated-proxy-verification.md` |
 | Unauthenticated proxy behavior | Verify middleware block | Unauthenticated `/api/proxy/health` returns `401 Unauthorized` | EXPECTED_AUTH_GATE | production-runtime-verification-agent | Expected by middleware design. |
-| Overall product readiness | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Infrastructure green only. |
+| Overall product readiness | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Infrastructure and proxy green; schema and security gates pending. |
 
 ## Vercel linkage matrix
 
