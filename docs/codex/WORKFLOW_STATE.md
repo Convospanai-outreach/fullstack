@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Authenticated proxy verification planning |
+| Current stage | Authenticated proxy verification execution |
 | Current agent | production-runtime-verification-agent |
-| Working branch | docs/authenticated-proxy-verification-plan-v2 |
-| Baseline commit inspected | cb22be7507dce017a0e0d257d3e55195bcc7bae2 |
+| Working branch | docs/verify-authenticated-proxy-flow |
+| Baseline commit inspected | 428bae6fab693196b9e0a3d309446049607f8963 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-26T17:13+05:30 |
-| Next action | Execute manual authenticated proxy forwarding verification |
+| Last updated | 2026-06-27T17:20+05:30 |
+| Next action | Proceed to Clerk user/team linkage and Redis isolation verification |
 
 ## Status values
 
@@ -43,7 +43,7 @@ Use only these values:
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_BY_SCHEMA_CONFLICT |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_BY_SCHEMA_CONFLICT |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
-| API_INTERNAL_ORIGIN authenticated proxy forwarding unverified | production-runtime-verification-agent | Public Railway HTTPS origin confirmed and healthy. Unauthenticated `/api/proxy/health` returns expected auth gate (`401`). Authenticated proxy forwarding is not yet verified. | Run manual authenticated proxy forwarding verification as planned | NEEDS_REPLAN |
+| API_INTERNAL_ORIGIN authenticated proxy forwarding verified | production-runtime-verification-agent | Authenticated proxy-to-Railway forwarding verified via browser, Vercel, and Railway logs under active session. | Proceed to Clerk user/team linkage and Redis isolation verification | READY_FOR_NEXT_STAGE |
 | Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run dependency alert mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
@@ -90,10 +90,12 @@ Use only these values:
 | API origin and production health readiness diagnosis | api-origin-health-readiness-agent | NEEDS_INPUT | docs/audits/api-origin-production-health.md, docs/audits/production-health-db-down-root-cause.md | Latest main d3bcbb3 has GitHub Actions, Vercel, and active statuses green. Health liveness passes (200), readiness fails (503 DB down), proxy is auth-protected (401). |
 | Post-PR44 functional readiness reassessment | functional-readiness-reassessment-agent | NEEDS_REPLAN | docs/audits/production-readiness-next-actions.md | Latest main is `6377dd3`; PR #44 is merged and Stage 12A/12B sequencing is on main; DB-health-green commit `2a60a59` is still off-main; main still documents DB readiness down; API origin, live schema proof, Clerk linkage, Redis isolation, deep health, and PR #6 remain blockers. |
 | Production runtime verification — green health recorded | production-runtime-verification-agent | NEEDS_REPLAN | docs/audits/production-runtime-verification-after-api-origin.md | Latest main is `a827db4`; PR #44 and #45 are merged; Railway API origin PASS, Railway API DB health PASS, Vercel web DB health PASS, Vercel readiness probe PASS, Vercel proxy unauthenticated EXPECTED_AUTH_GATE; authenticated proxy forwarding, Clerk linkage, Redis isolation, and Supabase schema proof still need verification; product remains NOT_READY. |
-| Authenticated proxy verification planning | production-runtime-verification-agent | NEEDS_REPLAN | docs/audits/authenticated-proxy-verification-plan.md | Latest main is `33a0efa`; PR #47 is merged; created authenticated proxy verification plan defining protocols, safe boundaries, and pass/fail criteria; overall product remains NOT_READY. |
+| Authenticated proxy verification planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification-plan.md | Latest main is 33a0efa; PR #47 is merged; created authenticated proxy verification plan defining protocols, safe boundaries, and pass/fail criteria; overall product remains NOT_READY. |
+| Authenticated proxy verification execution | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification.md | Verification executed successfully. Authenticated proxy forwarding verified on production host; Vercel-to-Railway forwarding proven for all core read-only routes. |
 
 ## Latest findings
 
+- **2026-06-27T17:20+05:30 verification execution pass** on latest main `428bae6fab693196b9e0a3d309446049607f8963` executed manual session testing protocol and recorded authenticated proxy verification proof in `docs/audits/authenticated-proxy-verification.md`. All core pages successfully routed GET requests through `/api/proxy` to Railway, returning 200 OK. Vercel and Railway logs verified matching path and timestamps.
 - **2026-06-26T16:44+05:30 verification planning pass** on latest main `33a0efa507dce017a0e0d257d3e55195bcc7bae2` created the authenticated proxy verification plan (`docs/audits/authenticated-proxy-verification-plan.md`) to guide the manual session testing protocol for Vercel-to-Railway forwarding.
 - **2026-06-26T15:48+05:30 verification pass** recorded green health for Railway API and Vercel web on latest main `a827db43697297ed19bc7308b71aefc8c34ab901`.
 - Railway API: `GET https://convospan-api-split-production.up.railway.app/health` → 200, `status: "healthy"`, `service: "craftmyfunnel-api"`, `database: "up"`, `edge: "not_configured"`, `edgeRequired: false`.
@@ -101,7 +103,7 @@ Use only these values:
 - Vercel readiness: `GET https://craftmyfunnel.live/api/health?probe=ready` → 200, `status: "healthy"`, `database: "up"`, `durationMs: 17`.
 - Vercel proxy: `GET https://craftmyfunnel.live/api/proxy/health` → 401, `{"error":"Unauthorized"}`. This is an expected auth gate; the proxy route is auth-protected by middleware design.
 - Readiness verdicts: Railway API origin PASS, Railway API DB health PASS, Vercel web DB health PASS, Vercel readiness probe PASS, Vercel proxy unauthenticated EXPECTED_AUTH_GATE. Overall product readiness: NOT_READY.
-- Remaining blockers: authenticated proxy-to-Railway forwarding, Clerk user/team linkage, Redis/cache isolation, Supabase schema/migration proof, Prisma/live DB drift, protected/deep health, feature completeness smoke, PR #6, Stage 12A, Stage 12B.
+- Remaining blockers: Clerk user/team linkage, Redis/cache isolation, Supabase schema/migration proof, Prisma/live DB drift, protected/deep health, feature completeness smoke, PR #6, Stage 12A, Stage 12B.
 - Post-PR44 refresh on 2026-06-26 inspected latest `origin/main` at `6377dd3cc0d3179b58136aad7249cd9355910a20`.
 - PR #44 is merged: `gh pr view 44` reports `state: MERGED`, `mergedAt: 2026-06-26T07:53:59Z`, and merge commit `6377dd3cc0d3179b58136aad7249cd9355910a20`.
 - Stage 12A minimum security gate and Stage 12B deep security hardening sequencing is now present on `main`.
