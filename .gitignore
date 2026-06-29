@@ -33,3 +33,4 @@ load-test.js
 check-*.js
 debug-*.js
 fix-env.js
+.vercel
