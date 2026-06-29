@@ -26,7 +26,9 @@
     "verify:before-push": "node scripts/check-web-prisma-imports.mjs && node scripts/check-web-route-db-imports.mjs && node scripts/check-web-auth-mode.mjs && npm --workspace apps/web run build",
     "schema:verify:readonly": "node scripts/db/verify-schema-readiness.mjs",
     "schema:verify:production": "node scripts/db/verify-schema-readiness.mjs --production",
-    "db:schema:compare": "node scripts/db/compare-prisma-schemas.mjs"
+    "db:schema:compare": "node scripts/db/compare-prisma-schemas.mjs",
+    "readiness:check-db-shape": "npx tsx scripts/readiness/check-db-shape.ts",
+    "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts"
   },
   "overrides": {
     "@hono/node-server": "1.19.13",
