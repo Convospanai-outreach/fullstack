@@ -97,6 +97,16 @@ Use only these verdicts:
 | Clerk user/team linkage | Verify Clerk identity maps to database tenant structure | Not executed yet | NEEDS_VERIFICATION | production-runtime-verification-agent | Scheduled for execution. |
 | Remaining blockers | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Supabase migration proof, Redis isolation, and security gates pending. |
 
+## Supabase schema/migration proof execution scripts (2026-06-29T15:45+05:30)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Commit `33b46cc` should be on main | Verified `33b46cc598007ea45f1b51fc3a5a8a1ff14ebbc8` | PASS | production-runtime-verification-agent | PR #55 is merged. |
+| Verification scripts added | check-db-shape and check-migration-status created | Scripts added to `scripts/readiness/` directory | PASS | production-runtime-verification-agent | Safe, read-only TS scripts. |
+| Production confirmation flag | Require `--allow-production-readonly` for remote targets | Checked URL checks and process args checking in scripts | PASS | production-runtime-verification-agent | Prevent accidental execution against production. |
+| Supabase schema/migration proof | Executed script check output confirmed | Execution results document added to `docs/audits/` | EXECUTION_SCRIPT_ADDED | production-runtime-verification-agent | Awaiting manual run against target DBs. |
+| Remaining blockers | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Redis isolation and Stage 12A gates pending. |
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
