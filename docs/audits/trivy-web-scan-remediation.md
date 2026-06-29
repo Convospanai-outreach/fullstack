@@ -1,8 +1,8 @@
 # Trivy Web Scan Triage & Remediation Report
 
-Date: 2026-06-29
+Date: 2026-06-30
 Repository: `Convospanai-outreach/fullstack`
-Latest Main SHA: `d53520bba68e1f5ea95d420237d667cc8a1891b4`
+Latest Main SHA: `01000f90c6340243451e04dbda7f918ddcf8f029`
 
 ---
 
@@ -12,12 +12,13 @@ The GitHub Actions workflow `Register Docker Images to GHCR` failed at the step:
 `Run Trivy vulnerability scanner on Web` (exit code 1).
 
 ### Root Cause Analysis
-A local package dependency audit (`npm audit`) revealed **11 high-severity vulnerabilities** affecting standard application packages bundled into the Web standalone Docker image:
+A local package dependency audit (`npm audit`) and Trivy logs revealed **12 high-severity vulnerabilities** affecting standard application packages bundled into the Web standalone Docker image:
 1. **`axios`** (< 1.7.4): SSRF Vulnerability (GHSA-8hc4-7q5q-9j9m).
 2. **`cross-spawn`** (< 7.0.5): Regular Expression Denial of Service (GHSA-3xgq-45jj-v275).
 3. **`nanoid`** (< 3.3.8): Predictable entropy (GHSA-m5p2-7qfj-fh2c).
 4. **`node-notifier`** (< 10.0.1): Command Injection (GHSA-562p-5g36-848h).
 5. **`uuid`** (< 9.0.1): Regular Expression Denial of Service (GHSA-9xvw-q689-5w84), present in multiple nested workspaces and under `next-auth`.
+6. **`picomatch`** (< 4.0.4): Regular Expression Denial of Service (CVE-2026-33671) introduced by `vite@8.0.16` and `vitest@4.1.8`.
 
 These high-severity library findings triggered Trivy's threshold check:
 * Trivy configured with: `severity: 'CRITICAL,HIGH'` and `exit-code: '1'`.
@@ -27,7 +28,7 @@ These high-severity library findings triggered Trivy's threshold check:
 
 ## 2. Remediation Applied
 
-We successfully resolved all 11 high-severity security vulnerabilities at the project dependency layer without changing any business logic or disabling security gates.
+We successfully resolved all 12 high-severity security vulnerabilities at the project dependency layer without changing any business logic or disabling security gates.
 
 ### NPM Overrides Added
 We defined global version overrides in the root `package.json` to force safe versions of the affected packages across all workspaces:
@@ -36,7 +37,8 @@ We defined global version overrides in the root `package.json` to force safe ver
     "axios": "^1.7.4",
     "cross-spawn": "^7.0.5",
     "nanoid": "^3.3.8",
-    "node-notifier": "^10.0.1"
+    "node-notifier": "^10.0.1",
+    "picomatch": "^4.0.4"
   }
 ```
 
@@ -44,7 +46,7 @@ We defined global version overrides in the root `package.json` to force safe ver
 
 ### Lockfile Synchronisation
 We executed `npm install` from the root workspace to regenerate the `package-lock.json` lockfile. This locked all nested dependencies to the safe overridden versions.
-* Status before: 11 high-severity vulnerabilities.
+* Status before: 12 high-severity vulnerabilities.
 * Status after: **0 high/critical vulnerabilities** (only moderate/low remaining, which are below the Trivy warning threshold).
 
 ---
@@ -60,3 +62,4 @@ We executed `npm install` from the root workspace to regenerate the `package-loc
 Trivy Web Scan Remediation: **PASS**
 Overall Product Readiness: **NOT_READY** (other blockers remain active)
 PR #6 Status: **BLOCKED_PENDING_SCHEMA_DRIFT_PROOF**
+
