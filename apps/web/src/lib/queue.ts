@@ -45,8 +45,18 @@ export interface JobPayload {
     teamId?: string | undefined;
     userId?: string | undefined;
     text?: string | undefined;
+    campaignId?: string | undefined;
+    mailboxId?: string | undefined;
+    enrollmentId?: string | undefined;
+    sequenceStepId?: string | undefined;
+    scheduleId?: string | undefined;
+    agentId?: string | undefined;
+    batchSize?: number | undefined;
+    groundingConfig?: unknown;
+    subject?: string | undefined;
+    body?: string | undefined;
     // Catch-all for dynamic payload data
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export class JobQueue {
@@ -84,7 +94,7 @@ export class JobQueue {
             if (existingJob) return existingJob;
         }
 
-        const data: any = {
+        const data = {
             type,
             payload: { ...payload }, // Clone to avoid mutation
             priority: options.priority ?? 0,
@@ -100,25 +110,23 @@ export class JobQueue {
             expiresAt: options.expiresAt ?? null,
             policy: options.policy ?? null,
             auditContext: options.auditContext ?? null,
-            correlationId: options.correlationId ?? null
+            correlationId: options.correlationId ?? null,
+            idempotencyKey: options.idempotencyKey
         };
 
         // [Observability] Propagate correlationId to worker
-        if (!data.payload.correlationId) {
+        const payloadObj = data.payload as Record<string, unknown>;
+        if (!payloadObj['correlationId']) {
             try {
                 const { RequestContext } = await import("@/lib/requestContext");
                 const cid = RequestContext.getCorrelationId();
                 if (cid) {
-                    data.payload.correlationId = cid;
+                    payloadObj['correlationId'] = cid;
                 }
             } catch (e) { /* ignore */ }
         }
 
-        if (options.idempotencyKey) {
-            data.idempotencyKey = options.idempotencyKey;
-        }
-
-        return await prisma.job.create({ data });
+        return await prisma.job.create({ data: data as any });
     }
 
     /**

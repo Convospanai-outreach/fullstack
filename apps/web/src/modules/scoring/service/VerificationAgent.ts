@@ -128,7 +128,14 @@ export class VerificationAgent {
         return await res.json();
     }
 
-    async purgeLeadData(leadId: string): Promise<{ success: boolean; purgedItems?: any }> {
+    async purgeLeadData(leadId: string): Promise<{
+        success: boolean;
+        purgedItems?: {
+            scoringData: boolean;
+            verificationLogs: boolean;
+            caseStudyMatches: boolean;
+        }
+    }> {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
             await prisma.lead.update({

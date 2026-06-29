@@ -1,8 +1,7 @@
 "use client";
 
-// KPIRow.tsx
-// Four KPI stat cards shown above the fold on the dashboard home page.
-// North-star metrics: meetings booked, active leads, drafts ready, open rate.
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface KPIData {
   meetingsBooked: number;
@@ -14,18 +13,26 @@ interface KPIData {
   openRateDelta: number;
 }
 
-function Delta({ value, unit = '' }: { value: number; unit?: string }) {
-  if (value > 0) return <span className="text-emerald-400">↑ {value}{unit} this week</span>;
-  if (value < 0) return <span className="text-red-400">↓ {Math.abs(value)}{unit} this week</span>;
-  return <span className="text-white/25">No change</span>;
+const transitionCurve = { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.8 } as const;
+
+function DeltaBadge({ value, unit = '' }: { value: number; unit?: string }) {
+  if (value === 0) return <span className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest">∅ Null</span>;
+  const isPos = value > 0;
+  return (
+    <div className={cn(
+      "inline-flex items-center gap-1.5 border-[0.5px] px-1.5 py-0.5",
+      isPos ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/5" : "border-rose-500/30 text-rose-400 bg-rose-500/5"
+    )}>
+      <span className="font-mono text-[8px] uppercase tracking-[0.2em]">{isPos ? 'POS' : 'NEG'}</span>
+      <span className="font-mono text-[10px]">{Math.abs(value)}{unit}</span>
+    </div>
+  );
 }
 
-function KPICardSkeleton() {
+function SkeletonBlock() {
   return (
-    <div className="bg-[#101624] border border-white/7 rounded-lg p-4 animate-pulse">
-      <div className="h-2.5 w-20 bg-white/8 rounded mb-3" />
-      <div className="h-6 w-14 bg-white/10 rounded mb-2" />
-      <div className="h-2 w-24 bg-white/6 rounded" />
+    <div className="relative h-32 border-[0.5px] border-white/10 bg-black overflow-hidden group">
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.03] to-transparent -translate-x-full animate-[shimmer_1.5s_infinite] transition-all" style={{ transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)" }} />
     </div>
   );
 }
@@ -38,51 +45,86 @@ interface KPIRowProps {
 export function KPIRow({ data, loading }: KPIRowProps) {
   if (loading || !data) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
-        {[...Array(4)].map((_, i) => <KPICardSkeleton key={i} />)}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-white/10 border-[0.5px] border-white/10 mb-8 p-[1px]">
+        {[...Array(4)].map((_, i) => <SkeletonBlock key={i} />)}
       </div>
     );
   }
 
+  const kpis = [
+    {
+      id: "meetings",
+      label: "Meetings Secured",
+      value: data.meetingsBooked,
+      renderDelta: () => <DeltaBadge value={data.meetingsDelta} />,
+      isPrimary: true
+    },
+    {
+      id: "leads",
+      label: "Active Pipeline",
+      value: data.activeLeads,
+      renderDelta: () => <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest">Live State</span>
+    },
+    {
+      id: "drafts",
+      label: "Drafts Queued",
+      value: data.draftsReady,
+      renderDelta: () => (
+        data.draftsPendingSend > 0
+          ? <span className="text-amber-500/80 font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-amber-500/20 px-1.5 bg-amber-500/5">{data.draftsPendingSend} Pending</span>
+          : <span className="text-emerald-500/80 font-mono text-[9px] uppercase tracking-widest">Optimized</span>
+      )
+    },
+    {
+      id: "open_rate",
+      label: "Signal Capture",
+      value: `${data.openRatePct}%`,
+      renderDelta: () => <DeltaBadge value={data.openRateDelta} unit="%" />
+    }
+  ];
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-4">
-      {/* Meetings booked — primary north-star card */}
-      <div className="border border-blue-500/28 bg-[#101e33] rounded-lg p-4">
-        <p className="text-[10px] uppercase tracking-wide text-white/30">Meetings booked</p>
-        <p className="text-[22px] font-medium text-blue-300 leading-none mt-1">{data.meetingsBooked}</p>
-        <p className="text-[11px] mt-1">
-          <Delta value={data.meetingsDelta} />
-        </p>
-      </div>
-
-      {/* Active leads */}
-      <div className="bg-[#101624] border border-white/7 rounded-lg p-4">
-        <p className="text-[10px] uppercase tracking-wide text-white/30">Active leads</p>
-        <p className="text-[22px] font-medium text-slate-200 leading-none mt-1">{data.activeLeads}</p>
-        <p className="text-[11px] mt-1 text-white/25">In pipeline</p>
-      </div>
-
-      {/* Drafts ready */}
-      <div className="bg-[#101624] border border-white/7 rounded-lg p-4">
-        <p className="text-[10px] uppercase tracking-wide text-white/30">Drafts ready</p>
-        <p className="text-[22px] font-medium text-slate-200 leading-none mt-1">{data.draftsReady}</p>
-        <p className="text-[11px] mt-1">
-          {data.draftsPendingSend > 0 ? (
-            <span className="text-amber-400">{data.draftsPendingSend} need sending</span>
-          ) : (
-            <span className="text-white/25">All sent</span>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-white/10 border-[0.5px] border-white/10 mb-8 p-[1px]">
+      {kpis.map((kpi, idx) => (
+        <motion.div
+          key={kpi.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ ...transitionCurve, delay: idx * 0.08 }}
+          className={cn(
+            "relative flex flex-col justify-between p-5 bg-[#030303] overflow-hidden group hover:bg-[#080808] transition-colors duration-500 ease-out",
+            kpi.isPrimary ? "bg-[#06080A]" : ""
           )}
-        </p>
-      </div>
+        >
+          {kpi.isPrimary && (
+            <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+          )}
+          
+          <div className="flex items-start justify-between">
+            <h3 className="text-[9px] text-zinc-500 uppercase tracking-[0.25em] font-medium">
+              {kpi.label}
+            </h3>
+            <span className="text-[7px] text-zinc-700 font-mono tracking-widest">0{idx + 1}</span>
+          </div>
 
-      {/* Open rate */}
-      <div className="bg-[#101624] border border-white/7 rounded-lg p-4">
-        <p className="text-[10px] uppercase tracking-wide text-white/30">Open rate</p>
-        <p className="text-[22px] font-medium text-slate-200 leading-none mt-1">{data.openRatePct}%</p>
-        <p className="text-[11px] mt-1">
-          <Delta value={data.openRateDelta} unit="%" />
-        </p>
-      </div>
+          <div className="mt-8 flex flex-col gap-3">
+            <motion.div 
+              initial={{ scale: 0.95, filter: 'blur(4px)' }}
+              animate={{ scale: 1, filter: 'blur(0px)' }}
+              transition={{ ...transitionCurve, delay: (idx * 0.08) + 0.1 }}
+              className={cn(
+                "text-4xl lg:text-5xl font-light tracking-tighter leading-none font-mono",
+                kpi.isPrimary ? "text-blue-50" : "text-zinc-100"
+              )}
+            >
+              {kpi.value}
+            </motion.div>
+            <div className="flex items-center min-h-[20px]">
+              {kpi.renderDelta()}
+            </div>
+          </div>
+        </motion.div>
+      ))}
     </div>
   );
 }

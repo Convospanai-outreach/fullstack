@@ -73,7 +73,7 @@ async function runWorker() {
 // Only start when this file is executed directly (e.g., via `node`)
 if (require.main === module) {
   runWorker().catch(err => {
-    logger.error('[worker] fatal error:', { error: err });
+    logger.error('[worker] fatal error:', err instanceof Error ? { error: err.message, stack: err.stack } : { error: err });
     process.exit(1);
   });
 }

@@ -70,8 +70,8 @@ export class SchedulerService {
                 // Payload includes batch settings and grounding config
                 const payload = {
                     scheduleId: schedule.id,
-                    campaignId: schedule.campaignId,
-                    agentId: schedule.agentId,
+                    campaignId: schedule.campaignId || undefined,
+                    agentId: schedule.agentId || undefined,
                     batchSize: schedule.batchSize,
                     groundingConfig: schedule.groundingConfig,
                     teamId: schedule.teamId
