@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Supabase schema/migration proof planning |
+| Current stage | Clerk user/team linkage verification planning |
 | Current agent | production-runtime-verification-agent |
-| Working branch | docs/supabase-schema-proof-plan |
-| Baseline commit inspected | 04b64d1abe445fd0f83fa2d372e575d9bd1bb4ee |
+| Working branch | docs/clerk-linkage-proof-plan |
+| Baseline commit inspected | 06d1ee84551bec623f31b69933a4d6f2b8bfc4fa |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-29T14:10+05:30 |
-| Next action | Execute read-only Supabase schema migration proof verification |
+| Last updated | 2026-06-29T14:45+05:30 |
+| Next action | Execute Clerk user/team linkage verification |
 
 ## Status values
 
@@ -94,9 +94,11 @@ Use only these values:
 | Authenticated proxy verification execution | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification.md | Verification executed successfully. Authenticated proxy forwarding verified on production host; Vercel-to-Railway forwarding proven for all core read-only routes. |
 | Post-PR52 production regression audit | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/post-pr52-production-regression-audit.md | Succeeded. All core health/readiness endpoints green. Dashboard pages, scheduler, and workers verified without regressions. |
 | Supabase schema/migration proof planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/supabase-schema-migration-proof-plan.md | Created docs-only plan for read-only schema status and drift verification commands. |
+| Clerk user/team linkage verification planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/clerk-user-team-linkage-verification-plan.md | Created docs-only plan for read-only browser credentials testing and database queries. |
 
 ## Latest findings
 
+- **2026-06-29T14:45+05:30 Clerk user/team linkage verification planning pass** on latest main `06d1ee84551bec623f31b69933a4d6f2b8bfc4fa` created the linkage verification plan (`docs/audits/clerk-user-team-linkage-verification-plan.md`) defining manual browser credentials tests and diagnostic database queries.
 - **2026-06-29T14:10+05:30 Supabase schema/migration proof planning pass** on latest main `04b64d1abe445fd0f83fa2d372e575d9bd1bb4ee` created the schema proof plan (`docs/audits/supabase-schema-migration-proof-plan.md`) outlining read-only status/drift check commands and criteria.
 - **2026-06-29T12:58+05:30 post-merge regression audit** on latest main `806be69526d17db455a19b7626c06a7fad95f8dd` recorded execution evidence in `docs/audits/post-pr52-production-regression-audit.md`. Verified Vercel and Railway deployments are green. All core health endpoints return `200 OK` (database `up`). Browser pages campaigns, leads, workflows, layout, and components typecheck and function cleanly under auth session.
 - **2026-06-27T17:20+05:30 verification execution pass** on latest main `428bae6fab693196b9e0a3d309446049607f8963` executed manual session testing protocol and recorded authenticated proxy verification proof in `docs/audits/authenticated-proxy-verification.md`. All core pages successfully routed GET requests through `/api/proxy` to Railway, returning 200 OK. Vercel and Railway logs verified matching path and timestamps.

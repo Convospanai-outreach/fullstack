@@ -86,6 +86,17 @@ Use only these verdicts:
 | Schema proof checks | Status and drift verification commands defined | Commands target migration status and schema diff status against web Prisma | PASS | production-runtime-verification-agent | Ready for execution. |
 | Remaining blockers | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Sync and isolation blockers pending. |
 
+## Clerk user/team linkage verification planning (2026-06-29T14:45+05:30)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Commit `06d1ee8` should be on main | Verified `06d1ee84551bec623f31b69933a4d6f2b8bfc4fa` | PASS | production-runtime-verification-agent | PR #54 is merged. |
+| Clerk linkage verification plan | Create safe read-only plan and boundaries | Created `docs/audits/clerk-user-team-linkage-verification-plan.md` | PASS | production-runtime-verification-agent | Non-mutating diagnostic plan created. |
+| Browser credential smoke steps | Tester credentials and pages defined | Credentials `tester@craftmyfunnel.live` and core routes checklist mapped | PASS | production-runtime-verification-agent | Ready for execution. |
+| Safe DB linkage checks | Read-only SQL queries defined | SELECT queries targeting User, TeamMember, and Team mapped | PASS | production-runtime-verification-agent | Ready for execution. |
+| Clerk user/team linkage | Verify Clerk identity maps to database tenant structure | Not executed yet | NEEDS_VERIFICATION | production-runtime-verification-agent | Scheduled for execution. |
+| Remaining blockers | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Supabase migration proof, Redis isolation, and security gates pending. |
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
