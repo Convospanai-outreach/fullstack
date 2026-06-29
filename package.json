@@ -35,9 +35,25 @@
     "esbuild": "0.28.1",
     "postcss": "8.5.15",
     "uuid": "13.0.0",
-    "ws": "8.21.0"
+    "ws": "8.21.0",
+    "axios": "^1.7.4",
+    "cross-spawn": "^7.0.5",
+    "nanoid": "^3.3.8",
+    "node-notifier": "^10.0.1",
+    "@emnapi/core": "1.11.1",
+    "@emnapi/runtime": "1.11.1",
+    "@rolldown/binding-wasm32-wasi": {
+      "@emnapi/core": "1.11.1",
+      "@emnapi/runtime": "1.11.1"
+    },
+    "@unrs/resolver-binding-wasm32-wasi": {
+      "@emnapi/core": "1.11.1",
+      "@emnapi/runtime": "1.11.1"
+    }
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.8"
+    "@vitest/coverage-v8": "^4.1.8",
+    "@emnapi/core": "1.11.1",
+    "@emnapi/runtime": "1.11.1"
   }
 }
