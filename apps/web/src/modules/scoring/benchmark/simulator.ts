@@ -2,7 +2,7 @@
 export interface SimulationEvent {
     type: "PAGE_VIEW" | "CLICK" | "EMAIL_OPEN" | "REPLY";
     timestamp: Date;
-    metadata?: any;
+    metadata?: Record<string, unknown>;
 }
 
 export class ScoringSimulator {

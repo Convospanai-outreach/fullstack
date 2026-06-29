@@ -2,7 +2,7 @@
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
 export class WorkflowEngine {
-    static async execute(workflowId: string, payload: any) {
+    static async execute(workflowId: string, payload: Record<string, unknown>) {
         try {
             const res = await fetch(`${API_URL}/workflow/execute`, {
                 method: "POST",

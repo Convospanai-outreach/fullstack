@@ -3,6 +3,7 @@ import { Providers } from "./providers";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { SupportAssistant } from "@/components/support/SupportAssistant";
+import { StrictQualityBoundary } from "@/components/StrictQualityBoundary";
 import Script from "next/script";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -43,7 +44,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <CommandPalette />
         <Toaster position="top-center" richColors />
         <LayoutShell>
-          {children}
+          <StrictQualityBoundary moduleName="RootApplicationShell" strictMode>
+            {children}
+          </StrictQualityBoundary>
         </LayoutShell>
         <SupportAssistant />
       </Providers>

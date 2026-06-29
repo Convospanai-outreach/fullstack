@@ -5,10 +5,10 @@ const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 const isServer = typeof window === "undefined";
 
 export class CaseStudyService {
-    async ingestCaseStudy(data: any, teamId: string) {
+    async ingestCaseStudy(data: CaseStudyInput, teamId: string) {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
-            const payload = data as CaseStudyInput;
+            const payload = data;
             const created = await prisma.caseStudy.create({
                 data: {
                     title: payload.title,
@@ -55,7 +55,7 @@ export class CaseStudyService {
                 title: item.title,
                 industry: item.industry,
                 summary: item.summary,
-                metrics: (item.metrics as any) || {},
+                metrics: (item.metrics as Record<string, number>) || {},
                 similarity: 0.7
             }));
         }
