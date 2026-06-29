@@ -65,6 +65,20 @@ Use only these verdicts:
 | Unauthenticated proxy behavior | Verify middleware block | Unauthenticated `/api/proxy/health` returns `401 Unauthorized` | EXPECTED_AUTH_GATE | production-runtime-verification-agent | Expected by middleware design. |
 | Overall product readiness | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Infrastructure and proxy green; schema and security gates pending. |
 
+## Post-PR52 production regression audit (2026-06-29T12:58+05:30)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Commit `806be69` should be on main | Verified `806be69526d17db455a19b7626c06a7fad95f8dd` | PASS | production-runtime-verification-agent | PR #52 is merged. |
+| Vercel Production deployment | Latest main deployed on Vercel | Verified deployment `dpl_hzinjinz7...` completed successfully | PASS | production-runtime-verification-agent | Custom domain serves latest main. |
+| Railway API deployment | Latest main deployed on Railway | Verified deployment `airy-balance / production` completed successfully | PASS | production-runtime-verification-agent | API and database connectivity up. |
+| Production health APIs | Health endpoints return 200 OK | Verified `/api/health`, `/api/health?probe=ready`, and Railway `/health` return database up | PASS | production-runtime-verification-agent | All health indicators are green. |
+| Dashboard pages smoke | core pages render successfully | Checked `/dashboard`, `/campaigns`, `/leads`, `/workflows`, `/analytics` non-mutating routes | PASS | production-runtime-verification-agent | Clerk auth gate restricts unauthenticated access. |
+| Proxy routing stability | Authenticated proxy routing remains intact | Web proxy routes GETs to Railway API successfully | PASS | production-runtime-verification-agent | Confirmed post-merge. |
+| Overall product readiness | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Verified regression-free, but blocked on security and schema sync. |
+
+
+
 ## Vercel linkage matrix
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

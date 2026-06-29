@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Authenticated proxy verification execution |
+| Current stage | Post-merge production-readiness regression audit |
 | Current agent | production-runtime-verification-agent |
-| Working branch | docs/verify-authenticated-proxy-flow |
-| Baseline commit inspected | 428bae6fab693196b9e0a3d309446049607f8963 |
+| Working branch | docs/post-pr52-regression-audit |
+| Baseline commit inspected | 806be69526d17db455a19b7626c06a7fad95f8dd |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-27T17:20+05:30 |
-| Next action | Proceed to Clerk user/team linkage and Redis isolation verification |
+| Last updated | 2026-06-29T12:58+05:30 |
+| Next action | Address remaining blockers (Clerk sync, Redis isolation, Supabase schema proof) |
 
 ## Status values
 
@@ -92,9 +92,11 @@ Use only these values:
 | Production runtime verification — green health recorded | production-runtime-verification-agent | NEEDS_REPLAN | docs/audits/production-runtime-verification-after-api-origin.md | Latest main is `a827db4`; PR #44 and #45 are merged; Railway API origin PASS, Railway API DB health PASS, Vercel web DB health PASS, Vercel readiness probe PASS, Vercel proxy unauthenticated EXPECTED_AUTH_GATE; authenticated proxy forwarding, Clerk linkage, Redis isolation, and Supabase schema proof still need verification; product remains NOT_READY. |
 | Authenticated proxy verification planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification-plan.md | Latest main is 33a0efa; PR #47 is merged; created authenticated proxy verification plan defining protocols, safe boundaries, and pass/fail criteria; overall product remains NOT_READY. |
 | Authenticated proxy verification execution | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification.md | Verification executed successfully. Authenticated proxy forwarding verified on production host; Vercel-to-Railway forwarding proven for all core read-only routes. |
+| Post-PR52 production regression audit | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/post-pr52-production-regression-audit.md | Succeeded. All core health/readiness endpoints green. Dashboard pages, scheduler, and workers verified without regressions. |
 
 ## Latest findings
 
+- **2026-06-29T12:58+05:30 post-merge regression audit** on latest main `806be69526d17db455a19b7626c06a7fad95f8dd` recorded execution evidence in `docs/audits/post-pr52-production-regression-audit.md`. Verified Vercel and Railway deployments are green. All core health endpoints return `200 OK` (database `up`). Browser pages campaigns, leads, workflows, layout, and components typecheck and function cleanly under auth session.
 - **2026-06-27T17:20+05:30 verification execution pass** on latest main `428bae6fab693196b9e0a3d309446049607f8963` executed manual session testing protocol and recorded authenticated proxy verification proof in `docs/audits/authenticated-proxy-verification.md`. All core pages successfully routed GET requests through `/api/proxy` to Railway, returning 200 OK. Vercel and Railway logs verified matching path and timestamps.
 - **2026-06-26T16:44+05:30 verification planning pass** on latest main `33a0efa507dce017a0e0d257d3e55195bcc7bae2` created the authenticated proxy verification plan (`docs/audits/authenticated-proxy-verification-plan.md`) to guide the manual session testing protocol for Vercel-to-Railway forwarding.
 - **2026-06-26T15:48+05:30 verification pass** recorded green health for Railway API and Vercel web on latest main `a827db43697297ed19bc7308b71aefc8c34ab901`.
