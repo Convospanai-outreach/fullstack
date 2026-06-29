@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Post-merge production-readiness regression audit |
+| Current stage | Supabase schema/migration proof planning |
 | Current agent | production-runtime-verification-agent |
-| Working branch | docs/post-pr52-regression-audit |
-| Baseline commit inspected | 806be69526d17db455a19b7626c06a7fad95f8dd |
+| Working branch | docs/supabase-schema-proof-plan |
+| Baseline commit inspected | 04b64d1abe445fd0f83fa2d372e575d9bd1bb4ee |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-29T12:58+05:30 |
-| Next action | Address remaining blockers (Clerk sync, Redis isolation, Supabase schema proof) |
+| Last updated | 2026-06-29T14:10+05:30 |
+| Next action | Execute read-only Supabase schema migration proof verification |
 
 ## Status values
 
@@ -93,9 +93,11 @@ Use only these values:
 | Authenticated proxy verification planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification-plan.md | Latest main is 33a0efa; PR #47 is merged; created authenticated proxy verification plan defining protocols, safe boundaries, and pass/fail criteria; overall product remains NOT_READY. |
 | Authenticated proxy verification execution | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/authenticated-proxy-verification.md | Verification executed successfully. Authenticated proxy forwarding verified on production host; Vercel-to-Railway forwarding proven for all core read-only routes. |
 | Post-PR52 production regression audit | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/post-pr52-production-regression-audit.md | Succeeded. All core health/readiness endpoints green. Dashboard pages, scheduler, and workers verified without regressions. |
+| Supabase schema/migration proof planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/supabase-schema-migration-proof-plan.md | Created docs-only plan for read-only schema status and drift verification commands. |
 
 ## Latest findings
 
+- **2026-06-29T14:10+05:30 Supabase schema/migration proof planning pass** on latest main `04b64d1abe445fd0f83fa2d372e575d9bd1bb4ee` created the schema proof plan (`docs/audits/supabase-schema-migration-proof-plan.md`) outlining read-only status/drift check commands and criteria.
 - **2026-06-29T12:58+05:30 post-merge regression audit** on latest main `806be69526d17db455a19b7626c06a7fad95f8dd` recorded execution evidence in `docs/audits/post-pr52-production-regression-audit.md`. Verified Vercel and Railway deployments are green. All core health endpoints return `200 OK` (database `up`). Browser pages campaigns, leads, workflows, layout, and components typecheck and function cleanly under auth session.
 - **2026-06-27T17:20+05:30 verification execution pass** on latest main `428bae6fab693196b9e0a3d309446049607f8963` executed manual session testing protocol and recorded authenticated proxy verification proof in `docs/audits/authenticated-proxy-verification.md`. All core pages successfully routed GET requests through `/api/proxy` to Railway, returning 200 OK. Vercel and Railway logs verified matching path and timestamps.
 - **2026-06-26T16:44+05:30 verification planning pass** on latest main `33a0efa507dce017a0e0d257d3e55195bcc7bae2` created the authenticated proxy verification plan (`docs/audits/authenticated-proxy-verification-plan.md`) to guide the manual session testing protocol for Vercel-to-Railway forwarding.

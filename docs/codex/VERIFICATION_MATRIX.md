@@ -77,7 +77,14 @@ Use only these verdicts:
 | Proxy routing stability | Authenticated proxy routing remains intact | Web proxy routes GETs to Railway API successfully | PASS | production-runtime-verification-agent | Confirmed post-merge. |
 | Overall product readiness | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Verified regression-free, but blocked on security and schema sync. |
 
+## Supabase schema/migration proof planning (2026-06-29T14:10+05:30)
 
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Latest main SHA | Commit `04b64d1` should be on main | Verified `04b64d1abe445fd0f83fa2d372e575d9bd1bb4ee` | PASS | production-runtime-verification-agent | PR #53 is merged. |
+| Supabase schema proof plan | Create safe read-only plan and boundaries | Created `docs/audits/supabase-schema-migration-proof-plan.md` | PASS | production-runtime-verification-agent | Non-mutating diagnostic plan created. |
+| Schema proof checks | Status and drift verification commands defined | Commands target migration status and schema diff status against web Prisma | PASS | production-runtime-verification-agent | Ready for execution. |
+| Remaining blockers | Remain not ready | Blocker list remains active | NOT_READY | production-runtime-verification-agent | Sync and isolation blockers pending. |
 
 ## Vercel linkage matrix
 
