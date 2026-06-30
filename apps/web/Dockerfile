@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS deps
+# Cache bust: force fresh npm ci to resolve picomatch CVE-2026-33671
 WORKDIR /repo
 
 # Install workspace dependencies from the monorepo root lockfile so the
