@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../apps/web/src/lib/db';
 import * as dotenv from 'dotenv';
 
 dotenv.config();
@@ -30,8 +30,6 @@ async function main() {
 
   // Never print or leak secrets/env values
   console.log('Connection checks initialized. Environment status: OK');
-
-  const prisma = new PrismaClient();
 
   let pass = true;
 
