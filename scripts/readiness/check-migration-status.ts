@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import * as dotenv from 'dotenv';
+import { prisma } from '../../apps/web/src/lib/db';
 
 dotenv.config();
 
@@ -31,7 +31,7 @@ async function main() {
   // Never print or leak secrets/env values
   console.log('Connection checks initialized. Environment status: OK');
 
-  const prisma = new PrismaClient();
+
 
   try {
     // 1. Fetch tables list to verify if migration table exists
