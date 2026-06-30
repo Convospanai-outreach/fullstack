@@ -42,7 +42,7 @@ Use only these values:
 | --- | --- | --- | --- | --- |
 | Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_EXTERNAL_ACCESS |
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_EXTERNAL_ACCESS |
-| Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Split into audited preflight/backup/review before production migration | BLOCKED |
+| Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Replaced with safe preflight backup and constraint creation sequence | READY_FOR_NEXT_STAGE |
 | API_INTERNAL_ORIGIN authenticated proxy forwarding verified | production-runtime-verification-agent | Authenticated proxy-to-Railway forwarding verified via browser, Vercel, and Railway logs under active session. | Proceed to Clerk user/team linkage and Redis isolation verification | READY_FOR_NEXT_STAGE |
 | Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
@@ -61,7 +61,7 @@ Use only these values:
 | 3. Supabase live schema inspection | supabase-inspector | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Active project found; live schema drift found |
 | 4. Prisma ownership and drift | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | web/API schemas validate but histories diverge |
 | 5. Gmail/mailbox conflict resolution | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | PR #6 conflicts with canonical schema strategy |
-| 6. Migration safety | migration-safety-agent | BLOCKED | VERIFICATION_MATRIX.md | Destructive `DELETE FROM "EdgeNode"` found |
+| 6. Migration safety | migration-safety-agent | READY_FOR_NEXT_STAGE | VERIFICATION_MATRIX.md | Destructive delete replaced with safe EdgeNodeOrphanAudit backup and FK sequence |
 | 7. Runtime DB alignment | runtime-db-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | App health checks still rely on `SELECT 1` |
 | 8. Env linkage guards | env-guard-agent | BLOCKED_EXTERNAL_ACCESS | VERIFICATION_MATRIX.md | Vercel env-key/target proof unavailable |
 | 9. Health and smoke tests | health-smoke-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Vercel logs show `/` and `/login` 200; readiness endpoint not proven |
@@ -227,12 +227,12 @@ Use only these values:
 - Local migration directories exceed live: web 25, API 22.
 - Live DB is missing `User.clerk_user_id`, `UserInvitation`, and `invite_requests`, while web Clerk auth depends on them.
 - `Lead.embedding` is nullable `text` live; vector extension is installed.
-- `20260604140000_edge_runtime_pairing` includes `DELETE FROM "EdgeNode"` and must not run in production as-is.
+- `20260604140000_edge_runtime_pairing` rewritten to use a safe orphan audit/backup/delete sequence; no longer quarantined.
 - Vercel runtime logs showed recent production `200` responses for `/` and `/login`; local DNS maps custom domains to `127.0.0.1`, so direct local smoke checks were not reliable.
 - PR #2 is focused but `mergeable=false`; PR #6 is broad, `mergeable=false`, and must be split.
 - Implementation REPLAN from commit `d3086c094d145eed0b7f5a5c7eed495bd302fb19` is documented in `docs/codex/IMPLEMENTATION_REPLAN_D3086C0.md`.
 - Shared production DB should use a single canonical Prisma schema; `apps/web/prisma/schema.prisma` is only a temporary reference candidate while the architecture moves toward `packages/db/prisma/schema.prisma`.
-- Unsafe migration `20260604140000_edge_runtime_pairing` is quarantined for production because it deletes orphaned `EdgeNode` rows.
+- Migration `20260604140000_edge_runtime_pairing` is resolved by backing up orphans before deletion.
 - Additive auth/onboarding repair is planned for `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; no production migration has been generated or applied.
 - Vercel deployment for commit `3b2d7069ac839a5559fa729f28ab913954e52dea` failed because Next.js typechecked `apps/web/src/scripts/verify-schema-readiness.ts` and the repo lacks `@types/pg`.
 - The read-only verifier has moved to `scripts/db/verify-schema-readiness.mjs`; `apps/web/src/scripts/verify-schema-readiness.ts` was removed so Vercel does not typecheck it as app code.
@@ -307,7 +307,7 @@ Use only these values:
 3. [COMPLETED] Re-run `npm run db:schema:compare` — expected result: all three MATCH, exit code 0.
 4. [BLOCKED_EXTERNAL_ACCESS - Phase 5] Run `live-schema-verify-plan.md` read-only verification against remote Supabase project `izqcycslipmbgdwgajvu` (blocked: missing remote connection strings).
 5. [QUEUED] Generate/apply additive auth migration against staging/production DB (requires unblocking verification).
-6. [QUEUED] Replace the quarantined `20260604140000_edge_runtime_pairing` path.
+6. [COMPLETED] Replace the quarantined `20260604140000_edge_runtime_pairing` path with a safe pre-constraint orphan audit/backup/delete sequence.
 7. [QUEUED] Verify Vercel env keys and targets.
 8. [QUEUED] Verify GitHub Actions green on target branch.
 9. [QUEUED] Split PR #6 after schema strategy is stable.
