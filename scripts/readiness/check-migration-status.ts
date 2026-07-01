@@ -1,5 +1,6 @@
 import { prisma } from '../../apps/web/src/lib/db';
 import * as dotenv from 'dotenv';
+import { prisma } from '../../apps/web/src/lib/db';
 
 dotenv.config();
 
