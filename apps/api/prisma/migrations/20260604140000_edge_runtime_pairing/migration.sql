@@ -22,11 +22,36 @@ CREATE UNIQUE INDEX "EdgeNode_hardwareFingerprintHash_key" ON "EdgeNode"("hardwa
 CREATE INDEX "EdgeNode_teamId_status_idx" ON "EdgeNode"("teamId", "status");
 CREATE INDEX "EdgeNode_lastSeenAt_idx" ON "EdgeNode"("lastSeenAt");
 
+-- CreateOrphanAuditTable
+CREATE TABLE IF NOT EXISTS "EdgeNodeOrphanAudit" (
+  "id" TEXT NOT NULL,
+  "teamId" TEXT NOT NULL,
+  "hardwareId" TEXT NOT NULL,
+  "ipAddress" TEXT,
+  "status" TEXT NOT NULL,
+  "lastSync" TIMESTAMP(3) NOT NULL,
+  "auditedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "auditReason" TEXT NOT NULL DEFAULT 'pre_fk_orphan_quarantine'
+);
+
+-- BackUpOrphans
+INSERT INTO "EdgeNodeOrphanAudit" (
+  "id", "teamId", "hardwareId", "ipAddress", "status", "lastSync"
+)
+SELECT 
+  "id", "teamId", "hardwareId", "ipAddress", "status", "lastSync"
+FROM "EdgeNode"
+WHERE NOT EXISTS (
+  SELECT 1 FROM "Team" WHERE "Team"."id" = "EdgeNode"."teamId"
+);
+
+-- DeleteOrphans
 DELETE FROM "EdgeNode"
 WHERE NOT EXISTS (
   SELECT 1 FROM "Team" WHERE "Team"."id" = "EdgeNode"."teamId"
 );
 
+-- AddForeignKey
 ALTER TABLE "EdgeNode"
   ADD CONSTRAINT "EdgeNode_teamId_fkey"
   FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE CASCADE ON UPDATE CASCADE;

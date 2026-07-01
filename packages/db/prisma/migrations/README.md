@@ -16,7 +16,7 @@ Guardrails:
 - Do not run production migrations until the canonical migration plan is approved.
 - Do not modify unsafe existing migrations in place.
 - Do not include destructive SQL without preflight evidence, backup/audit plan, and manual approval.
-- Keep `20260604140000_edge_runtime_pairing` quarantined until a safe replacement sequence is reviewed.
+- The `20260604140000_edge_runtime_pairing` migration has been rewritten to include a safe pre-constraint orphan audit/backup/delete sequence.
 
 Future migration PRs should include:
 

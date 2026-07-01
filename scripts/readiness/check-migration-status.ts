@@ -1,3 +1,4 @@
+import { prisma } from '../../apps/web/src/lib/db';
 import * as dotenv from 'dotenv';
 import { prisma } from '../../apps/web/src/lib/db';
 
@@ -30,8 +31,6 @@ async function main() {
 
   // Never print or leak secrets/env values
   console.log('Connection checks initialized. Environment status: OK');
-
-
 
   try {
     // 1. Fetch tables list to verify if migration table exists

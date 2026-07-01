@@ -25,7 +25,7 @@ const ENDPOINTS = [
             { name: "q", type: "string", desc: "Search across name, email, or company" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://craftmyfunnel.com/api/v1/leads?limit=5&status=QUALIFIED"`
+"https://www.craftmyfunnel.live/api/v1/leads?limit=5&status=QUALIFIED"`
     },
     {
         category: "Leads",
@@ -35,7 +35,7 @@ const ENDPOINTS = [
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -H "Content-Type: application/json" \\
 -d '{"email": "john@example.com", "fullName": "John Doe", "dealValue": 5000}' \\
-"https://craftmyfunnel.com/api/v1/leads"`
+"https://www.craftmyfunnel.live/api/v1/leads"`
     },
     {
         category: "Knowledge",
@@ -47,7 +47,7 @@ const ENDPOINTS = [
             { name: "limit", type: "number", desc: "Number of snippets to return" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://craftmyfunnel.com/api/v1/knowledge/search?q=pricing+plans"`
+"https://www.craftmyfunnel.live/api/v1/knowledge/search?q=pricing+plans"`
     },
     {
         category: "Workflows",
@@ -56,7 +56,7 @@ const ENDPOINTS = [
         description: "Programmatically trigger a workflow execution for a specific lead or entity.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -d '{"leadId": "lead_123"}' \\
-"https://craftmyfunnel.com/api/v1/workflows/wf_xyz/run"`
+"https://www.craftmyfunnel.live/api/v1/workflows/wf_xyz/run"`
     },
     {
         category: "Tasks",
@@ -68,7 +68,7 @@ const ENDPOINTS = [
             { name: "priority", type: "string", desc: "Filter by priority (HIGH, MEDIUM, LOW)" }
         ],
         example: `curl -H "X-API-KEY: your_key" \\
-"https://craftmyfunnel.com/api/v1/tasks?priority=HIGH"`
+"https://www.craftmyfunnel.live/api/v1/tasks?priority=HIGH"`
     }
 ];
 
