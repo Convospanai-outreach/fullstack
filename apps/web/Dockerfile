@@ -53,6 +53,7 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate 
 # Runner Stage: minimal production image
 # =============================================================================
 FROM node:22-alpine AS runner
+RUN npm install -g npm@latest
 WORKDIR /app
 
 ENV NODE_ENV=production
