@@ -49,7 +49,7 @@ Files changed:
 
 Behavior change:
 
-- `/api/health` is now bypassed before the proxy/auth/rate-limit work in `apps/web/src/proxy.ts`.
+- `/api/health` is now handled before Clerk/auth/proxy work in `apps/web/src/proxy.ts`, while still preserving public rate limiting and the minimum security/CORS headers.
 - `apps/web/src/app/api/health/route.ts` now declares:
   - `export const runtime = "nodejs"`
   - `export const dynamic = "force-dynamic"`
@@ -76,6 +76,7 @@ Why:
 - Known process gap:
   - the lint wrapper failure is infrastructure-specific and should be fixed in a separate follow-up PR
   - targeted tests and typecheck passed, but that is not enough to treat PR #68 as full production readiness proof
+- Even with the boundary fix and public rate limiting restored, post-merge production probes are still required before any readiness claim
 - What must be verified after deploy:
   - `curl.exe --ssl-no-revoke -i https://www.craftmyfunnel.live/api/health`
   - `curl.exe --ssl-no-revoke -i "https://www.craftmyfunnel.live/api/health?probe=live"`

@@ -17,15 +17,29 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
     // Health checks must stay outside auth/proxy/rate-limit work so they can
     // exercise the route boundary directly and remain safe no-I/O probes.
-    if (path.startsWith("/api/health")) {
+    if (path === "/api/health") {
+        const healthHeaders = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "X-Content-Type-Options": "nosniff",
+            "X-Frame-Options": "DENY",
+            "Referrer-Policy": "no-referrer",
+            "Cache-Control": "no-store",
+        } as const;
+
+        const blocked = await applyRateLimit(req, RATE_LIMITS.PUBLIC, "public", undefined);
+        if (blocked) {
+            Object.entries(healthHeaders).forEach(([key, value]) => {
+                blocked.headers.set(key, value);
+            });
+            return blocked;
+        }
+
         const response = NextResponse.next();
-        response.headers.set("Access-Control-Allow-Origin", "*");
-        response.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");
-        response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-        response.headers.set("X-Content-Type-Options", "nosniff");
-        response.headers.set("X-Frame-Options", "DENY");
-        response.headers.set("Referrer-Policy", "no-referrer");
-        response.headers.set("Cache-Control", "no-store");
+        Object.entries(healthHeaders).forEach(([key, value]) => {
+            response.headers.set(key, value);
+        });
         return response;
     }
 
