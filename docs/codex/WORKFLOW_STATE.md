@@ -7,9 +7,9 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | DB migration remediation planning |
-| Current agent | migration-remediation-agent |
-| Working branch | docs/db-migration-remediation-plan-2026-07-06 |
+| Current stage | CI/deployment cost-control guardrails |
+| Current agent | ci-deployment-guard-agent |
+| Working branch | chore/docs-only-ci-deployment-guards-2026-07-06 |
 | Baseline commit inspected | ca5d18f6e90e8da29d01bbf12ed17fca437093b0 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
@@ -17,8 +17,8 @@ This file is the source of truth for current task status. Update it after every 
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-07-06T19:15:57+05:30 |
-| Next action | Select the canonical migration owner and design a non-destructive replacement for the EdgeNode migration path before any production migration proposal |
+| Last updated | 2026-07-06T19:38:42+05:30 |
+| Next action | Verify docs-only PRs resolve required checks via no-op success paths and decide whether repository-level CodeQL settings need a separate guardrail change |
 
 ## Status values
 
@@ -101,6 +101,7 @@ Use only these values:
 
 ## Latest findings
 
+- **2026-07-06T19:38:42+05:30 Docs-only CI/deployment guardrail pass** on branch `chore/docs-only-ci-deployment-guards-2026-07-06` added docs-only change detection and no-op validation paths to required workflows (`CI`, `Production Readiness Gate`, `Vercel Parity Build`, and `Phi-3 Verification`) and disabled Vercel deployments for `docs/*` branches via `vercel.json`. Railway config remains unchanged because no repo config file is present and prior evidence already showed watched-path no-op behavior.
 - **2026-07-06T19:15:57+05:30 DB migration remediation planning** on branch `docs/db-migration-remediation-plan-2026-07-06` converted the RED drift proof into a planning-only remediation path. It keeps the verdict red, recommends `packages/db` as the long-term canonical migration owner, rejects split ownership, requires a non-destructive replacement strategy for `20260604140000_edge_runtime_pairing`, and keeps live DB shape marked UNPROVEN until safe read-only credentials are available.
 - **2026-07-06T18:52:30+05:30 Read-only DB schema drift proof** on branch `docs/read-only-db-schema-drift-proof-2026-07-06` confirmed the current local Prisma schema files are fully aligned across `packages/db`, `apps/web`, and `apps/api`, but migration ownership remains split (`packages/db`: 0 migrations, `apps/web`: 25, `apps/api`: 22). The destructive `DELETE FROM "EdgeNode"` path is still present in `20260604140000_edge_runtime_pairing`, `npm run db:schema:compare` passed, `npm run schema:verify:readonly` was blocked by missing safe DB URL input, and `npm run readiness:audit --workspace apps/api` was not run because it seeds data before auditing.
 - **2026-06-30T13:45+05:30 Support email and DB verification script fixes** on branch `fix/support-email-and-domain-quickwin` aligned public page emails to `support@craftmyfunnel.live`, examples to `www.craftmyfunnel.live`, and resolved `PrismaClientConstructorValidationError` in database checks by using the canonical database proxy wrapper.

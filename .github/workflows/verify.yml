@@ -12,17 +12,87 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  detect-docs-only:
+    name: Docs-only Change Detection
+    runs-on: ubuntu-22.04
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: classify
+        shell: bash
+        run: |
+          set -euo pipefail
+          event="${{ github.event_name }}"
+          changed=""
+
+          if [[ "$event" == "pull_request" ]]; then
+            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+          elif [[ "$event" == "push" ]]; then
+            before="${{ github.event.before }}"
+            after="${{ github.sha }}"
+            if [[ -n "$before" && "$before" != "0000000000000000000000000000000000000000" ]]; then
+              changed="$(git diff --name-only "$before" "$after")"
+            fi
+          fi
+
+          docs_only=true
+          if [[ -z "$changed" ]]; then
+            docs_only=false
+          else
+            while IFS= read -r file; do
+              [[ -z "$file" ]] && continue
+              case "$file" in
+                docs/*|README.md|.github/pull_request_template.md|.github/ISSUE_TEMPLATE/*)
+                  ;;
+                *.md)
+                  ;;
+                *)
+                  docs_only=false
+                  break
+                  ;;
+              esac
+            done <<< "$changed"
+          fi
+
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "Docs-only classification: $docs_only" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -n "$changed" ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$changed" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  docs-only-validation:
+    name: Docs-only Validation
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Confirm docs-only verification skip
+        run: |
+          echo "Docs-only change set detected."
+          echo "Skipping Phi-3 Verification."
+
   verify-safety-invariants:
     name: Verify Phi-3 Safety Enforcement
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      
+
       - name: Verify required files exist
         run: |
           echo "Checking required files..."
@@ -30,35 +100,41 @@ jobs:
           test -f evaluation/eval_suite_prod.py || (echo "FATAL: eval_suite_prod.py not found" && exit 1)
           test -f evaluation/eval_cases_prod.json || (echo "FATAL: eval_cases_prod.json not found" && exit 1)
           test -f scripts/verify_ci.sh || (echo "FATAL: verify_ci.sh not found" && exit 1)
-          echo "✓ All required config/scripts present"
-          
+          echo "All required config/scripts present"
+
       - name: Verify global AI safety enforcement
         run: |
           echo "Checking global AI safety configuration..."
-          # Ensure there is no blatant unsafe bypass flag stored permanently
           if grep -q "ENABLE_UNSAFE_PRODUCTION_BYPASS=true" apps/api/.env.example 2>/dev/null; then
              echo "FATAL: Unsafe production bypass is enabled in config!"
              exit 1
           fi
-          echo "✓ Global AI safety verified."
+          echo "Global AI safety verified."
 
       - name: Verify user-bound architecture
         run: |
           echo "Checking architecture invariants..."
-          echo "✓ User-Bound Architecture Active"
+          echo "User-Bound Architecture Active"
 
   merge-gate:
     name: Merge Gate
-    needs: verify-safety-invariants
+    needs: [detect-docs-only, docs-only-validation, verify-safety-invariants]
     runs-on: ubuntu-22.04
     if: always()
     steps:
       - name: Check verification result
         run: |
-          if [ "${{ needs.verify-safety-invariants.result }}" != "success" ]; then
-            echo "::error::Verification failed or was skipped. Blocking merge."
-            exit 1
+          if [ "${{ needs.detect-docs-only.outputs.docs_only }}" = "true" ]; then
+            if [ "${{ needs.docs-only-validation.result }}" != "success" ]; then
+              echo "::error::Docs-only validation did not complete successfully."
+              exit 1
+            fi
+            echo "Docs-only change set verified. Heavy Phi-3 verification was skipped intentionally."
           else
-            echo "✓ Verification passed. Global AI safety verified."
+            if [ "${{ needs.verify-safety-invariants.result }}" != "success" ]; then
+              echo "::error::Verification failed or was skipped. Blocking merge."
+              exit 1
+            fi
+            echo "Verification passed. Global AI safety verified."
           fi
-          echo "✓ Progression allowed (User-Bound Architecture Active)."
+          echo "Progression allowed (User-Bound Architecture Active)."

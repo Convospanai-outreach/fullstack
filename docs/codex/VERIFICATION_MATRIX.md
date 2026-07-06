@@ -89,6 +89,18 @@ Use only these verdicts:
 | No DB/app/schema/env changes made | Planning PR must remain docs-only | This PR changes only `docs/plans/db-migration-remediation-plan-2026-07-06.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | migration-remediation-agent | No app code, schema, migration, env, or secret changes. |
 | Production readiness impact | Readiness must remain blocked until remediation is implemented and verified | Plan verdict remains RED and workflow state remains `NEEDS_REPLAN` / `NOT_READY` | FAIL | migration-remediation-agent | Planning exists, but remediation is not implemented. |
 
+## Docs-only CI and deployment guards (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| CI docs-only detector added | Required workflows should classify docs-only changes without top-level workflow skipping | `.github/workflows/ci.yml`, `production-gate.yml`, `vercel-parity-build.yml`, and `verify.yml` now start with `Docs-only Change Detection` jobs and `Docs-only Validation` no-op success jobs | PASS | ci-deployment-guard-agent | Heavy jobs are gated at the job level. |
+| Heavy CI jobs skipped for docs-only changes | API strict typecheck, web build, Docker smoke, parity build, and production gate should not run for docs-only change sets | Job-level `if` conditions now skip the expensive jobs when the changed files are docs-only | PASS | ci-deployment-guard-agent | Required workflow status should still resolve through the no-op path. |
+| Vercel docs-branch deploy disable added | `docs/*` branches should not create preview deployments | New `vercel.json` disables git deployments for `docs/*` and `docs/**` | PASS | ci-deployment-guard-agent | Applies to docs-branch naming convention. |
+| Railway config change avoided | Railway should remain untouched unless repo evidence shows docs-only deploy waste | No `railway.json` or `railway.toml` exists in the repo and no Railway config file was changed | PASS | ci-deployment-guard-agent | Prior evidence already showed watched-path no-op behavior. |
+| CodeQL repo-workflow guard status | In-repo guard should be added only where a repo-managed workflow exists | No CodeQL workflow exists under `.github/workflows/` in the current tree | PARTIAL | ci-deployment-guard-agent | Repository-level or platform-managed CodeQL still requires separate handling if it remains costly. |
+| No app/runtime/schema changes made | Cost-control PR must not change runtime behavior or DB governance | This PR changes only workflow files, `vercel.json`, the plan doc, and workflow-tracking docs | PASS | ci-deployment-guard-agent | No app code, schema, migration, env, or lockfile changes. |
+| Production readiness impact | CI cost-control must not be treated as readiness proof | Product readiness remains `NOT_READY` and this work is operational guardrail only | FAIL | ci-deployment-guard-agent | Mergeability and compute cost improve; production readiness does not. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
