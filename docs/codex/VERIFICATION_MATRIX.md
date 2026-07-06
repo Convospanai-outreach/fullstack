@@ -127,6 +127,19 @@ Use only these verdicts:
 | No schema/migration/app/env changes | Docs-only decision PR must not change runtime or DB assets | This PR changes only the decision record plus `WORKFLOW_STATE.md` and `VERIFICATION_MATRIX.md` | PASS | prisma-drift-agent | No app, schema, migration SQL, package, workflow, env, or secret changes. |
 | Production readiness remains NOT_READY | Ownership decision must not be treated as readiness proof | Product readiness remains `NOT_READY` and DB/migration governance remains `RED / NEEDS_REPLAN` | FAIL | release-readiness-agent | The decision clarifies governance; it does not resolve it. |
 
+## Migration manifest inventory (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Migration histories inventoried | Existing migration trees should be counted before reconciliation planning | `docs/audits/migration-manifest-inventory-2026-07-06.md` records `packages/db`: `0`, `apps/web`: `25`, `apps/api`: `22` tracked `migration.sql` files | PASS | prisma-drift-agent | Inventory only; no migration ownership cutover performed. |
+| `apps/web` migration list recorded | Web migration history should be listed with hashes and operation summaries | Audit records all `25` web migration directories with SHA256, relative path, summary, and destructive flag | PASS | prisma-drift-agent | Includes the three web-only auth/onboarding migrations. |
+| `apps/api` migration list recorded | API migration history should be listed with hashes and operation summaries | Audit records all `22` API migration directories with SHA256, relative path, summary, and destructive flag | PASS | prisma-drift-agent | API history is shorter than web and lacks three auth/onboarding migrations. |
+| `packages/db` migration status recorded | Future canonical owner location should be explicitly documented even if empty | Audit records that `packages/db/prisma/migrations` exists but has `0` tracked `migration.sql` files | PASS | prisma-drift-agent | Canonical ownership remains planning-only until reconciliation. |
+| Cross-history comparison recorded | Shared vs app-only history should be hash-classified before any cutover design | Audit records `22` shared-identical migrations, `0` shared-different, `3` web-only, `0` API-only, `0` packages-db-only | PASS | prisma-drift-agent | All current tracked history is still missing from the future canonical location. |
+| Destructive EdgeNode finding retained as RED | Inventory must keep the known `EdgeNode` delete path blocking | Audit records `DELETE FROM "EdgeNode"` at line `49` in both `apps/web` and `apps/api` `20260604140000_edge_runtime_pairing` migrations and keeps the status RED | FAIL | migration-safety-agent | Inventory does not approve or soften destructive SQL. |
+| No schema/migration/app/package/workflow/env changes | Inventory PR must remain docs-only | This PR changes only the migration inventory audit plus `WORKFLOW_STATE.md` and `VERIFICATION_MATRIX.md` | PASS | prisma-drift-agent | No schema files, migration SQL, app code, package files, workflows, env, or secrets were changed. |
+| Production readiness remains NOT_READY | Inventory evidence must not be treated as reconciliation or launch proof | Product readiness remains `NOT_READY` and DB/migration governance remains `RED / NEEDS_REPLAN` | FAIL | release-readiness-agent | Inventory improves reconciliation evidence only. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
