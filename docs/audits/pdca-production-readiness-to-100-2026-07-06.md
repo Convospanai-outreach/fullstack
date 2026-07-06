@@ -100,8 +100,8 @@ gh pr list --state open --json number,title,headRefName,isDraft,mergeable,url
 **DO**
 
 ```bash
-curl.exe -i https://www.craftmyfunnel.live/api/health
-curl.exe -i "https://www.craftmyfunnel.live/api/health?probe=ready"
+ curl -i https://www.craftmyfunnel.live/api/health
+ curl -i "https://www.craftmyfunnel.live/api/health?probe=ready"
 vercel env ls production
 vercel env ls preview
 ```
