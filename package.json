@@ -28,7 +28,8 @@
     "schema:verify:production": "node scripts/db/verify-schema-readiness.mjs --production",
     "db:schema:compare": "node scripts/db/compare-prisma-schemas.mjs",
     "readiness:check-db-shape": "npx tsx scripts/readiness/check-db-shape.ts",
-    "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts"
+    "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts",
+    "migrations:scan:destructive": "node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts"
   },
   "overrides": {
     "@hono/node-server": "1.19.13",
