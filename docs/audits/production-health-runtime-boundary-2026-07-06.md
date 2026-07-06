@@ -73,6 +73,9 @@ Why:
 - `npm run lint --workspace apps/web` -> FAIL in the workspace lint wrapper with `JSON parse failed: EOF while parsing a value at line 1 column 0`
 - Focused health-route unit test:
   - `npx vitest run tests/unit/health-route.test.ts` -> PASS
+- Known process gap:
+  - the lint wrapper failure is infrastructure-specific and should be fixed in a separate follow-up PR
+  - targeted tests and typecheck passed, but that is not enough to treat PR #68 as full production readiness proof
 - What must be verified after deploy:
   - `curl.exe --ssl-no-revoke -i https://www.craftmyfunnel.live/api/health`
   - `curl.exe --ssl-no-revoke -i "https://www.craftmyfunnel.live/api/health?probe=live"`
@@ -82,4 +85,3 @@ Why:
 ## Verdict
 
 YELLOW: route boundary isolated but production proof still pending
-
