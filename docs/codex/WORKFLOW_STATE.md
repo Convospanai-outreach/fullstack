@@ -9,16 +9,16 @@ This file is the source of truth for current task status. Update it after every 
 | Overall status | NEEDS_REPLAN |
 | Current stage | Read-only DB schema and migration drift proof |
 | Current agent | prisma-drift-agent |
-| Working branch | docs/production-health-green-proof-2026-07-06 |
-| Baseline commit inspected | e30d177eb0f0f5ec475b6da7d250097ff9421b4a |
+| Working branch | docs/read-only-db-schema-drift-proof-2026-07-06 |
+| Baseline commit inspected | 8f01d47b81de63327eecd2c95d63c0ea8c7a3a43 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-07-06T18:31:48+05:30 |
-| Next action | Run read-only DB schema and migration drift proof against the live database when staging/production credentials are provided |
+| Last updated | 2026-07-06T18:52:30+05:30 |
+| Next action | Resolve canonical migration ownership, quarantine the destructive EdgeNode migration path, and re-run live DB shape verification with safe read-only credentials |
 
 ## Status values
 
@@ -40,9 +40,9 @@ Use only these values:
 
 | Blocker | Owner agent | Evidence | Next action | Status |
 | --- | --- | --- | --- | --- |
-| Live DB behind local Prisma migrations | prisma-drift-agent | Supabase `_prisma_migrations` has 17 rows; local web has 25 migration dirs; local API has 22 migration dirs | Choose canonical Prisma source and migration plan | BLOCKED_EXTERNAL_ACCESS |
-| Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_EXTERNAL_ACCESS |
-| Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Replaced with safe preflight backup and constraint creation sequence | READY_FOR_NEXT_STAGE |
+| Live DB behind local Prisma migrations | prisma-drift-agent | `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md` confirms local migration trees remain split (`apps/web`: 25, `apps/api`: 22, `packages/db`: 0) while live DB verification could not be safely re-run from this shell | Choose canonical migration owner and verify live DB shape with safe read-only credentials | BLOCKED_EXTERNAL_ACCESS |
+| Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Prior readiness audits still record missing live `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; this stage could not safely re-query the live DB because no read-only DB URL was available | Re-run live DB verification with safe read-only credentials, then prepare additive repair only if confirmed | BLOCKED_EXTERNAL_ACCESS |
+| Pending migration contains destructive delete | migration-safety-agent | `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md` confirms `20260604140000_edge_runtime_pairing` still contains `DELETE FROM "EdgeNode"` in both local app migration trees | Quarantine or replace the destructive path in a narrow follow-up PR before any production migration decision | BLOCKED_BY_SCHEMA_CONFLICT |
 | API_INTERNAL_ORIGIN authenticated proxy forwarding verified | production-runtime-verification-agent | Authenticated proxy-to-Railway forwarding verified via browser, Vercel, and Railway logs under active session. | Proceed to Clerk user/team linkage and Redis isolation verification | READY_FOR_NEXT_STAGE |
 | Production web readiness reports database down | release-readiness-agent | Superseded by `docs/audits/production-health-green-proof-2026-07-06.md`: apex routes to Vercel www, `/api/health?probe=live` returns `200` alive, `/api/health?probe=ready` returns `200` healthy with database up, and the earlier 503s were local Windows hosts false negatives. | Move to read-only DB schema and migration drift proof; keep broader auth/Redis/security gates unresolved | READY_FOR_NEXT_STAGE |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
@@ -59,9 +59,9 @@ Use only these values:
 | 1. Repo cartography | repo-cartographer | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Apps: web/API/edge-fastapi; web/API Prisma schemas; CI workflows mapped |
 | 2. Vercel linkage inspection | vercel-linkage-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Project/deployment found; env mapping not verified |
 | 3. Supabase live schema inspection | supabase-inspector | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Active project found; live schema drift found |
-| 4. Prisma ownership and drift | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | web/API schemas validate but histories diverge |
+| 4. Prisma ownership and drift | prisma-drift-agent | NEEDS_REPLAN | docs/audits/read-only-db-schema-drift-proof-2026-07-06.md | Local schemas now match, but migration histories still diverge and live DB proof is blocked without safe read-only credentials |
 | 5. Gmail/mailbox conflict resolution | prisma-drift-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | PR #6 conflicts with canonical schema strategy |
-| 6. Migration safety | migration-safety-agent | READY_FOR_NEXT_STAGE | VERIFICATION_MATRIX.md | Destructive delete replaced with safe EdgeNodeOrphanAudit backup and FK sequence |
+| 6. Migration safety | migration-safety-agent | NEEDS_REPLAN | docs/audits/read-only-db-schema-drift-proof-2026-07-06.md | Destructive `DELETE FROM "EdgeNode"` is still present in local migration history and must be quarantined or replaced before any production migration decision |
 | 7. Runtime DB alignment | runtime-db-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | App health checks still rely on `SELECT 1` |
 | 8. Env linkage guards | env-guard-agent | BLOCKED_EXTERNAL_ACCESS | VERIFICATION_MATRIX.md | Vercel env-key/target proof unavailable |
 | 9. Health and smoke tests | health-smoke-agent | READY_FOR_NEXT_STAGE | docs/audits/production-health-green-proof-2026-07-06.md | Vercel liveness/readiness confirmed green on `www.craftmyfunnel.live`; earlier local Windows hosts override false negatives were corrected |
@@ -101,6 +101,7 @@ Use only these values:
 
 ## Latest findings
 
+- **2026-07-06T18:52:30+05:30 Read-only DB schema drift proof** on branch `docs/read-only-db-schema-drift-proof-2026-07-06` confirmed the current local Prisma schema files are fully aligned across `packages/db`, `apps/web`, and `apps/api`, but migration ownership remains split (`packages/db`: 0 migrations, `apps/web`: 25, `apps/api`: 22). The destructive `DELETE FROM "EdgeNode"` path is still present in `20260604140000_edge_runtime_pairing`, `npm run db:schema:compare` passed, `npm run schema:verify:readonly` was blocked by missing safe DB URL input, and `npm run readiness:audit --workspace apps/api` was not run because it seeds data before auditing.
 - **2026-06-30T13:45+05:30 Support email and DB verification script fixes** on branch `fix/support-email-and-domain-quickwin` aligned public page emails to `support@craftmyfunnel.live`, examples to `www.craftmyfunnel.live`, and resolved `PrismaClientConstructorValidationError` in database checks by using the canonical database proxy wrapper.
 - **2026-06-30T00:35+05:30 Google, Clerk, Gmail & Redis execution planning pass** on latest main `d53520bba68e1f5ea95d420237d667cc8a1891b4` resolved the npm ci lockfile mismatch and created the integration checklists.
 - **2026-06-29T16:40+05:30 Trivy Web scan failure remediation pass** on latest main `d53520bba68e1f5ea95d420237d667cc8a1891b4` resolved the Web image Trivy vulnerability failures by adding package version overrides in root `package.json` and updating the lockfile.
