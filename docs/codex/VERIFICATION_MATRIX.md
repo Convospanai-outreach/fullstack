@@ -115,6 +115,18 @@ Use only these verdicts:
 | No DB touched | Tooling PR must not connect to or mutate any DB | Scanner and workflow wiring are file-system only, and no DB commands were run in this stage | PASS | migration-safety-agent | Safe local validation is limited to scanner execution. |
 | Production readiness remains NOT_READY | Safety tooling must not be treated as schema remediation or launch proof | Product readiness remains `NOT_READY` and DB/migration governance remains `RED / NEEDS_REPLAN` | FAIL | release-readiness-agent | This PR improves guardrails only. |
 
+## Canonical migration ownership decision (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| `packages/db` selected as long-term canonical owner | One long-term Prisma migration owner should be chosen for planning | `docs/decisions/canonical-migration-ownership-2026-07-06.md` accepts `packages/db/prisma` as the long-term canonical owner | PASS | prisma-drift-agent | Decision only; no migration ownership cutover is implemented in this PR. |
+| Split migration ownership rejected | Continued split ownership should be explicitly rejected | Decision record rejects continued `apps/web` + `apps/api` + `packages/db` ownership because migration histories remain split (`packages/db`: `0`, `apps/web`: `25`, `apps/api`: `22`) | PASS | prisma-drift-agent | Governance remains red until reconciliation is implemented. |
+| `apps/web` and `apps/api` marked transitional only | App-local schema references and migration roles should be temporary after reconciliation | Decision record marks `apps/web` and `apps/api` as transitional compatibility measures only, not long-term migration authorities | PASS | prisma-drift-agent | No rewiring or file movement occurs in this PR. |
+| EdgeNode destructive path remains RED | Canonical ownership decision must not hide the known destructive migration issue | Decision record keeps `DELETE FROM "EdgeNode"` in `20260604140000_edge_runtime_pairing` explicitly RED and unresolved | FAIL | migration-safety-agent | Separate non-destructive replacement/quarantine work is still required. |
+| PR #6 remains blocked | Broad PR #6 should stay blocked until migration governance is reconciled | Decision record states PR #6 must not merge as-is and any migration portion must be rewritten as canonical `packages/db` work after reconciliation | PASS | pr-strategy-agent | No PR #6 changes were made. |
+| No schema/migration/app/env changes | Docs-only decision PR must not change runtime or DB assets | This PR changes only the decision record plus `WORKFLOW_STATE.md` and `VERIFICATION_MATRIX.md` | PASS | prisma-drift-agent | No app, schema, migration SQL, package, workflow, env, or secret changes. |
+| Production readiness remains NOT_READY | Ownership decision must not be treated as readiness proof | Product readiness remains `NOT_READY` and DB/migration governance remains `RED / NEEDS_REPLAN` | FAIL | release-readiness-agent | The decision clarifies governance; it does not resolve it. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
