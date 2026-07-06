@@ -103,6 +103,20 @@ Use only these verdicts:
 | No app/schema/migration/env/secret changes | Cost-control PR must not change runtime behavior or DB governance | This PR changes only workflow files, `vercel.json`, the plan doc, and workflow-tracking docs | PASS | ci-gate-agent | No app code, schema, migration, env, or lockfile changes. |
 | Production readiness remains NOT_READY | CI cost-control must not be treated as readiness proof | Product readiness remains `NOT_READY` and DB/migration governance remains `NEEDS_REPLAN` / RED | FAIL | release-readiness-agent | Mergeability and compute cost improve; production readiness does not. |
 
+## Canonical migration manifest cutover design (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Manifest-backed cutover strategy accepted | The cutover design should explicitly adopt a manifest-backed canonical strategy instead of direct migration movement | `docs/decisions/canonical-migration-manifest-cutover-2026-07-06.md` accepts manifest-backed canonical adoption with explicit exceptions and a phased implementation sequence | PASS | prisma-drift-agent | Planning only; no cutover is performed in this PR. |
+| Blind copy strategy rejected | Direct copying from app-local migration trees should be rejected at the decision level | The cutover design rejects blind copy from both `apps/web` and `apps/api` into `packages/db` | PASS | prisma-drift-agent | Rejects accidental approval of transitional history. |
+| Schema-baseline-only strategy rejected | Reconstructing canonical history from schema alone should be rejected | The cutover design rejects schema-baseline-only reconstruction because it loses migration provenance | PASS | prisma-drift-agent | Provenance preservation remains a core requirement. |
+| Split ownership remains rejected | Continued migration ownership split must remain disallowed | The cutover design keeps split ownership rejected and preserves `packages/db/prisma` as the long-term canonical owner | PASS | prisma-drift-agent | Matches the prior ownership decision. |
+| Web-only migrations require future classification | The three web-only migrations should stay explicitly unresolved until reviewed | The cutover design keeps web-only migrations unapproved for movement and requires future classification before adoption | PASS | prisma-drift-agent | No silent adoption path is allowed. |
+| EdgeNode destructive path remains RED | Known destructive migration history should remain a blocker | The cutover design preserves the RED status for `DELETE FROM "EdgeNode"` and requires quarantine or replacement before blocking scanner mode or production migration proposal | FAIL | migration-safety-agent | This PR does not resolve the destructive path. |
+| PR #6 remains blocked | Mailbox-related migration work must stay blocked until canonical governance and live DB proof catch up | The cutover design keeps PR #6 blocked and requires later rebasing or split work against the canonical `packages/db` path | FAIL | prisma-drift-agent | No PR #6 migration approval is granted here. |
+| No schema/migration/app/package/workflow/env changes | The decision PR must stay docs-only | This PR changes only `docs/decisions/canonical-migration-manifest-cutover-2026-07-06.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | prisma-drift-agent | No app code, schema, migration SQL, package, workflow, env, or DB changes. |
+| Production readiness remains NOT_READY | The cutover decision must not be treated as production-readiness proof | The cutover design explicitly keeps DB/migration governance `RED / NEEDS_REPLAN` and overall product readiness `NOT_READY` | FAIL | release-readiness-agent | Planning path only; no remediation is implemented. |
+
 ## Destructive migration scanner and read-only audit hardening (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

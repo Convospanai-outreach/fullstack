@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Migration manifest inventory |
+| Current stage | Canonical manifest cutover design |
 | Current agent | prisma-drift-agent |
-| Working branch | docs/migration-manifest-inventory-2026-07-06 |
-| Baseline commit inspected | 76fe059baf5df0ac17ad64dcfc36ff514ac5069f |
+| Working branch | docs/canonical-manifest-cutover-design-2026-07-06 |
+| Baseline commit inspected | 4f2480d128e9aa2b39799993347ec2ab46608dc7 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-07-06T23:38:03.1030277+05:30 |
-| Next action | Approve the canonical migration manifest design and prepare the non-destructive EdgeNode replacement/quarantine path while DB/migration governance remains RED / NEEDS_REPLAN |
+| Last updated | 2026-07-07T00:06:01.1655017+05:30 |
+| Next action | Prepare the EdgeNode non-destructive replacement/quarantine design while DB/migration governance remains RED / NEEDS_REPLAN |
 
 ## Status values
 
@@ -101,6 +101,7 @@ Use only these values:
 
 ## Latest findings
 
+- **2026-07-07T00:06:01.1655017+05:30 Canonical manifest cutover design pass** on branch `docs/canonical-manifest-cutover-design-2026-07-06` approved a manifest-backed cutover strategy for moving toward `packages/db/prisma` as the canonical migration owner. The planning decision rejects blind copy from `apps/web`, blind copy from `apps/api`, schema-baseline-only reconstruction, and continued split ownership. Shared-identical migrations remain eligible for future canonical adoption only after hash confirmation, the three web-only migrations require future classification, the destructive EdgeNode delete path remains RED, and PR #6 remains blocked. No schema, migration SQL, app, package, workflow, env, or DB changes were made in this pass.
 - **2026-07-06T23:38:03.1030277+05:30 Migration manifest inventory pass** on branch `docs/migration-manifest-inventory-2026-07-06` recorded the tracked Prisma migration histories across `apps/web`, `apps/api`, and `packages/db` without moving or editing any migration files. The inventory confirms `packages/db/prisma/migrations` still has `0` tracked migrations, `apps/web/prisma/migrations` has `25`, `apps/api/prisma/migrations` has `22`, `22` migrations are shared-identical between web and API, `3` are web-only auth/onboarding migrations, and `0` are API-only. The known `DELETE FROM "EdgeNode"` path remains RED in `20260604140000_edge_runtime_pairing`, and other destructive patterns (`DROP TABLE`, `DROP COLUMN`, `DROP INDEX`, `DROP CONSTRAINT`) remain present in app-local history. No schema, migration SQL, package, workflow, env, or DB changes were made.
 - **2026-07-06T22:55:18.9936223+05:30 Canonical migration ownership decision pass** on branch `docs/canonical-migration-ownership-decision-2026-07-06` records `packages/db/prisma` as the accepted long-term migration owner for planning purposes, marks `apps/web/prisma` and `apps/api/prisma` as transitional only after reconciliation, and keeps DB/migration governance RED because migration histories remain split, live DB shape is still UNPROVEN, and the `DELETE FROM "EdgeNode"` path in `20260604140000_edge_runtime_pairing` is still unresolved. No schema, migration SQL, app, CI, env, or DB changes were made.
 - **2026-07-06T20:31:07.2079914+05:30 Destructive migration scanner and read-only audit hardening pass** on branch `chore/destructive-migration-scanner-readonly-audit-2026-07-06` added `scripts/readiness/scan-destructive-migrations.ts`, a fail-closed scanner for tracked Prisma migration SQL. The script detects destructive patterns such as `DELETE FROM`, `TRUNCATE`, `DROP TABLE`, `DROP COLUMN`, `DROP INDEX`, `DROP CONSTRAINT`, and `ALTER TABLE ... DROP`, and it is wired into `.github/workflows/verify.yml` in advisory mode so the existing `DELETE FROM "EdgeNode"` path is reported without masking the repo's current RED migration-governance state. This pass also documented that `apps/api` readiness audit remains unsafe for production evidence because it seeds before auditing; no migrations were edited, no migrations were run, and no DB was touched.
