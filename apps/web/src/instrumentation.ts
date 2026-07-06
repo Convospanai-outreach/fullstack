@@ -4,13 +4,24 @@ export async function register() {
         const runtimeMode = process.env['CRAFTMYFUNNEL_RUNTIME_MODE'];
         const isVercelRuntime = process.env['VERCEL'] === '1' || Boolean(process.env['VERCEL_ENV']);
         const explicitlyEnabled = process.env['ENABLE_WEB_HARDWARE_VERIFY'] === 'true';
-        const skipHardwareVerification = process.env['BETA_SKIP_HARDWARE_VERIFY'] === 'true'
-            || runtimeMode === 'email_first_beta'
-            || isVercelRuntime
-            || !explicitlyEnabled;
+        const betaSkipEnabled = process.env['BETA_SKIP_HARDWARE_VERIFY'] === 'true';
+        const shouldSkipHardwareVerification =
+            isVercelRuntime ||
+            !explicitlyEnabled ||
+            runtimeMode === 'email_first_beta' ||
+            betaSkipEnabled;
 
-        if (skipHardwareVerification) {
-            console.log('Skipping hardware verification for web serverless runtime.');
+        if (shouldSkipHardwareVerification) {
+            const reason = isVercelRuntime
+                ? 'Vercel/serverless runtime'
+                : !explicitlyEnabled
+                    ? 'ENABLE_WEB_HARDWARE_VERIFY not set'
+                    : runtimeMode === 'email_first_beta'
+                        ? 'email_first_beta mode'
+                        : betaSkipEnabled
+                            ? 'BETA_SKIP_HARDWARE_VERIFY flag'
+                            : 'serverless runtime';
+            console.log(`Skipping hardware verification: ${reason}.`);
             return;
         }
         try {
