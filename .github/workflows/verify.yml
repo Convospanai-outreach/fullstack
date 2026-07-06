@@ -94,6 +94,8 @@ jobs:
         with:
           node-version: '24.x'
 
+      # Keep this zero-install: the scanner uses only Node built-ins and
+      # `node --experimental-strip-types`, so npm install would add avoidable CI cost.
       - name: Run destructive migration scan in advisory mode
         shell: bash
         run: |

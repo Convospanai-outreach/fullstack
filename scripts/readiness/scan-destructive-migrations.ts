@@ -98,7 +98,13 @@ function loadAllowlist(filePath: string): AllowlistEntry[] {
   }
 
   const raw = fs.readFileSync(filePath, "utf8");
-  const parsed = JSON.parse(raw);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(`Failed to parse allowlist file as JSON: ${filePath}\n${String(err)}`);
+  }
+
   if (!Array.isArray(parsed)) {
     throw new Error(`Allowlist file must contain a JSON array: ${filePath}`);
   }
@@ -160,7 +166,12 @@ function scanFile(filePath: string, allowlist: AllowlistEntry[]): Finding[] {
     const matchedRules = patternRules.filter((rule) => rule.regex.test(line));
     const shouldSuppressGenericAlterTableDrop =
       matchedRules.some((rule) => rule.id === "ALTER_TABLE_DROP") &&
-      matchedRules.some((rule) => rule.id === "DROP_COLUMN" || rule.id === "DROP_CONSTRAINT");
+      matchedRules.some(
+        (rule) =>
+          rule.id === "DROP_COLUMN" ||
+          rule.id === "DROP_CONSTRAINT" ||
+          rule.id === "DROP_INDEX",
+      );
 
     matchedRules.forEach((rule) => {
       if (rule.id === "ALTER_TABLE_DROP" && shouldSuppressGenericAlterTableDrop) {
