@@ -77,6 +77,18 @@ Use only these verdicts:
 | Read-only command results | Only safe, non-mutating verification commands should be used | `db:schema:compare` PASS; `schema:verify:readonly` blocked by missing safe DB URL input; `readiness:audit --workspace apps/api` not run because it seeds data first | PARTIAL | prisma-drift-agent | No DB mutation was performed. |
 | Final drift verdict | Final verdict should mark only what is proven and keep broader readiness pending | Evidence recorded in `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md`; local schema alignment is proven, but destructive migration history and blocked live DB verification keep the stage red | MIGRATION_DRIFT | prisma-drift-agent | Do not claim full production readiness from this stage. |
 
+## DB migration remediation plan (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| RED drift proof reviewed | Planning should start from the recorded RED audit rather than reclassifying it | `docs/plans/db-migration-remediation-plan-2026-07-06.md` explicitly starts from `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md` and keeps the verdict red | PASS | migration-remediation-agent | No downgrade to yellow or green. |
+| Canonical ownership options documented | Migration ownership options should be documented with a recommendation and rejection rationale | Plan documents Option A `packages/db`, Option B `apps/web`, and Option C split ownership, and recommends Option A long-term | PASS | migration-remediation-agent | Decision still requires approval. |
+| Destructive EdgeNode remediation plan documented | The plan should define a non-destructive replacement strategy without changing migration SQL here | Plan documents quarantine, audit-first preservation, staged validation, and rollback requirements for `20260604140000_edge_runtime_pairing` | PASS | migration-remediation-agent | Planning only; migration SQL unchanged. |
+| Live read-only DB proof requirement documented | Production migration planning should define exact read-only proof requirements before execution | Plan requires safe read-only credentials, redacted output, and verification of `_prisma_migrations`, `EdgeNode`, `User`, `UserInvitation`, `invite_requests`, and `ConnectedMailbox` | PASS | migration-remediation-agent | Live DB shape remains UNPROVEN in this PR. |
+| CI guardrails recommended | Planning should define enforcement ideas for destructive SQL and ownership drift | Plan recommends destructive-SQL scanning, ownership drift checks, no-seed audit mode, and safer readonly verification input handling | PASS | migration-remediation-agent | Tooling work deferred to follow-up PRs. |
+| No DB/app/schema/env changes made | Planning PR must remain docs-only | This PR changes only `docs/plans/db-migration-remediation-plan-2026-07-06.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | migration-remediation-agent | No app code, schema, migration, env, or secret changes. |
+| Production readiness impact | Readiness must remain blocked until remediation is implemented and verified | Plan verdict remains RED and workflow state remains `NEEDS_REPLAN` / `NOT_READY` | FAIL | migration-remediation-agent | Planning exists, but remediation is not implemented. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
