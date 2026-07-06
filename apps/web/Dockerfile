@@ -66,16 +66,6 @@ RUN apk add --no-cache wget
 # Non-root user for security
 RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 
-RUN rm -rf \
-    /usr/local/lib/node_modules/npm \
-    /usr/local/lib/node_modules/corepack \
-    /opt/yarn* \
-    /usr/local/bin/npm \
-    /usr/local/bin/npx \
-    /usr/local/bin/corepack \
-    /usr/local/bin/yarn \
-    /usr/local/bin/yarnpkg
-
 # Standalone output (fastest startup)
 # Copy only what Next.js needs at runtime
 COPY --from=builder /repo/apps/web/public ./public
@@ -84,6 +74,16 @@ COPY --from=builder /repo/apps/web/.next/static ./.next/static
 COPY --from=builder /repo/apps/web/prisma ./prisma
 COPY --from=builder /repo/apps/web/scripts ./scripts
 # node_modules already bundled in standalone output
+
+RUN rm -rf \
+      /usr/local/lib/node_modules/npm \
+      /usr/local/lib/node_modules/corepack \
+      /opt/yarn* \
+      /usr/local/bin/npm \
+      /usr/local/bin/npx \
+      /usr/local/bin/corepack \
+      /usr/local/bin/yarn \
+      /usr/local/bin/yarnpkg
 
 USER nextjs
 
