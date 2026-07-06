@@ -15,13 +15,18 @@ This document defines how the known destructive EdgeNode migration must be handl
 
 | Path | Migration | Destructive SQL | Current status | Notes |
 | --- | --- | --- | --- | --- |
-| `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Observed review-time file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
-| `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Observed review-time file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
+| `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Verified and retained after `git hash-object` checks on both app-local EdgeNode migration files: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
+| `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Verified and retained after `git hash-object` checks on both app-local EdgeNode migration files: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
 
 The destructive SQL remains RED.
 This PR does not approve the SQL.
 This PR does not allowlist the SQL.
 This PR does not edit or remove the SQL.
+
+Hash verification:
+- Verified with `git hash-object` against both app-local EdgeNode migration files on this branch.
+- The recorded hash is the current git blob hash for both paths.
+- This hash is evidence for future quarantine tracking only; it is not approval to execute or allowlist the destructive SQL.
 
 ## Why this is a blocker
 - `DELETE FROM` can cause irreversible data loss.
