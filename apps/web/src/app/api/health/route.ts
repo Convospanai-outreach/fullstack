@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 /**
  * Health check endpoint for container orchestration (K8s, ECS, etc.)
  *

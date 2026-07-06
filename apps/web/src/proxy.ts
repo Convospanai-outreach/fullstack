@@ -14,6 +14,13 @@ import {
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
+
+    // Health checks must stay outside auth/proxy/rate-limit work so they can
+    // exercise the route boundary directly and remain safe no-I/O probes.
+    if (path.startsWith("/api/health")) {
+        return NextResponse.next();
+    }
+
     const hiddenFeature = getHiddenFeatureForPath(path);
     const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
         getDefaultEnabledHiddenFeatureKeys(),
