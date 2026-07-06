@@ -48,11 +48,11 @@ Current state only. No DB mutation.
 
 ### Phase 1
 
-Inventory and manifest existing app migrations.
+Inventory existing app migrations and create the migration manifest draft.
 
 ### Phase 2
 
-Create the canonical migration manifest under `packages/db`.
+Create the canonical migration manifest under `packages/db` and approve that manifest as the handoff artifact for cutover planning.
 
 ### Phase 3
 
@@ -64,9 +64,17 @@ Add or confirm CI enforcement so new migrations are accepted only in the canonic
 
 ### Phase 5
 
-Staging dry run.
+Read-only live DB proof tooling and safe input handling.
 
 ### Phase 6
+
+No-seed readiness audit mode so production-adjacent verification does not write before auditing.
+
+### Phase 7
+
+Staging dry run.
+
+### Phase 8
 
 Production migration proposal only after manual approval and rollback planning.
 
@@ -140,10 +148,11 @@ This decision record does not include:
 
 ## Follow-up PRs
 
-1. migration manifest inventory PR
-2. EdgeNode non-destructive replacement/quarantine design PR
-3. CI enforcement PR for canonical migration location
-4. read-only live DB proof tooling/input PR
-5. no-seed readiness audit mode PR
-6. staging dry-run PR
-7. production migration proposal only after approvals
+1. Phase 1: migration manifest inventory PR
+2. Phase 2: canonical `packages/db` migration manifest approval PR
+3. Phase 3: EdgeNode non-destructive replacement/quarantine design PR
+4. Phase 4: CI enforcement PR for canonical migration location
+5. Phase 5: read-only live DB proof tooling/input PR
+6. Phase 6: no-seed readiness audit mode PR
+7. Phase 7: staging dry-run PR
+8. Phase 8: production migration proposal only after approvals
