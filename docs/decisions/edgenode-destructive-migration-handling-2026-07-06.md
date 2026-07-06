@@ -15,8 +15,8 @@ This document defines how the known destructive EdgeNode migration must be handl
 
 | Path | Migration | Destructive SQL | Current status | Notes |
 | --- | --- | --- | --- | --- |
-| `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Current file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. |
-| `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Current file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. |
+| `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Observed review-time file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
+| `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `20260604140000_edge_runtime_pairing` | `DELETE FROM "EdgeNode"` | RED | Observed review-time file hash: `d05ac18c728f6440e0e7b5740465a271760a3e98`. Destructive statement is at line 49. Future quarantine metadata must recompute and verify the then-current file hash instead of reusing this value blindly. |
 
 The destructive SQL remains RED.
 This PR does not approve the SQL.
@@ -82,7 +82,7 @@ Quarantine is a documented state for a known destructive historical migration th
 Quarantine record must include:
 - exact file path
 - exact SQL pattern
-- hash of the migration file
+- hash of the migration file, recomputed and verified at quarantine time
 - reason for quarantine
 - live DB proof status
 - owner or agent responsible
