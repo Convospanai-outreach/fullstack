@@ -65,6 +65,22 @@ Heavy jobs intentionally skipped for docs-only changes:
 - Vercel parity build
 - Phi-3 verification
 
+## Required-check Safety Note
+
+Do not use top-level `paths-ignore` on required workflows when that would leave checks pending or missing.
+
+Why:
+
+- branch protection may require the workflow or job name to complete
+- a workflow that never starts can leave mergeability ambiguous
+- a docs-only no-op path is safer than a missing required check
+
+This PR uses:
+
+- a lightweight docs-only detector job
+- a lightweight `Docs-only Validation` success job
+- job-level `if` guards on expensive jobs
+
 ## Vercel Strategy
 
 This PR adds `vercel.json` with branch deployment disablement for docs branches:
@@ -98,21 +114,21 @@ Examples:
 - `docs/read-only-db-schema-drift-proof-2026-07-06`
 - `docs/db-migration-remediation-plan-2026-07-06`
 
-## Warning About [skip ci]
+## What This PR Changes
 
-Do not rely on `[skip ci]` blindly for required-check repositories.
+- Adds docs-only detection and no-op success paths to required GitHub workflows.
+- Gates expensive jobs behind docs-only conditions.
+- Adds in-repo Vercel docs-branch deployment disablement via `vercel.json`.
+- Cleans up PR #73 audit-trail bookkeeping in workflow-state docs.
 
-Reason:
+## What This PR Does Not Change
 
-- top-level workflow skipping can leave required checks in a pending or missing state
-- branch protection may then block merge even though the change is harmless
-
-Preferred pattern:
-
-- start the workflow
-- detect docs-only changes
-- run a cheap success/no-op path
-- skip the expensive jobs with explicit job-level conditions
+- No application code.
+- No schema or migration files.
+- No database behavior.
+- No Railway or Supabase config.
+- No secrets or env values.
+- No production readiness status upgrade.
 
 ## Remaining Limitations
 
@@ -120,3 +136,10 @@ Preferred pattern:
 - `docker-ghcr.yml` and `phi3-runtime-verify.yml` were left unchanged because they are already path-scoped and do not appear to be the source of docs-only branch waste.
 - This PR does not change branch protection settings, repository-level GitHub Advanced Security settings, or external platform rules.
 - This PR does not claim production readiness and does not change runtime validation quality for non-docs branches.
+
+## Verification Plan
+
+- Docs-only PRs should run lightweight docs-only checks only.
+- Heavy checks should be skipped or complete through a no-op success path.
+- Non-docs PRs should still run normal CI, build, security, and deployment gates.
+- Full production readiness remains `NOT_READY`.
