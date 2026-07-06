@@ -103,6 +103,18 @@ Use only these verdicts:
 | No app/schema/migration/env/secret changes | Cost-control PR must not change runtime behavior or DB governance | This PR changes only workflow files, `vercel.json`, the plan doc, and workflow-tracking docs | PASS | ci-gate-agent | No app code, schema, migration, env, or lockfile changes. |
 | Production readiness remains NOT_READY | CI cost-control must not be treated as readiness proof | Product readiness remains `NOT_READY` and DB/migration governance remains `NEEDS_REPLAN` / RED | FAIL | release-readiness-agent | Mergeability and compute cost improve; production readiness does not. |
 
+## Destructive migration scanner and read-only audit hardening (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Destructive migration scanner added | Repo should have a fail-closed scanner for tracked Prisma migration SQL | `scripts/readiness/scan-destructive-migrations.ts` scans tracked `migration.sql` files under `apps/web`, `apps/api`, and `packages/db`, reports file path/line/pattern/excerpt/severity, and exits non-zero on unallowlisted findings | PASS | migration-safety-agent | Uses only local filesystem and `git ls-files`; no DB or env access. |
+| EdgeNode destructive DELETE detected | The current known RED migration finding should still be surfaced, not hidden | The scanner detects `DELETE FROM "EdgeNode"` in `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` and the matching API migration file | FAIL | migration-safety-agent | Existing RED remains active until the destructive path is quarantined or replaced. |
+| CI integration added as advisory or blocking | Scanner should be integrated into a lightweight required workflow with state clearly declared | `.github/workflows/verify.yml` now runs `Destructive Migration Scan (Advisory)` for non-docs changes and keeps docs-only PRs on the no-op path | PASS | ci-gate-agent | Advisory mode is intentional because current `main` already contains known destructive findings. |
+| Read-only audit safety documented | Repo docs should clearly distinguish read-only verification from seed/write flows | `docs/plans/destructive-migration-scanner-readonly-audit-hardening-2026-07-06.md` documents that `db:schema:compare` is safe, `schema:verify:readonly` still needs safe DB input, and `apps/api` `readiness:audit` is not safe for production evidence because it seeds first | PASS | migration-safety-agent | No DB behavior changed in this PR. |
+| No migrations edited | Tooling PR must not modify tracked migration SQL | No `migration.sql` files were edited; the scanner only reads tracked migration files | PASS | migration-safety-agent | Existing migration history remains untouched. |
+| No DB touched | Tooling PR must not connect to or mutate any DB | Scanner and workflow wiring are file-system only, and no DB commands were run in this stage | PASS | migration-safety-agent | Safe local validation is limited to scanner execution. |
+| Production readiness remains NOT_READY | Safety tooling must not be treated as schema remediation or launch proof | Product readiness remains `NOT_READY` and DB/migration governance remains `RED / NEEDS_REPLAN` | FAIL | release-readiness-agent | This PR improves guardrails only. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

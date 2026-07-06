@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | CI/deployment cost-control guardrails |
-| Current agent | ci-gate-agent |
-| Working branch | chore/docs-only-ci-deployment-guards-2026-07-06 |
-| Baseline commit inspected | 82a665e7a9f76f93b3ae641e1196aa1e92d276de |
+| Current stage | Destructive migration scanner and read-only audit hardening |
+| Current agent | migration-safety-agent |
+| Working branch | chore/destructive-migration-scanner-readonly-audit-2026-07-06 |
+| Baseline commit inspected | d16b93f734bafd805b1673630df1d4b197409d0f |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-07-06T19:38:42+05:30 |
-| Next action | Verify docs-only PRs resolve required checks via no-op success paths, then implement destructive migration scanner and read-only audit hardening follow-up work while DB/migration governance remains RED |
+| Last updated | 2026-07-06T20:31:07.2079914+05:30 |
+| Next action | Quarantine or replace the destructive `EdgeNode` migration path, finalize canonical migration ownership, and harden read-only verification tooling so DB governance can move off RED |
 
 ## Status values
 
@@ -101,6 +101,7 @@ Use only these values:
 
 ## Latest findings
 
+- **2026-07-06T20:31:07.2079914+05:30 Destructive migration scanner and read-only audit hardening pass** on branch `chore/destructive-migration-scanner-readonly-audit-2026-07-06` added `scripts/readiness/scan-destructive-migrations.ts`, a fail-closed scanner for tracked Prisma migration SQL. The script detects destructive patterns such as `DELETE FROM`, `TRUNCATE`, `DROP TABLE`, `DROP COLUMN`, `DROP INDEX`, `DROP CONSTRAINT`, and `ALTER TABLE ... DROP`, and it is wired into `.github/workflows/verify.yml` in advisory mode so the existing `DELETE FROM "EdgeNode"` path is reported without masking the repo's current RED migration-governance state. This pass also documented that `apps/api` readiness audit remains unsafe for production evidence because it seeds before auditing; no migrations were edited, no migrations were run, and no DB was touched.
 - **2026-07-06T19:38:42+05:30 Docs-only CI/deployment guardrail pass** on branch `chore/docs-only-ci-deployment-guards-2026-07-06` added docs-only change detection and no-op validation paths to required workflows (`CI`, `Production Readiness Gate`, `Vercel Parity Build`, and `Phi-3 Verification`) and disabled Vercel deployments for `docs/*` branches via `vercel.json`. Railway config remains unchanged because no repo config file is present and prior evidence already showed watched-path no-op behavior. Post-PR #73 bookkeeping was also corrected by replacing the invalid baseline SHA with `origin/main` commit `82a665e7a9f76f93b3ae641e1196aa1e92d276de` and remapping undeclared `migration-remediation-agent` references to declared Codex agents.
 - **2026-07-06T19:15:57+05:30 DB migration remediation planning** on branch `docs/db-migration-remediation-plan-2026-07-06` converted the RED drift proof into a planning-only remediation path. It keeps the verdict red, recommends `packages/db` as the long-term canonical migration owner, rejects split ownership, requires a non-destructive replacement strategy for `20260604140000_edge_runtime_pairing`, and keeps live DB shape marked UNPROVEN until safe read-only credentials are available.
 - **2026-07-06T18:52:30+05:30 Read-only DB schema drift proof** on branch `docs/read-only-db-schema-drift-proof-2026-07-06` confirmed the current local Prisma schema files are fully aligned across `packages/db`, `apps/web`, and `apps/api`, but migration ownership remains split (`packages/db`: 0 migrations, `apps/web`: 25, `apps/api`: 22). The destructive `DELETE FROM "EdgeNode"` path is still present in `20260604140000_edge_runtime_pairing`, `npm run db:schema:compare` passed, `npm run schema:verify:readonly` was blocked by missing safe DB URL input, and `npm run readiness:audit --workspace apps/api` was not run because it seeds data before auditing.

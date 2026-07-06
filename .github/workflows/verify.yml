@@ -78,7 +78,46 @@ jobs:
       - name: Confirm docs-only verification skip
         run: |
           echo "Docs-only change set detected."
-          echo "Skipping Phi-3 Verification."
+          echo "Skipping Phi-3 Verification and destructive migration scan."
+
+  scan-destructive-migrations:
+    name: Destructive Migration Scan (Advisory)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Run destructive migration scan in advisory mode
+        shell: bash
+        run: |
+          set +e
+          npm run migrations:scan:destructive | tee destructive-migration-scan.log
+          scan_status=${PIPESTATUS[0]}
+          set -e
+
+          if [[ "$scan_status" -ne 0 ]]; then
+            echo "::warning::Destructive migration findings detected. Advisory mode keeps the workflow green while DB/migration governance remains RED."
+            {
+              echo "### Destructive migration scan"
+              echo ""
+              echo "Result: advisory findings detected"
+              echo ""
+              echo "Blocking mode is deferred until the committed EdgeNode destructive path is quarantined or replaced and canonical migration ownership is finalized."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Destructive migration scan"
+              echo ""
+              echo "Result: no destructive migration findings detected"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   verify-safety-invariants:
     name: Verify Phi-3 Safety Enforcement
@@ -118,7 +157,7 @@ jobs:
 
   merge-gate:
     name: Merge Gate
-    needs: [detect-docs-only, docs-only-validation, verify-safety-invariants]
+    needs: [detect-docs-only, docs-only-validation, scan-destructive-migrations, verify-safety-invariants]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -133,6 +172,10 @@ jobs:
           else
             if [ "${{ needs.verify-safety-invariants.result }}" != "success" ]; then
               echo "::error::Verification failed or was skipped. Blocking merge."
+              exit 1
+            fi
+            if [ "${{ needs.scan-destructive-migrations.result }}" != "success" ]; then
+              echo "::error::Destructive migration scan job did not complete successfully."
               exit 1
             fi
             echo "Verification passed. Global AI safety verified."
