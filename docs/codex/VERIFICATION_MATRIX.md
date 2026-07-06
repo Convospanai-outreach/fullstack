@@ -53,6 +53,18 @@ Use only these verdicts:
 | Vercel runtime logs | No API origin, recursive proxy, DB, or upstream fetch failures after redeploy | Vercel runtime log query for deployment `dpl_ARQQj8V2Cua47YgvSiRCaVEo4gZN` found no matching `API_INTERNAL_ORIGIN`, `recursive proxy`, `database`, or `fetch failed` logs; error/fatal query returned no errors | PASS | production-runtime-verification-agent | One warning: hardware verification failed and app ran software-only during `/api/health`. |
 | Production readiness verdict | Product should not be marked ready unless all functional gates pass | `docs/audits/production-runtime-verification-after-api-origin.md` keeps explicit not-production-ready verdict and lists remaining blockers | FAIL | production-runtime-verification-agent | Health green is infrastructure readiness only. |
 
+## Post-PR68/PR70 production health green proof (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Local Windows hosts override corrected | `craftmyfunnel.live` should resolve to Vercel, not `127.0.0.1` | `Resolve-DnsName craftmyfunnel.live -Type A -Server 8.8.8.8` returned `216.198.79.65` and `64.29.17.65` | PASS | production-health-docs-agent | Earlier curl 500s were local false negatives; see `docs/audits/production-health-green-proof-2026-07-06.md`. |
+| `www.craftmyfunnel.live` routing | `www` should resolve through Vercel DNS | `Resolve-DnsName www.craftmyfunnel.live -Type CNAME -Server 8.8.8.8` returned `d6db2f592966d5f8.vercel-dns-017.com` | PASS | production-health-docs-agent | Confirms production routing to Vercel. |
+| Apex redirect to www | Apex health probes should redirect to `www` | `curl.exe --ssl-no-revoke -i https://craftmyfunnel.live/api/health?probe=live` returned `308` to `https://www.craftmyfunnel.live/api/health?probe=live`; same for `probe=ready` | PASS | production-health-docs-agent | Redirect is expected and healthy. |
+| Production liveness probe | Liveness must return green without downstream I/O | `curl.exe --ssl-no-revoke -i https://www.craftmyfunnel.live/api/health?probe=live` returned `200` with JSON `status: "alive"` and `service: "craftmyfunnel-web"` | PASS | production-health-docs-agent | Health boundary verified. |
+| Production readiness probe | Readiness must return green with DB up | `curl.exe --ssl-no-revoke -i https://www.craftmyfunnel.live/api/health?probe=ready` returned `200` with JSON `status: "healthy"` and `checks.database: "up"` | PASS | production-health-docs-agent | Readiness is now proven on the corrected public route. |
+| Vercel headers on health responses | Health responses should clearly come from Vercel | `Server: Vercel`, `X-Vercel-Id`, and `X-Matched-Path: /api/health` were present on the `www` health responses | PASS | production-health-docs-agent | Confirms the live responses are Vercel-served. |
+| Overall health boundary verdict | Mark only the production health boundary green; keep broader readiness pending | Evidence recorded in `docs/audits/production-health-green-proof-2026-07-06.md` | PASS | production-health-docs-agent | Full production readiness is still pending DB/schema/auth/Redis/security gates. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

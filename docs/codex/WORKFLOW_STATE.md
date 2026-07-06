@@ -7,18 +7,18 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Google, Clerk, Gmail & Redis execution planning |
-| Current agent | production-runtime-verification-agent |
-| Working branch | fix/trivy-web-scan-failure |
-| Baseline commit inspected | d53520bba68e1f5ea95d420237d667cc8a1891b4 |
+| Current stage | Read-only DB schema and migration drift proof |
+| Current agent | prisma-drift-agent |
+| Working branch | docs/production-health-green-proof-2026-07-06 |
+| Baseline commit inspected | e30d177eb0f0f5ec475b6da7d250097ff9421b4a |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-06-30T13:45+05:30 |
-| Next action | Run database verification scripts against remote database when staging/production credentials are provided |
+| Last updated | 2026-07-06T18:31:48+05:30 |
+| Next action | Run read-only DB schema and migration drift proof against the live database when staging/production credentials are provided |
 
 ## Status values
 
@@ -44,7 +44,7 @@ Use only these values:
 | Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Live DB lacks `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; `apps/web/src/lib/clerkAuth.ts` depends on those objects | Apply reviewed non-destructive migrations or deploy code matching live schema | BLOCKED_EXTERNAL_ACCESS |
 | Pending migration contains destructive delete | migration-safety-agent | `20260604140000_edge_runtime_pairing` contains `DELETE FROM "EdgeNode"` | Replaced with safe preflight backup and constraint creation sequence | READY_FOR_NEXT_STAGE |
 | API_INTERNAL_ORIGIN authenticated proxy forwarding verified | production-runtime-verification-agent | Authenticated proxy-to-Railway forwarding verified via browser, Vercel, and Railway logs under active session. | Proceed to Clerk user/team linkage and Redis isolation verification | READY_FOR_NEXT_STAGE |
-| Production web readiness reports database down | release-readiness-agent | Latest custom-domain `/api/health` and `/api/health?probe=ready` return `503` with `checks.database: "down"`; `/api/health?probe=live` returns `200`, so process liveness is healthy and DB readiness is failing. | Verify Vercel Production `DATABASE_URL` presence/target/connectivity and redacted runtime error without changing DB data | NEEDS_INPUT |
+| Production web readiness reports database down | release-readiness-agent | Superseded by `docs/audits/production-health-green-proof-2026-07-06.md`: apex routes to Vercel www, `/api/health?probe=live` returns `200` alive, `/api/health?probe=ready` returns `200` healthy with database up, and the earlier 503s were local Windows hosts false negatives. | Move to read-only DB schema and migration drift proof; keep broader auth/Redis/security gates unresolved | READY_FOR_NEXT_STAGE |
 | Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
 | Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run dependency alert mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
 | Minimum security gate not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12A minimum beta gate; no route inventory or fixes have been executed in this docs-only pass | Run Stage 12A after functional readiness is mostly green and before controlled beta; do not treat DB health as full app readiness | NEEDS_REPLAN |
@@ -64,7 +64,7 @@ Use only these values:
 | 6. Migration safety | migration-safety-agent | READY_FOR_NEXT_STAGE | VERIFICATION_MATRIX.md | Destructive delete replaced with safe EdgeNodeOrphanAudit backup and FK sequence |
 | 7. Runtime DB alignment | runtime-db-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | App health checks still rely on `SELECT 1` |
 | 8. Env linkage guards | env-guard-agent | BLOCKED_EXTERNAL_ACCESS | VERIFICATION_MATRIX.md | Vercel env-key/target proof unavailable |
-| 9. Health and smoke tests | health-smoke-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Vercel logs show `/` and `/login` 200; readiness endpoint not proven |
+| 9. Health and smoke tests | health-smoke-agent | READY_FOR_NEXT_STAGE | docs/audits/production-health-green-proof-2026-07-06.md | Vercel liveness/readiness confirmed green on `www.craftmyfunnel.live`; earlier local Windows hosts override false negatives were corrected |
 | 10. Clerk/app DB linkage | auth-tenant-agent | BLOCKED_BY_SCHEMA_CONFLICT | production-readiness-final.md | Clerk sync depends on missing live DB objects |
 | 11. Redis/cache/queue isolation | redis-cache-agent | READY_FOR_NEXT_STAGE | production-readiness-final.md | Redis degrades gracefully; production Redis env still unverified |
 | 12A. Minimum security gate for controlled beta | security-hardening-agent | NEEDS_REPLAN | docs/audits/application-security-hardening-plan.md | Runs after functional production readiness is mostly green and before real customer/team beta. Covers IDOR/team isolation, role/ownership checks, mass assignment, basic rate limits, raw SQL, JWT/session validation, chat scope, service-role key exposure, and unbounded sensitive lists. |
