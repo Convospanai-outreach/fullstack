@@ -83,7 +83,9 @@ RUN rm -rf \
       /usr/local/bin/npx \
       /usr/local/bin/corepack \
       /usr/local/bin/yarn \
-      /usr/local/bin/yarnpkg
+      /usr/local/bin/yarnpkg \
+      /usr/local/bin/pnpm \
+      /usr/local/bin/pnpx
 
 USER nextjs
 
