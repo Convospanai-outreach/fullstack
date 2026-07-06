@@ -65,6 +65,18 @@ Use only these verdicts:
 | Vercel headers on health responses | Health responses should clearly come from Vercel | `Server: Vercel`, `X-Vercel-Id`, and `X-Matched-Path: /api/health` were present on the `www` health responses | PASS | production-health-docs-agent | Confirms the live responses are Vercel-served. |
 | Overall health boundary verdict | Mark only the production health boundary green; keep broader readiness pending | Evidence recorded in `docs/audits/production-health-green-proof-2026-07-06.md` | PASS | production-health-docs-agent | Full production readiness is still pending DB/schema/auth/Redis/security gates. |
 
+## Read-only DB schema drift proof (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Prisma schema inventory | `packages/db`, `apps/web`, and `apps/api` schema files should be inventoried and compared | `npm run db:schema:compare` reported all three schema files as exact matches with identical line counts and SHA-256 fingerprints | PASS | prisma-drift-agent | Local schema content is aligned in the current repo snapshot. |
+| Migration inventory | Migration trees should be inventoried across shared, web, and API locations | `packages/db/prisma/migrations` has `0` SQL migrations; `apps/web/prisma/migrations` has `25`; `apps/api/prisma/migrations` has `22` | MIGRATION_DRIFT | prisma-drift-agent | Migration ownership remains split and divergent even though current schema files match. |
+| Destructive EdgeNode migration check | No destructive production-risk SQL should remain in tracked migration history | `20260604140000_edge_runtime_pairing` is present in both app migration trees and contains `DELETE FROM "EdgeNode"` | FAIL | prisma-drift-agent | Treat as blocking until quarantined or replaced through a narrow follow-up plan/PR. |
+| Auth/onboarding objects check | Local schema should explicitly account for Clerk/invite objects | All three local schemas include `clerk_user_id` mapping, `UserInvitation`, and `InviteRequest` mapped to `invite_requests` | PASS | prisma-drift-agent | Local presence is proven; live DB presence was not re-verified in this stage. |
+| ConnectedMailbox drift check | Local schema should not show unresolved mailbox model drift | `ConnectedMailbox` exists in all three schema files and no local naming divergence was found | PASS | prisma-drift-agent | Live DB confirmation remains pending safe read-only access. |
+| Read-only command results | Only safe, non-mutating verification commands should be used | `db:schema:compare` PASS; `schema:verify:readonly` blocked by missing safe DB URL input; `readiness:audit --workspace apps/api` not run because it seeds data first | PARTIAL | prisma-drift-agent | No DB mutation was performed. |
+| Final drift verdict | Final verdict should mark only what is proven and keep broader readiness pending | Evidence recorded in `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md`; local schema alignment is proven, but destructive migration history and blocked live DB verification keep the stage red | MIGRATION_DRIFT | prisma-drift-agent | Do not claim full production readiness from this stage. |
+
 ## Authenticated proxy verification execution (2026-06-27T17:20+05:30)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
