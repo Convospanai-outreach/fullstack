@@ -9,8 +9,77 @@ on:
 # Node.js 24 native runtimes active via v6+ actions
 
 jobs:
+  detect-docs-only:
+    name: Docs-only Change Detection
+    runs-on: ubuntu-22.04
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Classify changed files
+      id: classify
+      shell: bash
+      run: |
+        set -euo pipefail
+        event="${{ github.event_name }}"
+        changed=""
+
+        if [[ "$event" == "pull_request" ]]; then
+          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+        elif [[ "$event" == "push" ]]; then
+          before="${{ github.event.before }}"
+          after="${{ github.sha }}"
+          if [[ -n "$before" && "$before" != "0000000000000000000000000000000000000000" ]]; then
+            changed="$(git diff --name-only "$before" "$after")"
+          fi
+        fi
+
+        docs_only=true
+        if [[ -z "$changed" ]]; then
+          docs_only=false
+        else
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+            case "$file" in
+              docs/*|README.md|.github/pull_request_template.md|.github/ISSUE_TEMPLATE/*)
+                ;;
+              *.md)
+                ;;
+              *)
+                docs_only=false
+                break
+                ;;
+            esac
+          done <<< "$changed"
+        fi
+
+        echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+        echo "Docs-only classification: $docs_only" >> "$GITHUB_STEP_SUMMARY"
+        if [[ -n "$changed" ]]; then
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Changed files:" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$changed" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+  docs-only-validation:
+    name: Docs-only Validation
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Confirm docs-only guard
+      run: |
+        echo "Docs-only change set detected."
+        echo "Skipping Web Build, API Strict Typecheck, and Docker Build Smoke."
+
   web-build:
     name: Web Build (apps/web)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
 
     services:
@@ -117,6 +186,8 @@ jobs:
 
   api-typecheck:
     name: API Strict Typecheck (apps/api)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
 
     services:
@@ -196,6 +267,8 @@ jobs:
 
   docker-smoke:
     name: Docker Build Smoke (api required, edge-fastapi optional)
+    needs: detect-docs-only
+    if: needs.detect-docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
 
     steps:
