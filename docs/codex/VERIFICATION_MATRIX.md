@@ -132,7 +132,29 @@ Use only these verdicts:
 | `ConnectedMailbox` table missing | Mailbox table should exist in public schema | Relation `public."ConnectedMailbox"` does not exist | MISSING | db-proof-evidence-agent | PR #6 proof remains blocked. |
 | `EdgeNode` table missing | EdgeNode table should exist in public schema | Relation `public."EdgeNode"` does not exist | MISSING | db-proof-evidence-agent | Destructive EdgeNode delete stays RED. |
 | `auth.users` present but not equivalent to `public."User"` | Supabase Auth users should not be conflated with the app user table | `auth.users` exists and is Supabase-managed, but it is not `public."User"` | PASS | db-proof-evidence-agent | Non-public auth table only. |
-| final verdict FAIL / BLOCKED | Proof must not be marked PASS | Overall proof verdict recorded as FAIL because the public schema is missing expected app tables and `public._prisma_migrations`; row-count proof is `BLOCKED_FOR_COUNT` on missing relations | FAIL | db-proof-evidence-agent | No production migration is approved by this evidence. |
+| final verdict BLOCKED | Proof must not be marked PASS | Overall proof verdict remains `BLOCKED` because the public schema is missing expected app tables and `public._prisma_migrations`; row-count proof is `BLOCKED_FOR_COUNT` on missing relations | BLOCKED | db-proof-evidence-agent | No production migration is approved by this evidence. |
+
+## DB migration application and staging dry-run plan (2026-07-07)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Supabase app schema missing evidence carried forward | The staging plan should start from the recorded public-schema gap, not reclassify it away | The new runbook carries forward the missing `public._prisma_migrations`, `User`, `UserInvitation`, `invite_requests`, `ConnectedMailbox`, and `EdgeNode` findings from the live proof evidence | PASS | migration-safety-agent | Planning starts from the documented missing-schema state. |
+| live DB proof remains BLOCKED | The failed live proof must stay blocked until new evidence exists | Workflow state and the new runbook both keep live DB proof at `BLOCKED` | PASS | migration-safety-agent | No PASS or approval language was added. |
+| migration execution remains NOT_APPROVED | Planning must not imply execution approval | Workflow state and the new runbook both set migration execution status to `NOT_APPROVED` | PASS | migration-safety-agent | No migration execution is authorized in this PR. |
+| staging dry-run remains NOT_RUN / PENDING | The first dry run should still be pending, not implied complete | Workflow state and the new runbook both set staging dry-run status to `NOT_RUN / PENDING` | PASS | migration-safety-agent | Staging execution requires later reviewer sign-off. |
+| production migration remains NOT_APPROVED | The plan must not authorize production migration | The runbook limits production work to a later separate PR and approval gate | PASS | migration-safety-agent | Production execution stays out of scope. |
+| canonical owner remains packages/db/prisma | The plan should preserve the accepted ownership decision | The runbook states `packages/db/prisma` remains the long-term canonical owner | PASS | migration-safety-agent | Matches PR #78 and PR #80 direction. |
+| migration manifest required before adoption | Canonical adoption should stay manifest-backed | The runbook requires approved manifest-backed adoption and explicit baseline strategy review | PASS | migration-safety-agent | No blind copy path is allowed. |
+| EdgeNode destructive DELETE remains RED / unapproved | The plan must preserve the destructive migration blocker | The runbook keeps the EdgeNode `DELETE` path RED, quarantined at the governance level, and unapproved | PASS | migration-safety-agent | No destructive approval language was added. |
+| PR #6 remains BLOCKED | Planning must not unblock mailbox migration work | Workflow state and the new runbook keep PR #6 at `BLOCKED` | PASS | migration-safety-agent | ConnectedMailbox compatibility still needs proof. |
+| no DB access occurred in this PR | Docs-only planning must not touch a database | No DB access occurred in this PR | PASS | migration-safety-agent | Planning only. |
+| no SQL executed in this PR | Docs-only planning must not run SQL | No SQL was executed in this PR | PASS | migration-safety-agent | Placeholder commands are explicitly not for Codex execution. |
+| no seeds ran in this PR | Planning must not trigger seed behavior | No seeds ran in this PR | PASS | migration-safety-agent | Seed execution remains out of scope. |
+| no migrations ran in this PR | Planning must not run migration tools | No migrations ran in this PR | PASS | migration-safety-agent | Migration execution remains `NOT_APPROVED`. |
+| no secrets/env values accessed in this PR | Planning must not access secret material | No secrets or env values were accessed in this PR | PASS | migration-safety-agent | Credentials stay outside Codex and GitHub. |
+| production readiness remains NOT_READY | Planning must not overstate readiness | Workflow state and the new runbook both keep production readiness at `NOT_READY` | PASS | migration-safety-agent | No readiness approval language was added. |
+| DB/migration governance remains RED / NEEDS_REPLAN | Governance blocker must stay explicit | Workflow state and the new runbook both keep DB/migration governance at `RED / NEEDS_REPLAN` | PASS | migration-safety-agent | Governance is still unresolved. |
+| AGENTS.md prerequisite handoff wording remains docs-only | Drift and governance prerequisite routing must stay documentation-only by default | `db-proof-evidence-agent` now routes blocked drift or governance follow-up only for docs-only prerequisite planning unless separate approval authorizes live DB or migration work | PASS | migration-safety-agent | Preserves blocked-proof ownership and ordering. |
 
 ## DB migration remediation plan (2026-07-06)
 
