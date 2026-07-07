@@ -804,6 +804,6 @@ Stop and mark `BLOCKED` if:
 
 ## Next-agent rule
 
-If live DB proof is `BLOCKED`, hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan.
+If live DB proof is `BLOCKED`, do not hand off to the next phase until reviewer sign-off explicitly approves it. After sign-off, hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan.
 
 No migration execution is authorized.
