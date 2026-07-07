@@ -27,6 +27,7 @@
     "schema:verify:readonly": "node scripts/db/verify-schema-readiness.mjs",
     "schema:verify:production": "node scripts/db/verify-schema-readiness.mjs --production",
     "db:schema:compare": "node scripts/db/compare-prisma-schemas.mjs",
+    "readiness:audit:no-seed": "node scripts/readiness/no-seed-readiness-audit.mjs",
     "readiness:check-db-shape": "npx tsx scripts/readiness/check-db-shape.ts",
     "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts",
     "migrations:scan:destructive": "node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts"

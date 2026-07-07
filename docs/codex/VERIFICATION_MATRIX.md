@@ -94,6 +94,22 @@ Use only these verdicts:
 | No schema/migration/app/package/workflow/env changes | The PR must remain docs-only and avoid runtime or migration changes | This PR changes only `docs/runbooks/read-only-live-db-proof-2026-07-07.md`, `docs/templates/read-only-live-db-proof-evidence-2026-07-07.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | db-proof-agent | No non-doc files changed. |
 | Production readiness remains NOT_READY | Proof design must not be overstated as readiness proof | Runbook and workflow state both preserve `NOT_READY` and RED / `NEEDS_REPLAN` DB governance | PASS | db-proof-agent | This PR defines the future proof process only. |
 
+## No-seed readiness audit mode (2026-07-07)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| No-seed audit mode exists | A repository-only readiness audit mode should exist with no DB, SQL, seed, or migration execution path | Root script alias `npm run readiness:audit:no-seed` runs `node scripts/readiness/no-seed-readiness-audit.mjs` | PASS | readiness-audit-agent | Mode is file-only and does not load DB credentials. |
+| DB access explicitly not attempted | The safe mode must not open database connections | `scripts/readiness/no-seed-readiness-audit.mjs` inspects repository files only and reports `db_access: NOT_ATTEMPTED` | PASS | readiness-audit-agent | No `prisma`, `pg`, or DB URL usage in the new mode. |
+| SQL execution explicitly not attempted | The safe mode must not execute SQL or Prisma raw queries | The new mode reports `sql_execution: NOT_ATTEMPTED` and contains no SQL statements or query helpers | PASS | readiness-audit-agent | Read-only live DB proof remains a separate future execution step. |
+| Seed execution explicitly not attempted | The safe mode must not seed data | The new mode reports `seed_execution: NOT_ATTEMPTED` and does not invoke app readiness seed scripts | PASS | readiness-audit-agent | Existing app seed paths remain separate and were not run. |
+| Migration execution explicitly not attempted | The safe mode must not run Prisma migrate, db push, or other schema mutations | The new mode reports `migration_execution: NOT_ATTEMPTED` and contains no migration command path | PASS | readiness-audit-agent | Fail-closed flag handling refuses migration-oriented flags. |
+| Secret/env access explicitly not attempted | The safe mode must not require `DATABASE_URL`, production secrets, or env extraction | The new mode reports `secret_access: NOT_ATTEMPTED` and does not reference `DATABASE_URL`, `DIRECT_URL`, or dotenv loaders | PASS | readiness-audit-agent | No secret or env values were read or printed. |
+| EdgeNode remains RED | The audit must preserve the unresolved destructive-path finding | The new mode requires the runbook text `EdgeNode DELETE remains RED until proof exists` to stay present and reports `edgenode_status: RED` | PASS | readiness-audit-agent | This PR does not relax EdgeNode governance. |
+| PR #6 remains blocked | The audit must preserve the PR #6 block | The new mode requires the runbook text `PR #6 remains blocked` to stay present and reports `pr_6_status: BLOCKED` | PASS | readiness-audit-agent | No PR #6 merge or schema adoption claim is made. |
+| Read-only live DB proof remains NOT_RUN / PENDING unless evidence exists | The audit must not overstate live DB proof completion | The new mode requires the runbook verdict `Read-only live DB proof remains NOT_RUN / PENDING` and reports `live_db_proof: NOT_RUN / PENDING` | PASS | readiness-audit-agent | Live proof execution is still a separate approved step. |
+| Production readiness remains NOT_READY | The audit must not claim launch readiness | The new mode requires workflow/docs to preserve `NOT_READY` and reports `verdict: NOT_READY` | PASS | readiness-audit-agent | This is tooling hardening, not a readiness clearance. |
+| DB/migration governance remains RED / NEEDS_REPLAN | The audit must preserve unresolved DB governance blockers | The new mode requires workflow state `Overall status | NEEDS_REPLAN` and reports `db_migration_governance: RED / NEEDS_REPLAN` | PASS | readiness-audit-agent | Scanner remains advisory and live proof remains pending. |
+
 ## DB migration remediation plan (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
