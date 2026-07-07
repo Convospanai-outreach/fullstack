@@ -815,7 +815,7 @@ Reviewer sign-off may approve only a docs-only planning handoff, not migration e
 After reviewer sign-off is recorded:
 
 - first verify the required upstream dependency order is satisfied
-- if Prisma drift or DB/migration governance remains blocked or unresolved, hand off to `prisma-drift-agent` or the documented drift/governance owner for prerequisite resolution
+- if Prisma drift or DB/migration governance remains blocked or unresolved, hand off to `prisma-drift-agent` or the documented drift/governance owner only for docs-only prerequisite planning unless separate approval authorizes live DB or migration work
 - only after drift/governance prerequisites are ready may the workflow hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan
 
 No migration execution is authorized.
