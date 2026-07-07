@@ -94,6 +94,22 @@ Use only these verdicts:
 | No schema/migration/app/package/workflow/env changes | The PR must remain docs-only and avoid runtime or migration changes | This PR changes only `docs/runbooks/read-only-live-db-proof-2026-07-07.md`, `docs/templates/read-only-live-db-proof-evidence-2026-07-07.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | db-proof-agent | No non-doc files changed. |
 | Production readiness remains NOT_READY | Proof design must not be overstated as readiness proof | Runbook and workflow state both preserve `NOT_READY` and RED / `NEEDS_REPLAN` DB governance | PASS | db-proof-agent | This PR defines the future proof process only. |
 
+## No-seed readiness audit mode (2026-07-07)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| No-seed audit mode exists | A safe audit mode should exist for readiness checks without DB access | `npm run readiness:audit:no-seed` is available through `package.json` and runs `scripts/readiness/no-seed-readiness-audit.mjs` | PASS | readiness-audit-agent | File-only audit mode. |
+| DB access explicitly not attempted | Audit must not connect to any database | Audit reports `db_access: NOT_ATTEMPTED` | PASS | readiness-audit-agent | No DB URL required. |
+| SQL execution explicitly not attempted | Audit must not run SQL | Audit reports `sql_execution: NOT_ATTEMPTED` | PASS | readiness-audit-agent | No SQL execution path. |
+| Seed execution explicitly not attempted | Audit must not seed data | Audit reports `seed_execution: NOT_ATTEMPTED` | PASS | readiness-audit-agent | Old unsafe seed paths remain out of scope. |
+| Migration execution explicitly not attempted | Audit must not run migrations | Audit reports `migration_execution: NOT_ATTEMPTED` | PASS | readiness-audit-agent | No Prisma/Supabase migration command. |
+| Secret/env access explicitly not attempted | Audit must not read or print secrets/env values | Audit reports `secret_access: NOT_ATTEMPTED` | PASS | readiness-audit-agent | No env pull or secret validation. |
+| Live DB proof remains pending | Live DB proof must not be inferred from the no-seed audit | Audit reports `live_db_proof: NOT_RUN / PENDING` | PASS | readiness-audit-agent | Separate manual proof still required. |
+| EdgeNode remains RED | No-seed audit must preserve unresolved EdgeNode destructive migration status | Audit reports `edgenode_status: RED` | PASS | readiness-audit-agent | No destructive SQL approved. |
+| PR #6 remains blocked | No-seed audit must not unblock PR #6 | Audit reports `pr_6_status: BLOCKED` | PASS | readiness-audit-agent | PR #6 remains blocked. |
+| Production readiness remains NOT_READY | Audit must not claim production readiness | Audit reports `production_readiness: NOT_READY` and `verdict: NOT_READY` | PASS | readiness-audit-agent | Readiness remains blocked. |
+| DB/migration governance remains RED / NEEDS_REPLAN | Audit must preserve governance blocker | Audit reports `db_migration_governance: RED / NEEDS_REPLAN` | PASS | readiness-audit-agent | Canonical migration adoption still pending. |
+
 ## DB migration remediation plan (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
