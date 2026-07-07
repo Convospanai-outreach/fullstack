@@ -160,6 +160,8 @@ Notes:
 - Reason: the connected Supabase production DB is healthy, but expected Prisma/app public tables and `public._prisma_migrations` are missing from the public schema.
 - Next required action: create a migration application plan and staging dry-run plan before any schema creation or production migration.
 
+This failed/blocked proof does not authorize migration execution, production schema creation, PR #6 merge, or production readiness claims.
+
 ## Verdict consistency rule
 
 PASS is valid only when Evidence status is PASS and all required proof sections are completed.
@@ -174,5 +176,5 @@ PASS requires completed approved read-only execution, completed safety checklist
 - Reviewer: pending
 - Date: 2026-07-07
 - Approved for next phase? no
-- Next phase allowed: migration application plan and staging dry-run planning
+- Next phase allowed: not approved until reviewer sign-off
 - Conditions: no schema creation or production migration until public schema gaps are resolved and re-proved

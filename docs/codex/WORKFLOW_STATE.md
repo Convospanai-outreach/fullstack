@@ -9,7 +9,7 @@ This file is the source of truth for current task status. Update it after every 
 | Overall status | NEEDS_REPLAN |
 | Current stage | Read-only live DB proof evidence |
 | Current agent | db-proof-evidence-agent |
-| Working branch | docs/live-db-proof-evidence-supabase-schema-missing-2026-07-07 |
+| Working branch | docs/fix-live-db-proof-handoff-2026-07-07 |
 | Baseline commit inspected | 086ee2e37c2cef7fd46b35b6ea1024dd03e40d92 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
@@ -17,8 +17,12 @@ This file is the source of truth for current task status. Update it after every 
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Live DB proof status | FAIL / BLOCKED |
-| Last updated | 2026-07-07T19:38:32.6391576+05:30 |
+| Live DB proof status | BLOCKED |
+| Live DB proof reason | Connected Supabase production DB is healthy but expected Prisma/app public schema and `_prisma_migrations` are missing |
+| DB/migration governance | RED / NEEDS_REPLAN |
+| EdgeNode status | RED |
+| PR #6 status | BLOCKED |
+| Last updated | 2026-07-07T19:59:42.8760012+05:30 |
 | Next action | Create the migration application plan and staging dry-run plan before any schema creation or production migration |
 
 ## Status values
@@ -102,7 +106,7 @@ Use only these values:
 
 ## Latest findings
 
-- **2026-07-07T19:38:32.6391576+05:30 Read-only live DB proof evidence pass** recorded redacted manual connector evidence for the connected Supabase production DB. The project is `ACTIVE_HEALTHY` on PostgreSQL 17.6, but the public schema is missing `public._prisma_migrations`, `public."User"`, `public."UserInvitation"`, `public.invite_requests`, `public."ConnectedMailbox"`, and `public."EdgeNode"`. `auth.users` is present but is Supabase-managed and not equivalent to `public."User"`. Live DB proof is therefore `FAIL / BLOCKED`, production readiness remains `NOT_READY`, DB/migration governance remains `RED / NEEDS_REPLAN`, EdgeNode remains RED, and PR #6 remains blocked.
+- **2026-07-07T19:38:32.6391576+05:30 Read-only live DB proof evidence pass** recorded redacted manual connector evidence for the connected Supabase production DB. The project is `ACTIVE_HEALTHY` on PostgreSQL 17.6, but the public schema is missing `public._prisma_migrations`, `public."User"`, `public."UserInvitation"`, `public.invite_requests`, `public."ConnectedMailbox"`, and `public."EdgeNode"`. `auth.users` is present but is Supabase-managed and not equivalent to `public."User"`. Live DB proof is therefore `BLOCKED`, production readiness remains `NOT_READY`, DB/migration governance remains `RED / NEEDS_REPLAN`, EdgeNode remains RED, and PR #6 remains blocked.
 
 - **2026-07-07T13:06:22.2458961+05:30 Read-only live DB proof tooling/input pass** on branch `docs/read-only-live-db-proof-input-2026-07-07` created a docs-only runbook and redacted evidence template for proving live DB shape through approved read-only access only. The runbook defines SELECT-only query templates, redaction rules, PASS/FAIL/BLOCKED criteria, explicit EdgeNode and ConnectedMailbox proof requirements, and the gate relationship to canonical `packages/db` migration adoption. No DB access, SQL execution, secret access, schema edits, migration edits, app edits, package edits, workflow edits, env edits, or scanner allowlist edits occurred in this pass.
 - **2026-07-07T00:39:49.2436283+05:30 EdgeNode destructive migration handling design pass** on branch `docs/edgenode-non-destructive-quarantine-design-2026-07-06` accepted a planning-only handling strategy for the known `DELETE FROM "EdgeNode"` path in `apps/web` and `apps/api` `20260604140000_edge_runtime_pairing` migrations. The decision rejects blind adoption into `packages/db`, historical SQL edits, blind allowlisting, and deferral until a production proposal. It prefers a non-destructive replacement path and accepts formal quarantine only as a temporary governance state while the destructive scanner remains advisory. PR #6 remains blocked, EdgeNode remains RED, and no schema, migration SQL, app, package, workflow, env, scanner-allowlist, or DB changes were made.
