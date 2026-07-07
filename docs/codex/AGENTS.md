@@ -804,6 +804,18 @@ Stop and mark `BLOCKED` if:
 
 ## Next-agent rule
 
-If live DB proof is `BLOCKED`, do not hand off to the next phase until reviewer sign-off explicitly approves it. After sign-off, hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan.
+If live DB proof is `BLOCKED`:
+
+- keep `Status: BLOCKED`
+- set `Next agent: orchestrator`
+- set `Next action: wait for explicit reviewer sign-off recorded in the PR or workflow state before any next-phase handoff`
+
+Reviewer sign-off may approve only a docs-only planning handoff, not migration execution, schema creation, PR #6 merge, or production readiness claims.
+
+After reviewer sign-off is recorded:
+
+- first verify the required upstream dependency order is satisfied
+- if Prisma drift or DB/migration governance remains blocked or unresolved, hand off to `prisma-drift-agent` or the documented drift/governance owner for prerequisite resolution
+- only after drift/governance prerequisites are ready may the workflow hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan
 
 No migration execution is authorized.
