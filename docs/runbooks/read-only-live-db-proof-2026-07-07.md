@@ -162,21 +162,28 @@ ORDER BY table_name, ordinal_position;
 
 ```sql
 SELECT
-  schemaname,
-  tablename,
-  indexname,
-  indexdef
-FROM pg_indexes
-WHERE schemaname = 'public'
-  AND tablename IN (
+  n.nspname AS table_schema,
+  t.relname AS table_name,
+  COUNT(i.indexrelid) AS index_count,
+  COUNT(*) FILTER (WHERE i.indisunique) AS unique_index_count
+FROM pg_class t
+JOIN pg_namespace n
+  ON n.oid = t.relnamespace
+LEFT JOIN pg_index i
+  ON i.indrelid = t.oid
+WHERE n.nspname = 'public'
+  AND t.relname IN (
     'User',
     'UserInvitation',
     'invite_requests',
     'ConnectedMailbox',
     'EdgeNode'
   )
-ORDER BY tablename, indexname;
+GROUP BY n.nspname, t.relname
+ORDER BY t.relname;
 ```
+
+Full index DDL, indexed column names, and expression definitions must not be pasted into PR evidence. If needed for private review, store separately in an approved secure internal record.
 
 ### 5. Foreign keys
 
@@ -226,21 +233,53 @@ Do not include migration logs, error payloads, or any column that may capture se
 
 ### 7. Row counts
 
+Run table existence proof first.
+Run row counts as separate per-table queries after the table-existence step.
+Do not run a combined query that directly references optional tables.
+If a target table is absent, mark that table as `MISSING` or `BLOCKED_FOR_COUNT` and continue counts for tables that exist.
+Optional missing tables must not block counts for other existing tables.
+
+`_prisma_migrations`:
+
 ```sql
-SELECT '_prisma_migrations' AS target, COUNT(*) AS row_count FROM public._prisma_migrations
-UNION ALL
-SELECT 'User', COUNT(*) FROM public."User"
-UNION ALL
-SELECT 'UserInvitation', COUNT(*) FROM public."UserInvitation"
-UNION ALL
-SELECT 'invite_requests', COUNT(*) FROM public.invite_requests
-UNION ALL
-SELECT 'ConnectedMailbox', COUNT(*) FROM public."ConnectedMailbox"
-UNION ALL
-SELECT 'EdgeNode', COUNT(*) FROM public."EdgeNode";
+SELECT COUNT(*) AS row_count
+FROM public._prisma_migrations;
 ```
 
-If a target table is absent, do not improvise with dynamic SQL in the same proof step. Record the missing table from the table-existence step and mark the relevant section `FAIL` or `BLOCKED`.
+`User`:
+
+```sql
+SELECT COUNT(*) AS row_count
+FROM public."User";
+```
+
+`UserInvitation`:
+
+```sql
+SELECT COUNT(*) AS row_count
+FROM public."UserInvitation";
+```
+
+`invite_requests`:
+
+```sql
+SELECT COUNT(*) AS row_count
+FROM public.invite_requests;
+```
+
+`ConnectedMailbox`:
+
+```sql
+SELECT COUNT(*) AS row_count
+FROM public."ConnectedMailbox";
+```
+
+`EdgeNode`:
+
+```sql
+SELECT COUNT(*) AS row_count
+FROM public."EdgeNode";
+```
 
 ### 8. EdgeNode impact proof
 
@@ -251,7 +290,24 @@ SELECT COUNT(*) AS edge_node_total_rows
 FROM public."EdgeNode";
 ```
 
-If safe and if the columns exist and are non-sensitive:
+Do not reference optional `EdgeNode` columns directly until column existence is confirmed.
+For each optional aggregate, first check `information_schema.columns`.
+If the column is absent, record `COLUMN_MISSING` and skip that aggregate.
+If the column is present but sensitive, do not paste grouped values into PR evidence; record only that the column exists and private review is required.
+
+Check for `status`:
+
+```sql
+SELECT
+  table_name,
+  column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'EdgeNode'
+  AND column_name = 'status';
+```
+
+Only if `status` exists and is classified non-sensitive:
 
 ```sql
 SELECT
@@ -261,6 +317,20 @@ FROM public."EdgeNode"
 GROUP BY status
 ORDER BY status;
 ```
+
+Check for `attestationStatus`:
+
+```sql
+SELECT
+  table_name,
+  column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'EdgeNode'
+  AND column_name = 'attestationStatus';
+```
+
+Only if `attestationStatus` exists and is classified non-sensitive:
 
 ```sql
 SELECT
