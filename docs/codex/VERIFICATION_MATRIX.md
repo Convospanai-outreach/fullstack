@@ -117,6 +117,21 @@ Use only these verdicts:
 | No schema/migration/app/package/workflow/env changes | The decision PR must stay docs-only | This PR changes only `docs/decisions/canonical-migration-manifest-cutover-2026-07-06.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | prisma-drift-agent | No app code, schema, migration SQL, package, workflow, env, or DB changes. |
 | Production readiness remains NOT_READY | The cutover decision must not be treated as production-readiness proof | The cutover design explicitly keeps DB/migration governance `RED / NEEDS_REPLAN` and overall product readiness `NOT_READY` | FAIL | release-readiness-agent | Planning path only; no remediation is implemented. |
 
+## EdgeNode destructive migration handling design (2026-07-06)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| EdgeNode DELETE path identified | The known destructive history item should be pinned to exact tracked migration files | `docs/decisions/edgenode-destructive-migration-handling-2026-07-06.md` records `DELETE FROM "EdgeNode"` in both `apps/web` and `apps/api` `20260604140000_edge_runtime_pairing` migrations, including the matching file hash `d05ac18c728f6440e0e7b5740465a271760a3e98` | FAIL | migration-safety-agent | The destructive SQL remains RED and unapproved. |
+| Blind adoption rejected | Canonical adoption must not bless the destructive history as-is | The decision rejects adopting the current EdgeNode DELETE path into `packages/db` unchanged | PASS | migration-safety-agent | Preserves the existing cutover gate. |
+| Historical SQL edit rejected | The governance path should not rewrite tracked migration history silently | The decision rejects deleting or editing the historical app-local migration SQL in this phase | PASS | migration-safety-agent | Keeps audit history intact. |
+| Blind allowlist rejected | Scanner visibility should not be reduced by hiding the known RED item | The decision rejects blind allowlisting of the EdgeNode DELETE path | PASS | migration-safety-agent | No allowlist entry is added in this PR. |
+| Non-destructive replacement preferred | The future fix path should default to a data-preserving approach | The decision marks non-destructive replacement as the preferred future handling strategy and defines the required evidence and design rules | PASS | migration-safety-agent | Replacement still requires a later implementation and evidence path. |
+| Formal quarantine accepted only as interim governance state | Quarantine should be treated as temporary tracking, not approval | The decision accepts formal quarantine only as an interim governance state with explicit metadata and exit conditions | PASS | migration-safety-agent | Quarantine is documented as not being approval. |
+| Scanner remains advisory | Blocking mode must stay off while the RED EdgeNode path is unresolved | The decision keeps destructive scanner mode advisory and forbids blocking mode until the EdgeNode path is replaced or formally quarantined | PASS | migration-safety-agent | Matches the current workflow configuration. |
+| PR #6 remains blocked | Related migration work should not proceed through the broad PR | The decision keeps PR #6 blocked and requires any EdgeNode, Gmail, mailbox, or `ConnectedMailbox` migration work to be separated | FAIL | pr-strategy-agent | No PR #6 migration approval is granted. |
+| No schema/migration/app/package/workflow/env changes | The design PR must remain docs-only | This PR changes only `docs/decisions/edgenode-destructive-migration-handling-2026-07-06.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | migration-safety-agent | No app code, schema, migration SQL, package, workflow, env, scanner allowlist, or DB changes. |
+| Production readiness remains NOT_READY | The handling decision must not be treated as remediation completion | The decision keeps EdgeNode RED, DB/migration governance `RED / NEEDS_REPLAN`, and overall product readiness `NOT_READY` | FAIL | release-readiness-agent | Strategy approved; execution is still pending. |
+
 ## Destructive migration scanner and read-only audit hardening (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
