@@ -132,7 +132,7 @@ Use only these verdicts:
 | `ConnectedMailbox` table missing | Mailbox table should exist in public schema | Relation `public."ConnectedMailbox"` does not exist | MISSING | db-proof-evidence-agent | PR #6 proof remains blocked. |
 | `EdgeNode` table missing | EdgeNode table should exist in public schema | Relation `public."EdgeNode"` does not exist | MISSING | db-proof-evidence-agent | Destructive EdgeNode delete stays RED. |
 | `auth.users` present but not equivalent to `public."User"` | Supabase Auth users should not be conflated with the app user table | `auth.users` exists and is Supabase-managed, but it is not `public."User"` | PASS | db-proof-evidence-agent | Non-public auth table only. |
-| final verdict BLOCKED | Proof must not be marked PASS | Overall proof verdict remains `BLOCKED` because the public schema is missing expected app tables and `public._prisma_migrations`; row-count proof is `BLOCKED_FOR_COUNT` on missing relations | BLOCKED | db-proof-evidence-agent | No production migration is approved by this evidence. |
+| final verdict remains blocked | Proof must not be marked PASS | Overall proof verdict remains `BLOCKED` because the public schema is missing expected app tables and `public._prisma_migrations`; row-count proof is `BLOCKED_FOR_COUNT` on missing relations | FAIL | db-proof-evidence-agent | Live DB proof status remains `BLOCKED`. No production migration is approved by this evidence. |
 
 ## DB migration application and staging dry-run plan (2026-07-07)
 
