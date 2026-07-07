@@ -21,13 +21,15 @@
 - [ ] Output was redacted before sharing
 
 ## Environment proof
-- current_database: REDACTED / value
-- current_user: REDACTED / value
-- current_schema:
+- current_database: REDACTED_DB or NON_SENSITIVE_ALIAS
+- current_user: REDACTED_ROLE or NON_SENSITIVE_ALIAS
+- current_schema: public / REDACTED_SCHEMA
 - server_version:
 - proof timestamp:
 - environment confidence: high / medium / low
 - notes:
+
+Do not paste raw database names, role names, hosts, project refs, connection strings, usernames, or provider identifiers into PR evidence. Use a non-sensitive alias or `REDACTED_*` placeholder.
 
 ## Table existence evidence
 
@@ -165,7 +167,11 @@ Notes:
 
 ## Overall verdict
 
+Default:
+- NOT_RUN
+
 Choose:
+- NOT_RUN
 - PASS
 - FAIL
 - BLOCKED
@@ -173,6 +179,16 @@ Choose:
 Reason:
 
 Next required action:
+
+## Verdict consistency rule
+
+PASS is valid only when Evidence status is PASS and all required proof sections are completed.
+
+If Evidence status is NOT_RUN, the Overall verdict must remain NOT_RUN or BLOCKED.
+
+If any required proof target is missing, unverified, or unsafe to disclose, the Overall verdict must be FAIL or BLOCKED, not PASS.
+
+PASS requires completed approved read-only execution, completed safety checklist, target environment confirmation, target table checks, migration state checks, EdgeNode proof, ConnectedMailbox proof, and reviewer sign-off.
 
 ## Reviewer sign-off
 - Reviewer:
