@@ -110,6 +110,30 @@ Use only these verdicts:
 | Production readiness remains NOT_READY | Audit must not claim production readiness | Audit reports `production_readiness: NOT_READY` and `verdict: NOT_READY` | PASS | readiness-audit-agent | Readiness remains blocked. |
 | DB/migration governance remains RED / NEEDS_REPLAN | Audit must preserve governance blocker | Audit reports `db_migration_governance: RED / NEEDS_REPLAN` | PASS | readiness-audit-agent | Canonical migration adoption still pending. |
 
+## Read-only live DB proof evidence (2026-07-07)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Gate 0 no-seed audit baseline passed | The safe audit gate must be green before evidence capture | `npm run readiness:audit:no-seed` passed before evidence capture | PASS | db-proof-evidence-agent | Readiness gate satisfied. |
+| Supabase project reachable | The connected Supabase production project should be healthy and reachable | Supabase project `REDACTED_PROJECT_REF` reported `ACTIVE_HEALTHY` on PostgreSQL 17.6 | PASS | db-proof-evidence-agent | Project ref redacted. |
+| Vercel project reachable | The production web project should be reachable | Vercel project `fullstack-web-xkxn` reported `READY` and domains `craftmyfunnel.live` and `www.craftmyfunnel.live` were available for the proof context | PASS | db-proof-evidence-agent | No env or secret values recorded. |
+| DB access performed outside Codex / via safe metadata proof | Proof should come from read-only metadata checks, not from Codex DB access | Manual connector evidence recorded SELECT-only metadata checks; Codex did not connect to any database | PASS | db-proof-evidence-agent | Evidence was collected outside Codex. |
+| SQL execution limited to SELECT-only metadata proof | Evidence should be limited to safe metadata queries | Only SELECT-only metadata checks were used | PASS | db-proof-evidence-agent | No row-content queries recorded. |
+| no writes performed | Proof must not perform writes | No writes were performed | PASS | db-proof-evidence-agent | Read-only boundary preserved. |
+| no seeds performed | Proof must not run seed logic | No seeds were performed | PASS | db-proof-evidence-agent | Seed paths remained out of scope. |
+| no migrations performed | Proof must not run migration logic | No migrations were performed | PASS | db-proof-evidence-agent | No Prisma or Supabase migration command ran. |
+| no secrets included in evidence | Evidence must not contain raw secrets or tokens | No secrets were included; `REDACTED_PROJECT_REF` was used where needed | PASS | db-proof-evidence-agent | Connection strings and tokens omitted. |
+| no raw PII included in evidence | Evidence must not contain raw user data | No raw PII was included in evidence | PASS | db-proof-evidence-agent | Aggregates and metadata only. |
+| public app tables missing | Public Prisma/app tables should exist in the proof target | `public._prisma_migrations`, `public."User"`, `public."UserInvitation"`, `public.invite_requests`, `public."ConnectedMailbox"`, and `public."EdgeNode"` were not found | MISSING | db-proof-evidence-agent | Public schema has no expected app tables. |
+| `_prisma_migrations` missing | Prisma migrations table should exist in public schema | Relation `public._prisma_migrations` does not exist | MISSING | db-proof-evidence-agent | Migration state cannot be counted. |
+| `User` table missing | App user table should exist in public schema | Relation `public."User"` does not exist; `COUNT(*)` failed | MISSING | db-proof-evidence-agent | Row count proof blocked. |
+| `UserInvitation` table missing | App invitation table should exist in public schema | Relation `public."UserInvitation"` does not exist | MISSING | db-proof-evidence-agent | Row count proof blocked. |
+| `invite_requests` table missing | App invite-request table should exist in public schema | Relation `public.invite_requests` does not exist | MISSING | db-proof-evidence-agent | Row count proof blocked. |
+| `ConnectedMailbox` table missing | Mailbox table should exist in public schema | Relation `public."ConnectedMailbox"` does not exist | MISSING | db-proof-evidence-agent | PR #6 proof remains blocked. |
+| `EdgeNode` table missing | EdgeNode table should exist in public schema | Relation `public."EdgeNode"` does not exist | MISSING | db-proof-evidence-agent | Destructive EdgeNode delete stays RED. |
+| `auth.users` present but not equivalent to `public."User"` | Supabase Auth users should not be conflated with the app user table | `auth.users` exists and is Supabase-managed, but it is not `public."User"` | PASS | db-proof-evidence-agent | Non-public auth table only. |
+| final verdict FAIL / BLOCKED | Proof must not be marked PASS | Overall proof verdict recorded as FAIL because the public schema is missing expected app tables and `public._prisma_migrations`; row-count proof is `BLOCKED_FOR_COUNT` on missing relations | FAIL | db-proof-evidence-agent | No production migration is approved by this evidence. |
+
 ## DB migration remediation plan (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
