@@ -7,9 +7,9 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Read-only live DB proof tooling/input |
-| Current agent | db-proof-agent |
-| Working branch | docs/read-only-live-db-proof-input-2026-07-07 |
+| Current stage | No-seed readiness audit mode |
+| Current agent | readiness-audit-agent |
+| Working branch | tooling/no-seed-readiness-audit-2026-07-07 |
 | Baseline commit inspected | 086ee2e37c2cef7fd46b35b6ea1024dd03e40d92 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
@@ -17,8 +17,8 @@ This file is the source of truth for current task status. Update it after every 
 | Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
 | Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
 | Overall product readiness | NOT_READY |
-| Last updated | 2026-07-07T13:06:22.2458961+05:30 |
-| Next action | Execute read-only proof through an approved safe path, then prepare the no-seed readiness audit mode PR |
+| Last updated | 2026-07-07T14:40:33.8638716+05:30 |
+| Next action | Run the safe no-seed audit locally or in CI, then execute the read-only live DB proof through an approved safe path |
 
 ## Status values
 
