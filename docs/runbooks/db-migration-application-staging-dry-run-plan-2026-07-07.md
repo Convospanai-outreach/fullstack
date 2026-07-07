@@ -37,18 +37,23 @@ This PR does not:
 - The destructive EdgeNode `DELETE FROM "EdgeNode"` path remains quarantined at the governance level, RED, and unapproved for canonical adoption or execution.
 
 ## Required prerequisite order
-A. Confirm the canonical migration manifest is approved.  
-B. Resolve or explicitly quarantine web-only and app-only migration differences.  
-C. Replace or quarantine the destructive EdgeNode path non-destructively.  
-D. Prepare the canonical `packages/db/prisma` migration set.  
-E. Run the destructive migration scanner.  
-F. Run the no-seed readiness audit.  
-G. Prepare a disposable staging or preview Supabase DB, or another isolated staging branch.  
-H. Apply migrations only in the approved staging or dry-run environment after reviewer sign-off.  
-I. Validate the staging app schema through SELECT-only proof.  
-J. Validate app boot and build behavior against staging.  
-K. Prepare a rollback and backup plan.  
-L. Only after explicit production approval, consider production migration execution in a separate PR and runbook.
+A. Complete the approved read-only live DB proof, or keep this path blocked until the proof blocker is explicitly resolved.  
+B. Confirm the canonical migration manifest is approved.  
+C. Resolve or explicitly quarantine web-only and app-only migration differences.  
+D. Replace or quarantine the destructive EdgeNode path non-destructively.  
+E. Prepare the canonical `packages/db/prisma` migration set.  
+F. Run the destructive migration scanner.  
+G. Run the no-seed readiness audit.  
+H. Prepare a disposable staging or preview Supabase DB, or another isolated staging branch.  
+I. Apply migrations only in the approved staging or dry-run environment after reviewer sign-off.  
+J. Validate the staging app schema through SELECT-only proof.  
+K. Validate app boot and build behavior against staging.  
+L. Prepare a rollback and backup plan.  
+M. Only after explicit production approval, consider production migration execution in a separate PR and runbook.
+
+Because live DB proof is currently `BLOCKED`, staging migration application remains blocked until the proof blocker is explicitly resolved or a reviewer records a narrowly scoped exception in the PR or workflow state.
+
+The exception, if any, may authorize only docs-only planning unless it explicitly and separately authorizes staging DB work.
 
 ## Staging dry-run environment requirements
 - The first migration application must not use production DB infrastructure.
@@ -66,6 +71,12 @@ L. Only after explicit production approval, consider production migration execut
 - The 3 web-only migrations require explicit classification before adoption.
 - Destructive migrations require replacement or quarantine decisions before canonical adoption.
 - The EdgeNode `DELETE` must not be applied to staging or production as part of the canonical path without explicit replacement or quarantine handling.
+- The destructive migration scanner remains advisory while the known EdgeNode destructive path remains RED.
+- Running the destructive migration scanner is not clearance to proceed while the known EdgeNode destructive path remains RED.
+- A scanner pass does not approve the historical `DELETE FROM "EdgeNode"` path.
+- EdgeNode destructive handling must be replaced or explicitly quarantined before canonical adoption.
+- No scanner allowlist may be added in this PR.
+- Scanner findings must be reviewed alongside the EdgeNode preservation decision and migration manifest.
 - Because live proof shows no `public._prisma_migrations`, the baseline strategy must be explicit and reviewed:
   - either full canonical migration replay into an empty staging DB
   - or a reviewed baseline migration after schema review
@@ -104,8 +115,12 @@ After an approved staging dry run, require SELECT-only proof that:
 - `public.invite_requests` exists or is explicitly classified
 - `public."ConnectedMailbox"` exists or is explicitly classified
 - `public."EdgeNode"` exists or is explicitly classified
+- the EdgeNode row-count or preservation proof is compared against the pre-staging baseline
 - the EdgeNode data preservation decision is documented
+- any EdgeNode row loss, unexpected zeroing, truncation, recreation, or DELETE effect fails the staging dry run unless a separately approved preservation/quarantine decision explicitly covers it
 - PR #6 remains `BLOCKED` unless ConnectedMailbox shape is proven compatible
+
+Table existence alone is insufficient proof. Validation must detect data-loss effects from destructive migrations, especially EdgeNode.
 
 ## Production approval gate
 Production migration can be considered only after:
