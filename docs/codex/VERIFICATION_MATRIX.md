@@ -77,6 +77,23 @@ Use only these verdicts:
 | Read-only command results | Only safe, non-mutating verification commands should be used | `db:schema:compare` PASS; `schema:verify:readonly` blocked by missing safe DB URL input; `readiness:audit --workspace apps/api` not run because it seeds data first | PARTIAL | prisma-drift-agent | No DB mutation was performed. |
 | Final drift verdict | Final verdict should mark only what is proven and keep broader readiness pending | Evidence recorded in `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md`; local schema alignment is proven, but destructive migration history and blocked live DB verification keep the stage red | MIGRATION_DRIFT | prisma-drift-agent | Do not claim full production readiness from this stage. |
 
+## Read-only live DB proof tooling/input (2026-07-07)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Read-only proof runbook created | A docs-only runbook should define the safe live DB proof process without connecting to any database | `docs/runbooks/read-only-live-db-proof-2026-07-07.md` created | PASS | db-proof-agent | Design only; no DB access in this PR. |
+| Evidence template created | A redacted evidence template should exist for future execution and review | `docs/templates/read-only-live-db-proof-evidence-2026-07-07.md` created | PASS | db-proof-agent | Template supports `NOT_RUN`, `PASS`, `FAIL`, and `BLOCKED`. |
+| Approved SELECT-only query set documented | Only safe read-only query templates should be approved for future proof execution | Runbook documents PostgreSQL `SELECT` templates for environment proof, table existence, column shape, indexes, foreign keys, `_prisma_migrations`, row counts, EdgeNode impact, and ConnectedMailbox shape | PASS | db-proof-agent | Templates only; nothing executed here. |
+| Redaction rules documented | Future evidence must define how outputs are sanitized before sharing | Runbook defines `REDACTED_HOST`, `REDACTED_DB`, `REDACTED_ROLE`, and forbids secrets, raw rows, tokens, and mailbox credentials in evidence | PASS | db-proof-agent | Any accidental sensitive output must be discarded. |
+| PASS/FAIL/BLOCKED criteria documented | Future proof execution must have explicit outcome rules | Runbook defines required PASS evidence, explicit FAIL conditions, and explicit BLOCKED conditions | PASS | db-proof-agent | Keeps governance review auditable. |
+| EdgeNode proof requirements documented | Future proof must explicitly classify EdgeNode data impact before any destructive-path decision | Runbook requires EdgeNode existence, row count, safe impact classification, and states zero rows do not auto-approve destructive SQL | PASS | db-proof-agent | EdgeNode DELETE remains RED. |
+| ConnectedMailbox / PR #6 proof requirements documented | Future proof must explicitly classify mailbox schema assumptions without exposing sensitive mailbox data | Runbook requires ConnectedMailbox existence and shape proof, forbids token or mailbox-content selection, and keeps PR #6 blocked | PASS | db-proof-agent | Any mailbox migration remains separate from app code and must route through canonical `packages/db`. |
+| No DB access performed | This PR must not connect to production, staging, preview, or local DBs | No DB commands, psql, Prisma DB commands, or Supabase DB commands were run in this pass | PASS | db-proof-agent | Documentation-only boundary preserved. |
+| No SQL executed | This PR must not execute live queries while designing the proof set | SQL appears as templates only inside `docs/runbooks/read-only-live-db-proof-2026-07-07.md` | PASS | db-proof-agent | No query results were collected. |
+| No secrets accessed | This PR must not read, print, or validate credentials or env values | No secret/env access occurred; future credential handling is documented as out-of-band and redacted only | PASS | db-proof-agent | Safe input path remains future work. |
+| No schema/migration/app/package/workflow/env changes | The PR must remain docs-only and avoid runtime or migration changes | This PR changes only `docs/runbooks/read-only-live-db-proof-2026-07-07.md`, `docs/templates/read-only-live-db-proof-evidence-2026-07-07.md`, `docs/codex/WORKFLOW_STATE.md`, and `docs/codex/VERIFICATION_MATRIX.md` | PASS | db-proof-agent | No non-doc files changed. |
+| Production readiness remains NOT_READY | Proof design must not be overstated as readiness proof | Runbook and workflow state both preserve `NOT_READY` and RED / `NEEDS_REPLAN` DB governance | PASS | db-proof-agent | This PR defines the future proof process only. |
+
 ## DB migration remediation plan (2026-07-06)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
