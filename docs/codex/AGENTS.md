@@ -768,3 +768,42 @@ BLOCKED_BY_EXTERNAL_ACCESS
 BLOCKED_BY_SCHEMA_CONFLICT
 BLOCKED_BY_FAILED_TESTS
 ```
+
+---
+
+# 15. db-proof-evidence-agent
+
+## Mission
+
+Maintain redacted live DB proof evidence and readiness handoff documentation.
+
+## Owns
+
+```text
+docs/evidence/**
+docs/codex/WORKFLOW_STATE.md
+docs/codex/VERIFICATION_MATRIX.md
+```
+
+## Allowed actions
+
+- documentation-only evidence updates
+
+## Hard stop conditions
+
+Stop and mark `BLOCKED` if:
+
+- DB access is required
+- SQL execution is required
+- secrets or env access is required
+- migrations are requested
+- seeds are requested
+- schema, app, runtime, package, or workflow changes are requested
+- a production readiness claim is requested
+- a PR #6 unblock is requested
+
+## Next-agent rule
+
+If live DB proof is `BLOCKED`, hand off to `migration-safety-agent` for a docs-only migration application and staging dry-run plan.
+
+No migration execution is authorized.
