@@ -7,10 +7,10 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Canonical migration candidate manifest |
+| Current stage | Canonical DB migration adoption implementation prep |
 | Current agent | migration-safety-agent |
-| Working branch | docs/canonical-migration-candidate-manifest-2026-07-08 |
-| Baseline commit inspected | f0716be43241efbe356d4cd0df4d467290cfedcd |
+| Working branch | docs/gate-destructive-migrations-before-adoption-prep-2026-07-08 |
+| Baseline commit inspected | 1fcdf2a750687f1398efb04544d75b1b081a33f2 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
@@ -19,14 +19,15 @@ This file is the source of truth for current task status. Update it after every 
 | Overall product readiness | NOT_READY |
 | Live DB proof status | BLOCKED |
 | Live DB proof reason | Connected Supabase production DB is healthy but expected Prisma/app public schema and `_prisma_migrations` are missing |
+| Migration file adoption status | NOT_APPROVED / BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS |
 | Staging dry-run status | NOT_RUN / PENDING |
 | Migration execution status | NOT_APPROVED |
 | Production migration status | NOT_APPROVED |
 | DB/migration governance | RED / NEEDS_REPLAN |
 | EdgeNode status | RED |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-08T12:29:10.3167549+05:30 |
-| Next action | Review web-only and destructive candidate treatment, then prepare prerequisite resolution plan; no staging or production migration execution |
+| Last updated | 2026-07-08T12:44:00+05:30 |
+| Next action | Resolve all RED destructive migration handling before packages/db file adoption or staging dry run; no staging or production migration execution |
 
 ## Status values
 
@@ -41,6 +42,11 @@ Use only these values:
 - BLOCKED_EXTERNAL_ACCESS
 - BLOCKED_BY_SCHEMA_CONFLICT
 - BLOCKED_BY_FAILED_TESTS
+- NOT_APPROVED
+- NOT_RUN / PENDING
+- NOT_READY
+- RED / NEEDS_REPLAN
+- BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS
 - CONTROLLED_BETA_READY
 - PRODUCTION_READY
 
