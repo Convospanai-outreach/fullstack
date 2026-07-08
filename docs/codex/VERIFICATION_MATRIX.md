@@ -110,6 +110,29 @@ Use only these verdicts:
 | Production readiness remains NOT_READY | Audit must not claim production readiness | Audit reports `production_readiness: NOT_READY` and `verdict: NOT_READY` | PASS | readiness-audit-agent | Readiness remains blocked. |
 | DB/migration governance remains RED / NEEDS_REPLAN | Audit must preserve governance blocker | Audit reports `db_migration_governance: RED / NEEDS_REPLAN` | PASS | readiness-audit-agent | Canonical migration adoption still pending. |
 
+## Neon staging migration dry-run packet (2026-07-08)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Neon project present | Neon project should exist before any dry-run packet is prepared | Neon project `convospan` is present | PASS | migration-safety-agent | Marketplace integration created the project. |
+| Vercel-created Neon branch identified | The Vercel-created Neon branch should be named and recorded | Vercel-created Neon branch `vercel-dev` exists | PASS | migration-safety-agent | Target candidate recorded for future staging use only. |
+| Neon public app schema missing | Public Prisma app tables and migration metadata should remain unproven in the metadata-only check | Metadata-only Neon check found `public."ConnectedMailbox"`, `public."EdgeNode"`, `public."User"`, `public."UserInvitation"`, `public."_prisma_migrations"`, and `public.invite_requests` missing | PASS | migration-safety-agent | Managed `neon_auth` tables are not equivalent to the public Prisma app tables. |
+| Every RED destructive migration remains gated | The packet must preserve the destructive migration blocker | Packet and manifest keep `20260318115309_runtime_contracts`, `20251213000112_init`, `20251216120432_add_schedules`, and `20260604140000_edge_runtime_pairing` gated as excluded/replacement/quarantine-required | PASS | migration-safety-agent | No RED destructive migration is downgraded to simple manual approval. |
+| packages/db adoption blocked by RED destructive migrations | Canonical adoption must remain blocked until destructive handling is resolved | Workflow state and packet keep packages/db adoption `BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS` | PASS | migration-safety-agent | No blind copy or schema-baseline shortcut is approved. |
+| Migration execution remains NOT_APPROVED | Execution packet must not authorize migration running | Workflow state and packet keep migration execution `NOT_APPROVED` | PASS | migration-safety-agent | Placeholder command is not executable in Codex. |
+| Staging dry-run remains NOT_RUN / PENDING | Packet must not imply the dry-run has been executed | Workflow state and packet keep staging dry-run `NOT_RUN / PENDING` | PASS | migration-safety-agent | Human-run later only, after sign-off. |
+| Production migration remains NOT_APPROVED | Packet must not authorize production migration | Workflow state and packet keep production migration `NOT_APPROVED` | PASS | migration-safety-agent | Production remains outside this packet. |
+| Live DB proof remains BLOCKED | Packet must preserve the blocked live proof status | Workflow state and manifest keep live DB proof `BLOCKED` | PASS | migration-safety-agent | The metadata-only Neon check does not change the proof verdict. |
+| EdgeNode remains RED | EdgeNode destructive handling must stay unresolved | Workflow state and packet keep EdgeNode `RED` and the historical DELETE unapproved | PASS | migration-safety-agent | No destructive replay is approved. |
+| PR #6 remains BLOCKED | Mailbox-related migration work must remain blocked | Workflow state and packet keep PR #6 `BLOCKED` | PASS | migration-safety-agent | ConnectedMailbox compatibility still needs proof. |
+| No DB mutation occurred | Packet preparation must be docs-only | No DB mutation occurred in this PR | PASS | migration-safety-agent | Metadata-only evidence was supplied out-of-band. |
+| No SQL executed | Packet preparation must not execute SQL | No SQL was executed in this PR | PASS | migration-safety-agent | Placeholder command is not run. |
+| No seed ran | Packet preparation must not seed data | No seed execution occurred in this PR | PASS | migration-safety-agent | Seed paths remain out of scope. |
+| No migration ran | Packet preparation must not run migrations | No migration execution occurred in this PR | PASS | migration-safety-agent | Migration execution remains `NOT_APPROVED`. |
+| No secrets/env values accessed | Packet preparation must not access credentials | No secrets or env values were accessed in this PR | PASS | migration-safety-agent | Credentials remain outside Codex and GitHub. |
+| Production readiness remains NOT_READY | Packet preparation must not claim launch readiness | Workflow state and packet keep production readiness `NOT_READY` | PASS | migration-safety-agent | Execution packet only. |
+| DB/migration governance remains RED / NEEDS_REPLAN | Governance blocker must remain explicit | Workflow state and packet keep DB/migration governance `RED / NEEDS_REPLAN` | PASS | migration-safety-agent | Governance remains unresolved. |
+
 ## Read-only live DB proof evidence (2026-07-07)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |

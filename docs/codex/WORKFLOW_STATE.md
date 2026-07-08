@@ -7,9 +7,9 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Canonical DB migration adoption implementation prep |
+| Current stage | Neon staging migration dry-run packet |
 | Current agent | migration-safety-agent |
-| Working branch | docs/gate-destructive-migrations-before-adoption-prep-2026-07-08 |
+| Working branch | docs/neon-staging-migration-dry-run-packet-2026-07-08 |
 | Baseline commit inspected | 1fcdf2a750687f1398efb04544d75b1b081a33f2 |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
@@ -19,15 +19,16 @@ This file is the source of truth for current task status. Update it after every 
 | Overall product readiness | NOT_READY |
 | Live DB proof status | BLOCKED |
 | Live DB proof reason | Connected Supabase production DB is healthy but expected Prisma/app public schema and `_prisma_migrations` are missing |
-| Migration file adoption status | NOT_APPROVED / BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS |
+| Neon staging target candidate | IDENTIFIED |
+| packages/db adoption | BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS |
 | Staging dry-run status | NOT_RUN / PENDING |
 | Migration execution status | NOT_APPROVED |
 | Production migration status | NOT_APPROVED |
 | DB/migration governance | RED / NEEDS_REPLAN |
 | EdgeNode status | RED |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-08T12:44:00+05:30 |
-| Next action | Resolve all RED destructive migration handling before packages/db file adoption or staging dry run; no staging or production migration execution |
+| Last updated | 2026-07-08T12:58:00+05:30 |
+| Next action | Resolve all RED destructive migrations before packages/db adoption or Neon staging dry run; no staging or production migration execution |
 
 ## Status values
 

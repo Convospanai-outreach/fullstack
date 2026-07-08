@@ -26,6 +26,13 @@ This document identifies candidate migration inputs for a future canonical `pack
 - PR #6 remains `BLOCKED`.
 - EdgeNode remains `RED`.
 
+## Neon staging target candidate
+- Neon project `convospan` is present.
+- Vercel-created Neon branch `vercel-dev` exists.
+- Metadata-only Neon check found public app schema tables missing: `public."ConnectedMailbox"`, `public."EdgeNode"`, `public."User"`, `public."UserInvitation"`, `public."_prisma_migrations"`, and `public.invite_requests`.
+- Neon managed auth tables under `neon_auth` are not equivalent to the public Prisma app tables.
+- This evidence identifies Neon as the current staging/dry-run target candidate, but it does not approve migration execution.
+
 ## Migration source locations
 
 | Location | Current role | Migration count | Candidate status | Notes |
@@ -107,7 +114,7 @@ Recorded prior inventory totals:
   - every RED destructive migration is excluded, replaced, or explicitly quarantined
   - EdgeNode `DELETE` remains excluded until non-destructive replacement or quarantine is approved
   - reviewer sign-off is recorded
-  - staging target approval exists
+  - Neon staging target approval exists
 
 ## Empty live DB / missing _prisma_migrations implication
 - Because the checked live Supabase public schema has no app tables and no `_prisma_migrations`, a future staging dry run can test full canonical replay against an isolated empty DB.
@@ -117,10 +124,10 @@ Recorded prior inventory totals:
 ## Staging dry-run prerequisite impact
 - This manifest is prerequisite input only.
 - It does not authorize staging execution.
-- Staging dry run remains blocked until the candidate set is reviewer-accepted, web-only classifications are resolved, every RED destructive migration from the inventory is excluded, replaced, or explicitly quarantined, and reviewer sign-off records a staging-only exception.
+- Staging dry run remains blocked until the candidate set is reviewer-accepted, web-only classifications are resolved, every RED destructive migration from the inventory is excluded, replaced, or explicitly quarantined, and reviewer sign-off records a Neon-only staging exception.
 - The destructive scanner remains advisory while any RED destructive migration remains unresolved.
 - A scanner pass does not approve destructive replay.
-- No migration file may be copied or replayed into `packages/db` or staging while RED destructive migrations remain unresolved.
+- No migration file may be copied or replayed into `packages/db` or Neon staging while RED destructive migrations remain unresolved.
 - Reviewer sign-off for any future staging exception must remain narrower than production approval and must not bypass the preservation and rollback gates already documented in the dry-run runbook.
 
 ## Not included
