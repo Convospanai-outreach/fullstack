@@ -7,10 +7,10 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | DB migration application and staging dry-run planning |
+| Current stage | Canonical migration candidate manifest |
 | Current agent | migration-safety-agent |
-| Working branch | docs/db-migration-application-staging-dry-run-plan-2026-07-07 |
-| Baseline commit inspected | 50a364c200a57e4fde3de532891ee86db86ed6d3 |
+| Working branch | docs/canonical-migration-candidate-manifest-2026-07-08 |
+| Baseline commit inspected | f0716be43241efbe356d4cd0df4d467290cfedcd |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
@@ -21,11 +21,12 @@ This file is the source of truth for current task status. Update it after every 
 | Live DB proof reason | Connected Supabase production DB is healthy but expected Prisma/app public schema and `_prisma_migrations` are missing |
 | Staging dry-run status | NOT_RUN / PENDING |
 | Migration execution status | NOT_APPROVED |
+| Production migration status | NOT_APPROVED |
 | DB/migration governance | RED / NEEDS_REPLAN |
 | EdgeNode status | RED |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-07T21:20:46.3718137+05:30 |
-| Next action | Complete docs-only migration application and staging dry-run plan, then obtain explicit reviewer sign-off before any staging execution |
+| Last updated | 2026-07-08T12:29:10.3167549+05:30 |
+| Next action | Review web-only and destructive candidate treatment, then prepare prerequisite resolution plan; no staging or production migration execution |
 
 ## Status values
 
@@ -107,6 +108,8 @@ Use only these values:
 | Google, Clerk, Gmail & Redis execution planning | production-runtime-verification-agent | READY_FOR_NEXT_STAGE | docs/audits/google-clerk-gmail-execution-checklist.md | Created concrete verification and smoke test checklists for Google Cloud, Clerk, Gmail, and Redis. |
 
 ## Latest findings
+
+- **2026-07-08T12:29:10.3167549+05:30 Canonical migration candidate manifest pass** on branch `docs/canonical-migration-candidate-manifest-2026-07-08` created a docs-only candidate manifest for future `packages/db/prisma` adoption planning. It records the 22 shared-identical migrations as candidate input with destructive exceptions, the 3 web-only migrations as review-required inputs, the empty `packages/db/prisma/migrations` canonical target, and the RED EdgeNode `DELETE FROM "EdgeNode"` path as excluded until replacement or explicit quarantine. Live DB proof remains `BLOCKED`, migration execution remains `NOT_APPROVED`, staging dry-run remains `NOT_RUN / PENDING`, production migration remains `NOT_APPROVED`, and PR #6 remains blocked. No DB access, SQL execution, seed execution, migration execution, or secret access occurred in this pass.
 
 - **2026-07-07T21:20:46.3718137+05:30 DB migration application and staging dry-run planning pass** on branch `docs/db-migration-application-staging-dry-run-plan-2026-07-07` added a docs-only runbook for controlled migration application planning after the live Supabase proof showed the production DB is healthy but missing the expected Prisma/app public schema and `_prisma_migrations`. The plan preserves `packages/db/prisma` as the canonical long-term owner, keeps migration execution `NOT_APPROVED`, keeps staging dry-run `NOT_RUN / PENDING`, requires manifest-backed adoption plus EdgeNode and drift or governance prerequisites before any staging execution, and keeps PR #6 blocked. This pass also tightened the `db-proof-evidence-agent` handoff wording so drift or governance prerequisite routing remains docs-only unless separately approved for live DB or migration work. No DB access, SQL execution, seed execution, migration execution, or secret access occurred in this pass.
 
