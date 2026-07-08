@@ -30,8 +30,8 @@ This document identifies candidate migration inputs for a future canonical `pack
 
 | Location | Current role | Migration count | Candidate status | Notes |
 | --- | --- | ---: | --- | --- |
-| `apps/web/prisma/migrations` | Transitional historical source | 25 | `requires-manual-approval` | Contains the richer app-local history, including 22 shared-identical migrations, 3 web-only migrations, and known destructive patterns. |
-| `apps/api/prisma/migrations` | Transitional historical source | 22 | `requires-manual-approval` | Contains the 22 shared-identical migrations and known destructive patterns, but no web-only auth/onboarding migrations. |
+| `apps/web/prisma/migrations` | Transitional historical source | 25 | `not-candidate-yet` | Contains the richer app-local history, including 22 shared-identical migrations, 3 web-only migrations, and known RED destructive patterns that must be excluded, replaced, or quarantined before any canonical adoption. |
+| `apps/api/prisma/migrations` | Transitional historical source | 22 | `not-candidate-yet` | Contains the 22 shared-identical migrations and known RED destructive patterns, but no web-only auth/onboarding migrations. |
 | `packages/db/prisma/migrations` | Future canonical owner | 0 | `missing-from-canonical` | Canonical owner is accepted, but no tracked migration history exists yet. |
 
 Recorded prior inventory totals:
@@ -47,7 +47,7 @@ Recorded prior inventory totals:
 - `excluded-destructive-red`: blocked from canonical adoption because the recorded destructive history remains RED
 - `quarantine-required`: may move only after an explicit quarantine decision is approved and documented
 - `replacement-required`: may move only after a non-destructive replacement path is approved and documented
-- `not-candidate-yet`: not ready for canonical adoption in the current governance state
+- `not-candidate-yet`: not ready for canonical adoption because prerequisite destructive handling remains unresolved
 - `missing-from-canonical`: absent from `packages/db/prisma/migrations`
 - `requires-manual-approval`: reviewable only after explicit reviewer approval because risk or ambiguity remains
 
