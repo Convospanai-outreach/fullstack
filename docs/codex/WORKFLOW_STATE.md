@@ -6,29 +6,42 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | NEEDS_REPLAN |
-| Current stage | Neon staging migration dry-run packet |
-| Current agent | migration-safety-agent |
-| Working branch | docs/neon-staging-migration-dry-run-packet-2026-07-08 |
-| Baseline commit inspected | 1fcdf2a750687f1398efb04544d75b1b081a33f2 |
-| API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
-| Railway API health | PASS — `/health` returns 200, database up |
-| Vercel web health | PASS — `/api/health` returns 200, database up |
-| Vercel readiness probe | PASS — `/api/health?probe=ready` returns 200, 17ms |
-| Vercel proxy unauthenticated | EXPECTED_AUTH_GATE — `/api/proxy/health` returns 401 |
-| Overall product readiness | NOT_READY |
-| Live DB proof status | BLOCKED |
-| Live DB proof reason | Connected Supabase production DB is healthy but expected Prisma/app public schema and `_prisma_migrations` are missing |
-| Neon staging target candidate | IDENTIFIED |
-| packages/db adoption | BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS |
-| Staging dry-run status | NOT_RUN / PENDING |
-| Migration execution status | NOT_APPROVED |
+| Overall status | FINAL_SMOKE_PENDING |
+| Current stage | Production readiness PDCA after Render and Neon cutover |
+| Current agent | release-readiness-agent |
+| Working branch | docs/production-readiness-pdca-2026-07-08 |
+| Baseline commit inspected | 42f6edbd1ad39b2016e36bfad5c619327a3ad73f |
+| Current target architecture | Vercel = web; Render = `apps/api`; Neon = Prisma Postgres DB; Redis = cache/rate-limit/queue if configured; Supabase = optional/non-Prisma only; Railway = retired pending confirmation |
+| API Internal Origin | `https://fullstack-vz1l.onrender.com` recorded as the active web-to-API origin; env value itself not printed from Codex |
+| Hosting cutover status | COMPLETE |
+| API cutover status | COMPLETE |
+| DB migration status | COMPLETE |
+| Runtime checks status | PASS |
+| Render API health | PASS - `https://fullstack-vz1l.onrender.com/health?probe=ready` returned `200` healthy with database up |
+| Vercel web health | PASS - `https://www.craftmyfunnel.live/api/health?probe=ready` returned `200` healthy with database up |
+| Authenticated proxy proof | NOT_RUN / PENDING |
+| Active Prisma DB | Neon |
+| Neon migration proof | PASS |
+| Neon migration target | Branch `br-weathered-morning-a1swqggj`, compute `ep-rough-mud-a137oo29` |
+| Neon migration evidence | `25` Prisma migrations applied from `apps/web/prisma/schema.prisma`; `_prisma_migrations` has `25` records; `User`, `UserInvitation`, `ConnectedMailbox`, `EdgeNode`, `invite_requests`, and `_prisma_migrations` confirmed present by user evidence |
+| Supabase status | NOT_ACTIVE_PRISMA_DB |
+| Railway status | SAFE_TO_TERMINATE / RETIRED_PENDING_CONFIRMATION |
+| Overall product readiness | FINAL_SMOKE_PENDING |
+| Live DB proof status | PASS |
+| Live DB proof reason | Active Neon Prisma target now has `_prisma_migrations` plus the core Prisma app tables; no further migration execution is approved from this PR |
+| Canonical packages/db adoption | NOT_APPROVED |
+| Selected Neon branch migration | COMPLETE |
+| Staging dry-run status | COMPLETE |
+| Migration execution status | COMPLETE |
+| Migration execution scope | Selected Neon branch/endpoint only |
+| Further migration execution approval | NOT_APPROVED |
 | Production migration status | NOT_APPROVED |
-| DB/migration governance | RED / NEEDS_REPLAN |
-| EdgeNode status | RED |
+| Production data mutation approval | NOT_APPROVED |
+| DB/migration governance | FINAL_SMOKE_PENDING |
+| EdgeNode status | FINAL_SMOKE_PENDING |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-08T12:58:00+05:30 |
-| Next action | Resolve all RED destructive migrations before packages/db adoption or Neon staging dry run; no staging or production migration execution |
+| Last updated | 2026-07-08T20:45:00+05:30 |
+| Next action | Run browser/auth/dashboard/critical workflow smoke, validate seed/config/default data, verify authenticated proxy-to-Render behavior, classify Redis presence/absence, and verify provider integrations before any beta-ready claim |
 
 ## Status values
 
@@ -48,6 +61,11 @@ Use only these values:
 - NOT_READY
 - RED / NEEDS_REPLAN
 - BLOCKED_BY_RED_DESTRUCTIVE_MIGRATIONS
+- PASS
+- COMPLETE
+- FINAL_SMOKE_PENDING
+- SAFE_TO_TERMINATE / RETIRED_PENDING_CONFIRMATION
+- NOT_ACTIVE_PRISMA_DB
 - CONTROLLED_BETA_READY
 - PRODUCTION_READY
 
@@ -55,21 +73,20 @@ Use only these values:
 
 | Blocker | Owner agent | Evidence | Next action | Status |
 | --- | --- | --- | --- | --- |
-| Live DB behind local Prisma migrations | prisma-drift-agent | `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md` and `docs/plans/db-migration-remediation-plan-2026-07-06.md` confirm local migration trees remain split (`apps/web`: 25, `apps/api`: 22, `packages/db`: 0) while live DB verification could not be safely re-run from this shell | Choose canonical migration owner and verify live DB shape with safe read-only credentials | BLOCKED_EXTERNAL_ACCESS |
-| Live DB missing Clerk/invite schema used by web auth | auth-tenant-agent | Prior readiness audits still record missing live `User.clerk_user_id`, `UserInvitation`, and `invite_requests`; this stage could not safely re-query the live DB because no read-only DB URL was available | Re-run live DB verification with safe read-only credentials, then prepare additive repair only if confirmed | BLOCKED_EXTERNAL_ACCESS |
-| Pending migration contains destructive delete | migration-safety-agent | `docs/audits/read-only-db-schema-drift-proof-2026-07-06.md` and `docs/plans/db-migration-remediation-plan-2026-07-06.md` confirm `20260604140000_edge_runtime_pairing` still contains `DELETE FROM "EdgeNode"` in both local app migration trees | Select canonical ownership and prepare a non-destructive replacement design before any production migration decision | BLOCKED_BY_SCHEMA_CONFLICT |
-| API_INTERNAL_ORIGIN authenticated proxy forwarding verified | production-runtime-verification-agent | Authenticated proxy-to-Railway forwarding verified via browser, Vercel, and Railway logs under active session. | Proceed to Clerk user/team linkage and Redis isolation verification | READY_FOR_NEXT_STAGE |
-| Production web readiness reports database down | release-readiness-agent | Superseded by `docs/audits/production-health-green-proof-2026-07-06.md`: apex routes to Vercel www, `/api/health?probe=live` returns `200` alive, `/api/health?probe=ready` returns `200` healthy with database up, and the earlier 503s were local Windows hosts false negatives. | Move to read-only DB schema and migration drift proof; keep broader auth/Redis/security gates unresolved | READY_FOR_NEXT_STAGE |
-| Main release gate not fully green | ci-gate-agent | Latest main `34c3339` has Vercel, active `airy-balance` Railway statuses, and GitHub Actions green. Stale `illustrious-warmth` contexts still appear as no-op success statuses; required-check list is still a manual GitHub admin confirmation. | Confirm stale Railway contexts are not required branch-protection checks and decide whether GHCR is optional image-publishing evidence or a required release gate | NEEDS_REPLAN |
-| Dependency security alerts unresolved | dependency-security-agent | GitHub Dependabot alerts include high severity `ws`, `picomatch`, and `nodemailer` findings plus moderate `brace-expansion`, `uuid`, `postcss`, `picomatch`, `@hono/node-server`, and `@opentelemetry/core` findings | Run dependency alert mapping/remediation; fix high production alerts without `npm audit fix --force`; document moderate reachability/risk | NEEDS_REPLAN |
-| Minimum security gate not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12A minimum beta gate; no route inventory or fixes have been executed in this docs-only pass | Run Stage 12A after functional readiness is mostly green and before controlled beta; do not treat DB health as full app readiness | NEEDS_REPLAN |
-| Deep security hardening not yet executed | security-hardening-agent | `docs/audits/application-security-hardening-plan.md` now defines Stage 12B deep public/enterprise hardening | Run Stage 12B before public launch, enterprise launch, or scale marketing | NEEDS_REPLAN |
-| PR #6 must not merge as-is | pr-strategy-agent | PR #6 is broad, mergeable=false, and overlaps schema/env/docs/runtime concerns | Split PR #6 into reviewable slices | BLOCKED_BY_SCHEMA_CONFLICT |
+| Browser login/auth smoke not yet re-proven after Render and Neon cutover | release-readiness-agent | User-confirmed cutover evidence proves health and schema presence, but no signed-in browser smoke is recorded yet for the new host and DB combination | Run the manual login and session smoke plan in `docs/runbooks/production-readiness-pdca-2026-07-08.md` and record results | NOT_RUN / PENDING |
+| Dashboard and critical workflow smoke not yet recorded after migration completion | release-readiness-agent | Health probes are green and core tables exist, but dashboard, lead/campaign, and invite-request workflows still lack post-cutover smoke evidence | Execute the browser smoke checklist and classify each workflow as PASS, FAIL, or config-blocked | NOT_RUN / PENDING |
+| Authenticated proxy-to-Render forwarding still needs signed-in proof | production-runtime-verification-agent | The proxy route resolves `API_INTERNAL_ORIGIN`, but this stage has no recorded signed-in proof that browser API traffic reaches Render successfully after the Render cutover | Capture authenticated proxy proof through a signed-in browser action or equivalent application-level API success | NOT_RUN / PENDING |
+| Seed/config/default data readiness is still unknown | release-readiness-agent | Neon schema and health are proven, but missing records or default config can still break the dashboard or setup flows without indicating a migration failure | Validate seed/default config behavior during smoke and classify failures as data/config issues when applicable | NOT_RUN / PENDING |
+| Provider integrations still need safe runtime verification | production-runtime-verification-agent | Migration completion does not prove Gmail, email/provider, or similar integrations work against the current runtime env | Run safe provider verification without exposing secrets; classify provider/env failures separately from DB failures | NOT_RUN / PENDING |
+| Redis production role is not yet classified | redis-cache-agent | Repo code degrades without Redis, but this stage does not yet prove whether Redis is active, optional, or misconfigured in the current runtime | Verify Redis presence/absence and degraded behavior during smoke without printing secrets | NOT_RUN / PENDING |
+| EdgeNode runtime behavior is not fully green yet | migration-safety-agent | User evidence confirms the `EdgeNode` table exists after Neon migration, but repo evidence does not yet prove EdgeNode-backed runtime behavior in production flows | Keep EdgeNode short of full green until workflow smoke or explicit runtime evidence is recorded | FINAL_SMOKE_PENDING |
+| PR #6 must not merge as-is | pr-strategy-agent | PR #6 remains broader than the now-completed hosting/API/DB cutover and still lacks explicit compatibility proof for the current runtime baseline | Keep PR #6 blocked until separate evidence proves it safe | BLOCKED |
 
 ## Stage tracker
 
 | Stage | Agent | Status | Evidence file | Notes |
 | --- | --- | --- | --- | --- |
+| 15. Production readiness PDCA after Render and Neon cutover | release-readiness-agent | IN_PROGRESS | docs/runbooks/production-readiness-pdca-2026-07-08.md | Hosting cutover COMPLETE, API cutover COMPLETE, DB migration COMPLETE, runtime DB checks PASS, and final browser/auth/dashboard/workflow smoke remains pending before any beta-ready claim. |
 | 0. Branch and baseline | orchestrator | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Branch `codex/db-linkage-swarm-orchestration`, baseline `12174245a1af55d32c0b46a04b5d9f7b0a2948cd` |
 | 1. Repo cartography | repo-cartographer | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Apps: web/API/edge-fastapi; web/API Prisma schemas; CI workflows mapped |
 | 2. Vercel linkage inspection | vercel-linkage-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Project/deployment found; env mapping not verified |
