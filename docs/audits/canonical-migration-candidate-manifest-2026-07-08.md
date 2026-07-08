@@ -59,8 +59,8 @@ Recorded prior inventory totals:
 | `20251209182020_dashboard_init` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20251209193320_add_campaign_ai_config` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20251209203145_add_credit_transaction` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
-| `20251213000112_init` | yes | yes | documented-match | `requires-manual-approval` | Historical destructive `DROP COLUMN` and `DROP INDEX` review remains required before any canonical adoption. |
-| `20251216120432_add_schedules` | yes | yes | documented-match | `requires-manual-approval` | Historical destructive `DROP CONSTRAINT`, `DROP COLUMN`, and `DROP INDEX` review remains required before any canonical adoption. |
+| `20251213000112_init` | yes | yes | documented-match | `excluded-destructive-red` | Historical destructive `DROP COLUMN` and `DROP INDEX` remain blocked from canonical adoption until replacement-required or quarantine-required handling is resolved. |
+| `20251216120432_add_schedules` | yes | yes | documented-match | `excluded-destructive-red` | Historical destructive `DROP CONSTRAINT`, `DROP COLUMN`, and `DROP INDEX` remain blocked from canonical adoption until replacement-required or quarantine-required handling is resolved. |
 | `20251217175210_updation171225` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20251217180353_add_workflows` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20251217182344_add_guardrails` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
@@ -70,10 +70,10 @@ Recorded prior inventory totals:
 | `20251217192911_add_api_keys_v2` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20251217195642_add_whitelabeling` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20260208020924_add_client_error_logging` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
-| `20260318115309_runtime_contracts` | yes | yes | documented-match | `requires-manual-approval` | Historical destructive `DROP TABLE` and `DROP COLUMN` review remains required before any canonical adoption. |
+| `20260318115309_runtime_contracts` | yes | yes | documented-match | `excluded-destructive-red` | Historical destructive `DROP TABLE` and `DROP COLUMN` remain blocked from canonical adoption until replacement-required or quarantine-required handling is resolved. |
 | `20260522153000_add_google_workspace_mailboxes` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical candidate input, but ConnectedMailbox compatibility proof still remains a separate gate and PR #6 stays blocked. |
 | `20260522170000_google_workspace_outreach_foundation` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical candidate input, but ConnectedMailbox compatibility proof still remains a separate gate and PR #6 stays blocked. |
-| `20260604140000_edge_runtime_pairing` | yes | yes | documented-match and EdgeNode hash-verified (`d05ac18c728f6440e0e7b5740465a271760a3e98`) | `excluded-destructive-red` | Contains historical `DELETE FROM "EdgeNode"` and cannot be adopted as-is. |
+| `20260604140000_edge_runtime_pairing` | yes | yes | documented-match and EdgeNode hash-verified (`d05ac18c728f6440e0e7b5740465a271760a3e98`) | `excluded-destructive-red` | Contains historical `DELETE FROM "EdgeNode"` and remains blocked from canonical adoption until replacement-required or quarantine-required handling is resolved. |
 | `20260608103000_edge_session_tokens` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20260612000100_lead_channel_status_activity` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
 | `20260614173000_add_llm_usage_actor` | yes | yes | documented-match | `candidate-shared-identical` | Shared-identical and missing from canonical history. |
@@ -90,7 +90,10 @@ Recorded prior inventory totals:
 
 | Migration | Path(s) | Destructive pattern | Current status | Candidate treatment | Required resolution |
 | --- | --- | --- | --- | --- | --- |
-| `20260604140000_edge_runtime_pairing` | `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql`; `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `DELETE FROM "EdgeNode"` | `RED` | `excluded-destructive-red`, `replacement-required`, `quarantine-required` | Non-destructive replacement or explicit quarantine before canonical adoption; scanner remains advisory; no allowlist approved. |
+| `20260318115309_runtime_contracts` | `apps/web/prisma/migrations/20260318115309_runtime_contracts/migration.sql`; `apps/api/prisma/migrations/20260318115309_runtime_contracts/migration.sql` | `DROP TABLE "ActivityLog"` plus `DROP COLUMN` destructive contract changes | `RED` | `excluded-destructive-red` | `replacement-required` or `quarantine-required` before canonical adoption or staging dry run; scanner remains advisory; no allowlist approved. |
+| `20251213000112_init` | `apps/web/prisma/migrations/20251213000112_init/migration.sql`; `apps/api/prisma/migrations/20251213000112_init/migration.sql` | `DROP COLUMN` plus `DROP INDEX` destructive history | `RED` | `excluded-destructive-red` | `replacement-required` or `quarantine-required` before canonical adoption or staging dry run; scanner remains advisory; no allowlist approved. |
+| `20251216120432_add_schedules` | `apps/web/prisma/migrations/20251216120432_add_schedules/migration.sql`; `apps/api/prisma/migrations/20251216120432_add_schedules/migration.sql` | `DROP CONSTRAINT` plus `DROP COLUMN` and `DROP INDEX` destructive history | `RED` | `excluded-destructive-red` | `replacement-required` or `quarantine-required` before canonical adoption or staging dry run; scanner remains advisory; no allowlist approved. |
+| `20260604140000_edge_runtime_pairing` | `apps/web/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql`; `apps/api/prisma/migrations/20260604140000_edge_runtime_pairing/migration.sql` | `DELETE FROM "EdgeNode"` | `RED` | `excluded-destructive-red` | `replacement-required` or `quarantine-required` before canonical adoption or staging dry run; scanner remains advisory; no allowlist approved. |
 
 ## Candidate canonical adoption strategy
 - No blind copy.
@@ -98,7 +101,13 @@ Recorded prior inventory totals:
 - No schema-baseline-only shortcut.
 - No production execution.
 - The candidate set is for planning only.
-- A future implementation PR may create `packages/db/prisma` migration history only after reviewer sign-off and after EdgeNode and web-only classifications are resolved.
+- A future implementation PR may create `packages/db/prisma` migration history only after:
+  - all shared-identical migrations are hash-confirmed
+  - all web-only migrations are classified
+  - every RED destructive migration is excluded, replaced, or explicitly quarantined
+  - EdgeNode `DELETE` remains excluded until non-destructive replacement or quarantine is approved
+  - reviewer sign-off is recorded
+  - staging target approval exists
 
 ## Empty live DB / missing _prisma_migrations implication
 - Because the checked live Supabase public schema has no app tables and no `_prisma_migrations`, a future staging dry run can test full canonical replay against an isolated empty DB.
@@ -108,7 +117,10 @@ Recorded prior inventory totals:
 ## Staging dry-run prerequisite impact
 - This manifest is prerequisite input only.
 - It does not authorize staging execution.
-- Staging dry run remains blocked until the candidate set is reviewer-accepted, web-only classifications are resolved, EdgeNode destructive handling is replaced or explicitly quarantined, and reviewer sign-off records a staging-only exception.
+- Staging dry run remains blocked until the candidate set is reviewer-accepted, web-only classifications are resolved, every RED destructive migration from the inventory is excluded, replaced, or explicitly quarantined, and reviewer sign-off records a staging-only exception.
+- The destructive scanner remains advisory while any RED destructive migration remains unresolved.
+- A scanner pass does not approve destructive replay.
+- No migration file may be copied or replayed into `packages/db` or staging while RED destructive migrations remain unresolved.
 - Reviewer sign-off for any future staging exception must remain narrower than production approval and must not bypass the preservation and rollback gates already documented in the dry-run runbook.
 
 ## Not included
