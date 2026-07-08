@@ -7,10 +7,10 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | NEEDS_REPLAN |
-| Current stage | Migration prerequisite decision |
+| Current stage | Canonical migration candidate manifest |
 | Current agent | migration-safety-agent |
-| Working branch | docs/migration-prerequisite-decision-2026-07-08 |
-| Baseline commit inspected | 96bd07ee00d3eb035a8134375cb1237f435f571a |
+| Working branch | docs/canonical-migration-candidate-manifest-2026-07-08 |
+| Baseline commit inspected | f0716be43241efbe356d4cd0df4d467290cfedcd |
 | API Internal Origin | Public Railway HTTPS origin confirmed: `https://convospan-api-split-production.up.railway.app`; env value not printed |
 | Railway API health | PASS — `/health` returns 200, database up |
 | Vercel web health | PASS — `/api/health` returns 200, database up |
@@ -26,7 +26,7 @@ This file is the source of truth for current task status. Update it after every 
 | EdgeNode status | RED |
 | PR #6 status | BLOCKED |
 | Last updated | 2026-07-08T12:29:10.3167549+05:30 |
-| Next action | Prepare canonical migration candidate manifest / prerequisite resolution plan; no staging or production migration execution |
+| Next action | Review web-only and destructive candidate treatment, then prepare prerequisite resolution plan; no staging or production migration execution |
 
 ## Status values
 
@@ -109,7 +109,7 @@ Use only these values:
 
 ## Latest findings
 
-- **2026-07-08T12:29:10.3167549+05:30 Migration prerequisite decision pass** on branch `docs/migration-prerequisite-decision-2026-07-08` recorded the docs-only prerequisite decision required before any staging migration dry-run can occur. The decision carries forward that the connected Supabase production DB is healthy but missing public app schema and `public._prisma_migrations`, keeps live DB proof `BLOCKED`, keeps migration execution `NOT_APPROVED`, keeps staging dry-run `NOT_RUN / PENDING`, keeps production migration `NOT_APPROVED`, preserves `packages/db/prisma` as the target canonical owner, and limits any next movement to prerequisite planning plus later reviewer-gated staging exceptions only. No DB access, SQL execution, seed execution, migration execution, or secret access occurred in this pass.
+- **2026-07-08T12:29:10.3167549+05:30 Canonical migration candidate manifest pass** on branch `docs/canonical-migration-candidate-manifest-2026-07-08` created a docs-only candidate manifest for future `packages/db/prisma` adoption planning. It records the 22 shared-identical migrations as candidate input with destructive exceptions, the 3 web-only migrations as review-required inputs, the empty `packages/db/prisma/migrations` canonical target, and the RED EdgeNode `DELETE FROM "EdgeNode"` path as excluded until replacement or explicit quarantine. Live DB proof remains `BLOCKED`, migration execution remains `NOT_APPROVED`, staging dry-run remains `NOT_RUN / PENDING`, production migration remains `NOT_APPROVED`, and PR #6 remains blocked. No DB access, SQL execution, seed execution, migration execution, or secret access occurred in this pass.
 
 - **2026-07-07T21:20:46.3718137+05:30 DB migration application and staging dry-run planning pass** on branch `docs/db-migration-application-staging-dry-run-plan-2026-07-07` added a docs-only runbook for controlled migration application planning after the live Supabase proof showed the production DB is healthy but missing the expected Prisma/app public schema and `_prisma_migrations`. The plan preserves `packages/db/prisma` as the canonical long-term owner, keeps migration execution `NOT_APPROVED`, keeps staging dry-run `NOT_RUN / PENDING`, requires manifest-backed adoption plus EdgeNode and drift or governance prerequisites before any staging execution, and keeps PR #6 blocked. This pass also tightened the `db-proof-evidence-agent` handoff wording so drift or governance prerequisite routing remains docs-only unless separately approved for live DB or migration work. No DB access, SQL execution, seed execution, migration execution, or secret access occurred in this pass.
 
