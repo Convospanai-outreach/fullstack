@@ -8,6 +8,34 @@ const INTERNAL_API_ORIGIN =
     process.env["API_BASE_URL"] ||
     "http://localhost:3001";
 
+const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "content-encoding",
+    "content-length",
+    "alt-svc",
+]);
+
+function sanitizeUpstreamResponseHeaders(upstreamHeaders: Headers) {
+    const headers = new Headers();
+
+    upstreamHeaders.forEach((value, key) => {
+        if (STRIPPED_UPSTREAM_RESPONSE_HEADERS.has(key.toLowerCase())) {
+            return;
+        }
+        headers.set(key, value);
+    });
+
+    return headers;
+}
+
+
 function getTargetUrl(req: NextRequest, pathParts: string[] | undefined): URL {
     if (!pathParts || pathParts.length === 0) {
         throw new Error("Proxy path is required");
@@ -123,10 +151,11 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
         }
 
         const upstream = await fetch(target, requestInit);
+        const responseHeaders = sanitizeUpstreamResponseHeaders(upstream.headers);
 
         return new NextResponse(upstream.body, {
             status: upstream.status,
-            headers: upstream.headers,
+            headers: responseHeaders,
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Proxy failure";
