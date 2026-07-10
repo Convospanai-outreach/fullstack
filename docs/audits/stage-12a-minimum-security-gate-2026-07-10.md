@@ -89,6 +89,38 @@ None confirmed in this passive Stage 12A pass. Active IDOR, role-abuse, CSRF, SS
 - No Prisma schema change or migration was created or applied. This is an additive data-format transition in the existing column because canonical Prisma schema/migration ownership remains governed by a separate cutover plan.
 - Focused unit and route tests cover storage redaction, one-time display, scope enforcement, role and tenant controls, revocation, pagination, rate limiting, and legacy upgrade behavior. Dynamic two-tenant and production-like rate-limit verification remain open.
 
+#### S12A-HIGH-001 remediation amendment (2026-07-10, final PR head)
+
+**Audit-after-persistence fix applied:**
+
+- Both `governance/keys` and `settings/keys` POST routes now treat key persistence as the success boundary. If `audit()` throws after `createTeamApiKey()` succeeds, the route still returns 201 with the one-time secret and persisted metadata. A generic `console.warn` logs the audit failure with only the key ID — no raw secret, no lookup digest, no sensitive request data.
+- The `settings/keys/[id]` DELETE route applies the same pattern: successful revocation returns 200 even if the subsequent audit write fails.
+- New tests verify: audit success → 201; audit throw → 201 with secret; createTeamApiKey failure → 500 generic error; no duplicate create on audit failure; audit receives metadata only (no raw secret, no digest).
+
+**CodeQL SHA-256 assessment:**
+
+- `sha256()` in `apiKeySecurity.ts` and `apiAuth.ts` derives deterministic lookup identifiers from server-generated 256-bit random bearer tokens. This is not password hashing. CodeQL flags it because it cannot distinguish high-entropy token indexing from low-entropy password storage.
+- `constantTimeEquals()` normalizes variable-length inputs to fixed-length SHA-256 digests for `timingSafeEqual`. Used for legacy raw-key comparison to prevent timing side-channels.
+- No dedicated API-key HMAC pepper exists in the repository. SHA-256 is retained for uniformly random 256-bit API keys with concise security rationale comments added to both files.
+- No user-selectable or low-entropy input can reach the lookup function as a valid new API key (format validation occurs before lookup derivation).
+- The database never stores the new raw secret; the digest is never returned in API responses or logs.
+- Legacy raw-key support is explicitly temporary, bounded by `LEGACY_API_KEY_RETIREMENT_DATE` (2026-10-31).
+- If CodeQL continues to flag these alerts, they should be dispositioned as false positives by a human repository/security owner with rationale: "The input is a server-generated 256-bit random bearer token, not a human password. SHA-256 is used only to derive a deterministic indexed lookup identifier. Exhaustive preimage search remains computationally infeasible. The raw token is returned once and is not persisted."
+
+**Verified on final PR head:**
+
+- 40/40 focused API-key tests passing (governance route, settings route, revocation route, apiKeySecurity, apiKeyService).
+- API typecheck: PASS (no errors).
+- Web typecheck: PASS (no errors).
+- Prisma validate: 3/3 PASS (apps/api, apps/web, packages/db).
+- git diff --check: PASS.
+- No migration created.
+- No production migration applied.
+- No production DB accessed.
+- No real API keys printed.
+- No provider API called.
+- Web production build: not retried locally; CI Vercel Parity Build and CI Web Build results on remote head are authoritative.
+
 This remediation does not change the overall verdict: Stage 12A remains `STAGE_12A_BLOCKED_HIGH`; controlled beta, provider integrations, and PR #6 remain blocked.
 
 ### S12A-HIGH-002: Legacy dashboard mutation routes lack route-local tenant ownership

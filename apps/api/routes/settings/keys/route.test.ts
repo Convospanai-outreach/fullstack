@@ -17,6 +17,8 @@ const {
   mockListTeamApiKeys: vi.fn(),
 }));
 
+const mockConsoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
 vi.mock("@/lib/auth", () => ({
   getCurrentContext: mockGetCurrentContext,
 }));
@@ -58,6 +60,7 @@ function request(url: string, body?: unknown) {
 describe("settings API key routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConsoleWarn.mockClear();
     mockGetCurrentContext.mockResolvedValue({ userId: "admin-a", teamId: "team-a" });
     mockCheckTeamPermission.mockResolvedValue(true);
     mockApplyRateLimit.mockResolvedValue(null);
@@ -161,5 +164,85 @@ describe("settings API key routes", () => {
 
     expect(response.status).toBe(429);
     expect(mockCreateTeamApiKey).not.toHaveBeenCalled();
+  });
+
+  // --- Audit-after-persistence tests ---
+
+  it("returns 201 with secret when createTeamApiKey succeeds and audit succeeds", async () => {
+    const { POST } = await import("./route");
+    const response = await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.secret).toMatch(/^cmf_live_/);
+    expect(payload.apiKey).toMatchObject({ id: "key-1", name: "CRM" });
+    expect(mockAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 201 with secret when createTeamApiKey succeeds but audit throws", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit DB connection failed"));
+    const { POST } = await import("./route");
+    const response = await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+    expect(payload.apiKey).toMatchObject({ id: "key-1", name: "CRM" });
+    expect(mockCreateTeamApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs generic warning without secret or digest when audit throws", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit DB connection failed"));
+    const { POST } = await import("./route");
+    await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+
+    expect(mockConsoleWarn).toHaveBeenCalledWith(
+      "[SettingsKeys] Audit write failed after key creation",
+      { apiKeyId: "key-1" }
+    );
+    const warnArgs = JSON.stringify(mockConsoleWarn.mock.calls);
+    expect(warnArgs).not.toContain("cmf_live_");
+    expect(warnArgs).not.toContain("v2:");
+  });
+
+  it("returns generic error when createTeamApiKey itself fails", async () => {
+    mockCreateTeamApiKey.mockRejectedValueOnce(new Error("DB unreachable"));
+    const { POST } = await import("./route");
+    const response = await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toEqual({ error: "Unable to create API key" });
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger a duplicate create call on audit failure", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit failure"));
+    const { POST } = await import("./route");
+    await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+
+    expect(mockCreateTeamApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes only metadata to audit — no raw secret or lookup digest", async () => {
+    const { POST } = await import("./route");
+    await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+
+    expect(mockAudit).toHaveBeenCalledWith({
+      actorId: "admin-a",
+      orgId: "team-a",
+      action: "API_KEY_CREATED",
+      entity: "ApiKey",
+      entityId: "key-1",
+      metadata: {
+        name: "CRM",
+        scopes: ["leads:read"],
+        keyPrefix: "cmf_live_",
+        keyLastFour: "cdef",
+      },
+    });
+    const auditArgs = JSON.stringify(mockAudit.mock.calls);
+    expect(auditArgs).not.toContain("cmf_live_" + "a".repeat(64));
+    expect(auditArgs).not.toContain("v2:");
   });
 });

@@ -15,6 +15,8 @@ const {
   mockRevokeTeamApiKey: vi.fn(),
 }));
 
+const mockConsoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
 vi.mock("@/lib/auth", () => ({
   getCurrentContext: mockGetCurrentContext,
 }));
@@ -43,6 +45,7 @@ const params = { params: Promise.resolve({ id: "key-b" }) };
 describe("settings API key revocation route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConsoleWarn.mockClear();
     mockGetCurrentContext.mockResolvedValue({ userId: "admin-a", teamId: "team-a" });
     mockCheckTeamPermission.mockResolvedValue(true);
     mockApplyRateLimit.mockResolvedValue(null);
@@ -118,5 +121,65 @@ describe("settings API key revocation route", () => {
     );
     const limited = await DELETE(request(), params);
     expect(limited.status).toBe(429);
+  });
+
+  // --- Audit-after-revocation tests ---
+
+  it("returns 200 when revokeTeamApiKey succeeds and audit succeeds", async () => {
+    mockRevokeTeamApiKey.mockResolvedValue({
+      found: true,
+      revoked: true,
+      alreadyRevoked: false,
+    });
+    const { DELETE } = await import("./route");
+    const response = await DELETE(request(), params);
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ success: true, revoked: true, alreadyRevoked: false });
+    expect(mockAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 200 when revokeTeamApiKey succeeds but audit throws", async () => {
+    mockRevokeTeamApiKey.mockResolvedValue({
+      found: true,
+      revoked: true,
+      alreadyRevoked: false,
+    });
+    mockAudit.mockRejectedValueOnce(new Error("audit DB connection failed"));
+    const { DELETE } = await import("./route");
+    const response = await DELETE(request(), params);
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload).toEqual({ success: true, revoked: true, alreadyRevoked: false });
+    expect(mockRevokeTeamApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs generic warning without sensitive material when revocation audit throws", async () => {
+    mockRevokeTeamApiKey.mockResolvedValue({
+      found: true,
+      revoked: true,
+      alreadyRevoked: false,
+    });
+    mockAudit.mockRejectedValueOnce(new Error("audit DB failure"));
+    const { DELETE } = await import("./route");
+    await DELETE(request(), params);
+
+    expect(mockConsoleWarn).toHaveBeenCalledWith(
+      "[SettingsKeys] Audit write failed after key revocation",
+      { apiKeyId: "key-b" }
+    );
+    const warnArgs = JSON.stringify(mockConsoleWarn.mock.calls);
+    expect(warnArgs).not.toContain("cmf_live_");
+    expect(warnArgs).not.toContain("v2:");
+  });
+
+  it("does not call audit when revocation itself fails", async () => {
+    mockRevokeTeamApiKey.mockRejectedValueOnce(new Error("DB unreachable"));
+    const { DELETE } = await import("./route");
+    const response = await DELETE(request(), params);
+
+    expect(response.status).toBe(500);
+    expect(mockAudit).not.toHaveBeenCalled();
   });
 });

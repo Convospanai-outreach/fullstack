@@ -21,10 +21,20 @@ const LEGACY_API_KEY_RETIREMENT_DATE = new Date("2026-10-31T00:00:00.000Z");
 const NEW_KEY_PATTERN = /^cmf_live_[a-f0-9]{64}$/;
 const LEGACY_KEY_PATTERN = /^(?:cs|sk)_live_[a-f0-9]{48}$/;
 
+/**
+ * Deterministic lookup identifier for high-entropy API keys.
+ * See apps/api/src/lib/apiKeySecurity.ts sha256() for full security rationale.
+ * Not password hashing — indexes 256-bit random tokens.
+ */
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Constant-time string comparison via SHA-256 digest equalization.
+ * See apps/api/src/lib/apiKeySecurity.ts constantTimeEquals() for full rationale.
+ * Not password hashing — timing-safe equality for stored lookup values.
+ */
 function constantTimeEquals(left: string, right: string) {
   return timingSafeEqual(
     createHash("sha256").update(left).digest(),

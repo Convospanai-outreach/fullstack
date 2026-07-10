@@ -57,10 +57,32 @@ export class ApiKeyLimitError extends Error {
   }
 }
 
+/**
+ * Derives a deterministic lookup identifier from a high-entropy API key.
+ *
+ * Security rationale: The input is a server-generated 256-bit random bearer
+ * token (cmf_live_ + 64 hex chars), not a human-chosen password. SHA-256 is
+ * used only to create an indexed lookup value; exhaustive preimage search is
+ * computationally infeasible at this entropy. The raw token is returned once
+ * at creation and is never persisted. CodeQL flags this as "weak password
+ * hashing" because it cannot distinguish high-entropy token indexing from
+ * low-entropy password storage — this is a false positive for this use case.
+ *
+ * If a dedicated API-key HMAC pepper is adopted in the future, this function
+ * should be upgraded to HMAC-SHA-256 with that pepper.
+ */
 function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/**
+ * Constant-time string comparison via SHA-256 digest equalization.
+ *
+ * Used in apps/web/src/lib/apiAuth.ts for legacy raw-key comparison to prevent
+ * timing side-channels. The SHA-256 step normalizes variable-length inputs to
+ * fixed-length buffers required by timingSafeEqual. This is not password
+ * hashing — it is a timing-safe equality check on stored lookup values.
+ */
 export function constantTimeEquals(left: string, right: string): boolean {
   const leftDigest = createHash("sha256").update(left).digest();
   const rightDigest = createHash("sha256").update(right).digest();

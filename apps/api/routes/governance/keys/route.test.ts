@@ -17,6 +17,8 @@ const {
   mockListTeamApiKeys: vi.fn(),
 }));
 
+const mockConsoleWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/governance/audit", () => ({ audit: mockAudit }));
 vi.mock("@/lib/permissions", () => ({
@@ -44,6 +46,7 @@ const metadata = {
 describe("governance API key route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockConsoleWarn.mockClear();
     mockGetCurrentContext.mockResolvedValue({ userId: "admin-a", teamId: "team-a" });
     mockCheckTeamPermission.mockResolvedValue(true);
     mockApplyRateLimit.mockResolvedValue(null);
@@ -96,5 +99,112 @@ describe("governance API key route", () => {
 
     expect(response.status).toBe(403);
     expect(mockCreateTeamApiKey).not.toHaveBeenCalled();
+  });
+
+  // --- Audit-after-persistence tests ---
+
+  it("returns 201 with secret when createTeamApiKey succeeds and audit succeeds", async () => {
+    const { POST } = await import("./route");
+    const response = await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.success).toBe(true);
+    expect(payload.secret).toMatch(/^cmf_live_/);
+    expect(payload.apiKey).toMatchObject({ id: "key-1", name: "CRM" });
+    expect(mockAudit).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 201 with secret when createTeamApiKey succeeds but audit throws", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit DB connection failed"));
+    const { POST } = await import("./route");
+    const response = await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+    const payload = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(payload.success).toBe(true);
+    expect(payload.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+    expect(payload.apiKey).toMatchObject({ id: "key-1", name: "CRM" });
+    expect(mockCreateTeamApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("logs generic warning without secret or digest when audit throws", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit DB connection failed"));
+    const { POST } = await import("./route");
+    await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+
+    expect(mockConsoleWarn).toHaveBeenCalledWith(
+      "[GovernanceKeys] Audit write failed after key creation",
+      { apiKeyId: "key-1" }
+    );
+    // Verify no sensitive material in warn call
+    const warnArgs = JSON.stringify(mockConsoleWarn.mock.calls);
+    expect(warnArgs).not.toContain("cmf_live_");
+    expect(warnArgs).not.toContain("v2:");
+  });
+
+  it("returns generic error when createTeamApiKey itself fails", async () => {
+    mockCreateTeamApiKey.mockRejectedValueOnce(new Error("DB unreachable"));
+    const { POST } = await import("./route");
+    const response = await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toEqual({ success: false, error: "Unable to create API key" });
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it("does not trigger a duplicate create call on audit failure", async () => {
+    mockAudit.mockRejectedValueOnce(new Error("audit failure"));
+    const { POST } = await import("./route");
+    await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+
+    expect(mockCreateTeamApiKey).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes only metadata to audit — no raw secret or lookup digest", async () => {
+    const { POST } = await import("./route");
+    await POST(new Request("http://localhost/governance/keys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "CRM" }),
+    }) as NextRequest);
+
+    expect(mockAudit).toHaveBeenCalledWith({
+      actorId: "admin-a",
+      orgId: "team-a",
+      action: "API_KEY_CREATED",
+      entity: "ApiKey",
+      entityId: "key-1",
+      metadata: {
+        name: "CRM",
+        scopes: ["leads:read"],
+        keyPrefix: "cmf_live_",
+        keyLastFour: "cdef",
+      },
+    });
+    const auditArgs = JSON.stringify(mockAudit.mock.calls);
+    expect(auditArgs).not.toContain("cmf_live_" + "c".repeat(64));
+    expect(auditArgs).not.toContain("v2:");
   });
 });

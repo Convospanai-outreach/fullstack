@@ -99,19 +99,30 @@ export async function POST(req: NextRequest) {
       input.scopes
     );
 
-    await audit({
-      actorId: authorization.context.userId,
-      orgId: authorization.context.teamId,
-      action: "API_KEY_CREATED",
-      entity: "ApiKey",
-      entityId: result.apiKey.id,
-      metadata: {
-        name: result.apiKey.name,
-        scopes: result.apiKey.scopes,
-        keyPrefix: result.apiKey.keyPrefix,
-        keyLastFour: result.apiKey.keyLastFour,
-      },
-    });
+    // Key persisted — treat as success boundary.
+    // Audit failure must not convert a successful creation into 500
+    // or cause the caller to lose the one-time secret.
+    try {
+      await audit({
+        actorId: authorization.context.userId,
+        orgId: authorization.context.teamId,
+        action: "API_KEY_CREATED",
+        entity: "ApiKey",
+        entityId: result.apiKey.id,
+        metadata: {
+          name: result.apiKey.name,
+          scopes: result.apiKey.scopes,
+          keyPrefix: result.apiKey.keyPrefix,
+          keyLastFour: result.apiKey.keyLastFour,
+        },
+      });
+    } catch {
+      // Generic warning only — never log raw secret or lookup digest.
+      console.warn(
+        "[SettingsKeys] Audit write failed after key creation",
+        { apiKeyId: result.apiKey.id }
+      );
+    }
 
     return NextResponse.json(
       { apiKey: result.apiKey, secret: result.secret },

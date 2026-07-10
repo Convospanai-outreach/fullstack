@@ -39,15 +39,24 @@ export async function DELETE(
       return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
 
+    // Revocation committed — treat as success boundary.
+    // Audit failure must not convert a successful revocation into 500.
     if (result.revoked) {
-      await audit({
-        actorId: context.userId,
-        orgId: context.teamId,
-        action: "API_KEY_REVOKED",
-        entity: "ApiKey",
-        entityId: id,
-        metadata: {},
-      });
+      try {
+        await audit({
+          actorId: context.userId,
+          orgId: context.teamId,
+          action: "API_KEY_REVOKED",
+          entity: "ApiKey",
+          entityId: id,
+          metadata: {},
+        });
+      } catch {
+        console.warn(
+          "[SettingsKeys] Audit write failed after key revocation",
+          { apiKeyId: id }
+        );
+      }
     }
 
     return NextResponse.json({
