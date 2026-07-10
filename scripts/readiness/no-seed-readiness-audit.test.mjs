@@ -363,3 +363,25 @@ test("unsafe CLI flags remain refused with no side effects", () => {
   assert.equal(summary.audit_status, "REFUSED_UNSAFE_FLAGS");
   assertNoSideEffects(summary);
 });
+
+
+test("filesystem existence-check errors are governed", (t) => {
+  const root = createAuditFixture(t);
+  const result = runAudit({
+    repositoryRoot: root,
+    fileExists: () => {
+      throw new Error("internal existence-check detail must not escape");
+    },
+  });
+
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.summary.audit_status, "FAIL");
+  assert.ok(hasFailedCheck(result.summary, "Workflow state doc exists"));
+  assert.equal(
+    result.summary.checks.some((check) =>
+      check.detail.includes("internal existence-check detail")
+    ),
+    false
+  );
+  assertNoSideEffects(result.summary);
+});
