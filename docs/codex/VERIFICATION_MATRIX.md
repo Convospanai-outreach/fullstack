@@ -23,6 +23,31 @@ Use only these verdicts:
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
+## Stage 12A minimum security gate (2026-07-10)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Clean Stage 12A baseline | Worktree should start clean and match current `origin/main` | `git status --short` was empty; branch `docs/stage-12a-minimum-security-gate-2026-07-10`; `HEAD` and `origin/main` both `e071e5ecd74e1dfc0fe7bc0df727dd9d7fbc7169` | PASS | security-hardening-agent | Work proceeded only in `D:\convo\fullstack-stage12a`. |
+| Stage 12A report | Minimum security gate should have a dated evidence document | `docs/audits/stage-12a-minimum-security-gate-2026-07-10.md` created with route inventory, findings, provider gates, and required fixes | PASS | security-hardening-agent | Audit/docs-focused; no app-code fixes were made. |
+| Stage 12B VAPT scope | Deep security scope should be defined separately from Stage 12A | `docs/audits/stage-12b-vapt-scope-2026-07-10.md` created with status `VAPT_SCOPE_READY` | PASS | security-hardening-agent | Scope only; VAPT execution has not started. |
+| Route inventory | Security audit should cover API/web handlers and auth boundaries | Static inventory enumerated 426 route-handler method exports and key auth/proxy/provider/AI surfaces | PARTIAL | security-hardening-agent | Full dynamic route abuse testing remains unrun. |
+| Authentication coverage | Non-public API/web routes should require valid session, internal signature, or API key | Adapter and proxy gates are documented in `apps/api/server.ts`, `apps/web/src/proxy.ts`, and `/api/proxy/[...path]` | PARTIAL | security-hardening-agent | Public-prefix exceptions and route-level authorization still need proof. |
+| Tenant isolation and IDOR | Routes should enforce team ownership server-side | Legacy dashboard campaign/activity routes use bare IDs or unscoped list/create patterns | FAIL | security-hardening-agent | Blocks controlled beta until fixed and tested. |
+| Role and ownership enforcement | Admin/settings/provider/billing paths should enforce roles server-side | Role helpers and admin-prefix checks exist, but route-level proof is incomplete | PARTIAL | security-hardening-agent | Needs member/admin abuse tests. |
+| Mass assignment | Mutation routes should use strict schemas and positive allowlists | Multiple mutation paths still spread or pass request bodies into Prisma updates/creates | FAIL | security-hardening-agent | Blocks controlled beta until fixed and tested. |
+| API key handling | Stored API keys should be hashed and scopes allowlisted | API keys are created, stored, and looked up as raw reusable secrets; scopes are client-influenced | FAIL | security-hardening-agent | Blocks controlled beta until fixed and rotated. |
+| Rate limiting | High-cost, provider, AI, import/export, and sensitive routes should have bounded abuse controls | Rate-limit infrastructure exists, but coverage is incomplete across provider/AI/settings/import/export paths | PARTIAL | security-hardening-agent | Needs route-by-route proof. |
+| Raw SQL and query safety | Raw SQL should be parameterized and tenant-scoped | Health checks use safe simple queries; vector/cache modules use unsafe raw query helpers with parameters but need tenant-scope review | PARTIAL | security-hardening-agent | AI semantic cache remains a high blocker. |
+| JWT/session/internal signatures | Session and internal HMAC should validate issuer/context and replay resistance | Web-to-API proxy signs HMAC with timestamp and API adapter verifies token/signature | PARTIAL | security-hardening-agent | Nonce/replay proof and public-prefix coverage remain open. |
+| AI and chat isolation | AI/RAG/cache/tool paths should be tenant-scoped and rate/credit limited | Guardrails and credit reservation exist, but semantic cache lacks visible team dimension and dynamic prompt-abuse tests were not run | FAIL | security-hardening-agent | Real LLM calls were prohibited in this pass. |
+| Client secret exposure | Browser/docs diff should not expose live secrets | No live secret values were intentionally accessed or printed; docs mention variable names/placeholders only | PASS | security-hardening-agent | Dedicated scanner still recommended before Stage 12B completion. |
+| Sensitive list bounds | PII/key/webhook/audit/admin lists should have hard caps | `/v1/leads` has uncapped `limit`; key/webhook list routes need explicit pagination proof | FAIL | security-hardening-agent | Blocks controlled beta until fixed and tested. |
+| Dependency scan | Runtime dependency scan should have no high/critical findings | `npm audit --omit=dev --json` returned 0 critical, 0 high, 6 moderate, 1 low; exit code 1 | PARTIAL | security-hardening-agent | No `npm audit fix` was run. |
+| No-seed readiness audit | Safe audit script should run without DB writes, seeds, secrets, or migrations | `npm run readiness:audit:no-seed` performed no DB/SQL/seed/secret/migration execution but exited 1 due stale exact-status expectations | PARTIAL | security-hardening-agent | Script failure is documented as docs-status expectation drift. |
+| Provider gates | Gmail, LinkedIn, NetjanaAI, and LLM execution should stay disabled until security prerequisites pass | Provider gate table blocks real OAuth/send/actions/calls/prompts; config/source audit only is allowed | PASS | security-hardening-agent | No provider APIs or real LLM calls were executed. |
+| Controlled beta readiness | Controlled beta should not be claimed with high Stage 12A blockers | Stage 12A verdict is `STAGE_12A_BLOCKED_HIGH` | FAIL | security-hardening-agent | Final label: `FUNCTIONAL_SMOKE_PASS / STAGE_12A_BLOCKED_HIGH`. |
+| Public/enterprise readiness | Public/enterprise launch requires Stage 12B/VAPT completion | Stage 12B is scope-only and not executed | FAIL | security-hardening-agent | No public or enterprise production-ready claim is allowed. |
+
 ## Post-PR44 functional readiness reassessment
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
