@@ -6,11 +6,11 @@ This file is the source of truth for current task status. Update it after every 
 
 | Field | Value |
 | --- | --- |
-| Overall status | FUNCTIONAL_SMOKE_PASS / STAGE_12A_BLOCKED_HIGH |
-| Current stage | 12A Minimum security gate for controlled beta |
-| Current agent | security-hardening-agent |
-| Working branch | docs/stage-12a-minimum-security-gate-2026-07-10 |
-| Baseline commit inspected | e071e5ecd74e1dfc0fe7bc0df727dd9d7fbc7169 |
+| Overall status | FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH |
+| Current stage | Stage 12A governance reconciliation after PR #103 |
+| Current agent | readiness-reconciliation-agent |
+| Working branch | fix/readiness-reconcile-stage12a |
+| Baseline commit inspected | 2b5ee97114e01c1b81a956aacf91cd04888eb09b |
 | Current target architecture | Vercel = web; Render = `apps/api`; Neon = Prisma Postgres DB; Redis = cache/rate-limit/queue if configured; Supabase = optional/non-Prisma only; Railway = retired pending confirmation |
 | API Internal Origin | `https://fullstack-vz1l.onrender.com` recorded as the active web-to-API origin; env value itself not printed from Codex |
 | Hosting cutover status | COMPLETE |
@@ -26,7 +26,7 @@ This file is the source of truth for current task status. Update it after every 
 | Neon migration evidence | `25` Prisma migrations applied from `apps/web/prisma/schema.prisma`; `_prisma_migrations` has `25` records; `User`, `UserInvitation`, `ConnectedMailbox`, `EdgeNode`, `invite_requests`, and `_prisma_migrations` confirmed present by user evidence |
 | Supabase status | NOT_ACTIVE_PRISMA_DB |
 | Railway status | SAFE_TO_TERMINATE / RETIRED_PENDING_CONFIRMATION |
-| Overall product readiness | FUNCTIONAL_SMOKE_PASS / STAGE_12A_BLOCKED_HIGH |
+| Overall product readiness | FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH |
 | Live DB proof status | PASS |
 | Live DB proof reason | Active Neon Prisma target now has `_prisma_migrations` plus the core Prisma app tables; no further migration execution is approved from this PR |
 | Canonical packages/db adoption | NOT_APPROVED |
@@ -40,8 +40,8 @@ This file is the source of truth for current task status. Update it after every 
 | DB/migration governance | FINAL_SMOKE_PENDING |
 | EdgeNode status | FINAL_SMOKE_PENDING - runtime/security evidence still required |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-10T00:00:00+05:30 |
-| Next action | Fix Stage 12A high findings in small PRs, then rerun dynamic tenant, role, mass-assignment, provider-gate, and AI isolation tests before any controlled-beta claim |
+| Last updated | 2026-07-10T12:30:00+05:30 |
+| Next action | Fix Stage 12A high findings in small PRs, starting with API-key hardening, then rerun critical write, provider-gate, tenant, role, mass-assignment, and AI isolation tests before any controlled-beta claim |
 
 ## Status values
 
@@ -64,8 +64,7 @@ Use only these values:
 - PASS
 - COMPLETE
 - FINAL_SMOKE_PENDING
-- FUNCTIONAL_SMOKE_PASS / STAGE_12A_BLOCKED_HIGH
-- FUNCTIONAL_SMOKE_PASS / STAGE_12A_NEEDS_VERIFICATION
+- FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH
 - SAFE_TO_TERMINATE / RETIRED_PENDING_CONFIRMATION
 - NOT_ACTIVE_PRISMA_DB
 - VAPT_SCOPE_READY
@@ -77,7 +76,8 @@ Use only these values:
 | Blocker | Owner agent | Evidence | Next action | Status |
 | --- | --- | --- | --- | --- |
 | Stage 12A high security findings block controlled beta | security-hardening-agent | `docs/audits/stage-12a-minimum-security-gate-2026-07-10.md` records high blockers across raw API-key storage, tenant scoping, mass assignment, sensitive-list bounds, provider webhook proof, and AI tenant isolation | Split the high findings into small fix PRs and retest Stage 12A | BLOCKED |
-| Browser login/auth, dashboard, leads, campaigns, and authenticated proxy smoke carried forward as passed | release-readiness-agent | Stage 12A baseline carries forward functional smoke and PR #102 authenticated proxy evidence as passed | Keep functional smoke evidence attached, but do not use it to clear security readiness | PASS |
+| Core authenticated browser page-load smoke carried forward as passed | release-readiness-agent | Supplied evidence records Clerk login, Clerk app-user sync, dashboard page load, settings page load, leads clean empty state, campaigns clean empty state, authenticated Vercel proxy to Render, and PR #102 proxy response decoding as PASS | Keep page-load/proxy smoke evidence attached, but do not use it as write workflow, provider, controlled-beta, or security readiness proof | PASS |
+| Critical write workflows remain pending | release-readiness-agent | Invite-request end-to-end, lead create/update/delete, and campaign create/update/delete/send workflows are not yet proven | Run safe write workflow smoke only after current governance reconciliation and without provider execution | NOT_RUN / PENDING |
 | Dynamic tenant and role abuse proof unavailable | security-hardening-agent | Static audit found route-level blockers before safe Team A/Team B and member/admin abuse tests could run | Prepare isolated local/staging test tenants and safe role-varied accounts after static high findings are fixed | BLOCKED_EXTERNAL_ACCESS |
 | Provider integrations remain security-gated | security-hardening-agent | Stage 12A provider gate decisions block Gmail OAuth/send, LinkedIn actions, NetjanaAI calls, and real LLM prompts until high findings and dynamic proof are resolved | Limit next work to source/config audit and test-only staging plans | BLOCKED |
 | Redis production role is not yet classified | redis-cache-agent | Repo code degrades without Redis, but Stage 12A did not inspect secrets or runtime provider configuration | Verify Redis presence/absence and degraded behavior during an approved runtime pass without printing secrets | NOT_RUN / PENDING |
@@ -88,7 +88,7 @@ Use only these values:
 
 | Stage | Agent | Status | Evidence file | Notes |
 | --- | --- | --- | --- | --- |
-| 15. Production readiness PDCA after Render and Neon cutover | release-readiness-agent | READY_FOR_NEXT_STAGE | docs/runbooks/production-readiness-pdca-2026-07-08.md, docs/audits/stage-12a-minimum-security-gate-2026-07-10.md | Hosting cutover COMPLETE, API cutover COMPLETE, DB migration COMPLETE, runtime DB checks PASS, and functional smoke is carried forward as PASS. Controlled beta is still blocked by Stage 12A high security findings. |
+| 15. Production readiness PDCA after Render and Neon cutover | release-readiness-agent | READY_FOR_NEXT_STAGE | docs/runbooks/production-readiness-pdca-2026-07-08.md, docs/audits/stage-12a-minimum-security-gate-2026-07-10.md | Hosting cutover COMPLETE, API cutover COMPLETE, DB migration COMPLETE, runtime DB checks PASS, and core authenticated page-load/proxy smoke is carried forward as PASS. Critical write workflows remain pending, and controlled beta is still blocked by Stage 12A high security findings. |
 | 0. Branch and baseline | orchestrator | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Branch `codex/db-linkage-swarm-orchestration`, baseline `12174245a1af55d32c0b46a04b5d9f7b0a2948cd` |
 | 1. Repo cartography | repo-cartographer | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Apps: web/API/edge-fastapi; web/API Prisma schemas; CI workflows mapped |
 | 2. Vercel linkage inspection | vercel-linkage-agent | NEEDS_REPLAN | VERIFICATION_MATRIX.md | Project/deployment found; env mapping not verified |
