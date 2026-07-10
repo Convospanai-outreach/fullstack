@@ -4,7 +4,7 @@
 
 STAGE_12A_BLOCKED_HIGH
 
-Stage 12A is not cleared for controlled beta. No confirmed `CRITICAL` issue was proven in this passive audit, but multiple `HIGH` minimum-gate blockers remain: raw API key storage/lookup, legacy dashboard mutation routes without route-local tenant ownership, mass-assignment patterns, incomplete sensitive-list bounds, provider-adjacent webhook proof gaps, and AI cache/rate-limit tenant-scope gaps.
+Stage 12A is not cleared for controlled beta. No confirmed `CRITICAL` issue was proven in this passive audit. S12A-HIGH-001 has a code remediation marked `FIXED_PENDING_DYNAMIC_VERIFICATION`; multiple other `HIGH` minimum-gate blockers remain: legacy dashboard mutation routes without route-local tenant ownership, mass-assignment patterns, incomplete sensitive-list bounds, provider-adjacent webhook proof gaps, and AI cache/rate-limit tenant-scope gaps.
 
 ## Baseline
 
@@ -73,9 +73,23 @@ None confirmed in this passive Stage 12A pass. Active IDOR, role-abuse, CSRF, SS
 
 ### S12A-HIGH-001: API keys are stored and looked up as raw reusable secrets
 
-- Evidence: `apps/api/routes/governance/keys/route.ts:55-67`, `apps/api/routes/settings/keys/route.ts:36-59`, `apps/api/src/lib/apiAuth.ts:4-13`.
-- Impact: DB read exposure could become live API access; broad client-selected scopes are not safely allowlisted.
-- Required fix: hash stored keys, return raw key once, enforce scope allowlists, rotate old keys, add tests.
+- Baseline evidence: `apps/api/routes/governance/keys/route.ts:55-67`, `apps/api/routes/settings/keys/route.ts:36-59`, `apps/api/src/lib/apiAuth.ts:4-13`.
+- Baseline impact: DB read exposure could become live API access; broad client-selected scopes were not safely allowlisted.
+
+#### S12A-HIGH-001 remediation evidence (2026-07-10)
+
+**Status: FIXED_PENDING_DYNAMIC_VERIFICATION**
+
+- New keys are generated with 256 bits of cryptographic randomness and returned only in the successful creation response.
+- New keys persist only a deterministic `v2:<sha256>:<last-four>` lookup value in the existing legacy `key` column; list and audit responses expose metadata only.
+- The server validates a strict scope allowlist, rejects unknown/duplicate scopes, defaults to `leads:read`, and caps active keys and list pagination.
+- Creation, list, and revocation derive the team from trusted server context, require server-side `ADMIN` permission, are rate-limited, and revoke with `isActive: false` rather than deleting records.
+- Authentication accepts only recognized formats, derives the team from the stored record, rejects revoked or insufficient-scope keys, rate-limits lookup, and updates only `lastUsedAt` without logging raw material.
+- Legacy compatibility uses a dual-read transition: recognized `sk_live_`/`cs_live_` records are accepted only until 2026-10-31 UTC and are upgraded to the v2 lookup on successful use. No production records or secrets were inspected.
+- No Prisma schema change or migration was created or applied. This is an additive data-format transition in the existing column because canonical Prisma schema/migration ownership remains governed by a separate cutover plan.
+- Focused unit and route tests cover storage redaction, one-time display, scope enforcement, role and tenant controls, revocation, pagination, rate limiting, and legacy upgrade behavior. Dynamic two-tenant and production-like rate-limit verification remain open.
+
+This remediation does not change the overall verdict: Stage 12A remains `STAGE_12A_BLOCKED_HIGH`; controlled beta, provider integrations, and PR #6 remain blocked.
 
 ### S12A-HIGH-002: Legacy dashboard mutation routes lack route-local tenant ownership
 
@@ -215,7 +229,7 @@ Code paths degrade without Redis and use in-memory caches/rate-limit stores, but
 
 | Finding ID | Severity | Affected routes | Exploit scenario | Recommended fix | Tests required | Suggested PR boundary | Provider blocked | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Hash keys, allowlist scopes, cap/list metadata, rotate old keys | Key auth/list/create tests | `fix(security): harden api key storage and scopes` | All | Security/Codex Builder | OPEN |
+| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Hash keys, allowlist scopes, cap/list metadata, rotate old keys | Key auth/list/create tests plus dynamic two-tenant verification | `fix(security): harden api key storage and scopes` | All | Security/Codex Builder | FIXED_PENDING_DYNAMIC_VERIFICATION |
 | S12A-HIGH-002 | HIGH | Dashboard campaign/activity routes | Authenticated user mutates another tenant by ID | Remove legacy routes or add team-scoped ownership and schemas | IDOR tests | `fix(security): scope legacy dashboard routes` | Campaign/provider | Security/Codex Builder | OPEN |
 | S12A-HIGH-003 | HIGH | Mutations with broad bodies | Client writes ownership/admin/billing/provider fields | Strict schemas and positive allowlists | Mass-assignment tests | `fix(security): add mutation allowlists` | All | Security/Codex Builder | OPEN |
 | S12A-HIGH-004 | HIGH | Lists/logs/keys/leads | Unbounded PII/key/log enumeration | Pagination caps and validation | Limit/bounds tests | `fix(security): bound sensitive list endpoints` | All | Security/Codex Builder | OPEN |
