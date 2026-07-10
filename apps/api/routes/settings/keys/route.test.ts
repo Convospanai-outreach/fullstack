@@ -92,7 +92,13 @@ describe("settings API key routes", () => {
 
     const payload = await response.json();
     expect(response.status).toBe(201);
-    expect(payload).toMatchObject({ apiKey: metadata });
+    expect(payload.apiKey).toMatchObject({
+      id: "key-1",
+      name: "CRM",
+      scopes: ["leads:read"],
+      keyPrefix: "cmf_live_",
+      keyLastFour: "cdef",
+    });
     expect(payload.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
     expect(payload.apiKey.key).toBeUndefined();
     expect(mockCreateTeamApiKey).toHaveBeenCalledWith("team-a", "CRM", ["leads:read"]);
