@@ -138,6 +138,19 @@ describe("settings API key routes", () => {
     expect(mockCreateTeamApiKey).not.toHaveBeenCalled();
   });
 
+  it("redacts one-time key material from an internal creation error response", async () => {
+    const secret = "cmf_live_" + "e".repeat(64);
+    mockCreateTeamApiKey.mockRejectedValueOnce(new Error(`persistence failed for ${secret}`));
+    const { POST } = await import("./route");
+
+    const response = await POST(request("http://localhost/settings/keys", { name: "CRM" }));
+    const payload = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(payload).toEqual({ error: "Unable to create API key" });
+    expect(JSON.stringify(payload)).not.toContain(secret);
+  });
+
   it("returns the explicit rate-limit response for sensitive creation", async () => {
     mockApplyRateLimit.mockResolvedValue(
       NextResponse.json({ error: "Rate limit exceeded" }, { status: 429 })
