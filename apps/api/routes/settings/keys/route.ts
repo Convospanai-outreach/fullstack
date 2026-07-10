@@ -1,60 +1,127 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { randomBytes } from "crypto";
-import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { applyRateLimit } from "@/lib/rateLimit";
+import {
+  API_KEY_MANAGEMENT_RATE_LIMIT,
+  ApiKeyLimitError,
+  ApiKeyValidationError,
+  parseApiKeyCreationInput,
+  parseApiKeyListPagination,
+} from "@/lib/apiKeySecurity";
+import {
+  createTeamApiKey,
+  listTeamApiKeys,
+} from "@/lib/apiKeyService";
 
-export async function GET(_req: NextRequest) {
-    const ctx = await getCurrentContext();
-    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function invalidRequestResponse() {
+  return NextResponse.json({ error: "Invalid API key request" }, { status: 400 });
+}
 
-    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+async function requireAdminContext() {
+  const context = await getCurrentContext();
+  if (!context.userId || !context.teamId) {
+    return { response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
 
-    const keys = await prisma.apiKey.findMany({
-        where: { teamId: ctx.teamId, isActive: true },
-        select: {
-            id: true,
-            name: true,
-            scopes: true,
-            lastUsedAt: true,
-            createdAt: true,
-            key: false // Do not return full key
-        }
+  const permitted = await checkTeamPermission(
+    context.userId,
+    context.teamId,
+    TeamRole.ADMIN
+  );
+  if (!permitted) {
+    return { response: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  }
+
+  return { context };
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const authorization = await requireAdminContext();
+    if ("response" in authorization) return authorization.response;
+
+    const rateLimited = await applyRateLimit(
+      req,
+      API_KEY_MANAGEMENT_RATE_LIMIT,
+      "api-key-list",
+      authorization.context.userId
+    );
+    if (rateLimited) return rateLimited;
+
+    const { limit, offset } = parseApiKeyListPagination(new URL(req.url));
+    const result = await listTeamApiKeys(
+      authorization.context.teamId,
+      limit,
+      offset
+    );
+
+    return NextResponse.json({
+      data: result.keys,
+      meta: {
+        limit,
+        offset,
+        total: result.total,
+        hasMore: offset + result.keys.length < result.total,
+      },
     });
-
-    // We can return a hint like "sk_...1234" if we stored it, but for now just metadata
-    return NextResponse.json(keys);
+  } catch (error) {
+    if (error instanceof ApiKeyValidationError) return invalidRequestResponse();
+    return NextResponse.json({ error: "Unable to list API keys" }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
-    const ctx = await getCurrentContext();
-    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const authorization = await requireAdminContext();
+    if ("response" in authorization) return authorization.response;
 
-    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+    const rateLimited = await applyRateLimit(
+      req,
+      API_KEY_MANAGEMENT_RATE_LIMIT,
+      "api-key-create",
+      authorization.context.userId
+    );
+    if (rateLimited) return rateLimited;
 
-    const { name, scopes } = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return invalidRequestResponse();
+    }
 
-    // Generate random key
-    const rawKey = "sk_live_" + randomBytes(24).toString("hex");
-
-    const key = await prisma.apiKey.create({
-        data: {
-            teamId: ctx.teamId,
-            name: name || "Untitled Key",
-            key: rawKey,
-            scopes: scopes || ["leads:read", "campaigns:read"]
-        }
-    });
+    const input = parseApiKeyCreationInput(body);
+    const result = await createTeamApiKey(
+      authorization.context.teamId,
+      input.name,
+      input.scopes
+    );
 
     await audit({
-        actorId: ctx.userId,
-        orgId: ctx.teamId,
-        action: "API_KEY_CREATED",
-        entity: "ApiKey",
-        entityId: key.id,
-        metadata: { name: key.name, scopes: key.scopes }
+      actorId: authorization.context.userId,
+      orgId: authorization.context.teamId,
+      action: "API_KEY_CREATED",
+      entity: "ApiKey",
+      entityId: result.apiKey.id,
+      metadata: {
+        name: result.apiKey.name,
+        scopes: result.apiKey.scopes,
+        keyPrefix: result.apiKey.keyPrefix,
+        keyLastFour: result.apiKey.keyLastFour,
+      },
     });
 
-    return NextResponse.json({ ...key, key: rawKey }); // Return full key ONCE
+    return NextResponse.json(
+      { apiKey: result.apiKey, secret: result.secret },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof ApiKeyValidationError) return invalidRequestResponse();
+    if (error instanceof ApiKeyLimitError) {
+      return NextResponse.json({ error: "Active API key limit reached" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "Unable to create API key" }, { status: 500 });
+  }
 }
