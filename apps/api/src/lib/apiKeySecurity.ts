@@ -35,6 +35,10 @@ export const API_KEY_AUTH_RATE_LIMIT = {
   windowMs: 60_000,
   maxRequests: 60,
 } as const;
+export const API_KEY_MANAGEMENT_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 10,
+} as const;
 
 // Legacy raw records are upgraded on successful use until this explicit date.
 export const LEGACY_API_KEY_RETIREMENT_DATE = new Date("2026-10-31T00:00:00.000Z");
