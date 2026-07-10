@@ -32,7 +32,10 @@ import {
 
 function request(apiKey: string): NextRequest {
   return new Request("http://localhost/api/v1/leads", {
-    headers: { "x-api-key": apiKey },
+    headers: {
+      "x-api-key": apiKey,
+      "x-team-id": "attacker-controlled-team",
+    },
   }) as NextRequest;
 }
 
