@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
 export async function GET(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const auth = await validateApiKey(req, "leads:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:read");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { id: leadId } = params;
 
@@ -28,10 +27,9 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const auth = await validateApiKey(req, "leads:write");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:write");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { id: leadId } = params;
 

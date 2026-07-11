@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-    const auth = await validateApiKey(req, "agents:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "agents:read");
+    if (!authResult.ok) return authResult.response;
 
     const agents = await prisma.agent.findMany({
         orderBy: { name: 'asc' }
@@ -16,10 +14,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const auth = await validateApiKey(req, "agents:write");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "agents:write");
+    if (!authResult.ok) return authResult.response;
 
     try {
         const body = await req.json();

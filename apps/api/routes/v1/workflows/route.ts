@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-    const auth = await validateApiKey(req, "workflows:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "workflows:read");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "10");
@@ -34,10 +33,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const auth = await validateApiKey(req, "workflows:write");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "workflows:write");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     try {
         const body = await req.json();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 import { WorkflowService } from "@/lib/workflowService";
 
@@ -7,10 +7,9 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const auth = await validateApiKey(req, "workflows:run");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "workflows:run");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { id: workflowId } = params;
 

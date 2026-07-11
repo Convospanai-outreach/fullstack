@@ -3,21 +3,30 @@ const { mockRandomBytes } = vi.hoisted(() => ({
   mockRandomBytes: vi.fn(),
 }));
 
-vi.mock("node:crypto", () => ({
-  randomBytes: mockRandomBytes,
-}));
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+  return {
+    ...actual,
+    randomBytes: mockRandomBytes,
+  };
+});
 
 import {
   API_KEY_SCOPE_ALLOWLIST,
   API_KEY_SECRET_BYTES,
   DEFAULT_API_KEY_SCOPES,
   NEW_API_KEY_PREFIX,
+  STORED_API_KEY_DIGEST_PREFIX,
   ApiKeyValidationError,
   createApiKeySecret,
+  createStoredApiKeyValue,
+  getApiKeyLookupValues,
   getApiKeyDisplayMetadata,
+  getStoredApiKeyDisplayMetadata,
   isValidLegacyApiKeyFormat,
   isValidNewApiKeyFormat,
   isValidPresentedApiKey,
+  toApiKeyListMetadata,
   validateApiKeyScopes,
 } from "./apiKeySecurity";
 
@@ -94,6 +103,50 @@ describe("api key security primitives", () => {
       keyLastFour: "bbbb",
       legacy: true,
     });
+  });
+
+  it("stores new keys as versioned lookup digests", () => {
+    const secret = newKey("e");
+    const stored = createStoredApiKeyValue(secret);
+
+    expect(stored).toMatch(new RegExp(`^${STORED_API_KEY_DIGEST_PREFIX}:eeee:[a-f0-9]{64}$`));
+    expect(stored).not.toContain(secret);
+    expect(getApiKeyLookupValues(secret)).toEqual([stored]);
+    expect(getStoredApiKeyDisplayMetadata(stored)).toEqual({
+      keyPrefix: NEW_API_KEY_PREFIX,
+      keyLastFour: "eeee",
+      legacy: false,
+    });
+    expect(toApiKeyListMetadata(stored)).toEqual({
+      keyPrefix: NEW_API_KEY_PREFIX,
+      keyLastFour: "eeee",
+      legacy: false,
+      key: `${NEW_API_KEY_PREFIX}...eeee`,
+    });
+  });
+
+  it("keeps legacy lookup explicit and metadata-only", () => {
+    const secret = legacyKey("cs_live_");
+
+    expect(getApiKeyLookupValues(secret)).toEqual([secret]);
+    expect(getStoredApiKeyDisplayMetadata(secret)).toEqual({
+      keyPrefix: "cs_live_",
+      keyLastFour: "bbbb",
+      legacy: true,
+    });
+    expect(toApiKeyListMetadata(secret)).toEqual({
+      keyPrefix: "cs_live_",
+      keyLastFour: "bbbb",
+      legacy: true,
+      key: "cs_live_...bbbb",
+    });
+  });
+
+  it("rejects storing malformed or legacy keys as new digests", () => {
+    expect(() => createStoredApiKeyValue(legacyKey("sk_live_"))).toThrow(
+      ApiKeyValidationError
+    );
+    expect(getApiKeyLookupValues("not-an-api-key")).toEqual([]);
   });
 
   it("uses least-privilege defaults and accepts valid allowlisted scopes", () => {

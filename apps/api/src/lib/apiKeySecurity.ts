@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 export const API_KEY_SCOPE_ALLOWLIST = [
   "agents:read",
@@ -20,8 +20,10 @@ const API_KEY_SCOPE_SET = new Set<string>(API_KEY_SCOPE_ALLOWLIST);
 
 export const NEW_API_KEY_PREFIX = "cmf_live_";
 export const API_KEY_SECRET_BYTES = 32;
+export const STORED_API_KEY_DIGEST_PREFIX = "cmf_sha256_v1";
 const NEW_API_KEY_PATTERN = /^cmf_live_[a-f0-9]{64}$/;
 const LEGACY_API_KEY_PATTERN = /^((?:cs|sk)_live_)[a-f0-9]{48}$/;
+const STORED_API_KEY_DIGEST_PATTERN = /^cmf_sha256_v1:([a-f0-9]{4}):([a-f0-9]{64})$/;
 
 export const DEFAULT_API_KEY_SCOPES: readonly ApiKeyScope[] = ["leads:read"];
 
@@ -29,6 +31,10 @@ export type ApiKeyDisplayMetadata = {
   keyPrefix: string;
   keyLastFour: string | null;
   legacy: boolean;
+};
+
+export type ApiKeyListMetadata = ApiKeyDisplayMetadata & {
+  key: string;
 };
 
 export class ApiKeyValidationError extends Error {
@@ -60,6 +66,30 @@ export function createApiKeySecret() {
   };
 }
 
+export function createStoredApiKeyValue(secret: string): string {
+  if (!isValidNewApiKeyFormat(secret)) {
+    throw new ApiKeyValidationError("Invalid API key format");
+  }
+
+  return [
+    STORED_API_KEY_DIGEST_PREFIX,
+    secret.slice(-4),
+    createHash("sha256").update(secret, "utf8").digest("hex"),
+  ].join(":");
+}
+
+export function getApiKeyLookupValues(presentedKey: string): string[] {
+  if (isValidNewApiKeyFormat(presentedKey)) {
+    return [createStoredApiKeyValue(presentedKey)];
+  }
+
+  if (isValidLegacyApiKeyFormat(presentedKey)) {
+    return [presentedKey];
+  }
+
+  return [];
+}
+
 export function getApiKeyDisplayMetadata(value: string): ApiKeyDisplayMetadata {
   if (isValidNewApiKeyFormat(value)) {
     return {
@@ -82,6 +112,29 @@ export function getApiKeyDisplayMetadata(value: string): ApiKeyDisplayMetadata {
     keyPrefix: "unknown_",
     keyLastFour: null,
     legacy: false,
+  };
+}
+
+export function getStoredApiKeyDisplayMetadata(value: string): ApiKeyDisplayMetadata {
+  const stored = value.match(STORED_API_KEY_DIGEST_PATTERN);
+  if (stored) {
+    return {
+      keyPrefix: NEW_API_KEY_PREFIX,
+      keyLastFour: stored[1],
+      legacy: false,
+    };
+  }
+
+  return getApiKeyDisplayMetadata(value);
+}
+
+export function toApiKeyListMetadata(value: string): ApiKeyListMetadata {
+  const metadata = getStoredApiKeyDisplayMetadata(value);
+  const suffix = metadata.keyLastFour ? metadata.keyLastFour : "unknown";
+
+  return {
+    ...metadata,
+    key: `${metadata.keyPrefix}...${suffix}`,
   };
 }
 

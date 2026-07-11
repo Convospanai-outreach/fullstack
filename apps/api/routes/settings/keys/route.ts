@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { randomBytes } from "crypto";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
+import {
+    ApiKeyValidationError,
+    createApiKeySecret,
+    createStoredApiKeyValue,
+    toApiKeyListMetadata,
+    validateApiKeyScopes,
+} from "@/lib/apiKeySecurity";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -19,12 +25,15 @@ export async function GET(_req: NextRequest) {
             scopes: true,
             lastUsedAt: true,
             createdAt: true,
-            key: false // Do not return full key
+            isActive: true,
+            key: true
         }
     });
 
-    // We can return a hint like "sk_...1234" if we stored it, but for now just metadata
-    return NextResponse.json(keys);
+    return NextResponse.json(keys.map(({ key, ...metadata }) => ({
+        ...metadata,
+        ...toApiKeyListMetadata(key),
+    })));
 }
 
 export async function POST(req: NextRequest) {
@@ -34,16 +43,24 @@ export async function POST(req: NextRequest) {
     await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
 
     const { name, scopes } = await req.json();
+    let validatedScopes;
+    try {
+        validatedScopes = validateApiKeyScopes(scopes);
+    } catch (error) {
+        if (error instanceof ApiKeyValidationError) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
+    }
 
-    // Generate random key
-    const rawKey = "sk_live_" + randomBytes(24).toString("hex");
+    const generated = createApiKeySecret();
 
     const key = await prisma.apiKey.create({
         data: {
             teamId: ctx.teamId,
             name: name || "Untitled Key",
-            key: rawKey,
-            scopes: scopes || ["leads:read", "campaigns:read"]
+            key: createStoredApiKeyValue(generated.secret),
+            scopes: validatedScopes
         }
     });
 
@@ -53,8 +70,25 @@ export async function POST(req: NextRequest) {
         action: "API_KEY_CREATED",
         entity: "ApiKey",
         entityId: key.id,
-        metadata: { name: key.name, scopes: key.scopes }
+        metadata: {
+            name: key.name,
+            scopes: key.scopes,
+            keyPrefix: generated.keyPrefix,
+            keyLastFour: generated.keyLastFour,
+            legacy: false,
+        }
     });
 
-    return NextResponse.json({ ...key, key: rawKey }); // Return full key ONCE
+    return NextResponse.json({
+        id: key.id,
+        name: key.name,
+        scopes: key.scopes,
+        lastUsedAt: key.lastUsedAt,
+        isActive: key.isActive,
+        createdAt: key.createdAt,
+        keyPrefix: generated.keyPrefix,
+        keyLastFour: generated.keyLastFour,
+        legacy: false,
+        key: generated.secret,
+    });
 }

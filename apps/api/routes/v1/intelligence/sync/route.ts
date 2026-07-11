@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { BullsEyeRAG } from "@/modules/rag/service/BullsEyeRAG";
 
 /**
@@ -7,10 +7,9 @@ import { BullsEyeRAG } from "@/modules/rag/service/BullsEyeRAG";
  * Manually trigger market intelligence sync from Netjana for a query.
  */
 export async function POST(req: NextRequest) {
-    const auth = await validateApiKey(req, "leads:write");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:write");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     try {
         const { query } = await req.json();

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { KnowledgeIngressService } from "@/modules/rag/service/KnowledgeIngressService";
 
 /**
@@ -7,10 +7,9 @@ import { KnowledgeIngressService } from "@/modules/rag/service/KnowledgeIngressS
  * Ingests external knowledge for a specific campaign.
  */
 export async function POST(req: NextRequest) {
-    const auth = await validateApiKey(req, "leads:write"); // Reusing high-level write scope
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:write"); // Reusing high-level write scope
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     try {
         const body = await req.json();
@@ -33,10 +32,9 @@ export async function POST(req: NextRequest) {
  * Searches campaign-specific knowledge (Agentic RAG).
  */
 export async function GET(req: NextRequest) {
-    const auth = await validateApiKey(req, "leads:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:read");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { searchParams } = new URL(req.url);
     const campaignId = searchParams.get("campaignId");
