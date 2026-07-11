@@ -76,6 +76,7 @@ None confirmed in this passive Stage 12A pass. Active IDOR, role-abuse, CSRF, SS
 - Evidence: `apps/api/routes/governance/keys/route.ts:55-67`, `apps/api/routes/settings/keys/route.ts:36-59`, `apps/api/src/lib/apiAuth.ts:4-13`.
 - Impact: DB read exposure could become live API access; broad client-selected scopes are not safely allowlisted.
 - Required fix: hash stored keys, return raw key once, enforce scope allowlists, rotate old keys, add tests.
+- Architecture decision: `docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md`; status is `DESIGN_APPROVED_PENDING_IMPLEMENTATION`, not fixed.
 
 ### S12A-HIGH-002: Legacy dashboard mutation routes lack route-local tenant ownership
 
@@ -215,7 +216,7 @@ Code paths degrade without Redis and use in-memory caches/rate-limit stores, but
 
 | Finding ID | Severity | Affected routes | Exploit scenario | Recommended fix | Tests required | Suggested PR boundary | Provider blocked | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Hash keys, allowlist scopes, cap/list metadata, rotate old keys | Key auth/list/create tests | `fix(security): harden api key storage and scopes` | All | Security/Codex Builder | OPEN |
+| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Implement approved digest lookup ADR, allowlist scopes, cap/list metadata, rotate old keys | Key auth/list/create tests | `fix/security-api-key-issuance-auth-integration` | All | Security/Codex Builder | DESIGN_APPROVED_PENDING_IMPLEMENTATION |
 | S12A-HIGH-002 | HIGH | Dashboard campaign/activity routes | Authenticated user mutates another tenant by ID | Remove legacy routes or add team-scoped ownership and schemas | IDOR tests | `fix(security): scope legacy dashboard routes` | Campaign/provider | Security/Codex Builder | OPEN |
 | S12A-HIGH-003 | HIGH | Mutations with broad bodies | Client writes ownership/admin/billing/provider fields | Strict schemas and positive allowlists | Mass-assignment tests | `fix(security): add mutation allowlists` | All | Security/Codex Builder | OPEN |
 | S12A-HIGH-004 | HIGH | Lists/logs/keys/leads | Unbounded PII/key/log enumeration | Pagination caps and validation | Limit/bounds tests | `fix(security): bound sensitive list endpoints` | All | Security/Codex Builder | OPEN |
