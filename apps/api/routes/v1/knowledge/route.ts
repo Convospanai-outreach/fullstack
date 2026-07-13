@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
+import { prisma } from "@/lib/db";
 import { KnowledgeIngressService } from "@/modules/rag/service/KnowledgeIngressService";
+
+async function campaignBelongsToTeam(campaignId: string, teamId: string) {
+    const campaign = await prisma.campaign.findFirst({
+        where: { id: campaignId, teamId },
+        select: { id: true },
+    });
+    return Boolean(campaign);
+}
 
 /**
  * POST /api/v1/knowledge/ingress
@@ -22,6 +31,10 @@ export async function POST(req: NextRequest) {
 
         if (!campaignId || !source || !type) {
             return NextResponse.json({ error: "campaignId, source, and type are required" }, { status: 400 });
+        }
+
+        if (!await campaignBelongsToTeam(campaignId, auth.teamId)) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
         }
 
         await KnowledgeIngressService.ingressCampaignKnowledge(campaignId, content || source, type, auth.teamId);
@@ -50,6 +63,10 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        if (!await campaignBelongsToTeam(campaignId, auth.teamId)) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
         const results = await KnowledgeIngressService.agenticSearch(campaignId, query, auth.teamId);
         return NextResponse.json({ results });
     } catch (error: any) {

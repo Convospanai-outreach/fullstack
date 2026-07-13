@@ -20,8 +20,6 @@ type ApiKeyRoutePolicy = {
 
 export const API_KEY_ROUTE_POLICIES: readonly ApiKeyRoutePolicy[] = [
     { method: "GET", route: "/v1/system/health", family: "v1.system.health", requiredScope: null, authMode: "public", throttleFamily: "v1.system.health" },
-    { method: "GET", route: "/v1/agents", family: "v1.agents", requiredScope: "agents:read", authMode: "apiKey", throttleFamily: "v1.agents" },
-    { method: "POST", route: "/v1/agents", family: "v1.agents", requiredScope: "agents:write", authMode: "apiKey", throttleFamily: "v1.agents" },
     { method: "GET", route: "/v1/campaigns", family: "v1.campaigns", requiredScope: "campaigns:read", authMode: "apiKey", throttleFamily: "v1.campaigns" },
     { method: "POST", route: "/v1/intelligence/sync", family: "v1.intelligence.sync", requiredScope: "leads:write", authMode: "apiKey", throttleFamily: "v1.intelligence.sync" },
     { method: "GET", route: "/v1/knowledge", family: "v1.knowledge", requiredScope: "leads:read", authMode: "apiKey", throttleFamily: "v1.knowledge" },
@@ -131,10 +129,6 @@ function getFailedApiKeyAuthThrottleResponse(req: NextRequest): NextResponse | n
     if (bucket && bucket.count >= FAILED_AUTH_MAX_ATTEMPTS) {
         return toFailedAuthThrottleResponse(bucket, now);
     }
-    if (globalFailedAuthBucket && globalFailedAuthBucket.count >= FAILED_AUTH_GLOBAL_MAX_ATTEMPTS) {
-        return toFailedAuthThrottleResponse(globalFailedAuthBucket, now);
-    }
-
     return null;
 }
 

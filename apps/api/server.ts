@@ -16,7 +16,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
 
+const trustProxy = process.env.TRUST_PROXY === 'true' || process.env.FASTIFY_TRUST_PROXY === 'true';
+
 const fastify = Fastify({
+  trustProxy,
   logger: {
     level: 'info',
     transport: {
@@ -37,10 +40,7 @@ const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   'content-length'
 ]);
 
-const CLIENT_SUPPLIED_SOURCE_HEADERS = new Set([
-  'x-forwarded-for',
-  'x-real-ip',
-  'cf-connecting-ip',
+const CLIENT_SUPPLIED_INTERNAL_SOURCE_HEADERS = new Set([
   API_KEY_REQUEST_SOURCE_HEADER,
 ]);
 
@@ -217,13 +217,17 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     const headers = new Headers();
     Object.entries(request.headers || {}).forEach(([k, v]: any) => {
       if (typeof v === 'undefined') return;
-      if (CLIENT_SUPPLIED_SOURCE_HEADERS.has(k.toLowerCase())) return;
+      if (CLIENT_SUPPLIED_INTERNAL_SOURCE_HEADERS.has(k.toLowerCase())) return;
       if (Array.isArray(v)) headers.set(k, v.join(','));
       else headers.set(k, String(v));
     });
     const serverSource = request.ip || request.socket?.remoteAddress || request.raw?.socket?.remoteAddress || 'unknown';
-    // Trust boundary: inbound source headers are discarded above; this value is derived by Fastify from the server/proxy connection.
+    // Trust boundary: the internal source header is always overwritten. When TRUST_PROXY/FASTIFY_TRUST_PROXY is enabled,
+    // Fastify derives request.ip from trusted proxy headers; otherwise it uses the direct peer address.
     headers.set(API_KEY_REQUEST_SOURCE_HEADER, serverSource);
+    headers.set('x-forwarded-for', serverSource);
+    headers.set('x-real-ip', serverSource);
+    headers.set('cf-connecting-ip', serverSource);
 
     const method = request.method;
     const body = (method === 'GET' || method === 'HEAD') ? undefined : getAdaptedRequestBody(request, headers);
