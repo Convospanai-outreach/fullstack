@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
+import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -34,6 +35,13 @@ const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   'transfer-encoding',
   'upgrade',
   'content-length'
+]);
+
+const CLIENT_SUPPLIED_SOURCE_HEADERS = new Set([
+  'x-forwarded-for',
+  'x-real-ip',
+  'cf-connecting-ip',
+  API_KEY_REQUEST_SOURCE_HEADER,
 ]);
 
 function forwardSetCookieHeaders(responseHeaders: Headers, reply: any) {
@@ -161,7 +169,17 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/integrations/google/oauth/callback",
       "/integrations/google/pubsub",
     ];
-    const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
+    const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
+    const isV1Route = registeredPath.startsWith('/v1');
+    if (isV1Route && !routePolicy) {
+      reply.status(403).send({ error: 'API route authorization policy missing' });
+      return;
+    }
+
+    const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) ||
+      registeredPath === '/' ||
+      routePolicy?.authMode === 'apiKey' ||
+      routePolicy?.authMode === 'public';
     let authUserId: string | undefined;
     let authTeamId: string | undefined;
 
@@ -199,9 +217,13 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     const headers = new Headers();
     Object.entries(request.headers || {}).forEach(([k, v]: any) => {
       if (typeof v === 'undefined') return;
+      if (CLIENT_SUPPLIED_SOURCE_HEADERS.has(k.toLowerCase())) return;
       if (Array.isArray(v)) headers.set(k, v.join(','));
       else headers.set(k, String(v));
     });
+    const serverSource = request.ip || request.socket?.remoteAddress || request.raw?.socket?.remoteAddress || 'unknown';
+    // Trust boundary: inbound source headers are discarded above; this value is derived by Fastify from the server/proxy connection.
+    headers.set(API_KEY_REQUEST_SOURCE_HEADER, serverSource);
 
     const method = request.method;
     const body = (method === 'GET' || method === 'HEAD') ? undefined : getAdaptedRequestBody(request, headers);

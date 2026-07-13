@@ -14,6 +14,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import {
+  API_KEY_REQUEST_SOURCE_HEADER,
   authorizeApiKey,
   resetApiKeyAuthRateLimitForTests,
   validateApiKey,
@@ -26,10 +27,13 @@ import {
 const newKey = (character = "a") => NEW_API_KEY_PREFIX + character.repeat(64);
 const legacyKey = (prefix: "cs_live_" | "sk_live_") => prefix + "b".repeat(48);
 
-function request(key?: string, source = "203.0.113.7") {
-  const headers: Record<string, string> = { "x-forwarded-for": source };
+function request(key?: string, source = "server-source-1", path = "/api/v1/leads") {
+  const headers: Record<string, string> = {
+    [API_KEY_REQUEST_SOURCE_HEADER]: source,
+    "x-forwarded-for": "198.51.100.99",
+  };
   if (key) headers["x-api-key"] = key;
-  return new Request("http://localhost/api/v1/leads", { headers }) as any;
+  return new Request(`http://localhost${path}`, { headers }) as any;
 }
 
 describe("api key auth", () => {
@@ -94,15 +98,15 @@ describe("api key auth", () => {
     await expect(validateApiKey(request(legacyKey("cs_live_")), "leads:read")).resolves.toBeNull();
   });
 
-  it("throttles failed attempts by source and endpoint, not candidate key", async () => {
+  it("throttles failed attempts by server source and route family before lookup", async () => {
     mockPrisma.apiKey.findFirst.mockResolvedValue(null);
-    let result = await authorizeApiKey(request("not-a-real-key-0"), "leads:read");
+    let result = await authorizeApiKey(request(newKey("c")), "leads:read");
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.response.status).toBe(401);
 
     for (let i = 1; i <= 10; i += 1) {
-      result = await authorizeApiKey(request(`not-a-real-key-${i}`), "leads:read");
+      result = await authorizeApiKey(request(newKey(String(i % 10))), "leads:read");
     }
 
     expect(result.ok).toBe(false);
@@ -110,13 +114,29 @@ describe("api key auth", () => {
       expect(result.response.status).toBe(429);
       expect(result.response.headers.get("Retry-After")).toBeTruthy();
     }
+    expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledTimes(10);
   });
 
-  it("does not block a valid key only because the source has failed attempts", async () => {
+  it("does not let spoofed client source headers or dynamic ids bypass failed-auth throttles", async () => {
+    mockPrisma.apiKey.findFirst.mockResolvedValue(null);
     for (let i = 0; i <= 10; i += 1) {
-      await authorizeApiKey(request(`bad-key-${i}`), "leads:read");
+      await authorizeApiKey(request(newKey(String(i % 10)), "server-source-2", `/api/v1/leads/${i}`), "leads:read");
     }
 
+    const spoofed = new Request("http://localhost/api/v1/leads/another", {
+      headers: {
+        [API_KEY_REQUEST_SOURCE_HEADER]: "server-source-2",
+        "x-forwarded-for": "203.0.113.200",
+        "x-api-key": newKey("f"),
+      },
+    }) as any;
+    const result = await authorizeApiKey(spoofed, "leads:read");
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.response.status).toBe(429);
+  });
+
+  it("does not record successful API-key traffic as failed-auth attempts", async () => {
     mockPrisma.apiKey.findFirst.mockResolvedValue({
       id: "key-1",
       teamId: "team-1",

@@ -12,14 +12,19 @@ export async function POST(req: NextRequest) {
     const auth = authResult.context;
 
     try {
-        const body = await req.json();
+        let body;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+        }
         const { campaignId, source, type, content } = body;
 
         if (!campaignId || !source || !type) {
             return NextResponse.json({ error: "campaignId, source, and type are required" }, { status: 400 });
         }
 
-        await KnowledgeIngressService.ingressCampaignKnowledge(campaignId, content || source, type);
+        await KnowledgeIngressService.ingressCampaignKnowledge(campaignId, content || source, type, auth.teamId);
 
         return NextResponse.json({ success: true, message: "Knowledge ingestion queued" });
     } catch (error: any) {
@@ -45,7 +50,7 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        const results = await KnowledgeIngressService.agenticSearch(campaignId, query);
+        const results = await KnowledgeIngressService.agenticSearch(campaignId, query, auth.teamId);
         return NextResponse.json({ results });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

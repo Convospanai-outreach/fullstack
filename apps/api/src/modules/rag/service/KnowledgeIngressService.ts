@@ -7,7 +7,7 @@ export class KnowledgeIngressService {
      * Ingests knowledge for a specific campaign.
      * Can pull from URLs, local files, or provided text.
      */
-    static async ingressCampaignKnowledge(campaignId: string, source: string, type: 'URL' | 'TEXT' | 'FILE') {
+    static async ingressCampaignKnowledge(campaignId: string, source: string, type: 'URL' | 'TEXT' | 'FILE', teamId?: string) {
         console.log(`[KnowledgeIngress] Ingesting knowledge for Campaign ${campaignId} from ${source}...`);
 
         let content = "";
@@ -27,8 +27,8 @@ export class KnowledgeIngressService {
         // 2. Save to Vector Store (addDocument handles embedding internally)
 
         // Fetch teamId for the campaign
-        const campaign = await prisma.campaign.findUnique({
-            where: { id: campaignId },
+        const campaign = await prisma.campaign.findFirst({
+            where: { id: campaignId, ...(teamId ? { teamId } : {}) },
             select: { teamId: true }
         });
         if (!campaign?.teamId) throw new Error("Campaign not found");
@@ -61,13 +61,13 @@ export class KnowledgeIngressService {
      * Agentic RAG Search:
      * Searches for campaign-specific knowledge before generation.
      */
-    static async agenticSearch(campaignId: string, query: string) {
+    static async agenticSearch(campaignId: string, query: string, teamId?: string) {
         // 1. Sterilize Query
         const { optimizedPrompt: safeQuery } = await TOON.process(query, "system");
 
         // Fetch teamId
-        const campaign = await prisma.campaign.findUnique({
-            where: { id: campaignId },
+        const campaign = await prisma.campaign.findFirst({
+            where: { id: campaignId, ...(teamId ? { teamId } : {}) },
             select: { teamId: true }
         });
         if (!campaign?.teamId) return "";

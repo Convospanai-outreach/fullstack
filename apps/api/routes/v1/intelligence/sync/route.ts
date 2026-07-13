@@ -12,7 +12,14 @@ export async function POST(req: NextRequest) {
     const auth = authResult.context;
 
     try {
-        const { query } = await req.json();
+        let body;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+        }
+
+        const { query } = body;
         if (!query) return NextResponse.json({ error: "query is required" }, { status: 400 });
 
         // Trigger the sync autonomously

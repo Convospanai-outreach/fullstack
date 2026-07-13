@@ -34,11 +34,25 @@ export async function POST(
     const { id: leadId } = params;
 
     try {
-        const body = await req.json();
+        let body;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+        }
         const { content, direction, platform } = body;
 
         if (!content || !direction || !platform) {
             return NextResponse.json({ error: "content, direction, and platform are required" }, { status: 400 });
+        }
+
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, teamId: auth.teamId },
+            select: { id: true },
+        });
+
+        if (!lead) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
 
         const message = await prisma.message.create({

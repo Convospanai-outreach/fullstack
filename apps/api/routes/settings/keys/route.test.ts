@@ -25,6 +25,10 @@ vi.mock("@/lib/db", () => ({
     prisma: mockPrisma,
 }));
 
+vi.mock("@/lib/logger", () => ({
+    logger: { error: vi.fn() },
+}));
+
 vi.mock("@/lib/permissions", () => ({
     TeamRole: { ADMIN: "admin" },
     authorizeRole: mockAuthorizeRole,
@@ -68,9 +72,9 @@ describe("/settings/keys", () => {
         const createArgs = mockPrisma.apiKey.create.mock.calls[0][0];
 
         expect(response.status).toBe(200);
-        expect(payload.key).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+        expect(payload.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
         expect(createArgs.data.key).toMatch(/^cmf_sha256_v1:[a-f0-9]{4}:[a-f0-9]{64}$/);
-        expect(createArgs.data.key).not.toContain(payload.key);
+        expect(createArgs.data.key).not.toContain(payload.secret);
         expect(createArgs.data).toMatchObject({
             teamId: "team-1",
             name: "CRM",
@@ -79,10 +83,26 @@ describe("/settings/keys", () => {
         expect(payload).toMatchObject({
             id: "key-1",
             keyPrefix: NEW_API_KEY_PREFIX,
-            keyLastFour: payload.key.slice(-4),
+            keyLastFour: payload.secret.slice(-4),
             legacy: false,
         });
-        expect(JSON.stringify(mockAudit.mock.calls)).not.toContain(payload.key);
+        expect(JSON.stringify(mockAudit.mock.calls)).not.toContain(payload.secret);
+    });
+
+    it("returns a created secret even when audit logging fails after persistence", async () => {
+        mockAudit.mockRejectedValue(new Error("audit down"));
+        const { POST } = await import("./route");
+
+        const response = await POST(new Request("http://localhost/settings/keys", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "CRM", scopes: ["leads:read"] }),
+        }) as any);
+        const payload = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(payload.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+        expect(mockPrisma.apiKey.create).toHaveBeenCalledOnce();
     });
 
     it("returns metadata-only key listings", async () => {
@@ -113,8 +133,8 @@ describe("/settings/keys", () => {
         const serialized = JSON.stringify(payload);
 
         expect(payload).toMatchObject([
-            { id: "key-new", key: `${NEW_API_KEY_PREFIX}...aaaa`, legacy: false },
-            { id: "key-legacy", key: "sk_live_...bbbb", legacy: true },
+            { id: "key-new", displayKey: `${NEW_API_KEY_PREFIX}...aaaa`, legacy: false },
+            { id: "key-legacy", displayKey: "sk_live_...bbbb", legacy: true },
         ]);
         expect(serialized).not.toContain(newSecret);
         expect(serialized).not.toContain(createStoredApiKeyValue(newSecret));
@@ -128,6 +148,19 @@ describe("/settings/keys", () => {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ scopes: ["unknown:scope"] }),
+        }) as any);
+
+        expect(response.status).toBe(400);
+        expect(mockPrisma.apiKey.create).not.toHaveBeenCalled();
+    });
+
+    it("requires explicit scopes", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(new Request("http://localhost/settings/keys", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Missing scopes" }),
         }) as any);
 
         expect(response.status).toBe(400);

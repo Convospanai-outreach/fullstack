@@ -44,7 +44,9 @@ export async function POST(
             return NextResponse.json({ error: "Workflow could not be started" }, { status: 400 });
         }
 
-        const run = await prisma.workflowRun.findUnique({ where: { id: runId } });
+        const run = await prisma.workflowRun.findFirst({
+            where: { id: runId, workflow: { teamId: auth.teamId } },
+        });
 
         return NextResponse.json({
             success: true,

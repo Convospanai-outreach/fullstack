@@ -73,11 +73,28 @@ describe("/governance/keys", () => {
 
         expect(response.status).toBe(200);
         expect(payload.success).toBe(true);
-        expect(payload.key.key).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+        expect(payload.key.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
         expect(createArgs.data.key).toMatch(/^cmf_sha256_v1:[a-f0-9]{4}:[a-f0-9]{64}$/);
-        expect(createArgs.data.key).not.toContain(payload.key.key);
+        expect(createArgs.data.key).not.toContain(payload.key.secret);
         expect(createArgs.data.scopes).toEqual(["campaigns:write"]);
-        expect(JSON.stringify(mockAudit.mock.calls)).not.toContain(payload.key.key);
+        expect(JSON.stringify(mockAudit.mock.calls)).not.toContain(payload.key.secret);
+    });
+
+    it("returns the one-time secret even when audit logging fails after persistence", async () => {
+        mockAudit.mockRejectedValue(new Error("audit down"));
+        const { POST } = await import("./route");
+
+        const response = await POST(new Request("http://localhost/governance/keys", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name: "Governance", scopes: ["campaigns:write"] }),
+        }));
+        const payload = await response.json();
+
+        expect(response.status).toBe(200);
+        expect(payload.success).toBe(true);
+        expect(payload.key.secret).toMatch(/^cmf_live_[a-f0-9]{64}$/);
+        expect(mockPrisma.apiKey.create).toHaveBeenCalledOnce();
     });
 
     it("returns metadata-only listings for new and legacy records", async () => {
@@ -108,8 +125,8 @@ describe("/governance/keys", () => {
         const serialized = JSON.stringify(payload);
 
         expect(payload.keys).toMatchObject([
-            { id: "key-new", key: `${NEW_API_KEY_PREFIX}...cccc`, legacy: false },
-            { id: "key-legacy", key: "cs_live_...dddd", legacy: true },
+            { id: "key-new", displayKey: `${NEW_API_KEY_PREFIX}...cccc`, legacy: false },
+            { id: "key-legacy", displayKey: "cs_live_...dddd", legacy: true },
         ]);
         expect(serialized).not.toContain(newSecret);
         expect(serialized).not.toContain(createStoredApiKeyValue(newSecret));
@@ -126,6 +143,20 @@ describe("/governance/keys", () => {
         }));
 
         expect(response.status).toBe(400);
+        expect(mockPrisma.apiKey.create).not.toHaveBeenCalled();
+    });
+
+    it("authenticates before parsing malformed JSON", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
+        const { POST } = await import("./route");
+
+        const response = await POST(new Request("http://localhost/governance/keys", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: "{",
+        }));
+
+        expect(response.status).toBe(401);
         expect(mockPrisma.apiKey.create).not.toHaveBeenCalled();
     });
 });

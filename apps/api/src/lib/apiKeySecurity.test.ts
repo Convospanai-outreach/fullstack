@@ -14,7 +14,6 @@ vi.mock("node:crypto", async (importOriginal) => {
 import {
   API_KEY_SCOPE_ALLOWLIST,
   API_KEY_SECRET_BYTES,
-  DEFAULT_API_KEY_SCOPES,
   NEW_API_KEY_PREFIX,
   STORED_API_KEY_DIGEST_PREFIX,
   ApiKeyValidationError,
@@ -121,7 +120,7 @@ describe("api key security primitives", () => {
       keyPrefix: NEW_API_KEY_PREFIX,
       keyLastFour: "eeee",
       legacy: false,
-      key: `${NEW_API_KEY_PREFIX}...eeee`,
+      displayKey: `${NEW_API_KEY_PREFIX}...eeee`,
     });
   });
 
@@ -138,7 +137,7 @@ describe("api key security primitives", () => {
       keyPrefix: "cs_live_",
       keyLastFour: "bbbb",
       legacy: true,
-      key: "cs_live_...bbbb",
+      displayKey: "cs_live_...bbbb",
     });
   });
 
@@ -149,8 +148,8 @@ describe("api key security primitives", () => {
     expect(getApiKeyLookupValues("not-an-api-key")).toEqual([]);
   });
 
-  it("uses least-privilege defaults and accepts valid allowlisted scopes", () => {
-    expect(validateApiKeyScopes(undefined)).toEqual([...DEFAULT_API_KEY_SCOPES]);
+  it("requires explicit scopes and accepts valid allowlisted scopes", () => {
+    expect(() => validateApiKeyScopes(undefined)).toThrow(ApiKeyValidationError);
     expect(validateApiKeyScopes(["leads:read", "tasks:write"])).toEqual(["leads:read", "tasks:write"]);
   });
 

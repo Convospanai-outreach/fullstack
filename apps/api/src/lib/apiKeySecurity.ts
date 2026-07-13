@@ -34,7 +34,7 @@ export type ApiKeyDisplayMetadata = {
 };
 
 export type ApiKeyListMetadata = ApiKeyDisplayMetadata & {
-  key: string;
+  displayKey: string;
 };
 
 export class ApiKeyValidationError extends Error {
@@ -134,13 +134,13 @@ export function toApiKeyListMetadata(value: string): ApiKeyListMetadata {
 
   return {
     ...metadata,
-    key: `${metadata.keyPrefix}...${suffix}`,
+    displayKey: `${metadata.keyPrefix}...${suffix}`,
   };
 }
 
 export function validateApiKeyScopes(input: unknown): ApiKeyScope[] {
   if (input === undefined) {
-    return [...DEFAULT_API_KEY_SCOPES];
+    throw new ApiKeyValidationError("API key scopes are required");
   }
 
   if (

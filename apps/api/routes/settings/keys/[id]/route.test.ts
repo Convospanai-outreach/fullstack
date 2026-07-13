@@ -11,6 +11,7 @@ const {
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
         apiKey: {
+            findFirst: vi.fn(),
             updateMany: vi.fn(),
         },
     },
@@ -39,6 +40,7 @@ describe("/settings/keys/[id]", () => {
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
         mockCheckTeamPermission.mockResolvedValue(true);
         mockAudit.mockResolvedValue(undefined);
+        mockPrisma.apiKey.findFirst.mockResolvedValue({ id: "key-1", isActive: true });
         mockPrisma.apiKey.updateMany.mockResolvedValue({ count: 1 });
     });
 
@@ -62,7 +64,7 @@ describe("/settings/keys/[id]", () => {
     });
 
     it("returns 404 when no active team-scoped key is revoked", async () => {
-        mockPrisma.apiKey.updateMany.mockResolvedValue({ count: 0 });
+        mockPrisma.apiKey.findFirst.mockResolvedValue(null);
         const { DELETE } = await import("./route");
 
         const response = await DELETE(new Request("http://localhost/settings/keys/key-2", {
@@ -70,6 +72,19 @@ describe("/settings/keys/[id]", () => {
         }) as any, { params: Promise.resolve({ id: "key-2" }) });
 
         expect(response.status).toBe(404);
+        expect(mockAudit).not.toHaveBeenCalled();
+    });
+
+    it("returns success for repeated revocation of an inactive same-team key", async () => {
+        mockPrisma.apiKey.findFirst.mockResolvedValue({ id: "key-1", isActive: false });
+        const { DELETE } = await import("./route");
+
+        const response = await DELETE(new Request("http://localhost/settings/keys/key-1", {
+            method: "DELETE",
+        }) as any, { params: Promise.resolve({ id: "key-1" }) });
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.apiKey.updateMany).not.toHaveBeenCalled();
         expect(mockAudit).not.toHaveBeenCalled();
     });
 });

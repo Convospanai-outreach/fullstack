@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
             body.context || {}
         );
 
-        const task = await prisma.agentTask.findUnique({ where: { id: taskId } });
+        const task = await prisma.agentTask.findFirst({
+            where: { id: taskId, teamId: auth.teamId },
+        });
 
         return NextResponse.json(task, { status: 201 });
     } catch (error: any) {
