@@ -29,6 +29,12 @@ PR #107 added core primitives for `cmf_live_` tokens with 32 random bytes, legac
 
 Active API-key storage still stores the presented reusable token in `ApiKey.key`. Active authentication still queries that column by the presented `x-api-key` value. Settings and governance creation routes issue different legacy prefixes. Governance listing masks the raw key from the stored value; settings listing omits the key. Revocation currently deletes settings keys by team-scoped `id`.
 
+## Current-State Checkpoint - 2026-07-13
+
+PR #107 is merged and remains preparatory primitives only. PR #109 is still open and must be corrected before approval because current ADR review findings remain. PR #110 is open, unmerged, and frozen for replan; its current review identified blocking security and compatibility defects, including cross-tenant knowledge access, API-key-only Fastify `/v1` access failure, spoofable failed-auth source headers, throttle bypass paths, unbounded process-local throttle state, pre-throttle Prisma lookup, audit-after-persistence orphaned credentials, governance UI credential-copy risk, default-scope regression, non-idempotent revocation, and body parsing before authentication.
+
+Main has not received the integrated API-key implementation. The active runtime still uses pre-integration API-key behavior. Legacy raw keys have not been inventoried or rotated. Dynamic tenant, role, and API-key abuse proof has not run. Stage 12A remains `STAGE_12A_BLOCKED_HIGH`.
+
 ## Threat Model
 
 Assets: API-key raw secrets, stored lookup representations, API-key metadata, tenant/team IDs, scopes, audit logs, rate-limit records, application environment variables, Prisma data, and API-key protected lead/campaign/task/workflow data.
@@ -108,6 +114,101 @@ The selected design is preferred because:
 - It supports deterministic indexed lookup.
 - It keeps application-secret rotation independent of API-key validity.
 - It permits explicit dual-read compatibility for raw legacy records.
+
+This decision is not yet approved for implementation merge. PR #109 must be corrected and merged before PR #110 proceeds, and PR #110 must then be rebased onto the corrected ADR merge.
+
+## Next-Level Guardrails and Mandatory Acceptance Criteria
+
+### A. Sequencing
+
+PR #109 must merge before PR #110 proceeds. PR #110 must be rebased onto the corrected ADR merge before final review.
+
+### B. Tenant Isolation
+
+Every resource access must include authenticated team ownership:
+
+```text
+id = submitted resource ID
+AND
+teamId = auth.teamId
+```
+
+This applies to campaigns, leads, workflows, tasks, knowledge, and indirect service calls. Route handlers and service helpers must not rely on a bare submitted ID when tenant-owned data is read or mutated.
+
+### C. Fastify API-Key Boundary
+
+Do not simply make every `/v1` route public. The API adapter must require an explicit API-key route registry or route metadata declaring:
+
+- route family;
+- required scope;
+- auth mode;
+- throttle family.
+
+The adapter must fail closed when a `/v1` route lacks an authorization declaration. Registered API-key routes must allow API-key-only clients without requiring a browser session.
+
+### D. Trusted Requester Source
+
+Failed-auth throttling and audit attribution must not trust raw client-supplied `x-forwarded-for`, `x-real-ip`, `cf-connecting-ip`, or any internal source header. The adapter must strip client-supplied internal source headers, derive source identity from trusted server or platform context, inject a server-controlled source identifier, and document trusted-proxy assumptions.
+
+### E. Failed-Auth Throttling
+
+Failed API-key authentication throttling must require:
+
+- a pre-check before Prisma lookup;
+- stable endpoint family keys, not raw dynamic paths;
+- candidate-key changes that do not bypass limits;
+- resource-ID changes that do not bypass limits;
+- spoofed headers that do not bypass limits;
+- bounded shared backend use where available;
+- TTL and maximum-size eviction for local fallback;
+- a bounded global failure bucket;
+- explicit Redis-degraded behavior;
+- successful traffic kept separate from failed-auth throttling;
+- no raw keys or digests in throttle keys or logs.
+
+### F. Audit Consistency
+
+For key creation, once persistence succeeds, audit failure must not cause a `500` while withholding the one-time secret. Preferred behavior:
+
+- return successful creation;
+- return the raw secret once;
+- catch audit failure separately;
+- record only redacted operational metadata;
+- emit an alert or metric.
+
+Equivalent committed-mutation semantics apply to revocation.
+
+### G. UI Contract
+
+List responses must return a display-only field such as `displayKey`. Masked values must not be placed in a field named `key`.
+
+The governance UI must display metadata for listed keys, never reveal or copy listed masked values as credentials, display the raw secret once after creation, provide an explicit one-time copy action, clear the raw value when dismissed or navigated away, and support scope selection or an explicitly approved route-specific default.
+
+### H. Legacy Keys
+
+No Stage 12A PASS is allowed until legacy inventory exists, owners are mapped, replacements are issued, legacy usage has ceased, legacy records are revoked, rollback requirements are satisfied, and dynamic abuse tests pass. Do not invent a retirement date.
+
+### I. Rollback
+
+Digest-aware authentication must remain deployed while any digest-backed keys exist. Rollback order:
+
+1. disable new issuance;
+2. retain digest-aware authentication;
+3. retain legacy dual-read if required;
+4. reissue affected keys only through a controlled owner workflow;
+5. remove digest-aware authentication only when no digest records remain.
+
+### J. Revocation
+
+Repeated revocation of an already inactive key must return idempotent success. Cross-team and nonexistent IDs must remain non-enumerating `404`.
+
+### K. Request Parsing
+
+Authenticate and authorize before JSON parsing. Malformed authenticated JSON returns `400`. Unauthenticated malformed requests return the authentication response, not `500`.
+
+### L. List Bounds
+
+Key-management lists require a conservative hard cap or explicit cursor pagination. This does not close the broader sensitive-list finding unless all relevant routes are separately fixed.
 
 ## Token Format
 
@@ -201,7 +302,7 @@ Baseline:
 
 Rollout stages:
 
-1. ADR approval: `S12A-HIGH-001` becomes `DESIGN_APPROVED_PENDING_IMPLEMENTATION`.
+1. ADR approval: after PR #109 review findings are resolved and merged, `S12A-HIGH-001` may become `DESIGN_APPROVED_PENDING_IMPLEMENTATION`.
 2. Atomic implementation PR ships new issuance plus new auth lookup together.
 3. Monitor new vs legacy authentication counts, failed-auth counts, and legacy key inventory.
 4. Owner-facing rotation instructions ship after new issuance is stable.
@@ -234,17 +335,21 @@ No migration is approved by this ADR. If later reviewers decide separate metadat
 
 ## Deployment Sequence
 
-1. Merge this ADR only.
-2. Open `fix/security-api-key-issuance-auth-integration`.
+1. Correct and merge this ADR only.
+2. Rebase `fix/security-api-key-issuance-auth-integration` onto the corrected ADR merge.
 3. Add deterministic lookup helper and tests.
 4. Update both creation routes and `validateApiKey()` in one PR.
-5. Keep web UI unchanged.
-6. Verify metadata-only listing, one-time create response, legacy dual-read, revocation, scopes, admin enforcement, team isolation, safe audit, and failed-auth throttling.
-7. Do not promote Stage 12A to PASS until all high findings are cleared.
+5. Add the route registry or route metadata required for API-key-only `/v1` access.
+6. Keep web UI changes limited to the one-time secret and metadata-only contract unless reviewers approve broader UI scope.
+7. Verify metadata-only listing, one-time create response, legacy dual-read, revocation, scopes, admin enforcement, team isolation, safe audit, request parsing order, and failed-auth throttling.
+8. Run final-head review and approved dynamic tenant, role, API-key, and failed-auth abuse tests.
+9. Do not promote Stage 12A to PASS until all high findings are cleared.
 
 ## Rollback
 
 Rollback must not invalidate all API keys. Because the chosen design does not depend on an application pepper, app-secret rotation and rollback are independent from API-key validity. During the compatibility window, legacy raw keys still authenticate through dual-read. If the implementation PR is rolled back, no automatic rewrite or legacy retirement has occurred.
+
+Digest-aware authentication must remain deployed while digest-backed keys exist. If issuance must be stopped, disable new issuance first and keep authentication compatibility until owners have reissued affected keys through a controlled workflow and no digest records remain.
 
 ## Monitoring
 
@@ -315,8 +420,8 @@ Review budget recommendation: no more than 6 implementation files plus focused t
 
 ## Remaining Stage 12A Findings
 
-`S12A-HIGH-001`: `DESIGN_APPROVED_PENDING_IMPLEMENTATION`
+`S12A-HIGH-001`: `OPEN / IMPLEMENTATION_BLOCKED_BY_REVIEW`
 
 Overall: `STAGE_12A_BLOCKED_HIGH`
 
-This ADR approves the design only. It does not fix the finding and does not clear Stage 12A.
+This ADR is the source-of-truth correction for review. It does not fix the finding, does not approve PR #110 for merge, and does not clear Stage 12A.
