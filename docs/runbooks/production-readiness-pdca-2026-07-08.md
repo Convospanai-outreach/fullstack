@@ -12,6 +12,48 @@ API cutover is COMPLETE.
 DB migration is COMPLETE.
 Production readiness remains FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH.
 
+## Cycle 5 Checkpoint - 2026-07-13
+
+PDCA Cycle 5: Security Risk Acceptance and Minimum Beta Gate.
+
+Current substage: Stage 12A CHECK -> ACT remediation loop.
+
+### PLAN
+
+ADR correction is pending. PR #109 exists but is not approved because review findings remain.
+
+### DO
+
+Implementation PR #110 was opened and attempted the atomic API-key implementation.
+
+### CHECK
+
+CI is green enough to continue review, but security review failed. Current review identified blocking security and compatibility defects in PR #110, so CI must not be treated as Stage 12A proof.
+
+### ACT
+
+Freeze implementation, correct the architecture and source-of-truth docs, then merge PR #109, rebase PR #110, remediate implementation findings, run final-head review, and execute approved dynamic tenant, role, API-key, and failed-auth abuse tests.
+
+Guardrails:
+
+- no provider execution;
+- no production DB mutation;
+- no migration;
+- no controlled-beta claim;
+- no Stage 12B execution;
+- no PR #6 unblock;
+- no write-workflow promotion from page-load smoke.
+
+Cycle status:
+
+- Cycle 4 remains partially open because invite, lead-write, campaign-write/send, and other critical workflows are pending.
+- Cycle 6 operational readiness has not started as an executable gate.
+- Stage 12B is `VAPT_SCOPE_READY` only; execution has not started.
+
+Overall status remains exactly:
+
+`FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH`
+
 ## PLAN
 
 ### Current target architecture

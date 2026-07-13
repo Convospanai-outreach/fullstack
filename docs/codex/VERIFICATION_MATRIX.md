@@ -23,6 +23,24 @@ Use only these verdicts:
 - BLOCKED_EXTERNAL_ACCESS
 - NOT_CHECKED
 
+## API-key remediation checkpoint after PR #107 (2026-07-13)
+
+| Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
+| --- | --- | --- | --- | --- | --- |
+| PR #107 pure primitives | Pure API-key format and scope primitives should be merged before integration work | PR #107 is merged and preparatory only | PASS | security-hardening-agent | PASS / MERGED. |
+| PR #109 architecture decision | ADR should be reviewed, corrected, and merged before implementation proceeds | PR #109 remains open with four current review findings | NEEDS_REPLAN | security-hardening-agent | Four current review findings remain. |
+| PR #110 implementation | Implementation should satisfy the corrected ADR and security review | PR #110 remains open with thirteen current implementation findings | FAIL | security-hardening-agent | Thirteen current implementation findings remain. CI/local tests do not prove Stage 12A. |
+| API-key storage on main | Main should have digest-backed storage only for new keys before this gate passes | Main has not received the integration implementation | FAIL | security-hardening-agent | Active main behavior remains pre-integration. |
+| New-key implementation | New-key creation and authentication should be proven on main | Not checked on main | NOT_CHECKED | security-hardening-agent | PR #110 is not merged. |
+| Legacy-key inventory and rotation | Legacy raw keys should be inventoried, owner-mapped, replaced, retired, and revoked | Not checked | NOT_CHECKED | security-hardening-agent | No retirement date is approved or invented. |
+| Dynamic Team A / Team B tests | Cross-tenant API-key, role, and resource abuse tests should pass | Not checked | NOT_CHECKED | security-hardening-agent | Requires approved safe tenants/accounts. |
+| API-key-only Fastify `/v1` access | Registered API-key routes should work without browser sessions | PR #110 review found API-key-only `/v1` access blocked by the Fastify session gate | FAIL | security-hardening-agent | Fail-closed route registry or route metadata is required. |
+| Cross-tenant knowledge isolation | Knowledge ingress/search must be scoped by authenticated team ownership | PR #110 review found cross-tenant knowledge ingress/search risk | FAIL | security-hardening-agent | Every resource access needs `id` plus `teamId = auth.teamId`. |
+| Failed-auth throttle bypass resistance | Failed-auth throttling should resist dynamic path, candidate-key, resource-ID, and spoofed-header bypasses | PR #110 review found failed-auth throttle bypass risks | FAIL | security-hardening-agent | Pre-Prisma stable-family throttling and bounded storage are required. |
+| Audit/one-time-secret consistency | Committed key creation should not withhold a one-time secret because audit failed | PR #110 review found audit-after-persistence orphaned credential risk | FAIL | security-hardening-agent | Audit failure must be caught separately after persistence. |
+| Governance UI one-time display | Listed key metadata must not be copyable as credentials and raw secret must be shown once after creation | PR #110 review found masked-key copy and governance default-scope regressions | FAIL | security-hardening-agent | Use `displayKey`, one-time copy, cleanup on dismiss/navigation, and approved scope selection/defaults. |
+| Controlled beta | Controlled beta should remain blocked until Stage 12A clears with dynamic proof | Stage 12A remains `STAGE_12A_BLOCKED_HIGH` | FAIL | security-hardening-agent | FAIL / BLOCKED_HIGH. |
+
 ## Stage 12A minimum security gate (2026-07-10)
 
 | Check | Expected | Actual safe evidence | Verdict | Owner agent | Notes |
