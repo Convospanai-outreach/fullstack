@@ -266,7 +266,7 @@ The main residual risk is that functional smoke passed but security proof is sti
 Evidence:
 
 - PR #107 merged preparatory primitives only.
-- PR #109 architecture decision remains unmerged and requires remediation.
+- PR #109 architecture decision merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`, but it merged with review corrections pending.
 - PR #110 remains unmerged and contains current security defects.
 - Main runtime still uses the pre-integration API-key behavior.
 - Legacy raw keys have not been inventoried or rotated.
@@ -290,6 +290,26 @@ Cycle status:
 Overall status remains exactly:
 
 `FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH`
+
+## Post-Merge Correction Entry - 2026-07-13
+
+| Item | Status |
+| --- | --- |
+| PR #109 | MERGED_WITH_REVIEW_CORRECTIONS_PENDING |
+| Merge commit | `01e0aff188ed3cab6a6831121979824ef3d6dd99` |
+| PR #110 | FROZEN / DO_NOT_MERGE |
+| S12A-HIGH-001 | OPEN / ARCHITECTURE_MERGED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING |
+| Overall | STAGE_12A_BLOCKED_HIGH |
+
+Clarifications:
+
+- The architecture selection is merged.
+- The merged ADR required a follow-up consistency correction.
+- PR #110 is not accepted as implementing the ADR.
+- Main still lacks the approved issuance/auth integration.
+- Legacy raw-key inventory and rotation have not occurred.
+- Dynamic tenant, role, and API-key abuse testing has not run.
+- No controlled-beta claim is allowed.
 
 ## Final Recommendation
 

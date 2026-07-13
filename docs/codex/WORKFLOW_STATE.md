@@ -7,10 +7,10 @@ This file is the source of truth for current task status. Update it after every 
 | Field | Value |
 | --- | --- |
 | Overall status | FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH |
-| Current stage | PDCA Cycle 5 / Stage 12A CHECK-ACT remediation |
+| Current stage | PDCA Cycle 5 / Stage 12A ACT corrective remediation |
 | Current agent | security-hardening-agent |
-| Working branch | docs/security-api-key-lookup-architecture |
-| Baseline commit inspected | 2b5ee97114e01c1b81a956aacf91cd04888eb09b |
+| Working branch | docs/security-api-key-adr-post-merge-corrections |
+| Baseline commit inspected | 01e0aff188ed3cab6a6831121979824ef3d6dd99 |
 | Current target architecture | Vercel = web; Render = `apps/api`; Neon = Prisma Postgres DB; Redis = cache/rate-limit/queue if configured; Supabase = optional/non-Prisma only; Railway = retired pending confirmation |
 | API Internal Origin | `https://fullstack-vz1l.onrender.com` recorded as the active web-to-API origin; env value itself not printed from Codex |
 | Hosting cutover status | COMPLETE |
@@ -40,8 +40,8 @@ This file is the source of truth for current task status. Update it after every 
 | DB/migration governance | FINAL_SMOKE_PENDING |
 | EdgeNode status | FINAL_SMOKE_PENDING - runtime/security evidence still required |
 | PR #6 status | BLOCKED |
-| Last updated | 2026-07-13T00:00:00+05:30 |
-| Next action | Correct and merge PR #109, rebase PR #110, resolve all valid implementation findings, run final-head review and execute approved dynamic tenant/role/API-key abuse tests before any beta claim |
+| Last updated | 2026-07-13T15:32:22+05:30 |
+| Next action | Merge the post-merge ADR correction, rebase PR #110 onto the corrected main baseline, remediate all implementation findings, run final-head review, then execute approved dynamic tenant/role/API-key abuse tests |
 
 ## Status values
 
@@ -76,8 +76,8 @@ Use only these values:
 | Blocker | Owner agent | Evidence | Next action | Status |
 | --- | --- | --- | --- | --- |
 | Stage 12A high security findings block controlled beta | security-hardening-agent | `docs/audits/stage-12a-minimum-security-gate-2026-07-10.md` records high blockers across raw API-key storage, tenant scoping, mass assignment, sensitive-list bounds, provider webhook proof, and AI tenant isolation | Split the high findings into small fix PRs and retest Stage 12A | BLOCKED |
-| PR #109 ADR review findings | security-hardening-agent | `docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md` now records that PR #109 is open and requires remediation before approval | Correct the ADR guardrails, obtain review, then merge PR #109 before PR #110 proceeds | NEEDS_REPLAN |
-| PR #110 security review findings | security-hardening-agent | PR #110 remains open and unmerged with current blocking findings for tenant isolation, API-key-only access, throttling, audit consistency, governance UI, revocation, and parsing order | Keep PR #110 frozen, rebase after PR #109 merges, remediate all valid findings, and rerun final-head review | BLOCKED |
+| PR #109 ADR review findings | security-hardening-agent | PR #109 merged as `01e0aff188ed3cab6a6831121979824ef3d6dd99` with seven unresolved review threads and requires this post-merge correction before PR #110 resumes | Merge the post-merge source-of-truth correction, then use corrected main as the PR #110 rebase baseline | NEEDS_REPLAN |
+| PR #110 security review findings | security-hardening-agent | PR #110 remains open and unmerged with current blocking findings for tenant isolation, API-key-only access, throttling, audit consistency, governance UI, revocation, and parsing order | Keep PR #110 frozen, rebase after this correction merges, remediate all valid findings, and rerun final-head review | BLOCKED |
 | Legacy raw-key inventory and rotation | security-hardening-agent | Legacy raw API-key records have not been inventoried, mapped to owners, replaced, revoked, or proven unused | Build owner inventory and rotation plan after corrected implementation path is approved | BLOCKED |
 | Dynamic two-tenant proof | security-hardening-agent | Team A / Team B tenant, role, and API-key abuse tests have not run | Prepare approved safe tenants/accounts and execute dynamic abuse tests only after implementation remediation | BLOCKED_EXTERNAL_ACCESS |
 | Core authenticated browser page-load smoke carried forward as passed | release-readiness-agent | Supplied evidence records Clerk login, Clerk app-user sync, dashboard page load, settings page load, leads clean empty state, campaigns clean empty state, authenticated Vercel proxy to Render, and PR #102 proxy response decoding as PASS | Keep page-load/proxy smoke evidence attached, but do not use it as write workflow, provider, controlled-beta, or security readiness proof | PASS |
@@ -93,7 +93,7 @@ Use only these values:
 
 | Stage | Agent | Status | Evidence file | Notes |
 | --- | --- | --- | --- | --- |
-| PDCA Cycle 5. Security Risk Acceptance and Minimum Beta Gate | security-hardening-agent | NEEDS_REPLAN | docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md, docs/audits/stage-12a-minimum-security-gate-2026-07-10.md | Current substage: Stage 12A CHECK -> ACT remediation loop. PR #109 ADR exists but is not yet approved; PR #110 attempted implementation and is blocked by review findings. Correct ADR guardrails first, then merge PR #109, rebase/remediate PR #110, and run approved dynamic abuse tests. |
+| PDCA Cycle 5. Security Risk Acceptance and Minimum Beta Gate | security-hardening-agent | NEEDS_REPLAN | docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md, docs/audits/stage-12a-minimum-security-gate-2026-07-10.md | Current substage: Stage 12A ACT corrective remediation. PR #109 merged with review corrections pending; PR #110 attempted implementation and is blocked by review findings. Merge this post-merge correction, rebase/remediate PR #110, and run approved dynamic abuse tests. |
 | 15. Production readiness PDCA after Render and Neon cutover | release-readiness-agent | READY_FOR_NEXT_STAGE | docs/runbooks/production-readiness-pdca-2026-07-08.md, docs/audits/stage-12a-minimum-security-gate-2026-07-10.md | Hosting cutover COMPLETE, API cutover COMPLETE, DB migration COMPLETE, runtime DB checks PASS, and core authenticated page-load/proxy smoke is carried forward as PASS. Critical write workflows remain pending, and controlled beta is still blocked by Stage 12A high security findings. |
 | 0. Branch and baseline | orchestrator | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Branch `codex/db-linkage-swarm-orchestration`, baseline `12174245a1af55d32c0b46a04b5d9f7b0a2948cd` |
 | 1. Repo cartography | repo-cartographer | READY_FOR_NEXT_STAGE | WORKFLOW_STATE.md | Apps: web/API/edge-fastapi; web/API Prisma schemas; CI workflows mapped |

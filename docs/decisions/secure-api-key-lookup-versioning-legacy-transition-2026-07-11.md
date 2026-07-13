@@ -15,7 +15,7 @@ Repository evidence:
 | `apps/api/routes/settings/keys/[id]/route.ts` | Key delete/revoke endpoint | By key `id` | N/A | N/A | `deleteMany({ id, teamId })` | ADMIN via `checkTeamPermission` | N/A | No | Change to immediate revocation (`isActive=false`) unless hard delete is separately approved |
 | `apps/api/routes/v1/**` and `apps/api/routes/webhooks/netjana-intel/route.ts` | API-key protected business routes | Depends on `validateApiKey()` | Indirectly yes | `validateApiKey(req, requiredScope)` | Key-derived `teamId` | Scope only after key auth | Yes | Yes | Covered by atomic auth helper change and route tests |
 | `apps/web/src/app/settings/keys/page.tsx` | Settings UI | Displays one-time key from `/settings/keys` | Client receives raw once | N/A | Backend-owned | Backend-owned | Sends a fixed scope set | Yes | Do not change in next atomic PR; preserve one-time display contract |
-| `apps/web/src/app/(dashboard)/governance/keys/page.tsx` | Governance UI | Displays/copies `key` returned by `/governance/keys` | Can display masked returned key | N/A | Backend-owned | Backend-owned | Displays scopes | Yes | Do not change in next atomic PR; backend response must become metadata-only |
+| `apps/web/src/app/(dashboard)/governance/keys/page.tsx` | Governance UI | Displays/copies `key` returned by `/governance/keys` | Can display masked returned key | N/A | Backend-owned | Backend-owned | Displays scopes | Yes | Include minimum UI compatibility work so metadata-only lists, one-time secret display, and non-copyable listed display values preserve the security contract |
 | `apps/api/prisma/schema.prisma` | Active API schema | `ApiKey.key String @unique` | Yes today | Indexed `key` column | `teamId` relation/index | N/A | `scopes String[]` | Yes | Reuse `key` for versioned stored representation first; defer additive metadata columns unless needed |
 | `apps/api/prisma/migrations/20251217192911_add_api_keys_v2/migration.sql` | Existing API-key table migration | Raw `key TEXT NOT NULL` | Yes today | Unique + index on `key` | `teamId` FK/index | N/A | `scopes TEXT[]` | Yes | Do not edit in this PR; document expand-contract path only if later metadata columns are needed |
 | `apps/api/src/lib/rateLimit.ts` | General rate-limit identifier helper | Hashes `x-api-key` candidate | Does not persist raw | Candidate-key-derived bucket | User/API-key/IP | N/A | N/A | Yes | Failed API-key auth throttling must not key only by the candidate secret |
@@ -31,7 +31,7 @@ Active API-key storage still stores the presented reusable token in `ApiKey.key`
 
 ## Current-State Checkpoint - 2026-07-13
 
-PR #107 is merged and remains preparatory primitives only. PR #109 is still open and must be corrected before approval because current ADR review findings remain. PR #110 is open, unmerged, and frozen for replan; its current review identified blocking security and compatibility defects, including cross-tenant knowledge access, API-key-only Fastify `/v1` access failure, spoofable failed-auth source headers, throttle bypass paths, unbounded process-local throttle state, pre-throttle Prisma lookup, audit-after-persistence orphaned credentials, governance UI credential-copy risk, default-scope regression, non-idempotent revocation, and body parsing before authentication.
+PR #107 is merged and remains preparatory primitives only. PR #109 merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`, but it merged with review corrections pending and requires this post-merge source-of-truth correction before PR #110 resumes. PR #110 is open, unmerged, and frozen for replan; its current review identified blocking security and compatibility defects, including cross-tenant knowledge access, API-key-only Fastify `/v1` access failure, spoofable failed-auth source headers, throttle bypass paths, unbounded process-local throttle state, pre-throttle Prisma lookup, audit-after-persistence orphaned credentials, governance UI credential-copy risk, default-scope regression, non-idempotent revocation, and body parsing before authentication.
 
 Main has not received the integrated API-key implementation. The active runtime still uses pre-integration API-key behavior. Legacy raw keys have not been inventoried or rotated. Dynamic tenant, role, and API-key abuse proof has not run. Stage 12A remains `STAGE_12A_BLOCKED_HIGH`.
 
@@ -52,7 +52,7 @@ Compromise cases:
 | API-key value leak | Leaked bearer token gives its scoped access until revoked | Immediate revocation, failed-auth throttling, audit, and owner rotation guidance |
 | Unauthorized admin action | A non-admin creates/lists/revokes keys | ADMIN role checks must remain on both creation/list/revoke surfaces |
 | Brute-force authentication attempts | Online guessing or sprayed candidate keys | 256-bit generated tokens plus requester-context failed-auth throttling |
-| Cross-tenant IDOR | Team A lists/revokes/authenticates as Team B | Creation/list/revoke scoped by current `teamId`; authentication returns only key record `teamId`; route tests must cover Team A vs Team B |
+| Cross-tenant IDOR | Team A reaches Team B key-management or resource records by submitted IDs | Creation/list/revoke scoped by current `teamId`; resource access binds submitted ID plus authenticated `teamId`; bearer-key possession authenticates as the key's team until revocation |
 | Rollback during deployment | New digests fail if older code expects raw keys | Dual-read legacy compatibility and deploy order keep old records valid; rollback does not rewrite records |
 
 ## Security Objectives
@@ -63,7 +63,7 @@ Compromise cases:
 4. Database compromise alone should not reveal usable new API keys.
 5. Lookup remains efficient and deterministic.
 6. Raw tokens, digests, and secret material do not appear in logs, errors, audit events, or list responses.
-7. Team A cannot access, list, revoke, or authenticate as Team B.
+7. Team A cannot access, list, or revoke Team B-owned records by submitted IDs.
 8. Revocation takes effect immediately.
 9. Scope validation is server-defined.
 10. Legacy raw-key compatibility is explicit, temporary, and measurable.
@@ -253,11 +253,35 @@ List responses must return metadata only:
 - `createdAt`
 - `lastUsedAt`
 - `isActive`
+- `displayKey`
 - `keyPrefix`
 - `keyLastFour`
 - `legacy`
 
-They must not return raw tokens, digests, complete stored representations, pepper names, or secret material.
+They must not return raw tokens, digests, complete stored representations, pepper names, secret material, or a property named `key` containing a masked display value. Listed display values such as `cmf_live_...abcd` must never be revealable or copyable as bearer credentials.
+
+## Minimum Governance UI Compatibility Scope
+
+The next implementation PR must include the minimum governance key UI work required to preserve the security contract:
+
+1. metadata-only listed-key model;
+2. listed keys expose only `id`, `name`, `scopes`, `createdAt`, `lastUsedAt`, `isActive`, `displayKey`, `keyPrefix`, `keyLastFour`, and `legacy`;
+3. listed keys must not expose or use a property named `key` containing a masked display value;
+4. listed values such as `cmf_live_...abcd` must never be revealable or copyable as bearer credentials;
+5. raw secret appears only in the successful creation response;
+6. raw secret is displayed exactly once;
+7. creation UI provides an explicit one-time copy action;
+8. raw secret is removed from client state when the modal closes, the user navigates away, the component unmounts, or the page refreshes;
+9. governance creation provides a minimal scope selector or an explicitly approved route-specific server default;
+10. accessible loading, success, and failure states remain.
+
+Explicitly out of scope for this UI work:
+
+- broad UI redesign;
+- unrelated governance/settings UX changes;
+- design-system refactoring;
+- unrelated pages;
+- visual modernization.
 
 ## Scope Enforcement
 
@@ -265,7 +289,17 @@ Scopes are server-defined and validated through the PR #107 allowlist. Client-su
 
 ## Tenant and Role Enforcement
 
-Creation, listing, and revocation remain ADMIN-only and team-scoped. Authentication derives tenant context only from the matched active key record. Tests must prove Team A cannot list, revoke, or use Team B keys.
+Creation, listing, and revocation remain ADMIN-only and team-scoped. Authentication derives tenant context only from the matched active key record. Possession of Team B's valid bearer key authenticates the caller as Team B until that key is revoked; this is bearer-token semantics, not an IDOR condition, and API-key clients must not be coupled to browser sessions.
+
+Required isolation tests:
+
+1. Team A session/admin cannot list Team B keys.
+2. Team A session/admin cannot revoke Team B keys.
+3. Team A API key cannot access Team B resources by submitting Team B resource IDs.
+4. Every resource lookup combines submitted resource ID with authenticated `auth.teamId`.
+5. Coverage includes campaigns, leads, workflows, tasks, knowledge bases, and indirect service calls.
+6. Cross-tenant failures return a non-enumerating `404` or equivalent safe response.
+7. Revoked bearer keys fail immediately.
 
 ## Revocation
 
@@ -302,7 +336,7 @@ Baseline:
 
 Rollout stages:
 
-1. ADR approval: after PR #109 review findings are resolved and merged, `S12A-HIGH-001` may become `DESIGN_APPROVED_PENDING_IMPLEMENTATION`.
+1. Architecture selection is merged by PR #109, but post-merge source-of-truth corrections must merge before PR #110 resumes.
 2. Atomic implementation PR ships new issuance plus new auth lookup together.
 3. Monitor new vs legacy authentication counts, failed-auth counts, and legacy key inventory.
 4. Owner-facing rotation instructions ship after new issuance is stable.
@@ -340,7 +374,7 @@ No migration is approved by this ADR. If later reviewers decide separate metadat
 3. Add deterministic lookup helper and tests.
 4. Update both creation routes and `validateApiKey()` in one PR.
 5. Add the route registry or route metadata required for API-key-only `/v1` access.
-6. Keep web UI changes limited to the one-time secret and metadata-only contract unless reviewers approve broader UI scope.
+6. Include only the minimum governance UI compatibility work required for the one-time secret and metadata-only listed-key contract.
 7. Verify metadata-only listing, one-time create response, legacy dual-read, revocation, scopes, admin enforcement, team isolation, safe audit, request parsing order, and failed-auth throttling.
 8. Run final-head review and approved dynamic tenant, role, API-key, and failed-auth abuse tests.
 9. Do not promote Stage 12A to PASS until all high findings are cleared.
@@ -405,11 +439,11 @@ Required atomic scope:
 9. API-key route tests;
 10. legacy dual-read behavior;
 11. safe audit handling;
-12. source-aware failed-auth throttling.
+12. source-aware failed-auth throttling;
+13. minimum governance UI compatibility for metadata-only listed keys and one-time secret handling.
 
 Explicitly out of scope for the next PR:
 
-- web UI changes;
 - non-atomic active-key quota;
 - premature legacy retirement;
 - production migration;
