@@ -76,7 +76,7 @@ None confirmed in this passive Stage 12A pass. Active IDOR, role-abuse, CSRF, SS
 - Evidence: `apps/api/routes/governance/keys/route.ts:55-67`, `apps/api/routes/settings/keys/route.ts:36-59`, `apps/api/src/lib/apiAuth.ts:4-13`.
 - Impact: DB read exposure could become live API access; broad client-selected scopes are not safely allowlisted.
 - Required fix: hash stored keys, return raw key once, enforce scope allowlists, rotate old keys, add tests.
-- Architecture decision: `docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md`; status is `OPEN / IMPLEMENTATION_BLOCKED_BY_REVIEW`, not fixed.
+- Architecture decision: `docs/decisions/secure-api-key-lookup-versioning-legacy-transition-2026-07-11.md`; status is `OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING`, not fixed.
 
 ### S12A-HIGH-002: Legacy dashboard mutation routes lack route-local tenant ownership
 
@@ -216,7 +216,7 @@ Code paths degrade without Redis and use in-memory caches/rate-limit stores, but
 
 | Finding ID | Severity | Affected routes | Exploit scenario | Recommended fix | Tests required | Suggested PR boundary | Provider blocked | Owner | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Correct and merge the ADR, then rebase and remediate the implementation with digest lookup, allowlist scopes, cap/list metadata, legacy rotation, and abuse tests | Key auth/list/create/tenant/throttle tests | `fix/security-api-key-issuance-auth-integration` after PR #109 merge | All | Security/Codex Builder | OPEN / IMPLEMENTATION_BLOCKED_BY_REVIEW |
+| S12A-HIGH-001 | HIGH | API keys | DB/API-key exposure gives live API access | Rebase and remediate the implementation with digest lookup, allowlist scopes, cap/list metadata, legacy rotation, and abuse tests | Key auth/list/create/tenant/throttle tests | `fix/security-api-key-issuance-auth-integration` after rebase onto current main | All | Security/Codex Builder | OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING |
 | S12A-HIGH-002 | HIGH | Dashboard campaign/activity routes | Authenticated user mutates another tenant by ID | Remove legacy routes or add team-scoped ownership and schemas | IDOR tests | `fix(security): scope legacy dashboard routes` | Campaign/provider | Security/Codex Builder | OPEN |
 | S12A-HIGH-003 | HIGH | Mutations with broad bodies | Client writes ownership/admin/billing/provider fields | Strict schemas and positive allowlists | Mass-assignment tests | `fix(security): add mutation allowlists` | All | Security/Codex Builder | OPEN |
 | S12A-HIGH-004 | HIGH | Lists/logs/keys/leads | Unbounded PII/key/log enumeration | Pagination caps and validation | Limit/bounds tests | `fix(security): bound sensitive list endpoints` | All | Security/Codex Builder | OPEN |
@@ -261,12 +261,13 @@ The main residual risk is that functional smoke passed but security proof is sti
 
 ### S12A-HIGH-001 current status
 
-`OPEN / IMPLEMENTATION_BLOCKED_BY_REVIEW`
+`OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING`
 
 Evidence:
 
 - PR #107 merged preparatory primitives only.
-- PR #109 architecture decision merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`, but it merged with review corrections pending.
+- PR #109 architecture decision merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`.
+- PR #111 post-merge guardrail correction merged as commit `3592f7b8313682b6e65997c599563a5a20f72377`.
 - PR #110 remains unmerged and contains current security defects.
 - Main runtime still uses the pre-integration API-key behavior.
 - Legacy raw keys have not been inventoried or rotated.
@@ -275,11 +276,11 @@ Evidence:
 Current PDCA position:
 
 - PDCA Cycle 5: Security Risk Acceptance and Minimum Beta Gate.
-- Current substage: Stage 12A CHECK -> ACT remediation loop.
-- PLAN: PR #109 ADR exists but is not yet approved because review findings remain.
+- Current substage: Stage 12A ACT corrective remediation.
+- PLAN: API-key architecture is approved by merged PRs #109 and #111, but implementation and legacy rotation remain pending.
 - DO: PR #110 attempted the atomic API-key implementation.
 - CHECK: CI passed, but current review identified blocking security and compatibility defects.
-- ACT: Correct the ADR and guardrails first, then merge PR #109, rebase PR #110, remediate the implementation, and run dynamic abuse tests.
+- ACT: Rebase PR #110 onto current main, remediate the implementation, run final-head review, execute dynamic abuse tests, and inventory/rotate legacy raw keys.
 
 Cycle status:
 
@@ -295,16 +296,17 @@ Overall status remains exactly:
 
 | Item | Status |
 | --- | --- |
-| PR #109 | MERGED_WITH_REVIEW_CORRECTIONS_PENDING |
+| PR #109 | MERGED |
 | Merge commit | `01e0aff188ed3cab6a6831121979824ef3d6dd99` |
-| PR #110 | FROZEN / DO_NOT_MERGE |
-| S12A-HIGH-001 | OPEN / ARCHITECTURE_MERGED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING |
+| PR #111 | MERGED |
+| PR #111 merge commit | `3592f7b8313682b6e65997c599563a5a20f72377` |
+| PR #110 | FROZEN / REBASE_AND_REMEDIATE_REQUIRED |
+| S12A-HIGH-001 | OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING |
 | Overall | STAGE_12A_BLOCKED_HIGH |
 
 Clarifications:
 
-- The architecture selection is merged.
-- The merged ADR required a follow-up consistency correction.
+- The architecture selection is approved through merged PRs #109 and #111.
 - PR #110 is not accepted as implementing the ADR.
 - Main still lacks the approved issuance/auth integration.
 - Legacy raw-key inventory and rotation have not occurred.

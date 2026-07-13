@@ -86,6 +86,41 @@ Current PDCA status:
 - Stage 12A: BLOCKED_HIGH
 - Stage 12B: VAPT_SCOPE_READY / EXECUTION_NOT_STARTED
 
+## Sequencing Finalization Checkpoint - 2026-07-13
+
+PR #111 merged before a final Codex sequencing comment was posted. This PR corrects that post-merge source-of-truth inconsistency.
+
+### PLAN
+
+Use merged PRs #109 and #111 as the approved API-key architecture and guardrail baseline.
+
+### DO
+
+Remove stale pre-merge sequencing language from the ADR and source-of-truth references.
+
+### CHECK
+
+PR #110 remains frozen and unaccepted. Main still lacks the approved issuance/auth integration, legacy inventory and rotation, and dynamic tenant/role/API-key abuse proof.
+
+### ACT
+
+After this sequencing finalization merges:
+
+- rebase PR #110 onto current main;
+- remediate all valid PR #110 findings;
+- run final-head CI, CodeQL, Codex, and CodeAnt reviews;
+- run approved dynamic security verification;
+- inventory and rotate active legacy raw keys;
+- reassess `S12A-HIGH-001`.
+
+Current PDCA status:
+
+- Cycle 4: PARTIAL / WRITE WORKFLOWS PENDING
+- Cycle 5: ACT / CORRECTIVE REMEDIATION
+- Cycle 6: NOT_STARTED
+- Stage 12A: BLOCKED_HIGH
+- Stage 12B: VAPT_SCOPE_READY / EXECUTION_NOT_STARTED
+
 ## PLAN
 
 ### Current target architecture
