@@ -54,6 +54,38 @@ Overall status remains exactly:
 
 `FUNCTIONAL_PAGE_LOAD_SMOKE_PASS / WRITE_WORKFLOWS_PENDING / STAGE_12A_BLOCKED_HIGH`
 
+## Post-Merge Correction Checkpoint - 2026-07-13
+
+### PLAN
+
+API-key architecture and guardrails were drafted.
+
+### DO
+
+PR #109 merged; PR #110 attempted implementation.
+
+### CHECK
+
+PR #109 merged with seven unresolved review threads. PR #110 review identified blocking security and compatibility defects.
+
+### ACT
+
+Open this post-merge documentation correction. After it merges:
+
+- rebase PR #110;
+- remediate implementation findings;
+- run final-head static review;
+- run approved dynamic abuse proof;
+- inventory and rotate legacy raw keys.
+
+Current PDCA status:
+
+- Cycle 4: PARTIAL / WRITE WORKFLOWS PENDING
+- Cycle 5: ACT / CORRECTIVE REMEDIATION
+- Cycle 6: NOT_STARTED
+- Stage 12A: BLOCKED_HIGH
+- Stage 12B: VAPT_SCOPE_READY / EXECUTION_NOT_STARTED
+
 ## PLAN
 
 ### Current target architecture
