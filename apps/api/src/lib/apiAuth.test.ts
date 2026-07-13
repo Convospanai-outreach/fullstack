@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => ({
 import {
   API_KEY_REQUEST_SOURCE_HEADER,
   authorizeApiKey,
+  getApiKeyRoutePolicy,
   resetApiKeyAuthRateLimitForTests,
   validateApiKey,
 } from "./apiAuth";
@@ -148,5 +149,23 @@ describe("api key auth", () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.context.teamId).toBe("team-1");
+  });
+
+  it("intentionally denies team API-key exposure for global agents routes", () => {
+    expect(getApiKeyRoutePolicy("GET", "/v1/agents")).toBeNull();
+    expect(getApiKeyRoutePolicy("POST", "/v1/agents")).toBeNull();
+  });
+
+  it("keeps tenant-owned knowledge routes explicitly registered for API-key clients", () => {
+    expect(getApiKeyRoutePolicy("GET", "/v1/knowledge")).toMatchObject({
+      authMode: "apiKey",
+      requiredScope: "leads:read",
+      throttleFamily: "v1.knowledge",
+    });
+    expect(getApiKeyRoutePolicy("POST", "/v1/knowledge")).toMatchObject({
+      authMode: "apiKey",
+      requiredScope: "leads:write",
+      throttleFamily: "v1.knowledge",
+    });
   });
 });
