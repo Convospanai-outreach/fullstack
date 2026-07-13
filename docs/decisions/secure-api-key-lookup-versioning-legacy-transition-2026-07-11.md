@@ -31,9 +31,20 @@ Active API-key storage still stores the presented reusable token in `ApiKey.key`
 
 ## Current-State Checkpoint - 2026-07-13
 
-PR #107 is merged and remains preparatory primitives only. PR #109 merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`, but it merged with review corrections pending and requires this post-merge source-of-truth correction before PR #110 resumes. PR #110 is open, unmerged, and frozen for replan; its current review identified blocking security and compatibility defects, including cross-tenant knowledge access, API-key-only Fastify `/v1` access failure, spoofable failed-auth source headers, throttle bypass paths, unbounded process-local throttle state, pre-throttle Prisma lookup, audit-after-persistence orphaned credentials, governance UI credential-copy risk, default-scope regression, non-idempotent revocation, and body parsing before authentication.
+PR #107 is merged and remains preparatory primitives only. PR #109 merged as commit `01e0aff188ed3cab6a6831121979824ef3d6dd99`. PR #111 merged as commit `3592f7b8313682b6e65997c599563a5a20f72377`. Together they approve the API-key lookup-digest architecture and guardrails as the implementation design baseline. PR #110 is open, unmerged, and frozen for rebase/remediation; its current review identified blocking security and compatibility defects, including cross-tenant knowledge access, API-key-only Fastify `/v1` access failure, spoofable failed-auth source headers, throttle bypass paths, unbounded process-local throttle state, pre-throttle Prisma lookup, audit-after-persistence orphaned credentials, governance UI credential-copy risk, default-scope regression, non-idempotent revocation, and body parsing before authentication.
 
 Main has not received the integrated API-key implementation. The active runtime still uses pre-integration API-key behavior. Legacy raw keys have not been inventoried or rotated. Dynamic tenant, role, and API-key abuse proof has not run. Stage 12A remains `STAGE_12A_BLOCKED_HIGH`.
+
+Current status:
+
+| Item | Status |
+| --- | --- |
+| PR #109 | MERGED |
+| PR #111 | MERGED |
+| PR #110 | FROZEN / REBASE_AND_REMEDIATE_REQUIRED |
+| S12A-HIGH-001 | OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING |
+| Stage 12A | BLOCKED_HIGH |
+| Controlled beta | BLOCKED |
 
 ## Threat Model
 
@@ -115,13 +126,23 @@ The selected design is preferred because:
 - It keeps application-secret rotation independent of API-key validity.
 - It permits explicit dual-read compatibility for raw legacy records.
 
-This decision is not yet approved for implementation merge. PR #109 must be corrected and merged before PR #110 proceeds, and PR #110 must then be rebased onto the corrected ADR merge.
+The SHA-256 lookup-digest architecture is approved as the implementation design through merged PRs #109 and #111. This approval does not approve PR #110 as currently implemented.
+
+PR #110 must:
+
+1. rebase onto current main;
+2. satisfy the corrected ADR;
+3. remediate all current security and compatibility findings;
+4. pass final-head static review;
+5. pass approved dynamic tenant, role, and API-key abuse tests.
+
+Stage 12A remains `BLOCKED_HIGH`.
 
 ## Next-Level Guardrails and Mandatory Acceptance Criteria
 
 ### A. Sequencing
 
-PR #109 must merge before PR #110 proceeds. PR #110 must be rebased onto the corrected ADR merge before final review.
+PR #109 architecture decision is `MERGED`. PR #111 post-merge guardrail correction is `MERGED`. PR #110 must now rebase onto current main, satisfy this corrected ADR, remediate all valid implementation findings, pass final-head static review, and pass approved dynamic security verification before any Stage 12A reassessment.
 
 ### B. Tenant Isolation
 
@@ -336,12 +357,15 @@ Baseline:
 
 Rollout stages:
 
-1. Architecture selection is merged by PR #109, but post-merge source-of-truth corrections must merge before PR #110 resumes.
-2. Atomic implementation PR ships new issuance plus new auth lookup together.
-3. Monitor new vs legacy authentication counts, failed-auth counts, and legacy key inventory.
-4. Owner-facing rotation instructions ship after new issuance is stable.
-5. Retirement trigger requires proof that no active integrations depend on legacy keys or that owners have accepted forced rotation.
-6. A separate retirement PR disables legacy dual-read.
+1. PR #109 architecture decision: `MERGED`.
+2. PR #111 post-merge guardrail correction: `MERGED`.
+3. Rebase PR #110 onto current main.
+4. Remediate all valid PR #110 findings.
+5. Run final-head CI, CodeQL, Codex, and CodeAnt reviews.
+6. Run approved dynamic security verification.
+7. Inventory and rotate active legacy raw keys.
+8. Reassess `S12A-HIGH-001`.
+9. Do not clear Stage 12A until all required evidence exists.
 
 Treatment:
 
@@ -369,8 +393,8 @@ No migration is approved by this ADR. If later reviewers decide separate metadat
 
 ## Deployment Sequence
 
-1. Correct and merge this ADR only.
-2. Rebase `fix/security-api-key-issuance-auth-integration` onto the corrected ADR merge.
+1. Use the merged ADR and PR #111 guardrail correction as the approved implementation baseline.
+2. Rebase `fix/security-api-key-issuance-auth-integration` onto current main.
 3. Add deterministic lookup helper and tests.
 4. Update both creation routes and `validateApiKey()` in one PR.
 5. Add the route registry or route metadata required for API-key-only `/v1` access.
@@ -454,7 +478,7 @@ Review budget recommendation: no more than 6 implementation files plus focused t
 
 ## Remaining Stage 12A Findings
 
-`S12A-HIGH-001`: `OPEN / IMPLEMENTATION_BLOCKED_BY_REVIEW`
+`S12A-HIGH-001`: `OPEN / ARCHITECTURE_APPROVED / IMPLEMENTATION_AND_LEGACY_ROTATION_PENDING`
 
 Overall: `STAGE_12A_BLOCKED_HIGH`
 
