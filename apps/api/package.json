@@ -32,6 +32,7 @@
         "eventsource": "^4.1.0",
         "fastify": "^5.1.0",
         "geoip-lite": "^2.0.2",
+        "google-auth-library": "^10.9.0",
         "googleapis": "^171.4.0",
         "grapesjs": "^0.23.2",
         "groq-sdk": "^0.37.0",
