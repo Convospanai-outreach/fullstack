@@ -47,11 +47,22 @@ type GooglePubSubMessage = {
 };
 
 function getEncryptionKey(): Buffer {
-    const key = process.env["ENCRYPTION_KEY"] || "";
-    if (!key || key.length < 32) {
-        throw new Error("ENCRYPTION_KEY must be set before connecting Google mailboxes.");
+    const key = process.env["ENCRYPTION_KEY"];
+    if (typeof key !== "string") {
+        throw new Error("ENCRYPTION_KEY must be a string.");
     }
-    return Buffer.from(key, "hex");
+    if (key.length !== 64) {
+        throw new Error("ENCRYPTION_KEY must be exactly 64 characters.");
+    }
+    const hexRegex = /^[0-9a-fA-F]{64}$/;
+    if (!hexRegex.test(key)) {
+        throw new Error("ENCRYPTION_KEY must contain hexadecimal characters only.");
+    }
+    const keyBuffer = Buffer.from(key, "hex");
+    if (keyBuffer.length !== 32) {
+        throw new Error("ENCRYPTION_KEY must decode to exactly 32 bytes.");
+    }
+    return keyBuffer;
 }
 
 function getStateSecret(): string {
@@ -111,10 +122,18 @@ function verifyState(state: string): OAuthStatePayload {
     const [body, sig] = state.split(".");
     if (!body || !sig) throw new Error("Invalid OAuth state.");
     const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
+    const sigBuf = Buffer.from(sig);
+    const expectedBuf = Buffer.from(expected);
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
         throw new Error("Invalid OAuth state signature.");
     }
     const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as OAuthStatePayload;
+    if (!payload || typeof payload !== "object") {
+        throw new Error("Invalid OAuth state structure.");
+    }
+    if (!payload.teamId || !payload.userId || !payload.nonce || typeof payload.ts !== "number") {
+        throw new Error("Invalid OAuth state structure.");
+    }
     if (Date.now() - payload.ts > 10 * 60 * 1000) {
         throw new Error("OAuth state expired.");
     }
@@ -132,15 +151,35 @@ export function sanitizeRelativePath(path?: string | null) {
     }
 }
 
-export function buildGoogleMailboxAuthUrl(input: { teamId: string; userId: string; nextPath?: string }) {
+export async function buildGoogleMailboxAuthUrl(input: { teamId: string; userId: string; nextPath?: string }): Promise<string> {
     const { clientId, redirectUri } = getGoogleConfig();
-    const state = signState({
+    const nonce = crypto.randomUUID();
+    const ts = Date.now();
+    const statePayload = {
         teamId: input.teamId,
         userId: input.userId,
         nextPath: sanitizeRelativePath(input.nextPath),
-        nonce: crypto.randomUUID(),
-        ts: Date.now(),
-    });
+        nonce,
+        ts,
+    };
+    const state = signState(statePayload);
+
+    const nonceHash = crypto.createHash("sha256").update(nonce).digest("hex");
+    const identifier = `gmail-oauth-state:${input.teamId}:${input.userId}`;
+    const expires = new Date(ts + 10 * 60 * 1000);
+
+    try {
+        await db.verificationToken.create({
+            data: {
+                identifier,
+                token: nonceHash,
+                expires,
+            },
+        });
+    } catch (error) {
+        throw new Error("Failed to persist OAuth state.");
+    }
+
     const params = new URLSearchParams({
         client_id: clientId,
         redirect_uri: redirectUri,
@@ -193,7 +232,25 @@ async function getGmailProfile(accessToken: string): Promise<{ emailAddress: str
 }
 
 export async function connectGoogleMailbox(input: { code: string; state: string }) {
-    const state = verifyState(input.state);
+    const statePayload = verifyState(input.state);
+
+    const identifier = `gmail-oauth-state:${statePayload.teamId}:${statePayload.userId}`;
+    const nonceHash = crypto.createHash("sha256").update(statePayload.nonce).digest("hex");
+
+    const deleteResult = await db.verificationToken.deleteMany({
+        where: {
+            identifier,
+            token: nonceHash,
+            expires: {
+                gt: new Date(),
+            },
+        },
+    });
+
+    if (deleteResult.count !== 1) {
+        throw new Error("Invalid state, expired state, or state already consumed.");
+    }
+
     const token = await exchangeCodeForTokens(input.code);
     const profile = await getGmailProfile(token.access_token);
     const normalizedEmail = normalizeEmailAddress(profile.emailAddress);
@@ -202,50 +259,67 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
     const encryptedRefreshToken = token.refresh_token ? await encryptSecret(token.refresh_token) : undefined;
     const tokenExpiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
 
-    const mailbox = await prisma.connectedMailbox.upsert({
+    const existingMailbox = await prisma.connectedMailbox.findUnique({
         where: {
             teamId_email: {
-                teamId: state.teamId,
+                teamId: statePayload.teamId,
                 email: normalizedEmail,
-            },
-        },
-        create: {
-            teamId: state.teamId,
-            assignedUserId: state.userId,
-            provider: "GOOGLE_WORKSPACE",
-            authType: "OAUTH",
-            email: normalizedEmail,
-            status: encryptedRefreshToken ? "CONNECTED" : "NEEDS_RECONNECT",
-            scopes,
-            encryptedAccessToken,
-            ...(encryptedRefreshToken ? { encryptedRefreshToken } : {}),
-            tokenExpiresAt,
-            historyId: profile.historyId,
-            metadata: {
-                messagesTotal: profile.messagesTotal,
-                threadsTotal: profile.threadsTotal,
-                connectedBy: state.userId,
-            },
-        },
-        update: {
-            assignedUserId: state.userId,
-            authType: "OAUTH",
-            status: encryptedRefreshToken ? "CONNECTED" : "NEEDS_RECONNECT",
-            scopes,
-            encryptedAccessToken,
-            ...(encryptedRefreshToken ? { encryptedRefreshToken } : {}),
-            tokenExpiresAt,
-            historyId: profile.historyId,
-            metadata: {
-                messagesTotal: profile.messagesTotal,
-                threadsTotal: profile.threadsTotal,
-                reconnectedBy: state.userId,
             },
         },
     });
 
-    if (process.env["GOOGLE_PUBSUB_TOPIC_NAME"] && encryptedRefreshToken) {
-        await registerGoogleMailboxWatch(state.teamId, mailbox.id).catch(async (error: any) => {
+    let finalEncryptedRefreshToken = encryptedRefreshToken;
+    if (!finalEncryptedRefreshToken && existingMailbox?.encryptedRefreshToken) {
+        finalEncryptedRefreshToken = existingMailbox.encryptedRefreshToken as any;
+    }
+
+    const hasRefreshToken = !!finalEncryptedRefreshToken;
+    const status = hasRefreshToken ? "CONNECTED" : "NEEDS_RECONNECT";
+
+    const mailbox = await prisma.connectedMailbox.upsert({
+        where: {
+            teamId_email: {
+                teamId: statePayload.teamId,
+                email: normalizedEmail,
+            },
+        },
+        create: {
+            teamId: statePayload.teamId,
+            assignedUserId: statePayload.userId,
+            provider: "GOOGLE_WORKSPACE",
+            authType: "OAUTH",
+            email: normalizedEmail,
+            status,
+            scopes,
+            encryptedAccessToken,
+            ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
+            tokenExpiresAt,
+            historyId: profile.historyId,
+            metadata: {
+                messagesTotal: profile.messagesTotal,
+                threadsTotal: profile.threadsTotal,
+                connectedBy: statePayload.userId,
+            },
+        },
+        update: {
+            assignedUserId: statePayload.userId,
+            authType: "OAUTH",
+            status,
+            scopes,
+            encryptedAccessToken,
+            ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
+            tokenExpiresAt,
+            historyId: profile.historyId,
+            metadata: {
+                messagesTotal: profile.messagesTotal,
+                threadsTotal: profile.threadsTotal,
+                reconnectedBy: statePayload.userId,
+            },
+        },
+    });
+
+    if (process.env["GOOGLE_PUBSUB_TOPIC_NAME"] && finalEncryptedRefreshToken) {
+        await registerGoogleMailboxWatch(statePayload.teamId, mailbox.id).catch(async (error: any) => {
             await prisma.connectedMailbox.update({
                 where: { id: mailbox.id },
                 data: {
@@ -258,7 +332,7 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
         });
     }
 
-    return { mailbox, nextPath: state.nextPath || "/setup?step=3" };
+    return { mailbox, nextPath: statePayload.nextPath || "/setup?step=3" };
 }
 
 export async function listConnectedMailboxes(teamId: string) {
@@ -1052,70 +1126,93 @@ export async function syncDueGoogleMailboxes(limit = 25) {
     return results;
 }
 
-export function verifyGooglePubSubToken(provided?: string | null) {
-    const expected = process.env["GOOGLE_PUBSUB_VERIFICATION_TOKEN"];
-    if (!expected || !provided) return false;
-    const expectedBuffer = Buffer.from(expected);
-    const providedBuffer = Buffer.from(provided);
-    return expectedBuffer.length === providedBuffer.length && crypto.timingSafeEqual(expectedBuffer, providedBuffer);
-}
-
 function decodePubSubData(data?: string) {
     if (!data) throw new Error("Missing Pub/Sub message data.");
-    const decoded = Buffer.from(data, "base64").toString("utf8");
+    const base64 = data.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = Buffer.from(base64, "base64").toString("utf8");
+    if (decoded.includes("\uFFFD")) {
+        throw new Error("Invalid UTF-8 sequence.");
+    }
     return JSON.parse(decoded) as { emailAddress?: string; historyId?: string };
 }
 
 export async function handleGooglePubSubNotification(message: GooglePubSubMessage) {
-    const payload = decodePubSubData(message.data);
+    let payload;
+    try {
+        payload = decodePubSubData(message.data);
+    } catch (err: any) {
+        return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: err.message };
+    }
     const email = payload.emailAddress ? normalizeEmailAddress(payload.emailAddress) : "";
     if (!email || !payload.historyId) {
-        return { accepted: false, reason: "missing_mailbox_or_history" };
+        return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: "missing_mailbox_or_history" };
     }
 
-    const mailbox = await prisma.connectedMailbox.findFirst({
-        where: { email, provider: "GOOGLE_WORKSPACE" },
-    });
-    if (!mailbox) {
-        return { accepted: true, ignored: true, reason: "unknown_mailbox" };
-    }
-
-    if (message.messageId) {
-        const existing = await prisma.emailEvent.findFirst({
-            where: {
-                teamId: mailbox.teamId,
-                provider: "GOOGLE_PUBSUB",
-                providerMessageId: message.messageId,
-                type: "GMAIL_NOTIFICATION",
-            },
-            select: { id: true },
+    let mailboxes;
+    try {
+        mailboxes = await prisma.connectedMailbox.findMany({
+            where: { email, provider: "GOOGLE_WORKSPACE" },
         });
-        if (existing) {
-            return { accepted: true, duplicate: true };
-        }
-        try {
-            await prisma.emailEvent.create({
-                data: {
+    } catch (err: any) {
+        return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: err.message };
+    }
+
+    if (mailboxes.length === 0) {
+        return { accepted: false, reason: "UNKNOWN_MAILBOX" as const };
+    }
+    if (mailboxes.length > 1) {
+        return { accepted: false, reason: "AMBIGUOUS_MAILBOX" as const };
+    }
+
+    const mailbox = mailboxes[0];
+
+    try {
+        let duplicate = false;
+        if (message.messageId) {
+            const existing = await prisma.emailEvent.findFirst({
+                where: {
                     teamId: mailbox.teamId,
-                    mailboxId: mailbox.id,
-                    type: "GMAIL_NOTIFICATION",
                     provider: "GOOGLE_PUBSUB",
                     providerMessageId: message.messageId,
-                    payload: {
-                        historyId: payload.historyId,
-                    },
+                    type: "GMAIL_NOTIFICATION",
                 },
+                select: { id: true },
             });
-        } catch (error: any) {
-            if (error?.code === "P2002") {
-                return { accepted: true, duplicate: true };
+            if (existing) {
+                duplicate = true;
+            } else {
+                try {
+                    await prisma.emailEvent.create({
+                        data: {
+                            teamId: mailbox.teamId,
+                            mailboxId: mailbox.id,
+                            type: "GMAIL_NOTIFICATION",
+                            provider: "GOOGLE_PUBSUB",
+                            providerMessageId: message.messageId,
+                            payload: {
+                                historyId: payload.historyId,
+                            },
+                        },
+                    });
+                } catch (error: any) {
+                    if (error?.code === "P2002") {
+                        duplicate = true;
+                    } else {
+                        throw error;
+                    }
+                }
             }
-            throw error;
         }
-    }
 
-    const result = await syncGoogleMailbox(mailbox.teamId, mailbox.id);
-    return { accepted: true, mailboxId: mailbox.id, ...result };
+        if (duplicate) {
+            return { accepted: true, mailboxId: mailbox.id, teamId: mailbox.teamId, duplicate: true };
+        }
+
+        const syncResult = await syncGoogleMailbox(mailbox.teamId, mailbox.id);
+        return { accepted: true, mailboxId: mailbox.id, teamId: mailbox.teamId, ...syncResult };
+    } catch (error: any) {
+        return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: error?.message || "Unknown error" };
+    }
 }
 
 export async function advanceMailboxWarmup() {
