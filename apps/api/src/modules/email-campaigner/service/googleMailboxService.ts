@@ -1136,6 +1136,20 @@ function decodePubSubData(data?: string) {
     return JSON.parse(decoded) as { emailAddress?: string; historyId?: string };
 }
 
+export async function resolveGoogleMailbox(email: string) {
+    const normalized = normalizeEmailAddress(email);
+    const mailboxes = await prisma.connectedMailbox.findMany({
+        where: { email: normalized, provider: "GOOGLE_WORKSPACE" },
+    });
+    if (mailboxes.length === 0) {
+        return { status: "UNKNOWN_MAILBOX" as const };
+    }
+    if (mailboxes.length > 1) {
+        return { status: "AMBIGUOUS_MAILBOX" as const };
+    }
+    return { status: "RESOLVED" as const, mailbox: mailboxes[0] };
+}
+
 export async function handleGooglePubSubNotification(message: GooglePubSubMessage) {
     let payload;
     try {
@@ -1143,28 +1157,26 @@ export async function handleGooglePubSubNotification(message: GooglePubSubMessag
     } catch (err: any) {
         return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: err.message };
     }
-    const email = payload.emailAddress ? normalizeEmailAddress(payload.emailAddress) : "";
+    const email = payload.emailAddress || "";
     if (!email || !payload.historyId) {
         return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: "missing_mailbox_or_history" };
     }
 
-    let mailboxes;
+    let resolution;
     try {
-        mailboxes = await prisma.connectedMailbox.findMany({
-            where: { email, provider: "GOOGLE_WORKSPACE" },
-        });
+        resolution = await resolveGoogleMailbox(email);
     } catch (err: any) {
         return { accepted: false, reason: "PROCESSING_FAILURE" as const, error: err.message };
     }
 
-    if (mailboxes.length === 0) {
+    if (resolution.status === "UNKNOWN_MAILBOX") {
         return { accepted: false, reason: "UNKNOWN_MAILBOX" as const };
     }
-    if (mailboxes.length > 1) {
+    if (resolution.status === "AMBIGUOUS_MAILBOX") {
         return { accepted: false, reason: "AMBIGUOUS_MAILBOX" as const };
     }
 
-    const mailbox = mailboxes[0];
+    const mailbox = resolution.mailbox;
 
     try {
         let duplicate = false;

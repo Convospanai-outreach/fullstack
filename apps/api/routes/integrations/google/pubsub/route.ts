@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { handleGooglePubSubNotification } from "@/modules/email-campaigner/service/googleMailboxService";
+import { resolveGoogleMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import { JobQueue } from "@/lib/queue";
 import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 
@@ -132,22 +133,29 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const result = await handleGooglePubSubNotification({
-            messageId: parsed.data.message.messageId,
-            data: dataStr,
-        });
+        const resolution = await resolveGoogleMailbox(emailAddress);
 
-        if (!result.accepted) {
-            if (result.reason === "UNKNOWN_MAILBOX") {
-                return NextResponse.json(result, { status: 200 });
-            }
-            if (result.reason === "AMBIGUOUS_MAILBOX") {
-                return NextResponse.json({ error: "Ambiguous mailbox owner.", reason: "AMBIGUOUS_MAILBOX" }, { status: 400 });
-            }
-            return NextResponse.json({ error: "Internal processing error.", reason: "PROCESSING_FAILURE" }, { status: 500 });
+        if (resolution.status === "UNKNOWN_MAILBOX") {
+            return NextResponse.json({ accepted: false, reason: "UNKNOWN_MAILBOX" }, { status: 200 });
+        }
+        if (resolution.status === "AMBIGUOUS_MAILBOX") {
+            return NextResponse.json({ error: "Ambiguous mailbox owner.", reason: "AMBIGUOUS_MAILBOX" }, { status: 400 });
         }
 
-        return NextResponse.json(result);
+        const mailbox = resolution.mailbox;
+
+        await JobQueue.enqueue("INBOX_SYNC", {
+            teamId: mailbox.teamId,
+            mailboxId: mailbox.id,
+            notificationHistoryId: historyId,
+            pubsubMessageId: parsed.data.message.messageId,
+        }, {
+            idempotencyKey: `gmail-history:${mailbox.id}:${historyId}`,
+            requireIdempotency: true,
+            teamId: mailbox.teamId,
+        });
+
+        return new NextResponse(null, { status: 204 });
     } catch (error: any) {
         return NextResponse.json({ error: "Internal processing error.", reason: "PROCESSING_FAILURE" }, { status: 500 });
     }

@@ -119,7 +119,29 @@ export class JobQueue {
             data.idempotencyKey = options.idempotencyKey;
         }
 
-        return await prisma.job.create({ data });
+        try {
+            return await prisma.job.create({ data });
+        } catch (error: any) {
+            if (error?.code === "P2002" && options.idempotencyKey) {
+                const target = error.meta?.target;
+                const targetFields = Array.isArray(target)
+                    ? target.filter((value): value is string => typeof value === "string")
+                    : typeof target === "string"
+                        ? [target]
+                        : [];
+                const isIdempotencyConflict = targetFields.some((value) => {
+                    const normalized = value.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    return normalized.includes("idempotencykey");
+                });
+                if (isIdempotencyConflict) {
+                    const existingJob = await prisma.job.findUnique({
+                        where: { idempotencyKey: options.idempotencyKey }
+                    });
+                    if (existingJob) return existingJob;
+                }
+            }
+            throw error;
+        }
     }
 
     /**

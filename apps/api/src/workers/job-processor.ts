@@ -8,6 +8,7 @@ import { handleAgentRun } from "./handlers/agent-worker";
 import { handleCsvImport } from "./handlers/csv-worker";
 import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
+import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 
 function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -72,6 +73,9 @@ async function runHandler(jobType: string, payload: JobPayload) {
 
         case "sequence_execution":
             return handleSequenceExecution(payload);
+
+        case "INBOX_SYNC":
+            return handleGmailHistorySync(payload);
 
         default:
             throw new Error(`No worker handler registered for job type ${jobType}`);

@@ -1,11 +1,19 @@
 import { vi, describe, it, expect, beforeEach, afterEach, Mock } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "../route";
-import { handleGooglePubSubNotification } from "@/modules/email-campaigner/service/googleMailboxService";
+import { resolveGoogleMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import { JobQueue } from "@/lib/queue";
 
 // Mock the pubsub handler service function
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
-    handleGooglePubSubNotification: vi.fn(),
+    resolveGoogleMailbox: vi.fn(),
+}));
+
+// Mock the JobQueue
+vi.mock("@/lib/queue", () => ({
+    JobQueue: {
+        enqueue: vi.fn(),
+    },
 }));
 
 const mockVerifyIdToken = vi.fn();
@@ -40,6 +48,8 @@ describe("Pub/Sub OIDC Push route", () => {
         vi.clearAllMocks();
         vi.stubEnv("GMAIL_PUBSUB_AUDIENCE", defaultAudience);
         vi.stubEnv("GMAIL_PUBSUB_SERVICE_ACCOUNT", requiredServiceAccount);
+        (resolveGoogleMailbox as Mock).mockResolvedValue({ status: "RESOLVED", mailbox: { id: "m1", teamId: "t1" } });
+        (JobQueue.enqueue as Mock).mockResolvedValue({ id: "job-1" });
     });
 
     afterEach(() => {
@@ -55,8 +65,6 @@ describe("Pub/Sub OIDC Push route", () => {
                     email: requiredServiceAccount,
                 }),
             });
-            (handleGooglePubSubNotification as Mock).mockResolvedValueOnce({ accepted: true });
-
             const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url");
 
@@ -130,8 +138,6 @@ describe("Pub/Sub OIDC Push route", () => {
                     email: requiredServiceAccount,
                 }),
             });
-            (handleGooglePubSubNotification as Mock).mockResolvedValueOnce({ accepted: true });
-
             const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url");
 
@@ -140,7 +146,7 @@ describe("Pub/Sub OIDC Push route", () => {
                 body: { message: { messageId: "msg-1", data } },
             });
             const res = await POST(req);
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(204);
         });
 
         it("should reject with 401 if service account email does not match", async () => {
@@ -187,7 +193,8 @@ describe("Pub/Sub OIDC Push route", () => {
             });
             const res = await POST(req);
             expect(res.status).toBe(400);
-            expect(handleGooglePubSubNotification).not.toHaveBeenCalled();
+            expect(resolveGoogleMailbox).not.toHaveBeenCalled();
+            expect(JobQueue.enqueue).not.toHaveBeenCalled();
         });
 
         it("should return 400 if data string has invalid Base64URL character (+)", async () => {
@@ -222,7 +229,6 @@ describe("Pub/Sub OIDC Push route", () => {
 
         it("should succeed with valid unpadded Base64URL", async () => {
             mockValidToken();
-            (handleGooglePubSubNotification as Mock).mockResolvedValueOnce({ accepted: true });
             const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url"); // unpadded
 
@@ -231,7 +237,7 @@ describe("Pub/Sub OIDC Push route", () => {
                 body: { message: { data } },
             });
             const res = await POST(req);
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(204);
         });
 
         it("should return 400 if invalid UTF-8 sequence is decoded", async () => {
@@ -322,9 +328,8 @@ describe("Pub/Sub OIDC Push route", () => {
             expect(res.status).toBe(400);
         });
 
-        it("should pass messageId correctly to the service function", async () => {
+        it("should call resolveGoogleMailbox and JobQueue.enqueue with correct arguments and return 204", async () => {
             mockValidToken();
-            (handleGooglePubSubNotification as Mock).mockResolvedValueOnce({ accepted: true });
 
             const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url");
@@ -333,25 +338,32 @@ describe("Pub/Sub OIDC Push route", () => {
                 headers: { Authorization: "Bearer token" },
                 body: { message: { messageId: "msg-12345", data } },
             });
-            await POST(req);
+            const res = await POST(req);
+            expect(res.status).toBe(204);
+            expect(res.body).toBeNull();
 
-            expect(handleGooglePubSubNotification).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    messageId: "msg-12345",
-                    data,
-                })
+            expect(resolveGoogleMailbox).toHaveBeenCalledWith("test@gmail.com");
+            expect(JobQueue.enqueue).toHaveBeenCalledWith(
+                "INBOX_SYNC",
+                {
+                    teamId: "t1",
+                    mailboxId: "m1",
+                    notificationHistoryId: "123",
+                    pubsubMessageId: "msg-12345",
+                },
+                {
+                    idempotencyKey: "gmail-history:m1:123",
+                    requireIdempotency: true,
+                    teamId: "t1",
+                }
             );
         });
 
-        it("should return 500 if handleGooglePubSubNotification returns accepted: false with reason PROCESSING_FAILURE", async () => {
+        it("should return 200 and not enqueue if mailbox is UNKNOWN_MAILBOX", async () => {
             mockValidToken();
-            (handleGooglePubSubNotification as Mock).mockResolvedValueOnce({
-                accepted: false,
-                reason: "PROCESSING_FAILURE",
-                error: "Sensitive internal database query timed out",
-            });
+            (resolveGoogleMailbox as Mock).mockResolvedValueOnce({ status: "UNKNOWN_MAILBOX" });
 
-            const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
+            const payload = JSON.stringify({ emailAddress: "unowned@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url");
 
             const req = createRequest({
@@ -359,18 +371,31 @@ describe("Pub/Sub OIDC Push route", () => {
                 body: { message: { data } },
             });
             const res = await POST(req);
-            expect(res.status).toBe(500);
-            const body = await res.json();
-            expect(body).toEqual({
-                error: "Internal processing error.",
-                reason: "PROCESSING_FAILURE",
-            });
-            expect(JSON.stringify(body)).not.toContain("Sensitive");
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({ accepted: false, reason: "UNKNOWN_MAILBOX" });
+            expect(JobQueue.enqueue).not.toHaveBeenCalled();
         });
 
-        it("should return 500 if handleGooglePubSubNotification throws an error", async () => {
+        it("should return 400 and not enqueue if mailbox is AMBIGUOUS_MAILBOX", async () => {
             mockValidToken();
-            (handleGooglePubSubNotification as Mock).mockRejectedValueOnce(new Error("Critical file system failure"));
+            (resolveGoogleMailbox as Mock).mockResolvedValueOnce({ status: "AMBIGUOUS_MAILBOX" });
+
+            const payload = JSON.stringify({ emailAddress: "ambiguous@gmail.com", historyId: "123" });
+            const data = Buffer.from(payload).toString("base64url");
+
+            const req = createRequest({
+                headers: { Authorization: "Bearer token" },
+                body: { message: { data } },
+            });
+            const res = await POST(req);
+            expect(res.status).toBe(400);
+            expect(await res.json()).toEqual({ error: "Ambiguous mailbox owner.", reason: "AMBIGUOUS_MAILBOX" });
+            expect(JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("should return 500 if resolveGoogleMailbox throws an error", async () => {
+            mockValidToken();
+            (resolveGoogleMailbox as Mock).mockRejectedValueOnce(new Error("Database offline"));
 
             const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
             const data = Buffer.from(payload).toString("base64url");
@@ -386,7 +411,75 @@ describe("Pub/Sub OIDC Push route", () => {
                 error: "Internal processing error.",
                 reason: "PROCESSING_FAILURE",
             });
-            expect(JSON.stringify(body)).not.toContain("Critical");
+            expect(JSON.stringify(body)).not.toContain("Database offline");
+            expect(JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("should return 500 if JobQueue.enqueue throws an error", async () => {
+            mockValidToken();
+            (JobQueue.enqueue as Mock).mockRejectedValueOnce(new Error("Queue persistence error"));
+
+            const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
+            const data = Buffer.from(payload).toString("base64url");
+
+            const req = createRequest({
+                headers: { Authorization: "Bearer token" },
+                body: { message: { data } },
+            });
+            const res = await POST(req);
+            expect(res.status).toBe(500);
+            const body = await res.json();
+            expect(body).toEqual({
+                error: "Internal processing error.",
+                reason: "PROCESSING_FAILURE",
+            });
+            expect(JSON.stringify(body)).not.toContain("Queue persistence error");
+        });
+
+        it("should return 204 with empty body when JobQueue.enqueue resolves to an already-existing job object (duplicate detection)", async () => {
+            mockValidToken();
+            (resolveGoogleMailbox as Mock).mockResolvedValueOnce({
+                status: "RESOLVED",
+                mailbox: { id: "m1", teamId: "t1" }
+            });
+            const existingJob = {
+                id: "existing-job-id",
+                type: "INBOX_SYNC",
+                idempotencyKey: "gmail-history:m1:123"
+            };
+            (JobQueue.enqueue as Mock).mockResolvedValueOnce(existingJob);
+
+            const payload = JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" });
+            const data = Buffer.from(payload).toString("base64url");
+
+            const req = createRequest({
+                headers: { Authorization: "Bearer token" },
+                body: { message: { messageId: "msg-12345", data } },
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(204);
+            expect(res.body).toBeNull();
+            expect(await res.text()).toBe("");
+
+            expect(resolveGoogleMailbox).toHaveBeenCalledTimes(1);
+            expect(resolveGoogleMailbox).toHaveBeenCalledWith("test@gmail.com");
+
+            expect(JobQueue.enqueue).toHaveBeenCalledTimes(1);
+            expect(JobQueue.enqueue).toHaveBeenCalledWith(
+                "INBOX_SYNC",
+                {
+                    teamId: "t1",
+                    mailboxId: "m1",
+                    notificationHistoryId: "123",
+                    pubsubMessageId: "msg-12345",
+                },
+                {
+                    idempotencyKey: "gmail-history:m1:123",
+                    requireIdempotency: true,
+                    teamId: "t1",
+                }
+            );
         });
     });
 });
