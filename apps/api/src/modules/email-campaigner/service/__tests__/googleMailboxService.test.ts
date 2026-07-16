@@ -5,15 +5,31 @@ import {
     buildGoogleMailboxAuthUrl,
     connectGoogleMailbox,
     handleGooglePubSubNotification,
+    acquireGmailMailboxLease,
+    renewGmailMailboxLease,
+    assertGmailMailboxLeaseOwned,
+    commitGmailMailboxCursorAndRelease,
+    releaseGmailMailboxLeaseAfterFailure,
+    syncGoogleMailbox,
+    sendViaGmailMailbox,
+    registerGoogleMailboxWatch,
+    renewDueGoogleMailboxWatches,
+    assertGmailMailboxLeaseInTransaction,
+    GmailMailboxLeaseContendedError,
+    GmailMailboxLeaseLostError,
+    GmailRecoveryLimitExceededError,
+    GmailRecoveryUnresolvableRecordError,
+    LegacyGmailEventAmbiguousError,
+    type GmailMailboxLease,
 } from "../googleMailboxService";
 import { prisma } from "@/lib/db";
 
-// Mock the prisma client
-vi.mock("@/lib/db", () => ({
-    prisma: {
+const { mockDb } = vi.hoisted(() => {
+    const db: any = {
         connectedMailbox: {
             upsert: vi.fn(),
             update: vi.fn(),
+            updateMany: vi.fn(),
             findUnique: vi.fn(),
             findMany: vi.fn(),
             findFirst: vi.fn(),
@@ -25,13 +41,28 @@ vi.mock("@/lib/db", () => ({
         emailEvent: {
             findFirst: vi.fn(),
             create: vi.fn(),
+            update: vi.fn(),
         },
         mailboxSyncCursor: {
             upsert: vi.fn(),
             updateMany: vi.fn(),
+            findUnique: vi.fn(),
         },
-    },
-}));
+        email: {
+            findMany: vi.fn(),
+            findFirst: vi.fn(),
+            update: vi.fn(),
+        },
+        message: { create: vi.fn() },
+        lead: { findUnique: vi.fn(), update: vi.fn() },
+        suppressionEntry: { upsert: vi.fn() },
+    };
+    db.$queryRaw = vi.fn().mockResolvedValue([{ id: "cursor-1" }]);
+    db.$transaction = vi.fn(async (callback: (tx: any) => unknown) => callback(db));
+    return { mockDb: db };
+});
+
+vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 
 // Mock global fetch
 const originalFetch = global.fetch;
@@ -49,6 +80,16 @@ describe("GoogleMailboxService - Phase 2A/2A.1 Security", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        (mockDb.$transaction as Mock).mockImplementation(async (callback: (tx: any) => unknown) => callback(mockDb));
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.mailboxSyncCursor.findUnique as Mock).mockImplementation(async () => {
+            const acquisition = [...(prisma.mailboxSyncCursor.updateMany as Mock).mock.calls]
+                .reverse()
+                .find((call) => call[0]?.data?.status === "RUNNING" && call[0]?.data?.lockToken);
+            return { historyId: "100", lockToken: acquisition?.[0].data.lockToken };
+        });
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.email.findMany as Mock).mockResolvedValue([]);
         vi.stubEnv("ENCRYPTION_KEY", mockEncryptionKey);
         vi.stubEnv("GOOGLE_CLIENT_ID", "mock-client-id");
         vi.stubEnv("GOOGLE_CLIENT_SECRET", "mock-client-secret");
@@ -366,6 +407,7 @@ describe("GoogleMailboxService - Phase 2A/2A.1 Security", () => {
                 teamId: "t1",
                 email: "test@gmail.com",
                 status: "CONNECTED",
+                provider: "GOOGLE_WORKSPACE",
                 encryptedAccessToken,
                 tokenExpiresAt: new Date(Date.now() + 3600 * 1000),
                 historyId: "100",
@@ -410,5 +452,994 @@ describe("GoogleMailboxService - Phase 2A/2A.1 Security", () => {
             expect(prisma.emailEvent.create).not.toHaveBeenCalled();
             expect(mockFetch).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe("GoogleMailboxService - bounded OAuth code exchange", () => {
+    const encryptionKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    function oauthState() {
+        return signState({ teamId: "team-1", userId: "user-1", nonce: "nonce", ts: Date.now() });
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        global.fetch = mockFetch;
+        mockFetch.mockReset();
+        vi.stubEnv("ENCRYPTION_KEY", encryptionKey);
+        vi.stubEnv("NEXTAUTH_SECRET", "mock-nextauth-secret");
+        vi.stubEnv("GOOGLE_CLIENT_ID", "test-client-id");
+        vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-client-secret");
+        vi.stubEnv("GOOGLE_GMAIL_REDIRECT_URI", "https://example.test/oauth/callback");
+        (prisma.verificationToken.deleteMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValue(null);
+        (prisma.connectedMailbox.upsert as Mock).mockResolvedValue({ id: "mailbox-1" });
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+        vi.unstubAllEnvs();
+    });
+
+    it("uses the bounded helper for a successful OAuth code exchange and preserves parsed tokens", async () => {
+        mockFetch
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ access_token: "test-access-token", refresh_token: "test-refresh-token", expires_in: 3600 }) })
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ emailAddress: "owner@example.com" }) });
+
+        await expect(connectGoogleMailbox({ code: "test-authorisation-code", state: oauthState() })).resolves.toEqual(expect.objectContaining({
+            mailbox: expect.objectContaining({ id: "mailbox-1" }),
+        }));
+
+        expect(mockFetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+        expect((prisma.connectedMailbox.upsert as Mock).mock.calls[0][0].create.encryptedAccessToken).toBeDefined();
+    });
+
+    it("maps OAuth HTTP failure to a safe code without provider text or the authorization code", async () => {
+        mockFetch.mockResolvedValueOnce({
+            ok: false,
+            status: 400,
+            json: async () => ({ error_description: "provider body must never escape" }),
+        });
+
+        await expect(connectGoogleMailbox({ code: "authorization-code-secret", state: oauthState() }))
+            .rejects.toThrow("GOOGLE_OAUTH_CODE_EXCHANGE_FAILED");
+    });
+
+    it("maps malformed OAuth JSON to a safe response-invalid code", async () => {
+        mockFetch.mockResolvedValueOnce({
+            ok: true,
+            status: 200,
+            json: async () => { throw new Error("provider response body must never escape"); },
+        });
+
+        await expect(connectGoogleMailbox({ code: "authorization-code-secret", state: oauthState() }))
+            .rejects.toThrow("GOOGLE_OAUTH_TOKEN_RESPONSE_INVALID");
+    });
+
+    it("aborts a hung OAuth exchange and exposes only the stable timeout code", async () => {
+        vi.useFakeTimers();
+        mockFetch.mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+            init.signal?.addEventListener("abort", () => reject(new Error("provider timeout body authorization-code-secret")), { once: true });
+        }));
+
+        const exchange = connectGoogleMailbox({ code: "authorization-code-secret", state: oauthState() });
+        const exchangeError = exchange.catch((error) => error);
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(exchangeError).resolves.toMatchObject({ message: "GOOGLE_OAUTH_CODE_EXCHANGE_TIMEOUT" });
+    });
+});
+
+describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", () => {
+    const encryptionKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    function encryptedToken(value = "access-token") {
+        const key = Buffer.from(encryptionKey, "hex");
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+        const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+        return { v: 1, cipher: encrypted.toString("base64"), iv: iv.toString("base64"), tag: cipher.getAuthTag().toString("base64") };
+    }
+
+    function mailbox(historyId: string | null = "100") {
+        return {
+            id: "mailbox-1",
+            teamId: "team-1",
+            provider: "GOOGLE_WORKSPACE",
+            email: "owner@example.com",
+            historyId,
+            metadata: null,
+            encryptedAccessToken: encryptedToken(),
+            tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        };
+    }
+
+    function lease(startingHistoryId: string | null = "100", token = "lease-token"): GmailMailboxLease {
+        return {
+            mailboxId: "mailbox-1",
+            cursorType: "GMAIL_HISTORY",
+            token,
+            acquiredAt: new Date(Date.now() - 1_000),
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+            startingHistoryId,
+        };
+    }
+
+    function response(data: any, ok = true, status = 200) {
+        return { ok, status, json: async () => data };
+    }
+
+    function replyMessage(id = "inbound-1") {
+        return {
+            id,
+            threadId: "thread-1",
+            payload: {
+                headers: [
+                    { name: "From", value: "Lead <lead@example.com>" },
+                    { name: "Subject", value: "Re: Hello" },
+                    { name: "In-Reply-To", value: "gmail-outbound-1" },
+                ],
+            },
+        };
+    }
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        global.fetch = mockFetch;
+        mockFetch.mockReset();
+        vi.stubEnv("ENCRYPTION_KEY", encryptionKey);
+        (mockDb.$transaction as Mock).mockImplementation(async (callback: (tx: any) => unknown) => callback(mockDb));
+        (prisma.mailboxSyncCursor.upsert as Mock).mockResolvedValue({});
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.mailboxSyncCursor.findUnique as Mock).mockImplementation(async () => {
+            const acquisition = [...(prisma.mailboxSyncCursor.updateMany as Mock).mock.calls]
+                .reverse()
+                .find((call) => call[0]?.data?.status === "RUNNING" && call[0]?.data?.lockToken);
+            return { historyId: "100", lockToken: acquisition?.[0].data.lockToken };
+        });
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox());
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.email.findMany as Mock).mockResolvedValue([]);
+        (prisma.email.findFirst as Mock).mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" });
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValue(null);
+        (prisma.emailEvent.create as Mock).mockResolvedValue({ id: "event-1" });
+        (prisma.emailEvent.update as Mock).mockResolvedValue({ id: "event-1", processedAt: new Date() });
+        (prisma.message.create as Mock).mockResolvedValue({ id: "message-1" });
+        (prisma.email.update as Mock).mockResolvedValue({ id: "email-1" });
+        (prisma.lead.findUnique as Mock).mockResolvedValue({ email: "lead@example.com" });
+        (prisma.lead.update as Mock).mockResolvedValue({ id: "lead-1" });
+        (prisma.connectedMailbox.update as Mock).mockResolvedValue({ id: "mailbox-1" });
+        (prisma.suppressionEntry.upsert as Mock).mockResolvedValue({ id: "suppression-1" });
+        (mockDb.$queryRaw as Mock).mockResolvedValue([{ id: "cursor-1" }]);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+    });
+
+    afterAll(() => {
+        global.fetch = originalFetch;
+    });
+
+    it("acquires independent UUID leases atomically and exposes the expired-or-unowned predicate", async () => {
+        const first = await acquireGmailMailboxLease(mailbox());
+        const secondMailbox = { ...mailbox(), id: "mailbox-2" };
+        const second = await acquireGmailMailboxLease(secondMailbox);
+
+        expect(first.token).toMatch(/^[0-9a-f-]{36}$/i);
+        expect(second.token).not.toBe(first.token);
+        expect(prisma.mailboxSyncCursor.updateMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            where: {
+                mailboxId: "mailbox-1",
+                cursorType: "GMAIL_HISTORY",
+                OR: [
+                    { lockToken: null },
+                    {
+                        lockToken: { not: null },
+                        lockExpiresAt: { not: null, lte: expect.any(Date) },
+                    },
+                ],
+            },
+            data: expect.objectContaining({ status: "RUNNING", lockToken: first.token }),
+        }));
+        expect((prisma.mailboxSyncCursor.upsert as Mock).mock.calls[0][0].update).toEqual({});
+    });
+
+    it("reports active same-mailbox ownership as contention and never steals it", async () => {
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+        await expect(acquireGmailMailboxLease(mailbox())).rejects.toBeInstanceOf(GmailMailboxLeaseContendedError);
+        expect(prisma.mailboxSyncCursor.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("does not treat an active token with a null expiry as available", async () => {
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+
+        await expect(acquireGmailMailboxLease(mailbox())).rejects.toBeInstanceOf(GmailMailboxLeaseContendedError);
+        const predicate = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls[0][0].where.OR;
+        expect(predicate).not.toContainEqual({ lockExpiresAt: null });
+    });
+
+    it("renews and asserts only an unexpired RUNNING lease with the exact token", async () => {
+        const owned = lease();
+        await renewGmailMailboxLease(owned);
+        await assertGmailMailboxLeaseOwned(owned);
+
+        for (const call of (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls) {
+            expect(call[0].where).toEqual(expect.objectContaining({
+                mailboxId: owned.mailboxId,
+                cursorType: "GMAIL_HISTORY",
+                lockToken: owned.token,
+                status: "RUNNING",
+                lockExpiresAt: { gt: expect.any(Date) },
+            }));
+        }
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+        await expect(renewGmailMailboxLease({ ...owned, token: "stale-token" })).rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+    });
+
+    it("failure release clears only the exact owned token and a stale token cannot clear a newer lease", async () => {
+        const owned = lease();
+        await releaseGmailMailboxLeaseAfterFailure(owned, new Error("raw provider detail"));
+        expect(prisma.mailboxSyncCursor.updateMany).toHaveBeenCalledWith({
+            where: expect.objectContaining({ lockToken: owned.token, status: "RUNNING" }),
+            data: expect.objectContaining({
+                status: "ERROR",
+                lastError: "GMAIL_SYNC_FAILED",
+                lockToken: null,
+                lockedAt: null,
+                lockExpiresAt: null,
+            }),
+        });
+
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+        await expect(releaseGmailMailboxLeaseAfterFailure({ ...owned, token: "stale-token" }, new Error("x")))
+            .rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+    });
+
+    it("commits equality and very large decimal cursors atomically with lease release", async () => {
+        await commitGmailMailboxCursorAndRelease(mailbox(), lease("100"), "100");
+        await commitGmailMailboxCursorAndRelease(mailbox(), lease("100"), "999999999999999999999999999999999999");
+
+        expect(mockDb.$transaction).toHaveBeenCalledTimes(2);
+        const commitCalls = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.filter(
+            (call) => call[0]?.data?.status === "IDLE",
+        );
+        expect(commitCalls).toHaveLength(2);
+        expect(commitCalls[0][0].where).toEqual(expect.objectContaining({
+            lockToken: "lease-token",
+            status: "RUNNING",
+            historyId: "100",
+        }));
+        expect(commitCalls[0][0].data).toEqual(expect.objectContaining({
+            historyId: "100",
+            lockToken: null,
+            lockedAt: null,
+            lockExpiresAt: null,
+        }));
+    });
+
+    it.each(["99", "", "12x", "-1"])("rejects regressing or invalid final history ID %j without mutation", async (finalHistoryId) => {
+        await expect(commitGmailMailboxCursorAndRelease(mailbox(), lease("100"), finalHistoryId)).rejects.toThrow();
+        expect(mockDb.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("prevents a stale worker from committing after ownership or expected cursor state changes", async () => {
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+        await expect(commitGmailMailboxCursorAndRelease(mailbox(), lease("100", "stale-token"), "101"))
+            .rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+        expect(prisma.connectedMailbox.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("awaits heartbeats before every history page and immediately before final commit", async () => {
+        const setIntervalSpy = vi.spyOn(global, "setInterval");
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [], nextPageToken: "next" }))
+            .mockResolvedValueOnce(response({ historyId: "151", history: [] }));
+
+        await syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() });
+
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect(String(mockFetch.mock.calls[1][0])).toContain("pageToken=next");
+        const renewals = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.filter(
+            (call) => call[0]?.data?.lockExpiresAt instanceof Date,
+        );
+        expect(renewals.length).toBeGreaterThanOrEqual(3);
+        const commitIndex = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.findIndex(
+            (call) => call[0]?.data?.status === "IDLE",
+        );
+        expect(commitIndex).toBeGreaterThan(renewals.length - 1);
+        expect(setIntervalSpy).not.toHaveBeenCalled();
+    });
+
+    it("stops before Gmail processing when an awaited heartbeat loses ownership", async () => {
+        (prisma.mailboxSyncCursor.updateMany as Mock)
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValueOnce({ count: 0 });
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+        expect(mockFetch).not.toHaveBeenCalled();
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.lockToken === null,
+        )).toBe(false);
+    });
+
+    it("recovers a 404 through every deterministic database page, deduplicates threads, and commits profile history only after success", async () => {
+        const createdAt = new Date("2026-01-01T00:00:00.000Z");
+        const firstPage = Array.from({ length: 250 }, (_, index) => ({
+            id: `email-${String(index).padStart(3, "0")}`,
+            createdAt,
+            threadId: "thread-1",
+            providerId: `provider-${index}`,
+        }));
+        (prisma.email.findMany as Mock)
+            .mockResolvedValueOnce(firstPage)
+            .mockResolvedValueOnce([{ id: "email-999", createdAt: new Date("2026-01-02"), threadId: "thread-2", providerId: "provider-999" }]);
+        mockFetch.mockImplementation(async (url: string) => {
+            if (url.includes("/history")) return response({ error: { message: "history expired" } }, false, 404);
+            if (url.includes("/threads/")) return response({ messages: [] });
+            if (url.includes("/profile")) return response({ historyId: "200" });
+            throw new Error(`unexpected URL ${url}`);
+        });
+
+        await syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() });
+
+        expect(prisma.email.findMany).toHaveBeenCalledTimes(2);
+        expect(prisma.email.findMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+            take: 250,
+        }));
+        const threadCalls = mockFetch.mock.calls.filter((call) => String(call[0]).includes("/threads/"));
+        expect(threadCalls).toHaveLength(2);
+        const recoveryRenewals = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.filter(
+            (call) => call[0]?.data?.lockExpiresAt instanceof Date,
+        );
+        expect(recoveryRenewals.length).toBeGreaterThanOrEqual(5);
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.historyId === "200" && call[0]?.data?.status === "IDLE",
+        )).toBe(true);
+    });
+
+    it("handles null thread IDs by resolving the conclusive Gmail provider message ID", async () => {
+        (prisma.email.findMany as Mock).mockResolvedValueOnce([{
+            id: "email-null-thread",
+            createdAt: new Date("2026-01-01"),
+            threadId: null,
+            providerId: "gmail-outbound-1",
+        }]);
+        mockFetch.mockImplementation(async (url: string) => {
+            if (url.includes("/history")) return response({}, false, 404);
+            if (url.includes("/messages/gmail-outbound-1")) return response({ id: "gmail-outbound-1", threadId: "thread-1" });
+            if (url.includes("/threads/thread-1")) return response({ messages: [] });
+            if (url.includes("/profile")) return response({ historyId: "201" });
+            throw new Error(`unexpected URL ${url}`);
+        });
+
+        await syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() });
+        expect(mockFetch.mock.calls.some((call) => String(call[0]).includes("/messages/gmail-outbound-1"))).toBe(true);
+        expect(mockFetch.mock.calls.some((call) => String(call[0]).includes("/threads/thread-1"))).toBe(true);
+    });
+
+    it("fails closed when recovery encounters an identifierless relevant outbound record", async () => {
+        (prisma.email.findMany as Mock).mockResolvedValueOnce([{
+            id: "email-without-provider-identity",
+            createdAt: new Date("2026-01-01"),
+            threadId: null,
+            providerId: null,
+        }]);
+        mockFetch.mockResolvedValueOnce(response({}, false, 404));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toBeInstanceOf(GmailRecoveryUnresolvableRecordError);
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE",
+        )).toBe(false);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it("fails recovery closed on elapsed-time exhaustion and leaves the cursor unchanged", async () => {
+        mockFetch.mockResolvedValueOnce(response({}, false, 404));
+        const ownedLease = lease();
+        const tokenCheckTime = Date.now();
+        vi.spyOn(Date, "now")
+            .mockReturnValueOnce(tokenCheckTime)
+            .mockReturnValueOnce(0)
+            .mockReturnValue(8 * 60 * 1000 + 1);
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: ownedLease }))
+            .rejects.toBeInstanceOf(GmailRecoveryLimitExceededError);
+        expect(prisma.email.findMany).not.toHaveBeenCalled();
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE",
+        )).toBe(false);
+    });
+
+    it("stops recovery on a Gmail thread failure after awaited recovery heartbeats and leaves the cursor unchanged", async () => {
+        (prisma.email.findMany as Mock).mockResolvedValueOnce([{
+            id: "email-1",
+            createdAt: new Date("2026-01-01"),
+            threadId: "thread-1",
+            providerId: "provider-1",
+        }]);
+        mockFetch.mockImplementation(async (url: string) => {
+            if (url.includes("/history")) return response({}, false, 404);
+            if (url.includes("/threads/thread-1")) return response({ error: {} }, false, 503);
+            throw new Error(`unexpected URL ${url}`);
+        });
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() })).rejects.toThrow();
+        const renewals = (prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.filter(
+            (call) => call[0]?.data?.lockExpiresAt instanceof Date,
+        );
+        expect(renewals.length).toBeGreaterThanOrEqual(3);
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE",
+        )).toBe(false);
+    });
+
+    it("fetches Gmail data before one per-message transaction and keeps all coupled reply writes on its transaction client", async () => {
+        const order: string[] = [];
+        const eventTx = {
+            $queryRaw: vi.fn(async () => { order.push("lease-assert"); return [{ id: "cursor-1" }]; }),
+            email: { findFirst: vi.fn().mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" }), update: vi.fn().mockResolvedValue({}) },
+            emailEvent: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockImplementation(async () => { order.push("event-create"); return { id: "event-1" }; }), update: vi.fn().mockResolvedValue({}) },
+            message: { create: vi.fn().mockResolvedValue({}) },
+            connectedMailbox: { update: vi.fn().mockResolvedValue({}) },
+            lead: { update: vi.fn().mockResolvedValue({}), findUnique: vi.fn() },
+            suppressionEntry: { upsert: vi.fn() },
+        };
+        const commitTx = {
+            mailboxSyncCursor: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+            connectedMailbox: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+        };
+        (mockDb.$transaction as Mock)
+            .mockImplementationOnce(async (callback: (tx: any) => unknown) => callback(eventTx))
+            .mockImplementationOnce(async (callback: (tx: any) => unknown) => callback(commitTx));
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockImplementationOnce(async () => { order.push("gmail-message"); return response(replyMessage()); });
+
+        await syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() });
+
+        expect(order.indexOf("gmail-message")).toBeLessThan(order.indexOf("event-create"));
+        expect(order.indexOf("lease-assert")).toBeLessThan(order.indexOf("event-create"));
+        expect(eventTx.$queryRaw).toHaveBeenCalledTimes(1);
+        expect(eventTx.emailEvent.create).toHaveBeenCalled();
+        expect(eventTx.emailEvent.update).toHaveBeenCalledWith({
+            where: { id: "event-1" },
+            data: { processedAt: expect.any(Date) },
+        });
+        expect(eventTx.message.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ emailEventId: "event-1" }),
+        }));
+        expect(eventTx.connectedMailbox.update).toHaveBeenCalled();
+        expect(eventTx.connectedMailbox.update).toHaveBeenCalledWith({
+            where: { id: "mailbox-1" },
+            data: { replyCount: { increment: 1 } },
+        });
+        expect(eventTx.email.update).toHaveBeenCalled();
+        expect(eventTx.lead.update).toHaveBeenCalled();
+        expect(prisma.emailEvent.create).not.toHaveBeenCalled();
+        expect(prisma.message.create).not.toHaveBeenCalled();
+    });
+
+    it("uses a transaction-client tagged row lock with exact mailbox, cursor, and token lease predicates", async () => {
+        const tx = { $queryRaw: vi.fn().mockResolvedValue([{ id: "cursor-1" }]) };
+        const owned = lease("100", "exact-lease-token");
+
+        await assertGmailMailboxLeaseInTransaction(tx as any, owned);
+
+        const [queryParts, ...parameters] = tx.$queryRaw.mock.calls[0];
+        const query = Array.from(queryParts as TemplateStringsArray).join("?");
+        expect(query).toContain('FROM "MailboxSyncCursor"');
+        expect(query).toContain('"mailboxId" = ?');
+        expect(query).toContain('"cursorType" = ?');
+        expect(query).toContain('"lockToken" = ?');
+        expect(query).toContain('"status" = \'RUNNING\'');
+        expect(query).toContain('"lockExpiresAt" IS NOT NULL');
+        expect(query).toContain('"lockExpiresAt" > CURRENT_TIMESTAMP');
+        expect(query).toContain("FOR UPDATE");
+        expect(parameters).toEqual(["mailbox-1", "GMAIL_HISTORY", "exact-lease-token"]);
+    });
+
+    it.each([
+        ["missing cursor", []],
+        ["expired or null expiry", []],
+        ["token mismatch", []],
+    ])("rejects a %s transaction-local lease match before any event mutation", async (_caseName, rows) => {
+        const tx = { $queryRaw: vi.fn().mockResolvedValue(rows) };
+
+        await expect(assertGmailMailboxLeaseInTransaction(tx as any, lease())).rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+    });
+
+    it("locks the cursor before bounce EmailEvent creation and keeps Gmail HTTP outside the event transaction", async () => {
+        const order: string[] = [];
+        (mockDb.$queryRaw as Mock).mockImplementation(async () => {
+            order.push(`lease-after-${mockFetch.mock.calls.length}-fetches`);
+            return [{ id: "cursor-1" }];
+        });
+        (prisma.emailEvent.create as Mock).mockImplementation(async () => {
+            order.push("bounce-event-create");
+            return { id: "event-1" };
+        });
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+        bounce.payload.headers[1].value = "Delivery failed";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .resolves.toEqual({ synced: 1, replies: 0, bounces: 1 });
+
+        expect(order).toEqual(["lease-after-2-fetches", "bounce-event-create"]);
+        expect(prisma.message.create).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["reply", () => replyMessage()],
+        ["bounce", () => {
+            const bounce = replyMessage();
+            bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+            bounce.payload.headers[1].value = "Delivery failed";
+            return bounce;
+        }],
+    ])("stops a delayed stale worker before %s event side effects after Gmail fetch completes", async (_type, makeMessage) => {
+        (mockDb.$queryRaw as Mock).mockImplementation(async () => {
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+            return [];
+        });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(makeMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toBeInstanceOf(GmailMailboxLeaseLostError);
+
+        expect(prisma.emailEvent.create).not.toHaveBeenCalled();
+        expect(prisma.emailEvent.update).not.toHaveBeenCalled();
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.email.update).not.toHaveBeenCalled();
+        expect(prisma.lead.update).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).not.toHaveBeenCalled();
+        expect(prisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE" || call[0]?.data?.lockToken === null,
+        )).toBe(false);
+    });
+
+    it.each(["message", "email", "lead"])("rolls back the EmailEvent when the required %s write fails", async (failurePoint) => {
+        const committedEvents: any[] = [];
+        const pendingCompletionMarkers: any[] = [];
+        (mockDb.$transaction as Mock).mockImplementationOnce(async (callback: (tx: any) => unknown) => {
+            const pendingEvents: any[] = [];
+            const fail = () => Promise.reject(new Error(`${failurePoint} failed`));
+            const tx = {
+                $queryRaw: vi.fn().mockResolvedValue([{ id: "cursor-1" }]),
+                email: {
+                    findFirst: vi.fn().mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" }),
+                    update: failurePoint === "email" ? vi.fn(fail) : vi.fn().mockResolvedValue({}),
+                },
+                emailEvent: {
+                    findFirst: vi.fn().mockResolvedValue(null),
+                    create: vi.fn(async (args) => { pendingEvents.push(args); return {}; }),
+                    update: vi.fn(async (args) => { pendingCompletionMarkers.push(args); }),
+                },
+                message: { create: failurePoint === "message" ? vi.fn(fail) : vi.fn().mockResolvedValue({}) },
+                connectedMailbox: { update: vi.fn().mockResolvedValue({}) },
+                lead: { update: failurePoint === "lead" ? vi.fn(fail) : vi.fn().mockResolvedValue({}), findUnique: vi.fn() },
+                suppressionEntry: { upsert: vi.fn() },
+            };
+            const result = await callback(tx);
+            committedEvents.push(...pendingEvents);
+            return result;
+        });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() })).rejects.toThrow(`${failurePoint} failed`);
+        expect(committedEvents).toEqual([]);
+        expect(pendingCompletionMarkers).toEqual([]);
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE",
+        )).toBe(false);
+    });
+
+    it("allows a retry to recreate and commit the full event after a dependent-write rollback", async () => {
+        (prisma.message.create as Mock)
+            .mockRejectedValueOnce(new Error("message failed"))
+            .mockResolvedValue({ id: "message-1" });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()))
+            .mockResolvedValueOnce(response({ historyId: "151", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease("100", "first-token") }))
+            .rejects.toThrow("message failed");
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease("100", "retry-token") }))
+            .resolves.toEqual({ synced: 1, replies: 1, bounces: 0 });
+
+        expect(prisma.emailEvent.create).toHaveBeenCalledTimes(2);
+        expect(prisma.message.create).toHaveBeenCalledTimes(2);
+        expect(prisma.emailEvent.update).toHaveBeenCalledTimes(1);
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE" && call[0]?.where?.lockToken === "retry-token",
+        )).toBe(true);
+    });
+
+    it("rolls back bounce writes when required suppression fails", async () => {
+        const committedEvents: any[] = [];
+        const pendingCompletionMarkers: any[] = [];
+        (mockDb.$transaction as Mock).mockImplementationOnce(async (callback: (tx: any) => unknown) => {
+            const pendingEvents: any[] = [];
+            const tx = {
+                $queryRaw: vi.fn().mockResolvedValue([{ id: "cursor-1" }]),
+                email: { findFirst: vi.fn().mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" }), update: vi.fn().mockResolvedValue({}) },
+                emailEvent: {
+                    findFirst: vi.fn().mockResolvedValue(null),
+                    create: vi.fn(async (args) => { pendingEvents.push(args); return {}; }),
+                    update: vi.fn(async (args) => { pendingCompletionMarkers.push(args); }),
+                },
+                message: { create: vi.fn().mockResolvedValue({}) },
+                connectedMailbox: { update: vi.fn().mockResolvedValue({}) },
+                lead: { update: vi.fn().mockResolvedValue({}), findUnique: vi.fn().mockResolvedValue({ email: "lead@example.com" }) },
+                suppressionEntry: { upsert: vi.fn().mockRejectedValue(new Error("suppression failed")) },
+            };
+            const result = await callback(tx);
+            committedEvents.push(...pendingEvents);
+            return result;
+        });
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+        bounce.payload.headers[1].value = "Delivery failed";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() })).rejects.toThrow("suppression failed");
+        expect(committedEvents).toEqual([]);
+        expect(pendingCompletionMarkers).toEqual([]);
+    });
+
+    it("treats only the intended EmailEvent unique constraint as a duplicate", async () => {
+        const exactDuplicate = Object.assign(new Error("duplicate"), {
+            code: "P2002",
+            meta: { target: ["teamId", "provider", "providerMessageId", "type"] },
+        });
+        (prisma.emailEvent.findFirst as Mock)
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ id: "event-transactional", processedAt: null, message: null })
+            .mockResolvedValueOnce({ id: "event-transactional", processedAt: new Date(), message: { id: "message-transactional" } });
+        (prisma.emailEvent.create as Mock).mockRejectedValueOnce(exactDuplicate);
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() })).resolves.toEqual({ synced: 0, replies: 0, bounces: 0 });
+        expect(prisma.message.create).not.toHaveBeenCalled();
+
+        vi.clearAllMocks();
+        (mockDb.$transaction as Mock).mockImplementation(async (callback: (tx: any) => unknown) => callback(mockDb));
+        (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox());
+        (prisma.email.findFirst as Mock).mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" });
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValue(null);
+        const unrelated = Object.assign(new Error("other unique failure"), { code: "P2002", meta: { target: ["trackingId"] } });
+        (prisma.emailEvent.create as Mock).mockRejectedValueOnce(unrelated);
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "151", history: [{ messagesAdded: [{ message: { id: "inbound-2" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage("inbound-2")));
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() })).rejects.toThrow("other unique failure");
+    });
+
+    it("fails closed for a completed historic reply duplicate that lacks its required Message link", async () => {
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValueOnce({ id: "legacy-event", processedAt: new Date(), message: null });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toBeInstanceOf(LegacyGmailEventAmbiguousError);
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect((prisma.mailboxSyncCursor.updateMany as Mock).mock.calls.some(
+            (call) => call[0]?.data?.status === "IDLE",
+        )).toBe(false);
+    });
+
+    it("fails closed for a historic reply duplicate that lacks durable completion evidence", async () => {
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValueOnce({
+            id: "legacy-reply-event",
+            processedAt: null,
+            message: { id: "message-1" },
+        });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toBeInstanceOf(LegacyGmailEventAmbiguousError);
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).not.toHaveBeenCalled();
+    });
+
+    it("accepts a completed reply duplicate only with its linked Message and does not increment counters", async () => {
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValueOnce({
+            id: "completed-reply-event",
+            processedAt: new Date(),
+            message: { id: "message-1" },
+        });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(replyMessage()));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .resolves.toEqual({ synced: 0, replies: 0, bounces: 0 });
+
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).not.toHaveBeenCalled();
+        expect(prisma.emailEvent.update).not.toHaveBeenCalled();
+    });
+
+    it("processes a new bounce without creating a Message and records completion evidence transactionally", async () => {
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+        bounce.payload.headers[1].value = "Delivery failed";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .resolves.toEqual({ synced: 1, replies: 0, bounces: 1 });
+
+        expect(prisma.emailEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ type: "BOUNCE", provider: "GMAIL_API" }),
+        }));
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).toHaveBeenCalledWith({
+            where: { id: "mailbox-1" },
+            data: { bounceCount: { increment: 1 } },
+        });
+        expect(prisma.suppressionEntry.upsert).toHaveBeenCalledTimes(1);
+        expect(prisma.emailEvent.update).toHaveBeenCalledWith({
+            where: { id: "event-1" },
+            data: { processedAt: expect.any(Date) },
+        });
+    });
+
+    it("accepts a completed bounce duplicate without a Message or repeated non-idempotent writes", async () => {
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValueOnce({
+            id: "completed-bounce-event",
+            processedAt: new Date(),
+            message: null,
+        });
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Postmaster <postmaster@example.com>";
+        bounce.payload.headers[1].value = "Undeliverable";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .resolves.toEqual({ synced: 0, replies: 0, bounces: 0 });
+
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).not.toHaveBeenCalled();
+        expect(prisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+        expect(prisma.emailEvent.update).not.toHaveBeenCalled();
+    });
+
+    it("fails closed for a historic bounce because completion evidence is absent, not because Message is absent", async () => {
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValueOnce({
+            id: "legacy-bounce-event",
+            processedAt: null,
+            message: null,
+        });
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+        bounce.payload.headers[1].value = "Delivery failed";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .rejects.toThrow("durable completion evidence");
+        expect(prisma.message.create).not.toHaveBeenCalled();
+        expect(prisma.connectedMailbox.update).not.toHaveBeenCalled();
+        expect(prisma.suppressionEntry.upsert).not.toHaveBeenCalled();
+    });
+
+    it("retries a rolled-back bounce once and writes its completion marker only for the winning transaction", async () => {
+        const bounce = replyMessage();
+        bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
+        bounce.payload.headers[1].value = "Delivery failed";
+        let eventTransactions = 0;
+        let committedBounceIncrements = 0;
+        let committedCompletionMarkers = 0;
+        (mockDb.$transaction as Mock).mockImplementation(async (callback: (tx: any) => unknown) => {
+            if (eventTransactions >= 2) return callback(mockDb);
+            const failThisTransaction = eventTransactions++ === 0;
+            let pendingBounceIncrements = 0;
+            let pendingCompletionMarkers = 0;
+            const tx = {
+                $queryRaw: vi.fn().mockResolvedValue([{ id: "cursor-1" }]),
+                email: {
+                    findFirst: vi.fn().mockResolvedValue({ id: "email-1", leadId: "lead-1", campaignId: "campaign-1" }),
+                    update: vi.fn().mockResolvedValue({}),
+                },
+                emailEvent: {
+                    findFirst: vi.fn().mockResolvedValue(null),
+                    create: vi.fn().mockResolvedValue({ id: "event-1" }),
+                    update: vi.fn(async () => { pendingCompletionMarkers += 1; }),
+                },
+                message: { create: vi.fn().mockResolvedValue({}) },
+                connectedMailbox: {
+                    update: vi.fn(async (args) => {
+                        if (args.data?.bounceCount?.increment === 1) pendingBounceIncrements += 1;
+                    }),
+                },
+                lead: { findUnique: vi.fn().mockResolvedValue({ email: "lead@example.com" }), update: vi.fn().mockResolvedValue({}) },
+                suppressionEntry: {
+                    upsert: failThisTransaction
+                        ? vi.fn().mockRejectedValue(new Error("suppression failed"))
+                        : vi.fn().mockResolvedValue({ id: "suppression-1" }),
+                },
+            };
+            try {
+                const result = await callback(tx);
+                committedBounceIncrements += pendingBounceIncrements;
+                committedCompletionMarkers += pendingCompletionMarkers;
+                return result;
+            } catch (error) {
+                throw error;
+            }
+        });
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce))
+            .mockResolvedValueOnce(response({ historyId: "151", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(bounce));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease("100", "first-token") }))
+            .rejects.toThrow("suppression failed");
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease("100", "retry-token") }))
+            .resolves.toEqual({ synced: 1, replies: 0, bounces: 1 });
+
+        expect(committedBounceIncrements).toBe(1);
+        expect(committedCompletionMarkers).toBe(1);
+    });
+
+    it("uses the bounded helper for successful Gmail send and preserves message and thread identifiers", async () => {
+        mockFetch.mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }));
+
+        await expect(sendViaGmailMailbox({
+            teamId: "team-1",
+            mailboxId: "mailbox-1",
+            to: "recipient@example.com",
+            subject: "Hello",
+            html: "<p>content</p>",
+        })).resolves.toEqual({
+            success: true,
+            messageId: "gmail-message-1",
+            threadId: "gmail-thread-1",
+            mailboxId: "mailbox-1",
+        });
+
+        expect(mockFetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("returns only safe Gmail send failure codes for provider failures and malformed responses", async () => {
+        mockFetch
+            .mockResolvedValueOnce(response({ error: { message: "recipient@example.com MIME body access-token" } }, false, 500))
+            .mockResolvedValueOnce({ ok: true, status: 200, json: async () => { throw new Error("raw Gmail response MIME body"); } });
+
+        await expect(sendViaGmailMailbox({ teamId: "team-1", mailboxId: "mailbox-1", to: "recipient@example.com", subject: "Hello", html: "<p>content</p>" }))
+            .resolves.toEqual({ success: false, error: "GMAIL_SEND_FAILED" });
+        await expect(sendViaGmailMailbox({ teamId: "team-1", mailboxId: "mailbox-1", to: "recipient@example.com", subject: "Hello", html: "<p>content</p>" }))
+            .resolves.toEqual({ success: false, error: "GMAIL_SEND_RESPONSE_INVALID" });
+    });
+
+    it("aborts a hung Gmail send and returns its safe timeout code", async () => {
+        vi.useFakeTimers();
+        let notifyFetchStarted!: () => void;
+        const fetchStarted = new Promise<void>((resolve) => { notifyFetchStarted = resolve; });
+        mockFetch.mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+            notifyFetchStarted();
+            init.signal?.addEventListener("abort", () => reject(new Error("recipient@example.com MIME payload access-token")), { once: true });
+        }));
+
+        const sending = sendViaGmailMailbox({ teamId: "team-1", mailboxId: "mailbox-1", to: "recipient@example.com", subject: "Hello", html: "<p>content</p>" });
+        await fetchStarted;
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(sending).resolves.toEqual({ success: false, error: "GMAIL_SEND_TIMEOUT" });
+    });
+
+    it("uses the bounded helper for Gmail watch registration and stores valid watch evidence", async () => {
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "projects/example/topics/test");
+        (prisma.connectedMailbox.update as Mock).mockResolvedValue({ ...mailbox(), historyId: "200" });
+        mockFetch.mockResolvedValueOnce(response({ historyId: "200", expiration: "1893456000000" }));
+
+        await expect(registerGoogleMailboxWatch("team-1", "mailbox-1")).resolves.toEqual(expect.objectContaining({
+            mailboxId: "mailbox-1",
+            historyId: "200",
+            watchExpirationAt: new Date(1893456000000),
+        }));
+
+        expect(mockFetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+        expect((prisma.connectedMailbox.update as Mock).mock.calls[0][0].data.metadata.lastWatchError).toBeNull();
+    });
+
+    it.each([
+        ["HTTP failure", response({ error: { message: "provider error_description access-token refresh-token" } }, false, 500), "GMAIL_WATCH_FAILED"],
+        ["invalid JSON", { ok: true, status: 200, json: async () => { throw new Error("provider response text access-token refresh-token"); } }, "GMAIL_WATCH_RESPONSE_INVALID"],
+    ])("persists only a stable code for Gmail watch %s", async (_caseName, watchResponse, errorCode) => {
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "projects/example/topics/test");
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mailbox()]);
+        mockFetch.mockResolvedValueOnce(watchResponse);
+
+        await expect(renewDueGoogleMailboxWatches(1)).resolves.toEqual([{
+            mailboxId: "mailbox-1",
+            teamId: "team-1",
+            renewed: false,
+            error: errorCode,
+        }]);
+
+        const persistedMetadata = (prisma.connectedMailbox.update as Mock).mock.calls.at(-1)?.[0].data.metadata;
+        expect(persistedMetadata.lastWatchError).toBe(errorCode);
+        expect(JSON.stringify(persistedMetadata)).not.toContain("provider");
+        expect(JSON.stringify(persistedMetadata)).not.toContain("access-token");
+        expect(JSON.stringify(persistedMetadata)).not.toContain("refresh-token");
+    });
+
+    it("aborts a hung Gmail watch and persists only GMAIL_WATCH_TIMEOUT", async () => {
+        vi.useFakeTimers();
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "projects/example/topics/test");
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mailbox()]);
+        let notifyFetchStarted!: () => void;
+        const fetchStarted = new Promise<void>((resolve) => { notifyFetchStarted = resolve; });
+        mockFetch.mockImplementation((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+            notifyFetchStarted();
+            init.signal?.addEventListener("abort", () => reject(new Error("provider body access-token refresh-token")), { once: true });
+        }));
+
+        const renewal = renewDueGoogleMailboxWatches(1);
+        await fetchStarted;
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expect(renewal).resolves.toEqual([{
+            mailboxId: "mailbox-1",
+            teamId: "team-1",
+            renewed: false,
+            error: "GMAIL_WATCH_TIMEOUT",
+        }]);
+        const persistedMetadata = (prisma.connectedMailbox.update as Mock).mock.calls.at(-1)?.[0].data.metadata;
+        expect(persistedMetadata.lastWatchError).toBe("GMAIL_WATCH_TIMEOUT");
+    });
+
+    it("applies the same exact EmailEvent P2002 constraint check to direct Pub/Sub handling", async () => {
+        const data = Buffer.from(JSON.stringify({ emailAddress: "owner@example.com", historyId: "999" })).toString("base64url");
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mailbox()]);
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValue(null);
+        const exactDuplicate = Object.assign(new Error("duplicate"), {
+            code: "P2002",
+            meta: { target: ["teamId", "provider", "providerMessageId", "type"] },
+        });
+        (prisma.emailEvent.create as Mock).mockRejectedValueOnce(exactDuplicate);
+        await expect(handleGooglePubSubNotification({ data, messageId: "pubsub-1" })).resolves.toEqual({
+            accepted: true,
+            mailboxId: "mailbox-1",
+            teamId: "team-1",
+            duplicate: true,
+        });
+
+        const unrelated = Object.assign(new Error("other unique failure"), {
+            code: "P2002",
+            meta: { target: ["trackingId"] },
+        });
+        (prisma.emailEvent.create as Mock).mockRejectedValueOnce(unrelated);
+        const result = await handleGooglePubSubNotification({ data, messageId: "pubsub-2" });
+        expect(result).toEqual(expect.objectContaining({ accepted: false, reason: "PROCESSING_FAILURE" }));
     });
 });

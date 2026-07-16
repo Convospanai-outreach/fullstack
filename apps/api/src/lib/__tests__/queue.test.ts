@@ -1,5 +1,5 @@
 import { vi, Mock, beforeEach, describe, it, expect } from "vitest";
-import { JobQueue } from "../queue";
+import { JOB_STATUS, JobClaimLostError, JobQueue } from "../queue";
 import { prisma } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
@@ -7,6 +7,7 @@ vi.mock("@/lib/db", () => ({
         job: {
             findMany: vi.fn(),
             updateMany: vi.fn(),
+            findFirst: vi.fn(),
             findUnique: vi.fn(),
             create: vi.fn()
         }
@@ -20,47 +21,85 @@ describe("JobQueue.dequeue", () => {
 
     it("skips a candidate that loses the claim race and returns the next eligible job", async () => {
         (prisma.job.findMany as Mock).mockResolvedValue([
-            { id: "job-1" },
-            { id: "job-2" }
+            { id: "job-1", version: 3 },
+            { id: "job-2", version: 7 }
         ]);
         (prisma.job.updateMany as Mock)
             .mockResolvedValueOnce({ count: 0 })
             .mockResolvedValueOnce({ count: 1 });
-        (prisma.job.findUnique as Mock).mockResolvedValue({
+        (prisma.job.findFirst as Mock).mockResolvedValue({
             id: "job-2",
-            status: "running"
+            status: "running",
+            version: 8,
         });
 
         const job = await JobQueue.dequeue();
 
         expect(job?.id).toBe("job-2");
         expect(prisma.job.updateMany).toHaveBeenCalledTimes(2);
-        expect(prisma.job.findUnique).toHaveBeenCalledWith({
-            where: { id: "job-2" }
+        expect(prisma.job.findFirst).toHaveBeenCalledWith({
+            where: { id: "job-2", status: "running", version: 8 }
         });
     });
 
-    it("keeps legacy pending jobs claimable through the atomic guard", async () => {
+    it("atomically claims a legacy null-version pending job as concrete version 1", async () => {
         (prisma.job.findMany as Mock).mockResolvedValue([
-            { id: "legacy-job" }
+            { id: "legacy-job", version: null }
         ]);
         (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
-        (prisma.job.findUnique as Mock).mockResolvedValue({
+        (prisma.job.findFirst as Mock).mockResolvedValue({
             id: "legacy-job",
-            status: "running"
+            status: "running",
+            version: 1,
         });
 
         const job = await JobQueue.dequeue();
 
         expect(job?.id).toBe("legacy-job");
+        expect(job?.version).toBe(1);
         expect(prisma.job.updateMany).toHaveBeenCalledWith(
             expect.objectContaining({
                 where: expect.objectContaining({
                     id: "legacy-job",
-                    status: { in: ["queued", "pending"] }
+                    status: { in: ["queued", "pending"] },
+                    version: null,
                 })
             })
         );
+    });
+
+    it("allows only one competing worker to claim a legacy null-version job", async () => {
+        (prisma.job.findMany as Mock).mockResolvedValue([{ id: "legacy-job", version: null }]);
+        (prisma.job.updateMany as Mock)
+            .mockResolvedValueOnce({ count: 1 })
+            .mockResolvedValueOnce({ count: 0 });
+        (prisma.job.findFirst as Mock).mockResolvedValue({
+            id: "legacy-job",
+            status: "running",
+            version: 1,
+        });
+
+        const claims = await Promise.all([JobQueue.dequeue(), JobQueue.dequeue()]);
+
+        expect(claims.filter(Boolean)).toHaveLength(1);
+        for (const call of (prisma.job.updateMany as Mock).mock.calls) {
+            expect(call[0].where).toEqual(expect.objectContaining({
+                id: "legacy-job",
+                version: null,
+            }));
+        }
+    });
+
+    it("uses only lowercase queue states and never silently adopts uppercase PENDING", async () => {
+        (prisma.job.findMany as Mock).mockResolvedValue([]);
+
+        await expect(JobQueue.dequeue()).resolves.toBeNull();
+
+        expect(prisma.job.findMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ status: { in: ["queued", "pending"] } }),
+        }));
+        expect(JOB_STATUS.PENDING).toBe("pending");
+        expect((prisma.job.findMany as Mock).mock.calls[0][0].where.status.in).not.toContain("PENDING");
     });
 });
 
@@ -167,5 +206,115 @@ describe("JobQueue.enqueue", () => {
         await expect(
             JobQueue.enqueue("INBOX_SYNC", { mailboxId: "m1" }, { idempotencyKey: "key-123" })
         ).rejects.toThrow("Database offline");
+    });
+});
+
+describe("JobQueue.defer", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("conditionally requeues a running job without consuming its claim attempt or replacing durable fields", async () => {
+        const processAt = new Date("2026-07-16T12:00:30.000Z");
+        const durableJob = {
+            id: "job-1",
+            status: "queued",
+            attempts: 2,
+            payload: { mailboxId: "mailbox-1", notificationHistoryId: "123" },
+            idempotencyKey: "gmail:mailbox-1:123",
+        };
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce(durableJob);
+
+        const result = await JobQueue.defer("job-1", 8, {
+            processAt,
+            reason: "MAILBOX_LEASE_CONTENDED",
+        });
+
+        expect(prisma.job.updateMany).toHaveBeenCalledWith({
+            where: { id: "job-1", status: "running", version: 8, attempts: { gt: 0 } },
+            data: {
+                status: "queued",
+                processAt,
+                startedAt: null,
+                error: "MAILBOX_LEASE_CONTENDED",
+                attempts: { decrement: 1 },
+            },
+        });
+        const data = (prisma.job.updateMany as Mock).mock.calls[0][0].data;
+        expect(data).not.toHaveProperty("payload");
+        expect(data).not.toHaveProperty("idempotencyKey");
+        expect(result?.payload).toEqual(durableJob.payload);
+        expect(result?.idempotencyKey).toBe(durableJob.idempotencyKey);
+    });
+
+    it("fails closed when the job is no longer the currently running claim", async () => {
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 0 });
+
+        await expect(JobQueue.defer("job-1", 8, {
+            processAt: new Date(),
+            reason: "MAILBOX_LEASE_CONTENDED",
+        })).rejects.toBeInstanceOf(JobClaimLostError);
+        expect(prisma.job.findUnique).not.toHaveBeenCalled();
+    });
+});
+
+describe("JobQueue claim handoff fencing", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("invalidates a stale claim, allows a replacement claim, and rejects stale complete, fail, and defer", async () => {
+        const staleStartedAt = new Date("2026-07-16T12:00:00.000Z");
+        (prisma.job.findMany as Mock)
+            .mockResolvedValueOnce([{ id: "job-1", status: "running", version: 1, startedAt: staleStartedAt }])
+            .mockResolvedValueOnce([{ id: "job-1", status: "queued", version: 2 }]);
+        (prisma.job.updateMany as Mock)
+            .mockResolvedValueOnce({ count: 1 }) // watchdog v1 -> v2
+            .mockResolvedValueOnce({ count: 1 }); // replacement claim v2 -> v3
+        (prisma.job.findFirst as Mock)
+            .mockResolvedValueOnce({ id: "job-1", status: "running", version: 3 })
+            .mockResolvedValueOnce({ id: "job-1", status: "running", version: 1, attempts: 1, maxAttempts: 3 });
+
+        await expect(JobQueue.resetStaleJobs(1)).resolves.toBe(1);
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            where: expect.objectContaining({ id: "job-1", status: "running", version: 1 }),
+            data: expect.objectContaining({ status: "queued", version: 2, startedAt: null }),
+        }));
+
+        const replacement = await JobQueue.dequeue();
+        expect(replacement).toMatchObject({ id: "job-1", status: "running", version: 3 });
+
+        (prisma.job.updateMany as Mock)
+            .mockResolvedValueOnce({ count: 0 }) // stale complete v1
+            .mockResolvedValueOnce({ count: 0 }) // stale fail v1
+            .mockResolvedValueOnce({ count: 0 }); // stale defer v1
+
+        await expect(JobQueue.complete("job-1", 1, {})).rejects.toBeInstanceOf(JobClaimLostError);
+        await expect(JobQueue.fail("job-1", 1, "stale worker")).rejects.toBeInstanceOf(JobClaimLostError);
+        await expect(JobQueue.defer("job-1", 1, {
+            processAt: new Date(),
+            reason: "MAILBOX_LEASE_CONTENDED",
+        })).rejects.toBeInstanceOf(JobClaimLostError);
+
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(3, expect.objectContaining({
+            where: expect.objectContaining({ id: "job-1", status: "running", version: 1 }),
+        }));
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(4, expect.objectContaining({
+            where: expect.objectContaining({ id: "job-1", status: "running", version: 1 }),
+        }));
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(5, expect.objectContaining({
+            where: expect.objectContaining({ id: "job-1", status: "running", version: 1 }),
+        }));
+    });
+
+    it("allows the current replacement claim to complete normally", async () => {
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce({ id: "job-1", status: "succeeded", version: 3 });
+
+        await expect(JobQueue.complete("job-1", 3, { ok: true })).resolves.toMatchObject({
+            status: "succeeded",
+            version: 3,
+        });
     });
 });

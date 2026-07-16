@@ -1,4 +1,4 @@
-import { JobQueue } from "@/lib/queue";
+import { JobClaim, JobClaimLostError, JobQueue } from "@/lib/queue";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
 import { worker } from "./job-processor";
 
@@ -30,7 +30,7 @@ export class WorkerManager {
                 if (this.activeJobs.size < this.concurrencyLimit) {
                     const job = await JobQueue.dequeue();
                     if (job) {
-                        this.executeJob(job.id);
+                        this.executeJob({ jobId: job.id, version: job.version });
                         // Continue loop immediately to fill capacity
                         continue;
                     }
@@ -91,15 +91,19 @@ export class WorkerManager {
         }
     }
 
-    private async executeJob(jobId: string) {
-        this.activeJobs.add(jobId);
+    private async executeJob(claim: JobClaim) {
+        this.activeJobs.add(claim.jobId);
         try {
-            console.log(`[Worker] Executing job ${jobId}`);
-            await worker.performJob(jobId);
+            console.log(`[Worker] Executing job ${claim.jobId}`);
+            await worker.performJob(claim);
         } catch (error) {
-            console.error(`[Worker] Job ${jobId} execution failed:`, error);
+            if (error instanceof JobClaimLostError) {
+                console.info(`[Worker] Job ${claim.jobId} claim was superseded; stopping stale worker.`);
+                return;
+            }
+            console.error(`[Worker] Job ${claim.jobId} execution failed:`, error);
         } finally {
-            this.activeJobs.delete(jobId);
+            this.activeJobs.delete(claim.jobId);
         }
     }
 

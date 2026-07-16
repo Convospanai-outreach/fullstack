@@ -46,19 +46,6 @@ const createPrismaClient = () => {
                     }
                 } catch (e) {}
                 return query(args);
-            },
-            message: {
-                async create({ args, query }) {
-                    // Strict Invariant: Messages must belong to a thread
-                    const data = args.data;
-                    const hasThreadId = 'conversationThreadId' in data && data.conversationThreadId;
-                    const hasThreadConnect = 'thread' in data && data.thread;
-
-                    if (!hasThreadId && !hasThreadConnect) {
-                        throw new Error("Invariant Violation: Message must belong to a ConversationThread.");
-                    }
-                    return query(args);
-                }
             }
         }
     });

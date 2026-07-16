@@ -1,7 +1,10 @@
 import { describe, expect, it, vi, beforeEach, Mock } from "vitest";
 import { handleGmailHistorySync } from "../gmail-history-sync-worker";
 import { prisma } from "@/lib/db";
-import { syncGoogleMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import {
+    acquireGmailMailboxLease,
+    syncGoogleMailbox,
+} from "@/modules/email-campaigner/service/googleMailboxService";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -12,6 +15,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
+    acquireGmailMailboxLease: vi.fn(),
     syncGoogleMailbox: vi.fn(),
 }));
 
@@ -85,11 +89,21 @@ describe("gmail-history-sync-worker", () => {
     });
 
     it("should call syncGoogleMailbox exactly once and return non-secret metadata", async () => {
-        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValueOnce({
+        const mailbox = {
             id: "m1",
             teamId: "t1",
             provider: "GOOGLE_WORKSPACE",
-        });
+        };
+        const lease = {
+            mailboxId: "m1",
+            cursorType: "GMAIL_HISTORY",
+            token: "lease-token",
+            acquiredAt: new Date(),
+            expiresAt: new Date(Date.now() + 60_000),
+            startingHistoryId: "100",
+        };
+        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValueOnce(mailbox);
+        (acquireGmailMailboxLease as Mock).mockResolvedValueOnce(lease);
         (syncGoogleMailbox as Mock).mockResolvedValueOnce({
             synced: 5,
             replies: 2,
@@ -103,7 +117,11 @@ describe("gmail-history-sync-worker", () => {
             pubsubMessageId: "msg-123",
         });
 
-        expect(syncGoogleMailbox).toHaveBeenCalledWith("t1", "m1");
+        expect(acquireGmailMailboxLease).toHaveBeenCalledWith(mailbox);
+        expect(syncGoogleMailbox).toHaveBeenCalledWith("t1", "m1", { lease });
+        expect(syncGoogleMailbox).not.toHaveBeenCalledWith("t1", "m1", expect.objectContaining({
+            historyId: "123",
+        }));
         expect(result).toEqual({
             mailboxId: "m1",
             synced: 5,
@@ -113,11 +131,14 @@ describe("gmail-history-sync-worker", () => {
     });
 
     it("should propagate syncGoogleMailbox failures", async () => {
-        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValueOnce({
+        const mailbox = {
             id: "m1",
             teamId: "t1",
             provider: "GOOGLE_WORKSPACE",
-        });
+        };
+        const lease = { mailboxId: "m1", cursorType: "GMAIL_HISTORY", token: "lease-token" };
+        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValueOnce(mailbox);
+        (acquireGmailMailboxLease as Mock).mockResolvedValueOnce(lease);
         (syncGoogleMailbox as Mock).mockRejectedValueOnce(new Error("API connection error"));
 
         await expect(handleGmailHistorySync({
@@ -125,5 +146,21 @@ describe("gmail-history-sync-worker", () => {
             mailboxId: "m1",
             notificationHistoryId: "123",
         })).rejects.toThrow("API connection error");
+    });
+
+    it("does not start Gmail synchronization when lease acquisition is contended", async () => {
+        (prisma.connectedMailbox.findUnique as Mock).mockResolvedValueOnce({
+            id: "m1",
+            teamId: "t1",
+            provider: "GOOGLE_WORKSPACE",
+        });
+        (acquireGmailMailboxLease as Mock).mockRejectedValueOnce(new Error("lease contended"));
+
+        await expect(handleGmailHistorySync({
+            teamId: "t1",
+            mailboxId: "m1",
+            notificationHistoryId: "999",
+        })).rejects.toThrow("lease contended");
+        expect(syncGoogleMailbox).not.toHaveBeenCalled();
     });
 });

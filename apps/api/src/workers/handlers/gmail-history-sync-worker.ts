@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
-import { syncGoogleMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import {
+    acquireGmailMailboxLease,
+    syncGoogleMailbox,
+} from "@/modules/email-campaigner/service/googleMailboxService";
 
 /**
  * Worker handler for INBOX_SYNC jobs.
@@ -48,8 +51,8 @@ export async function handleGmailHistorySync(payload: JobPayload) {
         throw new Error(`Invalid mailbox provider: expected GOOGLE_WORKSPACE, found ${mailbox.provider}`);
     }
 
-    // Invoke sync and await completion
-    const syncResult = await syncGoogleMailbox(teamId, mailboxId);
+    const lease = await acquireGmailMailboxLease(mailbox);
+    const syncResult = await syncGoogleMailbox(teamId, mailboxId, { lease });
 
     // Return non-secret metadata
     return {
