@@ -5,6 +5,7 @@
     "scripts": {
         "dev": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx --watch server.ts",
         "start": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx server.ts",
+        "start:workers": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- tsx src/workers/start-workers.ts",
         "build": "tsc -p tsconfig.strict.json",
         "typecheck": "tsc -p tsconfig.strict.json --noEmit",
         "readiness:seed": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/seed-readiness.ts",

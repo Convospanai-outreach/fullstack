@@ -5,6 +5,7 @@ import { z } from "zod";
 import { OAuth2Client } from "google-auth-library";
 
 const BASE64URL_REGEX = /^[A-Za-z0-9_-]+$/;
+const googleOidcClient = new OAuth2Client();
 
 const PubSubPushSchema = z.object({
     message: z.object({
@@ -16,27 +17,26 @@ const PubSubPushSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    const audience = process.env["GMAIL_PUBSUB_AUDIENCE"];
-    const serviceAccount = process.env["GMAIL_PUBSUB_SERVICE_ACCOUNT"];
-    const requiredServiceAccount = "gmail-pubsub-push@helical-sanctum-496213-p8.iam.gserviceaccount.com";
+    const audience = process.env["GMAIL_PUBSUB_AUDIENCE"]?.trim();
+    const serviceAccount = process.env["GMAIL_PUBSUB_SERVICE_ACCOUNT"]?.trim();
 
-    if (!audience || !serviceAccount || serviceAccount !== requiredServiceAccount) {
+    if (!audience || !serviceAccount) {
         return NextResponse.json({ error: "Server misconfiguration." }, { status: 503 });
     }
 
     const authHeader = req.headers.get("authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    const bearerMatch = authHeader?.match(/^Bearer\s+(.+)$/i);
+    if (!bearerMatch) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const token = authHeader.slice("Bearer ".length).trim();
+    const token = bearerMatch[1].trim();
     if (!token) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     let payload;
     try {
-        const client = new OAuth2Client();
-        const ticket = await client.verifyIdToken({
+        const ticket = await googleOidcClient.verifyIdToken({
             idToken: token,
             audience: audience,
         });

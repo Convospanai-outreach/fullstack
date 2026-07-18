@@ -26,12 +26,11 @@ describe("WorkerManager claim propagation", () => {
 
     it("passes the exact concrete dequeue version to executeJob", async () => {
         const manager = new WorkerManager();
-        const executeJob = vi.spyOn(manager as any, "executeJob").mockResolvedValue(undefined);
-        vi.spyOn(manager as any, "handleMaintenanceTick").mockResolvedValue(undefined);
-        (JobQueue.dequeue as Mock).mockImplementationOnce(async () => {
-            queueMicrotask(() => void manager.stop());
-            return { id: "job-1", version: 7 };
+        const executeJob = vi.spyOn(manager as any, "executeJob").mockImplementation(async () => {
+            await manager.stop();
         });
+        vi.spyOn(manager as any, "handleMaintenanceTick").mockResolvedValue(undefined);
+        (JobQueue.dequeue as Mock).mockResolvedValueOnce({ id: "job-1", version: 7 });
 
         await manager.start();
 
@@ -45,5 +44,53 @@ describe("WorkerManager claim propagation", () => {
         await (manager as any).executeJob(claim);
 
         expect(worker.performJob).toHaveBeenCalledWith(claim);
+    });
+
+    it("tracks concurrent versions of one job independently and drains both claim generations", async () => {
+        const manager = new WorkerManager();
+        let resolveOld!: () => void;
+        let resolveNew!: () => void;
+        const oldExecution = new Promise<void>((resolve) => { resolveOld = resolve; });
+        const newExecution = new Promise<void>((resolve) => { resolveNew = resolve; });
+        (worker.performJob as Mock)
+            .mockImplementationOnce(() => oldExecution)
+            .mockImplementationOnce(() => newExecution);
+
+        const oldClaim = (manager as any).executeJob({ jobId: "job-1", version: 1 });
+        const newClaim = (manager as any).executeJob({ jobId: "job-1", version: 2 });
+        expect((manager as any).activeJobs.size).toBe(2);
+
+        let stopped = false;
+        const stopping = manager.stop().then(() => { stopped = true; });
+        await Promise.resolve();
+        expect(stopped).toBe(false);
+
+        resolveOld();
+        await oldClaim;
+        expect((manager as any).activeJobs.size).toBe(1);
+        expect(stopped).toBe(false);
+
+        resolveNew();
+        await newClaim;
+        await stopping;
+        expect((manager as any).activeJobs.size).toBe(0);
+    });
+
+    it("tracks distinct job IDs normally", async () => {
+        const manager = new WorkerManager();
+        let resolveFirst!: () => void;
+        let resolveSecond!: () => void;
+        (worker.performJob as Mock)
+            .mockImplementationOnce(() => new Promise<void>((resolve) => { resolveFirst = resolve; }))
+            .mockImplementationOnce(() => new Promise<void>((resolve) => { resolveSecond = resolve; }));
+
+        const first = (manager as any).executeJob({ jobId: "job-1", version: 1 });
+        const second = (manager as any).executeJob({ jobId: "job-2", version: 1 });
+        expect((manager as any).activeJobs.size).toBe(2);
+
+        resolveFirst();
+        resolveSecond();
+        await Promise.all([first, second]);
+        expect((manager as any).activeJobs.size).toBe(0);
     });
 });

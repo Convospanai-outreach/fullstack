@@ -11,11 +11,16 @@ export const JOB_STATUS = {
     QUEUED: "queued",
     PENDING: "pending",
     RUNNING: "running",
+    PROCESSING: "processing",
     SUCCEEDED: "succeeded",
     DEAD_LETTERED: "dead_lettered",
 } as const;
 
 const DEQUEUEABLE_JOB_STATUSES: string[] = [JOB_STATUS.QUEUED, JOB_STATUS.PENDING];
+const RECOVERABLE_STALE_JOB_STATUSES: string[] = [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING];
+
+export const STALE_JOB_RECOVERY_PAGE_SIZE = 100;
+export const STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES = 5;
 
 /** A claim is immutable for the lifetime of one worker execution. */
 export type JobClaim = Readonly<{
@@ -338,36 +343,62 @@ export class JobQueue {
      */
     static async resetStaleJobs(maxAgeMs: number = 1000 * 60 * 15) {
         const threshold = new Date(Date.now() - maxAgeMs);
+        let afterId: string | undefined;
+        let resetCount = 0;
 
-        const staleJobs = await prisma.job.findMany({
-            where: {
-                status: JOB_STATUS.RUNNING,
-                startedAt: { lte: threshold }
-            }
-        });
-
-        if (staleJobs.length === 0) return 0;
-
-        console.log(`[JobQueue] Resetting ${staleJobs.length} stale jobs to queued.`);
-
-        const results = await Promise.all(staleJobs.map((job) =>
-            prisma.job.updateMany({
+        for (;;) {
+            const staleJobs = await prisma.job.findMany({
                 where: {
-                    id: job.id,
-                    status: JOB_STATUS.RUNNING,
-                    version: job.version,
+                    status: { in: RECOVERABLE_STALE_JOB_STATUSES },
                     startedAt: { lte: threshold },
+                    ...(afterId ? { id: { gt: afterId } } : {}),
                 },
-                data: {
-                    status: JOB_STATUS.QUEUED,
-                    startedAt: null,
-                    completedAt: null,
-                    error: "Stale job reset by watchdog.",
-                    version: (job.version ?? 0) + 1,
-                },
-            })
-        ));
+                select: { id: true, status: true, version: true },
+                orderBy: { id: "asc" },
+                take: STALE_JOB_RECOVERY_PAGE_SIZE,
+            });
 
-        return results.reduce((count, result) => count + result.count, 0);
+            if (staleJobs.length === 0) break;
+
+            let nextJobIndex = 0;
+            const resetPage = async () => {
+                let localResetCount = 0;
+                while (nextJobIndex < staleJobs.length) {
+                    const job = staleJobs[nextJobIndex++];
+                    const result = await prisma.job.updateMany({
+                        where: {
+                            id: job.id,
+                            status: job.status,
+                            version: job.version,
+                            startedAt: { lte: threshold },
+                        },
+                        data: {
+                            status: JOB_STATUS.QUEUED,
+                            startedAt: null,
+                            completedAt: null,
+                            error: "Stale job reset by watchdog.",
+                            version: (job.version ?? 0) + 1,
+                        },
+                    });
+                    localResetCount += result.count;
+                }
+                return localResetCount;
+            };
+
+            const workers = Array.from(
+                { length: Math.min(STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES, staleJobs.length) },
+                () => resetPage(),
+            );
+            const pageResults = await Promise.all(workers);
+            resetCount += pageResults.reduce((count, pageCount) => count + pageCount, 0);
+
+            afterId = staleJobs[staleJobs.length - 1].id;
+            if (staleJobs.length < STALE_JOB_RECOVERY_PAGE_SIZE) break;
+        }
+
+        if (resetCount > 0) {
+            console.log(`[JobQueue] Reset ${resetCount} stale jobs to queued.`);
+        }
+        return resetCount;
     }
 }

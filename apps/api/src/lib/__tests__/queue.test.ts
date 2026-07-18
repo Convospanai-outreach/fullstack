@@ -1,5 +1,11 @@
 import { vi, Mock, beforeEach, describe, it, expect } from "vitest";
-import { JOB_STATUS, JobClaimLostError, JobQueue } from "../queue";
+import {
+    JOB_STATUS,
+    JobClaimLostError,
+    JobQueue,
+    STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES,
+    STALE_JOB_RECOVERY_PAGE_SIZE,
+} from "../queue";
 import { prisma } from "@/lib/db";
 
 vi.mock("@/lib/db", () => ({
@@ -316,5 +322,87 @@ describe("JobQueue claim handoff fencing", () => {
             status: "succeeded",
             version: 3,
         });
+    });
+});
+
+describe("JobQueue.resetStaleJobs", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("recovers a stale backlog in bounded pages", async () => {
+        const firstPage = Array.from({ length: STALE_JOB_RECOVERY_PAGE_SIZE }, (_, index) => ({
+            id: `job-${String(index).padStart(4, "0")}`,
+            status: JOB_STATUS.RUNNING,
+            version: 1,
+        }));
+        const finalPage = [{ id: "job-9999", status: JOB_STATUS.PROCESSING, version: 4 }];
+        (prisma.job.findMany as Mock)
+            .mockResolvedValueOnce(firstPage)
+            .mockResolvedValueOnce(finalPage);
+        (prisma.job.updateMany as Mock).mockResolvedValue({ count: 1 });
+
+        await expect(JobQueue.resetStaleJobs(60_000)).resolves.toBe(STALE_JOB_RECOVERY_PAGE_SIZE + 1);
+
+        expect(prisma.job.findMany).toHaveBeenCalledTimes(2);
+        expect((prisma.job.findMany as Mock).mock.calls[1][0].where).toEqual(expect.objectContaining({
+            id: { gt: firstPage.at(-1)?.id },
+        }));
+        expect(prisma.job.updateMany).toHaveBeenCalledTimes(STALE_JOB_RECOVERY_PAGE_SIZE + 1);
+    });
+
+    it("keeps version and status guards and counts only successfully reset claims", async () => {
+        (prisma.job.findMany as Mock).mockResolvedValueOnce([
+            { id: "running-claim", status: JOB_STATUS.RUNNING, version: 3 },
+            { id: "processing-claim", status: JOB_STATUS.PROCESSING, version: 9 },
+        ]);
+        (prisma.job.updateMany as Mock)
+            .mockResolvedValueOnce({ count: 0 })
+            .mockResolvedValueOnce({ count: 1 });
+
+        await expect(JobQueue.resetStaleJobs(60_000)).resolves.toBe(1);
+
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(1, expect.objectContaining({
+            where: expect.objectContaining({ id: "running-claim", status: JOB_STATUS.RUNNING, version: 3 }),
+            data: expect.objectContaining({ version: 4 }),
+        }));
+        expect(prisma.job.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+            where: expect.objectContaining({ id: "processing-claim", status: JOB_STATUS.PROCESSING, version: 9 }),
+            data: expect.objectContaining({ version: 10 }),
+        }));
+    });
+
+    it("only selects stale running and processing claims", async () => {
+        (prisma.job.findMany as Mock).mockResolvedValueOnce([]);
+
+        await expect(JobQueue.resetStaleJobs(60_000)).resolves.toBe(0);
+
+        const where = (prisma.job.findMany as Mock).mock.calls[0][0].where;
+        expect(where.status).toEqual({ in: [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING] });
+        expect(where.startedAt).toEqual({ lte: expect.any(Date) });
+        expect(where.status.in).not.toEqual(expect.arrayContaining(["queued", "completed", "failed", "cancelled"]));
+    });
+
+    it("limits concurrent stale-claim update writes", async () => {
+        const jobs = Array.from({ length: STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES * 2 + 1 }, (_, index) => ({
+            id: `job-${index}`,
+            status: JOB_STATUS.RUNNING,
+            version: 1,
+        }));
+        (prisma.job.findMany as Mock).mockResolvedValueOnce(jobs);
+        let activeWrites = 0;
+        let maximumActiveWrites = 0;
+        (prisma.job.updateMany as Mock).mockImplementation(async () => {
+            activeWrites++;
+            maximumActiveWrites = Math.max(maximumActiveWrites, activeWrites);
+            await new Promise((resolve) => setTimeout(resolve, 1));
+            activeWrites--;
+            return { count: 1 };
+        });
+
+        await expect(JobQueue.resetStaleJobs(60_000)).resolves.toBe(jobs.length);
+
+        expect(maximumActiveWrites).toBeLessThanOrEqual(STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES);
+        expect(maximumActiveWrites).toBeGreaterThan(1);
     });
 });

@@ -1,6 +1,10 @@
 ALTER TABLE "MailboxSyncCursor" ADD COLUMN "lockToken" TEXT;
 
+CREATE UNIQUE INDEX "ConnectedMailbox_email_key" ON "ConnectedMailbox"("email");
+
 ALTER TABLE "EmailEvent" ADD COLUMN "processedAt" TIMESTAMP(3);
+
+ALTER TABLE "Email" ADD COLUMN "deliveryProvider" TEXT;
 
 ALTER TABLE "Message" ADD COLUMN "emailEventId" TEXT;
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, Mock } from "vitest";
 import { worker } from "../job-processor";
 import { prisma } from "@/lib/db";
-import { JobQueue } from "@/lib/queue";
+import { JobClaimLostError, JobQueue } from "@/lib/queue";
 import { handleGmailHistorySync } from "../handlers/gmail-history-sync-worker";
 import { executeCampaign } from "../handlers/campaign-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
@@ -177,5 +177,43 @@ describe("job-processor", () => {
         expect(JobQueue.complete).not.toHaveBeenCalled();
         expect(JobQueue.fail).not.toHaveBeenCalled();
         expect(JobQueue.defer).not.toHaveBeenCalled();
+    });
+
+    it("does not fail or rerun a successful handler when completion persistence fails", async () => {
+        const mockJob = {
+            id: "job-complete-failure",
+            status: "running",
+            version: 5,
+            type: "INBOX_SYNC",
+            payload: { teamId: "t1", mailboxId: "m1", notificationHistoryId: "123" },
+        };
+        const completionError = new Error("completion persistence failed");
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (handleGmailHistorySync as Mock).mockResolvedValueOnce({ synced: 1 });
+        (JobQueue.complete as Mock).mockRejectedValueOnce(completionError);
+
+        await expect(worker.performJob({ jobId: mockJob.id, version: 5 })).rejects.toBe(completionError);
+
+        expect(handleGmailHistorySync).toHaveBeenCalledTimes(1);
+        expect(JobQueue.complete).toHaveBeenCalledWith(mockJob.id, 5, { synced: 1 });
+        expect(JobQueue.fail).not.toHaveBeenCalled();
+    });
+
+    it("propagates a completion claim-loss outcome without calling fail", async () => {
+        const mockJob = {
+            id: "job-complete-lost",
+            status: "running",
+            version: 5,
+            type: "INBOX_SYNC",
+            payload: { teamId: "t1", mailboxId: "m1", notificationHistoryId: "123" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (handleGmailHistorySync as Mock).mockResolvedValueOnce({ synced: 1 });
+        (JobQueue.complete as Mock).mockRejectedValueOnce(new JobClaimLostError());
+
+        await expect(worker.performJob({ jobId: mockJob.id, version: 5 })).rejects.toBeInstanceOf(JobClaimLostError);
+
+        expect(handleGmailHistorySync).toHaveBeenCalledTimes(1);
+        expect(JobQueue.fail).not.toHaveBeenCalled();
     });
 });

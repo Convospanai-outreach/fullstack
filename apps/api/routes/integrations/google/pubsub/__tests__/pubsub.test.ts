@@ -16,7 +16,9 @@ vi.mock("@/lib/queue", () => ({
     },
 }));
 
-const mockVerifyIdToken = vi.fn();
+const { mockVerifyIdToken } = vi.hoisted(() => ({
+    mockVerifyIdToken: vi.fn(),
+}));
 
 // Mock google-auth-library
 vi.mock("google-auth-library", () => {
@@ -41,7 +43,7 @@ function createRequest(options: {
 }
 
 describe("Pub/Sub OIDC Push route", () => {
-    const requiredServiceAccount = "gmail-pubsub-push@helical-sanctum-496213-p8.iam.gserviceaccount.com";
+    const requiredServiceAccount = "configured-push@example.iam.gserviceaccount.com";
     const defaultAudience = "https://app-audience";
 
     beforeEach(() => {
@@ -57,6 +59,15 @@ describe("Pub/Sub OIDC Push route", () => {
     });
 
     describe("OIDC Authentication Gates", () => {
+        it.each(["GMAIL_PUBSUB_AUDIENCE", "GMAIL_PUBSUB_SERVICE_ACCOUNT"])("returns 503 when %s is missing", async (name) => {
+            vi.stubEnv(name, undefined as any);
+
+            const res = await POST(createRequest({ headers: { Authorization: "Bearer token" } }));
+
+            expect(res.status).toBe(503);
+            expect(mockVerifyIdToken).not.toHaveBeenCalled();
+        });
+
         it("should call verifyIdToken with token and configuredAudience", async () => {
             mockVerifyIdToken.mockResolvedValueOnce({
                 getPayload: () => ({
@@ -101,6 +112,48 @@ describe("Pub/Sub OIDC Push route", () => {
             });
             const req = createRequest({ headers: { Authorization: "Bearer empty-token" } });
             const res = await POST(req);
+            expect(res.status).toBe(401);
+        });
+
+        it("accepts a lowercase bearer scheme", async () => {
+            mockVerifyIdToken.mockResolvedValueOnce({
+                getPayload: () => ({ iss: "accounts.google.com", email_verified: true, email: requiredServiceAccount }),
+            });
+            const data = Buffer.from(JSON.stringify({ emailAddress: "test@gmail.com", historyId: "123" })).toString("base64url");
+
+            const res = await POST(createRequest({
+                headers: { Authorization: "bearer lower-case-token" },
+                body: { message: { data } },
+            }));
+
+            expect(res.status).toBe(204);
+            expect(mockVerifyIdToken).toHaveBeenCalledWith({ idToken: "lower-case-token", audience: defaultAudience });
+        });
+
+        it.each(["Bearer ", "bearer    "])("rejects an empty bearer token", async (authorization) => {
+            const res = await POST(createRequest({ headers: { Authorization: authorization } }));
+
+            expect(res.status).toBe(401);
+            expect(mockVerifyIdToken).not.toHaveBeenCalled();
+        });
+
+        it("rejects an invalid issuer", async () => {
+            mockVerifyIdToken.mockResolvedValueOnce({
+                getPayload: () => ({ iss: "https://issuer.example", email_verified: true, email: requiredServiceAccount }),
+            });
+
+            const res = await POST(createRequest({ headers: { Authorization: "Bearer bad-issuer" } }));
+
+            expect(res.status).toBe(401);
+        });
+
+        it("rejects an unverified token email", async () => {
+            mockVerifyIdToken.mockResolvedValueOnce({
+                getPayload: () => ({ iss: "accounts.google.com", email_verified: false, email: requiredServiceAccount }),
+            });
+
+            const res = await POST(createRequest({ headers: { Authorization: "Bearer unverified-email" } }));
+
             expect(res.status).toBe(401);
         });
 

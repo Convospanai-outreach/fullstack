@@ -98,11 +98,10 @@ export const worker = {
 
         const payload = ((job.payload || {}) as JobPayload);
 
+        let result: unknown;
         try {
             await JobQueue.assertClaim(claim.jobId, claim.version);
-            const result = await runHandler(job.type, payload);
-            await JobQueue.complete(claim.jobId, claim.version, result || {});
-            return result;
+            result = await runHandler(job.type, payload);
         } catch (error) {
             if (error instanceof GmailMailboxLeaseContendedError) {
                 const delayMs = 15_000 + Math.floor(Math.random() * 30_001);
@@ -119,5 +118,11 @@ export const worker = {
             await JobQueue.fail(claim.jobId, claim.version, message);
             throw error;
         }
+
+        // Completion persistence is intentionally separate from business work.
+        // A completed handler must never be requeued merely because final state
+        // persistence failed; version-fenced watchdog recovery handles that claim.
+        await JobQueue.complete(claim.jobId, claim.version, result || {});
+        return result;
     },
 };

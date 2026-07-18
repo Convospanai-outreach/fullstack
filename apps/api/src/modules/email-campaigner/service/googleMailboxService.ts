@@ -56,6 +56,7 @@ const GMAIL_RECOVERY_MAX_RECORDS = 50_000;
 const GMAIL_RECOVERY_MAX_UNIQUE_THREADS = 10_000;
 const GMAIL_RECOVERY_MAX_ELAPSED_MS = 8 * 60 * 1000;
 const GMAIL_REQUEST_TIMEOUT_MS = 60_000;
+const GMAIL_OAUTH_STATE_NONCE_DOMAIN = "gmail-oauth-state-nonce:v1";
 
 export type GmailMailboxLease = {
     mailboxId: string;
@@ -120,6 +121,20 @@ export class GmailRequestTimeoutError extends Error {
     }
 }
 
+export class GmailMailboxOwnershipConflictError extends Error {
+    constructor() {
+        super("This mailbox is already connected to another team.");
+        this.name = "GmailMailboxOwnershipConflictError";
+    }
+}
+
+class GmailCredentialRejectedError extends Error {
+    constructor() {
+        super("GOOGLE_TOKEN_REFRESH_CREDENTIAL_REJECTED");
+        this.name = "GmailCredentialRejectedError";
+    }
+}
+
 type GoogleRequestFailureCode =
     | "GOOGLE_OAUTH_CODE_EXCHANGE_TIMEOUT"
     | "GOOGLE_OAUTH_CODE_EXCHANGE_FAILED"
@@ -169,6 +184,7 @@ async function fetchGoogleJsonWithTimeout(url: string, init: RequestInit, operat
         try {
             data = await response.json();
         } catch {
+            if (!response.ok) return { response, data };
             throw new GoogleResponseInvalidError(operation);
         }
         return { response, data };
@@ -217,6 +233,14 @@ function getEncryptionKey(): Buffer {
 
 function getStateSecret(): string {
     return process.env["NEXTAUTH_SECRET"] || process.env["AUTH_SECRET"] || process.env["ENCRYPTION_KEY"] || "";
+}
+
+function digestOAuthStateNonce(nonce: string): string {
+    const secret = getStateSecret();
+    if (!secret) throw new Error("NEXTAUTH_SECRET or ENCRYPTION_KEY is required for Google OAuth state nonce protection.");
+    return crypto.createHmac("sha256", secret)
+        .update(`${GMAIL_OAUTH_STATE_NONCE_DOMAIN}:${nonce}`)
+        .digest("hex");
 }
 
 function getGoogleConfig() {
@@ -314,7 +338,7 @@ export async function buildGoogleMailboxAuthUrl(input: { teamId: string; userId:
     };
     const state = signState(statePayload);
 
-    const nonceHash = crypto.createHash("sha256").update(nonce).digest("hex");
+    const nonceHash = digestOAuthStateNonce(nonce);
     const identifier = `gmail-oauth-state:${input.teamId}:${input.userId}`;
     const expires = new Date(ts + 10 * 60 * 1000);
 
@@ -395,7 +419,7 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
     const statePayload = verifyState(input.state);
 
     const identifier = `gmail-oauth-state:${statePayload.teamId}:${statePayload.userId}`;
-    const nonceHash = crypto.createHash("sha256").update(statePayload.nonce).digest("hex");
+    const nonceHash = digestOAuthStateNonce(statePayload.nonce);
 
     const deleteResult = await db.verificationToken.deleteMany({
         where: {
@@ -419,14 +443,12 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
     const encryptedRefreshToken = token.refresh_token ? await encryptSecret(token.refresh_token) : undefined;
     const tokenExpiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
 
-    const existingMailbox = await prisma.connectedMailbox.findUnique({
-        where: {
-            teamId_email: {
-                teamId: statePayload.teamId,
-                email: normalizedEmail,
-            },
-        },
+    const existingMailbox = await prisma.connectedMailbox.findFirst({
+        where: { email: normalizedEmail },
     });
+    if (existingMailbox && existingMailbox.teamId !== statePayload.teamId) {
+        throw new GmailMailboxOwnershipConflictError();
+    }
 
     let finalEncryptedRefreshToken = encryptedRefreshToken;
     if (!finalEncryptedRefreshToken && existingMailbox?.encryptedRefreshToken) {
@@ -436,47 +458,53 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
     const hasRefreshToken = !!finalEncryptedRefreshToken;
     const status = hasRefreshToken ? "CONNECTED" : "NEEDS_RECONNECT";
 
-    const mailbox = await prisma.connectedMailbox.upsert({
-        where: {
-            teamId_email: {
+    let mailbox;
+    try {
+        mailbox = await prisma.connectedMailbox.upsert({
+            where: {
+                teamId_email: {
+                    teamId: statePayload.teamId,
+                    email: normalizedEmail,
+                },
+            },
+            create: {
                 teamId: statePayload.teamId,
+                assignedUserId: statePayload.userId,
+                provider: "GOOGLE_WORKSPACE",
+                authType: "OAUTH",
                 email: normalizedEmail,
+                status,
+                scopes,
+                encryptedAccessToken,
+                ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
+                tokenExpiresAt,
+                historyId: profile.historyId,
+                metadata: {
+                    messagesTotal: profile.messagesTotal,
+                    threadsTotal: profile.threadsTotal,
+                    connectedBy: statePayload.userId,
+                },
             },
-        },
-        create: {
-            teamId: statePayload.teamId,
-            assignedUserId: statePayload.userId,
-            provider: "GOOGLE_WORKSPACE",
-            authType: "OAUTH",
-            email: normalizedEmail,
-            status,
-            scopes,
-            encryptedAccessToken,
-            ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
-            tokenExpiresAt,
-            historyId: profile.historyId,
-            metadata: {
-                messagesTotal: profile.messagesTotal,
-                threadsTotal: profile.threadsTotal,
-                connectedBy: statePayload.userId,
+            update: {
+                assignedUserId: statePayload.userId,
+                authType: "OAUTH",
+                status,
+                scopes,
+                encryptedAccessToken,
+                ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
+                tokenExpiresAt,
+                historyId: profile.historyId,
+                metadata: mergeMailboxMetadata(existingMailbox, {
+                    messagesTotal: profile.messagesTotal,
+                    threadsTotal: profile.threadsTotal,
+                    reconnectedBy: statePayload.userId,
+                }),
             },
-        },
-        update: {
-            assignedUserId: statePayload.userId,
-            authType: "OAUTH",
-            status,
-            scopes,
-            encryptedAccessToken,
-            ...(finalEncryptedRefreshToken ? { encryptedRefreshToken: finalEncryptedRefreshToken } : {}),
-            tokenExpiresAt,
-            historyId: profile.historyId,
-            metadata: {
-                messagesTotal: profile.messagesTotal,
-                threadsTotal: profile.threadsTotal,
-                reconnectedBy: statePayload.userId,
-            },
-        },
-    });
+        });
+    } catch (error: any) {
+        if (error?.code === "P2002") throw new GmailMailboxOwnershipConflictError();
+        throw error;
+    }
 
     if (process.env["GOOGLE_PUBSUB_TOPIC_NAME"] && finalEncryptedRefreshToken) {
         await registerGoogleMailboxWatch(statePayload.teamId, mailbox.id).catch(async (error) => {
@@ -673,6 +701,50 @@ function base64Url(input: string) {
         .replace(/=+$/g, "");
 }
 
+export type GmailSendSuccess = {
+    success: true;
+    deliveryProvider: "GMAIL_API";
+    messageId: string;
+    threadId?: string;
+    mailboxId: string;
+};
+
+export type GmailSendFailure = {
+    success: false;
+    error: "GMAIL_SEND_PRE_DISPATCH_FAILED" | "GMAIL_SEND_REJECTED" | "GMAIL_SEND_TIMEOUT" | "GMAIL_SEND_FAILED" | "GMAIL_SEND_RESPONSE_INVALID";
+    outcome: "PRE_DISPATCH_NO_SEND" | "EXPLICIT_REJECTION" | "AMBIGUOUS";
+    fallbackAllowed: boolean;
+};
+
+export type GmailSendOutcome = GmailSendSuccess | GmailSendFailure;
+
+function gmailPreDispatchFailure(): GmailSendFailure {
+    return {
+        success: false,
+        error: "GMAIL_SEND_PRE_DISPATCH_FAILED",
+        outcome: "PRE_DISPATCH_NO_SEND",
+        fallbackAllowed: true,
+    };
+}
+
+function gmailExplicitRejection(): GmailSendFailure {
+    return {
+        success: false,
+        error: "GMAIL_SEND_REJECTED",
+        outcome: "EXPLICIT_REJECTION",
+        fallbackAllowed: true,
+    };
+}
+
+function gmailAmbiguousFailure(error: GmailSendFailure["error"]): GmailSendFailure {
+    return {
+        success: false,
+        error,
+        outcome: "AMBIGUOUS",
+        fallbackAllowed: false,
+    };
+}
+
 export async function sendViaGmailMailbox(input: {
     teamId: string;
     mailboxId: string;
@@ -680,27 +752,35 @@ export async function sendViaGmailMailbox(input: {
     subject: string;
     html: string;
     replyTo?: string;
-}) {
-    const mailbox = await prisma.connectedMailbox.findFirst({
-        where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
-    });
-    if (!mailbox) return { success: false, error: "Connected mailbox not found." };
+}): Promise<GmailSendOutcome> {
+    let mailbox: any;
+    let accessToken: string | undefined;
+    let raw: string;
 
-    const accessToken = await getMailboxAccessToken(mailbox);
-    if (!accessToken) return { success: false, error: "Mailbox needs reconnect." };
+    try {
+        mailbox = await prisma.connectedMailbox.findFirst({
+            where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
+        });
+        if (!mailbox) return gmailPreDispatchFailure();
 
-    const fromName = mailbox.displayName || mailbox.email;
-    const to = normalizeEmailAddress(input.to);
-    const replyTo = input.replyTo ? normalizeEmailAddress(input.replyTo) : undefined;
-    const headers = [
-        `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
-        `To: ${to}`,
-        `Subject: ${encodeMimeHeader(input.subject)}`,
-        "MIME-Version: 1.0",
-        "Content-Type: text/html; charset=UTF-8",
-        ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
-    ];
-    const raw = base64Url(`${headers.join("\r\n")}\r\n\r\n${input.html}`);
+        accessToken = await getMailboxAccessToken(mailbox);
+        if (!accessToken) return gmailPreDispatchFailure();
+
+        const fromName = mailbox.displayName || mailbox.email;
+        const to = normalizeEmailAddress(input.to);
+        const replyTo = input.replyTo ? normalizeEmailAddress(input.replyTo) : undefined;
+        const headers = [
+            `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
+            `To: ${to}`,
+            `Subject: ${encodeMimeHeader(input.subject)}`,
+            "MIME-Version: 1.0",
+            "Content-Type: text/html; charset=UTF-8",
+            ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
+        ];
+        raw = base64Url(`${headers.join("\r\n")}\r\n\r\n${input.html}`);
+    } catch {
+        return gmailPreDispatchFailure();
+    }
 
     let response: Response;
     let data: unknown;
@@ -714,20 +794,41 @@ export async function sendViaGmailMailbox(input: {
             body: JSON.stringify({ raw }),
         }, "Gmail send"));
     } catch (error) {
-        return { success: false, error: googleRequestFailure(error, "GMAIL_SEND_TIMEOUT", "GMAIL_SEND_FAILED", "GMAIL_SEND_RESPONSE_INVALID").code };
-    }
-    if (!response.ok) return { success: false, error: "GMAIL_SEND_FAILED" };
-    if (!isGoogleResponseObject(data) || typeof data.id !== "string" || data.id.length === 0) {
-        return { success: false, error: "GMAIL_SEND_RESPONSE_INVALID" };
+        const failureCode = googleRequestFailure(
+            error,
+            "GMAIL_SEND_TIMEOUT",
+            "GMAIL_SEND_FAILED",
+            "GMAIL_SEND_RESPONSE_INVALID",
+        ).code;
+        return gmailAmbiguousFailure(
+            failureCode === "GMAIL_SEND_TIMEOUT" || failureCode === "GMAIL_SEND_RESPONSE_INVALID"
+                ? failureCode
+                : "GMAIL_SEND_FAILED",
+        );
     }
 
-    await markMailboxSend(input.teamId, mailbox.id);
-    return {
+    if (!response.ok) {
+        return response.status >= 400 && response.status < 500
+            ? gmailExplicitRejection()
+            : gmailAmbiguousFailure("GMAIL_SEND_FAILED");
+    }
+    if (!isGoogleResponseObject(data) || typeof data.id !== "string" || data.id.length === 0) {
+        return gmailAmbiguousFailure("GMAIL_SEND_RESPONSE_INVALID");
+    }
+
+    const result: GmailSendSuccess = {
         success: true,
+        deliveryProvider: "GMAIL_API",
         messageId: data.id,
-        threadId: typeof data.threadId === "string" ? data.threadId : undefined,
+        threadId: typeof data.threadId === "string" && data.threadId.length > 0 ? data.threadId : undefined,
         mailboxId: mailbox.id,
     };
+    try {
+        await markMailboxSend(input.teamId, mailbox.id);
+    } catch {
+        console.error("[Gmail] GMAIL_SEND_BOOKKEEPING_FAILED.");
+    }
+    return result;
 }
 
 type SuppressionInput = {
@@ -795,22 +896,23 @@ async function refreshAccessToken(mailbox: any, assertLeaseOwned?: GmailLeaseHea
             }),
         }, "token refresh"));
     } catch (error) {
-        const safeCode = error instanceof GmailRequestTimeoutError
-            ? "GOOGLE_TOKEN_REFRESH_TIMEOUT"
-            : "GOOGLE_TOKEN_REFRESH_FAILED";
-        if (assertLeaseOwned) await assertLeaseOwned();
-        await markMailboxNeedsReconnect(mailbox, safeCode);
         throw error;
     }
     if (!response.ok) {
-        if (assertLeaseOwned) await assertLeaseOwned();
-        await markMailboxNeedsReconnect(mailbox, "GOOGLE_TOKEN_REFRESH_FAILED");
-        throw new Error("Google token refresh failed.");
+        if (isExplicitCredentialRejection(data)) {
+            if (assertLeaseOwned) await assertLeaseOwned();
+            await markMailboxNeedsReconnect(mailbox, "GOOGLE_TOKEN_REFRESH_CREDENTIAL_REJECTED");
+            throw new GmailCredentialRejectedError();
+        }
+        throw new GmailProviderRequestError("token refresh", response.status);
     }
     if (typeof data?.access_token !== "string" || data.access_token.length === 0) {
-        if (assertLeaseOwned) await assertLeaseOwned();
-        await markMailboxNeedsReconnect(mailbox, "GOOGLE_TOKEN_RESPONSE_INVALID");
-        throw new Error("Google token response was invalid.");
+        if (isExplicitCredentialRejection(data)) {
+            if (assertLeaseOwned) await assertLeaseOwned();
+            await markMailboxNeedsReconnect(mailbox, "GOOGLE_TOKEN_REFRESH_CREDENTIAL_REJECTED");
+            throw new GmailCredentialRejectedError();
+        }
+        throw new GoogleResponseInvalidError("token refresh");
     }
     if (assertLeaseOwned) await assertLeaseOwned();
     const encryptedAccessToken = await encryptSecret(data.access_token);
@@ -820,6 +922,10 @@ async function refreshAccessToken(mailbox: any, assertLeaseOwned?: GmailLeaseHea
         data: { encryptedAccessToken, tokenExpiresAt },
     });
     return data.access_token as string;
+}
+
+function isExplicitCredentialRejection(data: unknown): boolean {
+    return isGoogleResponseObject(data) && data.error === "invalid_grant";
 }
 
 function mergeMailboxMetadata(mailbox: any, patch: Record<string, unknown>) {
@@ -917,6 +1023,7 @@ function safeGmailFailureCode(error: unknown): string {
     if (error instanceof GmailRecoveryUnresolvableRecordError) return "GMAIL_RECOVERY_UNRESOLVABLE_RECORD";
     if (error instanceof LegacyGmailEventAmbiguousError) return "GMAIL_LEGACY_EVENT_AMBIGUOUS";
     if (error instanceof GmailRequestTimeoutError) return "GMAIL_REQUEST_TIMEOUT";
+    if (error instanceof GmailCredentialRejectedError) return "GOOGLE_TOKEN_REFRESH_CREDENTIAL_REJECTED";
     if (error instanceof GoogleResponseInvalidError) return "GMAIL_RESPONSE_INVALID";
     if (error instanceof GmailMailboxLeaseLostError) return "GMAIL_MAILBOX_LEASE_LOST";
     const status = typeof (error as any)?.status === "number" ? (error as any).status : undefined;
@@ -1088,6 +1195,7 @@ async function listKnownOutboundEmailsPage(
     return prisma.email.findMany({
         where: {
             mailboxId,
+            deliveryProvider: "GMAIL_API",
             campaign: { teamId },
             AND: [
                 ...(after ? [{
@@ -1097,7 +1205,7 @@ async function listKnownOutboundEmailsPage(
                     ],
                 }] : []),
             ],
-        },
+        } as any,
         select: { id: true, createdAt: true, threadId: true, providerId: true },
         orderBy: [{ createdAt: "asc" }, { id: "asc" }],
         take: GMAIL_RECOVERY_PAGE_SIZE,
@@ -1233,7 +1341,7 @@ async function createInboundCampaignEvent(input: {
                 });
                 await tx.lead.update({
                     where: { id: matchedEmail.leadId },
-                    data: { status: "bounced", updatedAt: new Date() },
+                    data: { status: "STOPPED", updatedAt: new Date() },
                 });
                 await tx.connectedMailbox.update({
                     where: { id: mailbox.id },
@@ -1281,7 +1389,7 @@ async function createInboundCampaignEvent(input: {
             });
             await tx.lead.update({
                 where: { id: matchedEmail.leadId },
-                data: { status: "replied", updatedAt: new Date() },
+                data: { status: "REPLIED", updatedAt: new Date() },
             });
             await tx.connectedMailbox.update({
                 where: { id: mailbox.id },
@@ -1658,7 +1766,6 @@ export async function syncDueGoogleMailboxes(limit = 25) {
             await prisma.connectedMailbox.update({
                 where: { id: mailbox.id },
                 data: {
-                    status: /reconnect|invalid_grant|unauthorized/i.test(error?.message || "") ? "NEEDS_RECONNECT" : "CONNECTED",
                     metadata: mergeMailboxMetadata(mailbox, { lastSyncError: safeError, lastSyncErrorAt: now.toISOString() }),
                 },
             }).catch(() => undefined);

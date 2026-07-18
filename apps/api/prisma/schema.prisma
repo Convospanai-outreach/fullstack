@@ -493,6 +493,7 @@ model Email {
   subject          String
   body             String
   status           String            @default("sent")
+  deliveryProvider String?
   providerId       String?
   threadId         String?
   trackingId       String?           @unique
@@ -526,7 +527,7 @@ model ConnectedMailbox {
   assignedUserId        String?
   provider              String    @default("GOOGLE_WORKSPACE")
   authType              String    @default("OAUTH")
-  email                 String
+  email                 String    @unique
   displayName           String?
   status                String    @default("CONNECTED")
   scopes                String[]  @default([])
