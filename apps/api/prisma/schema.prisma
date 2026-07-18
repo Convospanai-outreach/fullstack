@@ -493,6 +493,7 @@ model Email {
   subject          String
   body             String
   status           String            @default("sent")
+  deliveryProvider String?
   providerId       String?
   threadId         String?
   trackingId       String?           @unique
@@ -526,7 +527,7 @@ model ConnectedMailbox {
   assignedUserId        String?
   provider              String    @default("GOOGLE_WORKSPACE")
   authType              String    @default("OAUTH")
-  email                 String
+  email                 String    @unique
   displayName           String?
   status                String    @default("CONNECTED")
   scopes                String[]  @default([])
@@ -580,6 +581,7 @@ model EmailEvent {
   provider          String?
   providerMessageId String?
   payload           Json?
+  processedAt       DateTime?
   createdAt         DateTime @default(now())
 
   team     Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -587,6 +589,7 @@ model EmailEvent {
   mailbox  ConnectedMailbox? @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
   lead     Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
   campaign Campaign?         @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  message  Message?
 
   @@unique([teamId, provider, providerMessageId, type])
   @@index([teamId])
@@ -687,6 +690,7 @@ model MailboxSyncCursor {
   lastError           String?   @db.Text
   lockedAt            DateTime?
   lockExpiresAt       DateTime?
+  lockToken           String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -1288,8 +1292,10 @@ model Message {
   status         String          @default("received") // received, sent, draft
   isRead         Boolean         @default(false)
   sentimentScore Float? // -1.0 to 1.0
+  emailEventId    String?         @unique
   createdAt      DateTime        @default(now())
   lead           Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  emailEvent     EmailEvent?     @relation(fields: [emailEventId], references: [id], onDelete: SetNull)
   feedback       AgentFeedback[]
 
   @@index([leadId])

@@ -51,9 +51,16 @@ function resolveExecutable(command) {
     ? [command]
     : [...extensions.map((extension) => `${command}${extension.toLowerCase()}`), command];
   const commandHasPath = command.includes("\\") || command.includes("/");
+  const localBinDirs = [];
+  for (let currentDir = process.cwd(); ;) {
+    localBinDirs.push(path.join(currentDir, "node_modules", ".bin"));
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) break;
+    currentDir = parentDir;
+  }
   const searchDirs = commandHasPath
     ? [process.cwd()]
-    : (env.PATH || "").split(path.delimiter).filter(Boolean);
+    : [...localBinDirs, ...(env.PATH || "").split(path.delimiter).filter(Boolean)];
 
   for (const dir of searchDirs) {
     for (const candidate of candidates) {
@@ -67,18 +74,13 @@ function resolveExecutable(command) {
   return command;
 }
 
-function quoteCmdArg(value) {
-  return `"${String(value).replace(/(["^])/g, "^$1")}"`;
-}
-
 function resolveSpawn(command, args) {
   const executable = resolveExecutable(command);
   if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(executable)) {
-    const quotedCommand = [executable, ...args].map(quoteCmdArg).join(" ");
     return {
       command: env.ComSpec || "cmd.exe",
-      args: ["/d", "/s", "/c", `"${quotedCommand}"`],
-      windowsVerbatimArguments: true,
+      args: ["/d", "/s", "/c", executable, ...args],
+      windowsVerbatimArguments: false,
     };
   }
 

@@ -1,23 +1,34 @@
 
 import { prisma } from "@/lib/db";
 import { Job } from "@prisma/client";
-import { TaskState, canTransition } from "@/contracts/taskState";
 import { EXECUTION_MODES, RUNTIME_TARGETS } from "@/contracts/executionModes";
 
-function normalizeStatus(status: string): TaskState {
-    switch (status) {
-        case "pending":
-            return "queued";
-        case "processing":
-            return "running";
-        case "completed":
-            return "succeeded";
-        case "dead_letter":
-            return "dead_lettered";
-        default:
-            return status as TaskState;
-    }
-}
+/**
+ * The WorkerManager-owned queue uses lowercase status values. Uppercase values
+ * such as `PENDING` are not part of this queue's claim contract.
+ */
+export const JOB_STATUS = {
+    QUEUED: "queued",
+    PENDING: "pending",
+    RUNNING: "running",
+    PROCESSING: "processing",
+    SUCCEEDED: "succeeded",
+    DEAD_LETTERED: "dead_lettered",
+} as const;
+
+const DEQUEUEABLE_JOB_STATUSES: string[] = [JOB_STATUS.QUEUED, JOB_STATUS.PENDING];
+const RECOVERABLE_STALE_JOB_STATUSES: string[] = [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING];
+
+export const STALE_JOB_RECOVERY_PAGE_SIZE = 100;
+export const STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES = 5;
+
+/** A claim is immutable for the lifetime of one worker execution. */
+export type JobClaim = Readonly<{
+    jobId: string;
+    version: number;
+}>;
+
+export type ClaimedJob = Job & { version: number };
 
 export type JobType =
     | "campaign_execution"
@@ -48,6 +59,13 @@ export interface JobPayload {
     text?: string | undefined;
     // Catch-all for dynamic payload data
     [key: string]: any;
+}
+
+export class JobClaimLostError extends Error {
+    constructor(jobId: string) {
+        super(`Job claim ownership was lost for job ${jobId}.`);
+        this.name = "JobClaimLostError";
+    }
 }
 
 export class JobQueue {
@@ -92,7 +110,7 @@ export class JobQueue {
             processAt: options.processAt ?? new Date(),
             teamId: options.teamId ?? null,
             tenantId: options.teamId ?? null,
-            status: "queued",
+            status: JOB_STATUS.QUEUED,
             version: options.version ?? 1,
             taskType: type,
             executionMode: options.executionMode ?? "saas_only",
@@ -119,20 +137,42 @@ export class JobQueue {
             data.idempotencyKey = options.idempotencyKey;
         }
 
-        return await prisma.job.create({ data });
+        try {
+            return await prisma.job.create({ data });
+        } catch (error: any) {
+            if (error?.code === "P2002" && options.idempotencyKey) {
+                const target = error.meta?.target;
+                const targetFields = Array.isArray(target)
+                    ? target.filter((value): value is string => typeof value === "string")
+                    : typeof target === "string"
+                        ? [target]
+                        : [];
+                const isIdempotencyConflict = targetFields.some((value) => {
+                    const normalized = value.toLowerCase().replace(/[^a-z0-9]/g, "");
+                    return normalized.includes("idempotencykey");
+                });
+                if (isIdempotencyConflict) {
+                    const existingJob = await prisma.job.findUnique({
+                        where: { idempotencyKey: options.idempotencyKey }
+                    });
+                    if (existingJob) return existingJob;
+                }
+            }
+            throw error;
+        }
     }
 
     /**
      * Dequeue the next available job
      * Uses a transaction to lock the job row
      */
-    static async dequeue(): Promise<Job | null> {
+    static async dequeue(): Promise<ClaimedJob | null> {
         const now = new Date();
 
         // Find next eligible job
         const candidates = await prisma.job.findMany({
             where: {
-                status: { in: ["queued", "pending"] },
+                status: { in: DEQUEUEABLE_JOB_STATUSES },
                 processAt: { lte: now },
             },
             orderBy: [
@@ -145,16 +185,19 @@ export class JobQueue {
         for (const candidate of candidates) {
             try {
                 // Claim atomically: only return the job if the row is still eligible.
+                const nextClaimVersion = (candidate.version ?? 0) + 1;
                 const claim = await prisma.job.updateMany({
                     where: {
                         id: candidate.id,
-                        status: { in: ["queued", "pending"] },
-                        processAt: { lte: now }
+                        status: { in: DEQUEUEABLE_JOB_STATUSES },
+                        processAt: { lte: now },
+                        version: candidate.version,
                     },
                     data: {
-                        status: "running",
+                        status: JOB_STATUS.RUNNING,
                         startedAt: new Date(),
-                        attempts: { increment: 1 }
+                        attempts: { increment: 1 },
+                        version: nextClaimVersion,
                     }
                 });
 
@@ -162,12 +205,12 @@ export class JobQueue {
                     continue;
                 }
 
-                const claimedJob = await prisma.job.findUnique({
-                    where: { id: candidate.id }
+                const claimedJob = await prisma.job.findFirst({
+                    where: { id: candidate.id, status: JOB_STATUS.RUNNING, version: nextClaimVersion }
                 });
 
-                if (claimedJob) {
-                    return claimedJob;
+                if (claimedJob && claimedJob.version === nextClaimVersion) {
+                    return { ...claimedJob, version: nextClaimVersion };
                 }
             } catch (err) {
                 // Concurrency: someone else grabbed it, try next
@@ -181,29 +224,71 @@ export class JobQueue {
     /**
      * Mark job as completed
      */
-    static async complete(jobId: string, result?: any) {
-        const job = await prisma.job.findUnique({ where: { id: jobId } });
-        if (!job) return;
-        const current = normalizeStatus(job.status);
-        if (!canTransition(current, "succeeded")) {
-            throw new Error(`Invalid state transition from ${job.status} to succeeded`);
-        }
-        return await prisma.job.update({
-            where: { id: jobId },
+    static async complete(jobId: string, claimVersion: number, result?: any) {
+        const completed = await prisma.job.updateMany({
+            where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
             data: {
-                status: "succeeded",
+                status: JOB_STATUS.SUCCEEDED,
                 completedAt: new Date(),
                 result: result || {},
             },
         });
+
+        if (completed.count !== 1) {
+            throw new JobClaimLostError(jobId);
+        }
+
+        return prisma.job.findUnique({ where: { id: jobId } });
+    }
+
+    static async assertClaim(jobId: string, claimVersion: number) {
+        const owned = await prisma.job.updateMany({
+            where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
+            data: { version: claimVersion },
+        });
+
+        if (owned.count !== 1) {
+            throw new JobClaimLostError(jobId);
+        }
+    }
+
+    /**
+     * Requeue a currently running job without consuming its claim attempt.
+     */
+    static async defer(
+        jobId: string,
+        claimVersion: number,
+        options: { processAt: Date; reason: "MAILBOX_LEASE_CONTENDED" }
+    ) {
+        const deferred = await prisma.job.updateMany({
+            where: {
+                id: jobId,
+                status: JOB_STATUS.RUNNING,
+                version: claimVersion,
+                attempts: { gt: 0 },
+            },
+            data: {
+                status: JOB_STATUS.QUEUED,
+                processAt: options.processAt,
+                startedAt: null,
+                error: options.reason,
+                attempts: { decrement: 1 },
+            },
+        });
+        if (deferred.count !== 1) {
+            throw new JobClaimLostError(jobId);
+        }
+        return prisma.job.findUnique({ where: { id: jobId } });
     }
 
     /**
      * Mark job as failed. Retry if attempts < maxAttempts.
      */
-    static async fail(jobId: string, error: string) {
-        const job = await prisma.job.findUnique({ where: { id: jobId } });
-        if (!job) return;
+    static async fail(jobId: string, claimVersion: number, error: string) {
+        const job = await prisma.job.findFirst({
+            where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
+        });
+        if (!job) throw new JobClaimLostError(jobId);
 
         const isRetryable = job.attempts < job.maxAttempts;
 
@@ -212,24 +297,29 @@ export class JobQueue {
             const backoffSeconds = Math.pow(2, job.attempts) * 30; // 30s, 60s, 120s...
             const nextProcessAt = new Date(Date.now() + backoffSeconds * 1000);
 
-            return await prisma.job.update({
-                where: { id: jobId },
+            const retried = await prisma.job.updateMany({
+                where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
                 data: {
-                    status: "queued", // Reset to queued for retry
+                    status: JOB_STATUS.QUEUED, // Reset to queued for retry
                     error: error,
                     processAt: nextProcessAt,
                 },
             });
+            if (retried.count !== 1) throw new JobClaimLostError(jobId);
+            return prisma.job.findUnique({ where: { id: jobId } });
         } else {
             // Permanent failure -> Dead Letter
-            const updatedJob = await prisma.job.update({
-                where: { id: jobId },
+            const deadLettered = await prisma.job.updateMany({
+                where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
                 data: {
-                    status: "dead_lettered",
+                    status: JOB_STATUS.DEAD_LETTERED,
                     completedAt: new Date(),
                     error: error,
                 },
             });
+            if (deadLettered.count !== 1) throw new JobClaimLostError(jobId);
+
+            const updatedJob = await prisma.job.findUnique({ where: { id: jobId } });
             
             const payload = job.payload as any;
             if (payload && payload.userId) {
@@ -248,33 +338,67 @@ export class JobQueue {
     }
 
     /**
-     * Resets jobs stuck in 'processing' for too long.
+     * Requeues stale WorkerManager claims and invalidates their generation.
      * This protects against worker crashes.
      */
     static async resetStaleJobs(maxAgeMs: number = 1000 * 60 * 15) {
         const threshold = new Date(Date.now() - maxAgeMs);
+        let afterId: string | undefined;
+        let resetCount = 0;
 
-        const staleJobs = await prisma.job.findMany({
-            where: {
-                status: { in: ["running", "processing"] },
-                startedAt: { lte: threshold }
-            }
-        });
+        for (;;) {
+            const staleJobs = await prisma.job.findMany({
+                where: {
+                    status: { in: RECOVERABLE_STALE_JOB_STATUSES },
+                    startedAt: { lte: threshold },
+                    ...(afterId ? { id: { gt: afterId } } : {}),
+                },
+                select: { id: true, status: true, version: true },
+                orderBy: { id: "asc" },
+                take: STALE_JOB_RECOVERY_PAGE_SIZE,
+            });
 
-        if (staleJobs.length === 0) return 0;
+            if (staleJobs.length === 0) break;
 
-        console.log(`[JobQueue] Resetting ${staleJobs.length} stale jobs to pending.`);
+            let nextJobIndex = 0;
+            const resetPage = async () => {
+                let localResetCount = 0;
+                while (nextJobIndex < staleJobs.length) {
+                    const job = staleJobs[nextJobIndex++];
+                    const result = await prisma.job.updateMany({
+                        where: {
+                            id: job.id,
+                            status: job.status,
+                            version: job.version,
+                            startedAt: { lte: threshold },
+                        },
+                        data: {
+                            status: JOB_STATUS.QUEUED,
+                            startedAt: null,
+                            completedAt: null,
+                            error: "Stale job reset by watchdog.",
+                            version: (job.version ?? 0) + 1,
+                        },
+                    });
+                    localResetCount += result.count;
+                }
+                return localResetCount;
+            };
 
-        const result = await prisma.job.updateMany({
-            where: {
-                id: { in: staleJobs.map(j => j.id) }
-            },
-            data: {
-                status: "queued",
-                error: "Stale job reset by watchdog."
-            }
-        });
+            const workers = Array.from(
+                { length: Math.min(STALE_JOB_RECOVERY_MAX_CONCURRENT_WRITES, staleJobs.length) },
+                () => resetPage(),
+            );
+            const pageResults = await Promise.all(workers);
+            resetCount += pageResults.reduce((count, pageCount) => count + pageCount, 0);
 
-        return result.count;
+            afterId = staleJobs[staleJobs.length - 1].id;
+            if (staleJobs.length < STALE_JOB_RECOVERY_PAGE_SIZE) break;
+        }
+
+        if (resetCount > 0) {
+            console.log(`[JobQueue] Reset ${resetCount} stale jobs to queued.`);
+        }
+        return resetCount;
     }
 }

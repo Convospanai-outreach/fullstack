@@ -5,6 +5,7 @@
     "scripts": {
         "dev": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx --watch server.ts",
         "start": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx server.ts",
+        "start:workers": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- tsx src/workers/start-workers.ts",
         "build": "tsc -p tsconfig.strict.json",
         "typecheck": "tsc -p tsconfig.strict.json --noEmit",
         "readiness:seed": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/scripts/seed-readiness.ts",
@@ -32,6 +33,7 @@
         "eventsource": "^4.1.0",
         "fastify": "^5.1.0",
         "geoip-lite": "^2.0.2",
+        "google-auth-library": "^10.9.0",
         "googleapis": "^171.4.0",
         "grapesjs": "^0.23.2",
         "groq-sdk": "^0.37.0",

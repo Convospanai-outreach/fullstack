@@ -1,7 +1,11 @@
 import { startWorker } from "./worker";
 
-console.log("Starting CraftMyFunnel Workers...");
-startWorker().catch(err => {
-    console.error("Fatal worker error:", err);
-    process.exit(1);
+export async function runBackgroundWorker() {
+    console.log("[Worker] Starting CraftMyFunnel background worker.");
+    await startWorker();
+}
+
+runBackgroundWorker().catch(() => {
+    console.error("[Worker] Fatal background worker startup failure.");
+    process.exitCode = 1;
 });
