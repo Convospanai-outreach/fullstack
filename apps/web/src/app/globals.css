@@ -479,4 +479,15 @@
 .animation-delay-400 { animation-delay: 400ms; }
 .animation-delay-500 { animation-delay: 500ms; }
 
+/* Legible custom select & dropdown option colors globally */
+select {
+  color: #f1f5f9 !important; /* slate-100 */
+}
+
+select option {
+  background-color: #0f172a !important; /* slate-900 background */
+  color: #f1f5f9 !important; /* slate-100 */
+}
+
+
 
