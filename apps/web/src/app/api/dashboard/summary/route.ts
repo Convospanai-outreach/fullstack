@@ -1,53 +1,164 @@
-/**
- * Required environment variables for this route:
- * - CLERK_SECRET_KEY (Clerk auth)
- * - NEXT_PUBLIC_SUPABASE_URL (Supabase connection)
- * - SUPABASE_SERVICE_ROLE_KEY (server-side Supabase queries)
- *
- * Set these in: Vercel → Project Settings → Environment Variables
- * For Railway services: RAILWAY_API_URL (if calling Railway background jobs)
- */
-
 import { NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { getCurrentContext } from "@/lib/auth";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
+
+export const dynamic = "force-dynamic";
+
+async function resolveTeamId() {
+  const context = await getCurrentContext();
+  if (context.teamId) return context.teamId;
+
+  const clerkUser = await findOrCreateClerkAppUser();
+  return clerkUser?.memberships.find((member) => member.status === "active")?.teamId || null;
+}
 
 export async function GET() {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const { prisma } = await import("@/lib/db");
+    const teamId = await resolveTeamId();
+    
+    if (!teamId) {
+      return NextResponse.json({
+        kpis: {
+          meetingsBooked: 0,
+          meetingsDelta: 0,
+          activeLeads: 0,
+          draftsReady: 0,
+          draftsPendingSend: 0,
+          openRatePct: 0,
+          openRateDelta: 0,
+        },
+        workflow: {
+          leadsImported: false,
+          leadsCount: 0,
+          draftsGenerated: false,
+          draftsCount: 0,
+          followUpsReviewed: false,
+          followUpsCount: 0,
+          pendingSendCount: 0,
+        },
+        recentActivity: [],
+        setupPercent: 0,
+      });
+    }
 
-  // TODO: Replace with real Supabase queries
-  // Query pattern:
-  //   const supabase = createServerClient()
-  //   const { data: leads } = await supabase.from('leads').select('id').eq('user_id', userId)
-  //   const { data: meetings } = await supabase.from('meetings')
-  //     .select('id, created_at').eq('user_id', userId)
-  //     .gte('created_at', startOfWeek.toISOString())
+    // Get actual counts from DB
+    const [
+      leadsCount,
+      meetingsBooked,
+      draftsReady,
+      draftsPendingSend,
+      followUpsCount,
+      recentActivities
+    ] = await Promise.all([
+      prisma.lead.count({ where: { teamId } }),
+      prisma.meeting.count({ where: { teamId } }),
+      prisma.generation.count({
+        where: {
+          lead: { teamId },
+          status: "PENDING"
+        }
+      }),
+      // Check emails that are drafts/pending
+      prisma.email.count({
+        where: {
+          lead: { teamId },
+          status: "draft"
+        }
+      }),
+      prisma.emailEvent.count({
+        where: {
+          teamId,
+          type: { in: ["REPLIED", "REPLY_RECEIVED"] }
+        }
+      }),
+      prisma.leadActivity.findMany({
+        where: {
+          lead: { teamId }
+        },
+        orderBy: {
+          createdAt: "desc"
+        },
+        take: 10,
+        include: {
+          lead: {
+            select: {
+              fullName: true,
+              email: true
+            }
+          }
+        }
+      })
+    ]);
 
-  return NextResponse.json({
-    kpis: {
-      meetingsBooked: 14,
-      meetingsDelta: 3,
-      activeLeads: 148,
-      draftsReady: 43,
-      draftsPendingSend: 8,
-      openRatePct: 34,
-      openRateDelta: 4,
-    },
-    workflow: {
-      leadsImported: true,
-      leadsCount: 148,
-      draftsGenerated: true,
-      draftsCount: 43,
-      followUpsReviewed: true,
-      followUpsCount: 12,
-      pendingSendCount: 8,
-    },
-    recentActivity: [
-      { id: '1', type: 'meeting_booked', description: 'Meeting booked — Liam Torres, DataBridge Inc', timestamp: new Date(Date.now() - 3600000).toISOString() },
-      { id: '2', type: 'draft_generated', description: 'Draft generated — Priya Sharma, Acme Corp', timestamp: new Date(Date.now() - 7200000).toISOString() },
-      { id: '3', type: 'follow_up_flagged', description: 'Follow-up flagged — Nova Analytics', timestamp: new Date(Date.now() - 10800000).toISOString() },
-      { id: '4', type: 'campaign_activated', description: 'Campaign "Q3 SaaS" activated', timestamp: new Date(Date.now() - 86400000).toISOString() },
-    ],
-    setupPercent: 62,
-  });
+    // Map recentActivities to recentActivity list
+    let recentActivity = recentActivities.map((act) => {
+      let type: 'meeting_booked' | 'draft_generated' | 'follow_up_flagged' | 'campaign_activated' = 'draft_generated';
+      if (act.type.toLowerCase().includes('meeting') || act.type.toLowerCase().includes('booked')) {
+        type = 'meeting_booked';
+      } else if (act.type.toLowerCase().includes('reply') || act.type.toLowerCase().includes('flagged')) {
+        type = 'follow_up_flagged';
+      } else if (act.type.toLowerCase().includes('campaign')) {
+        type = 'campaign_activated';
+      }
+
+      const name = act.lead?.fullName || act.lead?.email || "Unknown Prospect";
+      return {
+        id: act.id,
+        type,
+        description: `${act.title} — ${name}`,
+        timestamp: act.createdAt.toISOString()
+      };
+    });
+
+    if (recentActivity.length === 0) {
+      recentActivity = [
+        { id: 'mock-1', type: 'campaign_activated', description: 'System Ready — Waiting for lead activity', timestamp: new Date().toISOString() }
+      ];
+    }
+
+    const activeLeads = leadsCount;
+    const draftsCount = draftsReady;
+    const pendingSendCount = draftsPendingSend;
+
+    // Calculate setup completion percent
+    const [mailboxesCount, campaignsCount, policy] = await Promise.all([
+      prisma.connectedMailbox.count({ where: { teamId, status: "CONNECTED" } }),
+      prisma.campaign.count({ where: { teamId } }),
+      prisma.organizationPolicy.findUnique({ where: { organizationId: teamId } })
+    ]);
+
+    let setupPercent = 0;
+    if (mailboxesCount > 0) setupPercent += 25;
+    if (leadsCount > 0) setupPercent += 25;
+    if (campaignsCount > 0) setupPercent += 25;
+    if (policy) setupPercent += 25;
+
+    return NextResponse.json({
+      kpis: {
+        meetingsBooked,
+        meetingsDelta: 0,
+        activeLeads,
+        draftsReady,
+        draftsPendingSend,
+        openRatePct: 0,
+        openRateDelta: 0,
+      },
+      workflow: {
+        leadsImported: leadsCount > 0,
+        leadsCount,
+        draftsGenerated: draftsCount > 0,
+        draftsCount,
+        followUpsReviewed: followUpsCount > 0,
+        followUpsCount,
+        pendingSendCount,
+      },
+      recentActivity,
+      setupPercent,
+    });
+
+  } catch (error) {
+    console.error("Dashboard Summary API Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }
