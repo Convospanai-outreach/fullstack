@@ -1,5 +1,5 @@
-
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { prisma } from "@/lib/db";
+import Papa from "papaparse";
 
 export interface CSVRow {
     email: string;
@@ -15,17 +15,8 @@ class CSVIngestionService {
      * Get AI-suggested mapping for CSV headers
      */
     async suggestMapping(headers: string[]) {
-        try {
-            const res = await fetch(`${API_URL}/csv/suggest-mapping`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ headers })
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Mapping suggestion proxy failed:", error);
-            return {};
-        }
+        // Simple heuristic fallback
+        return this.autoDetectFieldMapping(headers);
     }
 
     /**
@@ -47,18 +38,116 @@ class CSVIngestionService {
 
     async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>) {
         try {
-            const res = await fetch(`${API_URL}/csv/process`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ csvContent, teamId, mapping })
+            const parsed = Papa.parse(csvContent, {
+                header: true,
+                skipEmptyLines: true,
             });
-            if (!res.ok) throw new Error("CSV process proxy failure");
-            return await res.json();
-        } catch (error) {
-            console.error("CSV process proxy failed:", error);
-            return { success: false, message: "Server-side processing failed" };
+
+            if (parsed.errors.length > 0) {
+                return {
+                    success: false,
+                    created: 0,
+                    skipped: 0,
+                    errors: parsed.errors.map(e => ({ message: e.message })),
+                    totalParsed: 0,
+                    inserted: 0
+                };
+            }
+
+            const headers = parsed.meta.fields || [];
+            const activeMapping = mapping || this.autoDetectFieldMapping(headers);
+
+            // Find mapping keys
+            const emailKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'email');
+            const fullNameKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'fullName');
+            const companyKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'company');
+            const jobTitleKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'jobTitle');
+            const linkedInKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'linkedIn');
+            const locationKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'location');
+
+            let created = 0;
+            let skipped = 0;
+            const errors: Array<{ message: string }> = [];
+
+            const rows = parsed.data as Array<Record<string, string>>;
+
+            for (const row of rows) {
+                try {
+                    const rawEmail = emailKey ? row[emailKey] : undefined;
+                    const email = rawEmail ? rawEmail.trim().toLowerCase() : undefined;
+
+                    if (!email) {
+                        errors.push({ message: `Row ${created + skipped + 1}: Missing email address` });
+                        skipped++;
+                        continue;
+                    }
+
+                    // Check if email format is basic valid
+                    if (!email.includes("@")) {
+                        errors.push({ message: `Row ${created + skipped + 1}: Invalid email format "${email}"` });
+                        skipped++;
+                        continue;
+                    }
+
+                    const existing = await prisma.lead.findFirst({
+                        where: {
+                            email,
+                            teamId: teamId || undefined,
+                        }
+                    });
+
+                    if (existing) {
+                        skipped++;
+                        continue;
+                    }
+
+                    const fullName = fullNameKey ? row[fullNameKey]?.trim() : undefined;
+                    const company = companyKey ? row[companyKey]?.trim() : undefined;
+                    const jobTitle = jobTitleKey ? row[jobTitleKey]?.trim() : undefined;
+                    const linkedIn = linkedInKey ? row[linkedInKey]?.trim() : undefined;
+                    const location = locationKey ? row[locationKey]?.trim() : undefined;
+
+                    await prisma.lead.create({
+                        data: {
+                            email,
+                            fullName,
+                            company,
+                            jobTitle,
+                            linkedIn,
+                            location,
+                            teamId: teamId || undefined,
+                            status: "NEW",
+                        }
+                    });
+
+                    created++;
+                } catch (e: any) {
+                    errors.push({ message: `Row ${created + skipped + 1}: ${e.message || "Failed to save lead"}` });
+                    skipped++;
+                }
+            }
+
+            return {
+                success: true,
+                created,
+                skipped,
+                errors,
+                totalParsed: rows.length,
+                inserted: created
+            };
+        } catch (error: any) {
+            console.error("Local CSV processing failed:", error);
+            return {
+                success: false,
+                created: 0,
+                skipped: 0,
+                errors: [{ message: error.message || "Server-side processing failed" }],
+                totalParsed: 0,
+                inserted: 0
+            };
         }
     }
 }
 
 export const csvIngestionService = new CSVIngestionService();
+

@@ -101,6 +101,9 @@ export async function importCSV(
             campaignId,
         }),
     });
-    if (!res.ok) throw new Error("Failed to import CSV");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.message || "Failed to import CSV");
+    }
     return res.json();
 }
