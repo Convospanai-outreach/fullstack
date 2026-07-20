@@ -13,7 +13,7 @@ export async function enforcePolicy({
     action: string
     payload?: any
 }) {
-    const [policy, membership] = await Promise.all([
+    const [existingPolicy, membership] = await Promise.all([
         prisma.organizationPolicy.findUnique({
             where: { organizationId: orgId },
         }),
@@ -22,7 +22,10 @@ export async function enforcePolicy({
         }),
     ]);
 
-    if (!policy) throw new Error("ORG_POLICY_MISSING");
+    // Auto-create a permissive default policy if none exists (new teams)
+    const policy = existingPolicy ?? await prisma.organizationPolicy.create({
+        data: { organizationId: orgId },
+    });
     if (!membership) throw new Error("NOT_A_TEAM_MEMBER");
 
     const role = membership.role.toUpperCase() as GovernanceRole;
