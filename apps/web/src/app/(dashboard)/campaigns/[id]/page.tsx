@@ -123,10 +123,10 @@ export default function CampaignDetailPage({
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-600">Loading campaign...</p>
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                    <p className="mt-2 text-zinc-400">Loading campaign...</p>
                 </div>
             </div>
         );
@@ -134,12 +134,12 @@ export default function CampaignDetailPage({
 
     if (error || !campaign) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-red-600 mb-4">{error || "Campaign not found"}</p>
+                    <p className="text-red-500 mb-4">{error || "Campaign not found"}</p>
                     <button
                         onClick={() => router.push("/campaigns")}
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-purple-400 hover:text-purple-300"
                     >
                         Back to campaigns
                     </button>
@@ -149,12 +149,12 @@ export default function CampaignDetailPage({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen text-slate-200">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-6">
                     <button
                         onClick={() => router.push("/campaigns")}
-                        className="text-blue-600 hover:text-blue-700 mb-4"
+                        className="text-purple-400 hover:text-purple-300 mb-4 flex items-center gap-1 text-sm font-semibold transition-colors"
                     >
                         ← Back to campaigns
                     </button>
@@ -162,7 +162,7 @@ export default function CampaignDetailPage({
                     <div className="flex justify-between items-start">
                         <div className="flex-1">
                             {isEditing ? (
-                                <div className="space-y-3">
+                                <div className="space-y-3 max-w-xl">
                                     <input
                                         type="text"
                                         title="Campaign name"
@@ -171,7 +171,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, name: e.target.value })
                                         }
-                                        className="text-3xl font-bold w-full px-3 py-2 border border-gray-300 rounded"
+                                        className="text-3xl font-bold w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     />
                                     <textarea
                                         title="Campaign description"
@@ -180,7 +180,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, description: e.target.value })
                                         }
-                                        className="w-full px-3 py-2 border border-gray-300 rounded"
+                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                                         rows={2}
                                     />
                                     <input
@@ -194,18 +194,18 @@ export default function CampaignDetailPage({
                                                 targetCount: parseInt(e.target.value) || 0,
                                             })
                                         }
-                                        className="w-32 px-3 py-2 border border-gray-300 rounded"
+                                        className="w-32 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     />
                                     <div className="space-x-2">
                                         <button
                                             onClick={handleSaveEdit}
-                                            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
                                         >
                                             Save
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(false)}
-                                            className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400"
+                                            className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition"
                                         >
                                             Cancel
                                         </button>
@@ -213,11 +213,11 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <>
-                                    <h1 className="text-3xl font-bold text-gray-900">
+                                    <h1 className="text-3xl font-bold text-white">
                                         {campaign.name}
                                     </h1>
                                     {campaign.description && (
-                                        <p className="mt-2 text-gray-600">{campaign.description}</p>
+                                        <p className="mt-2 text-zinc-400">{campaign.description}</p>
                                     )}
                                 </>
                             )}
@@ -229,17 +229,17 @@ export default function CampaignDetailPage({
                 </div>
 
                 {/* Tabs */}
-                <div className="border-b border-gray-200 mb-6">
+                <div className="border-b border-white/10 mb-6">
                     <nav className="-mb-px flex space-x-8">
                         {["overview", "leads", "activity", "timeline", "analytics"].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`
-                                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm capitalize
+                                    whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors
                                     ${activeTab === tab
-                                        ? "border-blue-500 text-blue-600"
-                                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                                        ? "border-purple-500 text-purple-400"
+                                        : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/10"
                                     }
                                 `}
                             >
@@ -254,13 +254,13 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h2 className="text-xl font-semibold mb-4">Campaign Actions</h2>
+                                <div className="glass-card p-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-white">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
                                         {!isEditing && (
                                             <button
                                                 onClick={() => setIsEditing(true)}
-                                                className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
+                                                className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition"
                                             >
                                                 Edit Campaign
                                             </button>
@@ -273,9 +273,9 @@ export default function CampaignDetailPage({
                                             >
                                                 <button
                                                     onClick={() => handleStatusChange("active")}
-                                                    className={`px-4 py-2 rounded text-white ${checkCampaignPolicy(campaign)
-                                                        ? "bg-gray-400 cursor-not-allowed"
-                                                        : "bg-green-600 hover:bg-green-700"
+                                                    className={`px-4 py-2 rounded-lg text-white transition ${checkCampaignPolicy(campaign)
+                                                        ? "bg-zinc-600 cursor-not-allowed opacity-50"
+                                                        : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
                                                     Activate
@@ -285,7 +285,7 @@ export default function CampaignDetailPage({
                                         {campaign.status === "active" && (
                                             <button
                                                 onClick={() => handleStatusChange("paused")}
-                                                className="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700"
+                                                className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition"
                                             >
                                                 Pause
                                             </button>
@@ -294,7 +294,7 @@ export default function CampaignDetailPage({
                                             <PolicyGuard restriction="none">
                                                 <button
                                                     onClick={() => handleStatusChange("active")}
-                                                    className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+                                                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
                                                 >
                                                     Resume
                                                 </button>
@@ -303,20 +303,20 @@ export default function CampaignDetailPage({
                                         {campaign.status !== "completed" && (
                                             <button
                                                 onClick={() => handleStatusChange("completed")}
-                                                className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+                                                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition"
                                             >
                                                 Mark Complete
                                             </button>
                                         )}
                                         <button
                                             onClick={handleDelete}
-                                            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                            className="bg-rose-600 text-white px-4 py-2 rounded-lg hover:bg-rose-700 transition"
                                         >
                                             Delete Campaign
                                         </button>
                                         <button
                                             onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
-                                            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
                                         >
                                             Import Leads
                                         </button>
@@ -325,28 +325,28 @@ export default function CampaignDetailPage({
                             </div>
 
                             <div className="space-y-6">
-                                <div className="bg-white rounded-lg shadow p-6">
-                                    <h2 className="text-xl font-semibold mb-4">Stats</h2>
+                                <div className="glass-card p-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-white">Stats</h2>
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm text-gray-600">Total Leads</p>
-                                            <p className="text-2xl font-bold">
+                                            <p className="text-sm text-zinc-400">Total Leads</p>
+                                            <p className="text-2xl font-bold text-white">
                                                 {analytics?.totalLeads || 0}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-600">Target</p>
-                                            <p className="text-2xl font-bold">{campaign.targetCount}</p>
+                                            <p className="text-sm text-zinc-400">Target</p>
+                                            <p className="text-2xl font-bold text-white">{campaign.targetCount}</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-600">Completed</p>
-                                            <p className="text-2xl font-bold">
+                                            <p className="text-sm text-zinc-400">Completed</p>
+                                            <p className="text-2xl font-bold text-white">
                                                 {campaign.completedCount}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-gray-600">Completion Rate</p>
-                                            <p className="text-2xl font-bold">
+                                            <p className="text-sm text-zinc-400">Completion Rate</p>
+                                            <p className="text-2xl font-bold text-white">
                                                 {analytics?.completionRate || 0}%
                                             </p>
                                         </div>
@@ -354,14 +354,14 @@ export default function CampaignDetailPage({
                                 </div>
 
                                 {analytics?.leadsByStatus && (
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <h2 className="text-xl font-semibold mb-4">Leads by Status</h2>
+                                    <div className="glass-card p-6">
+                                        <h2 className="text-xl font-semibold mb-4 text-white">Leads by Status</h2>
                                         <div className="space-y-2">
                                             {Object.entries(analytics.leadsByStatus).map(
                                                 ([status, count]: [string, any]) => (
-                                                    <div key={status} className="flex justify-between">
-                                                        <span className="text-sm capitalize">{status}</span>
-                                                        <span className="text-sm font-semibold">{count}</span>
+                                                    <div key={status} className="flex justify-between border-b border-white/5 pb-1">
+                                                        <span className="text-sm capitalize text-zinc-400">{status}</span>
+                                                        <span className="text-sm font-semibold text-white">{count}</span>
                                                     </div>
                                                 )
                                             )}
@@ -374,34 +374,38 @@ export default function CampaignDetailPage({
 
                     {/* LEADS TAB */}
                     {activeTab === "leads" && (
-                        <div className="lg:col-span-3 bg-white rounded-lg shadow p-6">
-                            <h2 className="text-xl font-semibold mb-4">Leads</h2>
+                        <div className="lg:col-span-3 glass-card p-6">
+                            <h2 className="text-xl font-semibold mb-4 text-white">Leads</h2>
                             {campaign.leads && campaign.leads.length > 0 ? (
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
+                                    <table className="min-w-full divide-y divide-white/10">
                                         <thead>
                                             <tr>
-                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                                     Name
                                                 </th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                                     Email
                                                 </th>
-                                                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
                                                     Status
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200">
+                                        <tbody className="divide-y divide-white/5">
                                             {campaign.leads.map((lead: any) => (
-                                                <tr key={lead.id}>
-                                                    <td className="px-4 py-2 text-sm">
+                                                <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
+                                                    <td className="px-4 py-2.5 text-sm text-slate-200">
                                                         {lead.fullName || "—"}
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm">
+                                                    <td className="px-4 py-2.5 text-sm text-slate-300">
                                                         {lead.email || "—"}
                                                     </td>
-                                                    <td className="px-4 py-2 text-sm">{lead.status}</td>
+                                                    <td className="px-4 py-2.5 text-sm">
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-purple-500/10 text-purple-400">
+                                                            {lead.status}
+                                                        </span>
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -409,10 +413,10 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
-                                    <p className="text-gray-500 mb-4">No leads assigned yet.</p>
+                                    <p className="text-zinc-500 mb-4">No leads assigned yet.</p>
                                     <button
                                         onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
-                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm"
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold transition"
                                     >
                                         Import Leads via CSV
                                     </button>
@@ -434,8 +438,8 @@ export default function CampaignDetailPage({
 
                     {/* TIMELINE TAB */}
                     {activeTab === "timeline" && (
-                        <div className="lg:col-span-3 bg-white rounded-lg shadow p-6">
-                            <h2 className="text-xl font-semibold mb-6">Execution Timeline</h2>
+                        <div className="lg:col-span-3 glass-card p-6">
+                            <h2 className="text-xl font-semibold mb-6 text-white">Execution Timeline</h2>
                             <ExecutionTimeline campaignId={campaignId} />
                         </div>
                     )}
@@ -443,16 +447,16 @@ export default function CampaignDetailPage({
                     {/* ANALYTICS TAB */}
                     {activeTab === "analytics" && (
                         <div className="lg:col-span-3">
-                            <div className="flex items-center justify-end mb-4 gap-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100">
-                                <span className={`text-sm font-medium ${!is3DMode ? "text-blue-600" : "text-gray-400"}`}>2D Charts</span>
+                            <div className="flex items-center justify-end mb-4 gap-3 bg-white/5 p-3 rounded-lg border border-white/10">
+                                <span className={`text-sm font-medium ${!is3DMode ? "text-purple-400" : "text-zinc-500"}`}>2D Charts</span>
                                 <button
                                     onClick={() => setIs3DMode(!is3DMode)}
                                     aria-label={is3DMode ? "Switch to 2D charts" : "Switch to 3D immersive view"}
-                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-gray-200"}`}
+                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-white/10"}`}
                                 >
                                     <span className={`block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${is3DMode ? "translate-x-7" : "translate-x-0"}`} />
                                 </button>
-                                <span className={`text-sm font-medium ${is3DMode ? "text-purple-600 shimmer-text" : "text-gray-400"}`}>3D Immersive</span>
+                                <span className={`text-sm font-medium ${is3DMode ? "text-purple-400 shimmer-text" : "text-zinc-500"}`}>3D Immersive</span>
                             </div>
 
                             {analytics ? (
@@ -461,7 +465,7 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <div className="flex h-[400px] items-center justify-center">
-                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                                 </div>
                             )}
                         </div>
