@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { importCSV } from "@/lib/api/leads";
 // Basic auto-detection
 const autoDetectFieldMapping = (headers: string[]): Record<string, string> => {
@@ -18,6 +18,8 @@ import Papa from "papaparse";
 
 export default function ImportLeadsPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const campaignId = searchParams.get("campaignId") || undefined;
     const [csvText, setCsvText] = useState("");
     const [headers, setHeaders] = useState<string[]>([]);
     const [preview, setPreview] = useState<any[]>([]);
@@ -74,12 +76,12 @@ export default function ImportLeadsPage() {
         setResult(null);
 
         try {
-            const importResult = await importCSV(csvText, fieldMapping);
+            const importResult = await importCSV(csvText, fieldMapping, campaignId);
             setResult(importResult);
 
             if (importResult.created > 0) {
                 setTimeout(() => {
-                    router.push("/leads");
+                    router.push(campaignId ? `/campaigns/${campaignId}` : "/leads");
                 }, 3000);
             }
         } catch (err) {

@@ -36,7 +36,7 @@ class CSVIngestionService {
         return mapping;
     }
 
-    async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>) {
+    async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>, campaignId?: string) {
         try {
             const parsed = Papa.parse(csvContent, {
                 header: true,
@@ -116,6 +116,7 @@ class CSVIngestionService {
                             linkedIn,
                             location,
                             teamId: teamId || undefined,
+                            campaignId: campaignId || undefined,
                             status: "NEW",
                         }
                     });

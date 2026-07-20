@@ -314,6 +314,12 @@ export default function CampaignDetailPage({
                                         >
                                             Delete Campaign
                                         </button>
+                                        <button
+                                            onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
+                                            className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+                                        >
+                                            Import Leads
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -402,7 +408,15 @@ export default function CampaignDetailPage({
                                     </table>
                                 </div>
                             ) : (
-                                <p className="text-gray-600">No leads assigned yet</p>
+                                <div className="text-center py-8">
+                                    <p className="text-gray-500 mb-4">No leads assigned yet.</p>
+                                    <button
+                                        onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-sm"
+                                    >
+                                        Import Leads via CSV
+                                    </button>
+                                </div>
                             )}
                         </div>
                     )}
