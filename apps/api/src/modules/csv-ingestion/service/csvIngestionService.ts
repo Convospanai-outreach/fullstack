@@ -128,6 +128,19 @@ class CSVIngestionService {
                 }
             }
 
+            // If leads were linked to a campaign, update its targetCount
+            if (campaignId && created > 0) {
+                try {
+                    const totalLeadsInCampaign = await prisma.lead.count({ where: { campaignId } });
+                    await prisma.campaign.update({
+                        where: { id: campaignId },
+                        data: { targetCount: totalLeadsInCampaign },
+                    });
+                } catch (e: any) {
+                    console.warn("[CSVIngestion] Could not update campaign targetCount:", e.message);
+                }
+            }
+
             return {
                 success: true,
                 created,

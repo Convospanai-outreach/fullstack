@@ -31,7 +31,8 @@ export async function handleSequenceAction(payload: JobPayload) {
     const action = payload['action'];
     const payloadTeamId = typeof payload['teamId'] === "string" ? payload['teamId'] : undefined;
 
-    if (!leadId || !url || !action) {
+    const requiresUrl = action !== "EMAIL";
+    if (!leadId || !action || (requiresUrl && !url)) {
         throw new Error("Missing required payload for SEQUENCE_ACTION");
     }
 

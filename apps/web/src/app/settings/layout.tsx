@@ -8,6 +8,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <h2 className="text-xl font-bold mb-6 px-2">Settings</h2>
 
                 <NavLink href="/settings/general">General</NavLink>
+                <NavLink href="/settings/mailboxes">Connected Mailboxes</NavLink>
                 <NavLink href="/settings/notifications">Notifications</NavLink>
                 <NavLink href="/settings/keys">API Keys</NavLink>
                 <NavLink href="/settings/agent">AI Agent</NavLink>

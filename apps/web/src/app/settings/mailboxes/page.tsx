@@ -1,0 +1,200 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
+
+interface ConnectedMailbox {
+    id: string;
+    email: string;
+    displayName: string | null;
+    status: string;
+    dailyLimit: number;
+    sentToday: number;
+    lastSentAt: string | null;
+    isWarmingUp: boolean;
+}
+
+export default function MailboxesSettingsPage() {
+    const [mailboxes, setMailboxes] = useState<ConnectedMailbox[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [connecting, setConnecting] = useState(false);
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("connected") === "1" || params.get("googleMailbox") === "connected") {
+            setSuccess(true);
+            window.history.replaceState({}, "", "/settings/mailboxes");
+        }
+        if (params.get("error")) {
+            setError(`Gmail connection failed: ${params.get("error")}`);
+            window.history.replaceState({}, "", "/settings/mailboxes");
+        }
+        loadMailboxes();
+    }, []);
+
+    const loadMailboxes = async () => {
+        setLoading(true);
+        try {
+            const res = await fetch(getBrowserApiUrl("/mailboxes"));
+            const data = await res.json();
+            setMailboxes(data.mailboxes || []);
+        } catch {
+            setError("Failed to load connected mailboxes.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const connectGmail = async () => {
+        setConnecting(true);
+        try {
+            const res = await fetch(getBrowserApiUrl("/mailboxes"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nextPath: "/settings/mailboxes" }),
+            });
+            const data = await res.json();
+            if (data.authUrl) {
+                window.location.href = data.authUrl;
+            } else {
+                setError(data.error || "Failed to start Gmail connection.");
+            }
+        } catch {
+            setError("Failed to start Gmail connection.");
+        } finally {
+            setConnecting(false);
+        }
+    };
+
+    const disconnectMailbox = async (mailboxId: string) => {
+        if (!confirm("Disconnect this mailbox? Outreach for this account will stop.")) return;
+        try {
+            await fetch(getBrowserApiUrl("/mailboxes"), {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mailboxId }),
+            });
+            loadMailboxes();
+        } catch {
+            setError("Failed to disconnect mailbox.");
+        }
+    };
+
+    const statusColor = (status: string) => {
+        if (status === "CONNECTED") return "text-emerald-400 bg-emerald-500/10";
+        if (status === "NEEDS_RECONNECT") return "text-amber-400 bg-amber-500/10";
+        return "text-zinc-400 bg-zinc-500/10";
+    };
+
+    return (
+        <div className="text-slate-200">
+            <div className="max-w-3xl mx-auto py-4">
+                <div className="mb-8">
+                    <h1 className="text-3xl font-bold text-white">Connected Mailboxes</h1>
+                    <p className="mt-2 text-zinc-400 text-sm">
+                        Connect your Gmail account so CraftMyFunnel can send outreach emails on your behalf.
+                        Emails are sent directly from your Gmail via the Google API.
+                    </p>
+                </div>
+
+                {success && (
+                    <div className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
+                        Gmail mailbox connected successfully!
+                    </div>
+                )}
+                {error && (
+                    <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400">
+                        {error}
+                    </div>
+                )}
+
+                <div className="mb-6">
+                    <button
+                        onClick={connectGmail}
+                        disabled={connecting}
+                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition"
+                    >
+                        {connecting ? (
+                            <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M20.64 12.2c0-.638-.057-1.252-.164-1.84H12v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616Z" />
+                                <path d="M12 21c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H3.957v2.332A8.997 8.997 0 0 0 12 21Z" />
+                                <path d="M6.964 13.71a5.41 5.41 0 0 1-.282-1.71c0-.593.102-1.17.282-1.71V7.958H3.957A8.996 8.996 0 0 0 3 12c0 1.452.348 2.827.957 4.042l3.007-2.332Z" />
+                                <path d="M12 6.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C16.463 3.891 14.426 3 12 3a8.997 8.997 0 0 0-8.043 4.958l3.007 2.332C7.672 8.163 9.656 6.58 12 6.58Z" />
+                            </svg>
+                        )}
+                        {connecting ? "Redirecting to Google…" : "Connect Gmail Account"}
+                    </button>
+                </div>
+
+                {loading ? (
+                    <div className="flex items-center justify-center py-16">
+                        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                    </div>
+                ) : mailboxes.length === 0 ? (
+                    <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-10 text-center">
+                        <div className="text-4xl mb-4">📭</div>
+                        <h2 className="text-lg font-semibold text-white mb-2">No mailboxes connected</h2>
+                        <p className="text-zinc-500 text-sm">
+                            Click &ldquo;Connect Gmail Account&rdquo; above to authorise CraftMyFunnel to send emails from your Gmail.
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {mailboxes.map((mb) => (
+                            <div key={mb.id} className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-600/20 flex items-center justify-center text-indigo-400 font-bold text-sm uppercase">
+                                        {mb.email[0]}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-white font-semibold text-sm truncate">{mb.email}</p>
+                                        {mb.displayName && (
+                                            <p className="text-zinc-500 text-xs">{mb.displayName}</p>
+                                        )}
+                                        <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">
+                                            <span>{mb.sentToday}/{mb.dailyLimit} sent today</span>
+                                            {mb.isWarmingUp && (
+                                                <span className="text-amber-400">🔥 Warming up</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${statusColor(mb.status)}`}>
+                                        {mb.status === "CONNECTED" ? "Connected" : mb.status === "NEEDS_RECONNECT" ? "Needs Reconnect" : mb.status}
+                                    </span>
+                                    {mb.status === "NEEDS_RECONNECT" && (
+                                        <button
+                                            onClick={connectGmail}
+                                            className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold transition"
+                                        >
+                                            Reconnect
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => disconnectMailbox(mb.id)}
+                                        className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition"
+                                    >
+                                        Disconnect
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="mt-8 p-4 rounded-lg border border-white/10 bg-white/[0.03] text-xs text-zinc-500 space-y-1.5">
+                    <p className="font-semibold text-zinc-400">Setup checklist</p>
+                    <p>1. Click <strong className="text-zinc-300">Connect Gmail Account</strong> — you will be taken to Google to grant permission.</p>
+                    <p>2. Grant access to Gmail Send and Gmail Read scopes.</p>
+                    <p>3. Once connected, activate any campaign — emails will be sent automatically from your Gmail.</p>
+                    <p>4. In Google Cloud Console, add this OAuth redirect URI: <code className="text-indigo-400">https://api.craftmyfunnel.live/integrations/google/oauth/callback</code></p>
+                </div>
+            </div>
+        </div>
+    );
+}
