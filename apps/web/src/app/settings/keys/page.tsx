@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { Key, Trash2, Copy, Check, Plus } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { getBrowserApiUrl } from '@/lib/api/browserBase';
 
 export default function ApiKeysPage() {
     const [keys, setKeys] = useState<any[]>([]);
@@ -20,9 +21,10 @@ export default function ApiKeysPage() {
 
     const loadKeys = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/keys");
+            const res = await fetch(getBrowserApiUrl("/settings/keys"));
+            if (!res.ok) return;
             const data = await res.json();
-            setKeys(data);
+            setKeys(Array.isArray(data) ? data : []);
         } catch (e) {
             console.error(e);
         } finally {
@@ -32,7 +34,7 @@ export default function ApiKeysPage() {
 
     const handleCreate = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/keys", {
+            const res = await fetch(getBrowserApiUrl("/settings/keys"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: createName, scopes: ["leads:read", "campaigns:read", "leads:write"] })
@@ -54,7 +56,7 @@ export default function ApiKeysPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure? Integration using this key will stop working.")) return;
         try {
-            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/settings/keys/${id}`, { method: "DELETE" });
+            await fetch(getBrowserApiUrl(`/settings/keys/${id}`), { method: "DELETE" });
             toast.success("Key revoked");
             loadKeys();
         } catch (e) {
