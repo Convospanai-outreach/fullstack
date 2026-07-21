@@ -34,3 +34,5 @@ check-*.js
 debug-*.js
 fix-env.js
 .vercel
+/src
+/tsconfig.json

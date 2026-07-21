@@ -1830,7 +1830,7 @@ model PatentGuardrail {
   claimText String                       @db.Text // Patent claim text to check against
   patentId  String
   riskLevel String                       @default("HIGH")
-  vector    Unsupported("vector(1536)")? // For similarity search
+  vector    String? // For similarity search
 
   @@map("patent_guardrails")
 }
@@ -1851,7 +1851,7 @@ model LLMCache {
   prompt     String                       @db.Text
   promptHash String                       @unique // Optimized lookup
   response   String                       @db.Text
-  embedding  Unsupported("vector(1536)")? // Using vector type for semantic search
+  embedding  String? // Using vector type for semantic search
   tokensIn   Int                          @default(0)
   tokensOut  Int                          @default(0)
   createdAt  DateTime                     @default(now())

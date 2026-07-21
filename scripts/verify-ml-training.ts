@@ -4,7 +4,7 @@ import { datasetService } from "../src/modules/training/DatasetService";
 import { trainingPipeline } from "../src/modules/training/TrainingPipelineService";
 import { prisma } from "../src/lib/db";
 import { TrainingTaskType, DatasetStatus, ModelStatus } from "@prisma/client";
-import { modelGateway } from "../src/ai/ModelGateway";
+import { modelGateway } from "@/ai/ModelGateway";
 
 // Mock Gateway for Synthetic Data Generation
 modelGateway.generate = async (req: any) => {
