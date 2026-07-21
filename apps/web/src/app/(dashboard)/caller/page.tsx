@@ -52,7 +52,7 @@ export default function CallerPage() {
     const fetchQueue = async () => {
         setLoading(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/caller/queue");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/caller/queue");
             if (res.ok) {
                 const data = await res.json();
                 setAssigned(data.assigned);
@@ -77,7 +77,7 @@ export default function CallerPage() {
     const handleClaim = async (leadId: string) => {
         setProcessingId(leadId);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/caller/queue", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/caller/queue", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "claim", leadId })
@@ -102,7 +102,7 @@ export default function CallerPage() {
         if (outcome === "callback") enumOutcome = "COORDINATING";
 
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/caller/queue", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/caller/queue", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

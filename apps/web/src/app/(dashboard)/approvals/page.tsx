@@ -35,7 +35,7 @@ export default function ApprovalsPage() {
             // Assuming context provides teamId or API infers it from session
             // For MVP we just hit the endpoint, assuming it might default or we need to pass a teamId query param
             // Ideally we get teamId from a context provider
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/approvals");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/approvals");
             const data = await res.json();
             if (data.requests) {
                 setRequests(data.requests);
@@ -51,7 +51,7 @@ export default function ApprovalsPage() {
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/approvals/${id}`, {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/approvals/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined })

@@ -20,7 +20,7 @@ export function LeadIntelligenceSidebar({ threadId }: LeadIntelligenceSidebarPro
 
         const fetchAnalysis = async () => {
             try {
-                const threadRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + `/inbox/${threadId}`);
+                const threadRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + `/inbox/${threadId}`);
                 if (!threadRes.ok) throw new Error("Failed to load thread");
                 const threadData = await threadRes.json();
                 const rawMessages = Array.isArray(threadData?.messages) ? threadData.messages : [];
@@ -33,7 +33,7 @@ export function LeadIntelligenceSidebar({ threadId }: LeadIntelligenceSidebarPro
                     throw new Error("No messages to analyze");
                 }
 
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/agents/inbox/analyze", {
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/agents/inbox/analyze", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ messages: mappedMessages, leadId: threadId })

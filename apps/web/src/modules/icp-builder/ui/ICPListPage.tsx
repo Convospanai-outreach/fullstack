@@ -8,7 +8,7 @@ export default function ICPListPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/icp-builder/list")
+        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/icp-builder/list")
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setIcps(data.icps);

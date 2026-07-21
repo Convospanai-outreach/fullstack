@@ -1,5 +1,5 @@
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
 const ENCRYPTION_KEY = process.env["ENCRYPTION_KEY"] || "";
 const isServer = typeof window === "undefined";
 

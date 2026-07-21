@@ -50,7 +50,7 @@ export default function AdminUsagePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${process.env["NEXT_PUBLIC_API_URL"]}/admin/usage?range=${range}`
+        `${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/admin/usage?range=${range}`
       );
       if (!res.ok) throw new Error("Failed to load usage");
       const json = await res.json();

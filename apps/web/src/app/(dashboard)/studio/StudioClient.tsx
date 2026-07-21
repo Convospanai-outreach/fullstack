@@ -39,7 +39,7 @@ export default function StudioClient() {
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/config");
+                const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/config");
                 const data = await res.json();
 
                 if (data.config) {
@@ -67,7 +67,7 @@ export default function StudioClient() {
             const talkingPoints = config.talkingPoints.split("\n").map((item) => item.trim()).filter(Boolean);
             const avoidWords = config.avoidWords.split(",").map((item) => item.trim()).filter(Boolean);
 
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/preview", {
+            const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/preview", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -106,7 +106,7 @@ export default function StudioClient() {
         setSaving(true);
 
         try {
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/config", {
+            const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/config", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

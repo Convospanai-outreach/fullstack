@@ -26,7 +26,7 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
 
         setLoading(true)
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/knowledge/${knowledgeBaseId}/upload`, {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${knowledgeBaseId}/upload`, {
                 method: "POST",
                 body: JSON.stringify({
                     content,

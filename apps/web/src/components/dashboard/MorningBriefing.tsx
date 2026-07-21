@@ -18,7 +18,7 @@ export function MorningBriefing() {
 
         const fetchBriefing = async () => {
             try {
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/dashboard/briefing');
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/dashboard/briefing');
                 const data = await res.json();
                 
                 const fullText = data.narrative || `Your AI agents have been busy. ${data.activeCampaigns} campaigns are currently active with a ${data.improvement}% higher engagement rate than yesterday. Suggested focus: Review the '${data.campaignName}' outreach - ${data.pendingApprovals} replies need your approval.`;

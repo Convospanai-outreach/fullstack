@@ -28,7 +28,7 @@ export default function PricingPage() {
                 return;
             }
 
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/checkout", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ planId }),

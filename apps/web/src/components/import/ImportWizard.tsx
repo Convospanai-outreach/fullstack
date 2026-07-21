@@ -47,7 +47,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
     const analyzeHeaders = async (extractedHeaders: string[]) => {
         setIsAnalyzing(true);
         try {
-            const response = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/import/suggest-mapping", {
+            const response = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/import/suggest-mapping", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ headers: extractedHeaders })
@@ -97,7 +97,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
 
         setIsImporting(true);
         try {
-            const response = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/leads/import", {
+            const response = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/leads/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

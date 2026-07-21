@@ -36,7 +36,7 @@ export default function CreditTopupModal({ isOpen, onClose }: { isOpen: boolean;
             const isLoaded = await loadRazorpayScript();
             if (!isLoaded) throw new Error("Failed to load payment gateway");
 
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tierId: pack.tierId })

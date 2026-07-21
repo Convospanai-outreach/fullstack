@@ -31,7 +31,7 @@ export default function CreditsPage() {
 
     const loadData = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/usage");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage");
             if (!res.ok) throw new Error("Failed to load data");
             const data = await res.json();
             setBalance(data.balance);
@@ -47,7 +47,7 @@ export default function CreditsPage() {
     const handleTopUp = async (bundle: typeof BUNDLES[0]) => {
         setPurchasing(bundle.id);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/billing/topup", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tierId: bundle.id })

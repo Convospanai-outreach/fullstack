@@ -100,7 +100,7 @@ export default function AdminHealthPage() {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "";
+      const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
       const res = await fetch(`${apiBase}/admin/runtime-overview?range=${nextRange}`);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
