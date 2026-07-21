@@ -97,6 +97,7 @@ The repo is not judged by the API readiness audit alone.
 - required local runtime stack boots with Postgres and Redis
 - API readiness audit passes at `100/100` (26/26 checks passed)
 - web unit tests pass clean (`13/13` test files, `78/78` tests passed)
+- Playwright production readiness E2E tests pass clean (`5/5` tests: Health, Metrics, Security Headers, Tracing, CORS)
 - pre-deployment system audit scripts pass clean (`5/5` suites passed)
 - architecture is cleanly split by service boundary
 - edge runtime is optional and can remain private

@@ -34,7 +34,7 @@ export function UsageStats() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(process.env['NEXT_PUBLIC_API_URL'] + "/usage")
+        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/usage")
             .then((res) => res.json())
             .then((json) => {
                 setData(normalizeUsage(json?.usage));

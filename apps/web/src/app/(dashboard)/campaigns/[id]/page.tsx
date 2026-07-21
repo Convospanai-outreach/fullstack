@@ -52,6 +52,11 @@ export default function CampaignDetailPage({
     }, [campaignId]);
 
     const loadCampaign = async () => {
+        if (!campaignId || campaignId === "undefined") {
+            setError("Invalid campaign ID.");
+            setLoading(false);
+            return;
+        }
         try {
             const data = await getCampaign(campaignId);
             setCampaign(data);
@@ -68,6 +73,7 @@ export default function CampaignDetailPage({
     };
 
     const loadAnalytics = async () => {
+        if (!campaignId || campaignId === "undefined") return;
         try {
             const data = await getCampaignAnalytics(campaignId);
             setAnalytics(data);
@@ -77,10 +83,12 @@ export default function CampaignDetailPage({
     };
 
     const loadActivities = async () => {
+        if (!campaignId || campaignId === "undefined") return;
         try {
             const res = await fetch(getBrowserApiUrl(`/campaigns/${campaignId}/activity`));
+            if (!res.ok) return;
             const data = await res.json();
-            if (data.success) {
+            if (data?.success) {
                 setActivities(data.activities);
             }
         } catch (err) {

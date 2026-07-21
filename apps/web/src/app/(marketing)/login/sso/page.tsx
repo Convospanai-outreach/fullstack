@@ -23,7 +23,7 @@ export default function SsoLoginPage() {
                 return;
             }
 
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/auth/sso/check?email=${encodeURIComponent(email)}`);
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/auth/sso/check?email=${encodeURIComponent(email)}`);
             const data = await res.json();
 
             if (data.redirectUrl) {

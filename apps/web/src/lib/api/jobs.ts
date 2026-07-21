@@ -1,6 +1,6 @@
 // Client-side API wrapper for job operations
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] + "/jobs";
+const API_BASE = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/jobs";
 
 export interface Job {
     id: string;

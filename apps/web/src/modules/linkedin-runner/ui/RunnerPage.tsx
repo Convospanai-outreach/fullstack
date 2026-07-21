@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 export default function RunnerPage() {
     const [response, setResponse] = useState<any>(null);
     const [running, setRunning] = useState(false);
-    const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "";
+    const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
     const extensionBase =
         typeof window !== "undefined"
             ? `${window.location.origin}/api/proxy/extension`

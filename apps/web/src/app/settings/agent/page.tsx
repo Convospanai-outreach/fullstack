@@ -28,7 +28,7 @@ export default function AgentSettingsPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/agent");
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/agent");
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     const newSettings = { ...settings };
@@ -52,7 +52,7 @@ export default function AgentSettingsPage() {
     const handleSave = async (key: string, value: string) => {
         setSaving(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/agent", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/agent", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ key, value }),

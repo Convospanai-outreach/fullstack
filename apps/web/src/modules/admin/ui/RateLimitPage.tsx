@@ -14,7 +14,7 @@ export default function RateLimitPage() {
 
     const fetchStats = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/rate-limits");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/rate-limits");
             const data = await res.json();
             if (data.stats) setStats(data.stats);
         } catch (error) {
@@ -27,7 +27,7 @@ export default function RateLimitPage() {
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/admin/rate-limits", {
+            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/rate-limits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

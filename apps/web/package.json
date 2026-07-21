@@ -11,7 +11,7 @@
     "scripts": {
         "repair:vendor": "node scripts/repair-package-exports.mjs",
         "postinstall": "npm run repair:vendor",
-        "dev": "npm run repair:vendor && node scripts/run-with-app-env.mjs ../../node_modules/next/dist/bin/next dev",
+        "dev": "npm run repair:vendor && node scripts/run-with-app-env.mjs ../../node_modules/next/dist/bin/next dev --webpack",
         "prebuild": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- npx prisma generate --schema prisma/schema.prisma",
         "build": "node scripts/clean-next-lock.mjs && npm run repair:vendor && node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client NODE_OPTIONS=--max-old-space-size=8192 -- node scripts/build-next-with-retry.mjs",
         "start": "npm run repair:vendor && node scripts/run-with-app-env.mjs scripts/start-production.mjs",

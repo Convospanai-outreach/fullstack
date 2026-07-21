@@ -19,16 +19,23 @@ export default function ExecutionTimeline({ campaignId }: { campaignId: string }
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        if (!campaignId || campaignId === "undefined") {
+            setLoading(false);
+            return;
+        }
         fetchTimeline();
         const interval = setInterval(fetchTimeline, 5000); // Poll every 5s
         return () => clearInterval(interval);
     }, [campaignId]);
 
     const fetchTimeline = async () => {
+        if (!campaignId || campaignId === "undefined") return;
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/orchestrator/timeline?campaignId=${campaignId}`);
+            const baseUrl = process.env['NEXT_PUBLIC_API_URL'] || '/api/proxy';
+            const res = await fetch(`${baseUrl}/orchestrator/timeline?campaignId=${campaignId}`);
+            if (!res.ok) return;
             const data = await res.json();
-            if (data.timeline) {
+            if (data?.timeline) {
                 setEvents(data.timeline);
             }
         } catch (err) {

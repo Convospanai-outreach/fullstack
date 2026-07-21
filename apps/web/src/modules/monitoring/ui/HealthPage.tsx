@@ -10,7 +10,7 @@ export default function HealthPage() {
     useEffect(() => {
         const fetchHealth = async () => {
             try {
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/monitoring/health");
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/monitoring/health");
                 const json = await res.json();
                 if (json.ok) setHealth(json.health);
             } catch (e) {

@@ -18,7 +18,7 @@ export function JobStatusList() {
     useEffect(() => {
         const fetchJobs = async () => {
             try {
-                const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/jobs?limit=10");
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/jobs?limit=10");
                 if (!res.ok) throw new Error("Failed to load jobs");
                 const data = await res.json();
                 if (Array.isArray(data)) {
