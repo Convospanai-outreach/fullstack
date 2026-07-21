@@ -15,6 +15,7 @@ async function requireCampaignContext(id: string, requiredRole: TeamRole) {
 
     const campaign = await prisma.campaign.findFirst({
         where: { id, teamId },
+        include: { leadList: true },
     });
 
     if (!campaign) {
@@ -29,7 +30,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         const { id } = await params;
         const { campaign } = await requireCampaignContext(id, TeamRole.VIEWER);
         const stats = await CampaignService.getCampaignStats(id);
-        return NextResponse.json({ ...campaign, stats });
+        return NextResponse.json({
+            ...campaign,
+            leads: campaign.leadList,
+            stats,
+        });
     } catch (error) {
         return handleAPIError(error);
     }

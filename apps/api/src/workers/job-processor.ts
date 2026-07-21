@@ -8,6 +8,7 @@ import { handleAgentRun } from "./handlers/agent-worker";
 import { handleCsvImport } from "./handlers/csv-worker";
 import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
+import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 
@@ -74,6 +75,9 @@ async function runHandler(jobType: string, payload: JobPayload) {
 
         case "sequence_execution":
             return handleSequenceExecution(payload);
+
+        case "SEQUENCE_ACTION":
+            return handleSequenceAction(payload);
 
         case "INBOX_SYNC":
             return handleGmailHistorySync(payload);
