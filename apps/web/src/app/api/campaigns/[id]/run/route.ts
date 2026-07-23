@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import { handleCampaignExecution } from "@/workers/handlers/campaign-execution-worker";
 
 export async function POST(
@@ -8,6 +7,7 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { prisma } = await import("@/lib/db");
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
