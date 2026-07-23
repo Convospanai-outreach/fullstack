@@ -1,5 +1,30 @@
 # Agent Notes (Repo Working Agreement)
 
+## Execution Core Guidelines
+
+### 1. Think Before Coding
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+- State assumptions explicitly.
+- Present multiple interpretations if ambiguous.
+- Push back if simpler approach exists.
+
+### 2. Simplicity First
+**Minimum code that solves the problem.**
+- No extra features beyond request.
+- No single-use abstractions.
+- Keep diffs minimal.
+
+### 3. Surgical Changes
+**Touch only what you must.**
+- Do not refactor adjacent code.
+- Clean up only own unused imports/vars.
+
+### 4. Goal-Driven Execution
+**Define success criteria. Loop until verified.**
+- Verify with tests/builds before declaring success.
+
+
+
 This repo is a monorepo with multiple deployable apps. Treat each app as a separate service.
 
 ## What Runs Where
