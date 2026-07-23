@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  */
 export class AIService {
     private async callBackend(action: string, data: any) {
-        let apiUrl = process.env['NEXT_PUBLIC_RUNTIME_API_URL'] || process.env['NEXT_PUBLIC_API_URL'] || "http://localhost:3001";
+        let apiUrl = process.env['NEXT_PUBLIC_RUNTIME_API_URL'] || (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
         const isServer = typeof window === "undefined";
         if (isServer && data?.teamId) {
             try {

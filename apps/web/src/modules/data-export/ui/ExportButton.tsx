@@ -10,7 +10,7 @@ export default function ExportButton({ type }: { type: "leads" | "campaigns" }) 
         setLoading(true);
         setShowMenu(false);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/data-export/download?type=${type}&format=${format}`);
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/data-export/download?type=${type}&format=${format}`);
             if (!res.ok) throw new Error("Export failed");
 
             const blob = await res.blob();

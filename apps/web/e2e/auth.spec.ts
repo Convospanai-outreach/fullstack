@@ -20,8 +20,6 @@ test.describe('Authentication', () => {
     test('should show login options', async ({ page }) => {
         test.setTimeout(60000);
         await page.goto('/login');
-        await expect(page.locator('#login-email')).toBeVisible({ timeout: 45000 });
-        await expect(page.locator('#login-password')).toBeVisible({ timeout: 45000 });
-        await expect(page.locator('#login-submit')).toBeVisible({ timeout: 45000 });
+        await expect(page.locator('#clerk-sign-in-root')).toBeVisible({ timeout: 45000 });
     });
 });

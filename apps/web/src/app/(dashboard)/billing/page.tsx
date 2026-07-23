@@ -28,15 +28,15 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function BillingPage() {
-    const { data: subscription, isLoading, error } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/billing/subscription", fetcher);
-    const { data: usage } = useSWR(process.env['NEXT_PUBLIC_API_URL'] + "/billing/usage", fetcher);
+    const { data: subscription, isLoading, error } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/subscription", fetcher);
+    const { data: usage } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage", fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
 
     const handleTopUp = async (tierId: string) => {
         setTopUpLoading(true);
         try {
             // Create Razorpay order
-            const response = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/billing/topup', {
+            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/billing/topup', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tierId })

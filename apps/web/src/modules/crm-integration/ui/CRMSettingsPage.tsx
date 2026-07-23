@@ -44,7 +44,7 @@ export default function CRMSettingsPage() {
 
     const fetchIntegrations = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/crm");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm");
             const data = await res.json();
             setIntegrations(data);
 
@@ -62,7 +62,7 @@ export default function CRMSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/crm", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,7 +1,7 @@
 
 import type { CaseStudyInput, CaseStudyResult, RAGEnhancedCopy } from "../types";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
 const isServer = typeof window === "undefined";
 
 export class CaseStudyService {

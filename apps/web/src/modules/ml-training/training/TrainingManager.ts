@@ -3,7 +3,7 @@
  * Delegates training pipeline start to the API service.
  */
 
-const API_URL = process.env["NEXT_PUBLIC_API_URL"] || "http://localhost:3001";
+const API_URL = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
 
 export class TrainingManager {
     async startTraining(datasetId: string, baseModel: string = "gemini-1.5-flash"): Promise<string> {

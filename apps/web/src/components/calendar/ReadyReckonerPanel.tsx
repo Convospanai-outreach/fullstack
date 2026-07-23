@@ -90,7 +90,7 @@ export default function ReadyReckonerPanel({ meetings }: ReadyReckonerPanelProps
         }
 
         try {
-            const res = await fetch(`${process.env["NEXT_PUBLIC_API_URL"]}/meetings/ready-reckoner`, {
+            const res = await fetch(`${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/meetings/ready-reckoner`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",

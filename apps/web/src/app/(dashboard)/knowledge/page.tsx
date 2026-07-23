@@ -16,7 +16,7 @@ export default function KnowledgePage() {
     // Fetch initial KB (create default if none)
     useEffect(() => {
         const init = async () => {
-            const listRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/knowledge")
+            const listRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge")
             const listData = await listRes.json()
 
             if (listData.data && listData.data.length > 0) {
@@ -26,7 +26,7 @@ export default function KnowledgePage() {
                 // For now, we'll just wait for user action.
             } else {
                 // Auto-create default KB
-                const createRes = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/knowledge", {
+                const createRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge", {
                     method: "POST",
                     body: JSON.stringify({ name: "General Knowledge", description: "Default team context" })
                 })
@@ -40,7 +40,7 @@ export default function KnowledgePage() {
 
     const handleTestSearch = async () => {
         if (!kbId || !query) return
-        const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
+        const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
         const data = await res.json()
         setDocs(data.data)
     }

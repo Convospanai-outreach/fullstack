@@ -43,7 +43,7 @@ export default function WorkflowsPage() {
 
     const fetchWorkflows = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/workflows');
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/workflows');
             if (res.status === 401) {
                 router.push('/login');
                 return;
@@ -69,7 +69,7 @@ export default function WorkflowsPage() {
 
         setCreating(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/workflows', {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/workflows', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: newWorkflowName.trim() })
@@ -102,7 +102,7 @@ export default function WorkflowsPage() {
 
         setDeletingId(id);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/workflows/${id}`, { method: 'DELETE' });
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${id}`, { method: 'DELETE' });
             if (res.status === 401) {
                 router.push('/login');
                 return;
