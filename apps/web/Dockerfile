@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS deps
-# Cache bust: force fresh npm ci to resolve picomatch CVE-2026-33671
+# Cache bust: force fresh npm ci to resolve sharp GHSA-f88m-g3jw-g9cj (0.35.3)
 WORKDIR /repo
 
 # Install workspace dependencies from the monorepo root lockfile so the
@@ -47,7 +47,8 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate 
     ENCRYPTION_KEY="${ENCRYPTION_KEY}" \
     NEXT_OUTPUT_MODE="standalone" \
     NODE_OPTIONS="--max-old-space-size=4096" \
-    npx next build
+    npx next build && \
+    rm -rf /repo/apps/web/.next/standalone/node_modules/next/node_modules/sharp /repo/apps/web/node_modules/next/node_modules/sharp
 
 # =============================================================================
 # Runner Stage: minimal production image
