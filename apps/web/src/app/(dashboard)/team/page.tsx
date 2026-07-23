@@ -68,7 +68,7 @@ export default function TeamPage() {
     };
 
     return (
-        <AppShell>
+        <div className="space-y-8 animate-reveal">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-3xl font-bold text-text-primary">Team Governance</h1>
                 <div className="flex gap-2 bg-white/5 p-1 rounded-lg">
@@ -158,7 +158,7 @@ export default function TeamPage() {
                     )}
                 </>
             )}
-        </AppShell>
+        </div>
     );
 }
 

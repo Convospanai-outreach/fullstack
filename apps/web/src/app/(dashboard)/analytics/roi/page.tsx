@@ -54,7 +54,7 @@ export default function ROIDashboardPage() {
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-end mb-8">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tight mb-2">Campaign ROI</h1>
@@ -266,7 +266,7 @@ export default function ROIDashboardPage() {
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 
