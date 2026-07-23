@@ -47,7 +47,7 @@ export default function LeadJourneyAnalyticsPage() {
     }, []);
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             {/* Header with Navigation Tabs */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
                 <div>
@@ -271,7 +271,7 @@ export default function LeadJourneyAnalyticsPage() {
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 

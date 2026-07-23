@@ -46,7 +46,7 @@ export default function KnowledgePage() {
     }
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
                     <h1 className="text-3xl font-bold text-text-primary">Knowledge Vault</h1>
@@ -119,6 +119,6 @@ export default function KnowledgePage() {
                     </GlassCard>
                 </div>
             </div>
-        </AppShell>
+        </div>
     )
 }

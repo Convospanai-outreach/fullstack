@@ -79,8 +79,7 @@ export default function InboxPage() {
         : allThreads;
 
     return (
-        <AppShell>
-            <div className="h-[calc(100vh-140px)] flex rounded-2xl overflow-hidden glass-strong border border-white/10 shadow-2xl animate-reveal">
+        <div className="flex h-[calc(100vh-6rem)] bg-surface-card border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
 
                 {/* 1. Folders Navigation Rail */}
                 <div className="w-64 bg-black/20 border-r border-white/5 flex flex-col p-4">
@@ -257,7 +256,6 @@ export default function InboxPage() {
                     )}
                 </div>
             </div>
-        </AppShell>
     );
 }
 

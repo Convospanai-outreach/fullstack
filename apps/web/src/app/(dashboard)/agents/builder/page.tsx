@@ -83,7 +83,7 @@ export default function AgentBuilderPage() {
 
     return (
         <ReactFlowProvider>
-            <AppShell>
+            <div className="space-y-6">
                 <div className="h-[calc(100vh-140px)] flex flex-col bg-black/20 rounded-2xl border border-white/10 overflow-hidden relative group">
 
                     {/* Toolbar */}
@@ -153,7 +153,7 @@ export default function AgentBuilderPage() {
                         </ReactFlow>
                     </div>
                 </div>
-            </AppShell>
+            </div>
         </ReactFlowProvider>
     );
 }

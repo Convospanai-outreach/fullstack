@@ -56,8 +56,7 @@ export default function CRMIntegrationPage() {
     };
 
     return (
-        <AppShell>
-            <div className="mb-8">
+        <div className="space-y-6">
                 <div className="flex justify-between items-start">
                     <div>
                         <h1 className="text-3xl font-black text-white tracking-tight mb-2">CRM Bridge</h1>
@@ -67,7 +66,6 @@ export default function CRMIntegrationPage() {
                         </p>
                     </div>
                 </div>
-            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Integration Cards */}
@@ -184,7 +182,7 @@ export default function CRMIntegrationPage() {
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 

@@ -60,7 +60,7 @@ export default function AIPerformancePage() {
     const totalCost = stats.reduce((acc, s) => acc + (s.cost || 0), 0);
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-center mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">AI Fleet Performance</h1>
@@ -214,6 +214,6 @@ export default function AIPerformancePage() {
                     ))
                 )}
             </div>
-        </AppShell>
+        </div>
     );
 }

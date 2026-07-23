@@ -85,7 +85,7 @@ export default function BillingPage() {
     };
 
     return (
-        <AppShell>
+        <div className="space-y-8 animate-reveal">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white tracking-tight">Billing & Credits</h1>
                 <p className="text-text-secondary mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
@@ -278,7 +278,7 @@ export default function BillingPage() {
                     </div>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 
