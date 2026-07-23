@@ -62,6 +62,10 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
         const authPath = pathParts.slice(1).join("/");
         return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
+    if (root === "campaigns" || root === "orchestrator") {
+        const apiPath = pathParts.join("/");
+        return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+    }
     if (root === "leads") {
         // Only route lists/creates and timeline sub-route locally to Next.js
         const isListOrCreate = pathParts.length === 1;
