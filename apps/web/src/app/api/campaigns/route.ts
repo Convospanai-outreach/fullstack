@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 
 export async function GET(request: Request) {
     try {
+        const { prisma } = await import("@/lib/db");
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -39,6 +39,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
     try {
+        const { prisma } = await import("@/lib/db");
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
