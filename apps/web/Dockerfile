@@ -47,7 +47,8 @@ RUN DATABASE_URL="postgresql://dummy:dummy@localhost/dummy" npx prisma generate 
     ENCRYPTION_KEY="${ENCRYPTION_KEY}" \
     NEXT_OUTPUT_MODE="standalone" \
     NODE_OPTIONS="--max-old-space-size=4096" \
-    npx next build
+    npx next build && \
+    rm -rf /repo/apps/web/.next/standalone/node_modules/next/node_modules/sharp /repo/apps/web/node_modules/next/node_modules/sharp
 
 # =============================================================================
 # Runner Stage: minimal production image
