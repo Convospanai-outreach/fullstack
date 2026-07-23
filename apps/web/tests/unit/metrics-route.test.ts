@@ -35,4 +35,20 @@ describe("/api/metrics", () => {
     expect(response.headers.get("content-type")).toContain("text/plain");
     expect(body).toContain("# HELP");
   });
+
+  it("allows access when METRICS_TOKEN is not set in non-production", async () => {
+    delete (process.env as Record<string, string | undefined>)["METRICS_TOKEN"];
+    (process.env as Record<string, string | undefined>)["NODE_ENV"] = "development";
+    const response = await GET(request());
+    expect(response.status).toBe(200);
+  });
+
+  it("returns 500 when getMetrics throws an error", async () => {
+    const { getMetrics } = await import("@/lib/metrics");
+    vi.mocked(getMetrics).mockRejectedValueOnce(new Error("metrics failure"));
+    const response = await GET(request({ Authorization: "Bearer test-token" }));
+    expect(response.status).toBe(500);
+    const body = await response.json();
+    expect(body.error).toBe("Failed to collect metrics");
+  });
 });
