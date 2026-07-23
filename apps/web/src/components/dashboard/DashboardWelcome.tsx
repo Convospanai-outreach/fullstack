@@ -65,6 +65,7 @@ export function DashboardWelcome() {
                         <Button 
                             variant="ghost" 
                             size="icon" 
+                            aria-label="Dismiss welcome banner"
                             className="rounded-full hover:bg-white/10 w-10 h-10 transition-transform hover:rotate-90" 
                             onClick={dismissWelcome}
                         >
