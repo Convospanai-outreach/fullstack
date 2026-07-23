@@ -73,4 +73,26 @@ describe("landing-agent rendering extended behavior", () => {
         expect(payload.css).toContain(".la-section");
         expect(payload.css).toContain(".custom");
     });
+
+    it("renders footer section with body and generic section with body and bullets", () => {
+        const payload = getLandingRenderPayload({
+            sections: [
+                { id: "foot", type: "footer", heading: "Footer Title", body: "Footer Body Text", ctaLabel: "Join Now" },
+                { id: "gen", type: "custom_type", heading: "Generic Title", body: "Generic Body Text", bullets: ["Bullet 1"] },
+            ]
+        });
+        expect(payload.html).toContain("<p>Footer Body Text</p>");
+        expect(payload.html).toContain('<a class="la-cta" href="#lead-form">Join Now</a>');
+        expect(payload.html).toContain('<p class="la-eyebrow">custom type</p>');
+        expect(payload.html).toContain("<h2>Generic Title</h2>");
+        expect(payload.html).toContain("<p>Generic Body Text</p>");
+    });
+
+    it("handles payload objects with empty html or no sections", () => {
+        const emptyHtmlPayload = getLandingRenderPayload({ html: "" });
+        expect(emptyHtmlPayload.html).toContain("Landing page unavailable");
+
+        const emptyObjPayload = getLandingRenderPayload({});
+        expect(emptyObjPayload.html).toContain("Landing page unavailable");
+    });
 });

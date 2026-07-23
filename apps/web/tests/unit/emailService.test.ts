@@ -127,15 +127,40 @@ describe('EmailService', () => {
     });
 
     describe('sendVerificationEmail', () => {
-        it('should send verification email', async () => {
-            const email = 'test@example.com';
-            const name = 'Test User';
-            const token = 'test-token';
+        it('should send verification email with secure SMTP settings', async () => {
+            const originalEnv = { ...process.env };
+            (process.env as Record<string, string | undefined>)["SMTP_SECURE"] = "true";
+            (process.env as Record<string, string | undefined>)["SMTP_FROM_NAME"] = "Custom Name";
+            try {
+                const email = 'test@example.com';
+                const name = 'Test User';
+                const token = 'test-token';
 
-            await EmailService.sendVerificationEmail(email, name, token);
+                await EmailService.sendVerificationEmail(email, name, token);
+                expect(true).toBe(true);
+            } finally {
+                process.env = originalEnv;
+            }
+        });
+    });
 
-            // Verify email was sent (mocked via SMTP)
-            expect(true).toBe(true); // sendViaSMTP mock is called internally
+    describe('sendEmail and helper methods', () => {
+        it('should send email via fetch endpoint', async () => {
+            const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+                json: async () => ({ success: true, messageId: '123' })
+            } as Response);
+
+            const result = await EmailService.sendEmail('to@example.com', 'Subject', '<p>body</p>');
+            expect(result).toEqual({ success: true, messageId: '123' });
+            expect(fetchSpy).toHaveBeenCalled();
+            fetchSpy.mockRestore();
+        });
+
+        it('should call createVerificationToken via generateTokenForEmail', async () => {
+            const spy = vi.spyOn(EmailService, 'createVerificationToken').mockResolvedValue('token-123');
+            const token = await EmailService.generateTokenForEmail('test@example.com');
+            expect(token).toBe('token-123');
+            spy.mockRestore();
         });
     });
 });

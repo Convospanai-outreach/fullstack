@@ -123,4 +123,17 @@ describe("redis helpers", () => {
         expect(client.set).toHaveBeenCalledWith("key", "value");
         expect(client.del).toHaveBeenCalledWith("key");
     });
+
+    it("catches errors in safeSet and safeDel when operations throw", async () => {
+        const client = makeClient({
+            isOpen: true,
+            set: vi.fn(async () => { throw new Error("set error"); }),
+            del: vi.fn(async () => { throw new Error("del error"); }),
+        });
+        createClientMock.mockReturnValue(client);
+        const redis = await loadRedisModule({ REDIS_URL: "redis://cache:6379" });
+
+        await expect(redis.safeSet("key", "val")).resolves.toBe(false);
+        await expect(redis.safeDel("key")).resolves.toBe(false);
+    });
 });
