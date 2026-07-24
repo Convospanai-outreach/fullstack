@@ -61,7 +61,7 @@ function PulseDot({ status }: { status: ServiceStatus["status"] }) {
 // Skeleton pill shown before any data arrives — no flash/empty corner
 function StatusPillSkeleton() {
     return (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed top-4 right-6 z-50">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-xl animate-pulse">
                 <div className="w-3.5 h-3.5 rounded-full bg-slate-600" />
                 <div className="h-3 w-32 rounded bg-slate-600" />
@@ -119,10 +119,29 @@ export function ConnectionStatusBar() {
     const OverallIcon = overall === "online" ? Wifi : overall === "degraded" ? AlertTriangle : WifiOff;
 
     return (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div className="fixed top-4 right-6 z-50 flex flex-col items-end">
+            {/* Toggle Pill — always min 44px tall for WCAG touch targets */}
+            <button
+                ref={triggerRef}
+                onClick={() => setExpanded(!expanded)}
+                aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-200 text-xs font-medium backdrop-blur min-h-[44px]
+                    ${overallColors.bg} ring-1 ${overallColors.ring} border-white/10 hover:ring-2 hover:scale-105`}
+            >
+                <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
+                <span className="text-white">
+                    {overall === "online"
+                        ? "All Systems Operational"
+                        : overall === "degraded"
+                        ? "Partial Outage"
+                        : "Systems Offline"}
+                </span>
+                <PulseDot status={overall} />
+            </button>
+
             {/* Expanded Card */}
             {expanded && (
-                <div className="mb-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-bottom-2 duration-200">
+                <div className="mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="text-sm font-semibold text-white">System Connections</h3>
                         <span className="text-[10px] text-slate-500">checked {checkedAt}</span>
@@ -169,25 +188,6 @@ export function ConnectionStatusBar() {
                     </button>
                 </div>
             )}
-
-            {/* Toggle Pill — always min 44px tall for WCAG touch targets */}
-            <button
-                ref={triggerRef}
-                onClick={() => setExpanded(!expanded)}
-                aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-200 text-xs font-medium backdrop-blur min-h-[44px]
-                    ${overallColors.bg} ring-1 ${overallColors.ring} border-white/10 hover:ring-2 hover:scale-105`}
-            >
-                <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
-                <span className="text-white">
-                    {overall === "online"
-                        ? "All Systems Operational"
-                        : overall === "degraded"
-                        ? "Partial Outage"
-                        : "Systems Offline"}
-                </span>
-                <PulseDot status={overall} />
-            </button>
         </div>
     );
 }

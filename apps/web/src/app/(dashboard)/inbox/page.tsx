@@ -73,6 +73,7 @@ export default function InboxPage() {
         ? allThreads.filter((t: any) => {
             if (activeLabel === "high-value") return (t.sentiment === "POSITIVE" || (t._hunterScore ?? 0) > 80);
             if (activeLabel === "follow-up") return t.sentiment === "NEUTRAL" || t.status === "FOLLOW_UP";
+            if (activeLabel === "email") return t.platform === "EMAIL" || t.platform === "GMAIL" || !t.platform || t.platform === "EMAIL_OUTREACH";
             if (activeLabel === "linkedin") return t.platform === "LINKEDIN";
             return true;
           })
@@ -124,6 +125,7 @@ export default function InboxPage() {
                             {[
                                 { id: "high-value", label: "High Value", color: "bg-emerald-500" },
                                 { id: "follow-up", label: "Follow Up", color: "bg-orange-500" },
+                                { id: "email", label: "Email", color: "bg-purple-500" },
                                 { id: "linkedin", label: "LinkedIn", color: "bg-blue-500" },
                             ].map(({ id, label, color }) => (
                                 <button

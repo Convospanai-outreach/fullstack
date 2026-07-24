@@ -16,6 +16,17 @@ export async function GET(
         const campaign = await prisma.campaign.findFirst({
             where: { id, teamId },
             include: {
+                leadList: {
+                    select: {
+                        id: true,
+                        fullName: true,
+                        email: true,
+                        company: true,
+                        status: true,
+                        createdAt: true,
+                    },
+                    orderBy: { createdAt: "desc" },
+                },
                 _count: { select: { leadList: true } },
             },
         });
@@ -24,7 +35,10 @@ export async function GET(
             return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
         }
 
-        return NextResponse.json(campaign);
+        return NextResponse.json({
+            ...campaign,
+            leads: campaign.leadList,
+        });
     } catch (error: any) {
         console.error("GET /api/campaigns/[id] error:", error);
         return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });

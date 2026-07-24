@@ -62,9 +62,16 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
         const authPath = pathParts.slice(1).join("/");
         return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
-    if (root === "campaigns" || root === "orchestrator") {
+    if (root === "campaigns") {
         const apiPath = pathParts.join("/");
         return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+    }
+    if (root === "orchestrator") {
+        // orchestrator/swarm/* is handled by Fastify API upstream; only local orchestrator/run is web-owned
+        if (pathParts[1] !== "swarm") {
+            const apiPath = pathParts.join("/");
+            return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+        }
     }
     if (root === "leads") {
         // Only route lists/creates and timeline sub-route locally to Next.js
