@@ -65,10 +65,10 @@ export default function TemplatesPage() {
                 subtitle="Manage reusable campaign templates, then refine language, audience fit, and PPT narrative in Studio."
             />
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm text-slate-300">
+            <div className="rounded-lg border border-border/50 bg-card px-5 py-4 text-sm text-muted-foreground">
                 Need an international campaign brief or editable presentation outline?
                 {" "}
-                <Link href="/studio" className="text-cyan-300 hover:text-cyan-200 transition">
+                <Link href="/studio" className="text-primary hover:underline transition font-medium">
                     Open International Campaign Studio
                 </Link>
                 {" "}

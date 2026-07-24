@@ -64,7 +64,7 @@ export default async function CampaignsPage({
                     <ExportButton type="campaigns" />
 
                     <Link href="/campaigns/new" id="create-campaign-btn">
-                        <button className="h-10 bg-indigo-600 hover:bg-indigo-500 text-white px-4 text-xs font-semibold rounded-xl shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2">
+                        <button className="h-9 bg-primary text-primary-foreground hover:bg-primary/90 px-4 text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-2">
                             <Plus className="w-4 h-4" />
                             Create Campaign
                         </button>
@@ -72,14 +72,14 @@ export default async function CampaignsPage({
                 </div>
             </div>
 
-            <form className="glass-card rounded-2xl p-4 flex flex-col md:flex-row gap-3 border border-white/10">
+            <form className="bg-card border border-border/50 rounded-lg p-4 flex flex-col md:flex-row gap-3">
                 <div className="flex-1 relative">
-                    <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                    <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <input
                         type="text"
                         name="search"
                         placeholder="Search by campaign name or description..."
-                        className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-xs font-medium placeholder:text-slate-500 text-slate-200 outline-none focus:border-indigo-500/50 transition-colors"
+                        className="w-full bg-background border border-input rounded-md pl-10 pr-4 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
                         defaultValue={search}
                         id="campaign-search-input"
                     />
@@ -89,7 +89,7 @@ export default async function CampaignsPage({
                     <select
                         name="status"
                         defaultValue={status}
-                        className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-medium text-slate-300 outline-none appearance-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                        className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
                         id="campaign-status-select"
                     >
                         <option value="">All Campaigns</option>
@@ -97,22 +97,22 @@ export default async function CampaignsPage({
                         <option value="paused">Paused Only</option>
                         <option value="draft">Drafts Only</option>
                     </select>
-                    <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                    <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                 </div>
-                <button className="h-9 border border-white/10 rounded-xl px-5 text-xs font-semibold text-slate-200 hover:bg-white/5 transition-colors">
+                <button className="h-9 border border-input rounded-md px-5 text-xs font-medium text-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                     Search
                 </button>
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-20 rounded-2xl border border-dashed border-white/15 bg-white/[0.02]">
-                    <h3 className="text-sm font-semibold text-slate-300 font-outfit uppercase tracking-wider">Sign In Required</h3>
+                <div className="text-center py-16 rounded-lg border border-dashed border-border/50 bg-card/40">
+                    <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : campaigns.length === 0 ? (
-                <div className="text-center py-20 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] flex flex-col items-center justify-center">
-                    <Megaphone className="w-10 h-10 text-slate-500 mb-4 stroke-[1.5]" />
-                    <h3 className="text-sm font-semibold text-slate-300 font-outfit tracking-wide">No Campaigns Found</h3>
-                    <p className="text-xs text-slate-400 mt-1 max-w-sm font-sans leading-relaxed">
+                <div className="text-center py-16 rounded-lg border border-dashed border-border/50 bg-card/40 flex flex-col items-center justify-center">
+                    <Megaphone className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
+                    <h3 className="text-sm font-semibold text-foreground tracking-wide">No Campaigns Found</h3>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">
                         No sequences match your search criteria. Create an outreach campaign to start queueing contacts.
                     </p>
                 </div>
@@ -127,18 +127,18 @@ export default async function CampaignsPage({
                         return (
                             <div
                                 key={campaign.id}
-                                className="relative flex flex-col justify-between p-6 bg-slate-900/60 rounded-2xl border border-white/10 hover:border-indigo-500/40 hover:bg-slate-900/80 transition-all duration-300 shadow-xl group min-h-56"
+                                className="relative flex flex-col justify-between p-6 bg-card rounded-lg border border-border/50 hover:border-primary/50 transition-all duration-200 shadow-sm group min-h-56"
                             >
                                 <div>
                                     <div className="flex justify-between items-center gap-2 mb-4">
-                                        <span className="text-[10px] font-mono text-slate-500 tracking-wider select-none uppercase">
+                                        <span className="text-[10px] font-mono text-muted-foreground tracking-wider select-none uppercase">
                                             Campaign {String(index + 1).padStart(2, "0")}
                                         </span>
                                         <span className={cn(
-                                            "text-[10px] font-semibold border px-2 py-0.5 rounded-full uppercase tracking-wider",
+                                            "text-xs px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider",
                                             isActive
-                                                ? "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"
-                                                : "border-slate-700 text-slate-400 bg-slate-800/50"
+                                                ? "bg-success/10 text-success border-success/20"
+                                                : "bg-muted text-muted-foreground border-border"
                                         )}>
                                             {campaign.status}
                                         </span>
