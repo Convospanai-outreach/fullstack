@@ -37,27 +37,48 @@
   }
 
   .dark {
-    /* "DEPTH 000" Dark Mode */
-    --background: 240 10% 3.9%;    /* #09090B */
+    /* Base Background - Ultra-deep space black #020202 */
+    --background: 240 10% 2%;
     --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
+
+    /* Complex Backdrop Pattern */
+    --backdrop-wave-color: 217.2 91.2% 10%;
+
+    /* Glass Primitives (CMF Palette) */
+    --glass-bg: 240 10% 6.5% / 0.6;
+    --glass-border: 0 0% 100% / 0.1;
+    --glass-blur: 32px;
+    --glass-shimmer: 0 0% 100% / 0.05;
+
+    /* Standard Cards (Glass Panels) */
+    --card: var(--glass-bg);
     --card-foreground: 0 0% 98%;
-    --popover: 240 10% 5%;         /* Elevated #0c0c0e */
+    --popover: var(--glass-bg);
     --popover-foreground: 0 0% 98%;
-    
-    --primary: 217.2 91.2% 59.8%;  /* Brightened for contrast */
+
+    /* Brand / Primary */
+    --primary: 217.2 91.2% 59.8%;  /* Brightened for 4.5:1 contrast */
     --primary-foreground: 222.2 47.4% 11.2%;
-    
+
+    /* Secondary & Accents */
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 240 3.7% 15.9%;
     --muted-foreground: 240 5% 64.9%;
     --accent: 240 3.7% 15.9%;
     --accent-foreground: 0 0% 98%;
-    
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 217.2 91.2% 59.8%;
+
+    /* Semantic */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --success: 142 72% 29%;
+    --warning: 38 92% 50%;
+
+    /* Structural Borders */
+    --border: var(--glass-border);
+    --input: var(--glass-bg);
+    --ring: var(--primary);
+    --radius: 0.375rem; /* Crisp 6px radius */
   }
 
   * {
@@ -84,12 +105,29 @@
 }
 
 @layer components {
+  .backdrop-wave-pattern {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background-color: hsl(240 10% 2%);
+    background-image: 
+      radial-gradient(ellipse 90% 60% at 50% -10%, rgba(37, 99, 235, 0.18), transparent 70%),
+      radial-gradient(ellipse 70% 50% at 100% 50%, rgba(99, 102, 241, 0.12), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 0% 85%, rgba(139, 92, 246, 0.1), transparent 50%),
+      linear-gradient(180deg, rgba(2, 2, 2, 0.8) 0%, rgba(5, 13, 23, 0.95) 100%);
+  }
+
   .glass {
     @apply bg-white/5 backdrop-blur-xl border border-white/10;
   }
 
+  .glass-panel {
+    @apply bg-[#0c0c0f]/60 backdrop-blur-[32px] border border-white/10 shadow-2xl rounded-lg;
+  }
+
   .glass-card {
-    @apply bg-card text-card-foreground border border-border/50 rounded-lg shadow-sm;
+    @apply bg-card text-card-foreground border border-border/50 rounded-lg shadow-sm backdrop-blur-xl;
   }
 
   .glass-premium {

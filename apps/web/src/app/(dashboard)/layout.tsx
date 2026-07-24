@@ -46,7 +46,10 @@ export default function DashboardLayout({
     }, [router]);
 
     return (
-        <div className="flex min-h-screen bg-surface-app text-foreground selection:bg-brand-500/30">
+        <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/30 relative">
+            {/* Abstract Glowing Wave Backdrop Pattern */}
+            <div className="backdrop-wave-pattern" aria-hidden="true" />
+
             {/* Sidebar — fixed, 192px wide on desktop */}
             <DashboardSidebar
                 isOpen={sidebarOpen}
