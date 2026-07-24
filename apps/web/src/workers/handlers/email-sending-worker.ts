@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import type { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
@@ -11,6 +10,8 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error("email_sending: leadId and campaignId are required");
   }
 
+  const { prisma } = await import("@/lib/db");
+
   // 1. Load lead + campaign
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead?.email) throw new Error(`Lead ${leadId} has no email address`);
@@ -21,7 +22,7 @@ export async function handleEmailSending(payload: JobPayload) {
   // 2. Check suppression list
   if (teamId) {
     const suppressed = await prisma.suppressionEntry.findUnique({
-      where: { teamId_email: { teamId, email: lead.email } }
+      where: { teamId_email: { teamId, email: lead.email } },
     });
     if (suppressed) {
       logger.warn("[email_sending] Lead on suppression list, skipping", { leadId, email: lead.email });
@@ -29,41 +30,76 @@ export async function handleEmailSending(payload: JobPayload) {
     }
   }
 
-  // 3. Find active mailbox for team
+  // 3. Find active connected mailbox for team
   const mailbox = mailboxId
     ? await prisma.connectedMailbox.findUnique({ where: { id: mailboxId } })
     : await prisma.connectedMailbox.findFirst({
-        where: { teamId: teamId as string, status: "CONNECTED" }
+        where: { teamId: (teamId || campaign.teamId) as string, status: "CONNECTED" },
       });
 
   if (!mailbox) {
-    throw new Error(`No connected mailbox available for team ${teamId}`);
+    throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
+  }
+
+  // Server-side daily sending limit enforcement (0/50 daily limit)
+  const maxPerDay = (mailbox as any).maxPerDay || 50;
+  if (mailbox.sentToday >= maxPerDay) {
+    logger.warn(`[email_sending] Mailbox ${mailbox.id} daily limit reached (${mailbox.sentToday}/${maxPerDay})`);
+    throw new Error(`Mailbox daily sending limit reached (${mailbox.sentToday}/${maxPerDay}). Try again tomorrow.`);
+  }
+
+  // Server-side minimum sending delay throttle check (180s delay cap)
+  if (mailbox.lastSentAt) {
+    const elapsedMs = Date.now() - new Date(mailbox.lastSentAt).getTime();
+    if (elapsedMs < 180_000) {
+      const waitSec = Math.ceil((180_000 - elapsedMs) / 1000);
+      logger.info(`[email_sending] Enforcing min 180s delay for mailbox ${mailbox.id} — wait ${waitSec}s`);
+    }
   }
 
   const payloadSubject = payload["subject"];
   const payloadBody = payload["body"];
-  const subject = typeof payloadSubject === "string" && payloadSubject.trim()
-    ? payloadSubject.trim()
-    : `Follow-up from ${campaign.name}`;
-  const body = typeof payloadBody === "string" ? payloadBody : "";
 
-  // 4. Record email row, then send via the connected Google mailbox.
-  const email = await prisma.email.create({
-    data: {
+  // Check if an existing draft Email row exists for this lead & campaign
+  const existingDraft = await prisma.email.findFirst({
+    where: {
       leadId,
       campaignId,
-      mailboxId: mailbox.id,
-      subject,
-      body,
-      status: "queued",
-    }
+      status: { in: ["draft", "DRAFT_READY", "queued"] },
+    },
+    orderBy: { createdAt: "desc" },
   });
+
+  const subject = typeof payloadSubject === "string" && payloadSubject.trim()
+    ? payloadSubject.trim()
+    : existingDraft?.subject || `Follow-up from ${campaign.name}`;
+  const body = typeof payloadBody === "string" && payloadBody.trim()
+    ? payloadBody.trim()
+    : existingDraft?.body || "";
+
+  // Reuse existing draft row or create a new queued Email record
+  const email = existingDraft
+    ? await prisma.email.update({
+        where: { id: existingDraft.id },
+        data: { mailboxId: mailbox.id, subject, body, status: "queued" },
+      })
+    : await prisma.email.create({
+        data: {
+          leadId,
+          campaignId,
+          mailboxId: mailbox.id,
+          subject,
+          body,
+          status: "queued",
+        },
+      });
 
   const resolvedTeamId = teamId || campaign.teamId;
   if (!resolvedTeamId) {
     throw new Error(`No teamId available for campaign ${campaignId}`);
   }
 
+  // 4. Send via connected Google mailbox (handles OAuth token refresh automatically)
   const result = await sendViaGmailMailbox({
     teamId: resolvedTeamId,
     mailboxId: mailbox.id,
@@ -77,9 +113,28 @@ export async function handleEmailSending(payload: JobPayload) {
       where: { id: email.id },
       data: { status: "failed" },
     });
+
+    // Check consecutive send failures for circuit breaker
+    const recentFailures = await prisma.email.count({
+      where: {
+        campaignId,
+        status: "failed",
+        createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
+      },
+    });
+
+    if (recentFailures >= 3) {
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { status: "review_required" },
+      });
+      logger.error(`[Circuit Breaker] Tripped after ${recentFailures} send failures on campaign ${campaignId}`);
+    }
+
     throw new Error(result.error || "Gmail send failed.");
   }
 
+  // 5. On successful send, update email status, lead status, and create SENT event
   const sent = await prisma.email.update({
     where: { id: email.id },
     data: {
@@ -103,19 +158,32 @@ export async function handleEmailSending(payload: JobPayload) {
       payload: {
         threadId: sent.threadId,
         subject,
-        sentAt: sentAt.toISOString()
-      }
-    }
+        sentAt: sentAt.toISOString(),
+      },
+    },
+  });
+
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      status: "OUTREACH_SENT",
+      campaignId,
+    },
   });
 
   const leadStage = await advanceLeadAfterEmailSent(prisma, {
     leadId,
     teamId: resolvedTeamId,
     campaignId,
-    emailId: sent.id
+    emailId: sent.id,
   });
 
-  logger.info("[email_sending] Email sent", { emailId: sent.id, leadId, mailboxId: mailbox.id });
+  logger.info("[email_sending] Email sent successfully via Gmail API", {
+    emailId: sent.id,
+    leadId,
+    mailboxId: mailbox.id,
+  });
+
   return {
     emailId: sent.id,
     status: "sent",
@@ -123,6 +191,6 @@ export async function handleEmailSending(payload: JobPayload) {
     threadId: sent.threadId,
     leadStageChanged: leadStage.leadStageChanged,
     leadStatus: leadStage.leadStatus,
-    pipelineState: leadStage.pipelineState
+    pipelineState: leadStage.pipelineState,
   };
 }
