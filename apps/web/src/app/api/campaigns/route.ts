@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { createCampaignSchema } from "@/lib/validation/schemas";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 
-export async function GET(request: Request) {
+export const dynamic = "force-dynamic";
+
+export async function GET(req: Request) {
     try {
-        const { prisma } = await import("@/lib/db");
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { searchParams } = new URL(request.url);
+        await authorizeRole(userId, teamId, TeamRole.VIEWER);
+        const { prisma } = await import("@/lib/db");
+
+        const { searchParams } = new URL(req.url);
         const status = searchParams.get("status") || undefined;
         const search = searchParams.get("search") || undefined;
 
@@ -37,29 +43,37 @@ export async function GET(request: Request) {
     }
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
     try {
-        const { prisma } = await import("@/lib/db");
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { name, description, targetCount, leads } = body;
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
+        const { prisma } = await import("@/lib/db");
+
+        const body = await req.json();
+
+        // Validate input if valid schema
+        const validation = createCampaignSchema.safeParse(body);
+        const name = validation.success ? validation.data.name : body.name || "Untitled Campaign";
+        const description = validation.success ? validation.data.description : body.description || null;
+        const targetCount = typeof body.targetCount === "number" ? body.targetCount : 0;
+        const leads = body.leads;
 
         const campaign = await prisma.campaign.create({
             data: {
                 teamId,
                 ownerId: userId,
-                name: name || "Untitled Campaign",
-                description: description || null,
-                targetCount: typeof targetCount === "number" ? targetCount : 0,
+                name,
+                description,
+                targetCount,
                 status: "draft",
             },
         });
 
-        // If leads array is provided, attach them to this campaign
+        // Attach leads if provided
         if (Array.isArray(leads) && leads.length > 0) {
             await prisma.lead.updateMany({
                 where: { id: { in: leads }, teamId },
