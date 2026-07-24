@@ -9,11 +9,18 @@ async function generateEmailDraftWithAI(campaignName: string, campaignDesc: stri
 
     if (apiKey) {
         try {
-            const { GoogleGenerativeAI } = await import("@google/generative-ai");
-            const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ model: process.env["GEMINI_MODEL"] || "gemini-2.0-flash" });
+            let GoogleGenerativeAI: any;
+            try {
+                GoogleGenerativeAI = (await import("@google/generative-ai")).GoogleGenerativeAI;
+            } catch {
+                GoogleGenerativeAI = undefined;
+            }
 
-            const prompt = `Write a personalized high-converting cold email for outreach campaign "${campaignName}".
+            if (GoogleGenerativeAI) {
+                const genAI = new GoogleGenerativeAI(apiKey);
+                const model = genAI.getGenerativeModel({ model: process.env["GEMINI_MODEL"] || "gemini-2.0-flash" });
+
+                const prompt = `Write a personalized high-converting cold email for outreach campaign "${campaignName}".
 Description/Goal: ${campaignDesc || "B2B partnership outreach"}
 Recipient Name: ${leadName}
 Recipient Company: ${lead.company || "Unknown"}
@@ -21,12 +28,13 @@ Recipient Company: ${lead.company || "Unknown"}
 Format output strictly as JSON with keys "subject" and "body".
 Do not include markdown backticks or extra commentary.`;
 
-            const result = await model.generateContent(prompt);
-            const text = result.response.text().trim();
-            const cleanJson = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "");
-            const parsed = JSON.parse(cleanJson);
-            if (parsed.subject && parsed.body) {
-                return { subject: parsed.subject, body: parsed.body };
+                const result = await model.generateContent(prompt);
+                const text = result.response.text().trim();
+                const cleanJson = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "");
+                const parsed = JSON.parse(cleanJson);
+                if (parsed.subject && parsed.body) {
+                    return { subject: parsed.subject, body: parsed.body };
+                }
             }
         } catch (err: any) {
             logger.warn("[AI Draft Generation] Fallback to template due to Gemini API notice:", err?.message || err);
