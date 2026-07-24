@@ -1,13 +1,22 @@
-import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 
-async function generateEmailDraftWithAI(campaignName: string, campaignDesc: string, lead: any): Promise<{ subject: string; body: string }> {
+export interface DraftGenOptions {
+    provider?: "gemini" | "openai" | "anthropic";
+}
+
+async function generateEmailDraftWithAI(
+    campaignName: string,
+    campaignDesc: string,
+    lead: any,
+    options?: DraftGenOptions
+): Promise<{ subject: string; body: string; providerUsed: string; estimatedCostUsd: number }> {
+    const provider = options?.provider || (process.env["AI_PROVIDER"] as any) || "gemini";
     const apiKey = process.env["GEMINI_API_KEY"] || process.env["GOOGLE_API_KEY"];
     const leadName = lead.fullName || "there";
     const company = lead.company ? ` at ${lead.company}` : "";
 
-    if (apiKey) {
+    if (provider === "gemini" && apiKey) {
         try {
             let GoogleGenerativeAI: any;
             try {
@@ -33,7 +42,12 @@ Do not include markdown backticks or extra commentary.`;
                 const cleanJson = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "");
                 const parsed = JSON.parse(cleanJson);
                 if (parsed.subject && parsed.body) {
-                    return { subject: parsed.subject, body: parsed.body };
+                    return {
+                        subject: parsed.subject,
+                        body: parsed.body,
+                        providerUsed: "gemini-2.0-flash",
+                        estimatedCostUsd: 0.0001,
+                    };
                 }
             }
         } catch (err: any) {
@@ -45,6 +59,8 @@ Do not include markdown backticks or extra commentary.`;
     return {
         subject: `Quick question regarding ${lead.company || campaignName}`,
         body: `Hi ${leadName},\n\nI was following your work${company} and wanted to reach out regarding ${campaignName}.\n\n${campaignDesc || "We help teams scale their outreach workflows with AI automation."}\n\nWould you be open to a quick 10-minute chat this week?\n\nBest regards,`,
+        providerUsed: "template-fallback",
+        estimatedCostUsd: 0,
     };
 }
 
@@ -55,10 +71,12 @@ export async function handleCampaignExecution(payload: JobPayload) {
         throw new Error("campaign_execution: campaignId is required");
     }
 
+    const { prisma } = await import("@/lib/db");
+
     // 1. Load campaign
     const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
-        include: { leadList: true }
+        include: { leadList: true },
     });
 
     if (!campaign) {
@@ -68,7 +86,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
     // 2. Update status to active
     await prisma.campaign.update({
         where: { id: campaignId },
-        data: { status: "active" }
+        data: { status: "active" },
     });
 
     // 3. Get leads attached to campaign or team
@@ -76,22 +94,25 @@ export async function handleCampaignExecution(payload: JobPayload) {
     if (!leads || leads.length === 0) {
         leads = await prisma.lead.findMany({
             where: { campaignId },
-            take: 50
+            take: 50,
         });
     }
     const activeTeamId = teamId || campaign.teamId;
     if ((!leads || leads.length === 0) && activeTeamId) {
         leads = await prisma.lead.findMany({
             where: { teamId: activeTeamId },
-            take: 10
+            take: 10,
         });
     }
 
-    // 4. Generate AI drafts directly for each lead
+    // 4. Generate AI drafts directly for each lead with Circuit Breaker
     let enqueued = 0;
+    let consecutiveFailures = 0;
+    let totalCostEst = 0;
+
     for (const lead of leads) {
         try {
-            const { subject, body } = await generateEmailDraftWithAI(
+            const { subject, body, providerUsed, estimatedCostUsd } = await generateEmailDraftWithAI(
                 campaign.name,
                 campaign.description || "",
                 lead
@@ -104,17 +125,37 @@ export async function handleCampaignExecution(payload: JobPayload) {
                     subject,
                     body,
                     status: "draft",
-                }
+                },
             });
 
             await prisma.lead.update({
                 where: { id: lead.id },
-                data: { status: "DRAFT_READY", campaignId: campaign.id }
+                data: { status: "DRAFT_READY", campaignId: campaign.id },
             });
 
             enqueued++;
+            consecutiveFailures = 0;
+            totalCostEst += estimatedCostUsd;
+
+            logger.info("[AI Draft Telemetry] Cost logged:", {
+                campaignId: campaign.id,
+                leadId: lead.id,
+                provider: providerUsed,
+                costEst: estimatedCostUsd,
+            });
         } catch (err: any) {
+            consecutiveFailures++;
             logger.error(`[campaign_execution] Failed draft for lead ${lead.id}:`, err?.message || err);
+
+            // Circuit Breaker: Halt after 3 consecutive generation failures
+            if (consecutiveFailures >= 3) {
+                await prisma.campaign.update({
+                    where: { id: campaignId },
+                    data: { status: "review_required" },
+                });
+                logger.error(`[Circuit Breaker] Tripped after ${consecutiveFailures} consecutive failures on campaign ${campaignId}`);
+                throw new Error(`Draft generation halted after 3 consecutive failures. Campaign ${campaignId} flagged for review.`);
+            }
         }
     }
 
@@ -122,10 +163,10 @@ export async function handleCampaignExecution(payload: JobPayload) {
     if (enqueued > 0) {
         await prisma.campaign.update({
             where: { id: campaignId },
-            data: { completedCount: { increment: enqueued } }
+            data: { completedCount: { increment: enqueued } },
         });
     }
 
-    logger.info("[campaign_execution] Generated drafts directly for campaign", { campaignId, enqueued });
-    return { success: true, enqueued, status: "active" };
+    logger.info("[campaign_execution] Generated drafts directly for campaign", { campaignId, enqueued, totalCostEst });
+    return { success: true, enqueued, totalCostEst, status: "active" };
 }

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectGoogleMailbox, sanitizeRelativePath } from "@/modules/email-campaigner/service/googleMailboxService";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
     const code = req.nextUrl.searchParams.get("code");
     const state = req.nextUrl.searchParams.get("state");
