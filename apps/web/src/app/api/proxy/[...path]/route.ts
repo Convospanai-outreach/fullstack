@@ -82,6 +82,10 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
             return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
         }
     }
+    if (root === "upload") {
+        const apiPath = pathParts.join("/");
+        return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+    }
     return null;
 }
 
