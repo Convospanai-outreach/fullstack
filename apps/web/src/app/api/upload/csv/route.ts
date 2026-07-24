@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 import Papa from "papaparse";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +24,8 @@ export async function POST(req: NextRequest) {
         if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+
+        const { prisma } = await import("@/lib/db");
 
         const contentType = req.headers.get("content-type");
         let csvText = "";
