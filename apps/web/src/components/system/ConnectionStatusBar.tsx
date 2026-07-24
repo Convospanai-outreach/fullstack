@@ -58,20 +58,23 @@ function PulseDot({ status }: { status: ServiceStatus["status"] }) {
     );
 }
 
+interface ConnectionStatusBarProps {
+    inline?: boolean;
+}
+
 // Skeleton pill shown before any data arrives — no flash/empty corner
-function StatusPillSkeleton() {
+function StatusPillSkeleton({ inline }: { inline?: boolean }) {
     return (
-        <div className="fixed top-4 right-6 z-50">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-xl animate-pulse">
-                <div className="w-3.5 h-3.5 rounded-full bg-slate-600" />
-                <div className="h-3 w-32 rounded bg-slate-600" />
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-600 ml-1" />
+        <div className={inline ? "relative z-40" : "fixed top-4 right-6 z-50"}>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-sm animate-pulse">
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                <div className="h-3 w-24 rounded bg-slate-600" />
             </div>
         </div>
     );
 }
 
-export function ConnectionStatusBar() {
+export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps) {
     // Start with a defined "loading" state so there is never an empty corner
     const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +111,7 @@ export function ConnectionStatusBar() {
     }, [expanded]);
 
     // Show skeleton until first load completes
-    if (!hasLoaded) return <StatusPillSkeleton />;
+    if (!hasLoaded) return <StatusPillSkeleton inline={inline} />;
 
     if (!systemStatus) return null;
 
@@ -119,17 +122,17 @@ export function ConnectionStatusBar() {
     const OverallIcon = overall === "online" ? Wifi : overall === "degraded" ? AlertTriangle : WifiOff;
 
     return (
-        <div className="fixed top-4 right-6 z-50 flex flex-col items-end">
-            {/* Toggle Pill — always min 44px tall for WCAG touch targets */}
+        <div className={inline ? "relative z-40 flex flex-col items-end" : "fixed top-3 right-6 z-50 flex flex-col items-end"}>
+            {/* Toggle Pill */}
             <button
                 ref={triggerRef}
                 onClick={() => setExpanded(!expanded)}
                 aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-200 text-xs font-medium backdrop-blur min-h-[44px]
-                    ${overallColors.bg} ring-1 ${overallColors.ring} border-white/10 hover:ring-2 hover:scale-105`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium backdrop-blur transition-all duration-200
+                    ${overallColors.bg} ring-1 ${overallColors.ring} border border-white/10 hover:ring-2`}
             >
                 <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
-                <span className="text-white">
+                <span className="text-white hidden sm:inline">
                     {overall === "online"
                         ? "All Systems Operational"
                         : overall === "degraded"
