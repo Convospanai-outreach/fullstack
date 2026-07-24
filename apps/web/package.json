@@ -63,6 +63,7 @@
     },
     "dependencies": {
         "@clerk/nextjs": "^7.4.3",
+        "@google/generative-ai": "^0.24.1",
         "@gsap/react": "^2.1.2",
         "@hubspot/api-client": "^13.4.0",
         "@next-auth/prisma-adapter": "^1.0.7",
