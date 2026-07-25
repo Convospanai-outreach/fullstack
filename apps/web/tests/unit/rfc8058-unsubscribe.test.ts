@@ -1,7 +1,20 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { POST, GET } from "@/app/api/email/unsubscribe/[trackingId]/route";
 
-describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance", () => {
+describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance & Antivirus Pre-fetch Mitigation", () => {
+  it("GET /api/email/unsubscribe/[trackingId] returns read-only HTML confirmation page without state mutation (prevents prefetch unsubscribes)", async () => {
+    const req = new Request("http://localhost/api/email/unsubscribe/test-tracking-id-123", {
+      method: "GET",
+    });
+
+    const res = await GET(req as any, { params: { trackingId: "test-tracking-id-123" } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+    const bodyText = await res.text();
+    expect(bodyText).toContain("<title>Unsubscribe Confirmation — CraftMyFunnel</title>");
+    expect(bodyText).toContain('<form method="POST"');
+  });
+
   it("POST /api/email/unsubscribe/[trackingId] responds with 200 OK plain terminal response (no redirect)", async () => {
     const req = new Request("http://localhost/api/email/unsubscribe/test-tracking-id-123", {
       method: "POST",
@@ -9,17 +22,6 @@ describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance", () => {
     });
 
     const res = await POST(req as any, { params: { trackingId: "test-tracking-id-123" } });
-    expect(res.status).toBe(200);
-    const bodyText = await res.text();
-    expect(bodyText).toBe("Unsubscribe request recorded.");
-  });
-
-  it("GET /api/email/unsubscribe/[trackingId] responds with 200 OK plain terminal response", async () => {
-    const req = new Request("http://localhost/api/email/unsubscribe/test-tracking-id-123", {
-      method: "GET",
-    });
-
-    const res = await GET(req as any, { params: { trackingId: "test-tracking-id-123" } });
     expect(res.status).toBe(200);
     const bodyText = await res.text();
     expect(bodyText).toBe("Unsubscribe request recorded.");
