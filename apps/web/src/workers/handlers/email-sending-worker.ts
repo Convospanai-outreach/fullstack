@@ -51,21 +51,37 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
   }
 
-  // Server-side daily sending limit enforcement (0/50 daily limit)
+  // Atomic server-side daily sending limit and throttle enforcement
   const maxPerDay = (mailbox as any).maxPerDay || 50;
-  if (mailbox.sentToday >= maxPerDay) {
-    logger.warn(`[email_sending] Mailbox ${mailbox.id} daily limit reached (${mailbox.sentToday}/${maxPerDay})`);
-    throw new Error(`Mailbox daily sending limit reached (${mailbox.sentToday}/${maxPerDay}). Try again tomorrow.`);
-  }
-
-  // Server-side minimum sending delay throttle check (180s delay cap)
-  if (mailbox.lastSentAt) {
-    const elapsedMs = Date.now() - new Date(mailbox.lastSentAt).getTime();
-    if (elapsedMs < 180_000) {
-      const waitSec = Math.ceil((180_000 - elapsedMs) / 1000);
-      logger.info(`[email_sending] Enforcing min 180s delay for mailbox ${mailbox.id} — wait ${waitSec}s`);
+  await prisma.$transaction(async (tx) => {
+    const freshMailbox = await tx.connectedMailbox.findUnique({
+      where: { id: mailbox.id },
+    });
+    if (!freshMailbox) {
+      throw new Error(`Mailbox ${mailbox.id} no longer exists.`);
     }
-  }
+
+    if (freshMailbox.sentToday >= maxPerDay) {
+      logger.warn(`[email_sending] Mailbox ${mailbox.id} daily limit reached (${freshMailbox.sentToday}/${maxPerDay})`);
+      throw new Error(`Mailbox daily sending limit reached (${freshMailbox.sentToday}/${maxPerDay}). Try again tomorrow.`);
+    }
+
+    if (freshMailbox.lastSentAt) {
+      const elapsedMs = Date.now() - new Date(freshMailbox.lastSentAt).getTime();
+      if (elapsedMs < 180_000) {
+        const waitSec = Math.ceil((180_000 - elapsedMs) / 1000);
+        logger.info(`[email_sending] Enforcing min 180s delay for mailbox ${mailbox.id} — wait ${waitSec}s`);
+      }
+    }
+
+    await tx.connectedMailbox.update({
+      where: { id: mailbox.id },
+      data: {
+        sentToday: { increment: 1 },
+        lastSentAt: new Date(),
+      },
+    });
+  });
 
   const payloadSubject = payload["subject"];
   const payloadBody = payload["body"];
