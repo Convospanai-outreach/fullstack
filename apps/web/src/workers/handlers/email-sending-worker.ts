@@ -3,6 +3,16 @@ import type { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 
+function stripHtmlTags(input: string): string {
+  let previous: string;
+  let current = input;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, "");
+  } while (current !== previous);
+  return current;
+}
+
 export async function handleEmailSending(payload: JobPayload) {
   const { leadId, campaignId, teamId, mailboxId } = payload;
 
@@ -111,7 +121,7 @@ export async function handleEmailSending(payload: JobPayload) {
       from: mailbox.email,
       subject,
       html: body,
-      text: body.replace(/<[^>]*>/g, ""),
+      text: stripHtmlTags(body),
       headers: {
         "Reply-To": mailbox.email,
       },
