@@ -37,6 +37,16 @@ export default function MailboxesSettingsPage() {
     const [smtpSaving, setSmtpSaving] = useState(false);
 
     useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && showSmtpModal) {
+                setShowSmtpModal(false);
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [showSmtpModal]);
+
+    useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         if (params.get("connected") === "true" || params.get("googleMailbox") === "connected") {
             const provider = params.get("provider") || "Mailbox";
@@ -290,11 +300,11 @@ export default function MailboxesSettingsPage() {
 
             {/* Custom SMTP Modal Dialog */}
             {showSmtpModal && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
                     <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-4">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-white">Connect Custom SMTP Mailbox</h2>
-                            <button onClick={() => setShowSmtpModal(false)} className="text-zinc-400 hover:text-white">✕</button>
+                            <h2 id="smtp-modal-title" className="text-xl font-bold text-white">Connect Custom SMTP Mailbox</h2>
+                            <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
                         </div>
                         <form onSubmit={handleSaveSmtp} className="space-y-3 text-sm">
                             <div className="grid grid-cols-2 gap-3">

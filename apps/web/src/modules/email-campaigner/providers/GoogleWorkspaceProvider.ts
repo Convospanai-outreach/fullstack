@@ -13,6 +13,7 @@ export class GoogleWorkspaceProvider implements MailProvider {
 
   async send(mailbox: any, input: SendEmailInput): Promise<SendEmailResult> {
     const replyTo = input.headers?.["Reply-To"];
+    const trackingId = input.headers?.["X-Tracking-ID"];
     const sendInput = {
       teamId: String(mailbox.teamId),
       mailboxId: String(mailbox.id),
@@ -20,6 +21,7 @@ export class GoogleWorkspaceProvider implements MailProvider {
       subject: input.subject,
       html: input.html,
       ...(replyTo ? { replyTo } : {}),
+      ...(trackingId ? { trackingId } : {}),
     };
 
     const result = await sendViaGmailMailbox(sendInput);

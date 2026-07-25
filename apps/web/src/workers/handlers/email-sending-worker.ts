@@ -3,6 +3,16 @@ import type { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
 
+function stripHtmlTags(input: string): string {
+  let previous: string;
+  let current = input;
+  do {
+    previous = current;
+    current = current.replace(/<[^>]*>/g, "");
+  } while (current !== previous);
+  return current;
+}
+
 export async function handleEmailSending(payload: JobPayload) {
   const { leadId, campaignId, teamId, mailboxId } = payload;
 
@@ -41,20 +51,21 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
   }
 
-  // Server-side daily sending limit enforcement (0/50 daily limit)
-  const maxPerDay = (mailbox as any).maxPerDay || 50;
-  if (mailbox.sentToday >= maxPerDay) {
-    logger.warn(`[email_sending] Mailbox ${mailbox.id} daily limit reached (${mailbox.sentToday}/${maxPerDay})`);
-    throw new Error(`Mailbox daily sending limit reached (${mailbox.sentToday}/${maxPerDay}). Try again tomorrow.`);
-  }
+  // 3. Atomic conditional SQL UPDATE guaranteeing 100% race-free concurrency enforcement
+  const updatedCount = await prisma.$executeRaw`
+    UPDATE "ConnectedMailbox"
+    SET "sentToday" = "sentToday" + 1, "lastSentAt" = NOW()
+    WHERE id = ${mailbox.id}
+      AND "sentToday" < "dailyLimit"
+      AND ("lastSentAt" IS NULL OR "lastSentAt" <= NOW() - INTERVAL '180 seconds')
+  `;
 
-  // Server-side minimum sending delay throttle check (180s delay cap)
-  if (mailbox.lastSentAt) {
-    const elapsedMs = Date.now() - new Date(mailbox.lastSentAt).getTime();
-    if (elapsedMs < 180_000) {
-      const waitSec = Math.ceil((180_000 - elapsedMs) / 1000);
-      logger.info(`[email_sending] Enforcing min 180s delay for mailbox ${mailbox.id} — wait ${waitSec}s`);
+  if (Number(updatedCount) === 0) {
+    const fresh = await prisma.connectedMailbox.findUnique({ where: { id: mailbox.id } });
+    if (fresh && fresh.sentToday >= fresh.dailyLimit) {
+      throw new Error(`Mailbox daily sending limit reached (${fresh.sentToday}/${fresh.dailyLimit}). Try again tomorrow.`);
     }
+    throw new Error(`Mailbox sending delay throttle active (minimum 180s interval required).`);
   }
 
   const payloadSubject = payload["subject"];
@@ -111,9 +122,10 @@ export async function handleEmailSending(payload: JobPayload) {
       from: mailbox.email,
       subject,
       html: body,
-      text: body.replace(/<[^>]*>/g, ""),
+      text: stripHtmlTags(body),
       headers: {
         "Reply-To": mailbox.email,
+        "X-Tracking-ID": email.trackingId || email.id,
       },
     });
   } catch (err: any) {
