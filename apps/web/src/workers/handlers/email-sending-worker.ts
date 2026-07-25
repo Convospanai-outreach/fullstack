@@ -125,6 +125,7 @@ export async function handleEmailSending(payload: JobPayload) {
       text: stripHtmlTags(body),
       headers: {
         "Reply-To": mailbox.email,
+        "X-Tracking-ID": email.trackingId || email.id,
       },
     });
   } catch (err: any) {
