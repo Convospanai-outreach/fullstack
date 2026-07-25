@@ -43,20 +43,60 @@ describe("MailProvider Architecture & Provider Implementations", () => {
     });
   });
 
-  describe("Provider Capabilities", () => {
-    it("GoogleWorkspaceProvider supports native reply detection", () => {
-      const provider = new GoogleWorkspaceProvider();
-      expect(provider.supportsNativeReplyDetection()).toBe(true);
+  describe("GoogleWorkspaceProvider Verification", () => {
+    const provider = new GoogleWorkspaceProvider();
+
+    it("verifies CONNECTED mailbox status", async () => {
+      const result = await provider.verifyConnection({ status: "CONNECTED" });
+      expect(result.ok).toBe(true);
     });
 
-    it("MicrosoftGraphProvider supports native reply detection", () => {
-      const provider = new MicrosoftGraphProvider();
-      expect(provider.supportsNativeReplyDetection()).toBe(true);
+    it("returns error for DISCONNECTED mailbox status", async () => {
+      const result = await provider.verifyConnection({ status: "DISCONNECTED" });
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("CONNECTED");
+    });
+  });
+
+  describe("SmtpProvider Verification & Send", () => {
+    const provider = new SmtpProvider();
+
+    it("handles SmtpProvider verifyConnection gracefully on invalid host", async () => {
+      const result = await provider.verifyConnection({
+        email: "sender@example.com",
+        displayName: "Sender Name",
+        metadata: { host: "invalid.smtp.host", port: 587 },
+      });
+      expect(result.ok).toBe(false);
     });
 
-    it("SmtpProvider requires IMAP polling (supportsNativeReplyDetection = false)", () => {
-      const provider = new SmtpProvider();
-      expect(provider.supportsNativeReplyDetection()).toBe(false);
+    it("handles SmtpProvider send failure gracefully", async () => {
+      const mailbox = {
+        email: "sender@example.com",
+        displayName: "Sender Name",
+        metadata: { host: "invalid.smtp.host", port: 587 },
+      };
+      await expect(
+        provider.send(mailbox, {
+          to: "prospect@example.com",
+          from: "sender@example.com",
+          subject: "Test Subject",
+          html: "<p>Test</p>",
+          text: "Test",
+        })
+      ).rejects.toThrow(MailProviderError);
+    });
+  });
+
+  describe("MicrosoftGraphProvider Verification", () => {
+    const provider = new MicrosoftGraphProvider();
+
+    it("fails verifyConnection if token missing", async () => {
+      const result = await provider.verifyConnection({
+        encryptedAccessToken: null,
+        encryptedRefreshToken: null,
+      });
+      expect(result.ok).toBe(false);
     });
   });
 });
