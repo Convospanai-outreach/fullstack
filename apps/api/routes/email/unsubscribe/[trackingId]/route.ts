@@ -10,3 +10,13 @@ export async function GET(req: NextRequest, { params }: { params: { trackingId: 
 
     return new NextResponse("Unsubscribe request recorded.", { status: 200 });
 }
+
+export async function POST(req: NextRequest, { params }: { params: { trackingId: string } }) {
+    try {
+        await recordEmailUnsubscribe({ token: params.trackingId, headers: req.headers });
+    } catch {
+        return new NextResponse("Unsubscribe request recorded.", { status: 200 });
+    }
+
+    return new NextResponse("Unsubscribe request recorded.", { status: 200 });
+}

@@ -82,7 +82,7 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
             return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
         }
     }
-    if (root === "upload" || root === "integrations" || root === "approvals" || root === "dashboard") {
+    if (root === "upload" || root === "integrations" || root === "approvals" || root === "dashboard" || root === "email") {
         const apiPath = pathParts.join("/");
         return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
