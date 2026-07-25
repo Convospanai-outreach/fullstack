@@ -1,6 +1,7 @@
 import { MailProvider, SendEmailInput, SendEmailResult, MailProviderError } from "./MailProvider";
 import { sendViaSMTP, verifySmtpConfig, SmtpConfig } from "@/lib/email/smtpClient";
 import { decryptCredential } from "@/lib/security/credentialVault";
+import crypto from "crypto";
 
 export class SmtpProvider implements MailProvider {
   readonly providerKey = "SMTP" as const;
@@ -31,6 +32,9 @@ export class SmtpProvider implements MailProvider {
   async send(mailbox: any, input: SendEmailInput): Promise<SendEmailResult> {
     const config = await this.buildConfig(mailbox);
     const replyTo = input.headers?.["Reply-To"];
+    const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
+    const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
+
     const sendOptions = {
       to: input.to,
       subject: input.subject,
@@ -53,7 +57,7 @@ export class SmtpProvider implements MailProvider {
     }
 
     return {
-      providerMessageId: result.messageId || `smtp_${Date.now()}`,
+      providerMessageId: result.messageId || rfcMessageId,
       sentAt: new Date(),
     };
   }

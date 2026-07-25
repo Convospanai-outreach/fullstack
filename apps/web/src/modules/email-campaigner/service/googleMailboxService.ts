@@ -281,10 +281,14 @@ export async function sendViaGmailMailbox(input: {
     const fromName = mailbox.displayName || mailbox.email;
     const to = normalizeEmailAddress(input.to);
     const replyTo = input.replyTo ? normalizeEmailAddress(input.replyTo) : undefined;
+    const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
+    const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
+
     const headers = [
         `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
         `To: ${to}`,
         `Subject: ${encodeMimeHeader(input.subject)}`,
+        `Message-ID: ${rfcMessageId}`,
         "MIME-Version: 1.0",
         "Content-Type: text/html; charset=UTF-8",
         ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
@@ -307,7 +311,7 @@ export async function sendViaGmailMailbox(input: {
     await markMailboxSend(input.teamId, mailbox.id);
     return {
         success: true,
-        messageId: data.id as string | undefined,
+        messageId: rfcMessageId,
         threadId: data.threadId as string | undefined,
         mailboxId: mailbox.id,
     };

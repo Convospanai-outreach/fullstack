@@ -1,5 +1,6 @@
 import { MailProvider, SendEmailInput, SendEmailResult, MailProviderError } from "./MailProvider";
 import { decryptCredential, encryptCredential } from "@/lib/security/credentialVault";
+import crypto from "crypto";
 
 export class MicrosoftGraphProvider implements MailProvider {
   readonly providerKey = "MICROSOFT_365" as const;
@@ -74,6 +75,8 @@ export class MicrosoftGraphProvider implements MailProvider {
 
   async send(mailbox: any, input: SendEmailInput): Promise<SendEmailResult> {
     const token = await this.getAccessToken(mailbox);
+    const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
+    const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
 
     const payload = {
       message: {
@@ -89,17 +92,20 @@ export class MicrosoftGraphProvider implements MailProvider {
             },
           },
         ],
-        ...(input.headers?.["Reply-To"]
-          ? {
-              replyTo: [
+        internetMessageHeaders: [
+          {
+            name: "Message-ID",
+            value: rfcMessageId,
+          },
+          ...(input.headers?.["Reply-To"]
+            ? [
                 {
-                  emailAddress: {
-                    address: input.headers["Reply-To"],
-                  },
+                  name: "Reply-To",
+                  value: input.headers["Reply-To"],
                 },
-              ],
-            }
-          : {}),
+              ]
+            : []),
+        ],
       },
       saveToSentItems: "true",
     };
@@ -126,9 +132,8 @@ export class MicrosoftGraphProvider implements MailProvider {
       throw new MailProviderError(`Graph API send failed: ${response.status} ${errText}`, "REJECTED", false);
     }
 
-    const reqId = response.headers.get("request-id") || `ms_${Date.now()}`;
     return {
-      providerMessageId: reqId,
+      providerMessageId: rfcMessageId,
       sentAt: new Date(),
     };
   }
