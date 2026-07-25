@@ -327,9 +327,11 @@ export async function sendViaGmailMailbox(input: {
                 if (wireHeader) {
                     actualWireMessageId = wireHeader.trim();
                 }
+            } else {
+                console.warn(`[googleMailboxService] Post-send Message-ID fetch returned non-200 status (${metaRes.status}). Falling back to rfcMessageId ${rfcMessageId}`);
             }
-        } catch {
-            // Fallback to rfcMessageId
+        } catch (fetchErr: any) {
+            console.warn(`[googleMailboxService] Post-send Message-ID fetch error (${fetchErr?.message}). Falling back to rfcMessageId ${rfcMessageId}`);
         }
     }
 
