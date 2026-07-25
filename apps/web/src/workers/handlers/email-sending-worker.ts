@@ -99,39 +99,57 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No teamId available for campaign ${campaignId}`);
   }
 
-  // 4. Send via connected Google mailbox (handles OAuth token refresh automatically)
-  const result = await sendViaGmailMailbox({
-    teamId: resolvedTeamId,
-    mailboxId: mailbox.id,
-    to: lead.email,
-    subject,
-    html: body,
-  });
+  // 4. Send via provider registered with MailProviderFactory
+  const { MailProviderFactory } = await import("@/modules/email-campaigner/providers");
+  const providerKey = mailbox.provider || "GOOGLE_WORKSPACE";
+  const provider = MailProviderFactory.getProvider(providerKey);
 
-  if (!result.success) {
+  let sendResult: any = null;
+  try {
+    sendResult = await provider.send(mailbox, {
+      to: lead.email,
+      from: mailbox.email,
+      subject,
+      html: body,
+      text: body.replace(/<[^>]*>/g, ""),
+      headers: {
+        "Reply-To": mailbox.email,
+      },
+    });
+  } catch (err: any) {
     await prisma.email.update({
       where: { id: email.id },
       data: { status: "failed" },
     });
 
-    // Check consecutive send failures for circuit breaker
-    const recentFailures = await prisma.email.count({
-      where: {
-        campaignId,
-        status: "failed",
-        createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
-      },
-    });
-
-    if (recentFailures >= 3) {
-      await prisma.campaign.update({
-        where: { id: campaignId },
-        data: { status: "review_required" },
-      });
-      logger.error(`[Circuit Breaker] Tripped after ${recentFailures} send failures on campaign ${campaignId}`);
+    const isAuthExpired = err?.kind === "AUTH_EXPIRED";
+    if (isAuthExpired) {
+      await prisma.connectedMailbox.update({
+        where: { id: mailbox.id },
+        data: { status: "NEEDS_RECONNECT" },
+      }).catch(() => undefined);
     }
 
-    throw new Error(result.error || "Gmail send failed.");
+    // Check consecutive send failures for circuit breaker (does not trip on AUTH_EXPIRED refresh attempts)
+    if (!isAuthExpired) {
+      const recentFailures = await prisma.email.count({
+        where: {
+          campaignId,
+          status: "failed",
+          createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
+        },
+      });
+
+      if (recentFailures >= 3) {
+        await prisma.campaign.update({
+          where: { id: campaignId },
+          data: { status: "review_required" },
+        });
+        logger.error(`[Circuit Breaker] Tripped after ${recentFailures} send failures on campaign ${campaignId}`);
+      }
+    }
+
+    throw new Error(err?.message || `${providerKey} send failed.`);
   }
 
   // 5. On successful send, update email status, lead status, and create SENT event
@@ -139,8 +157,8 @@ export async function handleEmailSending(payload: JobPayload) {
     where: { id: email.id },
     data: {
       status: "sent",
-      ...(result.messageId ? { providerId: result.messageId } : {}),
-      ...(result.threadId ? { threadId: result.threadId } : {}),
+      ...(sendResult?.providerMessageId ? { providerId: sendResult.providerMessageId } : {}),
+      ...(sendResult?.threadId ? { threadId: sendResult.threadId } : {}),
     },
   });
 
