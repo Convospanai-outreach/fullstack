@@ -13,8 +13,9 @@
  * - Height: h-12 (48px), border-b border-white/6
  */
 
-import { Menu, Search, Bell, HelpCircle } from "lucide-react";
+import { Menu, Search, HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
+import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
 import Link from "next/link";
 
 interface DashboardHeaderProps {
@@ -44,14 +45,17 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
         aria-label="Search leads, campaigns… (⌘K)"
       >
         <Search className="w-3.5 h-3.5 flex-shrink-0" />
-        <span className="flex-1 text-left">Search leads, campaigns…</span>
-        <kbd className="ml-auto text-[10px] bg-white/6 rounded px-1.5">⌘K</kbd>
+        <span className="flex-1 text-left truncate">Search leads, campaigns…</span>
+        <kbd className="ml-auto text-[10px] bg-white/6 rounded px-1.5 hidden sm:inline">⌘K</kbd>
       </button>
 
-      {/* Right zone: mode badge + bell + help */}
+      {/* Right zone: status pill + mode badge + bell + help */}
       <div className="ml-auto flex items-center gap-2">
+        {/* Docked Connection Status */}
+        <ConnectionStatusBar inline />
+
         {/* Mode badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
                         text-emerald-400 bg-emerald-500/8 border border-emerald-500/18">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           Manual mode
