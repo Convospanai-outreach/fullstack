@@ -51,37 +51,22 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
   }
 
-  // Atomic server-side daily sending limit and throttle enforcement
-  const maxPerDay = (mailbox as any).maxPerDay || 50;
-  await prisma.$transaction(async (tx) => {
-    const freshMailbox = await tx.connectedMailbox.findUnique({
-      where: { id: mailbox.id },
-    });
-    if (!freshMailbox) {
-      throw new Error(`Mailbox ${mailbox.id} no longer exists.`);
-    }
+  // 3. Atomic conditional SQL UPDATE guaranteeing 100% race-free concurrency enforcement
+  const updatedCount = await prisma.$executeRaw`
+    UPDATE "ConnectedMailbox"
+    SET "sentToday" = "sentToday" + 1, "lastSentAt" = NOW()
+    WHERE id = ${mailbox.id}
+      AND "sentToday" < "dailyLimit"
+      AND ("lastSentAt" IS NULL OR "lastSentAt" <= NOW() - INTERVAL '180 seconds')
+  `;
 
-    if (freshMailbox.sentToday >= maxPerDay) {
-      logger.warn(`[email_sending] Mailbox ${mailbox.id} daily limit reached (${freshMailbox.sentToday}/${maxPerDay})`);
-      throw new Error(`Mailbox daily sending limit reached (${freshMailbox.sentToday}/${maxPerDay}). Try again tomorrow.`);
+  if (Number(updatedCount) === 0) {
+    const fresh = await prisma.connectedMailbox.findUnique({ where: { id: mailbox.id } });
+    if (fresh && fresh.sentToday >= fresh.dailyLimit) {
+      throw new Error(`Mailbox daily sending limit reached (${fresh.sentToday}/${fresh.dailyLimit}). Try again tomorrow.`);
     }
-
-    if (freshMailbox.lastSentAt) {
-      const elapsedMs = Date.now() - new Date(freshMailbox.lastSentAt).getTime();
-      if (elapsedMs < 180_000) {
-        const waitSec = Math.ceil((180_000 - elapsedMs) / 1000);
-        logger.info(`[email_sending] Enforcing min 180s delay for mailbox ${mailbox.id} — wait ${waitSec}s`);
-      }
-    }
-
-    await tx.connectedMailbox.update({
-      where: { id: mailbox.id },
-      data: {
-        sentToday: { increment: 1 },
-        lastSentAt: new Date(),
-      },
-    });
-  });
+    throw new Error(`Mailbox sending delay throttle active (minimum 180s interval required).`);
+  }
 
   const payloadSubject = payload["subject"];
   const payloadBody = payload["body"];
