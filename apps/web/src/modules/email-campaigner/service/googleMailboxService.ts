@@ -315,10 +315,30 @@ export async function sendViaGmailMailbox(input: {
         return { success: false, error: data?.error?.message || "Gmail send failed." };
     }
 
+    let actualWireMessageId = rfcMessageId;
+    if (data.id) {
+        try {
+            const metaRes = await fetch(`${GMAIL_MESSAGES_URL}/${data.id}?format=metadata&metadataHeaders=Message-ID`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (metaRes.ok) {
+                const metaData = await metaRes.json() as any;
+                const wireHeader = metaData?.payload?.headers?.find((h: any) => h.name?.toLowerCase() === "message-id")?.value;
+                if (wireHeader) {
+                    actualWireMessageId = wireHeader.trim();
+                }
+            }
+        } catch {
+            // Fallback to rfcMessageId
+        }
+    }
+
     await markMailboxSend(input.teamId, mailbox.id);
     return {
         success: true,
-        messageId: rfcMessageId,
+        messageId: actualWireMessageId,
+        rfcMessageId,
+        gmailId: data.id as string | undefined,
         threadId: data.threadId as string | undefined,
         mailboxId: mailbox.id,
     };
