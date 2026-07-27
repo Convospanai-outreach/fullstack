@@ -363,26 +363,65 @@ export async function syncGmailInboundReplies(mailboxId: string, notificationHis
     let latestHistoryId = notificationHistoryId || mailbox.historyId;
 
     if (startHistoryId) {
-        try {
-            const historyUrl = `https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=${startHistoryId}&historyTypes=messageAdded&labelId=INBOX`;
-            const historyRes = await fetch(historyUrl, {
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
-            if (historyRes.ok) {
-                const historyData = await historyRes.json() as any;
-                if (historyData.historyId) {
-                    latestHistoryId = String(historyData.historyId);
+        let pageToken: string | undefined;
+        let isStaleHistory = false;
+
+        do {
+            try {
+                const params = new URLSearchParams({
+                    startHistoryId,
+                    historyTypes: "messageAdded",
+                    labelId: "INBOX",
+                });
+                if (pageToken) params.set("pageToken", pageToken);
+
+                const historyUrl = `https://gmail.googleapis.com/gmail/v1/users/me/history?${params.toString()}`;
+                const historyRes = await fetch(historyUrl, {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+
+                if (historyRes.status === 404 || historyRes.status === 400) {
+                    isStaleHistory = true;
+                    console.warn(`[syncGmailInboundReplies] Stale historyId ${startHistoryId} for mailbox ${mailbox.id} (HTTP ${historyRes.status}). Triggering profile history resync fallback.`);
+                    break;
                 }
-                for (const record of historyData.history || []) {
-                    for (const added of record.messagesAdded || []) {
-                        if (added?.message?.id) {
-                            messageIds.push(added.message.id);
+
+                if (historyRes.ok) {
+                    const historyData = await historyRes.json() as any;
+                    if (historyData.historyId) {
+                        latestHistoryId = String(historyData.historyId);
+                    }
+                    for (const record of historyData.history || []) {
+                        for (const added of record.messagesAdded || []) {
+                            if (added?.message?.id) {
+                                messageIds.push(added.message.id);
+                            }
                         }
                     }
+                    pageToken = historyData.nextPageToken;
+                } else {
+                    break;
                 }
+            } catch (historyErr) {
+                console.warn(`[syncGmailInboundReplies] Failed to fetch history page for mailbox ${mailbox.id}:`, historyErr);
+                break;
             }
-        } catch (historyErr) {
-            console.warn(`[syncGmailInboundReplies] Failed to fetch history for mailbox ${mailbox.id}:`, historyErr);
+        } while (pageToken);
+
+        if (isStaleHistory) {
+            try {
+                const profileRes = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (profileRes.ok) {
+                    const profileData = await profileRes.json() as any;
+                    if (profileData.historyId) {
+                        latestHistoryId = String(profileData.historyId);
+                    }
+                }
+            } catch {
+                // ignore profile fetch fallback error
+            }
         }
     }
 
