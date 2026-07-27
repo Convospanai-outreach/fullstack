@@ -345,3 +345,218 @@ export async function sendViaGmailMailbox(input: {
         mailboxId: mailbox.id,
     };
 }
+
+export async function syncGmailInboundReplies(mailboxId: string, notificationHistoryId?: string) {
+    const mailbox = await prisma.connectedMailbox.findUnique({
+        where: { id: mailboxId },
+    });
+
+    if (!mailbox || mailbox.status !== "CONNECTED") {
+        return { synced: 0, replies: 0, bounces: 0 };
+    }
+
+    const accessToken = await getMailboxAccessToken(mailbox);
+    if (!accessToken) return { synced: 0, replies: 0, bounces: 0 };
+
+    const startHistoryId = mailbox.historyId || notificationHistoryId;
+    let messageIds: string[] = [];
+    let latestHistoryId = notificationHistoryId || mailbox.historyId;
+
+    if (startHistoryId) {
+        try {
+            const historyUrl = `https://gmail.googleapis.com/gmail/v1/users/me/history?startHistoryId=${startHistoryId}&historyTypes=messageAdded&labelId=INBOX`;
+            const historyRes = await fetch(historyUrl, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (historyRes.ok) {
+                const historyData = await historyRes.json() as any;
+                if (historyData.historyId) {
+                    latestHistoryId = String(historyData.historyId);
+                }
+                for (const record of historyData.history || []) {
+                    for (const added of record.messagesAdded || []) {
+                        if (added?.message?.id) {
+                            messageIds.push(added.message.id);
+                        }
+                    }
+                }
+            }
+        } catch (historyErr) {
+            console.warn(`[syncGmailInboundReplies] Failed to fetch history for mailbox ${mailbox.id}:`, historyErr);
+        }
+    }
+
+    if (messageIds.length === 0) {
+        try {
+            const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=in:inbox&maxResults=10`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (listRes.ok) {
+                const listData = await listRes.json() as any;
+                messageIds = (listData.messages || []).map((m: any) => m.id);
+            }
+        } catch {
+            // ignore list fallback error
+        }
+    }
+
+    let syncedCount = 0;
+    let replyCount = 0;
+    let bounceCount = 0;
+
+    const uniqueMsgIds = Array.from(new Set(messageIds));
+    for (const msgId of uniqueMsgIds) {
+        try {
+            const msgRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=full`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (!msgRes.ok) continue;
+            const msg = await msgRes.json() as any;
+
+            const headers = msg.payload?.headers || [];
+            const getHeader = (name: string) => headers.find((h: any) => h.name?.toLowerCase() === name.toLowerCase())?.value || "";
+
+            const from = getHeader("From");
+            const subject = getHeader("Subject");
+            const inReplyTo = getHeader("In-Reply-To");
+            const references = getHeader("References");
+
+            const fromMatch = from.match(/<([^>]+)>/) || [null, from.trim()];
+            const fromEmail = (fromMatch[1] || "").toLowerCase();
+
+            if (!fromEmail || fromEmail === mailbox.email.toLowerCase()) continue;
+
+            const isBounce = /mailer-daemon|postmaster/i.test(from) || /delivery status notification|undeliver|delivery failed|returned mail/i.test(subject);
+            const type = isBounce ? "BOUNCE" : "REPLY_RECEIVED";
+
+            const refTokens = references.split(/\s+/).map((t: string) => t.trim()).filter(Boolean);
+            const providerIds = Array.from(new Set([inReplyTo, ...refTokens].filter(Boolean)));
+
+            const matchedEmail = await prisma.email.findFirst({
+                where: {
+                    mailboxId: mailbox.id,
+                    lead: { teamId: mailbox.teamId },
+                    OR: [
+                        ...(msg.threadId ? [{ threadId: msg.threadId }] : []),
+                        ...providerIds.map((providerId) => ({ providerId })),
+                    ],
+                },
+                select: { id: true, leadId: true, campaignId: true },
+            });
+
+            if (!matchedEmail) continue;
+
+            const existingEvent = await prisma.emailEvent.findFirst({
+                where: {
+                    teamId: mailbox.teamId,
+                    provider: "GMAIL_API",
+                    providerMessageId: msg.id,
+                    type,
+                },
+            });
+
+            if (existingEvent) continue;
+
+            const emailEvent = await prisma.emailEvent.create({
+                data: {
+                    teamId: mailbox.teamId,
+                    emailId: matchedEmail.id,
+                    mailboxId: mailbox.id,
+                    leadId: matchedEmail.leadId,
+                    campaignId: matchedEmail.campaignId,
+                    type,
+                    provider: "GMAIL_API",
+                    providerMessageId: msg.id,
+                    payload: { from, subject, threadId: msg.threadId, gmailId: msg.id },
+                },
+            });
+
+            if (isBounce) {
+                bounceCount++;
+                if (matchedEmail.leadId) {
+                    const lead = await prisma.lead.findUnique({
+                        where: { id: matchedEmail.leadId },
+                        select: { email: true },
+                    });
+
+                    await prisma.lead.update({
+                        where: { id: matchedEmail.leadId },
+                        data: { status: "STOPPED" },
+                    }).catch(() => undefined);
+
+                    if (lead?.email) {
+                        await prisma.suppressionEntry.upsert({
+                            where: { teamId_email: { teamId: mailbox.teamId, email: lead.email.toLowerCase() } },
+                            create: {
+                                teamId: mailbox.teamId,
+                                email: lead.email.toLowerCase(),
+                                reason: "BOUNCE",
+                                source: "GMAIL_SYNC",
+                                leadId: matchedEmail.leadId,
+                            },
+                            update: {
+                                reason: "BOUNCE",
+                                source: "GMAIL_SYNC",
+                                leadId: matchedEmail.leadId,
+                            },
+                        }).catch(() => undefined);
+                    }
+                }
+                await prisma.email.update({
+                    where: { id: matchedEmail.id },
+                    data: { bouncedAt: new Date(), status: "bounced" },
+                }).catch(() => undefined);
+                await prisma.connectedMailbox.update({
+                    where: { id: mailbox.id },
+                    data: { bounceCount: { increment: 1 } },
+                }).catch(() => undefined);
+            } else {
+                replyCount++;
+                if (matchedEmail.leadId) {
+                    await prisma.message.create({
+                        data: {
+                            leadId: matchedEmail.leadId,
+                            content: subject || "Reply detected",
+                            direction: "INBOUND",
+                            platform: "EMAIL",
+                            sender: from,
+                            status: "received",
+                            isRead: false,
+                            emailEventId: emailEvent.id,
+                        },
+                    }).catch(() => undefined);
+
+                    await prisma.lead.update({
+                        where: { id: matchedEmail.leadId },
+                        data: { status: "REPLIED" },
+                    }).catch(() => undefined);
+                }
+
+                await prisma.email.update({
+                    where: { id: matchedEmail.id },
+                    data: { repliedAt: new Date(), status: "replied" },
+                }).catch(() => undefined);
+
+                await prisma.connectedMailbox.update({
+                    where: { id: mailbox.id },
+                    data: { replyCount: { increment: 1 } },
+                }).catch(() => undefined);
+            }
+
+            syncedCount++;
+        } catch (msgErr) {
+            console.error(`[syncGmailInboundReplies] Error processing message ${msgId}:`, msgErr);
+        }
+    }
+
+    await prisma.connectedMailbox.update({
+        where: { id: mailbox.id },
+        data: {
+            ...(latestHistoryId ? { historyId: String(latestHistoryId) } : {}),
+            lastSyncAt: new Date(),
+        },
+    }).catch(() => undefined);
+
+    return { synced: syncedCount, replies: replyCount, bounces: bounceCount };
+}
+

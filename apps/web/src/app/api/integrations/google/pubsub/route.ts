@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { syncGmailInboundReplies } from "@/modules/email-campaigner/service/googleMailboxService";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
 
     const emailAddress = payload.emailAddress?.trim().toLowerCase();
     const eventType = payload.eventType || payload.type;
-    const historyId = payload.historyId;
+    const historyId = payload.historyId ? String(payload.historyId) : undefined;
 
     if (!emailAddress) {
       return NextResponse.json({ ok: true, note: "Missing emailAddress in payload" });
@@ -26,13 +27,17 @@ export async function POST(req: NextRequest) {
 
     const { prisma } = await import("@/lib/db");
 
-    // 1. Find team associated with mailbox
+    // 1. Find mailbox associated with email
     const mailbox = await prisma.connectedMailbox.findFirst({
-      where: { email: emailAddress },
+      where: { email: emailAddress, provider: "GOOGLE_WORKSPACE" },
       select: { id: true, teamId: true },
     });
 
-    const teamId = mailbox?.teamId;
+    if (!mailbox) {
+      return NextResponse.json({ ok: true, note: "Mailbox not registered" });
+    }
+
+    const teamId = mailbox.teamId;
 
     // 2. Automated Spam Complaint / Feedback Loop (FBL) Suppression Handler
     if (eventType === "SPAM_COMPLAINT" || eventType === "COMPLAINT" || payload.labelAdded === "SPAM") {
@@ -59,19 +64,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 3. Update mailbox lastSyncAt / historyId
-    if (mailbox) {
-      await prisma.connectedMailbox.update({
-        where: { id: mailbox.id },
-        data: {
-          ...(historyId ? { historyId: String(historyId) } : {}),
-          lastSyncAt: new Date(),
-        },
-      });
-    }
+    // 3. Perform Gmail history.list inbound reply detection and lead stage transition
+    const syncResult = await syncGmailInboundReplies(mailbox.id, historyId);
 
-    return NextResponse.json({ ok: true, processed: true });
+    return NextResponse.json({
+      ok: true,
+      processed: true,
+      mailboxId: mailbox.id,
+      historyId,
+      ...syncResult,
+    });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message || "Internal PubSub handler error" }, { status: 500 });
   }
 }
+
