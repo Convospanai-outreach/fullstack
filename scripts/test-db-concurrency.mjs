@@ -1,7 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 async function main() {
-  const prisma = new PrismaClient();
+  const connectionString = process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:5432/craftmyfunnel";
+  const pool = new Pool({ connectionString });
+  const adapter = new PrismaPg(pool);
+  const prisma = new PrismaClient({ adapter });
+
   console.log("⚡ Starting Live PostgreSQL Atomic Mailbox Concurrency Test...");
 
   try {
@@ -25,7 +31,7 @@ async function main() {
 
     // 2. Fire 5 concurrent atomic SQL UPDATE queries via Promise.all
     // Logic: UPDATE "ConnectedMailbox" SET "sentToday" = "sentToday" + 1 WHERE id = $1 AND "sentToday" < "dailyLimit"
-    const runAtomicUpdate = async (index: number) => {
+    const runAtomicUpdate = async (index) => {
       const count = await prisma.$executeRaw`
         UPDATE "ConnectedMailbox"
         SET "sentToday" = "sentToday" + 1, "lastSentAt" = NOW()
@@ -62,7 +68,7 @@ async function main() {
     } else {
       console.log("⚠️ WARNING: DB count or concurrency serialization mismatch.");
     }
-  } catch (err: any) {
+  } catch (err) {
     console.error("❌ Concurrency Test Error:", err?.message || err);
   } finally {
     await prisma.$disconnect();
