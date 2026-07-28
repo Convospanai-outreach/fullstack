@@ -71,7 +71,7 @@ export async function GET() {
       prisma.email.count({
         where: {
           lead: { teamId },
-          status: { in: ["draft", "DRAFT_READY", "queued"] },
+          status: { in: ["draft", "DRAFT", "draft_ready", "DRAFT_READY", "queued", "QUEUED"] },
         },
       }),
 
@@ -95,7 +95,7 @@ export async function GET() {
       prisma.emailEvent.count({
         where: {
           teamId,
-          type: { in: ["OPENED", "CLICKED", "REPLIED", "REPLY_RECEIVED"] },
+          type: { in: ["OPENED", "CLICKED", "REPLY_RECEIVED"] },
         },
       }),
 
