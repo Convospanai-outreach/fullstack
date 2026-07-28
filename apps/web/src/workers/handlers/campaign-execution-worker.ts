@@ -118,7 +118,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
                 lead
             );
 
-            await prisma.email.create({
+            const createdEmail = await prisma.email.create({
                 data: {
                     leadId: lead.id,
                     campaignId: campaign.id,
@@ -133,11 +133,39 @@ export async function handleCampaignExecution(payload: JobPayload) {
                 data: { status: "DRAFT_READY", campaignId: campaign.id },
             });
 
+            if (activeTeamId) {
+                const teamUser = await prisma.user.findFirst({
+                    where: { memberships: { some: { teamId: activeTeamId } } },
+                });
+                if (teamUser) {
+                    await prisma.approvalRequest.create({
+                        data: {
+                            teamId: activeTeamId,
+                            requesterId: teamUser.id,
+                            actionType: "SEND_EMAIL_DRAFT",
+                            entityType: "Email",
+                            entityId: createdEmail.id,
+                            status: "PENDING",
+                            reason: `AI draft generated for ${lead.email || lead.fullName || "lead"} in campaign ${campaign.name}`,
+                            payload: {
+                                emailId: createdEmail.id,
+                                leadId: lead.id,
+                                campaignId: campaign.id,
+                                subject,
+                                body,
+                            },
+                        },
+                    }).catch((apprErr: any) => {
+                        logger.warn("[campaign_execution] ApprovalRequest creation notice:", apprErr?.message || apprErr);
+                    });
+                }
+            }
+
             enqueued++;
             consecutiveFailures = 0;
             totalCostEst += estimatedCostUsd;
 
-            logger.info("[AI Draft Telemetry] Cost logged:", {
+            logger.info("[AI Draft Telemetry] Cost & approval logged:", {
                 campaignId: campaign.id,
                 leadId: lead.id,
                 provider: providerUsed,
