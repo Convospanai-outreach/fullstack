@@ -118,7 +118,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
                 lead
             );
 
-            await prisma.email.create({
+            const createdEmail = await prisma.email.create({
                 data: {
                     leadId: lead.id,
                     campaignId: campaign.id,
@@ -133,11 +133,45 @@ export async function handleCampaignExecution(payload: JobPayload) {
                 data: { status: "DRAFT_READY", campaignId: campaign.id },
             });
 
+            if (activeTeamId) {
+                let requesterId = campaign.ownerId || payload.userId;
+                if (!requesterId) {
+                    const teamUser = await prisma.user.findFirst({
+                        where: { memberships: { some: { teamId: activeTeamId } } },
+                    });
+                    requesterId = teamUser?.id;
+                }
+
+                if (!requesterId) {
+                    throw new Error(`[campaign_execution] Approval gate failed: No valid requester user found for team ${activeTeamId}`);
+                }
+
+                // Loud execution: throw error if approval creation fails
+                await prisma.approvalRequest.create({
+                    data: {
+                        teamId: activeTeamId,
+                        requesterId,
+                        actionType: "SEND_EMAIL_DRAFT",
+                        entityType: "Email",
+                        entityId: createdEmail.id,
+                        status: "PENDING",
+                        reason: `AI draft generated for ${lead.email || lead.fullName || "lead"} in campaign ${campaign.name}`,
+                        payload: {
+                            emailId: createdEmail.id,
+                            leadId: lead.id,
+                            campaignId: campaign.id,
+                            subject,
+                            body,
+                        },
+                    },
+                });
+            }
+
             enqueued++;
             consecutiveFailures = 0;
             totalCostEst += estimatedCostUsd;
 
-            logger.info("[AI Draft Telemetry] Cost logged:", {
+            logger.info("[AI Draft Telemetry] Cost & approval gate logged:", {
                 campaignId: campaign.id,
                 leadId: lead.id,
                 provider: providerUsed,

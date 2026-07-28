@@ -5,7 +5,7 @@ import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 interface ServiceStatus {
     name: string;
-    status: "online" | "degraded" | "offline";
+    status: "online" | "degraded" | "offline" | "disabled";
     latencyMs?: number;
     detail?: string;
 }
@@ -43,6 +43,13 @@ const STATUS_COLORS = {
         ring: "ring-red-500/30",
         bg: "bg-red-500/10",
         label: "Offline",
+    },
+    disabled: {
+        dot: "bg-slate-400",
+        text: "text-slate-400",
+        ring: "ring-slate-500/30",
+        bg: "bg-slate-500/10",
+        label: "Optional / Not Deployed",
     },
 };
 
