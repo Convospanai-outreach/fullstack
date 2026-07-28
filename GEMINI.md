@@ -153,6 +153,7 @@ Channel connection status	shared channels status object (email/linkedin/whatsapp
 Gmail mailbox record	single connectedMailbox row (used by Settings AND onboarding)
 Campaign/lead pipeline state	single Campaign entity (Dashboard tracker reads this, does not maintain its own state)
 AI provider + key	one config value, provider-agnostic (gemini/openai/anthropic)
+Gmail PubSub & Reply Engine	apps/api registerGoogleMailboxWatch + gmail-history-sync-worker.ts (sole OIDC-verified, lease-locked pipeline)
 
 If you find a second copy of any of the above while working, stop and report it — do not silently write to both to "keep them in sync." Consolidate or ask.
 
@@ -218,6 +219,7 @@ Draft generation: previously a stub with a saved-but-unused Gemini key — confi
 Dashboard stat cards (Meetings Secured, Active Pipeline, Drafts Queued, Signal Capture): confirm which are live-queried vs still hardcoded before claiming any dashboard work is "done"
 Multi-tenant data isolation: never directly confirmed with a pasted query example (raised in the first-ever audit of this project) — treat as open until §0-Hard-Rules re-verification above is actually done, not assumed
 Reply detection (Message-ID matching): architecture corrected to fetch the real wire header post-send, but "Gmail overwrites custom Message-ID headers" is a documented real-world failure mode elsewhere — re-confirm with a live send→reply cycle before trusting this fully closed
+Gmail reply detection: apps/api's registerGoogleMailboxWatch + gmail-history-sync-worker.ts is the sole live, OIDC-verified pipeline. A parallel unauthenticated implementation was built in apps/web across several sessions before being discovered as redundant and deleted — check apps/api first before building anything Gmail-sync-related again.
 Google OAuth CASA assessment / Azure AD app registration for Microsoft OAuth: both are external, human-only actions (portal access required) — code-side "done" never means these are done; check status with the human directly, don't infer from code
 
 ### 6. Update this file

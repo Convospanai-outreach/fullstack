@@ -16,7 +16,7 @@ interface KPIData {
 const transitionCurve = { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.8 } as const;
 
 function DeltaBadge({ value, unit = '' }: { value: number; unit?: string }) {
-  if (value === 0) return <span className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest">∅ Null</span>;
+  if (value === 0) return <span className="text-zinc-600 font-mono text-[9px] uppercase tracking-widest">— N/A</span>;
   const isPos = value > 0;
   return (
     <div className={cn(
