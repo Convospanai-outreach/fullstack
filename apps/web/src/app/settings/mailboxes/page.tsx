@@ -3,6 +3,14 @@
 import { useEffect, useState } from "react";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
+interface ConnectedMailboxMetadata {
+    gmailWatchExpirationAt?: string | null;
+    gmailWatchRegisteredAt?: string | null;
+    lastWatchError?: string | null;
+    lastSyncError?: string | null;
+    lastSyncErrorAt?: string | null;
+}
+
 interface ConnectedMailbox {
     id: string;
     email: string;
@@ -11,8 +19,19 @@ interface ConnectedMailbox {
     status: string;
     dailyLimit: number;
     sentToday: number;
+    minDelaySeconds?: number;
     lastSentAt: string | null;
     isWarmingUp: boolean;
+    warmupDay?: number;
+    warmupTargetDays?: number;
+    bounceCount?: number;
+    replyCount?: number;
+    openCount?: number;
+    clickCount?: number;
+    lastSyncAt?: string | null;
+    historyId?: string | null;
+    tokenExpiresAt?: string | null;
+    metadata?: ConnectedMailboxMetadata | null;
 }
 
 export default function MailboxesSettingsPage() {
@@ -21,6 +40,15 @@ export default function MailboxesSettingsPage() {
     const [connecting, setConnecting] = useState(false);
     const [error, setError] = useState("");
     const [success, setSuccess] = useState("");
+
+    // Edit Controls Modal State
+    const [editingMailbox, setEditingMailbox] = useState<ConnectedMailbox | null>(null);
+    const [editDailyLimit, setEditDailyLimit] = useState(50);
+    const [editMinDelay, setEditMinDelay] = useState(180);
+    const [editDisplayName, setEditDisplayName] = useState("");
+    const [editWarmingUp, setEditWarmingUp] = useState(true);
+    const [editStatus, setEditStatus] = useState("CONNECTED");
+    const [savingControls, setSavingControls] = useState(false);
 
     // Custom SMTP Modal State
     const [showSmtpModal, setShowSmtpModal] = useState(false);
@@ -38,13 +66,14 @@ export default function MailboxesSettingsPage() {
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && showSmtpModal) {
-                setShowSmtpModal(false);
+            if (e.key === "Escape") {
+                if (showSmtpModal) setShowSmtpModal(false);
+                if (editingMailbox) setEditingMailbox(null);
             }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showSmtpModal]);
+    }, [showSmtpModal, editingMailbox]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -166,6 +195,47 @@ export default function MailboxesSettingsPage() {
         }
     };
 
+    const openEditModal = (mb: ConnectedMailbox) => {
+        setEditingMailbox(mb);
+        setEditDailyLimit(mb.dailyLimit || 50);
+        setEditMinDelay(mb.minDelaySeconds || 180);
+        setEditDisplayName(mb.displayName || "");
+        setEditWarmingUp(mb.isWarmingUp);
+        setEditStatus(mb.status);
+    };
+
+    const handleSaveControls = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingMailbox) return;
+        setSavingControls(true);
+        try {
+            const res = await fetch(getBrowserApiUrl("/mailboxes"), {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    mailboxId: editingMailbox.id,
+                    dailyLimit: Number(editDailyLimit),
+                    minDelaySeconds: Number(editMinDelay),
+                    displayName: editDisplayName || null,
+                    isWarmingUp: editWarmingUp,
+                    status: editStatus,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSuccess(`Controls updated for ${editingMailbox.email}`);
+                setEditingMailbox(null);
+                loadMailboxes();
+            } else {
+                setError(data.error || "Failed to update mailbox controls.");
+            }
+        } catch {
+            setError("Failed to update mailbox controls.");
+        } finally {
+            setSavingControls(false);
+        }
+    };
+
     const disconnectMailbox = async (mailboxId: string) => {
         if (!confirm("Disconnect this mailbox? Outreach for this account will stop.")) return;
         try {
@@ -180,30 +250,50 @@ export default function MailboxesSettingsPage() {
         }
     };
 
-    const statusColor = (status: string) => {
-        if (status === "CONNECTED") return "text-emerald-400 bg-emerald-500/10";
-        if (status === "NEEDS_RECONNECT") return "text-amber-400 bg-amber-500/10";
-        return "text-zinc-400 bg-zinc-500/10";
+    const statusBadge = (mb: ConnectedMailbox) => {
+        if (mb.status === "CONNECTED") {
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">● Active</span>;
+        }
+        if (mb.status === "NEEDS_RECONNECT") {
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20">⚠️ Reconnect</span>;
+        }
+        if (mb.status === "PAUSED") {
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20">⏸ Paused</span>;
+        }
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-zinc-400 bg-zinc-500/10 border border-zinc-500/20">{mb.status}</span>;
+    };
+
+    const formatTimeRemaining = (dateStr?: string | null) => {
+        if (!dateStr) return null;
+        const target = new Date(dateStr).getTime();
+        const diff = target - Date.now();
+        if (diff <= 0) return "Expired";
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        if (hours > 48) return `${Math.floor(hours / 24)} days`;
+        if (hours > 0) return `${hours} hrs`;
+        return `${Math.floor(diff / (1000 * 60))} mins`;
     };
 
     return (
         <div className="text-slate-200">
-            <div className="max-w-3xl mx-auto py-4">
+            <div className="max-w-4xl mx-auto py-6">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white">Connected Mailboxes</h1>
+                    <h1 className="text-3xl font-bold text-white tracking-tight">Connected Mailboxes & Observability</h1>
                     <p className="mt-2 text-zinc-400 text-sm">
-                        Connect Google Workspace, Microsoft 365, or Custom SMTP mailboxes to automate personalized cold outreach.
+                        Manage send capacity, throttle rates, OAuth token health, and Pub/Sub push watch synchronization.
                     </p>
                 </div>
 
                 {success && (
-                    <div className="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400">
-                        {success}
+                    <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400 flex items-center justify-between">
+                        <span>{success}</span>
+                        <button onClick={() => setSuccess("")} className="text-xs text-emerald-300 hover:underline">Dismiss</button>
                     </div>
                 )}
                 {error && (
-                    <div className="mb-6 rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400">
-                        {error}
+                    <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400 flex items-center justify-between">
+                        <span>{error}</span>
+                        <button onClick={() => setError("")} className="text-xs text-rose-300 hover:underline">Dismiss</button>
                     </div>
                 )}
 
@@ -212,7 +302,7 @@ export default function MailboxesSettingsPage() {
                     <button
                         onClick={connectGmail}
                         disabled={connecting}
-                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-semibold text-sm transition"
+                        className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-indigo-600/20"
                     >
                         <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M20.64 12.2c0-.638-.057-1.252-.164-1.84H12v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.616Z" />
@@ -226,7 +316,7 @@ export default function MailboxesSettingsPage() {
                     {/* Connect Microsoft */}
                     <button
                         onClick={connectMicrosoft}
-                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition"
+                        className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-xl font-semibold text-sm transition shadow-lg shadow-blue-600/20"
                     >
                         <svg className="w-4 h-4 shrink-0" viewBox="0 0 23 23" fill="currentColor">
                             <path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z" />
@@ -244,65 +334,246 @@ export default function MailboxesSettingsPage() {
                 </div>
 
                 {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="flex items-center justify-center py-20">
+                        <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : mailboxes.length === 0 ? (
-                    <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-10 text-center">
-                        <div className="text-4xl mb-4">📭</div>
-                        <h2 className="text-lg font-semibold text-white mb-2">No mailboxes connected</h2>
-                        <p className="text-zinc-500 text-sm">
-                            Connect Google Workspace, Microsoft 365, or Custom SMTP above to send cold email campaigns.
+                    <div className="bg-zinc-900/60 border border-white/10 rounded-2xl p-12 text-center">
+                        <div className="text-5xl mb-4">📭</div>
+                        <h2 className="text-xl font-semibold text-white mb-2">No mailboxes connected</h2>
+                        <p className="text-zinc-400 text-sm max-w-md mx-auto">
+                            Connect Google Workspace, Microsoft 365, or Custom SMTP to unlock automated cold outreach and reply tracking.
                         </p>
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {mailboxes.map((mb) => (
-                            <div key={mb.id} className="bg-white/[0.03] border border-white/5 rounded-2xl p-5 flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-600/20 flex items-center justify-center text-indigo-400 font-bold text-sm uppercase">
-                                        {mb.email[0]}
+                        {mailboxes.map((mb) => {
+                            const pct = Math.min(100, Math.round((mb.sentToday / (mb.dailyLimit || 1)) * 100));
+                            const tokenTime = formatTimeRemaining(mb.tokenExpiresAt);
+                            const watchTime = formatTimeRemaining(mb.metadata?.gmailWatchExpirationAt);
+                            const hasError = mb.metadata?.lastWatchError || mb.metadata?.lastSyncError;
+
+                            return (
+                                <div key={mb.id} className="bg-zinc-900/80 border border-white/10 rounded-2xl p-5 space-y-4 transition hover:border-white/20">
+                                    {/* Main Row */}
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex items-start gap-3.5 min-w-0">
+                                            <div className="shrink-0 w-11 h-11 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold text-base uppercase mt-0.5">
+                                                {mb.email[0]}
+                                            </div>
+                                            <div className="min-w-0 space-y-1">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <p className="text-white font-bold text-base truncate">{mb.email}</p>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-zinc-300 uppercase tracking-wider">
+                                                        {mb.provider || "GOOGLE"}
+                                                    </span>
+                                                    {statusBadge(mb)}
+                                                </div>
+                                                {mb.displayName && (
+                                                    <p className="text-zinc-400 text-xs">{mb.displayName}</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {mb.status === "NEEDS_RECONNECT" && (
+                                                <button
+                                                    onClick={connectGmail}
+                                                    className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs transition shadow"
+                                                >
+                                                    Reconnect
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() => openEditModal(mb)}
+                                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs border border-white/10 transition"
+                                            >
+                                                ⚙️ Controls
+                                            </button>
+                                            <button
+                                                onClick={() => disconnectMailbox(mb.id)}
+                                                className="px-3 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 font-semibold text-xs transition"
+                                            >
+                                                Disconnect
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2">
-                                            <p className="text-white font-semibold text-sm truncate">{mb.email}</p>
-                                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-zinc-300 uppercase">
-                                                {mb.provider || "GOOGLE"}
+
+                                    {/* Daily Send Capacity & Throttle Progress */}
+                                    <div className="bg-zinc-950/60 rounded-xl p-3.5 border border-white/5 space-y-2 text-xs">
+                                        <div className="flex items-center justify-between text-zinc-300">
+                                            <span className="font-medium flex items-center gap-1.5">
+                                                <span>📊 Daily Volume</span>
+                                                <span className="text-zinc-500">({mb.sentToday} / {mb.dailyLimit} sent)</span>
+                                            </span>
+                                            <span className="text-zinc-400">
+                                                Min Delay: <strong className="text-white">{mb.minDelaySeconds || 180}s</strong>
                                             </span>
                                         </div>
-                                        {mb.displayName && (
-                                            <p className="text-zinc-500 text-xs">{mb.displayName}</p>
-                                        )}
-                                        <div className="flex items-center gap-3 mt-1 text-xs text-zinc-400">
-                                            <span>{mb.sentToday}/{mb.dailyLimit} sent today</span>
-                                            {mb.isWarmingUp && (
-                                                <span className="text-amber-400">🔥 Warming up</span>
-                                            )}
+                                        <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all duration-500 ${pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-indigo-500"}`}
+                                                style={{ width: `${pct}%` }}
+                                            />
+                                        </div>
+                                        <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                                            <span>{pct}% quota used today</span>
+                                            <span>Last sent: {mb.lastSentAt ? new Date(mb.lastSentAt).toLocaleTimeString() : "Never"}</span>
                                         </div>
                                     </div>
+
+                                    {/* Observability & Health Grid */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                        {/* OAuth Token Expiry */}
+                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
+                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">OAuth Token</span>
+                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                                {tokenTime ? (tokenTime === "Expired" ? "❌ Expired" : `🔑 ${tokenTime} left`) : "Active"}
+                                            </span>
+                                        </div>
+
+                                        {/* Gmail Watch Expiration */}
+                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
+                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Pub/Sub Watch</span>
+                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                                {watchTime ? (watchTime === "Expired" ? "⚠️ Watch Due" : `📡 ${watchTime}`) : "Active"}
+                                            </span>
+                                        </div>
+
+                                        {/* Warmup Status */}
+                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
+                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Warmup State</span>
+                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                                {mb.isWarmingUp ? `🔥 Day ${mb.warmupDay || 0}/${mb.warmupTargetDays || 30}` : "✅ Warmed Up"}
+                                            </span>
+                                        </div>
+
+                                        {/* History Cursor */}
+                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
+                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">History Cursor</span>
+                                            <span className="text-zinc-200 font-medium truncate block mt-0.5 font-mono text-[11px]">
+                                                {mb.historyId ? `#${mb.historyId}` : "Not synced"}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {/* Engagement Stats Row */}
+                                    <div className="flex items-center gap-4 text-xs text-zinc-400 pt-1 border-t border-white/5">
+                                        <span>📨 <strong className="text-white">{mb.replyCount || 0}</strong> replies</span>
+                                        <span>👁️ <strong className="text-white">{mb.openCount || 0}</strong> opens</span>
+                                        <span>🎯 <strong className="text-white">{mb.clickCount || 0}</strong> clicks</span>
+                                        <span className="text-rose-400">🚨 <strong>{mb.bounceCount || 0}</strong> bounces</span>
+                                        {mb.lastSyncAt && (
+                                            <span className="ml-auto text-zinc-500 text-[11px]">
+                                                Synced {new Date(mb.lastSyncAt).toLocaleTimeString()}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    {/* Error Banner if any */}
+                                    {hasError && (
+                                        <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2.5 text-xs text-rose-400 flex items-center gap-2">
+                                            <span>⚠️</span>
+                                            <span>Sync Error: {mb.metadata?.lastWatchError || mb.metadata?.lastSyncError}</span>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-semibold ${statusColor(mb.status)}`}>
-                                        {mb.status === "CONNECTED" ? "Connected" : mb.status === "NEEDS_RECONNECT" ? "Needs Reconnect" : mb.status}
-                                    </span>
-                                    <button
-                                        onClick={() => disconnectMailbox(mb.id)}
-                                        className="text-xs text-rose-400 hover:text-rose-300 font-semibold transition"
-                                    >
-                                        Disconnect
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
+
+            {/* Mailbox Edit Controls Modal */}
+            {editingMailbox && (
+                <div role="dialog" aria-modal="true" aria-labelledby="controls-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <h2 id="controls-modal-title" className="text-lg font-bold text-white">Mailbox Controls — {editingMailbox.email}</h2>
+                            <button onClick={() => setEditingMailbox(null)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
+                        </div>
+                        <form onSubmit={handleSaveControls} className="space-y-4 text-sm">
+                            <div>
+                                <label className="block text-zinc-400 text-xs mb-1">From Display Name</label>
+                                <input
+                                    type="text"
+                                    value={editDisplayName}
+                                    onChange={(e) => setEditDisplayName(e.target.value)}
+                                    placeholder="e.g. John from Sales"
+                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-zinc-400 text-xs mb-1">Daily Limit (1 - 2000)</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={2000}
+                                        value={editDailyLimit}
+                                        onChange={(e) => setEditDailyLimit(Number(e.target.value))}
+                                        required
+                                        className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-zinc-400 text-xs mb-1">Min Send Delay (Sec)</label>
+                                    <input
+                                        type="number"
+                                        min={30}
+                                        max={86400}
+                                        value={editMinDelay}
+                                        onChange={(e) => setEditMinDelay(Number(e.target.value))}
+                                        required
+                                        className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-white/10">
+                                <label className="block text-zinc-400 text-xs">Mailbox Status</label>
+                                <select
+                                    value={editStatus}
+                                    onChange={(e) => setEditStatus(e.target.value)}
+                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                >
+                                    <option value="CONNECTED">CONNECTED — Active Sending</option>
+                                    <option value="PAUSED">PAUSED — Pause Outreach</option>
+                                </select>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-2">
+                                <input
+                                    type="checkbox"
+                                    id="isWarmingUp"
+                                    checked={editWarmingUp}
+                                    onChange={(e) => setEditWarmingUp(e.target.checked)}
+                                    className="rounded bg-zinc-800 border-white/20"
+                                />
+                                <label htmlFor="isWarmingUp" className="text-zinc-300 text-xs">
+                                    Enable Warmup Schedule (Gradual Daily Limit Scaling)
+                                </label>
+                            </div>
+
+                            <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
+                                <button type="button" onClick={() => setEditingMailbox(null)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">
+                                    Cancel
+                                </button>
+                                <button type="submit" disabled={savingControls} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs">
+                                    {savingControls ? "Saving…" : "Save Controls"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Custom SMTP Modal Dialog */}
             {showSmtpModal && (
                 <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
                     <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-4">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
                             <h2 id="smtp-modal-title" className="text-xl font-bold text-white">Connect Custom SMTP Mailbox</h2>
                             <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
                         </div>
@@ -356,7 +627,7 @@ export default function MailboxesSettingsPage() {
                             </div>
 
                             <div className="pt-3 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs">Cancel</button>
+                                <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">Cancel</button>
                                 <button type="submit" disabled={smtpSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
                                     {smtpSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
