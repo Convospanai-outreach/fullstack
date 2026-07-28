@@ -9,7 +9,7 @@
 | ID | Item | Category | Status | Details / Evidence Requirement |
 |----|------|----------|--------|--------------------------------|
 | **OPEN-01** | Multi-Tenant Data Isolation | Security | **Resolved** | Verified write (`updateMany`), read (`findFirst`), and delete (`deleteMany`) paths enforce `teamId` scoping. Live test `scripts/test-tenant-isolation.mjs` confirmed Team A update/read/delete on Team B lead returns 0 rows modified. `getCurrentContext()` derives `teamId` from server-verified Clerk/NextAuth JWT; `convo-workspace-id` cookie is membership-validated before use. |
-| **OPEN-02** | Remote GitHub Actions CI Execution | CI/CD | **Still Open** | Awaiting actual GitHub Actions job log/URL for pushed commit `3044f5a`. |
+| **OPEN-02** | Remote GitHub Actions CI Execution | CI/CD | **Resolved** | Remote GitHub Actions CI run `#30352553274` completed with status `success` on remote repository `Convospanai-outreach/fullstack`. URL: [`https://github.com/Convospanai-outreach/fullstack/actions/runs/30352553274`](https://github.com/Convospanai-outreach/fullstack/actions/runs/30352553274). |
 | **OPEN-03** | Google OAuth CASA Assessment | Compliance | **Deferred** | Human action required in Google Cloud Console / CASA portal. |
 | **OPEN-04** | Azure AD App Registration (Microsoft OAuth) | Integrations | **Deferred** | Human action required in Azure Portal. |
 | **OPEN-05** | Live Gmail RFC 5322 Message-ID Reply Detection | Verification | **Still Open** | Empirical live send → reply cycle test needed. Code-level wiring is correct in both `apps/web` (post-send wire header fetch) and `apps/api` (full `In-Reply-To`/`References` matching in `createInboundCampaignEvent`). Needs one live cycle to confirm Gmail preserves the wire Message-ID. |
