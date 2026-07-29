@@ -41,10 +41,9 @@ export async function GET(
             return acc;
         }, {});
 
-        const completionRate =
-            campaign.targetCount > 0
-                ? (campaign.completedCount / campaign.targetCount) * 100
-                : 0;
+        const denominator = campaign.targetCount > 0 ? campaign.targetCount : (totalLeads > 0 ? totalLeads : 1);
+        const actualCompleted = Math.min(campaign.completedCount, denominator);
+        const completionRate = Math.min(100, Math.round((actualCompleted / denominator) * 100));
 
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);

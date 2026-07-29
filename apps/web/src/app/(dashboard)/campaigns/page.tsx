@@ -32,7 +32,15 @@ async function loadCampaigns(searchParams: PageSearchParams) {
     const campaigns = await prisma.campaign.findMany({
         where,
         orderBy: { createdAt: "desc" },
-        include: { _count: { select: { leadList: true } } },
+        include: {
+            _count: { select: { leadList: true } },
+            leadList: {
+                where: {
+                    status: { in: ["SENT", "COMPLETED", "REPLIED", "DRAFT_READY"] },
+                },
+                select: { id: true },
+            },
+        },
     });
 
     return { campaigns, unauthorized: false };
@@ -120,9 +128,9 @@ export default async function CampaignsPage({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {campaigns.map((campaign, index) => {
                         const isActive = campaign.status === "active";
-                        const leadCount = campaign._count?.leadList || campaign.leads || 0;
-                        const completedCount = campaign.completedCount || 0;
-                        const completionRate = leadCount > 0 ? Math.round((completedCount / leadCount) * 100) : 0;
+                        const leadCount = campaign._count?.leadList || campaign.targetCount || 0;
+                        const completedCount = campaign.leadList?.length ?? Math.min(campaign.completedCount || 0, leadCount);
+                        const completionRate = leadCount > 0 ? Math.min(100, Math.round((completedCount / leadCount) * 100)) : 0;
 
                         return (
                             <div

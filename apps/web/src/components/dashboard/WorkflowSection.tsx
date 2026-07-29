@@ -102,17 +102,16 @@ function StepDetailCard({ workflow, currentStep }: StepDetailCardProps) {
       title: `Review ${workflow.followUpsCount} follow-ups`,
       desc: 'Check AI-suggested follow-ups before they go out. Edit tone, skip any thread.',
       primaryLabel: 'Review follow-ups →',
-      primaryHref: '/inbox?filter=follow-ups',
+      primaryHref: '/approvals',
       secondaryLabel: 'Skip for now',
-      // secondaryHref omitted intentionally — clicking shows a no-op ghost button
     },
     4: {
       title: `Send ${workflow.pendingSendCount} approved drafts`,
-      desc: 'Copy approved emails into your inbox and send manually. Every draft is tagged and sequenced.',
+      desc: 'Review and approve queued email drafts. Once approved, emails move to the outbound queue.',
       primaryLabel: 'Open drafts to send →',
-      primaryHref: '/inbox?filter=pending-send',
+      primaryHref: '/approvals',
       secondaryLabel: `View all ${workflow.draftsCount} drafts`,
-      secondaryHref: '/inbox',
+      secondaryHref: '/approvals',
       badge: `~${Math.ceil(workflow.pendingSendCount * 1)} min`,
     },
   };

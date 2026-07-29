@@ -88,6 +88,7 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
     const [hasLoaded, setHasLoaded] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const fetchStatus = useCallback(async (showLoader = false) => {
         if (showLoader) setIsLoading(true);
@@ -117,6 +118,30 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
         }
     }, [expanded]);
 
+    // Click outside and Escape key listeners to close popover
+    useEffect(() => {
+        if (!expanded) return;
+
+        function handleClickOutside(event: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setExpanded(false);
+            }
+        }
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setExpanded(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [expanded]);
+
     // Show skeleton until first load completes
     if (!hasLoaded) return <StatusPillSkeleton inline={inline} />;
 
@@ -129,7 +154,7 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
     const OverallIcon = overall === "online" ? Wifi : overall === "degraded" ? AlertTriangle : WifiOff;
 
     return (
-        <div className={inline ? "relative z-40 flex flex-col items-end" : "fixed top-3 right-6 z-50 flex flex-col items-end"}>
+        <div ref={containerRef} className={inline ? "relative z-40 flex flex-col items-end" : "fixed top-3 right-6 z-50 flex flex-col items-end"}>
             {/* Toggle Pill */}
             <button
                 ref={triggerRef}
@@ -152,9 +177,18 @@ export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps
             {/* Expanded Card */}
             {expanded && (
                 <div className="mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-top-2 duration-200">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-white">System Connections</h3>
-                        <span className="text-[10px] text-slate-500">checked {checkedAt}</span>
+                    <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-white">System Connections</h3>
+                            <span className="text-[10px] text-slate-500">{checkedAt}</span>
+                        </div>
+                        <button
+                            onClick={() => setExpanded(false)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            aria-label="Close status panel"
+                        >
+                            ✕
+                        </button>
                     </div>
 
                     <div className="space-y-2">
