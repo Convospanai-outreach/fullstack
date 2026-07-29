@@ -51,7 +51,8 @@ export async function GET() {
       pendingApprovalCount,
       sentEmailsCount,
       signalsCount,
-      recentActivities
+      recentActivities,
+      totalEmailCount,
     ] = await Promise.all([
       // Total leads imported
       prisma.lead.count({ where: { teamId } }),
@@ -117,6 +118,10 @@ export async function GET() {
           },
         },
       }),
+      // Total email records ever generated for team
+      prisma.email.count({
+        where: { lead: { teamId } },
+      }),
     ]);
 
     // Map recentActivity list
@@ -179,9 +184,9 @@ export async function GET() {
       workflow: {
         leadsImported: totalLeads > 0,
         leadsCount: totalLeads,
-        draftsGenerated: draftsCount > 0,
-        draftsCount,
-        followUpsReviewed: pendingApprovalCount === 0 && draftsCount > 0,
+        draftsGenerated: totalEmailCount > 0,
+        draftsCount: totalEmailCount,
+        followUpsReviewed: pendingApprovalCount === 0 && totalEmailCount > 0,
         followUpsCount: pendingApprovalCount,
         pendingSendCount: draftsCount,
       },
