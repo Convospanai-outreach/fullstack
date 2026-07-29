@@ -112,60 +112,74 @@ export async function handleCampaignExecution(payload: JobPayload) {
 
     for (const lead of leads) {
         try {
+            // Idempotency guard: skip leads that already have a draft for this campaign
+            // (prevents duplicate drafts on job retry)
+            const existingDraft = await prisma.email.findFirst({
+                where: { leadId: lead.id, campaignId: campaign.id, status: "draft" },
+                select: { id: true },
+            });
+            if (existingDraft) {
+                logger.info(`[campaign_execution] Skipping lead ${lead.id}: draft already exists (idempotency guard)`);
+                enqueued++; // Count as already handled
+                continue;
+            }
+
             const { subject, body, providerUsed, estimatedCostUsd } = await generateEmailDraftWithAI(
                 campaign.name,
                 campaign.description || "",
                 lead
             );
 
-            const createdEmail = await prisma.email.create({
-                data: {
-                    leadId: lead.id,
-                    campaignId: campaign.id,
-                    subject,
-                    body,
-                    status: "draft",
-                },
-            });
-
-            await prisma.lead.update({
-                where: { id: lead.id },
-                data: { status: "DRAFT_READY", campaignId: campaign.id },
-            });
-
-            if (activeTeamId) {
-                let requesterId = campaign.ownerId || payload.userId;
-                if (!requesterId) {
-                    const teamUser = await prisma.user.findFirst({
-                        where: { memberships: { some: { teamId: activeTeamId } } },
-                    });
-                    requesterId = teamUser?.id;
-                }
-
-                if (!requesterId) {
-                    throw new Error(`[campaign_execution] Approval gate failed: No valid requester user found for team ${activeTeamId}`);
-                }
-
-                // Loud execution: throw error if approval creation fails
-                await prisma.approvalRequest.create({
+            // Atomic: email + lead status + approval request all succeed or all roll back
+            await prisma.$transaction(async (tx) => {
+                const createdEmail = await tx.email.create({
                     data: {
-                        teamId: activeTeamId,
-                        requesterId,
-                        actionType: "SEND_EMAIL_DRAFT",
-                        entityType: "Email",
-                        entityId: createdEmail.id,
-                        status: "PENDING",
-                        reason: `AI draft generated for ${lead.email || lead.fullName || "lead"} in campaign ${campaign.name}`,
-                        payload: {
-                            emailId: createdEmail.id,
-                            leadId: lead.id,
-                            campaignId: campaign.id,
-                            subject,
-                            body,
-                        },
+                        leadId: lead.id,
+                        campaignId: campaign.id,
+                        subject,
+                        body,
+                        status: "draft",
                     },
                 });
-            }
+
+                await tx.lead.update({
+                    where: { id: lead.id },
+                    data: { status: "DRAFT_READY", campaignId: campaign.id },
+                });
+
+                if (activeTeamId) {
+                    let requesterId = campaign.ownerId || payload.userId;
+                    if (!requesterId) {
+                        const teamUser = await tx.user.findFirst({
+                            where: { memberships: { some: { teamId: activeTeamId } } },
+                        });
+                        requesterId = teamUser?.id;
+                    }
+
+                    if (!requesterId) {
+                        throw new Error(`[campaign_execution] Approval gate failed: No valid requester user found for team ${activeTeamId}`);
+                    }
+
+                    await tx.approvalRequest.create({
+                        data: {
+                            teamId: activeTeamId,
+                            requesterId,
+                            actionType: "SEND_EMAIL_DRAFT",
+                            entityType: "Email",
+                            entityId: createdEmail.id,
+                            status: "PENDING",
+                            reason: `AI draft generated for ${lead.email || lead.fullName || "lead"} in campaign ${campaign.name}`,
+                            payload: {
+                                emailId: createdEmail.id,
+                                leadId: lead.id,
+                                campaignId: campaign.id,
+                                subject,
+                                body,
+                            },
+                        },
+                    });
+                }
+            });
 
             enqueued++;
             consecutiveFailures = 0;

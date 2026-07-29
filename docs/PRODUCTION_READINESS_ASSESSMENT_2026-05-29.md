@@ -1,6 +1,8 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`../OPEN_ITEMS.md`](../OPEN_ITEMS.md). The consolidated assessment lives at [`SYSTEM_READINESS_ASSESSMENT.md`](SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # CraftMyFunnel Production Readiness Assessment
 
-**Date:** 2026-05-29  
+**Date:** 2026-05-29 — ARCHIVED
 **Branch assessed:** `main`  
 **Current main commit:** `5c68884` (`Merge CraftMyFunnel readiness updates`)  
 **Working tree at assessment time:** clean  

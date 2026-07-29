@@ -31,9 +31,6 @@ export async function POST(
             campaignId,
             teamId,
             userId,
-        }).catch((err) => {
-            console.warn("handleCampaignExecution warning:", err?.message || err);
-            return { enqueued: 0 };
         });
 
         return NextResponse.json({

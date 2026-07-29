@@ -1,6 +1,8 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`OPEN_ITEMS.md`](OPEN_ITEMS.md). The consolidated assessment lives at [`docs/SYSTEM_READINESS_ASSESSMENT.md`](docs/SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # System Status Report: CraftMyFunnel Enterprise Platform
 
-**Generated:** 2026-01-24
+**Generated:** 2026-01-24 — ARCHIVED
 **Auditor:** Antigravity (Independent Technical Auditor)
 **Version:** v1.4.0-ci-verification
 
