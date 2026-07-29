@@ -50,6 +50,7 @@ interface NavGroup {
 const buildNavGroups = (): NavGroup[] => {
   const ungrouped: NavItem[] = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
     { href: '/inbox', label: 'Inbox', icon: Inbox },
     { href: '/intel', label: 'Intel', icon: Activity },
     { href: '/campaigns', label: 'Campaigns', icon: Megaphone },

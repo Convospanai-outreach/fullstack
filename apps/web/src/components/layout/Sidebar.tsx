@@ -22,6 +22,7 @@ export function Sidebar() {
 
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Approvals', href: '/approvals', icon: ShieldCheck },
         { name: 'Unified Inbox', href: '/inbox', icon: Mail },
         { name: 'Intel', href: '/intel', icon: Activity },
         { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
