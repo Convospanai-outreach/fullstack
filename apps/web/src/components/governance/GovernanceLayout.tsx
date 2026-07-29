@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Shield, ClipboardList, Lock, Users, Fingerprint } from "lucide-react";
-import { AppShell } from "@/components/layout/AppShell";
 
 interface GovernanceLayoutProps {
     children: React.ReactNode;
@@ -22,7 +21,7 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
     ];
 
     return (
-        <AppShell>
+        <div className="space-y-8 animate-reveal">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white tracking-tight">Enterprise Governance</h1>
                 <p className="text-text-secondary mt-1">Manage workspace security, auditability, and AI safety protocols.</p>
@@ -38,10 +37,11 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
                             <Link
                                 key={tab.href}
                                 href={tab.href}
-                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive
-                                    ? "bg-accent-blue text-white shadow-glow"
-                                    : "text-text-secondary hover:text-white hover:bg-white/5"
-                                    }`}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                    isActive
+                                        ? "bg-accent-blue text-white shadow-lg shadow-blue-500/20"
+                                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                                }`}
                             >
                                 <Icon className="w-4 h-4" />
                                 {tab.name}
@@ -51,10 +51,8 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
                 </div>
 
                 {/* Content Area */}
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both">
-                    {children}
-                </div>
+                <div>{children}</div>
             </div>
-        </AppShell>
+        </div>
     );
 }
