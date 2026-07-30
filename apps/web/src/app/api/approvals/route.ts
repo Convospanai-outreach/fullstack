@@ -50,7 +50,9 @@ export async function GET() {
                             recipient: email.lead?.email,
                         },
                     },
-                }).catch(() => {});
+                }).catch((err) => {
+                    console.error("[Approvals Backfill] Failed to create self-healing ApprovalRequest:", err?.message || err);
+                });
             }
         }
 

@@ -83,7 +83,9 @@ export async function GET() {
               recipient: email.lead?.email,
             },
           },
-        }).catch(() => {});
+        }).catch((err) => {
+            console.error("[Dashboard Summary] Self-healing ApprovalRequest backfill error:", err?.message || err);
+        });
       }
     }
 

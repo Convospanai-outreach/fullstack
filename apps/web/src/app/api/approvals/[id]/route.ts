@@ -50,11 +50,27 @@ export async function POST(
             },
         });
 
-        // Trigger real email send execution and update Email/Lead status on approval
-        let sendResult = null;
-        const payload = (approval.payload as any) || {};
-        const emailId = payload.emailId || (approval.entityType?.toLowerCase() === "email" ? approval.entityId : null);
-        const leadId = payload.leadId || (approval.entityType?.toLowerCase() === "lead" ? approval.entityId : null);
+        // Parse payload safely whether stored as raw JSON object or JSON string
+        let sendResult: any = null;
+        let payload = (approval.payload as any) || {};
+        if (typeof payload === "string") {
+            try {
+                payload = JSON.parse(payload);
+            } catch (jsonErr) {
+                console.error(`[Approval API] Failed to parse JSON payload string for approval ${id}:`, jsonErr);
+            }
+        }
+
+        const emailId =
+            payload.emailId ||
+            payload.email_id ||
+            (approval.entityType?.toLowerCase() === "email" ? approval.entityId : null);
+
+        const leadId =
+            payload.leadId ||
+            payload.lead_id ||
+            (approval.entityType?.toLowerCase() === "lead" ? approval.entityId : null);
+
         const campaignId = payload.campaignId;
 
         // Update Email status from draft_ready to queued so dashboard summary reflects approval immediately
@@ -62,14 +78,20 @@ export async function POST(
             await prisma.email.update({
                 where: { id: emailId },
                 data: { status: "queued" },
-            }).catch(() => {});
+            }).catch((err) => {
+                console.error(`[Approval API] Failed to update Email status for emailId ${emailId}:`, err?.message || err);
+                throw err;
+            });
         }
 
         if (leadId) {
             await prisma.lead.update({
                 where: { id: leadId },
                 data: { status: "SENT" },
-            }).catch(() => {});
+            }).catch((err) => {
+                console.error(`[Approval API] Failed to update Lead status for leadId ${leadId}:`, err?.message || err);
+                throw err;
+            });
         }
 
         const isEmailApproval =
