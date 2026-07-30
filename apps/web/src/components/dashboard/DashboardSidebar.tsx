@@ -54,7 +54,6 @@ const buildNavGroups = (): NavGroup[] => {
     { href: '/inbox', label: 'Inbox', icon: Inbox },
     { href: '/intel', label: 'Intel', icon: Activity },
     { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-    { href: '/agents/swarm', label: 'Agent swarm', icon: Bot },
   ];
 
   // CRM Bridge would go here — hidden when emailFirstBeta is true

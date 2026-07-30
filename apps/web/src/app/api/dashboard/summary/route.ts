@@ -15,7 +15,9 @@ async function resolveTeamId() {
 export async function GET() {
   try {
     const { prisma } = await import("@/lib/db");
+    const context = await getCurrentContext();
     const teamId = await resolveTeamId();
+    const userId = context.userId || "system";
     
     if (!teamId) {
       return NextResponse.json({
@@ -40,6 +42,49 @@ export async function GET() {
         recentActivity: [],
         setupPercent: 0,
       });
+    }
+
+    // Self-healing: Backfill orphaned drafts into ApprovalRequests automatically
+    const existingApprovals = await prisma.approvalRequest.findMany({
+      where: { teamId, status: "PENDING" },
+      select: { payload: true },
+    });
+
+    const pendingEmailIds = new Set(
+      existingApprovals
+        .map((a: any) => (a.payload as any)?.emailId)
+        .filter(Boolean)
+    );
+
+    const draftEmails = await prisma.email.findMany({
+      where: {
+        lead: { teamId },
+        status: { in: ["draft", "DRAFT", "draft_ready", "DRAFT_READY"] },
+      },
+      include: { lead: true },
+    });
+
+    for (const email of draftEmails) {
+      if (!pendingEmailIds.has(email.id)) {
+        await prisma.approvalRequest.create({
+          data: {
+            teamId,
+            requesterId: userId,
+            actionType: "email_draft_approval",
+            entityType: "email",
+            entityId: email.id,
+            status: "PENDING",
+            payload: {
+              emailId: email.id,
+              leadId: email.leadId,
+              campaignId: email.campaignId,
+              subject: email.subject,
+              body: email.body,
+              recipient: email.lead?.email,
+            },
+          },
+        }).catch(() => {});
+      }
     }
 
     // Query real per-team workspace aggregate statistics

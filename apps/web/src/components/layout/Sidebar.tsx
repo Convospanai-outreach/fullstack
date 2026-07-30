@@ -26,7 +26,6 @@ export function Sidebar() {
         { name: 'Unified Inbox', href: '/inbox', icon: Mail },
         { name: 'Intel', href: '/intel', icon: Activity },
         { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
-        { name: 'Agent Swarm', href: '/agents/swarm', icon: Bot },
         { name: 'CRM Bridge', href: '/crm', icon: ArrowRightLeft },
         { name: 'Campaign ROI', href: '/analytics/roi', icon: TrendingUp },
         { name: 'Governance', href: '/governance', icon: ShieldCheck },

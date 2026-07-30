@@ -11,6 +11,49 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Self-healing: Backfill orphaned drafts into ApprovalRequests automatically
+        const existingApprovals = await prisma.approvalRequest.findMany({
+            where: { teamId: ctx.teamId, status: "PENDING" },
+            select: { payload: true },
+        });
+
+        const pendingEmailIds = new Set(
+            existingApprovals
+                .map((a: any) => (a.payload as any)?.emailId)
+                .filter(Boolean)
+        );
+
+        const draftEmails = await prisma.email.findMany({
+            where: {
+                lead: { teamId: ctx.teamId },
+                status: { in: ["draft", "DRAFT", "draft_ready", "DRAFT_READY"] },
+            },
+            include: { lead: true },
+        });
+
+        for (const email of draftEmails) {
+            if (!pendingEmailIds.has(email.id)) {
+                await prisma.approvalRequest.create({
+                    data: {
+                        teamId: ctx.teamId,
+                        requesterId: ctx.userId,
+                        actionType: "email_draft_approval",
+                        entityType: "email",
+                        entityId: email.id,
+                        status: "PENDING",
+                        payload: {
+                            emailId: email.id,
+                            leadId: email.leadId,
+                            campaignId: email.campaignId,
+                            subject: email.subject,
+                            body: email.body,
+                            recipient: email.lead?.email,
+                        },
+                    },
+                }).catch(() => {});
+            }
+        }
+
         const requests = await prisma.approvalRequest.findMany({
             where: {
                 teamId: ctx.teamId,
