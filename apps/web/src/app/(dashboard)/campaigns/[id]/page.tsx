@@ -354,7 +354,7 @@ export default function CampaignDetailPage({
                                         <div>
                                             <p className="text-sm text-zinc-400">Completed</p>
                                             <p className="text-2xl font-bold text-white">
-                                                {campaign.completedCount}
+                                                {Math.min(campaign.completedCount, analytics?.totalLeads || campaign.targetCount || campaign.completedCount)}
                                             </p>
                                         </div>
                                         <div>

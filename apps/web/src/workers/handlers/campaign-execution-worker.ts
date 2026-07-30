@@ -207,11 +207,26 @@ export async function handleCampaignExecution(payload: JobPayload) {
         }
     }
 
-    // 5. Update campaign completedCount
+    // 5. Update campaign completedCount based on actual completed leads
     if (enqueued > 0) {
+        const realCompletedCount = await prisma.lead.count({
+            where: {
+                campaignId,
+                status: { in: ["DRAFT_READY", "SENT", "COMPLETED", "REPLIED"] },
+            },
+        });
+
+        const targetLeadCount = await prisma.lead.count({
+            where: { campaignId },
+        });
+
+        const cappedCompletedCount = targetLeadCount > 0
+            ? Math.min(realCompletedCount, targetLeadCount)
+            : realCompletedCount;
+
         await prisma.campaign.update({
             where: { id: campaignId },
-            data: { completedCount: { increment: enqueued } },
+            data: { completedCount: cappedCompletedCount },
         });
     }
 
