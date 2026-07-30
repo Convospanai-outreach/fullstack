@@ -1,4 +1,4 @@
-import { logger } from "@/lib/logger";
+import { logger, logCriticalAlert } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
 
 export interface DraftGenOptions {
@@ -190,6 +190,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
                     }
 
                     if (!requesterId) {
+                        logCriticalAlert("APPROVAL_REQUESTER_UNRESOLVED", { emailId: createdEmail.id, teamId: activeTeamId });
                         logger.error(`[campaign_execution] CRITICAL: Failed to assign ApprovalRequest for email ${createdEmail.id}. No valid user exists.`);
                         throw new Error(`[campaign_execution] Approval gate failed: No valid requester user found for team ${activeTeamId}`);
                     }
@@ -214,6 +215,7 @@ export async function handleCampaignExecution(payload: JobPayload) {
                             },
                         });
                     } catch (approvalErr: any) {
+                        logCriticalAlert("APPROVAL_REQUEST_CREATION_FAILED", { emailId: createdEmail.id, teamId: activeTeamId, error: approvalErr?.message });
                         logger.error(`[campaign_execution] CRITICAL: Failed to create ApprovalRequest for draft ${createdEmail.id}:`, approvalErr?.message || approvalErr);
                         throw approvalErr; // Throw to roll back transaction so email draft is never left orphaned
                     }
