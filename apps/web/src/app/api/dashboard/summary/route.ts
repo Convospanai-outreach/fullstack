@@ -46,15 +46,16 @@ export async function GET() {
 
     // Self-healing: Backfill orphaned drafts into ApprovalRequests automatically
     const existingApprovals = await prisma.approvalRequest.findMany({
-      where: { teamId, status: "PENDING" },
-      select: { payload: true },
+      where: { teamId },
+      select: { entityId: true, payload: true },
     });
 
-    const pendingEmailIds = new Set(
-      existingApprovals
-        .map((a: any) => (a.payload as any)?.emailId)
-        .filter(Boolean)
-    );
+    const existingEmailIds = new Set<string>();
+    for (const a of existingApprovals) {
+      if (a.entityId) existingEmailIds.add(a.entityId);
+      const payloadEmailId = (a.payload as any)?.emailId;
+      if (payloadEmailId) existingEmailIds.add(payloadEmailId);
+    }
 
     const draftEmails = await prisma.email.findMany({
       where: {
@@ -65,7 +66,7 @@ export async function GET() {
     });
 
     for (const email of draftEmails) {
-      if (!pendingEmailIds.has(email.id)) {
+      if (!existingEmailIds.has(email.id)) {
         await prisma.approvalRequest.create({
           data: {
             teamId,
