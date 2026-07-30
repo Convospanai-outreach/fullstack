@@ -189,13 +189,12 @@ export async function handleCampaignExecution(payload: JobPayload) {
                         requesterId = teamUser?.id;
                     }
 
-                    // Fallback to first user in system if no team user found
                     if (!requesterId) {
-                        const anyUser = await tx.user.findFirst();
-                        requesterId = anyUser?.id;
+                        logger.error(`[campaign_execution] CRITICAL: Failed to assign ApprovalRequest for email ${createdEmail.id}. No valid user exists.`);
+                        throw new Error(`[campaign_execution] Approval gate failed: No valid requester user found for team ${activeTeamId}`);
                     }
 
-                    if (requesterId) {
+                    try {
                         await tx.approvalRequest.create({
                             data: {
                                 teamId: activeTeamId,
@@ -214,6 +213,9 @@ export async function handleCampaignExecution(payload: JobPayload) {
                                 },
                             },
                         });
+                    } catch (approvalErr: any) {
+                        logger.error(`[campaign_execution] CRITICAL: Failed to create ApprovalRequest for draft ${createdEmail.id}:`, approvalErr?.message || approvalErr);
+                        throw approvalErr; // Throw to roll back transaction so email draft is never left orphaned
                     }
                 }
             });

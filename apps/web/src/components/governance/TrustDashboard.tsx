@@ -12,12 +12,12 @@ export function TrustDashboard({ teamId }: { teamId: string }) {
         // In real app, this would be an API call to TrustEngine.getTrustMetrics
         const simulateLoad = async () => {
             setMetrics({
-                score: 92,
-                level: "HIGH",
-                canAutoSend: true,
-                requiresApproval: false,
-                features: ["auto_outreach", "bulk_tasks", "causal_insights"],
-                narrative: "Your trust score is high due to consistent human approval and zero bounce violations."
+                score: null,
+                level: "EVALUATING",
+                canAutoSend: false,
+                requiresApproval: true,
+                features: ["human_review_mode", "audit_logging"],
+                narrative: "Trust score calculation active. Human review mode enforced for new campaign activity."
             });
             setLoading(false);
         };
@@ -33,8 +33,8 @@ export function TrustDashboard({ teamId }: { teamId: string }) {
                     <Shield className="w-6 h-6 text-emerald-400" />
                     Workspace Health
                 </h3>
-                <div className={`px-3 py-1 rounded-full text-xs font-bold ${metrics.score > 80 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>
-                    Trust Score: {metrics.score}
+                <div className={`px-3 py-1 rounded-full text-xs font-bold ${metrics.score ? (metrics.score > 80 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400') : 'bg-white/10 text-white/70'}`}>
+                    Trust Score: {metrics.score ?? "Pending"}
                 </div>
             </div>
 
