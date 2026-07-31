@@ -42,10 +42,18 @@ async function encryptSecret(value: string): Promise<EncryptedCredential> {
 function getGoogleConfig() {
     const clientId = process.env["GOOGLE_CLIENT_ID"];
     const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
-    const redirectUri = process.env["GOOGLE_GMAIL_REDIRECT_URI"] || "https://api.craftmyfunnel.live/integrations/google/oauth/callback";
+    const redirectUri =
+        process.env["GOOGLE_GMAIL_REDIRECT_URI"] ||
+        "https://www.craftmyfunnel.live/api/integrations/google/oauth/callback";
+
     if (!clientId || !clientSecret) {
         throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured.");
     }
+
+    if (!process.env["GOOGLE_GMAIL_REDIRECT_URI"] && process.env["NODE_ENV"] === "production") {
+        throw new Error("GOOGLE_GMAIL_REDIRECT_URI is not set — refusing to build an OAuth URL with an unverified fallback.");
+    }
+
     return { clientId, clientSecret, redirectUri };
 }
 
