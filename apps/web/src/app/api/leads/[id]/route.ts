@@ -13,7 +13,7 @@ export async function GET(
         }
 
         const { id } = await params;
-        if (!id || id === "undefined" || id === "null") {
+        if (!id || id === "undefined" || id === "null" || id === "new") {
             return NextResponse.json({ error: "Invalid lead ID" }, { status: 400 });
         }
 
@@ -48,7 +48,7 @@ export async function PATCH(
         }
 
         const { id } = await params;
-        if (!id || id === "undefined" || id === "null") {
+        if (!id || id === "undefined" || id === "null" || id === "new") {
             return NextResponse.json({ error: "Invalid lead ID" }, { status: 400 });
         }
 
@@ -91,7 +91,7 @@ export async function DELETE(
         }
 
         const { id } = await params;
-        if (!id || id === "undefined" || id === "null") {
+        if (!id || id === "undefined" || id === "null" || id === "new") {
             return NextResponse.json({ error: "Invalid lead ID" }, { status: 400 });
         }
 
