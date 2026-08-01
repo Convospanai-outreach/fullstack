@@ -30,6 +30,7 @@ import {
   ShieldCheck,
   ChevronDown,
   MoreHorizontal,
+  Users,
   X,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
@@ -54,6 +55,7 @@ const buildNavGroups = (): NavGroup[] => {
     { href: '/inbox', label: 'Inbox', icon: Inbox },
     { href: '/intel', label: 'Intel', icon: Activity },
     { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+    { href: '/leads', label: 'Leads', icon: Users },
   ];
 
   // CRM Bridge would go here — hidden when emailFirstBeta is true

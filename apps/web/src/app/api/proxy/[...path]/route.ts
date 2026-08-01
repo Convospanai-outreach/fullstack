@@ -56,36 +56,53 @@ function getTargetUrl(req: NextRequest, pathParts: string[] | undefined): URL {
     return target;
 }
 
+const WEB_OWNED_API_ROOTS = new Set([
+    "admin",
+    "approvals",
+    "campaigns",
+    "contact",
+    "dashboard",
+    "email",
+    "extension",
+    "health",
+    "help",
+    "integrations",
+    "invitations",
+    "invite-requests",
+    "leads",
+    "metrics",
+    "register",
+    "settings",
+    "studio",
+    "support",
+    "upload",
+    "webhooks",
+    "workflows",
+]);
+
 function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
+    if (!pathParts || pathParts.length === 0) return null;
     const root = pathParts[0] || "";
+
     if (root === "auth") {
         const authPath = pathParts.slice(1).join("/");
         return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
-    if (root === "campaigns") {
-        const apiPath = pathParts.join("/");
-        return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
-    }
+
     if (root === "orchestrator") {
         // orchestrator/swarm/* is handled by Fastify API upstream; only local orchestrator/run is web-owned
         if (pathParts[1] !== "swarm") {
             const apiPath = pathParts.join("/");
             return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
         }
+        return null;
     }
-    if (root === "leads") {
-        // Only route lists/creates and timeline sub-route locally to Next.js
-        const isListOrCreate = pathParts.length === 1;
-        const isTimeline = pathParts.length === 3 && pathParts[2] === "timeline";
-        if (isListOrCreate || isTimeline) {
-            const apiPath = pathParts.join("/");
-            return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
-        }
-    }
-    if (root === "upload" || root === "integrations" || root === "approvals" || root === "dashboard" || root === "email") {
+
+    if (WEB_OWNED_API_ROOTS.has(root)) {
         const apiPath = pathParts.join("/");
         return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
+
     return null;
 }
 
