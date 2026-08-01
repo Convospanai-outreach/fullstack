@@ -204,25 +204,48 @@ export default function SetupWizardPage() {
     setActionMessage(null);
     try {
       if (stepId === 3) {
-        await fetch(`${apiBase}/setup/email`, {
+        const smtpPayload = {
+          host: formData.step3?.host,
+          port: Number(formData.step3?.port || 587),
+          secure: Boolean(formData.step3?.secure),
+          user: formData.step3?.user,
+          password: formData.step3?.password,
+          fromName: formData.step3?.fromName || formData.step3?.fromEmail,
+          email: formData.step3?.fromEmail || formData.step3?.user,
+        };
+
+        const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...formData.step3, port: Number(formData.step3.port) }),
+          body: JSON.stringify(smtpPayload),
         });
+
+        const data = await readJson(res);
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to connect SMTP server. Please check credentials.");
+        }
       } else {
         const payload = stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
-          await fetch(`${apiBase}/setup/save`, {
+          const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: stepId, data: payload }),
           });
+
+          const data = await readJson(res);
+          if (!res.ok) {
+            throw new Error(data.error || `Failed to save setup step ${stepId}.`);
+          }
         }
       }
 
       await loadStatus();
+      await loadMailboxes();
       if (stepId < STEPS.length) setActiveStep(stepId + 1);
       else router.push("/dashboard");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to save setup step.");
     } finally {
       setSaving(false);
     }
