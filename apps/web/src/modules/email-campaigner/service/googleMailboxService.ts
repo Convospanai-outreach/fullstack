@@ -5,6 +5,7 @@ const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_MESSAGES_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 const GMAIL_PROFILE_URL = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
+const GMAIL_WATCH_URL = "https://gmail.googleapis.com/gmail/v1/users/me/watch";
 
 const GOOGLE_MAIL_SCOPES = [
     "openid",
@@ -183,6 +184,13 @@ export async function connectGoogleMailbox(input: { code: string; state: string 
               },
           });
 
+    try {
+        await registerGoogleMailboxWatch(statePayload.teamId, mailbox.id);
+    } catch (error: any) {
+        console.error(`[googleMailboxService] Failed to register watch for ${email}:`, error);
+        throw new Error(`Google Mailbox connected, but failed to enable reply tracking: ${error?.message || "Unknown error"}`);
+    }
+
     return { mailbox, nextPath: statePayload.nextPath };
 }
 
@@ -354,5 +362,75 @@ export async function sendViaGmailMailbox(input: {
     };
 }
 
+export async function registerGoogleMailboxWatch(teamId: string, mailboxId: string) {
+    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
+    if (!mailbox) throw new Error("Mailbox not found.");
+    const accessToken = await getMailboxAccessToken(mailbox);
+    if (!accessToken) throw new Error("Mailbox needs reconnect before sync.");
 
+    const topicName = process.env["GOOGLE_PUBSUB_TOPIC_NAME"];
+    if (!topicName) throw new Error("GOOGLE_PUBSUB_TOPIC_NAME must be configured in environment for Gmail watch.");
 
+    const response = await fetch(GMAIL_WATCH_URL, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            topicName,
+            labelIds: ["INBOX"],
+            labelFilterBehavior: "INCLUDE",
+        }),
+    });
+
+    const data = await response.json() as any;
+    if (!response.ok) {
+        throw new Error(data?.error?.message || "Gmail watch registration failed.");
+    }
+
+    if (data.historyId !== undefined && (typeof data.historyId !== "string" || data.historyId.length === 0)) {
+        throw new Error("Invalid historyId returned from Gmail watch.");
+    }
+
+    let watchExpirationAt: Date | null = null;
+    if (data.expiration !== undefined) {
+        const expirationMs = Number(data.expiration);
+        if (!Number.isFinite(expirationMs)) throw new Error("Invalid expiration returned from Gmail watch.");
+        watchExpirationAt = new Date(expirationMs);
+    }
+
+    const historyId = typeof data.historyId === "string" ? data.historyId : mailbox.historyId;
+    
+    // We update the mailbox metadata cleanly without assuming strict type of existing metadata
+    const existingMetadata = (mailbox.metadata as Record<string, unknown>) || {};
+    
+    const updated = await prisma.connectedMailbox.update({
+        where: { id: mailbox.id },
+        data: {
+            status: "CONNECTED",
+            historyId,
+            metadata: {
+                ...existingMetadata,
+                gmailWatchExpirationAt: watchExpirationAt?.toISOString() || null,
+                gmailWatchRegisteredAt: new Date().toISOString(),
+                lastWatchError: null,
+            },
+        },
+    });
+
+    // Also initialize the MailboxSyncCursor like in apps/api
+    await prisma.mailboxSyncCursor.upsert({
+        where: { mailboxId_cursorType: { mailboxId: mailbox.id, cursorType: "GMAIL_HISTORY" } },
+        create: {
+            teamId: mailbox.teamId,
+            mailboxId: mailbox.id,
+            cursorType: "GMAIL_HISTORY",
+            historyId,
+            status: "IDLE",
+        },
+        update: {},
+    });
+
+    return { mailboxId: mailbox.id, historyId, watchExpirationAt };
+}
