@@ -259,7 +259,11 @@ export default function ROIDashboardPage() {
                                     </div>
                                 </div>
                                 <p className="text-xs text-text-secondary px-4 leading-relaxed">
-                                    Your AI agents are performing in the top <strong className="text-white">5%</strong> of all workspaces. Cost per acquisition is <strong className="text-white">40% lower</strong> than benchmark.
+                                    {data?.financials?.roi ? (
+                                        <>Efficiency ratio calculated from current campaign spend vs attributed revenue.</>
+                                    ) : (
+                                        <>Efficiency calculations and workspace benchmarks will populate as campaign activity increases.</>
+                                    )}
                                 </p>
                             </div>
                         </CardContent>

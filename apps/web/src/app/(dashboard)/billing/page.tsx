@@ -46,7 +46,7 @@ export default function BillingPage() {
         setTopUpLoading(true);
         try {
             // Create Razorpay order
-            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/billing/topup', {
+            const response = await fetch(getBrowserApiUrl('/billing/topup'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tierId })

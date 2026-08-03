@@ -148,7 +148,10 @@ export async function handleCampaignExecution(payload: JobPayload) {
                                         body: existingDraft.body,
                                     },
                                 },
-                            }).catch(() => {});
+                            }).catch((err) => {
+                                logCriticalAlert("APPROVAL_CREATION_FAILED_IDEMPOTENCY", { emailId: existingDraft.id, teamId: activeTeamId, error: err?.message || err });
+                                logger.error(`[campaign_execution] Failed to create ApprovalRequest for existing draft ${existingDraft.id}:`, err?.message || err);
+                            });
                         }
                     }
                 }
