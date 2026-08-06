@@ -4,69 +4,16 @@ import { getServerSession } from "next-auth";
 import { getToken } from "next-auth/jwt";
 import { createHmac, timingSafeEqual } from "crypto";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import GoogleProviderImport from "next-auth/providers/google";
 import { NextAuthOptions } from "next-auth";
-import CredentialsProviderImport from "next-auth/providers/credentials";
-import { compare } from "bcryptjs";
 import { RequestContext } from "@/lib/requestContext";
-
-// Conditional Google Provider
-const googleClientId = process.env['GOOGLE_CLIENT_ID'];
-const googleClientSecret = process.env['GOOGLE_CLIENT_SECRET'];
-
-const providers = [];
-const GoogleProvider: typeof import("next-auth/providers/google").default =
-    ((GoogleProviderImport as any).default ?? GoogleProviderImport) as any;
-const CredentialsProvider: typeof import("next-auth/providers/credentials").default =
-    ((CredentialsProviderImport as any).default ?? CredentialsProviderImport) as any;
-
-if (googleClientId && googleClientSecret) {
-    providers.push(
-        GoogleProvider({
-            clientId: googleClientId,
-            clientSecret: googleClientSecret,
-        })
-    );
-}
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
-    providers: [
-        ...providers,
-        CredentialsProvider({
-            name: "Credentials",
-            credentials: {
-                email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
-            },
-            async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) {
-                    throw new Error("Invalid credentials");
-                }
-
-                try {
-                    const user = await prisma.user.findUnique({
-                        where: { email: credentials.email }
-                    });
-
-                    if (!user || !user.password) {
-                        throw new Error("Invalid credentials");
-                    }
-
-                    const isValid = await compare(credentials.password, user.password);
-
-                    if (!isValid) {
-                        throw new Error("Invalid credentials");
-                    }
-
-                    return user;
-                } catch (error: any) {
-                    console.error("[Auth] Authorize Fallback Failure:", error.message);
-                    throw new Error("Authentication service temporarily unavailable. Please try again later.");
-                }
-            }
-        })
-    ],
+    // No sign-in providers are declared here. `NextAuth()` is never constructed
+    // in apps/api: `routes/auth/[...nextauth]/route.ts` proxies every auth
+    // request to apps/web, which is Clerk-only. These options exist solely so
+    // `getServerSession`/`getToken` can decode the JWT issued by apps/web.
+    providers: [],
     callbacks: {
         session: async ({ session, token }) => {
             if (token && session.user) {
@@ -231,11 +178,14 @@ export async function getCurrentContext() {
     const workspaceId = cookieStore.get("convo-workspace-id")?.value;
 
     if (workspaceId) {
-        // Verify membership
+        // Verify membership. Status must be checked too: deactivated and
+        // invited-but-not-joined rows keep their userId, so matching on
+        // userId alone would still grant team context.
         const membership = await prisma.teamMember.findFirst({
             where: {
                 userId,
-                teamId: workspaceId
+                teamId: workspaceId,
+                status: "active"
             }
         });
 
@@ -246,7 +196,7 @@ export async function getCurrentContext() {
 
     // Fallback: Check if user has multiple teams to avoid silent misrouting
     const memberships = await prisma.teamMember.findMany({
-        where: { userId },
+        where: { userId, status: "active" },
         select: { teamId: true },
         take: 2
     });
@@ -359,7 +309,8 @@ export async function getCurrentContextFromRequest(req: Request) {
         const membership = await prisma.teamMember.findFirst({
             where: {
                 userId,
-                teamId: workspaceId
+                teamId: workspaceId,
+                status: "active"
             }
         });
 
@@ -369,7 +320,7 @@ export async function getCurrentContextFromRequest(req: Request) {
     }
 
     const memberships = await prisma.teamMember.findMany({
-        where: { userId },
+        where: { userId, status: "active" },
         select: { teamId: true },
         take: 2
     });
