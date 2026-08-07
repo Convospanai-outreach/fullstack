@@ -250,11 +250,14 @@ export async function getCurrentContext() {
     const workspaceId = cookieStore.get("convo-workspace-id")?.value;
 
     if (workspaceId) {
-        // Verify membership
+        // Verify membership. Status must be checked too: deactivated and
+        // invited-but-not-joined rows keep their userId, so matching on
+        // userId alone would still grant team context.
         const membership = await prisma.teamMember.findFirst({
             where: {
                 userId,
-                teamId: workspaceId
+                teamId: workspaceId,
+                status: "active"
             }
         });
 
@@ -263,9 +266,11 @@ export async function getCurrentContext() {
         }
     }
 
-    // Fallback: Get user's first active team
+    // Fallback: Get user's first active team. Ordered so the implicit default
+    // team is stable across requests rather than arbitrary row order.
     const membership = await prisma.teamMember.findFirst({
-        where: { userId },
+        where: { userId, status: "active" },
+        orderBy: { createdAt: "asc" },
         select: { teamId: true }
     });
 

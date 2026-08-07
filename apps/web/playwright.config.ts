@@ -21,6 +21,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
     testDir: './e2e',
+    globalSetup: require.resolve('./e2e/global-setup'),
     timeout: 120_000,
     fullyParallel: true,
     forbidOnly: !!process.env.CI,

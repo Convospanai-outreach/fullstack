@@ -19,8 +19,9 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
     return (
         <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 24, borderRadius: 10, marginBottom: 24 }}>
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Target</label>
+                <label htmlFor="scrape-target" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Target</label>
                 <select
+                    id="scrape-target"
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
                     style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}

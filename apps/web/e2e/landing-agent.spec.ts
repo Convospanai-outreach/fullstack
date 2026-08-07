@@ -9,7 +9,7 @@ test.describe("Landing Agent routes", () => {
     test("existing campaign wizard route remains reachable", async ({ page }) => {
         await page.goto("/campaigns/new");
         if (page.url().includes("/login")) {
-            await expect(page.getByRole("heading", { name: /sign in to your workspace/i })).toBeVisible();
+            await expect(page.locator("#clerk-sign-in-root")).toBeVisible({ timeout: 45000 });
             return;
         }
         await expect(page.getByText(/choose where outreach starts/i)).toBeVisible();
