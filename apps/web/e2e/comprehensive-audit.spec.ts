@@ -102,14 +102,27 @@ test.describe.serial('Comprehensive Frontend Audit', () => {
         await page.goto('/login');
 
         if (!process.env.TEST_USER_EMAIL || !process.env.TEST_USER_PASSWORD) {
-            await expect(page.getByRole('heading', { name: /sign in to your workspace/i })).toBeVisible();
+            await expect(page.locator('#clerk-sign-in-root')).toBeVisible({ timeout: 45000 });
             await page.screenshot({ path: path.join(SCREENSHOT_DIR, 'protected-login-required.png'), fullPage: true });
             return;
         }
 
-        await page.fill('input[name="email"]', process.env.TEST_USER_EMAIL);
-        await page.fill('input[name="password"]', process.env.TEST_USER_PASSWORD);
-        await page.click('button[type="submit"]');
+        await page.waitForSelector('#clerk-sign-in-root[data-clerk-mounted="true"]', { timeout: 45000 });
+        await page.locator('#identifier-field').waitFor({ state: 'visible', timeout: 15000 });
+        await page.locator('#identifier-field').fill(process.env.TEST_USER_EMAIL);
+        await page.locator('#password-field').fill(process.env.TEST_USER_PASSWORD);
+        await page.getByRole('button', { name: 'Continue', exact: true }).click();
+
+        const otpInput = page.locator('input[name="code"], input[autocomplete="one-time-code"]').first();
+        const otpAppeared = await otpInput.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
+        if (otpAppeared) {
+            await otpInput.fill('424242');
+            const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
+            if (await continueButton.isVisible().catch(() => false)) {
+                await continueButton.click();
+            }
+        }
+
         await page.waitForURL(/.*dashboard/);
         await page.waitForLoadState('networkidle');
 
