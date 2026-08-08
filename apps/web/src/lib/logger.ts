@@ -34,4 +34,12 @@ export const logger = loggerInstance;
 export const logWorker = (id: string, status: string, meta: Record<string, any> = {}) => {
   loggerInstance.info(`[Worker] ${id}: ${status}`, { id, status, ...meta, category: "worker" });
 };
+export const logCriticalAlert = (event: string, meta: Record<string, any> = {}) => {
+  loggerInstance.error(`[CRITICAL_ALERT] ${event}`, {
+    event,
+    severity: "CRITICAL",
+    timestamp: new Date().toISOString(),
+    ...meta,
+  });
+};
 export default loggerInstance;

@@ -19,7 +19,7 @@ const createPrismaClient = () => {
         connectionString: resolvedDatabaseUrl,
         max: 10,
         idleTimeoutMillis: 30_000,
-        connectionTimeoutMillis: 5_000,
+        connectionTimeoutMillis: 15_000,
     });
     const adapter = new PrismaPg(pool);
 

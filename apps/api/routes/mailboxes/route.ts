@@ -5,6 +5,7 @@ import {
     buildGoogleMailboxAuthUrl,
     connectGoogleMailbox,
     listConnectedMailboxes,
+    updateMailboxControls,
 } from "@/modules/email-campaigner/service/googleMailboxService";
 
 /**
@@ -42,6 +43,28 @@ export async function POST(req: Request) {
 }
 
 /**
+ * PATCH /mailboxes — update mailbox settings and health controls
+ * Body: { mailboxId: string, dailyLimit?: number, minDelaySeconds?: number, status?: string, displayName?: string, isWarmingUp?: boolean }
+ */
+export async function PATCH(req: Request) {
+    try {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+
+        const body = await req.json();
+        const { mailboxId, ...controls } = body || {};
+        if (!mailboxId || typeof mailboxId !== "string") {
+            throw new APIError("mailboxId is required", 400, "VALIDATION_ERROR");
+        }
+
+        const mailbox = await updateMailboxControls(teamId, mailboxId, controls);
+        return NextResponse.json({ success: true, mailbox });
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
+/**
  * DELETE /mailboxes — disconnect a mailbox by id
  * Body: { mailboxId: string }
  */
@@ -64,3 +87,4 @@ export async function DELETE(req: Request) {
         return handleAPIError(error);
     }
 }
+

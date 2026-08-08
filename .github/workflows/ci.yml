@@ -92,7 +92,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -142,6 +142,11 @@ jobs:
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
+
+    - name: Live DB Concurrency Verification
+      run: node scripts/test-db-concurrency.mjs
+      env:
+        DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
 
     - name: Type Check
       working-directory: apps/web
@@ -200,7 +205,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5

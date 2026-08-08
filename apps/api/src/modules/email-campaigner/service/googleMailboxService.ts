@@ -546,6 +546,9 @@ export async function listConnectedMailboxes(teamId: string) {
             openCount: true,
             clickCount: true,
             lastSyncAt: true,
+            historyId: true,
+            tokenExpiresAt: true,
+            metadata: true,
             createdAt: true,
         },
         orderBy: { createdAt: "desc" },
@@ -1212,7 +1215,7 @@ async function listKnownOutboundEmailsPage(
     });
 }
 
-type GmailInboundEventType = "REPLY" | "BOUNCE";
+type GmailInboundEventType = "REPLY_RECEIVED" | "BOUNCE";
 
 type GmailInboundEventEvidence = {
     id: string;
@@ -1227,7 +1230,7 @@ function assertCompletedInboundEvent(
     if (!existingEvent.processedAt) {
         throw new LegacyGmailEventAmbiguousError(existingEvent.id, "missing_completion_evidence");
     }
-    if (type === "REPLY" && !existingEvent.message) {
+    if (type === "REPLY_RECEIVED" && !existingEvent.message) {
         throw new LegacyGmailEventAmbiguousError(existingEvent.id, "missing_reply_message");
     }
 }
@@ -1287,7 +1290,7 @@ async function createInboundCampaignEvent(input: {
     if (!fromEmail || fromEmail === mailbox.email.toLowerCase()) return "ignored";
 
     const isBounce = /mailer-daemon|postmaster/i.test(from) || /delivery status notification|undeliver|delivery failed|returned mail/i.test(subject);
-    const type: GmailInboundEventType = isBounce ? "BOUNCE" : "REPLY";
+    const type: GmailInboundEventType = isBounce ? "BOUNCE" : "REPLY_RECEIVED";
     try {
         return await db.$transaction(async (tx) => {
             await assertGmailMailboxLeaseInTransaction(tx, lease);
@@ -1710,7 +1713,7 @@ export async function syncGoogleMailbox(
             try {
                 result = await syncMailboxByHistory(accessToken, teamId, mailbox, startHistoryId, lease, heartbeat);
             } catch (error: any) {
-                if (error?.status !== 404) throw error;
+                if (error?.status !== 404 && error?.status !== 400) throw error;
                 result = await syncMailboxByKnownThreads(accessToken, teamId, mailbox, lease, heartbeat);
                 const profile = await getGmailProfile(accessToken);
                 await heartbeat();

@@ -15,7 +15,9 @@ async function resolveTeamId() {
 export async function GET() {
   try {
     const { prisma } = await import("@/lib/db");
+    const context = await getCurrentContext();
     const teamId = await resolveTeamId();
+    const userId = context.userId || "system";
     
     if (!teamId) {
       return NextResponse.json({
@@ -42,56 +44,135 @@ export async function GET() {
       });
     }
 
-    // Get actual counts from DB
+    // Self-healing: Backfill orphaned drafts into ApprovalRequests automatically
+    const existingApprovals = await prisma.approvalRequest.findMany({
+      where: { teamId },
+      select: { entityId: true, payload: true },
+    });
+
+    const existingEmailIds = new Set<string>();
+    for (const a of existingApprovals) {
+      if (a.entityId) existingEmailIds.add(a.entityId);
+      const payloadEmailId = (a.payload as any)?.emailId;
+      if (payloadEmailId) existingEmailIds.add(payloadEmailId);
+    }
+
+    const draftEmails = await prisma.email.findMany({
+      where: {
+        lead: { teamId },
+        status: { in: ["draft", "DRAFT", "draft_ready", "DRAFT_READY"] },
+      },
+      include: { lead: true },
+    });
+
+    for (const email of draftEmails) {
+      if (!existingEmailIds.has(email.id)) {
+        await prisma.approvalRequest.create({
+          data: {
+            teamId,
+            requesterId: userId,
+            actionType: "email_draft_approval",
+            entityType: "email",
+            entityId: email.id,
+            status: "PENDING",
+            payload: {
+              emailId: email.id,
+              leadId: email.leadId,
+              campaignId: email.campaignId,
+              subject: email.subject,
+              body: email.body,
+              recipient: email.lead?.email,
+            },
+          },
+        }).catch((err) => {
+            console.error("[Dashboard Summary] Self-healing ApprovalRequest backfill error:", err?.message || err);
+        });
+      }
+    }
+
+    // Query real per-team workspace aggregate statistics
     const [
-      leadsCount,
-      meetingsBooked,
-      draftsReady,
-      draftsPendingSend,
-      followUpsCount,
-      recentActivities
+      totalLeads,
+      activePipelineLeads,
+      meetingsBookedCount,
+      draftsCount,
+      pendingApprovalCount,
+      sentEmailsCount,
+      signalsCount,
+      recentActivities,
+      totalEmailCount,
     ] = await Promise.all([
+      // Total leads imported
       prisma.lead.count({ where: { teamId } }),
-      prisma.meeting.count({ where: { teamId } }),
-      prisma.generation.count({
+
+      // Active pipeline: leads not in terminal statuses
+      prisma.lead.count({
         where: {
-          lead: { teamId },
-          status: "PENDING"
-        }
+          teamId,
+          status: { notIn: ["REJECTED", "OPT_OUT", "BOUNCED", "UNSUBSCRIBED"] },
+        },
       }),
-      // Check emails that are drafts/pending
+
+      // Meetings secured: meetings booked or leads with status MEETING_BOOKED
+      prisma.meeting.count({ where: { teamId } }),
+
+      // Drafts queued: drafts awaiting approval / send
       prisma.email.count({
         where: {
           lead: { teamId },
-          status: "draft"
-        }
+          status: { in: ["draft", "DRAFT", "draft_ready", "DRAFT_READY", "queued", "QUEUED"] },
+        },
       }),
+
+      // Follow-ups / pending approval requests
+      prisma.approvalRequest.count({
+        where: {
+          teamId,
+          status: "PENDING",
+        },
+      }),
+
+      // Emails successfully sent
+      prisma.email.count({
+        where: {
+          lead: { teamId },
+          status: "sent",
+        },
+      }),
+
+      // Signal capture: count of email events (opens, clicks, replies)
       prisma.emailEvent.count({
         where: {
           teamId,
-          type: { in: ["REPLIED", "REPLY_RECEIVED"] }
-        }
+          type: { in: ["OPENED", "CLICKED", "REPLY_RECEIVED"] },
+        },
       }),
+
+      // Live recent activity log
       prisma.leadActivity.findMany({
         where: {
-          lead: { teamId }
+          lead: { teamId },
         },
         orderBy: {
-          createdAt: "desc"
+          createdAt: "desc",
         },
         take: 10,
         include: {
           lead: {
             select: {
               fullName: true,
-              email: true
-            }
-          }
-        }
-      })
+              email: true,
+            },
+          },
+        },
+      }),
+      // Total email records ever generated for team
+      prisma.email.count({
+        where: { lead: { teamId } },
+      }),
     ]);
 
-    // Map recentActivities to recentActivity list
+    // Map recentActivity list
     let recentActivity = recentActivities.map((act) => {
       let type: 'meeting_booked' | 'draft_generated' | 'follow_up_flagged' | 'campaign_activated' = 'draft_generated';
       if (act.type.toLowerCase().includes('meeting') || act.type.toLowerCase().includes('booked')) {
@@ -102,56 +183,60 @@ export async function GET() {
         type = 'campaign_activated';
       }
 
-      const name = act.lead?.fullName || act.lead?.email || "Unknown Prospect";
+      const name = act.lead?.fullName || act.lead?.email || "Prospect";
       return {
         id: act.id,
         type,
         description: `${act.title} — ${name}`,
-        timestamp: act.createdAt.toISOString()
+        timestamp: act.createdAt.toISOString(),
       };
     });
 
     if (recentActivity.length === 0) {
       recentActivity = [
-        { id: 'mock-1', type: 'campaign_activated', description: 'System Ready — Waiting for lead activity', timestamp: new Date().toISOString() }
+        {
+          id: 'ready-1',
+          type: 'campaign_activated',
+          description: 'Outreach Pipeline Active — Ready for imports and draft generation',
+          timestamp: new Date().toISOString(),
+        },
       ];
     }
-
-    const activeLeads = leadsCount;
-    const draftsCount = draftsReady;
-    const pendingSendCount = draftsPendingSend;
 
     // Calculate setup completion percent
     const [mailboxesCount, campaignsCount, policy] = await Promise.all([
       prisma.connectedMailbox.count({ where: { teamId, status: "CONNECTED" } }),
       prisma.campaign.count({ where: { teamId } }),
-      prisma.organizationPolicy.findUnique({ where: { organizationId: teamId } })
+      prisma.organizationPolicy.findUnique({ where: { organizationId: teamId } }),
     ]);
 
     let setupPercent = 0;
     if (mailboxesCount > 0) setupPercent += 25;
-    if (leadsCount > 0) setupPercent += 25;
+    if (totalLeads > 0) setupPercent += 25;
     if (campaignsCount > 0) setupPercent += 25;
     if (policy) setupPercent += 25;
 
+    // Signal capture open rate calculation or default 0%
+    const openRatePct = sentEmailsCount > 0 ? Math.round((signalsCount / sentEmailsCount) * 100) : 0;
+
     return NextResponse.json({
       kpis: {
-        meetingsBooked,
+        meetingsBooked: meetingsBookedCount,
         meetingsDelta: 0,
-        activeLeads,
-        draftsReady,
-        draftsPendingSend,
-        openRatePct: 0,
+        activeLeads: activePipelineLeads,
+        draftsReady: draftsCount,
+        draftsPendingSend: pendingApprovalCount,
+        openRatePct,
         openRateDelta: 0,
       },
       workflow: {
-        leadsImported: leadsCount > 0,
-        leadsCount,
-        draftsGenerated: draftsCount > 0,
-        draftsCount,
-        followUpsReviewed: followUpsCount > 0,
-        followUpsCount,
-        pendingSendCount,
+        leadsImported: totalLeads > 0,
+        leadsCount: totalLeads,
+        draftsGenerated: totalEmailCount > 0,
+        draftsCount: totalEmailCount,
+        followUpsReviewed: pendingApprovalCount === 0 && totalEmailCount > 0,
+        followUpsCount: pendingApprovalCount,
+        pendingSendCount: draftsCount,
       },
       recentActivity,
       setupPercent,

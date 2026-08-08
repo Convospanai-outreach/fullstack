@@ -97,7 +97,19 @@ class CSVIngestionService {
                     });
 
                     if (existing) {
-                        skipped++;
+                        if (campaignId) {
+                            await prisma.lead.update({
+                                where: { id: existing.id },
+                                data: {
+                                    campaignId,
+                                    fullName: fullNameKey ? row[fullNameKey]?.trim() || existing.fullName || undefined : undefined,
+                                    company: companyKey ? row[companyKey]?.trim() || existing.company || undefined : undefined,
+                                },
+                            });
+                            created++;
+                        } else {
+                            skipped++;
+                        }
                         continue;
                     }
 

@@ -47,7 +47,7 @@ export default function LeadJourneyAnalyticsPage() {
     }, []);
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             {/* Header with Navigation Tabs */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
                 <div>
@@ -242,8 +242,8 @@ export default function LeadJourneyAnalyticsPage() {
                                                 <span className="text-sm font-semibold text-text-secondary">mins</span>
                                             </div>
                                         </div>
-                                        <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-xs font-bold text-emerald-400">
-                                            Excellent Speed
+                                        <div className="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-bold text-white/80">
+                                            {data?.callerPerformance?.avgClaimTimeMinutes ? `${data.callerPerformance.avgClaimTimeMinutes}m SLA` : "Pending Data"}
                                         </div>
                                     </div>
 
@@ -271,7 +271,7 @@ export default function LeadJourneyAnalyticsPage() {
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 

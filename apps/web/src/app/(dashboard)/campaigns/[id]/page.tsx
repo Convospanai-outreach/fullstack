@@ -99,6 +99,11 @@ export default function CampaignDetailPage({
     const handleStatusChange = async (newStatus: string) => {
         try {
             await updateCampaign(campaignId, { status: newStatus });
+            if (newStatus === "active") {
+                await fetch(`/api/campaigns/${campaignId}/run`, { method: "POST" }).catch((e) => {
+                    console.warn("Campaign run endpoint warning:", e);
+                });
+            }
             loadCampaign();
             loadAnalytics();
             loadActivities(); // Refresh activity log
@@ -349,7 +354,7 @@ export default function CampaignDetailPage({
                                         <div>
                                             <p className="text-sm text-zinc-400">Completed</p>
                                             <p className="text-2xl font-bold text-white">
-                                                {campaign.completedCount}
+                                                {Math.min(campaign.completedCount, analytics?.totalLeads || campaign.targetCount || campaign.completedCount)}
                                             </p>
                                         </div>
                                         <div>

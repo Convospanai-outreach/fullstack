@@ -20,7 +20,7 @@ test.describe("Public support experience", () => {
         await page.setViewportSize({ width: 1440, height: 1100 });
         await page.goto("/", { waitUntil: "domcontentloaded" });
 
-        await expect(page.getByRole("heading", { name: /pipeline workflow/i })).toBeVisible();
+        await expect(page.getByRole("heading", { name: /somewhere out there, a company needs exactly what you sell/i })).toBeVisible();
         await expect(page.getByRole("button", { name: /open help assistant/i })).toBeVisible();
 
         await page.getByRole("button", { name: /open help assistant/i }).click();

@@ -1,6 +1,8 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`OPEN_ITEMS.md`](OPEN_ITEMS.md). The consolidated assessment lives at [`docs/SYSTEM_READINESS_ASSESSMENT.md`](docs/SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # CraftMyFunnel Fullstack Application - Comprehensive Audit Report (FINAL)
 
-**Date:** February 9, 2026  
+**Date:** February 9, 2026 — ARCHIVED
 **Audit Type:** Technical Deep-Dive (Backend + Frontend)  
 **Auditor:** Antigravity AI  
 **Project:** CraftMyFunnel - AI Agent Army for Growth Teams  

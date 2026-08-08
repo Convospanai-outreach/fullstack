@@ -5,7 +5,7 @@ import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 interface ServiceStatus {
     name: string;
-    status: "online" | "degraded" | "offline";
+    status: "online" | "degraded" | "offline" | "disabled";
     latencyMs?: number;
     detail?: string;
 }
@@ -44,6 +44,13 @@ const STATUS_COLORS = {
         bg: "bg-red-500/10",
         label: "Offline",
     },
+    disabled: {
+        dot: "bg-slate-400",
+        text: "text-slate-400",
+        ring: "ring-slate-500/30",
+        bg: "bg-slate-500/10",
+        label: "Optional / Not Deployed",
+    },
 };
 
 function PulseDot({ status }: { status: ServiceStatus["status"] }) {
@@ -58,26 +65,30 @@ function PulseDot({ status }: { status: ServiceStatus["status"] }) {
     );
 }
 
+interface ConnectionStatusBarProps {
+    inline?: boolean;
+}
+
 // Skeleton pill shown before any data arrives — no flash/empty corner
-function StatusPillSkeleton() {
+function StatusPillSkeleton({ inline }: { inline?: boolean }) {
     return (
-        <div className="fixed bottom-4 right-4 z-50">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-xl animate-pulse">
-                <div className="w-3.5 h-3.5 rounded-full bg-slate-600" />
-                <div className="h-3 w-32 rounded bg-slate-600" />
-                <div className="w-2.5 h-2.5 rounded-full bg-slate-600 ml-1" />
+        <div className={inline ? "relative z-40" : "fixed top-4 right-6 z-50"}>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/60 backdrop-blur border border-white/10 shadow-sm animate-pulse">
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-600" />
+                <div className="h-3 w-24 rounded bg-slate-600" />
             </div>
         </div>
     );
 }
 
-export function ConnectionStatusBar() {
+export function ConnectionStatusBar({ inline = false }: ConnectionStatusBarProps) {
     // Start with a defined "loading" state so there is never an empty corner
     const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [hasLoaded, setHasLoaded] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const fetchStatus = useCallback(async (showLoader = false) => {
         if (showLoader) setIsLoading(true);
@@ -107,8 +118,32 @@ export function ConnectionStatusBar() {
         }
     }, [expanded]);
 
+    // Click outside and Escape key listeners to close popover
+    useEffect(() => {
+        if (!expanded) return;
+
+        function handleClickOutside(event: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setExpanded(false);
+            }
+        }
+
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setExpanded(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [expanded]);
+
     // Show skeleton until first load completes
-    if (!hasLoaded) return <StatusPillSkeleton />;
+    if (!hasLoaded) return <StatusPillSkeleton inline={inline} />;
 
     if (!systemStatus) return null;
 
@@ -119,13 +154,41 @@ export function ConnectionStatusBar() {
     const OverallIcon = overall === "online" ? Wifi : overall === "degraded" ? AlertTriangle : WifiOff;
 
     return (
-        <div className="fixed bottom-4 right-4 z-50">
+        <div ref={containerRef} className={inline ? "relative z-40 flex flex-col items-end" : "fixed top-3 right-6 z-50 flex flex-col items-end"}>
+            {/* Toggle Pill */}
+            <button
+                ref={triggerRef}
+                onClick={() => setExpanded(!expanded)}
+                aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium backdrop-blur transition-all duration-200
+                    ${overallColors.bg} ring-1 ${overallColors.ring} border border-white/10 hover:ring-2`}
+            >
+                <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
+                <span className="text-white hidden sm:inline">
+                    {overall === "online"
+                        ? "All Systems Operational"
+                        : overall === "degraded"
+                        ? "Partial Outage"
+                        : "Systems Offline"}
+                </span>
+                <PulseDot status={overall} />
+            </button>
+
             {/* Expanded Card */}
             {expanded && (
-                <div className="mb-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-bottom-2 duration-200">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-white">System Connections</h3>
-                        <span className="text-[10px] text-slate-500">checked {checkedAt}</span>
+                <div className="mt-2 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl w-72 animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                        <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-white">System Connections</h3>
+                            <span className="text-[10px] text-slate-500">{checkedAt}</span>
+                        </div>
+                        <button
+                            onClick={() => setExpanded(false)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            aria-label="Close status panel"
+                        >
+                            ✕
+                        </button>
                     </div>
 
                     <div className="space-y-2">
@@ -169,25 +232,6 @@ export function ConnectionStatusBar() {
                     </button>
                 </div>
             )}
-
-            {/* Toggle Pill — always min 44px tall for WCAG touch targets */}
-            <button
-                ref={triggerRef}
-                onClick={() => setExpanded(!expanded)}
-                aria-label={`System status: ${overall}. Click to ${expanded ? "close" : "expand"}.`}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-200 text-xs font-medium backdrop-blur min-h-[44px]
-                    ${overallColors.bg} ring-1 ${overallColors.ring} border-white/10 hover:ring-2 hover:scale-105`}
-            >
-                <OverallIcon className={`w-3.5 h-3.5 ${overallColors.text}`} />
-                <span className="text-white">
-                    {overall === "online"
-                        ? "All Systems Operational"
-                        : overall === "degraded"
-                        ? "Partial Outage"
-                        : "Systems Offline"}
-                </span>
-                <PulseDot status={overall} />
-            </button>
         </div>
     );
 }

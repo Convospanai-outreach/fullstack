@@ -15,6 +15,8 @@ import {
     sendViaGmailMailbox,
     registerGoogleMailboxWatch,
     renewDueGoogleMailboxWatches,
+    advanceMailboxWarmup,
+    resolveGoogleMailbox,
     assertGmailMailboxLeaseInTransaction,
     GmailMailboxLeaseContendedError,
     GmailMailboxLeaseLostError,
@@ -1813,4 +1815,92 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         const result = await handleGooglePubSubNotification({ data, messageId: "pubsub-2" });
         expect(result).toEqual(expect.objectContaining({ accepted: false, reason: "PROCESSING_FAILURE" }));
     });
+
+    it("throws loud error when registering watch for non-existent mailbox", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(null);
+        await expect(registerGoogleMailboxWatch("team-1", "invalid-id")).rejects.toThrow("Mailbox not found.");
+    });
+
+    it("throws loud error when registering watch without GOOGLE_PUBSUB_TOPIC_NAME env var", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox());
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "");
+        await expect(registerGoogleMailboxWatch("team-1", "mailbox-1")).rejects.toThrow("GOOGLE_PUBSUB_TOPIC_NAME must be configured");
+    });
+
+    it("throws loud error with code GMAIL_WATCH_FAILED when watch registration HTTP response is non-200", async () => {
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "projects/example/topics/test");
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox());
+        mockFetch.mockResolvedValueOnce(response({ error: { message: "Permission denied" } }, false, 403));
+
+        await expect(registerGoogleMailboxWatch("team-1", "mailbox-1")).rejects.toThrow("GMAIL_WATCH_FAILED");
+    });
+
+    it("throws loud error with code GMAIL_WATCH_RESPONSE_INVALID when historyId payload is invalid", async () => {
+        vi.stubEnv("GOOGLE_PUBSUB_TOPIC_NAME", "projects/example/topics/test");
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox());
+        mockFetch.mockResolvedValueOnce(response({ historyId: "" }, true, 200));
+
+        await expect(registerGoogleMailboxWatch("team-1", "mailbox-1")).rejects.toThrow("GMAIL_WATCH_RESPONSE_INVALID");
+    });
+
+    it("advances warmup status for connected warming mailboxes", async () => {
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 2 });
+        await expect(advanceMailboxWarmup()).resolves.toEqual({ count: 2 });
+        expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ status: "CONNECTED", isWarmingUp: true }),
+        }));
+    });
+
+    it("handles pre-existing emailEvent PubSub duplicate record found via findFirst", async () => {
+        const data = Buffer.from(JSON.stringify({ emailAddress: "owner@example.com", historyId: "999" })).toString("base64url");
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mailbox()]);
+        (prisma.emailEvent.findFirst as Mock).mockResolvedValue({ id: "existing-pubsub-event" });
+
+        const result = await handleGooglePubSubNotification({ data, messageId: "pubsub-duplicate-1" });
+        expect(result).toEqual({
+            accepted: true,
+            mailboxId: "mailbox-1",
+            teamId: "team-1",
+            duplicate: true,
+        });
+    });
+
+    it("resolves AMBIGUOUS_MAILBOX when multiple connected mailboxes match the email address", async () => {
+        const mb1 = mailbox();
+        const mb2 = { ...mailbox(), id: "mailbox-2" };
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mb1, mb2]);
+
+        await expect(resolveGoogleMailbox("owner@example.com")).resolves.toEqual({
+            status: "AMBIGUOUS_MAILBOX",
+        });
+    });
+
+    it("resolves UNKNOWN_MAILBOX when zero connected mailboxes match", async () => {
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([]);
+
+        await expect(resolveGoogleMailbox("unknown@example.com")).resolves.toEqual({
+            status: "UNKNOWN_MAILBOX",
+        });
+    });
+
+    it("catches sync failures during syncDueGoogleMailboxes and records lastSyncError", async () => {
+        (prisma.connectedMailbox.findMany as Mock).mockResolvedValue([mailbox()]);
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.mailboxSyncCursor.findUnique as Mock).mockResolvedValue(null);
+        // Force syncGoogleMailbox to fail by supplying non-matching mailbox provider or failure
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({ ...mailbox(), provider: "SMTP" });
+
+        const res = await syncDueGoogleMailboxes(1);
+        expect(res).toEqual([{
+            mailboxId: "mailbox-1",
+            teamId: "team-1",
+            synced: 0,
+            replies: 0,
+            bounces: 0,
+            error: "GMAIL_SYNC_FAILED",
+        }]);
+    });
 });
+
+
+

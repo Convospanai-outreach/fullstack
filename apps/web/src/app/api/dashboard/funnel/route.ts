@@ -62,7 +62,7 @@ export async function GET() {
             prisma.lead.count({ where: { teamId, status: "CONVERTED" } }),
             prisma.lead.count({ where: { teamId, status: "LOST" } }),
             prisma.emailEvent.count({ where: { teamId, type: "SENT" } }),
-            prisma.emailEvent.count({ where: { teamId, type: { in: ["REPLIED", "REPLY_RECEIVED"] } } }),
+            prisma.emailEvent.count({ where: { teamId, type: "REPLY_RECEIVED" } }),
             prisma.connectedMailbox.count({ where: { teamId, status: "CONNECTED" } })
         ]);
 

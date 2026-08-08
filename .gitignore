@@ -36,3 +36,4 @@ fix-env.js
 .vercel
 /src
 /tsconfig.json
+.env*

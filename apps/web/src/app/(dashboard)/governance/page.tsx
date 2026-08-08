@@ -12,21 +12,20 @@ export default function GovernancePage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <StatCard
                     label="Trust Score"
-                    value="A+"
+                    value="Pending"
                     icon={ShieldCheck}
-                    description="Meets SOC2 Type II standard"
+                    description="System evaluation in progress"
                 />
                 <StatCard
                     label="Active Policies"
-                    value="12"
+                    value="8"
                     icon={Lock}
-                    description="8 AI Guardrails, 4 Access Rules"
+                    description="8 AI Guardrails active"
                 />
                 <StatCard
                     label="Event Velocity"
-                    value="240"
+                    value="0"
                     icon={Activity}
-                    trend={{ value: 5, isUp: true }}
                     description="Audit events processed last hour"
                 />
             </div>
@@ -73,18 +72,18 @@ export default function GovernancePage() {
             </div>
 
             <div className="mt-8">
-                <div className="bg-accent-violet/10 border border-accent-violet/30 p-6 rounded-2xl flex items-center justify-between">
+                <div className="bg-white/[0.03] border border-white/10 p-6 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="bg-accent-violet/20 p-3 rounded-xl text-accent-violet">
+                        <div className="bg-white/10 p-3 rounded-xl text-white">
                             <AlertTriangle className="w-6 h-6" />
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white leading-tight">SOC2 Compliance Report Ready</h4>
-                            <p className="text-text-secondary text-sm">A new quarterly audit report is available for export and legal review.</p>
+                            <h4 className="text-lg font-bold text-white leading-tight">Compliance & Governance Logging Active</h4>
+                            <p className="text-text-secondary text-sm">Audit logs and prompt guardrail policies are recorded for workspace activity.</p>
                         </div>
                     </div>
-                    <button className="bg-accent-violet text-white px-6 py-2.5 rounded-xl font-bold hover:opacity-90 transition shadow-glow">
-                        Export Audit Bundle
+                    <button className="bg-white/10 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-white/15 transition border border-white/10">
+                        View Audit Log
                     </button>
                 </div>
             </div>

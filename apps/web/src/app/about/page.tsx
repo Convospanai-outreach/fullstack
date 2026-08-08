@@ -83,7 +83,7 @@ export default function AboutPage() {
                             </div>
                             <h3 className="text-xl font-bold mb-3">Privacy by Design</h3>
                             <p className="text-gray-400 leading-relaxed">
-                                Enterprise-grade encryption, SOC2 compliance, and DPDP Act adherence are not add-ons — they're built into our architecture from day one. Your data never leaves the boundaries you set.
+                                Enterprise-grade encryption standards and DPDP Act compliance guidelines are built into our architecture from day one. Your data never leaves the boundaries you set.
                             </p>
                         </div>
                         <div className="p-8 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-all group">

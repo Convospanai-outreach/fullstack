@@ -13,6 +13,14 @@ interface ApprovalRequest {
     entityId: string;
     status: string;
     reason: string;
+    payload?: {
+        subject?: string;
+        body?: string;
+        recipient?: string;
+        emailId?: string;
+        leadId?: string;
+        campaignId?: string;
+    };
     requester: {
         name: string;
         email: string;
@@ -35,7 +43,7 @@ export default function ApprovalsPage() {
             // Assuming context provides teamId or API infers it from session
             // For MVP we just hit the endpoint, assuming it might default or we need to pass a teamId query param
             // Ideally we get teamId from a context provider
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/approvals");
+            const res = await fetch("/api/approvals");
             const data = await res.json();
             if (data.requests) {
                 setRequests(data.requests);
@@ -51,7 +59,7 @@ export default function ApprovalsPage() {
     const handleAction = async (id: string, action: "APPROVE" | "REJECT") => {
         setProcessing(id);
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/approvals/${id}`, {
+            const res = await fetch(`/api/approvals/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action, reason: action === "REJECT" ? "Rejected by admin" : undefined })
@@ -91,7 +99,7 @@ export default function ApprovalsPage() {
                         <GlassCard key={req.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group hover:border-blue-500/30 transition-all">
                             <div className="flex gap-4 items-start">
                                 <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-400 font-bold border border-blue-500/30">
-                                    {req.requester.name?.charAt(0) || "U"}
+                                    {req.requester?.name?.charAt(0) || "U"}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
@@ -101,10 +109,27 @@ export default function ApprovalsPage() {
                                         </span>
                                     </div>
                                     <p className="text-gray-400 text-sm mb-2">
-                                        Requested by <span className="text-white">{req.requester.name}</span> on {new Date(req.createdAt).toLocaleDateString()}
+                                        Requested by <span className="text-white">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}
                                     </p>
-                                    {req.reason && (
-                                        <div className="bg-slate-950/50 p-3 rounded-lg border border-white/5 text-sm text-gray-300 flex gap-2">
+                                    {req.payload?.subject && (
+                                        <div className="bg-slate-950/60 p-3.5 rounded-lg border border-white/10 text-sm space-y-1.5 mt-2">
+                                            <div className="text-xs font-bold uppercase tracking-wider text-blue-400">
+                                                Subject: <span className="text-white font-semibold normal-case">{req.payload.subject}</span>
+                                            </div>
+                                            {req.payload.recipient && (
+                                                <div className="text-xs text-gray-400">
+                                                    To: <span className="text-gray-200">{req.payload.recipient}</span>
+                                                </div>
+                                            )}
+                                            {req.payload.body && (
+                                                <div className="text-gray-300 text-xs leading-relaxed line-clamp-3 bg-black/40 p-2.5 rounded border border-white/5 font-mono whitespace-pre-wrap">
+                                                    {req.payload.body}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {req.reason && !req.payload?.subject && (
+                                        <div className="bg-slate-950/50 p-3 rounded-lg border border-white/5 text-sm text-gray-300 flex gap-2 mt-2">
                                             <AlertCircle className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
                                             "{req.reason}"
                                         </div>

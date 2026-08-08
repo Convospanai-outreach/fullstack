@@ -35,77 +35,14 @@ services:
       timeout: 5s
       retries: 5
 
-  # Service 1: The "Brain" (Next.js Cloud Interface)
-  craftmyfunnel-web:
-    build:
-      context: ./apps/web
-    image: craftmyfunnel-web:latest
-    container_name: craftmyfunnel-web
-    env_file: .env
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/craftmyfunnel
-      - EDGE_NODE_URI=http://edge-node-sim:8000
-      - BROWSER_WS_ENDPOINT=ws://browser-node:3000
-      - HOSTNAME=0.0.0.0
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock # Sentinel Access (Critical)
-    ports:
-      - "3000:3000"
-    depends_on:
-      db:
-        condition: service_healthy
-      db-uae:
-        condition: service_healthy
-      edge-node-sim:
-        condition: service_started
-    restart: always
-
-  # Service 2: The "Physical Node" (Python/FastAPI)
-  # This represents the code running inside the physical box in the client's office.
-  edge-node-sim:
-    build: ./services/edge-node
-    container_name: edge-node-sim
-    ports:
-      - "8000:8000"
-    environment:
-      # This UUID acts as the TPM (Trusted Platform Module) Hardware Key
-      - HARDWARE_SIGNATURE=uuid-550e8400-e29b-41d4-a716-446655440000
-      # Critical Linkage: Point to the trained model
-      - OFFLINE_MODEL_PATH=/app/models/custom/Phi-3-Custom.gguf
-    volumes:
-      # Mount the host training output to the container
-      - ./training/models:/app/models/custom
-    deploy:
-      resources:
-        limits:
-          cpus: '2' # Simulate low-power hardware constraints (Raspberry Pi)
-          memory: 4G
-
-  # Service 3: The "Physical Browser" (Puppeteer on Edge)
-  # Runs automation locally to use the residential IP, avoiding bot detection.
-  browser-node:
-    image: browserless/chrome:latest
-    container_name: browser-node
-    ports:
-      - "3001:3000"
-
-  # Service 4: Background Worker
-  worker:
-    image: craftmyfunnel-worker:patched
-    container_name: craftmyfunnel-worker
-    # Use compiled worker for efficiency
-    command: node worker.js
-    env_file: .env
-    environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/craftmyfunnel
-      - UAE_DATABASE_URL=postgresql://postgres:postgres@db-uae:5432/craftmyfunnel_uae
-      - EDGE_NODE_URI=http://edge-node-sim:8000
-    depends_on:
-      db:
-        condition: service_healthy
-      db-uae:
-        condition: service_healthy
-    restart: always
+  # This file provides the local datastores only. `npm run beta:start` starts
+  # `db` and `redis` from here and runs web/api/worker as host processes; the
+  # full containerised stack lives in apps/docker-compose.split.yml.
+  #
+  # The former craftmyfunnel-web, edge-node-sim, browser-node, and worker
+  # services were removed: they predate the apps/* split, referenced a
+  # ./services/edge-node build context that no longer exists, and mounted the
+  # host Docker socket into the web container.
 
   # Service 5: Redis Cache (Session & Queue)
   redis:

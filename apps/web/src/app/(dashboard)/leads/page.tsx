@@ -86,17 +86,21 @@ export default async function LeadsPage({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                    <Link href="/leads/import" id="import-csv-btn">
-                        <button className="h-8 border border-white/10 bg-white/2 px-3 text-[11px] font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2">
-                            Import CSV
-                        </button>
+                    <Link
+                        href="/leads/import"
+                        id="import-csv-btn"
+                        className="h-8 border border-white/10 bg-white/2 px-3 text-[11px] font-medium text-zinc-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                    >
+                        Import CSV
                     </Link>
 
-                    <Link href="/leads/new" id="add-lead-btn">
-                        <button className="h-8 bg-zinc-100 hover:bg-white px-3 text-[11px] font-medium text-zinc-950 transition-colors flex items-center gap-2">
-                            <UserPlus className="w-3.5 h-3.5" />
-                            Add Lead
-                        </button>
+                    <Link
+                        href="/leads/new"
+                        id="add-lead-btn"
+                        className="h-8 bg-zinc-100 hover:bg-white px-3 text-[11px] font-medium text-zinc-950 transition-colors flex items-center gap-2"
+                    >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        Add Lead
                     </Link>
                 </div>
             </div>

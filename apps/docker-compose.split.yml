@@ -121,6 +121,34 @@ services:
       start_period: 20s
 
   # ─────────────────────────────────────────────
+  # Worker — background job queue, Gmail sync, scheduler
+  # Same image as `api`, but runs the worker loop instead of the HTTP server.
+  # Without this service nothing drains the job queue: no campaign sends,
+  # no Gmail history sync, no sequence follow-ups, no stale-job watchdog.
+  # ─────────────────────────────────────────────
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    image: craftmyfunnel-api:split
+    container_name: craftmyfunnel-worker-split
+    restart: unless-stopped
+    command: ["node", "../../node_modules/tsx/dist/cli.mjs", "src/workers/start-workers.ts"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/craftmyfunnel
+      REDIS_URL: redis://redis:6379
+      EDGE_NODE_URI: http://edge-fastapi:8000
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ─────────────────────────────────────────────
   # Web — Next.js Frontend
   # ─────────────────────────────────────────────
   web:

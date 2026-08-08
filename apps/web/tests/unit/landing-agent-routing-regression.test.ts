@@ -10,8 +10,8 @@ function readWorkspaceFile(...parts: string[]) {
 describe("landing-agent routing regressions", () => {
     it("keeps existing campaign wizard entrypoint intact", () => {
         const content = readWorkspaceFile("src", "app", "(dashboard)", "campaigns", "new", "page.tsx");
-        expect(content).toContain('import StrategyWizard from "@/components/campaigns/StrategyWizard"');
-        expect(content).toContain("<StrategyWizard");
+        expect(content).toContain('fetch("/api/campaigns"');
+        expect(content).not.toContain("StrategyWizard");
     });
 
     it("whitelists /p public pages and landing-agent public API prefix in proxy", () => {

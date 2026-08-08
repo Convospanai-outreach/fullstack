@@ -45,7 +45,7 @@ export default function PlaybooksPage() {
     }
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-text-primary">Playbooks</h1>
@@ -78,6 +78,6 @@ export default function PlaybooksPage() {
                     )}
                 </>
             )}
-        </AppShell>
+        </div>
     )
 }

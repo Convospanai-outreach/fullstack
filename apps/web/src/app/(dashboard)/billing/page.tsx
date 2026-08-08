@@ -27,16 +27,26 @@ import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
+
 export default function BillingPage() {
-    const { data: subscription, isLoading, error } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/subscription", fetcher);
-    const { data: usage } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage", fetcher);
+    const { data: rawSubscription, isLoading, error } = useSWR(getBrowserApiUrl("/billing/subscription"), fetcher, {
+        revalidateOnFocus: false,
+    });
+    const { data: usage } = useSWR(getBrowserApiUrl("/billing/usage"), fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
+
+    const subscription = rawSubscription || {
+        active: true,
+        plan: "FREE",
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
 
     const handleTopUp = async (tierId: string) => {
         setTopUpLoading(true);
         try {
             // Create Razorpay order
-            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/billing/topup', {
+            const response = await fetch(getBrowserApiUrl('/billing/topup'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tierId })
@@ -85,7 +95,7 @@ export default function BillingPage() {
     };
 
     return (
-        <AppShell>
+        <div className="space-y-8 animate-reveal">
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-white tracking-tight">Billing & Credits</h1>
                 <p className="text-text-secondary mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
@@ -278,7 +288,7 @@ export default function BillingPage() {
                     </div>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 

@@ -54,7 +54,7 @@ export default function ROIDashboardPage() {
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-end mb-8">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tight mb-2">Campaign ROI</h1>
@@ -251,22 +251,26 @@ export default function ROIDashboardPage() {
                                 <div className="relative w-32 h-32 flex items-center justify-center mb-4">
                                     <svg className="w-full h-full transform -rotate-90">
                                         <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/5" />
-                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={377} strokeDashoffset={377 - (377 * 0.85)} className="text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
+                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={377} strokeDashoffset={data?.financials?.roi ? 377 - (377 * Math.min(1, data.financials.roi / 100)) : 377} className="text-blue-500" />
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-3xl font-black text-white">A+</span>
-                                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Excellent</span>
+                                        <span className="text-3xl font-black text-white">{data?.financials?.roi ? `${Math.round(data.financials.roi)}%` : "--"}</span>
+                                        <span className="text-[10px] text-text-secondary font-bold uppercase tracking-widest">{data?.financials?.roi ? "Active" : "Pending"}</span>
                                     </div>
                                 </div>
                                 <p className="text-xs text-text-secondary px-4 leading-relaxed">
-                                    Your AI agents are performing in the top <strong className="text-white">5%</strong> of all workspaces. Cost per acquisition is <strong className="text-white">40% lower</strong> than benchmark.
+                                    {data?.financials?.roi ? (
+                                        <>Efficiency ratio calculated from current campaign spend vs attributed revenue.</>
+                                    ) : (
+                                        <>Efficiency calculations and workspace benchmarks will populate as campaign activity increases.</>
+                                    )}
                                 </p>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 
