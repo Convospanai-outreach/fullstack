@@ -9,7 +9,9 @@ const DASHBOARD_PREFIXES = [
     "/templates", "/pipeline", "/playbooks", "/knowledge", "/marketplace",
     "/approvals", "/billing", "/settings", "/agents", "/command-center",
     "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
-    "/governance", "/analytics", "/admin",
+    "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
+    "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",
+    "/onboarding", "/profile", "/scraper-bridge", "/security", "/setup"
 ];
 
 const MARKETING_PREFIXES = [

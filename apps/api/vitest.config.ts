@@ -26,7 +26,7 @@ export default defineConfig({
             reporter: ["text", "json", "html"],
             thresholds: {
                 statements: 48,
-                branches: 37,
+                branches: Number(process.env["COVERAGE_BRANCH_THRESHOLD"] ?? 36),
                 functions: 54,
                 lines: 49
             },

@@ -1,11 +1,16 @@
-import { JobQueue } from "@/lib/queue";
+import { JobClaim, JobClaimLostError, JobQueue } from "@/lib/queue";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
 import { worker } from "./job-processor";
+
+function safeErrorType(error: unknown) {
+    return error instanceof Error && error.name ? error.name : "UnknownError";
+}
 
 export class WorkerManager {
     private isRunning: boolean = false;
     private idleDelay: number = 2000;
     private activeJobs: Set<string> = new Set();
+    private activeExecutions: Map<string, Promise<void>> = new Map();
     private concurrencyLimit: number = parseInt(process.env['WORKER_CONCURRENCY'] || '5');
     private scheduleInterval: number = parseInt(process.env['SCHEDULE_INTERVAL_MS'] || '60000');
     private lastScheduleTick: number = 0;
@@ -29,8 +34,10 @@ export class WorkerManager {
                 // 2. Job Dequeue (if capacity available)
                 if (this.activeJobs.size < this.concurrencyLimit) {
                     const job = await JobQueue.dequeue();
+                    // A job dequeued before shutdown began is already an owned
+                    // claim and must run to completion rather than be stranded.
                     if (job) {
-                        this.executeJob(job.id);
+                        void this.executeJob({ jobId: job.id, version: job.version });
                         // Continue loop immediately to fill capacity
                         continue;
                     }
@@ -39,7 +46,7 @@ export class WorkerManager {
                 // 3. Idle wait
                 await new Promise(resolve => setTimeout(resolve, this.idleDelay));
             } catch (error) {
-                console.error("[Worker] Loop error:", error);
+                console.error(`[Worker] Loop error (${safeErrorType(error)}).`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
         }
@@ -91,30 +98,39 @@ export class WorkerManager {
         }
     }
 
-    private async executeJob(jobId: string) {
-        this.activeJobs.add(jobId);
-        try {
-            console.log(`[Worker] Executing job ${jobId}`);
-            await worker.performJob(jobId);
-        } catch (error) {
-            console.error(`[Worker] Job ${jobId} execution failed:`, error);
-        } finally {
-            this.activeJobs.delete(jobId);
-        }
+    private claimKey(claim: JobClaim) {
+        return JSON.stringify([claim.jobId, claim.version]);
+    }
+
+    private async executeJob(claim: JobClaim) {
+        const key = this.claimKey(claim);
+        this.activeJobs.add(key);
+        const execution = (async () => {
+            try {
+                console.log(`[Worker] Executing job ${claim.jobId} (claim ${claim.version}).`);
+                await worker.performJob(claim);
+            } catch (error) {
+                if (error instanceof JobClaimLostError) {
+                    console.info(`[Worker] Job ${claim.jobId} claim was superseded; stopping stale worker.`);
+                    return;
+                }
+                console.error(`[Worker] Job ${claim.jobId} execution failed (${safeErrorType(error)}).`);
+            } finally {
+                this.activeJobs.delete(key);
+                this.activeExecutions.delete(key);
+            }
+        })();
+        this.activeExecutions.set(key, execution);
+        return execution;
     }
 
     async stop() {
         console.log("[Worker] Stopping loop...");
         this.isRunning = false;
 
-        // Graceful Drain
-        if (this.activeJobs.size > 0) {
-            console.log(`[Worker] Draining ${this.activeJobs.size} active jobs...`);
-            let attempts = 0;
-            while (this.activeJobs.size > 0 && attempts < 30) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                attempts++;
-            }
+        if (this.activeExecutions.size > 0) {
+            console.log(`[Worker] Draining ${this.activeExecutions.size} active job claims...`);
+            await Promise.allSettled(Array.from(this.activeExecutions.values()));
         }
         console.log("[Worker] Shutdown complete.");
     }

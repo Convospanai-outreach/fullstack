@@ -37,8 +37,8 @@ export default function PipelinePage() {
     const loadData = async () => {
         try {
             const [leadsRes, statsRes] = await Promise.all([
-                fetch(process.env['NEXT_PUBLIC_API_URL'] + "/leads"),
-                fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/stats")
+                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads"),
+                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/stats")
             ]);
 
             const leadsData = await leadsRes.json();
@@ -55,7 +55,7 @@ export default function PipelinePage() {
 
     const analyzeLead = async (leadId: string) => {
         toast.promise(
-            fetch(process.env['NEXT_PUBLIC_API_URL'] + "/pipeline/ai/analyze", {
+            fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/ai/analyze", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leadId, action: "suggestTasks" })
@@ -85,13 +85,13 @@ export default function PipelinePage() {
                     <p className="text-gray-400 mt-1">Manage your deals and track conversion across stages.</p>
                 </div>
                 <div className="flex gap-4">
-                    <div className="glass-panel px-6 py-3 rounded-2xl flex items-center gap-4 border border-white/5">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                    <div className="bg-card p-4 rounded-lg flex items-center gap-4 border border-border/50">
+                        <div className="w-10 h-10 rounded-md bg-success/10 flex items-center justify-center text-success">
                             <DollarSign className="w-5 h-5" />
                         </div>
                         <div>
-                            <div className="text-[10px] uppercase font-bold text-gray-500 tracking-widest">Pipeline Value</div>
-                            <div className="text-xl font-bold text-white">${stats.totalValue?.toLocaleString() || 0}</div>
+                            <div className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Pipeline Value</div>
+                            <div className="text-xl font-bold text-foreground">${stats.totalValue?.toLocaleString() || 0}</div>
                         </div>
                     </div>
                 </div>
@@ -108,14 +108,14 @@ export default function PipelinePage() {
                             <div className="flex items-center gap-2">
                                 <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
                                 <h3 className={`font-bold text-xs uppercase tracking-widest ${cfg.color}`}>{cfg.label}</h3>
-                                <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded-full text-gray-500">
+                                <span className="text-[10px] bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                                     {stageLeads.length}
                                 </span>
                             </div>
-                            <button className="text-gray-600 hover:text-white" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
+                            <button className="text-muted-foreground hover:text-foreground" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
                         </div>
 
-                        <div className="flex-1 flex flex-col gap-3 rounded-2xl bg-white/[0.02] p-2 border border-white/5">
+                        <div className="flex-1 flex flex-col gap-3 rounded-lg bg-card/50 p-2 border border-border/50">
                             {stageLeads.map(lead => {
                                 const score = lead.intentScore ?? 0;
                                 const scorePct = Math.round(score * 100);

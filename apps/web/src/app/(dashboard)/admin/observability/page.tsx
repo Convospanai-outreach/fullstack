@@ -9,7 +9,7 @@ export default function ObservabilityPage() {
     const [range, setRange] = useState("1h");
 
     useEffect(() => {
-        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/admin/observability?range=${range}`)
+        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/admin/observability?range=${range}`)
             .then((res) => res.json())
             .then((d) => {
                 setData(d);

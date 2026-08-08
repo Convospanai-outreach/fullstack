@@ -1,5 +1,5 @@
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
 
 export type TriggerType = "lead.replied" | "email.opened" | "ai.suggestion";
 export type ActionType = "campaign.stop" | "email.reply" | "lead.tag" | "webhook.call";

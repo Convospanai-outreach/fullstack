@@ -58,4 +58,24 @@ describe("/api/health", () => {
       checks: { database: "down" },
     });
   });
+
+  it("defaults to readiness in production when no probe param is supplied", async () => {
+    const originalEnv = process.env["NODE_ENV"];
+    (process.env as Record<string, string | undefined>)["NODE_ENV"] = "production";
+    try {
+      const response = await GET(request("/api/health"));
+      const body = await response.json();
+      expect(response.status).toBe(200);
+      expect(body.probe).toBe("readiness");
+    } finally {
+      (process.env as Record<string, string | undefined>)["NODE_ENV"] = originalEnv;
+    }
+  });
+
+  it("handles OPTIONS request with CORS headers", async () => {
+    const { OPTIONS } = await import("../../src/app/api/health/route");
+    const response = await OPTIONS();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+  });
 });

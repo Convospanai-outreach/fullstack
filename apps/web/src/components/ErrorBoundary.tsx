@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     private logErrorToServer = async (error: Error, errorInfo: React.ErrorInfo) => {
         try {
-            await fetch(process.env['NEXT_PUBLIC_API_URL'] + '/errors/client', {
+            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/errors/client', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

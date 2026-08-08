@@ -254,6 +254,50 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
             subject: savedDraft.subject,
             body: savedDraft.body,
         };
+
+        if (savedDraft && teamId) {
+            let requesterId = campaign?.ownerId;
+            if (!requesterId) {
+                const teamUser = await prisma.user.findFirst({
+                    where: { memberships: { some: { teamId } } },
+                });
+                requesterId = teamUser?.id;
+            }
+            if (requesterId) {
+                await prisma.approvalRequest.upsert({
+                    where: { id: `approval_draft_${savedDraft.id}` },
+                    update: {
+                        status: "PENDING",
+                        payload: {
+                            emailId: savedDraft.id,
+                            leadId: lead.id,
+                            campaignId: campaign?.id || null,
+                            subject: savedDraft.subject,
+                            body: savedDraft.body,
+                        },
+                    },
+                    create: {
+                        id: `approval_draft_${savedDraft.id}`,
+                        teamId,
+                        requesterId,
+                        actionType: "SEND_EMAIL_DRAFT",
+                        entityType: "Email",
+                        entityId: savedDraft.id,
+                        status: "PENDING",
+                        reason: `Intel signal follow-up draft for ${lead.email || lead.fullName || "lead"}`,
+                        payload: {
+                            emailId: savedDraft.id,
+                            leadId: lead.id,
+                            campaignId: campaign?.id || null,
+                            subject: savedDraft.subject,
+                            body: savedDraft.body,
+                        },
+                    },
+                }).catch((err) => {
+                    console.error("[intel_followup] Failed to create ApprovalRequest for draft:", err?.message || err);
+                });
+            }
+        }
     }
 
     let activityId: string | null = null;

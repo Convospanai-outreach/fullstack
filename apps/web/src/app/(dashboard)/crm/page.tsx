@@ -12,7 +12,8 @@ import {
     Plug,
     ArrowRightLeft,
     Settings,
-    Database
+    Database,
+    AlertTriangle
 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -26,48 +27,37 @@ interface CrmIntegration {
 }
 
 export default function CRMIntegrationPage() {
-    // In a real app we'd fetch actual integrations status
-    const { data: integrations } = useSWR<CrmIntegration[]>(process.env['NEXT_PUBLIC_API_URL'] + "/settings/crm", fetcher);
+    const { data: integrations } = useSWR<CrmIntegration[]>((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm", fetcher);
     const [connecting, setConnecting] = useState<string | null>(null);
 
     const handleConnect = async (provider: string) => {
-        setConnecting(provider);
-        // Simulate OAuth handoff
-        await new Promise(r => setTimeout(r, 1500));
-
-        toast.success(`Redirecting to ${provider} authentication...`);
-        // Here we would window.location.href = `${process.env['NEXT_PUBLIC_API_URL']}/auth/crm/${provider}`
-
-        setConnecting(null);
+        toast.info(`${provider} integration is in Preview mode. Native CRM sync is under active development.`);
     };
 
     const handleSync = async (provider: string) => {
-        toast.promise(
-            fetch(process.env['NEXT_PUBLIC_API_URL'] + "/crm/sync", {
-                method: "POST",
-                body: JSON.stringify({ provider })
-            }),
-            {
-                loading: `Syncing ${provider} contacts...`,
-                success: "Sync complete! 24 new leads imported.",
-                error: "Sync failed. Check credentials."
-            }
-        );
+        toast.info(`${provider} sync is in Preview mode. Native CRM sync is under active development.`);
     };
 
     return (
-        <AppShell>
-            <div className="mb-8">
+        <div className="space-y-6">
                 <div className="flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-black text-white tracking-tight mb-2">CRM Bridge</h1>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h1 className="text-3xl font-black text-white tracking-tight">CRM Bridge</h1>
+                            <Badge variant="warning" className="bg-amber-500/20 text-amber-300 border-amber-500/30">Integration Preview</Badge>
+                        </div>
                         <p className="text-text-secondary max-w-2xl">
                             Bi-directional sync between CraftMyFunnel and your System of Record.
-                            Automatically push qualified leads and pull opt-outs.
                         </p>
                     </div>
                 </div>
-            </div>
+
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200 flex items-center gap-3 text-sm">
+                    <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
+                    <span>
+                        <strong className="font-bold text-white">Integration Preview:</strong> Native CRM Sync is currently under active development. Connector cards demonstrate configuration layout.
+                    </span>
+                </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Integration Cards */}
@@ -184,7 +174,7 @@ export default function CRMIntegrationPage() {
                     </Card>
                 </div>
             </div>
-        </AppShell>
+        </div>
     );
 }
 

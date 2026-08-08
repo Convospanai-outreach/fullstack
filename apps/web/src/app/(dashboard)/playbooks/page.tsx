@@ -16,7 +16,7 @@ export default function PlaybooksPage() {
 
     const fetchPlaybooks = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/playbooks")
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/playbooks")
             const data = await res.json()
             if (Array.isArray(data)) {
                 setPlaybooks(data)
@@ -29,7 +29,7 @@ export default function PlaybooksPage() {
     }
 
     const handleCreate = async () => {
-        await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/playbooks", {
+        await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/playbooks", {
             method: "POST",
             body: JSON.stringify({
                 name: "Untitled Playbook",
@@ -45,7 +45,7 @@ export default function PlaybooksPage() {
     }
 
     return (
-        <AppShell>
+        <div className="space-y-6">
             <div className="flex justify-between items-center mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-text-primary">Playbooks</h1>
@@ -78,6 +78,6 @@ export default function PlaybooksPage() {
                     )}
                 </>
             )}
-        </AppShell>
+        </div>
     )
 }

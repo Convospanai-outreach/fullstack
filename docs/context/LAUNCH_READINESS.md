@@ -7,12 +7,13 @@ The platform is now locally suitable for launch validation. It is **very close t
 ## Verified In This Reassessment
 
 - `npm run readiness:audit --workspace apps/api` -> **pass**
-- API readiness score -> **100/100**
+- API readiness score -> **100/100** (26/26 checks passed)
 - `npm run lint --workspace apps/web` -> **pass**
 - `npm run typecheck --workspace apps/web` -> **pass**
-- `npm run test:coverage --workspace apps/web` -> **pass**
-- `CI=true npm run test:e2e --workspace apps/web -- e2e/auth.spec.ts e2e/dashboard.spec.ts` -> **pass**
-- production-style web build -> **pass**
+- `npm run test:unit --workspace apps/web` -> **pass** (13/13 test files, 78/78 tests)
+- `npx tsx scripts/verify-all.ts` -> **pass** (5/5 pre-deployment audit suites)
+- `npm run test:e2e --workspace apps/web -- e2e/production-readiness.spec.ts` -> **pass** (5/5 Playwright E2E tests: Health, Metrics, Security Headers, Tracing, CORS)
+- production-style web build -> **pass** (123/123 static/dynamic routes rendered)
 
 ## Current Blockers
 

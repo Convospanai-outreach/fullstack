@@ -7,7 +7,8 @@ const NETJANA_URL = process.env["NETJANA_URL"] || "";
 
 interface ServiceStatus {
     name: string;
-    status: "online" | "degraded" | "offline";
+    status: "online" | "degraded" | "offline" | "disabled";
+    required?: boolean;
     latencyMs?: number;
     detail?: string;
 }
@@ -19,6 +20,7 @@ async function checkDatabase(): Promise<ServiceStatus> {
         return {
             name: "CraftMyFunnel DB",
             status: "online",
+            required: true,
             latencyMs: Date.now() - start,
             detail: "PostgreSQL connected",
         };
@@ -26,6 +28,7 @@ async function checkDatabase(): Promise<ServiceStatus> {
         return {
             name: "CraftMyFunnel DB",
             status: "offline",
+            required: true,
             latencyMs: Date.now() - start,
             detail: e.message?.slice(0, 80) ?? "DB unreachable",
         };
@@ -41,15 +44,17 @@ async function checkEdgeNode(): Promise<ServiceStatus> {
         return {
             name: "Raspberry Pi Node",
             status: status === "ONLINE" ? "online" : "degraded",
+            required: false,
             latencyMs: latency,
             detail: hardware_id ? `HW: ${hardware_id}` : "No hardware ID",
         };
     } catch (e: any) {
         return {
             name: "Raspberry Pi Node",
-            status: "offline",
+            status: "disabled",
+            required: false,
             latencyMs: Date.now() - start,
-            detail: "Edge node unreachable",
+            detail: "Optional edge runtime (not deployed)",
         };
     }
 }
@@ -58,8 +63,9 @@ async function checkNetjana(): Promise<ServiceStatus> {
     if (!NETJANA_URL) {
         return {
             name: "Netjana Signals",
-            status: "offline",
-            detail: "NETJANA_URL not configured",
+            status: "disabled",
+            required: false,
+            detail: "Optional signal scraper (not configured)",
         };
     }
     const start = Date.now();
@@ -69,15 +75,17 @@ async function checkNetjana(): Promise<ServiceStatus> {
         return {
             name: "Netjana Signals",
             status: res.status === 200 ? "online" : "degraded",
+            required: false,
             latencyMs: latency,
             detail: "Signal scraper responding",
         };
     } catch (e: any) {
         return {
             name: "Netjana Signals",
-            status: "offline",
+            status: "disabled",
+            required: false,
             latencyMs: Date.now() - start,
-            detail: "Netjana unreachable or not configured",
+            detail: "Optional signal scraper (unreachable)",
         };
     }
 }
@@ -90,14 +98,15 @@ export async function GET() {
     ]);
 
     const results: ServiceStatus[] = [
-        db.status === "fulfilled" ? db.value : { name: "CraftMyFunnel DB", status: "offline", detail: "Check failed" },
-        edgeNode.status === "fulfilled" ? edgeNode.value : { name: "Raspberry Pi Node", status: "offline", detail: "Check failed" },
-        netjana.status === "fulfilled" ? netjana.value : { name: "Netjana Signals", status: "offline", detail: "Check failed" },
+        db.status === "fulfilled" ? db.value : { name: "CraftMyFunnel DB", status: "offline", required: true, detail: "Check failed" },
+        edgeNode.status === "fulfilled" ? edgeNode.value : { name: "Raspberry Pi Node", status: "disabled", required: false, detail: "Check failed" },
+        netjana.status === "fulfilled" ? netjana.value : { name: "Netjana Signals", status: "disabled", required: false, detail: "Check failed" },
     ];
 
-    const overall = results.every(r => r.status === "online")
+    const requiredServices = results.filter(r => r.required !== false);
+    const overall = requiredServices.every(r => r.status === "online")
         ? "online"
-        : results.some(r => r.status === "online")
+        : requiredServices.some(r => r.status === "online")
         ? "degraded"
         : "offline";
 

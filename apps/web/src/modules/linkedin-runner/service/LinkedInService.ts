@@ -1,5 +1,5 @@
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
 
 export class LinkedInService {
     static async sendConnectionRequest(leadId: string, _teamId: string, _userId: string, message?: string) {

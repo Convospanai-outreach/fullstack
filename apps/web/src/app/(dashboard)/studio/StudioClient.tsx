@@ -39,7 +39,7 @@ export default function StudioClient() {
     useEffect(() => {
         const loadConfig = async () => {
             try {
-                const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/config");
+                const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/config");
                 const data = await res.json();
 
                 if (data.config) {
@@ -67,7 +67,7 @@ export default function StudioClient() {
             const talkingPoints = config.talkingPoints.split("\n").map((item) => item.trim()).filter(Boolean);
             const avoidWords = config.avoidWords.split(",").map((item) => item.trim()).filter(Boolean);
 
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/preview", {
+            const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/preview", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -106,7 +106,7 @@ export default function StudioClient() {
         setSaving(true);
 
         try {
-            const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/studio/config", {
+            const res = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/studio/config", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -167,9 +167,14 @@ export default function StudioClient() {
             <section className="overflow-hidden rounded-[32px] border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(34,197,94,0.12),transparent_26%),radial-gradient(circle_at_80%_18%,rgba(251,191,36,0.18),transparent_24%),linear-gradient(135deg,rgba(7,18,32,0.98),rgba(20,32,49,0.96))] p-8">
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
                     <div className="max-w-3xl">
-                        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-emerald-100">
-                            <Languages className="h-3.5 w-3.5" />
-                            International Campaign Studio
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-emerald-100">
+                                <Languages className="h-3.5 w-3.5" />
+                                International Campaign Studio
+                            </div>
+                            <span className="rounded-full border border-amber-500/30 bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300">
+                                Experimental / Internal Preview
+                            </span>
                         </div>
                         <h1 className="mt-5 text-4xl font-semibold tracking-tight text-white">
                             Edit campaign language, audience fit, and PowerPoint narrative in one place.

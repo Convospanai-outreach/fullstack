@@ -4,7 +4,7 @@ import { SequenceService, SequenceStep } from "@/lib/sequenceService";
 import { prisma } from "@/lib/db";
 import { aiService } from "@/lib/aiService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
-import { EmailService } from "@/lib/emailService";
+import { emailService } from "@/modules/email-campaigner";
 
 function toRecord(value: unknown): Record<string, unknown> {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
@@ -31,7 +31,8 @@ export async function handleSequenceAction(payload: JobPayload) {
     const action = payload['action'];
     const payloadTeamId = typeof payload['teamId'] === "string" ? payload['teamId'] : undefined;
 
-    if (!leadId || !url || !action) {
+    const requiresUrl = action !== "EMAIL";
+    if (!leadId || !action || (requiresUrl && !url)) {
         throw new Error("Missing required payload for SEQUENCE_ACTION");
     }
 
@@ -151,7 +152,11 @@ export async function handleSequenceAction(payload: JobPayload) {
                     console.warn("[Sequence] Autonomous generation failed, using fallback.", error);
                 }
 
-                result = await EmailService.sendEmail(lead.email, emailSubject, emailBody);
+                result = await emailService.sendEmail(lead.email, emailSubject, emailBody, {
+                    teamId: lead.campaign.teamId || undefined,
+                    campaignId: lead.campaignId || undefined,
+                    leadId: lead.id
+                });
             } else {
                 console.log(`No email found for lead ${leadId}, skipping email step.`);
                 result = { ok: true, skipped: true };

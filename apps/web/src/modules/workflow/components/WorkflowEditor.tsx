@@ -85,7 +85,7 @@ export default function WorkflowEditor({ initialNodes = [], initialEdges = [], w
             onSave(nodes, edges);
         } else {
             try {
-                const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/workflows/${workflowId}`, {
+                const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${workflowId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nodes, edges })

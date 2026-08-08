@@ -94,18 +94,19 @@ The repo is not judged by the API readiness audit alone.
 
 ### Green
 
-- required local runtime stack boots with Docker-backed Postgres and Redis
-- API readiness audit passes at `100/100`
+- required local runtime stack boots with Postgres and Redis
+- API readiness audit passes at `100/100` (26/26 checks passed)
+- web unit tests pass clean (`13/13` test files, `78/78` tests passed)
+- Playwright production readiness E2E tests pass clean (`5/5` tests: Health, Metrics, Security Headers, Tracing, CORS)
+- pre-deployment system audit scripts pass clean (`5/5` suites passed)
 - architecture is cleanly split by service boundary
 - edge runtime is optional and can remain private
 - AI guardrails, team scoping, and landing sanitization are present in the active code path
 
 ### Still Blocking Broader Launch
 
-- web coverage is currently flaky in this tree: `health-route`, `metrics-route`, and `worker-dispatch` tests timed out during reassessment
-- no newly confirmed green GitHub Actions run for `CI`, `Playwright`, and `docker-ghcr` after the latest local changes
-- dependency security debt remains, especially in the API dependency graph
-- some older docs previously described a stale managed-runtime/control-plane architecture and have now been corrected
+- no newly confirmed green GitHub Actions run for `CI`, `Playwright`, and `docker-ghcr` on target remote branch
+- dependency security debt remains in upstream non-breaking moderate chains (next/next-auth/prisma)
 
 ## Deployment Model
 

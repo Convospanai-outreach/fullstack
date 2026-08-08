@@ -1,8 +1,7 @@
 const API_URL =
     process.env["API_INTERNAL_ORIGIN"]
     || process.env["API_BASE_URL"]
-    || process.env["NEXT_PUBLIC_API_URL"]
-    || "http://localhost:3001";
+    || (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
 
 export class KnowledgeOrchestrator {
     static async search(teamId: string, query: string) {

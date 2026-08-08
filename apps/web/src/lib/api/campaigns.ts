@@ -34,6 +34,7 @@ export async function getCampaigns(filters?: CampaignFilters) {
 }
 
 export async function getCampaign(id: string) {
+    if (!id || id === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${id}`);
     if (!res.ok) throw new Error("Failed to fetch campaign");
     return res.json();
@@ -63,6 +64,7 @@ export async function updateCampaign(
         completedCount?: number;
     }
 ) {
+    if (!id || id === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -73,6 +75,7 @@ export async function updateCampaign(
 }
 
 export async function deleteCampaign(id: string) {
+    if (!id || id === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${id}`, {
         method: "DELETE",
     });
@@ -81,6 +84,7 @@ export async function deleteCampaign(id: string) {
 }
 
 export async function assignLeads(campaignId: string, leadIds: string[]) {
+    if (!campaignId || campaignId === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${campaignId}/leads`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -91,6 +95,7 @@ export async function assignLeads(campaignId: string, leadIds: string[]) {
 }
 
 export async function removeLeads(campaignId: string, leadIds: string[]) {
+    if (!campaignId || campaignId === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${campaignId}/leads`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
@@ -101,6 +106,7 @@ export async function removeLeads(campaignId: string, leadIds: string[]) {
 }
 
 export async function getCampaignAnalytics(id: string) {
+    if (!id || id === "undefined") throw new Error("Invalid campaign ID");
     const res = await fetch(`${API_BASE}/${id}/analytics/v2`); // Updated to V2
     if (!res.ok) throw new Error("Failed to fetch analytics");
     const json = await res.json();

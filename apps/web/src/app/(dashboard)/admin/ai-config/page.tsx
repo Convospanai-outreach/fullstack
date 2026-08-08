@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 type ProviderConfig = {
   apiKey: string | null;
@@ -35,7 +36,7 @@ export default function AdminAiConfigPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/admin/ai-config");
+      const res = await fetch(getBrowserApiUrl("/admin/ai-config"));
       if (!res.ok) throw new Error("Failed to load AI config");
       const data: AiConfigResponse = await res.json();
       setConfig(data);
@@ -61,7 +62,7 @@ export default function AdminAiConfigPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(process.env["NEXT_PUBLIC_API_URL"] + "/admin/ai-config", {
+      const res = await fetch(getBrowserApiUrl("/admin/ai-config"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)

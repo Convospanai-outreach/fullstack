@@ -27,7 +27,7 @@ export default function FeaturesSection() {
         },
         {
             title: "Precision Targeting",
-            description: "Pinpoint decision-makers with 99% accuracy using our proprietary data engine.",
+            description: "Pinpoint decision-makers with multi-source verification using our lead validation engine.",
             icon: <Target className="w-6 h-6 text-red-400" />
         },
         {

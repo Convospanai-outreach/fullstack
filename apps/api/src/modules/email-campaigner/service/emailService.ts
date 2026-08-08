@@ -7,12 +7,19 @@
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { getSmtpConfig } from "./smtpConfigService";
-import { isSuppressed, selectMailboxForSend, sendViaGmailMailbox, signTrackedUrl } from "./googleMailboxService";
+import {
+    isSuppressed,
+    selectMailboxForSend,
+    sendViaGmailMailbox,
+    signTrackedUrl,
+    type GmailSendOutcome,
+} from "./googleMailboxService";
 import * as crypto from "crypto";
 
 export type EmailSendResult = {
     success: boolean;
     providerId?: string;
+    deliveryProvider?: "GMAIL_API" | "SMTP";
     error?: string;
 };
 
@@ -30,6 +37,80 @@ class EmailService {
                 <p style="font-size:12px;color:#64748b"><a href="${baseUrl}/api/proxy/email/unsubscribe/${trackingId}">Unsubscribe</a></p>`;
     }
 
+    private async persistDeliveredEmail(input: {
+        metadata?: {
+            leadId?: string;
+            campaignId?: string;
+        };
+        subject: string;
+        body: string;
+        trackingId: string;
+        deliveryProvider: "GMAIL_API" | "SMTP";
+        mailboxId?: string;
+        providerId?: string;
+        threadId?: string;
+    }) {
+        if (!input.metadata?.leadId || !input.metadata.campaignId) return;
+
+        await prisma.email.create({
+            data: {
+                leadId: input.metadata.leadId,
+                campaignId: input.metadata.campaignId,
+                subject: input.subject,
+                body: input.body,
+                status: "sent",
+                trackingId: input.trackingId,
+                deliveryProvider: input.deliveryProvider,
+                mailboxId: input.deliveryProvider === "GMAIL_API" ? input.mailboxId : null,
+                ...(input.providerId ? { providerId: input.providerId } : {}),
+                ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
+            } as any,
+        });
+    }
+
+    private async sendViaSmtpAndPersist(input: {
+        teamId?: string;
+        to: string;
+        subject: string;
+        body: string;
+        trackingId: string;
+        metadata?: {
+            leadId?: string;
+            campaignId?: string;
+        };
+    }): Promise<EmailSendResult> {
+        let config: any;
+        try {
+            config = input.teamId ? await getSmtpConfig(input.teamId) : null;
+        } catch {
+            console.error("[EmailService] SMTP_CONFIG_UNAVAILABLE.");
+            return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        }
+
+        if (!config) {
+            return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
+        }
+
+        const result = await sendViaSMTP(config, { to: input.to, subject: input.subject, html: input.body });
+        if (!result.success) {
+            return { success: false, error: "SMTP_SEND_FAILED" };
+        }
+
+        await this.persistDeliveredEmail({
+            metadata: input.metadata,
+            subject: input.subject,
+            body: input.body,
+            trackingId: input.trackingId,
+            deliveryProvider: "SMTP",
+            providerId: result.messageId,
+        });
+        return {
+            success: true,
+            ...(result.messageId ? { providerId: result.messageId } : {}),
+            deliveryProvider: "SMTP",
+        };
+    }
+
     async sendEmail(
         to: string,
         subject: string,
@@ -45,16 +126,16 @@ class EmailService {
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;
         if (teamId && await isSuppressed(teamId, to)) {
-            return { success: false, error: "Recipient is suppressed for this team." };
+            return { success: false, error: "RECIPIENT_SUPPRESSED" };
         }
         if (metadata?.leadId) {
             const lead = await prisma.lead.findUnique({
                 where: { id: metadata.leadId },
                 select: { status: true },
             });
-            const pausedStatuses = new Set(["replied", "bounced", "unsubscribed", "do_not_contact"]);
+            const pausedStatuses = new Set(["replied", "stopped", "bounced", "unsubscribed", "do_not_contact"]);
             if (lead?.status && pausedStatuses.has(lead.status.toLowerCase())) {
-                return { success: false, error: `Sequence paused for lead status: ${lead.status}.` };
+                return { success: false, error: "LEAD_SEQUENCE_PAUSED" };
             }
         }
 
@@ -62,67 +143,60 @@ class EmailService {
         const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
         const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl);
 
-        let result: any = null;
-        let mailboxId: string | undefined;
+        let gmailOutcome: GmailSendOutcome | undefined;
 
         if (teamId) {
-            const mailbox = await selectMailboxForSend(teamId, metadata?.userId);
-            if (mailbox) {
-                result = await sendViaGmailMailbox({
-                    teamId,
-                    mailboxId: mailbox.id,
-                    to,
-                    subject,
-                    html: trackedBody,
-                });
-                mailboxId = mailbox.id;
-            }
-        }
-
-        if (!result?.success) {
-            let config = null;
             try {
-                config = teamId ? await getSmtpConfig(teamId) : null;
-            } catch (error: any) {
-                const errMsg = error?.message || "Failed to load SMTP configuration.";
-                console.error(`[EmailService] ${errMsg}`);
-                return { success: false, error: result?.error || errMsg };
+                const mailbox = await selectMailboxForSend(teamId, metadata?.userId);
+                if (mailbox) {
+                    gmailOutcome = await sendViaGmailMailbox({
+                        teamId,
+                        mailboxId: mailbox.id,
+                        to,
+                        subject,
+                        html: trackedBody,
+                    });
+                }
+            } catch {
+                gmailOutcome = {
+                    success: false,
+                    error: "GMAIL_SEND_PRE_DISPATCH_FAILED",
+                    outcome: "PRE_DISPATCH_NO_SEND",
+                    fallbackAllowed: true,
+                };
             }
-
-            if (!config) {
-                const errMsg = teamId
-                    ? `No Google mailbox or SMTP config found for team ${teamId}. Configure email in Setup -> Step 3.`
-                    : "No teamId provided for email send.";
-                console.error(`[EmailService] ${errMsg}`);
-                return { success: false, error: result?.error || errMsg };
-            }
-
-            result = await sendViaSMTP(config, { to, subject, html: trackedBody });
         }
 
-        if (!result.success) {
-            return result.error ? { success: false, error: result.error } : { success: false };
-        }
-
-        if (metadata?.leadId && metadata?.campaignId) {
-            await prisma.email.create({
-                data: {
-                    leadId: metadata.leadId,
-                    campaignId: metadata.campaignId,
-                    subject,
-                    body: trackedBody,
-                    status: "sent",
-                    trackingId,
-                    mailboxId,
-                    ...(result.threadId ? { threadId: result.threadId } : {}),
-                    ...(result.messageId ? { providerId: result.messageId } : {}),
-                },
+        if (gmailOutcome?.success) {
+            await this.persistDeliveredEmail({
+                metadata,
+                subject,
+                body: trackedBody,
+                trackingId,
+                deliveryProvider: "GMAIL_API",
+                mailboxId: gmailOutcome.mailboxId,
+                providerId: gmailOutcome.messageId,
+                threadId: gmailOutcome.threadId,
             });
+            return {
+                success: true,
+                providerId: gmailOutcome.messageId,
+                deliveryProvider: "GMAIL_API",
+            };
         }
 
-        return result.messageId
-            ? { success: true, providerId: result.messageId }
-            : { success: true };
+        if (gmailOutcome && !gmailOutcome.fallbackAllowed) {
+            return { success: false, error: gmailOutcome.error };
+        }
+
+        return this.sendViaSmtpAndPersist({
+            teamId,
+            to,
+            subject,
+            body: trackedBody,
+            trackingId,
+            metadata,
+        });
     }
 }
 

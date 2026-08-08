@@ -1,7 +1,9 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`OPEN_ITEMS.md`](OPEN_ITEMS.md). The consolidated assessment lives at [`docs/SYSTEM_READINESS_ASSESSMENT.md`](docs/SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # CraftMyFunnel - Pending Items & Roadmap
 
 **Last Updated:** February 10, 2026  
-**Status:** Post-Audit Tracking Document
+**Status:** ARCHIVED — Historical reference only
 
 > **Current readiness note (2026-05-29):** This document contains historical roadmap status and an aspirational February score. For the current evidence-based production readiness assessment, use [`docs/PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md`](docs/PRODUCTION_READINESS_ASSESSMENT_2026-05-29.md). Current assessed score: **81/100**. Main blocker: GitHub Actions hosted-runner startup failure prevents end-to-end CI evidence, while critical-path integration/E2E coverage remains incomplete.
 

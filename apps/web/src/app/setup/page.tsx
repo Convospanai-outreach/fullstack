@@ -204,25 +204,48 @@ export default function SetupWizardPage() {
     setActionMessage(null);
     try {
       if (stepId === 3) {
-        await fetch(`${apiBase}/setup/email`, {
+        const smtpPayload = {
+          host: formData.step3?.host,
+          port: Number(formData.step3?.port || 587),
+          secure: Boolean(formData.step3?.secure),
+          user: formData.step3?.user,
+          password: formData.step3?.password,
+          fromName: formData.step3?.fromName || formData.step3?.fromEmail,
+          email: formData.step3?.fromEmail || formData.step3?.user,
+        };
+
+        const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...formData.step3, port: Number(formData.step3.port) }),
+          body: JSON.stringify(smtpPayload),
         });
+
+        const data = await readJson(res);
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to connect SMTP server. Please check credentials.");
+        }
       } else {
         const payload = stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
-          await fetch(`${apiBase}/setup/save`, {
+          const res = await fetch(`${apiBase}/setup/save`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ step: stepId, data: payload }),
           });
+
+          const data = await readJson(res);
+          if (!res.ok) {
+            throw new Error(data.error || `Failed to save setup step ${stepId}.`);
+          }
         }
       }
 
       await loadStatus();
+      await loadMailboxes();
       if (stepId < STEPS.length) setActiveStep(stepId + 1);
       else router.push("/dashboard");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to save setup step.");
     } finally {
       setSaving(false);
     }
@@ -612,13 +635,34 @@ function LeadInputs({ status, onOpenLeads }: { status: SetupStatus; onOpenLeads:
         <Metric label="Reachable by email" value={String(status.leadsWithEmail)} />
         <Metric label="Campaigns" value={String(status.campaignCount)} />
       </div>
-      <button type="button" onClick={onOpenLeads} className="mt-5 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Open lead import</button>
+      {status.leadCount > 0 ? (
+        <div className="mt-5 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm flex items-center justify-between">
+          <span>Lead segment ready ({status.leadCount} leads imported). You do not need to re-upload.</span>
+          <button type="button" onClick={onOpenLeads} className="text-xs text-cyan-300 hover:underline">Manage leads</button>
+        </div>
+      ) : (
+        <button type="button" onClick={onOpenLeads} className="mt-5 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Open lead import</button>
+      )}
     </section>
   );
 }
 
 function CampaignPlan({ status, onOpenCampaigns }: { status: SetupStatus; onOpenCampaigns: () => void }) {
-  return <ActionPanel title="Campaign plan" text="Create or review the first workflow before leads move into outreach." ready={status.campaignCount > 0} action="Open campaigns" onAction={onOpenCampaigns} />;
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Campaign plan</h3>
+      <p className="mt-1 text-sm text-slate-400">Review workflow configuration before outreach begins.</p>
+      <div className="mt-5"><ChecklistItem label={status.campaignCount > 0 ? "Campaign ready" : "Needs setup"} passed={status.campaignCount > 0} /></div>
+      {status.campaignCount > 0 ? (
+        <div className="mt-5 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm flex items-center justify-between">
+          <span>Campaign workflow is active ({status.campaignCount} campaign configured). No duplicate setup required.</span>
+          <button type="button" onClick={onOpenCampaigns} className="text-xs text-cyan-300 hover:underline">View campaigns</button>
+        </div>
+      ) : (
+        <button type="button" onClick={onOpenCampaigns} className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/5">Create campaign <ExternalLink className="h-4 w-4" /></button>
+      )}
+    </section>
+  );
 }
 
 function MeetingAssets({ formData, setFormData, status }: any) {

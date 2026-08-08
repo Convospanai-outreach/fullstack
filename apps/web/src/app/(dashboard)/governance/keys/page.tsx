@@ -58,7 +58,7 @@ export default function SecurityKeysPage() {
 
     const fetchKeys = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/governance/keys");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/keys");
             const data = await res.json();
             if (data.success) setKeys(data.keys);
         } catch (err) {
@@ -100,7 +100,7 @@ export default function SecurityKeysPage() {
 
         setCreating(true);
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/governance/keys", {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/keys", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: newKeyName, scopes: selectedScopes }),

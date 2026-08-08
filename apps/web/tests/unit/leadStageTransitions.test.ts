@@ -240,4 +240,10 @@ describe("funnel normalization", () => {
         expect(result[0].percentageOfTotal).toBe(25);
         expect(result[1].percentageOfTotal).toBe(75);
     });
+
+    it("returns current stage unchanged for unrecognized transition action", () => {
+        const lead = { status: "CONTACTED", pipelineState: "WARM" };
+        const result = calculateLeadTransition(lead as any, "UNKNOWN_ACTION" as any);
+        expect(result).toEqual({ status: "CONTACTED", pipelineState: "WARM" });
+    });
 });

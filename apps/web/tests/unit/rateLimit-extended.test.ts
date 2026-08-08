@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const redisState = vi.hoisted(() => ({
     client: null as null | {
@@ -140,5 +139,25 @@ describe("rateLimit extended behavior", () => {
         await resetRateLimit("user", "endpoint");
         expect(redisState.safeDel).toHaveBeenCalledWith("ratelimit:endpoint:user");
         await expect(getRateLimitStatus("user", "endpoint")).resolves.toBeNull();
+    });
+
+    it("clears in-memory cache and returns stats", async () => {
+        const { clearAllRateLimits, getRateLimitStats, applyRateLimit } = await loadRateLimit();
+        await clearAllRateLimits();
+        const stats = getRateLimitStats();
+        expect(stats.size).toBe(0);
+        expect(stats.maxSize).toBe(10000);
+
+        // Test applyRateLimit in prod mode
+        const originalEnv = process.env["NODE_ENV"];
+        (process.env as Record<string, string | undefined>)["NODE_ENV"] = "production";
+        delete (process.env as Record<string, string | undefined>)["DISABLE_RATE_LIMIT"];
+        try {
+          const req = new Request("http://localhost:3000/api/test") as unknown as NextRequest;
+          const res = await applyRateLimit(req, { maxRequests: 10, windowMs: 1000 }, "test");
+          expect(res).toBeNull();
+        } finally {
+          (process.env as Record<string, string | undefined>)["NODE_ENV"] = originalEnv;
+        }
     });
 });

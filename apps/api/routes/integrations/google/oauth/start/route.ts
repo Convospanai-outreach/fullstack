@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
         }
 
         const nextPath = sanitizeRelativePath(req.nextUrl.searchParams.get("next"));
-        const authUrl = buildGoogleMailboxAuthUrl({
+        const authUrl = await buildGoogleMailboxAuthUrl({
             teamId: ctx.teamId,
             userId: ctx.userId,
             nextPath,

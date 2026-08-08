@@ -17,7 +17,7 @@ export default function TemplatesPage() {
 
     const fetchTemplates = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/templates");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/templates");
             const data = await res.json();
             setTemplates(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -30,7 +30,7 @@ export default function TemplatesPage() {
     const handleSave = async (template: any) => {
         try {
             const method = template.id ? "PUT" : "POST";
-            const url = template.id ? `${process.env['NEXT_PUBLIC_API_URL']}/templates/${template.id}` : process.env['NEXT_PUBLIC_API_URL'] + "/templates";
+            const url = template.id ? `${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/templates/${template.id}` : (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/templates";
 
             const res = await fetch(url, {
                 method,
@@ -51,7 +51,7 @@ export default function TemplatesPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Delete this template?")) return;
         try {
-            await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/templates/${id}`, { method: "DELETE" });
+            await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/templates/${id}`, { method: "DELETE" });
             fetchTemplates();
         } catch (error) {
             console.error("Failed to delete template", error);
@@ -65,10 +65,10 @@ export default function TemplatesPage() {
                 subtitle="Manage reusable campaign templates, then refine language, audience fit, and PPT narrative in Studio."
             />
 
-            <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 text-sm text-slate-300">
+            <div className="rounded-lg border border-border/50 bg-card px-5 py-4 text-sm text-muted-foreground">
                 Need an international campaign brief or editable presentation outline?
                 {" "}
-                <Link href="/studio" className="text-cyan-300 hover:text-cyan-200 transition">
+                <Link href="/studio" className="text-primary hover:underline transition font-medium">
                     Open International Campaign Studio
                 </Link>
                 {" "}

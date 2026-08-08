@@ -1,6 +1,8 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`OPEN_ITEMS.md`](OPEN_ITEMS.md). The consolidated assessment lives at [`docs/SYSTEM_READINESS_ASSESSMENT.md`](docs/SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # Quick Action Plan - What's Next
 
-**Date:** February 10, 2026  
+**Date:** February 10, 2026 — ARCHIVED
 **Status:** Post Rate-Limiting Implementation
 
 ---

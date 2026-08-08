@@ -18,10 +18,11 @@ interface CampaignCardProps {
 }
 
 export default function CampaignCard({ campaign }: CampaignCardProps) {
-    const leadCount = campaign._count?.leads || 0;
+    const leadCount = campaign._count?.leads || campaign.targetCount || 0;
+    const actualCompleted = Math.min(campaign.completedCount, leadCount > 0 ? leadCount : campaign.completedCount);
     const progress =
-        campaign.targetCount > 0
-            ? (campaign.completedCount / campaign.targetCount) * 100
+        leadCount > 0
+            ? Math.min(100, Math.round((actualCompleted / leadCount) * 100))
             : 0;
 
     return (
@@ -44,13 +45,13 @@ export default function CampaignCard({ campaign }: CampaignCardProps) {
                     <div className="flex justify-between text-sm text-gray-600">
                         <span>Progress</span>
                         <span>
-                            {campaign.completedCount} / {campaign.targetCount}
+                            {actualCompleted} / {leadCount}
                         </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                         <div
                             className="bg-blue-600 h-2 rounded-full transition-all"
-                            style={{ width: `${Math.min(progress, 100)}%` }}
+                            style={{ width: `${progress}%` }}
                         />
                     </div>
                 </div>

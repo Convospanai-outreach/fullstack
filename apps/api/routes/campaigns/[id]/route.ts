@@ -15,6 +15,7 @@ async function requireCampaignContext(id: string, requiredRole: TeamRole) {
 
     const campaign = await prisma.campaign.findFirst({
         where: { id, teamId },
+        include: { leadList: true },
     });
 
     if (!campaign) {
@@ -29,7 +30,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         const { id } = await params;
         const { campaign } = await requireCampaignContext(id, TeamRole.VIEWER);
         const stats = await CampaignService.getCampaignStats(id);
-        return NextResponse.json({ ...campaign, stats });
+        return NextResponse.json({
+            ...campaign,
+            leads: campaign.leadList,
+            stats,
+        });
     } catch (error) {
         return handleAPIError(error);
     }
@@ -40,9 +45,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const { id } = await params;
         await requireCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
-        if (body.action === "start") {
+        if (body.action === "start" || body.status === "active") {
             await CampaignService.startCampaign(id);
-        } else if (body.action === "pause") {
+        } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);
         } else if (body.leadIds) {
             await CampaignService.addLeadsToCampaign(id, body.leadIds);

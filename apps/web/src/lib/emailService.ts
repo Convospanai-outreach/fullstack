@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { prisma } from "@/lib/db";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
 const isServer = typeof window === "undefined";
 
 export class EmailService {

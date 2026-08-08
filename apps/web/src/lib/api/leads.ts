@@ -38,6 +38,7 @@ export async function getLeads(filters?: LeadFilters) {
 }
 
 export async function getLead(id: string) {
+    if (!id || id === "undefined") throw new Error("Invalid lead ID");
     const res = await fetch(`${API_PROXY_BASE}/${id}`);
     if (!res.ok) throw new Error("Failed to fetch lead");
     return res.json();
@@ -69,6 +70,7 @@ export async function updateLead(
         campaignId?: string;
     }
 ) {
+    if (!id || id === "undefined") throw new Error("Invalid lead ID");
     const res = await fetch(`${API_PROXY_BASE}/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -79,6 +81,7 @@ export async function updateLead(
 }
 
 export async function deleteLead(id: string) {
+    if (!id || id === "undefined") throw new Error("Invalid lead ID");
     const res = await fetch(`${API_PROXY_BASE}/${id}`, {
         method: "DELETE",
     });
@@ -101,6 +104,9 @@ export async function importCSV(
             campaignId,
         }),
     });
-    if (!res.ok) throw new Error("Failed to import CSV");
+    if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.error || errorData?.message || "Failed to import CSV");
+    }
     return res.json();
 }

@@ -31,7 +31,7 @@ export default function HITLPage() {
 
     const fetchRequests = async () => {
         try {
-            const res = await fetch(process.env['NEXT_PUBLIC_API_URL'] + "/settings/approvals");
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/approvals");
             const data = await res.json();
             setRequests(data);
         } catch (err) {
@@ -44,7 +44,7 @@ export default function HITLPage() {
     const handleAction = async (id: string, decision: 'APPROVED' | 'REJECTED') => {
         setProcessingId(id);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/approvals/${id}`, {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/approvals/${id}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ decision })

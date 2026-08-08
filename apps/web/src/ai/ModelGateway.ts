@@ -8,7 +8,7 @@ import { logger } from "@/lib/logger";
  */
 export const modelGateway = {
     async generate(request: any): Promise<string> {
-        const apiUrl = process.env['NEXT_PUBLIC_API_URL'] || "http://localhost:3001";
+        const apiUrl = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
         try {
             const response = await fetch(`${apiUrl}/ai/execute`, {
                 method: "POST",

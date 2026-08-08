@@ -1,13 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSWRConfig } from "swr";
 
-export default function EditCampaignPage({ params }: { params: { id: string } }) {
+export default function EditCampaignPage({ params }: { params: Promise<{ id: string }> | { id: string } }) {
     const router = useRouter();
     const { mutate } = useSWRConfig();
-    const { id } = params;
+    const resolvedParams = "then" in params ? use(params) : params;
+    const { id } = resolvedParams;
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -15,26 +16,26 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
     const [status, setStatus] = useState("draft");
 
     useEffect(() => {
-        fetch(`${process.env['NEXT_PUBLIC_API_URL']}/dashboard/campaigns/${id}`)
+        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/campaigns/${id}`)
             .then(res => {
                 if (!res.ok) throw new Error("Failed to fetch");
                 return res.json();
             })
             .then(data => {
-                setName(data.name);
-                setStatus(data.status);
+                setName(data.name || "");
+                setStatus(data.status || "draft");
                 setLoading(false);
             })
             .catch(_err => {
                 toast.error("Could not load campaign");
-                router.push("/dashboard/campaigns");
+                router.push("/campaigns");
             });
     }, [id, router]);
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/dashboard/campaigns/${id}`, {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/campaigns/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, status }),
@@ -43,10 +44,10 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
             if (!res.ok) throw new Error("Failed to update");
 
             // Revalidate SWR cache
-            mutate(process.env['NEXT_PUBLIC_API_URL'] + "/dashboard/campaigns");
+            mutate((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/campaigns");
 
             toast.success("Campaign updated");
-            router.push("/dashboard/campaigns");
+            router.push("/campaigns");
         } catch (e) {
             console.error(e);
             toast.error("Failed to update campaign");
@@ -59,14 +60,14 @@ export default function EditCampaignPage({ params }: { params: { id: string } })
         if (!confirm("Are you sure you want to delete this campaign?")) return;
 
         try {
-            const res = await fetch(`${process.env['NEXT_PUBLIC_API_URL']}/dashboard/campaigns/${id}`, {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/campaigns/${id}`, {
                 method: "DELETE",
             });
             if (!res.ok) throw new Error("Failed to delete");
 
-            mutate(process.env['NEXT_PUBLIC_API_URL'] + "/dashboard/campaigns");
+            mutate((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/campaigns");
             toast.success("Campaign deleted");
-            router.push("/dashboard/campaigns");
+            router.push("/campaigns");
         } catch {
             toast.error("Failed to delete campaign");
         }

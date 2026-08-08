@@ -388,7 +388,11 @@ export default function StrategyWizard({ onClose }: { onClose: () => void }) {
 
             toast.success("Campaign created. Opening details...");
             localStorage.removeItem("campaign_wizard_draft");
-            router.push(`/campaigns/${campaignId}`);
+            if (campaignId && campaignId !== "undefined") {
+                router.push(`/campaigns/${campaignId}`);
+            } else {
+                router.push("/campaigns");
+            }
         } catch (error) {
             toast.error("Failed to launch campaign");
             console.error(error);

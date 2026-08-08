@@ -79,25 +79,39 @@ export class CampaignService {
 
         // Trigger sequence for all leads in campaign
         for (const lead of campaign.leadList) {
-            if (lead.linkedIn && lead.status === "NEW") {
-                // Determine variant
-                let selectedVariant = null;
-                if (campaign.variants.length > 0) {
-                    const totalWeight = campaign.variants.reduce((sum, v) => sum + v.weight, 0);
-                    let random = Math.random() * totalWeight;
-                    for (const variant of campaign.variants) {
-                        random -= variant.weight;
-                        if (random <= 0) {
-                            selectedVariant = variant;
-                            break;
+            if (lead.status === "NEW") {
+                if (lead.linkedIn) {
+                    // Determine variant
+                    let selectedVariant = null;
+                    if (campaign.variants.length > 0) {
+                        const totalWeight = campaign.variants.reduce((sum, v) => sum + v.weight, 0);
+                        let random = Math.random() * totalWeight;
+                        for (const variant of campaign.variants) {
+                            random -= variant.weight;
+                            if (random <= 0) {
+                                selectedVariant = variant;
+                                break;
+                            }
                         }
+                        if (!selectedVariant) selectedVariant = campaign.variants[0];
                     }
-                    if (!selectedVariant) selectedVariant = campaign.variants[0];
-                }
 
-                // In a real implementation, pass selectedVariant.id to SequenceService
-                console.log(`Starting sequence for lead ${lead.id} with variant ${selectedVariant?.id || 'default'}`);
-                await SequenceService.startSequence(lead.id, lead.linkedIn);
+                    // In a real implementation, pass selectedVariant.id to SequenceService
+                    console.log(`Starting sequence for lead ${lead.id} with variant ${selectedVariant?.id || 'default'}`);
+                    await prisma.lead.update({
+                        where: { id: lead.id },
+                        data: { status: "QUEUED" }
+                    });
+                    await SequenceService.startSequence(lead.id, lead.linkedIn);
+                } else if (lead.email) {
+                    // Email-only outreach: schedule EMAIL step immediately
+                    console.log(`Starting email-only sequence for lead ${lead.id}`);
+                    await prisma.lead.update({
+                        where: { id: lead.id },
+                        data: { status: "QUEUED" }
+                    });
+                    await SequenceService.scheduleStep(lead.id, "", "EMAIL", 0);
+                }
             }
         }
     }

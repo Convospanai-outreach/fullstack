@@ -1,4 +1,6 @@
-# Hardening Implementation Status (2026-04-25)
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`../OPEN_ITEMS.md`](../OPEN_ITEMS.md). The consolidated assessment lives at [`SYSTEM_READINESS_ASSESSMENT.md`](SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
+# Hardening Implementation Status (2026-04-25) — ARCHIVED
 
 ## What Was Implemented
 

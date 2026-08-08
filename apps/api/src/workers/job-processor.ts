@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { JobPayload, JobQueue } from "@/lib/queue";
+import { JobClaim, JobClaimLostError, JobPayload, JobQueue } from "@/lib/queue";
 import { executeCampaign } from "./handlers/campaign-worker";
 import { handleLeadEnrichment } from "./handlers/enrichment-worker";
 import { handleEmailSend } from "./handlers/email-worker";
@@ -8,6 +8,9 @@ import { handleAgentRun } from "./handlers/agent-worker";
 import { handleCsvImport } from "./handlers/csv-worker";
 import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
+import { handleSequenceAction } from "./handlers/sequenceHandlers";
+import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
+import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 
 function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -73,28 +76,57 @@ async function runHandler(jobType: string, payload: JobPayload) {
         case "sequence_execution":
             return handleSequenceExecution(payload);
 
+        case "SEQUENCE_ACTION":
+            return handleSequenceAction(payload);
+
+        case "INBOX_SYNC":
+            return handleGmailHistorySync(payload);
+
         default:
             throw new Error(`No worker handler registered for job type ${jobType}`);
     }
 }
 
 export const worker = {
-    async performJob(jobId: string) {
-        const job = await prisma.job.findUnique({ where: { id: jobId } });
+    async performJob(claim: JobClaim) {
+        const job = await prisma.job.findFirst({
+            where: {
+                id: claim.jobId,
+                status: "running",
+                version: claim.version,
+            },
+        });
         if (!job) {
-            throw new Error(`Job ${jobId} not found`);
+            throw new JobClaimLostError(claim.jobId);
         }
 
         const payload = ((job.payload || {}) as JobPayload);
 
+        let result: unknown;
         try {
-            const result = await runHandler(job.type, payload);
-            await JobQueue.complete(job.id, result || {});
-            return result;
+            await JobQueue.assertClaim(claim.jobId, claim.version);
+            result = await runHandler(job.type, payload);
         } catch (error) {
+            if (error instanceof GmailMailboxLeaseContendedError) {
+                const delayMs = 15_000 + Math.floor(Math.random() * 30_001);
+                await JobQueue.defer(claim.jobId, claim.version, {
+                    processAt: new Date(Date.now() + delayMs),
+                    reason: "MAILBOX_LEASE_CONTENDED",
+                });
+                return { deferred: true, reason: "MAILBOX_LEASE_CONTENDED" };
+            }
             const message = error instanceof Error ? error.message : "Unknown worker execution error";
-            await JobQueue.fail(job.id, message);
+            if (error instanceof JobClaimLostError) {
+                throw error;
+            }
+            await JobQueue.fail(claim.jobId, claim.version, message);
             throw error;
         }
+
+        // Completion persistence is intentionally separate from business work.
+        // A completed handler must never be requeued merely because final state
+        // persistence failed; version-fenced watchdog recovery handles that claim.
+        await JobQueue.complete(claim.jobId, claim.version, result || {});
+        return result;
     },
 };

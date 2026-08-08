@@ -323,25 +323,25 @@ export default function IntelPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {summary.companies.length === 0 && (
-                            <p className="text-sm text-gray-400">No company signals yet.</p>
+                            <p className="text-sm text-muted-foreground">No company signals yet.</p>
                         )}
                         {summary.companies.map((company) => (
-                            <div key={company.name} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div key={company.name} className="rounded-lg border border-border/50 bg-card p-4">
                                 <div className="flex items-center justify-between gap-3">
                                     <div>
-                                        <p className="font-semibold text-white">{company.name}</p>
-                                        <p className="text-xs text-gray-400">Last signal: {formatTimestamp(company.lastReceivedAt)}</p>
+                                        <p className="font-semibold text-foreground">{company.name}</p>
+                                        <p className="text-xs text-muted-foreground">Last signal: {formatTimestamp(company.lastReceivedAt)}</p>
                                     </div>
                                     <Badge variant="info">{company.count} signal{company.count === 1 ? "" : "s"}</Badge>
                                 </div>
                                 <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                                    <div className="rounded-xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Strength</div>
-                                        <div className="mt-1 font-semibold text-white">{company.averageStrength}%</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Strength</div>
+                                        <div className="mt-1 font-semibold text-foreground">{company.averageStrength}%</div>
                                     </div>
-                                    <div className="rounded-xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Max intent</div>
-                                        <div className="mt-1 font-semibold text-white">{company.maxIntentScore}/100</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Max intent</div>
+                                        <div className="mt-1 font-semibold text-foreground">{company.maxIntentScore}/100</div>
                                     </div>
                                 </div>
                             </div>
@@ -351,30 +351,30 @@ export default function IntelPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-white">
-                            <Network className="h-5 w-5 text-cyan-300" />
+                        <CardTitle className="flex items-center gap-2 text-foreground">
+                            <Network className="h-5 w-5 text-primary" />
                             Industries
                         </CardTitle>
                         <CardDescription>Where the external buyer activity is clustering right now.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {summary.industries.length === 0 && (
-                            <p className="text-sm text-gray-400">No industry signals yet.</p>
+                            <p className="text-sm text-muted-foreground">No industry signals yet.</p>
                         )}
                         {summary.industries.map((industry) => (
-                            <div key={industry.name} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div key={industry.name} className="rounded-lg border border-border/50 bg-card p-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="font-semibold text-white">{industry.name}</p>
+                                    <p className="font-semibold text-foreground">{industry.name}</p>
                                     <Badge variant="secondary">{industry.count}</Badge>
                                 </div>
                                 <div className="mt-3">
-                                    <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.15em] text-gray-500">
+                                    <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.15em] text-muted-foreground">
                                         <span>Average strength</span>
                                         <span>{industry.averageStrength}%</span>
                                     </div>
-                                    <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                                    <div className="h-2 overflow-hidden rounded-full bg-muted">
                                         <div
-                                            className="h-full rounded-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                                            className="h-full rounded-full bg-primary"
                                             style={{ width: `${industry.averageStrength}%` }}
                                         />
                                     </div>
@@ -386,21 +386,21 @@ export default function IntelPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-white">
-                            <CircleGauge className="h-5 w-5 text-cyan-300" />
+                        <CardTitle className="flex items-center gap-2 text-foreground">
+                            <CircleGauge className="h-5 w-5 text-primary" />
                             Buying Stages
                         </CardTitle>
                         <CardDescription>How close the incoming companies look to active purchase motion.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {summary.buyingStages.length === 0 && (
-                            <p className="text-sm text-gray-400">No buying-stage data yet.</p>
+                            <p className="text-sm text-muted-foreground">No buying-stage data yet.</p>
                         )}
                         {summary.buyingStages.map((stage) => (
-                            <div key={stage.stage} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                            <div key={stage.stage} className="flex items-center justify-between rounded-lg border border-border/50 bg-card p-4">
                                 <div>
-                                    <p className="font-semibold text-white">{stage.stage}</p>
-                                    <p className="text-xs text-gray-400">Signals at this stage</p>
+                                    <p className="font-semibold text-foreground">{stage.stage}</p>
+                                    <p className="text-xs text-muted-foreground">Signals at this stage</p>
                                 </div>
                                 <Badge variant="outline">{stage.count}</Badge>
                             </div>
@@ -411,22 +411,22 @@ export default function IntelPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-white">
-                        <Radar className="h-5 w-5 text-cyan-300" />
+                    <CardTitle className="flex items-center gap-2 text-foreground">
+                        <Radar className="h-5 w-5 text-primary" />
                         Recent Buyer Signals
                     </CardTitle>
                     <CardDescription>See the signal narrative, signal strength, connection status, and whether each item is ready for campaigns or still needs review.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {summary.recentSignals.length === 0 && (
-                        <p className="text-sm text-gray-400">No recent Netjana signals yet.</p>
+                        <p className="text-sm text-muted-foreground">No recent Netjana signals yet.</p>
                     )}
                     {summary.recentSignals.map((signal) => (
-                        <div key={signal.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                        <div key={signal.id} className="rounded-lg border border-border/50 bg-card p-5">
                             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                 <div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <h3 className="text-lg font-semibold text-white">{signal.companyName}</h3>
+                                        <h3 className="text-lg font-semibold text-foreground">{signal.companyName}</h3>
                                         <Badge variant="secondary">{signal.industry}</Badge>
                                         <div className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${temperatureClass(signal.temperatureBand)}`}>
                                             {signal.temperatureBand}
@@ -441,41 +441,41 @@ export default function IntelPage() {
                                             {signal.safeForAutomation ? "Automation ready" : "Review first"}
                                         </Badge>
                                     </div>
-                                    <p className="mt-2 text-sm text-gray-400">Received {formatTimestamp(signal.receivedAt)}</p>
+                                    <p className="mt-2 text-sm text-muted-foreground">Received {formatTimestamp(signal.receivedAt)}</p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-sm lg:min-w-[280px]">
-                                    <div className="rounded-2xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Intent</div>
-                                        <div className="mt-1 font-semibold text-white">{signal.intentScore}/100</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Intent</div>
+                                        <div className="mt-1 font-semibold text-foreground">{signal.intentScore}/100</div>
                                     </div>
-                                    <div className="rounded-2xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Strength</div>
-                                        <div className="mt-1 font-semibold text-white">{signal.signalStrength}%</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Strength</div>
+                                        <div className="mt-1 font-semibold text-foreground">{signal.signalStrength}%</div>
                                     </div>
-                                    <div className="rounded-2xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Stage</div>
-                                        <div className="mt-1 font-semibold text-white">{signal.buyingStage}</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Stage</div>
+                                        <div className="mt-1 font-semibold text-foreground">{signal.buyingStage}</div>
                                     </div>
-                                    <div className="rounded-2xl bg-black/20 p-3">
-                                        <div className="text-xs uppercase tracking-[0.15em] text-gray-500">Verity</div>
-                                        <div className="mt-1 font-semibold text-white">{signal.verityTier || "Unknown"}</div>
+                                    <div className="rounded-md bg-muted/40 p-3">
+                                        <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground">Verity</div>
+                                        <div className="mt-1 font-semibold text-foreground">{signal.verityTier || "Unknown"}</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="mt-4 grid gap-3 lg:grid-cols-3">
-                                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Why now</div>
-                                    <p className="mt-2 text-sm leading-6 text-gray-200">{signal.whyNow || "No narrative supplied."}</p>
+                                <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Why now</div>
+                                    <p className="mt-2 text-sm leading-6 text-foreground">{signal.whyNow || "No narrative supplied."}</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">What they need</div>
-                                    <p className="mt-2 text-sm leading-6 text-gray-200">{signal.whatTheyNeed || "No procurement detail supplied."}</p>
+                                <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">What they need</div>
+                                    <p className="mt-2 text-sm leading-6 text-foreground">{signal.whatTheyNeed || "No procurement detail supplied."}</p>
                                 </div>
-                                <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">Suggested action</div>
-                                    <p className="mt-2 text-sm leading-6 text-gray-200">{signal.recommendedAction || "No action guidance supplied."}</p>
+                                <div className="rounded-lg border border-border/50 bg-muted/20 p-4">
+                                    <div className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">Suggested action</div>
+                                    <p className="mt-2 text-sm leading-6 text-foreground">{signal.recommendedAction || "No action guidance supplied."}</p>
                                 </div>
                             </div>
                         </div>

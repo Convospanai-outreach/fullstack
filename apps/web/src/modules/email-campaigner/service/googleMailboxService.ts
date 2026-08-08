@@ -1,8 +1,19 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 
+const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const GMAIL_MESSAGES_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+const GMAIL_PROFILE_URL = "https://gmail.googleapis.com/gmail/v1/users/me/profile";
+const GMAIL_WATCH_URL = "https://gmail.googleapis.com/gmail/v1/users/me/watch";
+
+const GOOGLE_MAIL_SCOPES = [
+    "openid",
+    "email",
+    "profile",
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly",
+];
 
 type EncryptedSecret = {
     v: number;
@@ -11,50 +22,176 @@ type EncryptedSecret = {
     tag: string;
 };
 
-function getEncryptionKey(): Buffer {
-    const key = process.env["ENCRYPTION_KEY"] || "";
-    if (!key || key.length < 32) {
-        throw new Error("ENCRYPTION_KEY must be set before sending through Google mailboxes.");
-    }
-    return Buffer.from(key, "hex");
+type OAuthStatePayload = {
+    teamId: string;
+    userId: string;
+    nextPath?: string;
+    nonce: string;
+    ts: number;
+};
+
+import { encryptCredential, decryptCredential, EncryptedCredential } from "@/lib/security/credentialVault";
+
+export async function decryptMailboxSecret(secret?: EncryptedCredential | null): Promise<string | undefined> {
+    return decryptCredential(secret);
 }
 
-async function encryptSecret(value: string): Promise<EncryptedSecret> {
-    const key = getEncryptionKey();
-    const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-    const encrypted = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
-    const tag = cipher.getAuthTag();
-    return {
-        v: 1,
-        cipher: encrypted.toString("base64"),
-        iv: iv.toString("base64"),
-        tag: tag.toString("base64"),
-    };
-}
-
-async function decryptMailboxSecret(secret?: EncryptedSecret | null): Promise<string | undefined> {
-    if (!secret) return undefined;
-    if (secret.v !== 1) return undefined;
-    const key = getEncryptionKey();
-    const iv = Buffer.from(secret.iv, "base64");
-    const tag = Buffer.from(secret.tag, "base64");
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(tag);
-    const decrypted = Buffer.concat([
-        decipher.update(Buffer.from(secret.cipher, "base64")),
-        decipher.final(),
-    ]);
-    return decrypted.toString("utf8");
+async function encryptSecret(value: string): Promise<EncryptedCredential> {
+    return encryptCredential(value);
 }
 
 function getGoogleConfig() {
     const clientId = process.env["GOOGLE_CLIENT_ID"];
     const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
+    const redirectUri =
+        process.env["GOOGLE_GMAIL_REDIRECT_URI"] ||
+        "https://www.craftmyfunnel.live/api/integrations/google/oauth/callback";
+
     if (!clientId || !clientSecret) {
         throw new Error("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured.");
     }
-    return { clientId, clientSecret };
+
+    if (!process.env["GOOGLE_GMAIL_REDIRECT_URI"] && process.env["NODE_ENV"] === "production") {
+        throw new Error("GOOGLE_GMAIL_REDIRECT_URI is not set — refusing to build an OAuth URL with an unverified fallback.");
+    }
+
+    return { clientId, clientSecret, redirectUri };
+}
+
+export function sanitizeRelativePath(path?: string | null) {
+    if (!path || !path.startsWith("/") || path.startsWith("//")) return "/setup?step=3";
+    try {
+        const parsed = new URL(path, "https://app.local");
+        if (parsed.origin !== "https://app.local") return "/setup?step=3";
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+        return "/setup?step=3";
+    }
+}
+
+function getStateSecret(): string | undefined {
+    return process.env["NEXTAUTH_SECRET"] || process.env["ENCRYPTION_KEY"];
+}
+
+function signState(payload: OAuthStatePayload): string {
+    const secret = getStateSecret();
+    if (!secret) throw new Error("NEXTAUTH_SECRET or ENCRYPTION_KEY is required for Google OAuth state signing.");
+    const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+    const sig = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+    return `${body}.${sig}`;
+}
+
+function verifyState(state: string): OAuthStatePayload {
+    const secret = getStateSecret();
+    if (!secret) throw new Error("NEXTAUTH_SECRET or ENCRYPTION_KEY is required for Google OAuth state verification.");
+    const [body, sig] = state.split(".");
+    if (!body || !sig) throw new Error("Invalid OAuth state.");
+    const expected = crypto.createHmac("sha256", secret).update(body).digest("base64url");
+    const sigBuf = Buffer.from(sig);
+    const expectedBuf = Buffer.from(expected);
+    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        throw new Error("Invalid OAuth state signature.");
+    }
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as OAuthStatePayload;
+    if (!payload || typeof payload !== "object" || !payload.teamId || !payload.userId) {
+        throw new Error("Invalid OAuth state structure.");
+    }
+    return payload;
+}
+
+export async function buildGoogleMailboxAuthUrl(input: { teamId: string; userId: string; nextPath?: string }): Promise<string> {
+    const { clientId, redirectUri } = getGoogleConfig();
+    const nonce = crypto.randomUUID();
+    const ts = Date.now();
+    const statePayload = {
+        teamId: input.teamId,
+        userId: input.userId,
+        nextPath: sanitizeRelativePath(input.nextPath),
+        nonce,
+        ts,
+    };
+    const state = signState(statePayload);
+
+    const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "code",
+        access_type: "offline",
+        prompt: "consent",
+        include_granted_scopes: "true",
+        scope: GOOGLE_MAIL_SCOPES.join(" "),
+        state,
+    });
+    return `${GOOGLE_AUTH_URL}?${params.toString()}`;
+}
+
+export async function connectGoogleMailbox(input: { code: string; state: string }) {
+    const statePayload = verifyState(input.state);
+    const { clientId, clientSecret, redirectUri } = getGoogleConfig();
+
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+            code: input.code,
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            grant_type: "authorization_code",
+        }),
+    });
+    const token = await response.json() as any;
+    if (!response.ok) {
+        throw new Error(token?.error_description || token?.error || "Google token exchange failed.");
+    }
+
+    const profileRes = await fetch(GMAIL_PROFILE_URL, {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+    });
+    const profile = await profileRes.json() as any;
+    if (!profileRes.ok || !profile.emailAddress) {
+        throw new Error("Unable to fetch Gmail profile.");
+    }
+
+    const email = profile.emailAddress.toLowerCase();
+    const encryptedAccessToken = await encryptSecret(token.access_token);
+    const encryptedRefreshToken = token.refresh_token ? await encryptSecret(token.refresh_token) : undefined;
+    const tokenExpiresAt = token.expires_in ? new Date(Date.now() + token.expires_in * 1000) : null;
+
+    const existingMailbox = await prisma.connectedMailbox.findFirst({ where: { email } });
+    if (existingMailbox && existingMailbox.teamId !== statePayload.teamId) {
+        throw new Error("Mailbox is already connected to another team.");
+    }
+
+    const mailbox = existingMailbox
+        ? await prisma.connectedMailbox.update({
+              where: { id: existingMailbox.id },
+              data: {
+                  status: "CONNECTED",
+                  encryptedAccessToken,
+                  ...(encryptedRefreshToken ? { encryptedRefreshToken } : {}),
+                  tokenExpiresAt,
+              },
+          })
+        : await prisma.connectedMailbox.create({
+              data: {
+                  teamId: statePayload.teamId,
+                  email,
+                  status: "CONNECTED",
+                  encryptedAccessToken,
+                  ...(encryptedRefreshToken ? { encryptedRefreshToken } : {}),
+                  tokenExpiresAt,
+              },
+          });
+
+    try {
+        await registerGoogleMailboxWatch(statePayload.teamId, mailbox.id);
+    } catch (error: any) {
+        console.error(`[googleMailboxService] Failed to register watch for ${email}:`, error);
+        throw new Error(`Google Mailbox connected, but failed to enable reply tracking: ${error?.message || "Unknown error"}`);
+    }
+
+    return { mailbox, nextPath: statePayload.nextPath };
 }
 
 async function refreshAccessToken(mailbox: any) {
@@ -148,6 +285,7 @@ export async function sendViaGmailMailbox(input: {
     subject: string;
     html: string;
     replyTo?: string;
+    trackingId?: string;
 }) {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
@@ -160,10 +298,20 @@ export async function sendViaGmailMailbox(input: {
     const fromName = mailbox.displayName || mailbox.email;
     const to = normalizeEmailAddress(input.to);
     const replyTo = input.replyTo ? normalizeEmailAddress(input.replyTo) : undefined;
+    const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
+    const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
+
+    const baseUrl = process.env["PUBLIC_BASE_URL"] || "https://api.craftmyfunnel.live";
+    const trackingId = input.trackingId || crypto.randomUUID();
+    const unsubscribeUrl = `${baseUrl}/api/proxy/email/unsubscribe/${trackingId}`;
+
     const headers = [
         `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
         `To: ${to}`,
         `Subject: ${encodeMimeHeader(input.subject)}`,
+        `Message-ID: ${rfcMessageId}`,
+        `List-Unsubscribe: <${unsubscribeUrl}>`,
+        `List-Unsubscribe-Post: List-Unsubscribe=One-Click`,
         "MIME-Version: 1.0",
         "Content-Type: text/html; charset=UTF-8",
         ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
@@ -183,11 +331,106 @@ export async function sendViaGmailMailbox(input: {
         return { success: false, error: data?.error?.message || "Gmail send failed." };
     }
 
+    let actualWireMessageId = rfcMessageId;
+    if (data.id) {
+        try {
+            const metaRes = await fetch(`${GMAIL_MESSAGES_URL}/${data.id}?format=metadata&metadataHeaders=Message-ID`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (metaRes.ok) {
+                const metaData = await metaRes.json() as any;
+                const wireHeader = metaData?.payload?.headers?.find((h: any) => h.name?.toLowerCase() === "message-id")?.value;
+                if (wireHeader) {
+                    actualWireMessageId = wireHeader.trim();
+                }
+            } else {
+                console.warn(`[googleMailboxService] Post-send Message-ID fetch returned non-200 status (${metaRes.status}). Falling back to rfcMessageId ${rfcMessageId}`);
+            }
+        } catch (fetchErr: any) {
+            console.warn(`[googleMailboxService] Post-send Message-ID fetch error (${fetchErr?.message}). Falling back to rfcMessageId ${rfcMessageId}`);
+        }
+    }
+
     await markMailboxSend(input.teamId, mailbox.id);
     return {
         success: true,
-        messageId: data.id as string | undefined,
+        messageId: actualWireMessageId,
+        rfcMessageId,
+        gmailId: data.id as string | undefined,
         threadId: data.threadId as string | undefined,
         mailboxId: mailbox.id,
     };
+}
+
+export async function registerGoogleMailboxWatch(teamId: string, mailboxId: string) {
+    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
+    if (!mailbox) throw new Error("Mailbox not found.");
+    const accessToken = await getMailboxAccessToken(mailbox);
+    if (!accessToken) throw new Error("Mailbox needs reconnect before sync.");
+
+    const topicName = process.env["GOOGLE_PUBSUB_TOPIC_NAME"];
+    if (!topicName) throw new Error("GOOGLE_PUBSUB_TOPIC_NAME must be configured in environment for Gmail watch.");
+
+    const response = await fetch(GMAIL_WATCH_URL, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            topicName,
+            labelIds: ["INBOX"],
+            labelFilterBehavior: "INCLUDE",
+        }),
+    });
+
+    const data = await response.json() as any;
+    if (!response.ok) {
+        throw new Error(data?.error?.message || "Gmail watch registration failed.");
+    }
+
+    if (data.historyId !== undefined && (typeof data.historyId !== "string" || data.historyId.length === 0)) {
+        throw new Error("Invalid historyId returned from Gmail watch.");
+    }
+
+    let watchExpirationAt: Date | null = null;
+    if (data.expiration !== undefined) {
+        const expirationMs = Number(data.expiration);
+        if (!Number.isFinite(expirationMs)) throw new Error("Invalid expiration returned from Gmail watch.");
+        watchExpirationAt = new Date(expirationMs);
+    }
+
+    const historyId = typeof data.historyId === "string" ? data.historyId : mailbox.historyId;
+    
+    // We update the mailbox metadata cleanly without assuming strict type of existing metadata
+    const existingMetadata = (mailbox.metadata as Record<string, unknown>) || {};
+    
+    const updated = await prisma.connectedMailbox.update({
+        where: { id: mailbox.id },
+        data: {
+            status: "CONNECTED",
+            historyId,
+            metadata: {
+                ...existingMetadata,
+                gmailWatchExpirationAt: watchExpirationAt?.toISOString() || null,
+                gmailWatchRegisteredAt: new Date().toISOString(),
+                lastWatchError: null,
+            },
+        },
+    });
+
+    // Also initialize the MailboxSyncCursor like in apps/api
+    await prisma.mailboxSyncCursor.upsert({
+        where: { mailboxId_cursorType: { mailboxId: mailbox.id, cursorType: "GMAIL_HISTORY" } },
+        create: {
+            teamId: mailbox.teamId,
+            mailboxId: mailbox.id,
+            cursorType: "GMAIL_HISTORY",
+            historyId,
+            status: "IDLE",
+        },
+        update: {},
+    });
+
+    return { mailboxId: mailbox.id, historyId, watchExpirationAt };
 }

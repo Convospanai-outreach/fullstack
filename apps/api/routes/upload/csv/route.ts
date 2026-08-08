@@ -26,12 +26,14 @@ export async function POST(req: NextRequest) {
 
     let csvText: string = "";
     let fieldMapping: any = undefined;
+    let campaignId: string | undefined = undefined;
 
     if (contentType?.includes("application/json")) {
       // JSON payload with CSV text and mapping
       const body = await req.json();
       csvText = body.csv || body.csvText || "";
       fieldMapping = body.fieldMapping;
+      campaignId = body.campaignId;
     } else {
       // Plain text CSV
       csvText = await req.text();
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
     // Process CSV import
     const { csvIngestionService } = await import("@/modules/csv-ingestion/service/csvIngestionService");
     // @ts-ignore
-    const result = await csvIngestionService.processCSV(csvText, teamId, fieldMapping);
+    const result = await csvIngestionService.processCSV(csvText, teamId, fieldMapping, campaignId);
 
     // MANDATORY AUDIT LOG
     await audit({

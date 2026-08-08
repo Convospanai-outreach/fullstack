@@ -127,7 +127,7 @@ export default function AgentSwarmPage() {
         }
 
         try {
-            const res = await fetch(`${process.env["NEXT_PUBLIC_API_URL"]}/orchestrator/swarm/status?swarmId=${targetSwarmId}`);
+            const res = await fetch(`${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/orchestrator/swarm/status?swarmId=${targetSwarmId}`);
             const data = await res.json();
             if (!res.ok) {
                 throw new Error(data?.error || "Failed to fetch swarm status");
@@ -153,7 +153,7 @@ export default function AgentSwarmPage() {
         setError("");
         setStatus(null);
         try {
-            const res = await fetch(`${process.env["NEXT_PUBLIC_API_URL"]}/orchestrator/swarm/run`, {
+            const res = await fetch(`${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/orchestrator/swarm/run`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -67,4 +67,9 @@ Body content here.`;
         expect(files).toContain("file1.md");
         expect(files).toContain("sub/file2.md");
     });
+
+    it("should throw error when file does not exist", () => {
+        vi.spyOn(fs, "existsSync").mockReturnValue(false);
+        expect(() => getContent("missing.md")).toThrow("File not found: missing.md");
+    });
 });

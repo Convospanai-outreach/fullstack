@@ -5,31 +5,34 @@ export async function GET(req: NextRequest) {
     const code = req.nextUrl.searchParams.get("code");
     const state = req.nextUrl.searchParams.get("state");
     const error = req.nextUrl.searchParams.get("error");
+    const baseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || req.nextUrl.origin;
 
     if (error) {
-        return NextResponse.json({ error }, { status: 400 });
+        return NextResponse.redirect(
+            new URL(`/settings/mailboxes?connected=false&error=${encodeURIComponent(error)}`, baseUrl)
+        );
     }
     if (!code || !state) {
-        return NextResponse.json({ error: "Missing Google OAuth code or state." }, { status: 400 });
+        return NextResponse.redirect(
+            new URL("/settings/mailboxes?connected=false&error=missing_oauth_code", baseUrl)
+        );
     }
 
     try {
         const result = await connectGoogleMailbox({ code, state });
-        const baseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"];
-        if (baseUrl) {
-            const redirectUrl = new URL(sanitizeRelativePath(result.nextPath), baseUrl);
-            redirectUrl.searchParams.set("googleMailbox", "connected");
-            return NextResponse.redirect(redirectUrl);
+        const targetPath = result.nextPath
+            ? sanitizeRelativePath(result.nextPath)
+            : "/settings/mailboxes";
+        const redirectUrl = new URL(targetPath, baseUrl);
+        redirectUrl.searchParams.set("connected", "true");
+        if (result.mailbox?.email) {
+            redirectUrl.searchParams.set("email", result.mailbox.email);
         }
-        return NextResponse.json({
-            success: true,
-            mailbox: {
-                id: result.mailbox.id,
-                email: result.mailbox.email,
-                status: result.mailbox.status,
-            },
-        });
-    } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to connect Google mailbox." }, { status: 500 });
+        return NextResponse.redirect(redirectUrl);
+    } catch (err: any) {
+        const message = err?.message || "oauth_failed";
+        return NextResponse.redirect(
+            new URL(`/settings/mailboxes?connected=false&error=${encodeURIComponent(message)}`, baseUrl)
+        );
     }
 }

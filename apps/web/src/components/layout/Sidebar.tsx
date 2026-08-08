@@ -22,10 +22,10 @@ export function Sidebar() {
 
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Approvals', href: '/approvals', icon: ShieldCheck },
         { name: 'Unified Inbox', href: '/inbox', icon: Mail },
         { name: 'Intel', href: '/intel', icon: Activity },
         { name: 'Campaigns', href: '/campaigns', icon: Megaphone },
-        { name: 'Agent Swarm', href: '/agents/swarm', icon: Bot },
         { name: 'CRM Bridge', href: '/crm', icon: ArrowRightLeft },
         { name: 'Campaign ROI', href: '/analytics/roi', icon: TrendingUp },
         { name: 'Governance', href: '/governance', icon: ShieldCheck },

@@ -36,7 +36,7 @@ export default function EngineSection() {
                                 Enterprise Security
                             </h3>
                             <p className="text-gray-400 text-lg">
-                                SOC-2 compliant infrastructure ensures your data and strategies remain completely private. The <strong>Privacy-First Architecture</strong> guarantees no PII is ever trained into the global model.
+                                Enterprise-grade encryption and tenant isolation ensure your data and strategies remain completely private. The <strong>Privacy-First Architecture</strong> guarantees no PII is ever trained into the global model.
                             </p>
                         </div>
                     </div>

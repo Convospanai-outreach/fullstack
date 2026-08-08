@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import {
     Building2,
@@ -23,10 +23,10 @@ function initials(name?: string | null, email?: string | null) {
 }
 
 export default function GeneralSettingsPage() {
-    const { data: session, status } = useSession();
-    const userName = session?.user?.name || "Workspace user";
-    const userEmail = session?.user?.email || "No email on session";
-    const userInitials = initials(session?.user?.name, session?.user?.email);
+    const { user, isLoaded } = useUser();
+    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Workspace User";
+    const userEmail = user?.primaryEmailAddress?.emailAddress || "user@workspace.com";
+    const userInitials = initials(userName, userEmail);
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -52,7 +52,7 @@ export default function GeneralSettingsPage() {
                                 <h2 className="truncate text-xl font-semibold text-white">{userName}</h2>
                                 <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300">
                                     <CheckCircle2 className="h-3.5 w-3.5" />
-                                    {status === "authenticated" ? "Signed in" : "Checking"}
+                                    Active Session
                                 </span>
                             </div>
                             <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">

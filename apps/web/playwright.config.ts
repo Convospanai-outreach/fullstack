@@ -21,6 +21,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 export default defineConfig({
     testDir: './e2e',
+    globalSetup: require.resolve('./e2e/global-setup'),
     timeout: 120_000,
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
@@ -29,6 +30,7 @@ export default defineConfig({
     reporter: 'html',
     webServer: {
         command: process.env.CI ? 'npm run start' : 'npm run dev',
+        cwd: __dirname,
         port: 3000,
         timeout: 180_000,
         reuseExistingServer: !process.env.CI,
@@ -36,6 +38,10 @@ export default defineConfig({
             ...process.env,
             PORT: '3000',
             DISABLE_RATE_LIMIT: 'true',
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env['NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'] || 'pk_test_Y2xlcmsuY3JhZnRteWZ1bm5lbC5saXZlJA',
+            CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY'] || 'sk_test_bW9jay1jbGVyay1zZWNyZXQta2V5LWZvci10ZXN0aW5nLXBsYXl3cmlnaHQ',
+            NEXTAUTH_SECRET: process.env['NEXTAUTH_SECRET'] || 'mock-nextauth-secret-for-playwright-32chars',
+            NEXTAUTH_URL: process.env['NEXTAUTH_URL'] || 'http://localhost:3000',
         },
     },
     use: {

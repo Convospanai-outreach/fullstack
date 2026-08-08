@@ -18,7 +18,6 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Omnibox } from "@/components/dashboard/Omnibox";
-import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
 
 export default function DashboardLayout({
     children,
@@ -46,7 +45,10 @@ export default function DashboardLayout({
     }, [router]);
 
     return (
-        <div className="flex min-h-screen bg-surface-app text-foreground selection:bg-brand-500/30">
+        <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/30 relative">
+            {/* Abstract Glowing Wave Backdrop Pattern */}
+            <div className="backdrop-wave-pattern" aria-hidden="true" />
+
             {/* Sidebar — fixed, 192px wide on desktop */}
             <DashboardSidebar
                 isOpen={sidebarOpen}
@@ -75,7 +77,6 @@ export default function DashboardLayout({
 
             {/* Global overlays */}
             <Omnibox />
-            <ConnectionStatusBar />
         </div>
     );
 }
