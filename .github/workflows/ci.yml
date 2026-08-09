@@ -144,6 +144,7 @@ jobs:
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
 
     - name: Live DB Concurrency Verification
+      working-directory: apps/web
       run: node scripts/test-db-concurrency.mjs
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
