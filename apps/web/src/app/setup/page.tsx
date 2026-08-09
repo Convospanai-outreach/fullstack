@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  Bell,
   Bot,
   Check,
   CheckCircle2,
@@ -25,6 +26,7 @@ import {
   Users,
 } from "lucide-react";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
+import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -88,6 +90,7 @@ const STEPS = [
   { id: 9, title: "Meeting Assets", icon: FileText, description: "Add calendar and proof links that support human-approved follow-up." },
   { id: 10, title: "Commercial Readiness", icon: CreditCard, description: "Confirm credits or billing before chargeable execution starts." },
   { id: 11, title: "Handoffs", icon: LayoutGrid, description: "Review optional infrastructure and handoff integrations." },
+  { id: 12, title: "Notifications", icon: Bell, description: "Choose which email and in-app alerts your team receives." },
 ];
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
@@ -125,6 +128,7 @@ export default function SetupWizardPage() {
       if (stepId === 9) return status.uploadedDocCount > 0;
       if (stepId === 10) return status.teamCredits > 0;
       if (stepId === 11) return PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
+      if (stepId === 12) return true;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -415,6 +419,7 @@ export default function SetupWizardPage() {
             {activeStep === 9 && <MeetingAssets formData={formData} setFormData={setFormData} status={status} />}
             {activeStep === 10 && <CommercialReadiness status={status} />}
             {activeStep === 11 && <Handoffs status={status} />}
+            {activeStep === 12 && <NotificationsStep />}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
@@ -686,6 +691,18 @@ function Handoffs({ status }: { status: SetupStatus }) {
   return <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />;
 }
 
+function NotificationsStep() {
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Notification preferences</h3>
+      <p className="mt-1 text-sm text-slate-400">Control which system emails and in-app alerts your team receives. Changes save immediately and can be revisited anytime in Settings.</p>
+      <div className="mt-5">
+        <NotificationSettings />
+      </div>
+    </section>
+  );
+}
+
 function ActionPanel({ title, text, ready, action, onAction }: { title: string; text: string; ready: boolean; action: string; onAction: () => void }) {
   return (
     <section className={panelClass}>
@@ -729,7 +746,7 @@ function StatusPill({ ready }: { ready: boolean }) {
 function continueLabel(stepId: number) {
   if (stepId === 3) return "Save fallback and continue";
   if (stepId === 7) return "Continue to campaign plan";
-  if (stepId === 11) return "Open dashboard";
+  if (stepId === 12) return "Open dashboard";
   return "Save and continue";
 }
 
