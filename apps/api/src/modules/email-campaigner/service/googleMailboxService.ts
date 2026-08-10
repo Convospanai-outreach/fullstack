@@ -759,6 +759,7 @@ export async function sendViaGmailMailbox(input: {
     let mailbox: any;
     let accessToken: string | undefined;
     let raw: string;
+    let rfcMessageId: string;
 
     try {
         mailbox = await prisma.connectedMailbox.findFirst({
@@ -772,10 +773,13 @@ export async function sendViaGmailMailbox(input: {
         const fromName = mailbox.displayName || mailbox.email;
         const to = normalizeEmailAddress(input.to);
         const replyTo = input.replyTo ? normalizeEmailAddress(input.replyTo) : undefined;
+        const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
+        rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
         const headers = [
             `From: "${encodeMimeHeader(fromName)}" <${mailbox.email}>`,
             `To: ${to}`,
             `Subject: ${encodeMimeHeader(input.subject)}`,
+            `Message-ID: ${rfcMessageId}`,
             "MIME-Version: 1.0",
             "Content-Type: text/html; charset=UTF-8",
             ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
@@ -819,10 +823,19 @@ export async function sendViaGmailMailbox(input: {
         return gmailAmbiguousFailure("GMAIL_SEND_RESPONSE_INVALID");
     }
 
+    let messageId = rfcMessageId;
+    try {
+        const sentMessage = await fetchGmailMessage(accessToken, data.id);
+        const wireMessageId = headerValue(sentMessage, "Message-ID");
+        if (wireMessageId) messageId = wireMessageId;
+    } catch {
+        console.error("[Gmail] GMAIL_SEND_MESSAGE_ID_FETCH_FAILED.");
+    }
+
     const result: GmailSendSuccess = {
         success: true,
         deliveryProvider: "GMAIL_API",
-        messageId: data.id,
+        messageId,
         threadId: typeof data.threadId === "string" && data.threadId.length > 0 ? data.threadId : undefined,
         mailboxId: mailbox.id,
     };
