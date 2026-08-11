@@ -44,8 +44,8 @@ export async function handleSequenceAction(payload: JobPayload) {
         case "VISIT":
             // Just go to the URL
             result = await runLinkedInAction({
-                type: "SCRAPE", // Reusing scrape to visit
-                url: url
+                action: "scrape", // Reusing scrape to visit
+                profileUrl: url
             });
             break;
 
@@ -61,8 +61,8 @@ export async function handleSequenceAction(payload: JobPayload) {
 
             // Connect with note
             result = await runLinkedInAction({
-                type: "INMAIL",
-                url: url,
+                action: "INMAIL",
+                profileUrl: url,
                 message: message
             });
             break;
@@ -82,8 +82,8 @@ export async function handleSequenceAction(payload: JobPayload) {
             );
 
             result = await runLinkedInAction({
-                type: "INMAIL",
-                url: url,
+                action: "INMAIL",
+                profileUrl: url,
                 message: followUpMessage || "Just checking in to see if you had a chance to look at my previous message."
             });
             break;

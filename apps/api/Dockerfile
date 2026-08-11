@@ -3,6 +3,10 @@
 FROM node:22-alpine AS deps
 WORKDIR /repo
 
+# Puppeteer's bundled Chromium is glibc-linked and won't run on Alpine's musl libc;
+# skip its download here and use the apk-installed chromium in the runtime stage instead.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+
 COPY package.json package-lock.json ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
@@ -35,8 +39,10 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
 COPY --from=builder /repo/node_modules ./node_modules
 COPY --from=builder /repo/apps/api ./apps/api
