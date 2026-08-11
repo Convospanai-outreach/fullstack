@@ -4,7 +4,7 @@ export default function PrivacyPolicyPage() {
       <article className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-xl">
         <p className="text-sm font-semibold uppercase tracking-wide text-cyan-300">CraftMyFunnel</p>
         <h1 className="mt-3 text-4xl font-bold text-white">Privacy Policy</h1>
-        <p className="mt-3 text-sm text-slate-400">Last updated: May 25, 2026</p>
+        <p className="mt-3 text-sm text-slate-400">Last updated: August 11, 2026</p>
 
         <section className="mt-8 space-y-4 text-sm leading-7 text-slate-300">
           <p>
@@ -18,10 +18,10 @@ export default function PrivacyPolicyPage() {
 
           <h2 className="pt-4 text-2xl font-semibold text-white">Google user data</h2>
           <p>
-            When a user connects Google Workspace or Gmail, CraftMyFunnel requests only the access required for the selected feature. For send-only mailbox connection, CraftMyFunnel uses Gmail send permission to send user-approved emails. Google tokens are stored securely and are not sold, rented, or shared with advertisers.
+            When a user connects Google Workspace or Gmail, CraftMyFunnel requests only the access required for the selected feature. CraftMyFunnel uses Gmail send permission to send user-approved emails, and uses limited, read-only Gmail access to detect replies to sent campaign emails so reply status can be shown in the product. Google tokens are stored securely and are not sold, rented, or shared with advertisers.
           </p>
           <p>
-            Google mailbox data is used only to provide requested product functionality such as connecting a sender mailbox, sending approved emails, checking mailbox connection status, and displaying relevant sending activity. Google user data is not used for advertising.
+            Google mailbox data is used only to provide requested product functionality such as connecting a sender mailbox, sending approved emails, detecting replies to sent campaign emails, checking mailbox connection status, and displaying relevant sending and reply activity. Google user data is not used for advertising.
           </p>
 
           <h2 className="pt-4 text-2xl font-semibold text-white">How we use information</h2>
