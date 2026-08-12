@@ -16,8 +16,7 @@ export default function SignupPage() {
                     Signup is invite-only. Use the approved workspace email or the invite link emailed by Clerk.
                 </div>
                 <SignUp
-                    routing="path"
-                    path="/signup"
+                    routing="hash"
                     signInUrl="/login"
                     fallbackRedirectUrl="/dashboard"
                     forceRedirectUrl="/dashboard"
