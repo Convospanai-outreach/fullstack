@@ -28,8 +28,8 @@ jobs:
         changed=""
 
         if [[ "$event" == "pull_request" ]]; then
-          git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-          changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+          git fetch --no-tags --prune origin "${{ github.base_ref }}"
+          changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)" || changed=""
         elif [[ "$event" == "push" ]]; then
           before="${{ github.event.before }}"
           after="${{ github.sha }}"
@@ -144,6 +144,7 @@ jobs:
         DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
 
     - name: Live DB Concurrency Verification
+      working-directory: apps/web
       run: node scripts/test-db-concurrency.mjs
       env:
         DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/craftmyfunnel_ci"
@@ -288,3 +289,32 @@ jobs:
     - name: Build Edge image (optional)
       continue-on-error: true
       run: docker build -t craftmyfunnel-edge-ci -f apps/edge-fastapi/Dockerfile apps/edge-fastapi
+
+  ci-gate:
+    name: CI Gate
+    needs: [detect-docs-only, docs-only-validation, web-build, api-typecheck, docker-smoke]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+    - name: Check required jobs
+      run: |
+        if [ "${{ needs.detect-docs-only.outputs.docs_only }}" = "true" ]; then
+          if [ "${{ needs.docs-only-validation.result }}" != "success" ]; then
+            echo "::error::Docs-only validation did not complete successfully."
+            exit 1
+          fi
+        else
+          if [ "${{ needs.web-build.result }}" != "success" ]; then
+            echo "::error::Web Build did not complete successfully."
+            exit 1
+          fi
+          if [ "${{ needs.api-typecheck.result }}" != "success" ]; then
+            echo "::error::API Strict Typecheck did not complete successfully."
+            exit 1
+          fi
+          if [ "${{ needs.docker-smoke.result }}" != "success" ]; then
+            echo "::error::Docker Build Smoke did not complete successfully."
+            exit 1
+          fi
+        fi
+        echo "CI Gate passed."

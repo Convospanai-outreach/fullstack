@@ -11,7 +11,6 @@ import {
     PlusCircle,
     Crown
 } from "lucide-react";
-import { AppShell } from "@/components/layout/AppShell";
 import {
     Card,
     CardHeader,

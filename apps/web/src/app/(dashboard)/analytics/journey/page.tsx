@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { AppShell } from "@/components/layout/AppShell";
 import {
     Flame,
     Activity,

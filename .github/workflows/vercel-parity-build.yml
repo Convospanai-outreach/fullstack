@@ -30,8 +30,8 @@ jobs:
           changed=""
 
           if [[ "$event" == "pull_request" ]]; then
-            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+            git fetch --no-tags --prune origin "${{ github.base_ref }}"
+            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)" || changed=""
           elif [[ "$event" == "push" ]]; then
             before="${{ github.event.before }}"
             after="${{ github.sha }}"
@@ -117,3 +117,24 @@ jobs:
           SKIP_ENV_VALIDATION: "true"
           NEXTAUTH_SECRET: "ci-parity-secret-not-real"
           NEXTAUTH_URL: "http://localhost:3000"
+
+  vercel-parity-gate:
+    name: Vercel Parity Gate
+    needs: [detect-docs-only, docs-only-validation, vercel-parity-build]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Check required jobs
+        run: |
+          if [ "${{ needs.detect-docs-only.outputs.docs_only }}" = "true" ]; then
+            if [ "${{ needs.docs-only-validation.result }}" != "success" ]; then
+              echo "::error::Docs-only validation did not complete successfully."
+              exit 1
+            fi
+          else
+            if [ "${{ needs.vercel-parity-build.result }}" != "success" ]; then
+              echo "::error::Vercel Parity Build did not complete successfully."
+              exit 1
+            fi
+          fi
+          echo "Vercel Parity Gate passed."

@@ -1178,6 +1178,29 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         expect(prisma.message.create).not.toHaveBeenCalled();
     });
 
+    it("matches an inbound reply by wire providerId alone, independent of threadId (OPEN-05/OPEN-16)", async () => {
+        // A same-thread reply would match via threadId regardless of providerId correctness,
+        // which is exactly why a live send/reply cycle can't prove this fix. Here the thread
+        // deliberately does not correspond to any stored Email, so a match is only possible if
+        // the OR clause's providerId branch (sourced from the RFC 5322 In-Reply-To header) is
+        // wired correctly against the wire Message-ID captured at send time.
+        const reply = replyMessage();
+        reply.threadId = "thread-with-no-matching-email";
+        reply.payload.headers.find((h: { name: string }) => h.name === "In-Reply-To")!.value = "<wire-id@gmail.com>";
+        mockFetch
+            .mockResolvedValueOnce(response({ historyId: "150", history: [{ messagesAdded: [{ message: { id: "inbound-1" } }] }] }))
+            .mockResolvedValueOnce(response(reply));
+
+        await expect(syncGoogleMailbox("team-1", "mailbox-1", { lease: lease() }))
+            .resolves.toEqual({ synced: 1, replies: 1, bounces: 0 });
+
+        expect(prisma.email.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({
+                OR: expect.arrayContaining([{ threadId: "thread-with-no-matching-email" }, { providerId: "<wire-id@gmail.com>" }]),
+            }),
+        }));
+    });
+
     it("writes the canonical STOPPED lead status for a Gmail hard bounce", async () => {
         const bounce = replyMessage();
         bounce.payload.headers[0].value = "Mailer-Daemon <mailer-daemon@example.com>";
@@ -1583,7 +1606,9 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
     });
 
     it("uses the bounded helper for successful Gmail send and preserves message and thread identifiers", async () => {
-        mockFetch.mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }));
+        mockFetch
+            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
+            .mockResolvedValueOnce(response({ payload: { headers: [{ name: "Message-ID", value: "<wire-id@gmail.com>" }] } }));
 
         await expect(sendViaGmailMailbox({
             teamId: "team-1",
@@ -1594,12 +1619,29 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         })).resolves.toEqual({
             success: true,
             deliveryProvider: "GMAIL_API",
-            messageId: "gmail-message-1",
+            messageId: "<wire-id@gmail.com>",
             threadId: "gmail-thread-1",
             mailboxId: "mailbox-1",
         });
 
         expect(mockFetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
+    });
+
+    it("falls back to the client-generated RFC Message-ID when the post-send wire fetch fails", async () => {
+        mockFetch
+            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
+            .mockResolvedValueOnce(response({ error: { message: "lookup failed" } }, false, 500));
+
+        const result = await sendViaGmailMailbox({
+            teamId: "team-1",
+            mailboxId: "mailbox-1",
+            to: "recipient@example.com",
+            subject: "Hello",
+            html: "<p>content</p>",
+        });
+
+        expect(result).toMatchObject({ success: true, deliveryProvider: "GMAIL_API", threadId: "gmail-thread-1" });
+        expect((result as { messageId: string }).messageId).toMatch(/^<[^@]+@example\.com>$/);
     });
 
     it("returns only safe Gmail send failure codes for provider failures and malformed responses", async () => {
@@ -1711,7 +1753,9 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
     });
 
     it("keeps a valid Gmail success authoritative when mailbox send bookkeeping fails", async () => {
-        mockFetch.mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }));
+        mockFetch
+            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
+            .mockResolvedValueOnce(response({ payload: { headers: [{ name: "Message-ID", value: "<wire-id@gmail.com>" }] } }));
         (prisma.connectedMailbox.update as Mock).mockRejectedValueOnce(new Error("database detail must remain private"));
 
         await expect(sendViaGmailMailbox({
@@ -1723,7 +1767,7 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         })).resolves.toEqual({
             success: true,
             deliveryProvider: "GMAIL_API",
-            messageId: "gmail-message-1",
+            messageId: "<wire-id@gmail.com>",
             threadId: "gmail-thread-1",
             mailboxId: "mailbox-1",
         });

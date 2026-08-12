@@ -320,8 +320,8 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     
     const cspValues = [
         "default-src 'self'",
-        // Scripts: Allow self, Clerk, Google Auth, and Razorpay
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com`,
+        // Scripts: Allow self, Clerk, Google Auth, Razorpay, and Cloudflare Turnstile (Clerk bot protection)
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com`,
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         // Images: Allow self, Clerk avatars, Google placeholders, and data URLs for icons
@@ -330,8 +330,8 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "font-src 'self' https://fonts.gstatic.com",
         // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
         `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
-        // Frames: Clerk, Google Auth & Razorpay
-        `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com`,
+        // Frames: Clerk, Google Auth, Razorpay & Cloudflare Turnstile (Clerk bot protection)
+        `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com`,
         // Media/Workers: Stricter constraints
         "worker-src 'self' blob:",
         "object-src 'none'",

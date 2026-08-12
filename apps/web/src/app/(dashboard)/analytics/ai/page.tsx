@@ -9,7 +9,6 @@ import {
     Cpu,
     RefreshCw
 } from "lucide-react";
-import { AppShell } from "@/components/layout/AppShell";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
     Card,

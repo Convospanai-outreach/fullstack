@@ -29,8 +29,8 @@ jobs:
           changed=""
 
           if [[ "$event" == "pull_request" ]]; then
-            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+            git fetch --no-tags --prune origin "${{ github.base_ref }}"
+            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)" || changed=""
           elif [[ "$event" == "push" ]]; then
             before="${{ github.event.before }}"
             after="${{ github.sha }}"
@@ -192,4 +192,25 @@ jobs:
         run: |
           echo "### Production Readiness Report" >> $GITHUB_STEP_SUMMARY
           echo "Status: ${{ steps.audit.outcome }}" >> $GITHUB_STEP_SUMMARY
+
+  production-gate:
+    name: Production Gate
+    needs: [detect-docs-only, docs-only-validation, validate-readiness]
+    runs-on: ubuntu-22.04
+    if: always()
+    steps:
+      - name: Check required jobs
+        run: |
+          if [ "${{ needs.detect-docs-only.outputs.docs_only }}" = "true" ]; then
+            if [ "${{ needs.docs-only-validation.result }}" != "success" ]; then
+              echo "::error::Docs-only validation did not complete successfully."
+              exit 1
+            fi
+          else
+            if [ "${{ needs.validate-readiness.result }}" != "success" ]; then
+              echo "::error::Production Stability Audit did not complete successfully."
+              exit 1
+            fi
+          fi
+          echo "Production Gate passed."
           echo "Audit completed at $(date)" >> $GITHUB_STEP_SUMMARY
