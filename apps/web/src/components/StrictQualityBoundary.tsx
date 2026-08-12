@@ -13,15 +13,15 @@ interface BoundaryProps {
 interface BoundaryState {
   hasError: boolean;
   errorId: string | null;
-  metricData?: { renderCount: number; mountTime: number };
 }
 
 export class StrictQualityBoundary extends Component<BoundaryProps, BoundaryState> {
   private mountTimestamp: number = 0;
+  private renderCount: number = 0;
 
   constructor(props: BoundaryProps) {
     super(props);
-    this.state = { hasError: false, errorId: null, metricData: { renderCount: 0, mountTime: 0 } };
+    this.state = { hasError: false, errorId: null };
   }
 
   static getDerivedStateFromError(_: Error): BoundaryState {
@@ -35,14 +35,11 @@ export class StrictQualityBoundary extends Component<BoundaryProps, BoundaryStat
 
   override componentDidUpdate() {
     if (process.env.NODE_ENV === "development" && this.props.strictMode) {
-      this.setState((prev) => {
-        const newCount = (prev.metricData?.renderCount || 0) + 1;
-        // Avant-garde performance enforcement: Crash if a static layout re-renders > 4 times rapidly
-        if (newCount > 4) {
-          console.error(`[QUALITY ENFORCER] Excessive re-renders detected in module: ${this.props.moduleName}`);
-        }
-        return { metricData: { ...prev.metricData, renderCount: newCount, mountTime: prev.metricData?.mountTime || 0 } };
-      });
+      this.renderCount += 1;
+      // Avant-garde performance enforcement: warn if a static layout re-renders > 4 times rapidly
+      if (this.renderCount === 5) {
+        console.error(`[QUALITY ENFORCER] Excessive re-renders detected in module: ${this.props.moduleName}`);
+      }
     }
   }
 
