@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AppShell } from "@/components/layout/AppShell"
 import { PlaybookCard } from "@/components/playbooks/PlaybookCard"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { Loader2, Plus } from "lucide-react"

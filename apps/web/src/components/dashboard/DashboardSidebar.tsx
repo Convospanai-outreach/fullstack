@@ -31,10 +31,11 @@ import {
   ChevronDown,
   MoreHorizontal,
   Users,
+  Wrench,
   X,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
-import { PRODUCT_FLAGS } from "@/lib/productFlags";
+import { HIDDEN_FEATURES, PRODUCT_FLAGS } from "@/lib/productFlags";
 
 interface NavItem {
   href: string;
@@ -49,38 +50,43 @@ interface NavGroup {
 
 // Build nav groups; filter CRM Bridge when emailFirstBeta is true (per existing logic)
 const buildNavGroups = (): NavGroup[] => {
-  const ungrouped: NavItem[] = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
-    { href: '/inbox', label: 'Inbox', icon: Inbox },
-    { href: '/intel', label: 'Intel', icon: Activity },
-    { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-    { href: '/leads', label: 'Leads', icon: Users },
+  const account: NavItem[] = [
+    { href: '/billing', label: 'Billing', icon: CreditCard },
   ];
 
-  // CRM Bridge would go here — hidden when emailFirstBeta is true
+  // CRM sync — hidden when emailFirstBeta is true
   if (!PRODUCT_FLAGS.emailFirstBeta) {
-    ungrouped.push({ href: '/crm', label: 'CRM Bridge', icon: Activity });
+    account.push({ href: '/crm', label: 'CRM Bridge', icon: Activity });
   }
 
+  account.push({ href: '/settings', label: 'Settings', icon: Settings });
+
   return [
-    { items: ungrouped },
+    {
+      items: [
+        { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+        { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
+        { href: '/leads', label: 'Leads', icon: Users },
+        { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+        { href: '/inbox', label: 'Inbox', icon: Inbox },
+      ],
+    },
     {
       label: 'Analyze',
       items: [
+        { href: '/intel', label: 'Intel', icon: Activity },
         { href: '/analytics/roi', label: 'Campaign ROI', icon: BarChart2 },
         { href: '/governance', label: 'Governance', icon: ShieldCheck },
       ],
     },
     {
       label: 'Account',
-      items: [
-        { href: '/billing', label: 'Billing', icon: CreditCard },
-        { href: '/settings', label: 'Settings', icon: Settings },
-      ],
+      items: account,
     },
   ];
 };
+
+const HIDDEN_FEATURE_COUNT = Object.keys(HIDDEN_FEATURES).length;
 
 interface DashboardSidebarProps {
   isOpen: boolean;
@@ -194,6 +200,26 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
               </div>
             </div>
           ))}
+
+          {/* Tools — discovery surface for gated/hidden feature areas */}
+          <div className="mt-1 pt-4 border-t border-white/6">
+            <Link
+              href="/settings/features"
+              onClick={onClose}
+              className={`
+                flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
+                transition-colors duration-150
+                ${pathname?.startsWith('/settings/features')
+                  ? 'bg-blue-500/12 text-blue-400'
+                  : 'text-white/45 hover:bg-white/4 hover:text-white/70'
+                }
+              `}
+            >
+              <Wrench className="w-[14px] h-[14px] flex-shrink-0" />
+              <span className="flex-1">Tools</span>
+              <span className="text-[9.5px] text-white/25">{HIDDEN_FEATURE_COUNT}</span>
+            </Link>
+          </div>
         </nav>
 
         {/* User identity row — single source of truth */}
