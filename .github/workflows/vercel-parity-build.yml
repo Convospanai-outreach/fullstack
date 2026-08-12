@@ -30,8 +30,8 @@ jobs:
           changed=""
 
           if [[ "$event" == "pull_request" ]]; then
-            git fetch --no-tags --prune --depth=1 origin "${{ github.base_ref }}"
-            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)"
+            git fetch --no-tags --prune origin "${{ github.base_ref }}"
+            changed="$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD)" || changed=""
           elif [[ "$event" == "push" ]]; then
             before="${{ github.event.before }}"
             after="${{ github.sha }}"
