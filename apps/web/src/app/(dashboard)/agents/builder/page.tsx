@@ -14,7 +14,6 @@ import ReactFlow, {
     Node
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import {
     Play,

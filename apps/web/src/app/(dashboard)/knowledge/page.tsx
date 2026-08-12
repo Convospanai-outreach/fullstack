@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { AppShell } from "@/components/layout/AppShell"
 import { GlassCard } from "@/components/ui/GlassCard"
 import { UploadModal } from "@/components/knowledge/UploadModal"
 import { Search, Database } from "lucide-react"
