@@ -361,7 +361,7 @@ npm run type-check       # TypeScript check
 - **Documentation**: Check `/docs` folder
 - **API Reference**: See `docs/API_REFERENCE.md`
 - **Issues**: Create an issue on GitHub
-- **Email**: support@craftmyfunnel.com
+- **Email**: contact.us@craftmyfunnel.live
 
 ---
 

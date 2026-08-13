@@ -211,7 +211,7 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
             signal_type: "Verified Netjana Buyer Intent",
             extracted_signal: signal.whyNow || signal.whatTheyNeed || "High-intent buyer signal",
             sender_name: campaign.team?.name || "CraftMyFunnel Team",
-            sender_email: "outbound@craftmyfunnel.ai",
+            sender_email: "contact.us@craftmyfunnel.live",
             tone: style.tone,
             voice: style.voice,
             formulation: style.formulation,

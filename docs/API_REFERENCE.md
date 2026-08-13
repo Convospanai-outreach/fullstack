@@ -494,6 +494,6 @@ Webhook endpoints for external integrations will be documented here.
 ## Support
 
 For API support:
-- **Email**: api-support@craftmyfunnel.com
+- **Email**: contact.us@craftmyfunnel.live
 - **Documentation**: https://docs.craftmyfunnel.com
 - **Status Page**: https://status.craftmyfunnel.com

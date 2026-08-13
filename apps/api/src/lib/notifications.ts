@@ -52,7 +52,7 @@ export class NotificationDispatcher {
 
                 if (shouldSendEmail) {
                     await resend.emails.send({
-                        from: 'CraftMyFunnel <notifications@craftmyfunnel.live>',
+                        from: 'CraftMyFunnel <contact.us@craftmyfunnel.live>',
                         to: user.email,
                         subject: `[CraftMyFunnel] ${title}`,
                         html: `<p>${message}</p>`

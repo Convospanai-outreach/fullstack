@@ -242,4 +242,4 @@ await ConsentService.revokeConsent(leadId, userId, "User requested");
 
 **Data Fiduciary:** [Organization Name]  
 **Grievance Officer:** [Name, Email]  
-**Compliance Queries:** compliance@craftmyfunnel.com
+**Compliance Queries:** contact.us@craftmyfunnel.live

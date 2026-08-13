@@ -14,7 +14,7 @@ export default function Footer() {
                         <p className="text-sm text-gray-500 leading-relaxed">
                             Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.
                         </p>
-                        <a className="text-sm text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a>
+                        <a className="text-sm text-cyan-300 underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>
                     </div>
 
                     <div className="space-y-3">

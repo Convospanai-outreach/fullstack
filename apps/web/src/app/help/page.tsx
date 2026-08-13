@@ -283,7 +283,7 @@ export default function HelpPage() {
                             <Link href="/contact" className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-100 transition hover:border-amber-300/40 hover:bg-white/[0.04]">
                                 Contact support
                             </Link>
-                            <a href="mailto:support@craftmyfunnel.live" className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-100 transition hover:border-amber-300/40 hover:bg-white/[0.04]">
+                            <a href="mailto:contact.us@craftmyfunnel.live" className="rounded-full border border-white/10 px-4 py-2 text-sm text-slate-100 transition hover:border-amber-300/40 hover:bg-white/[0.04]">
                                 Email support
                             </a>
                         </div>

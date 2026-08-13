@@ -180,6 +180,6 @@ For compliance issues:
 
 ## Support Contacts
 
-- Technical: support@craftmyfunnel.com
-- Compliance: compliance@craftmyfunnel.com
+- Technical: contact.us@craftmyfunnel.live
+- Compliance: contact.us@craftmyfunnel.live
 - Emergency: [On-call number]
