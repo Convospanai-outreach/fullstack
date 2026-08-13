@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import {
     ApiKeyValidationError,
     createApiKeySecret,
@@ -14,7 +15,7 @@ import {
 
 const KEY_LIST_LIMIT = 100;
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId) return new NextResponse("Unauthorized", { status: 401 });
@@ -22,6 +23,9 @@ export async function GET() {
         if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
             return new NextResponse("Forbidden", { status: 403 });
         }
+
+        const throttled = await applyRateLimit(req, RATE_LIMITS.KEY_MANAGEMENT, "governance-keys", userId);
+        if (throttled) return throttled;
 
         const keys = await prisma.apiKey.findMany({
             where: { teamId },
@@ -51,7 +55,7 @@ export async function GET() {
     }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId) return new NextResponse("Unauthorized", { status: 401 });
@@ -59,6 +63,9 @@ export async function POST(req: Request) {
         if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
             return new NextResponse("Forbidden", { status: 403 });
         }
+
+        const throttled = await applyRateLimit(req, RATE_LIMITS.KEY_MANAGEMENT, "governance-keys", userId);
+        if (throttled) return throttled;
 
         let body: { name?: string; scopes?: unknown };
         try {

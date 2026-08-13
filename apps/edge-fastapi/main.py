@@ -3,13 +3,13 @@ import uuid
 import logging
 import time
 import hmac
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
 from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel, Field
-from database import init_db, get_db, SessionLocal
+from database import init_db, get_db, SessionLocal, WorkflowRecord, EdgeSetting
 
 # Logging
 import contextvars
@@ -121,6 +121,18 @@ class BrowserAction(str, Enum):
 class ExecuteRequest(BaseModel):
     action: BrowserAction
     payload: Dict
+
+class WorkflowPayload(BaseModel):
+    id: Optional[str] = None
+    name: str
+    steps: List[Dict[str, Any]]
+    teamId: str
+
+class WorkflowSaveRequest(BaseModel):
+    workflow: WorkflowPayload
+
+class ComplianceModeRequest(BaseModel):
+    region: str
 
 # --- Endpoints ---
 
@@ -305,6 +317,65 @@ def search_golden_records(request: SearchRequest, db: Session = Depends(get_db))
     except Exception as e:
         logger.error(f"Search failed: {e}")
         return {"results": []}
+
+@app.post("/workflows/save", dependencies=[Depends(require_edge_api_key)])
+def save_workflow(request: WorkflowSaveRequest, db: Session = Depends(get_db)):
+    """Sovereign Edge Storage: Persist a workflow definition"""
+    workflow = request.workflow
+    workflow_id = workflow.id or str(uuid.uuid4())
+
+    existing = db.query(WorkflowRecord).filter(WorkflowRecord.id == workflow_id).first()
+    if existing:
+        existing.name = workflow.name
+        existing.steps = workflow.steps
+        existing.team_id = workflow.teamId
+    else:
+        db.add(WorkflowRecord(
+            id=workflow_id,
+            name=workflow.name,
+            steps=workflow.steps,
+            team_id=workflow.teamId
+        ))
+
+    db.commit()
+    return {"status": "saved", "id": workflow_id}
+
+@app.get("/workflows", dependencies=[Depends(require_edge_api_key)])
+def list_workflows(db: Session = Depends(get_db)):
+    """Sovereign Edge Storage: List persisted workflow definitions.
+
+    Not filtered by team_id: this endpoint is scoped by the single shared
+    EDGE_API_KEY for the physical edge device, which is the trust boundary
+    here (one hardware node, called server-to-server by apps/api). team_id
+    is provenance metadata, not an access control dimension.
+    """
+    records = db.query(WorkflowRecord).order_by(WorkflowRecord.created_at.desc()).all()
+    return [
+        {
+            "id": record.id,
+            "name": record.name,
+            "steps": record.steps,
+            "teamId": record.team_id,
+            "createdAt": record.created_at.isoformat()
+        }
+        for record in records
+    ]
+
+@app.post("/compliance/mode", dependencies=[Depends(require_edge_api_key)])
+def set_compliance_mode(request: ComplianceModeRequest, db: Session = Depends(get_db)):
+    """Region Compliance: Persist the active data-residency mode"""
+    region = request.region.strip().upper()
+    if region not in {"INDIA", "EU"}:
+        raise HTTPException(status_code=400, detail="Invalid region. Use INDIA or EU.")
+
+    existing = db.query(EdgeSetting).filter(EdgeSetting.key == "compliance_mode").first()
+    if existing:
+        existing.value = region
+    else:
+        db.add(EdgeSetting(key="compliance_mode", value=region))
+
+    db.commit()
+    return {"status": "ok", "region": region}
 
 @app.post("/execute", dependencies=[Depends(require_edge_api_key)])
 def execute_browser_action(request: ExecuteRequest):

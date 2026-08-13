@@ -1,22 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
-// Helper to validate short‑lived JWT‑like tokens (no external deps)
-function isValidShortLivedToken(token: string): boolean {
-  // Expect three Base64URL parts: header.payload.signature
-  const parts = token.split('.');
-  if (parts.length !== 3) return false;
-  try {
-    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    if (typeof payload.exp !== 'number') return false;
-    // Token must not be expired (allow small clock skew)
-    const now = Math.floor(Date.now() / 1000);
-    return now < payload.exp + 30; // 30s grace
-  } catch {
-    return false;
-  }
-}
-
 export type ExtensionAuthFailureCode =
   | "MISSING_EXTENSION_KEY"
   | "INVALID_EXTENSION_KEY"
@@ -65,17 +49,8 @@ function readAuthToken(req: NextRequest): string | null {
 async function resolveUserId(req: NextRequest): Promise<string | null> {
   const allowLegacyFallbacks = isLegacyFallbackEnabled();
   const explicitUserId = req.headers.get("x-user-id")?.trim();
-  let token = readAuthToken(req);
+  const token = readAuthToken(req);
   const isBearerToken = req.headers.get("authorization")?.trim().toLowerCase().startsWith("bearer ") ?? false;
-  // If token includes expiration claim, validate it and strip before DB lookup
-  if (token && token.includes('.') && !isValidShortLivedToken(token)) {
-    // Invalid or expired short‑lived token
-    return null;
-  }
-  if (token && token.includes('.')) {
-    // token format: rawToken.exp
-    token = token.split('.')[0];
-  }
 
   if (allowLegacyFallbacks && explicitUserId) {
     const directUser = await prisma.user.findUnique({
@@ -89,12 +64,13 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
     return null;
   }
 
-  // Production accepts only session-style bearer tokens.
+  // Production accepts only opaque, expiring tokens minted via
+  // POST /api/extension/token (apps/web, Clerk-authenticated), stored as Session rows.
   const session = await prisma.session.findUnique({
     where: { sessionToken: token },
-    select: { userId: true },
+    select: { userId: true, expires: true },
   });
-  if (session?.userId) {
+  if (session?.userId && session.expires > new Date()) {
     return session.userId;
   }
 
@@ -156,7 +132,7 @@ export async function validateExtensionAuth(req: NextRequest): Promise<Extension
       id: true,
       email: true,
       name: true,
-      memberships: { select: { teamId: true } },
+      memberships: { where: { status: "active" }, select: { teamId: true } },
     },
   });
 

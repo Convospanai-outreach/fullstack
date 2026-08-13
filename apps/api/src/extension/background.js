@@ -44,7 +44,8 @@ const DEFAULT_STATE = {
   },
   settings: {
     workspaceUrl: "",
-    apiKey: "",
+    extensionKey: "",
+    syncToken: "",
     defaultTone: "Friendly",
     defaultOutreachAngle: "Sales introduction"
   },
@@ -213,7 +214,8 @@ async function trySyncLead(lead, settings) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...(settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}`, "x-extension-key": settings.apiKey } : {})
+        ...(settings.syncToken ? { Authorization: `Bearer ${settings.syncToken}` } : {}),
+        ...(settings.extensionKey ? { "x-extension-key": settings.extensionKey } : {})
       },
       body: JSON.stringify({
         ...lead,
@@ -234,7 +236,7 @@ async function markLinkedInOutreachDone(leadId, notes) {
   const state = await getState();
   const workspaceUrl = String(state.settings?.workspaceUrl || "").trim().replace(/\/+$/, "");
   const resolvedLeadId = leadId || state.savedLead?.leadId;
-  if (!workspaceUrl || !state.settings?.apiKey || !resolvedLeadId) {
+  if (!workspaceUrl || !state.settings?.syncToken || !state.settings?.extensionKey || !resolvedLeadId) {
     return { ok: false, error: "Sync the lead before marking LinkedIn outreach done." };
   }
 
@@ -243,8 +245,8 @@ async function markLinkedInOutreachDone(leadId, notes) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${state.settings.apiKey}`,
-        "x-extension-key": state.settings.apiKey
+        Authorization: `Bearer ${state.settings.syncToken}`,
+        "x-extension-key": state.settings.extensionKey
       },
       body: JSON.stringify({ notes })
     });

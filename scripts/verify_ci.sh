@@ -20,7 +20,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 DOCKERFILE="docker/Dockerfile.verify"
-IMAGE_NAME="CraftMyFunnel-verify"
+IMAGE_NAME="craftmyfunnel-verify"
 IMAGE_TAG="$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="$PROJECT_ROOT/verification-$(date +%Y%m%d-%H%M%S).log"
 

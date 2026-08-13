@@ -68,7 +68,8 @@ const fields = {
   messageDraft: document.getElementById("messageDraft"),
   fitScore: document.getElementById("fitScore"),
   workspaceUrl: document.getElementById("workspaceUrl"),
-  apiKey: document.getElementById("apiKey"),
+  extensionKey: document.getElementById("extensionKey"),
+  syncToken: document.getElementById("syncToken"),
   defaultTone: document.getElementById("defaultTone")
 };
 
@@ -140,7 +141,8 @@ function normalizeState(raw) {
     },
     settings: {
       workspaceUrl: "",
-      apiKey: "",
+      extensionKey: "",
+      syncToken: "",
       defaultTone: "Friendly",
       defaultOutreachAngle: "Sales introduction",
       ...(raw.settings || {})
@@ -232,7 +234,8 @@ function renderQualification() {
 
 function renderSettings() {
   fields.workspaceUrl.value = state.settings.workspaceUrl || "";
-  fields.apiKey.value = state.settings.apiKey || "";
+  fields.extensionKey.value = state.settings.extensionKey || "";
+  fields.syncToken.value = state.settings.syncToken || "";
   fields.defaultTone.value = state.settings.defaultTone || "Friendly";
   els.defaultAngle.value = state.settings.defaultOutreachAngle || "Sales introduction";
 }
@@ -533,7 +536,8 @@ function readQualification() {
 function readSettings() {
   return {
     workspaceUrl: fields.workspaceUrl.value.trim(),
-    apiKey: fields.apiKey.value.trim(),
+    extensionKey: fields.extensionKey.value.trim(),
+    syncToken: fields.syncToken.value.trim(),
     defaultTone: fields.defaultTone.value,
     defaultOutreachAngle: els.defaultAngle.value
   };

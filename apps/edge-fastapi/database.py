@@ -40,6 +40,22 @@ class PIITokenMap(Base):
     session_id = Column(String, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class WorkflowRecord(Base):
+    __tablename__ = "workflows"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String, nullable=False)
+    steps = Column(JSON, nullable=False)
+    team_id = Column(String, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class EdgeSetting(Base):
+    __tablename__ = "edge_settings"
+
+    key = Column(String, primary_key=True)
+    value = Column(String, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
 def init_db():
     if engine.dialect.name == "postgresql":
         with engine.begin() as connection:
