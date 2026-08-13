@@ -21,8 +21,10 @@ import {
   validateApiKey,
 } from "./apiAuth";
 import {
+  LEGACY_STORED_API_KEY_DIGEST_PREFIX,
   NEW_API_KEY_PREFIX,
   createStoredApiKeyValue,
+  createUpgradedLegacyApiKeyValue,
 } from "./apiKeySecurity";
 
 const newKey = (character = "a") => NEW_API_KEY_PREFIX + character.repeat(64);
@@ -75,6 +77,7 @@ describe("api key auth", () => {
     const raw = legacyKey("sk_live_");
     mockPrisma.apiKey.findFirst.mockResolvedValue({
       id: "key-legacy",
+      key: raw,
       teamId: "team-legacy",
       scopes: ["leads:read"],
       isActive: true,
@@ -84,8 +87,69 @@ describe("api key auth", () => {
 
     expect(auth?.teamId).toBe("team-legacy");
     expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledWith({
-      where: { key: { in: [raw] } },
+      where: { key: { in: [raw, createUpgradedLegacyApiKeyValue(raw)] } },
     });
+  });
+
+  it("upgrades a legacy key's stored value to a hashed digest on successful auth, once", async () => {
+    const raw = legacyKey("cs_live_");
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-legacy",
+      key: raw,
+      teamId: "team-legacy",
+      scopes: ["leads:read"],
+      isActive: true,
+    });
+
+    await validateApiKey(request(raw), "leads:read");
+
+    expect(mockPrisma.apiKey.update).toHaveBeenCalledWith({
+      where: { id: "key-legacy" },
+      data: { lastUsedAt: expect.any(Date), key: createUpgradedLegacyApiKeyValue(raw) },
+    });
+  });
+
+  it("does not re-upgrade a legacy key that already matched on its hashed digest", async () => {
+    const raw = legacyKey("cs_live_");
+    const upgraded = createUpgradedLegacyApiKeyValue(raw);
+    expect(upgraded).toMatch(new RegExp(`^${LEGACY_STORED_API_KEY_DIGEST_PREFIX}:`));
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-legacy",
+      key: upgraded,
+      teamId: "team-legacy",
+      scopes: ["leads:read"],
+      isActive: true,
+    });
+
+    await validateApiKey(request(raw), "leads:read");
+
+    expect(mockPrisma.apiKey.update).toHaveBeenCalledWith({
+      where: { id: "key-legacy" },
+      data: { lastUsedAt: expect.any(Date) },
+    });
+  });
+
+  it("throttles a single key's successful auth after 60 requests in a window", async () => {
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-hot",
+      key: createStoredApiKeyValue(newKey("2")),
+      teamId: "team-hot",
+      scopes: ["leads:read"],
+      isActive: true,
+    });
+
+    let result: Awaited<ReturnType<typeof authorizeApiKey>> | undefined;
+    for (let i = 0; i < 60; i += 1) {
+      result = await authorizeApiKey(request(newKey("2"), `source-${i}`), "leads:read");
+      expect(result.ok).toBe(true);
+    }
+
+    result = await authorizeApiKey(request(newKey("2"), "source-final"), "leads:read");
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.response.status).toBe(429);
+      expect(result.response.headers.get("Retry-After")).toBeTruthy();
+    }
   });
 
   it("does not treat legacy admin scope as an implicit bypass", async () => {

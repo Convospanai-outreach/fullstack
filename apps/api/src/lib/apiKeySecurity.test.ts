@@ -14,11 +14,13 @@ vi.mock("node:crypto", async (importOriginal) => {
 import {
   API_KEY_SCOPE_ALLOWLIST,
   API_KEY_SECRET_BYTES,
+  LEGACY_STORED_API_KEY_DIGEST_PREFIX,
   NEW_API_KEY_PREFIX,
   STORED_API_KEY_DIGEST_PREFIX,
   ApiKeyValidationError,
   createApiKeySecret,
   createStoredApiKeyValue,
+  createUpgradedLegacyApiKeyValue,
   getApiKeyLookupValues,
   getApiKeyDisplayMetadata,
   getStoredApiKeyDisplayMetadata,
@@ -127,7 +129,10 @@ describe("api key security primitives", () => {
   it("keeps legacy lookup explicit and metadata-only", () => {
     const secret = legacyKey("cs_live_");
 
-    expect(getApiKeyLookupValues(secret)).toEqual([secret]);
+    const lookupValues = getApiKeyLookupValues(secret);
+    expect(lookupValues).toHaveLength(2);
+    expect(lookupValues[0]).toBe(secret);
+    expect(lookupValues[1]).toMatch(new RegExp(`^${LEGACY_STORED_API_KEY_DIGEST_PREFIX}:cs_live_:bbbb:[a-f0-9]{64}$`));
     expect(getStoredApiKeyDisplayMetadata(secret)).toEqual({
       keyPrefix: "cs_live_",
       keyLastFour: "bbbb",
@@ -139,6 +144,21 @@ describe("api key security primitives", () => {
       legacy: true,
       displayKey: "cs_live_...bbbb",
     });
+  });
+
+  it("upgrades a legacy key to a hashed digest that still reads back as legacy", () => {
+    const secret = legacyKey("sk_live_");
+    const upgraded = createUpgradedLegacyApiKeyValue(secret);
+
+    expect(upgraded).toMatch(new RegExp(`^${LEGACY_STORED_API_KEY_DIGEST_PREFIX}:sk_live_:bbbb:[a-f0-9]{64}$`));
+    expect(upgraded).not.toContain(secret);
+    expect(getApiKeyLookupValues(secret)).toContain(upgraded);
+    expect(getStoredApiKeyDisplayMetadata(upgraded)).toEqual({
+      keyPrefix: "sk_live_",
+      keyLastFour: "bbbb",
+      legacy: true,
+    });
+    expect(() => createUpgradedLegacyApiKeyValue(newKey())).toThrow(ApiKeyValidationError);
   });
 
   it("rejects storing malformed or legacy keys as new digests", () => {

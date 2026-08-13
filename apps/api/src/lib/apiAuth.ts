@@ -1,12 +1,23 @@
 import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { type ApiKeyScope, getApiKeyLookupValues } from "@/lib/apiKeySecurity";
+import {
+    type ApiKeyScope,
+    createUpgradedLegacyApiKeyValue,
+    getApiKeyLookupValues,
+    isValidLegacyApiKeyFormat,
+} from "@/lib/apiKeySecurity";
 
 const FAILED_AUTH_WINDOW_MS = 60 * 1000;
 const FAILED_AUTH_MAX_ATTEMPTS = 10;
 const FAILED_AUTH_GLOBAL_MAX_ATTEMPTS = 200;
 const FAILED_AUTH_MAX_BUCKETS = 1000;
+// Per-key ceiling on successful auth, independent of the failed-auth throttle above. Note this
+// stacks under the existing per-team 100/min limit in v1 routes (apps/api/src/lib/apiRateLimit.ts)
+// - a single-key team's effective ceiling on those routes is 60/min, not 100/min.
+const KEY_AUTH_SUCCESS_WINDOW_MS = 60 * 1000;
+const KEY_AUTH_SUCCESS_MAX_REQUESTS = 60;
+const KEY_AUTH_SUCCESS_MAX_BUCKETS = 1000;
 export const API_KEY_REQUEST_SOURCE_HEADER = "x-cmf-request-source";
 
 type ApiKeyRoutePolicy = {
@@ -109,15 +120,55 @@ function enforceFailedAuthBucketBound() {
     }
 }
 
-function toFailedAuthThrottleResponse(bucket: FailedAuthBucket, now: number): NextResponse {
+function toThrottleResponse(message: string, bucket: FailedAuthBucket, now: number): NextResponse {
     const retryAfter = Math.max(1, Math.ceil((bucket.resetAt - now) / 1000));
     return NextResponse.json(
-        { error: "Too many failed API key attempts" },
+        { error: message },
         {
             status: 429,
             headers: { "Retry-After": retryAfter.toString() },
         }
     );
+}
+
+function toFailedAuthThrottleResponse(bucket: FailedAuthBucket, now: number): NextResponse {
+    return toThrottleResponse("Too many failed API key attempts", bucket, now);
+}
+
+const keyAuthSuccessBuckets = new Map<string, FailedAuthBucket>();
+
+function pruneExpiredKeyAuthSuccessBuckets(now: number) {
+    for (const [key, bucket] of keyAuthSuccessBuckets.entries()) {
+        if (now > bucket.resetAt) keyAuthSuccessBuckets.delete(key);
+    }
+}
+
+function enforceKeyAuthSuccessBucketBound() {
+    while (keyAuthSuccessBuckets.size > KEY_AUTH_SUCCESS_MAX_BUCKETS) {
+        const oldestKey = keyAuthSuccessBuckets.keys().next().value;
+        if (!oldestKey) return;
+        keyAuthSuccessBuckets.delete(oldestKey);
+    }
+}
+
+// Rate-limits successful auth per key (by DB id, so both legacy lookup forms of the same
+// row share one bucket), not per source - distinct from the failed-auth throttle above.
+function checkKeyAuthSuccessThrottle(keyId: string): NextResponse | null {
+    const now = Date.now();
+    pruneExpiredKeyAuthSuccessBuckets(now);
+
+    const existing = keyAuthSuccessBuckets.get(keyId);
+    const bucket = !existing || now > existing.resetAt
+        ? { count: 1, resetAt: now + KEY_AUTH_SUCCESS_WINDOW_MS }
+        : { count: existing.count + 1, resetAt: existing.resetAt };
+
+    keyAuthSuccessBuckets.set(keyId, bucket);
+    enforceKeyAuthSuccessBucketBound();
+
+    if (bucket.count > KEY_AUTH_SUCCESS_MAX_REQUESTS) {
+        return toThrottleResponse("Too many requests for this API key", bucket, now);
+    }
+    return null;
 }
 
 function getFailedApiKeyAuthThrottleResponse(req: NextRequest): NextResponse | null {
@@ -162,6 +213,7 @@ function recordFailedApiKeyAuth(req: NextRequest): NextResponse {
 export function resetApiKeyAuthRateLimitForTests() {
     failedAuthBuckets.clear();
     globalFailedAuthBucket = null;
+    keyAuthSuccessBuckets.clear();
 }
 
 // Only consulted on a failing attempt, never before a lookup succeeds - a request bearing a
@@ -196,10 +248,21 @@ export async function authorizeApiKey(req: NextRequest, requiredScope?: string):
         return { ok: false, response: rejectFailedApiKeyAttempt(req) };
     }
 
-    // Async update last used (non-blocking)
+    const successThrottle = checkKeyAuthSuccessThrottle(keyRecord.id);
+    if (successThrottle) {
+        return { ok: false, response: successThrottle };
+    }
+
+    // Async update last used (non-blocking). Also upgrades a legacy key's storage from
+    // plaintext to a hashed digest the first time it authenticates post-lookup - the row still
+    // matched on the plaintext branch of getApiKeyLookupValues, so it hasn't been upgraded yet.
+    const updateData: { lastUsedAt: Date; key?: string } = { lastUsedAt: new Date() };
+    if (isValidLegacyApiKeyFormat(apiKey) && keyRecord.key === apiKey) {
+        updateData.key = createUpgradedLegacyApiKeyValue(apiKey);
+    }
     prisma.apiKey.update({
         where: { id: keyRecord.id },
-        data: { lastUsedAt: new Date() }
+        data: updateData
     }).catch(console.error);
 
     return {

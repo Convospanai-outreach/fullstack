@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
+import { applyRateLimit, RATE_LIMITS } from "@/lib/rateLimit";
 import {
     ApiKeyValidationError,
     createApiKeySecret,
@@ -14,11 +15,14 @@ import {
 
 const KEY_LIST_LIMIT = 100;
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+
+    const throttled = await applyRateLimit(req, RATE_LIMITS.KEY_MANAGEMENT, "settings-keys", ctx.userId);
+    if (throttled) return throttled;
 
     const keys = await prisma.apiKey.findMany({
         where: { teamId: ctx.teamId, isActive: true },
@@ -46,6 +50,9 @@ export async function POST(req: NextRequest) {
     if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+
+    const throttled = await applyRateLimit(req, RATE_LIMITS.KEY_MANAGEMENT, "settings-keys", ctx.userId);
+    if (throttled) return throttled;
 
     let body: { name?: string; scopes?: unknown };
     try {

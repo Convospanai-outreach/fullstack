@@ -21,9 +21,14 @@ const API_KEY_SCOPE_SET = new Set<string>(API_KEY_SCOPE_ALLOWLIST);
 export const NEW_API_KEY_PREFIX = "cmf_live_";
 export const API_KEY_SECRET_BYTES = 32;
 export const STORED_API_KEY_DIGEST_PREFIX = "cmf_sha256_v1";
+// Upgraded legacy keys are hashed the same way as new keys, but keep a distinct prefix (and
+// their original cs_live_/sk_live_ marker) so the `legacy` display flag survives the upgrade -
+// otherwise an upgraded row would satisfy STORED_API_KEY_DIGEST_PATTERN and read back as a new key.
+export const LEGACY_STORED_API_KEY_DIGEST_PREFIX = "cmf_legacy_sha256_v1";
 const NEW_API_KEY_PATTERN = /^cmf_live_[a-f0-9]{64}$/;
 const LEGACY_API_KEY_PATTERN = /^((?:cs|sk)_live_)[a-f0-9]{48}$/;
 const STORED_API_KEY_DIGEST_PATTERN = /^cmf_sha256_v1:([a-f0-9]{4}):([a-f0-9]{64})$/;
+const LEGACY_STORED_API_KEY_DIGEST_PATTERN = /^cmf_legacy_sha256_v1:((?:cs|sk)_live_):([a-f0-9]{4}):([a-f0-9]{64})$/;
 
 export const DEFAULT_API_KEY_SCOPES: readonly ApiKeyScope[] = ["leads:read"];
 
@@ -78,13 +83,32 @@ export function createStoredApiKeyValue(secret: string): string {
   ].join(":");
 }
 
+// Used to upgrade a legacy key's storage in place once it authenticates (see apiAuth.ts):
+// legacy keys are historically stored as plaintext, so this hashes the raw secret while
+// keeping its original cs_live_/sk_live_ prefix visible in the stored value.
+export function createUpgradedLegacyApiKeyValue(presentedKey: string): string {
+  const match = presentedKey.match(LEGACY_API_KEY_PATTERN);
+  if (!match) {
+    throw new ApiKeyValidationError("Invalid legacy API key format");
+  }
+
+  return [
+    LEGACY_STORED_API_KEY_DIGEST_PREFIX,
+    match[1],
+    presentedKey.slice(-4),
+    createHash("sha256").update(presentedKey, "utf8").digest("hex"),
+  ].join(":");
+}
+
 export function getApiKeyLookupValues(presentedKey: string): string[] {
   if (isValidNewApiKeyFormat(presentedKey)) {
     return [createStoredApiKeyValue(presentedKey)];
   }
 
   if (isValidLegacyApiKeyFormat(presentedKey)) {
-    return [presentedKey];
+    // Matches both the pre-upgrade plaintext row and the post-upgrade hashed row, so a legacy
+    // key keeps authenticating regardless of whether authorizeApiKey has upgraded it yet.
+    return [presentedKey, createUpgradedLegacyApiKeyValue(presentedKey)];
   }
 
   return [];
@@ -122,6 +146,15 @@ export function getStoredApiKeyDisplayMetadata(value: string): ApiKeyDisplayMeta
       keyPrefix: NEW_API_KEY_PREFIX,
       keyLastFour: stored[1],
       legacy: false,
+    };
+  }
+
+  const upgradedLegacy = value.match(LEGACY_STORED_API_KEY_DIGEST_PATTERN);
+  if (upgradedLegacy) {
+    return {
+      keyPrefix: upgradedLegacy[1],
+      keyLastFour: upgradedLegacy[2],
+      legacy: true,
     };
   }
 

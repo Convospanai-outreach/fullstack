@@ -101,6 +101,12 @@ export const RATE_LIMITS = {
     maxRequests: 5,           // 5 attempts per hour
   },
 
+  // API key management (create/list), per user
+  KEY_MANAGEMENT: {
+    windowMs: 60 * 1000,      // 1 minute
+    maxRequests: 10,          // 10 requests per minute
+  },
+
   // Error logging endpoint
   ERROR_LOGGING: {
     windowMs: 60 * 1000,      // 1 minute
