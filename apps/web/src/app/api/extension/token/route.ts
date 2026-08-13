@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { prisma } from "@/lib/db";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
 // background.js has no re-mint/refresh flow, so this is a standing credential, not a copy-paste window.
@@ -14,6 +13,8 @@ export async function POST() {
 
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + TOKEN_TTL_SECONDS * 1000);
+
+    const { prisma } = await import("@/lib/db");
 
     // This row is an extension credential, not a web login: NextAuth uses JWT strategy
     // and never reads the Session table today. If that strategy is ever switched to
