@@ -15,6 +15,9 @@ export async function POST() {
     const token = crypto.randomBytes(32).toString("hex");
     const expires = new Date(Date.now() + TOKEN_TTL_SECONDS * 1000);
 
+    // This row is an extension credential, not a web login: NextAuth uses JWT strategy
+    // and never reads the Session table today. If that strategy is ever switched to
+    // "database", this token would also become a valid NextAuth web session.
     await prisma.session.create({
         data: { sessionToken: token, userId: user.id, expires }
     });
