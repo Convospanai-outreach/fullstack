@@ -127,7 +127,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                         signal_type: automationReadyNetjanaIntel ? "Verified Netjana Buyer Intent" : "LinkedIn Activity",
                         extracted_signal: automationReadyNetjanaIntel?.whyNow || automationReadyNetjanaIntel?.whatTheyNeed || `Recent profile visit at ${url}`,
                         sender_name: campaign.team?.name || "CraftMyFunnel Team",
-                        sender_email: "outbound@craftmyfunnel.ai",
+                        sender_email: "contact.us@craftmyfunnel.live",
                         tone: style.tone,
                         voice: style.voice,
                         formulation: style.formulation,

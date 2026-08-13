@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
+import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -15,7 +16,10 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
 
+const trustProxy = process.env.TRUST_PROXY === 'true' || process.env.FASTIFY_TRUST_PROXY === 'true';
+
 const fastify = Fastify({
+  trustProxy,
   logger: {
     level: 'info',
     transport: {
@@ -34,6 +38,10 @@ const HOP_BY_HOP_RESPONSE_HEADERS = new Set([
   'transfer-encoding',
   'upgrade',
   'content-length'
+]);
+
+const CLIENT_SUPPLIED_INTERNAL_SOURCE_HEADERS = new Set([
+  API_KEY_REQUEST_SOURCE_HEADER,
 ]);
 
 function forwardSetCookieHeaders(responseHeaders: Headers, reply: any) {
@@ -161,7 +169,17 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/integrations/google/oauth/callback",
       "/integrations/google/pubsub",
     ];
-    const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) || registeredPath === '/';
+    const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
+    const isV1Route = registeredPath.startsWith('/v1');
+    if (isV1Route && !routePolicy) {
+      reply.status(403).send({ error: 'API route authorization policy missing' });
+      return;
+    }
+
+    const isPublic = publicPaths.some(p => registeredPath.startsWith(p)) ||
+      registeredPath === '/' ||
+      routePolicy?.authMode === 'apiKey' ||
+      routePolicy?.authMode === 'public';
     let authUserId: string | undefined;
     let authTeamId: string | undefined;
 
@@ -199,9 +217,17 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     const headers = new Headers();
     Object.entries(request.headers || {}).forEach(([k, v]: any) => {
       if (typeof v === 'undefined') return;
+      if (CLIENT_SUPPLIED_INTERNAL_SOURCE_HEADERS.has(k.toLowerCase())) return;
       if (Array.isArray(v)) headers.set(k, v.join(','));
       else headers.set(k, String(v));
     });
+    const serverSource = request.ip || request.socket?.remoteAddress || request.raw?.socket?.remoteAddress || 'unknown';
+    // Trust boundary: the internal source header is always overwritten. When TRUST_PROXY/FASTIFY_TRUST_PROXY is enabled,
+    // Fastify derives request.ip from trusted proxy headers; otherwise it uses the direct peer address.
+    headers.set(API_KEY_REQUEST_SOURCE_HEADER, serverSource);
+    headers.set('x-forwarded-for', serverSource);
+    headers.set('x-real-ip', serverSource);
+    headers.set('cf-connecting-ip', serverSource);
 
     const method = request.method;
     const body = (method === 'GET' || method === 'HEAD') ? undefined : getAdaptedRequestBody(request, headers);

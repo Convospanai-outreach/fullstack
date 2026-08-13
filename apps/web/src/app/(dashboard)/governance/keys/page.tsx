@@ -12,8 +12,6 @@ import {
     Plus,
     Trash2,
     Copy,
-    Eye,
-    EyeOff,
     Terminal,
     Clock,
     ExternalLink,
@@ -25,20 +23,38 @@ import { toast } from "sonner";
 interface ApiKey {
     id: string;
     name: string;
-    key: string;
+    displayKey: string;
+    keyPrefix: string;
+    keyLastFour: string | null;
+    legacy: boolean;
     scopes: string[];
     createdAt: string;
     lastUsedAt: string | null;
     isActive: boolean;
 }
 
+const API_KEY_SCOPE_OPTIONS = [
+    "agents:read",
+    "agents:write",
+    "campaigns:read",
+    "campaigns:write",
+    "leads:read",
+    "leads:write",
+    "tasks:read",
+    "tasks:write",
+    "workflows:read",
+    "workflows:write",
+    "workflows:run",
+];
+
 export default function SecurityKeysPage() {
     const [loading, setLoading] = useState(true);
     const [keys, setKeys] = useState<ApiKey[]>([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newKeyName, setNewKeyName] = useState("");
+    const [selectedScopes, setSelectedScopes] = useState<string[]>(["leads:read"]);
+    const [oneTimeSecret, setOneTimeSecret] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
-    const [visibleKeyId, setVisibleKeyId] = useState<string | null>(null);
 
     const fetchKeys = async () => {
         try {
@@ -54,21 +70,50 @@ export default function SecurityKeysPage() {
 
     useEffect(() => {
         fetchKeys();
+        return () => setOneTimeSecret(null);
     }, []);
 
+    const openCreateModal = () => {
+        setOneTimeSecret(null);
+        setIsModalOpen(true);
+    };
+
+    const closeCreateModal = () => {
+        setIsModalOpen(false);
+        setNewKeyName("");
+        setSelectedScopes(["leads:read"]);
+    };
+
+    const toggleScope = (scope: string) => {
+        setSelectedScopes(current => (
+            current.includes(scope)
+                ? current.filter(item => item !== scope)
+                : [...current, scope]
+        ));
+    };
+
     const createKey = async () => {
+        if (selectedScopes.length === 0) {
+            toast.error("Select at least one scope");
+            return;
+        }
+
         setCreating(true);
         try {
             const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/keys", {
                 method: "POST",
-                body: JSON.stringify({ name: newKeyName }),
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newKeyName, scopes: selectedScopes }),
             });
             const data = await res.json();
             if (data.success) {
+                const { secret, ...metadata } = data.key;
                 toast.success("API Key generated successfully");
-                setKeys([data.key, ...keys]);
-                setIsModalOpen(false);
-                setNewKeyName("");
+                setOneTimeSecret(secret);
+                setKeys([metadata, ...keys]);
+                closeCreateModal();
+            } else {
+                toast.error(data.error || "Failed to generate key");
             }
         } catch (err) {
             toast.error("Failed to generate key");
@@ -77,8 +122,9 @@ export default function SecurityKeysPage() {
         }
     };
 
-    const copyToClipboard = (text: string) => {
-        navigator.clipboard.writeText(text);
+    const copyOneTimeSecret = async () => {
+        if (!oneTimeSecret) return;
+        await navigator.clipboard.writeText(oneTimeSecret);
         toast.success("Copied to clipboard");
     };
 
@@ -89,11 +135,32 @@ export default function SecurityKeysPage() {
                     <h2 className="text-xl font-bold text-white">System Access Keys</h2>
                     <p className="text-text-secondary text-sm">Automate your workspace using the CraftMyFunnel Public API.</p>
                 </div>
-                <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+                <Button onClick={openCreateModal} className="gap-2">
                     <Plus className="w-4 h-4" />
                     Generate New Key
                 </Button>
             </div>
+
+            {oneTimeSecret && (
+                <div className="mb-6 border border-green-500/40 bg-green-500/10 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                            <h3 className="text-sm font-bold text-green-300">API key created</h3>
+                            <p className="text-xs text-text-secondary mt-1">This secret is shown once. Copy it now.</p>
+                            <code className="mt-3 block rounded-lg bg-black/40 border border-white/10 p-3 text-xs text-white overflow-x-auto">
+                                {oneTimeSecret}
+                            </code>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                            <Button variant="outline" onClick={copyOneTimeSecret} className="gap-2">
+                                <Copy className="w-4 h-4" />
+                                Copy
+                            </Button>
+                            <Button variant="ghost" onClick={() => setOneTimeSecret(null)}>Done</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 gap-6">
                 {loading ? (
@@ -103,7 +170,7 @@ export default function SecurityKeysPage() {
                         <Key className="w-12 h-12 text-text-muted mb-4" />
                         <h4 className="text-lg font-bold text-white">No active API keys</h4>
                         <p className="text-sm text-text-secondary max-w-xs mt-2 mb-6">Create a key to start integrating your custom pipelines with CraftMyFunnel.</p>
-                        <Button variant="outline" onClick={() => setIsModalOpen(true)}>Get Started with API</Button>
+                        <Button variant="outline" onClick={openCreateModal}>Get Started with API</Button>
                     </div>
                 ) : (
                     keys.map((key) => (
@@ -121,25 +188,11 @@ export default function SecurityKeysPage() {
                                         <h4 className="font-bold text-white">{key.name}</h4>
                                     </div>
 
-                                    <div className="flex items-center gap-2 bg-black/40 border border-white/5 rounded-xl px-4 py-3 font-mono text-xs w-full max-w-xl group/key">
+                                    <div className="flex items-center gap-2 bg-black/40 border border-white/5 rounded-xl px-4 py-3 font-mono text-xs w-full max-w-xl">
                                         <span className="text-accent-blue tabular-nums shrink-0">KEY_AUTH:</span>
                                         <span className="flex-1 overflow-hidden text-ellipsis text-text-secondary">
-                                            {visibleKeyId === key.id ? key.key : "••••••••••••••••••••••••••••••••"}
+                                            {key.displayKey}
                                         </span>
-                                        <div className="flex items-center gap-1 shrink-0 ml-2">
-                                            <button
-                                                onClick={() => setVisibleKeyId(visibleKeyId === key.id ? null : key.id)}
-                                                className="p-1.5 hover:bg-white/10 rounded-md transition text-text-muted hover:text-white"
-                                            >
-                                                {visibleKeyId === key.id ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                                            </button>
-                                            <button
-                                                onClick={() => copyToClipboard(key.key)}
-                                                className="p-1.5 hover:bg-white/10 rounded-md transition text-text-muted hover:text-white"
-                                            >
-                                                <Copy className="w-3.5 h-3.5" />
-                                            </button>
-                                        </div>
                                     </div>
                                 </div>
 
@@ -159,7 +212,7 @@ export default function SecurityKeysPage() {
                                 </div>
                             </div>
 
-                            <div className="mt-6 pt-4 border-t border-white/5 flex gap-2">
+                            <div className="mt-6 pt-4 border-t border-white/5 flex gap-2 flex-wrap">
                                 {key.scopes.map(scope => (
                                     <span key={scope} className="text-[9px] font-bold uppercase tracking-wider bg-white/5 px-2 py-0.5 rounded text-text-muted border border-white/5">
                                         {scope}
@@ -186,11 +239,11 @@ export default function SecurityKeysPage() {
 
             <Modal
                 open={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={closeCreateModal}
                 title="Generate API Key"
                 footer={(
                     <>
-                        <Button variant="ghost" onClick={() => setIsModalOpen(false)}>Cancel</Button>
+                        <Button variant="ghost" onClick={closeCreateModal}>Cancel</Button>
                         <Button onClick={createKey} disabled={creating}>
                             {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Generating</> : "Generate Key"}
                         </Button>
@@ -205,6 +258,21 @@ export default function SecurityKeysPage() {
                     onChange={(e) => setNewKeyName(e.target.value)}
                     autoFocus
                 />
+                <div className="mt-6">
+                    <div className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">Scopes</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {API_KEY_SCOPE_OPTIONS.map(scope => (
+                            <label key={scope} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-text-secondary">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedScopes.includes(scope)}
+                                    onChange={() => toggleScope(scope)}
+                                />
+                                {scope}
+                            </label>
+                        ))}
+                    </div>
+                </div>
             </Modal>
         </GovernanceLayout>
     );

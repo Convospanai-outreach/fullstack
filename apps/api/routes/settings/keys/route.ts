@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { randomBytes } from "crypto";
+import { logger } from "@/lib/logger";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
+import {
+    ApiKeyValidationError,
+    createApiKeySecret,
+    createStoredApiKeyValue,
+    toApiKeyListMetadata,
+    validateApiKeyScopes,
+} from "@/lib/apiKeySecurity";
+
+const KEY_LIST_LIMIT = 100;
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -13,18 +22,23 @@ export async function GET(_req: NextRequest) {
 
     const keys = await prisma.apiKey.findMany({
         where: { teamId: ctx.teamId, isActive: true },
+        orderBy: { createdAt: 'desc' },
+        take: KEY_LIST_LIMIT,
         select: {
             id: true,
             name: true,
             scopes: true,
             lastUsedAt: true,
             createdAt: true,
-            key: false // Do not return full key
+            isActive: true,
+            key: true
         }
     });
 
-    // We can return a hint like "sk_...1234" if we stored it, but for now just metadata
-    return NextResponse.json(keys);
+    return NextResponse.json(keys.map(({ key, ...metadata }) => ({
+        ...metadata,
+        ...toApiKeyListMetadata(key),
+    })));
 }
 
 export async function POST(req: NextRequest) {
@@ -33,28 +47,68 @@ export async function POST(req: NextRequest) {
 
     await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
 
-    const { name, scopes } = await req.json();
+    let body: { name?: string; scopes?: unknown };
+    try {
+        body = await req.json();
+    } catch {
+        return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+    }
 
-    // Generate random key
-    const rawKey = "sk_live_" + randomBytes(24).toString("hex");
+    let validatedScopes;
+    try {
+        validatedScopes = validateApiKeyScopes(body.scopes);
+    } catch (error) {
+        if (error instanceof ApiKeyValidationError) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        throw error;
+    }
+
+    const generated = createApiKeySecret();
 
     const key = await prisma.apiKey.create({
         data: {
             teamId: ctx.teamId,
-            name: name || "Untitled Key",
-            key: rawKey,
-            scopes: scopes || ["leads:read", "campaigns:read"]
+            name: body.name || "Untitled Key",
+            key: createStoredApiKeyValue(generated.secret),
+            scopes: validatedScopes
         }
     });
 
-    await audit({
-        actorId: ctx.userId,
-        orgId: ctx.teamId,
-        action: "API_KEY_CREATED",
-        entity: "ApiKey",
-        entityId: key.id,
-        metadata: { name: key.name, scopes: key.scopes }
-    });
+    try {
+        await audit({
+            actorId: ctx.userId,
+            orgId: ctx.teamId,
+            action: "API_KEY_CREATED",
+            entity: "ApiKey",
+            entityId: key.id,
+            metadata: {
+                name: key.name,
+                scopes: key.scopes,
+                keyPrefix: generated.keyPrefix,
+                keyLastFour: generated.keyLastFour,
+                legacy: false,
+            }
+        });
+    } catch (error) {
+        logger.error("[Settings API] Failed to audit API key creation", {
+            error: error instanceof Error ? error.message : "Unknown error",
+            keyId: key.id,
+            keyLastFour: generated.keyLastFour,
+        });
+    }
 
-    return NextResponse.json({ ...key, key: rawKey }); // Return full key ONCE
+    return NextResponse.json({
+        id: key.id,
+        name: key.name,
+        scopes: key.scopes,
+        lastUsedAt: key.lastUsedAt,
+        isActive: key.isActive,
+        createdAt: key.createdAt,
+        keyPrefix: generated.keyPrefix,
+        keyLastFour: generated.keyLastFour,
+        displayKey: `${generated.keyPrefix}...${generated.keyLastFour}`,
+        legacy: false,
+        secret: generated.secret,
+    });
 }

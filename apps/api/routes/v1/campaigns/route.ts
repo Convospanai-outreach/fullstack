@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
-    const auth = await validateApiKey(req, "campaigns:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "campaigns:read");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const rateLimit = await import("@/lib/apiRateLimit").then(m => m.checkApiRateLimit(auth.teamId));
     if (!rateLimit.success) {

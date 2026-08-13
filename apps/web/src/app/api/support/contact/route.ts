@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "support@craftmyfunnel.com";
+    const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
     const ticketId = generateTicketId();
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());

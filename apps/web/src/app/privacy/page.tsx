@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
 
           <h2 className="pt-4 text-2xl font-semibold text-white">Contact</h2>
           <p>
-            For privacy requests, contact: <a className="text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a>
+            For privacy requests, contact: <a className="text-cyan-300 underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>
           </p>
         </section>
       </article>

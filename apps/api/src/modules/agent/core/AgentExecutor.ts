@@ -254,7 +254,7 @@ export class AgentExecutor {
 
                 // AGENTIC RAG: Retrieve campaign context only when a campaign scope is available.
                 const ragContext = await buildAgenticRagContext(task, (campaignId, query) =>
-                    KnowledgeIngressService.agenticSearch(campaignId, query)
+                    KnowledgeIngressService.agenticSearch(campaignId, query, task.teamId)
                 );
 
                 const prompt = `

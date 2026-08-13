@@ -17,6 +17,7 @@ export default function ApiKeysPage() {
 
     useEffect(() => {
         loadKeys();
+        return () => setNewKey(null);
     }, []);
 
     const loadKeys = async () => {
@@ -42,7 +43,7 @@ export default function ApiKeysPage() {
             const data = await res.json();
 
             if (res.ok) {
-                setNewKey(data.key);
+                setNewKey(data.secret);
                 loadKeys();
                 setShowCreate(false);
                 setCreateName("");
@@ -142,6 +143,9 @@ export default function ApiKeysPage() {
                                     <div className="text-xs text-gray-500">
                                         Created {new Date(key.createdAt).toLocaleDateString()} •
                                         Last used: {key.lastUsedAt ? formatDistanceToNow(new Date(key.lastUsedAt), { addSuffix: true }) : "Never"}
+                                    </div>
+                                    <div className="mt-2 font-mono text-xs text-gray-400">
+                                        {key.displayKey}
                                     </div>
                                     <div className="flex gap-2 mt-2">
                                         {key.scopes.map((scope: string) => (

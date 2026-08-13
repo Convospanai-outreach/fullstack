@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
 
@@ -12,22 +13,41 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
-    const deleted = await prisma.apiKey.deleteMany({
-        where: { id, teamId: ctx.teamId }
+    const key = await prisma.apiKey.findFirst({
+        where: { id, teamId: ctx.teamId },
+        select: { id: true, isActive: true }
     });
 
-    if (deleted.count !== 1) {
+    if (!key) {
         return NextResponse.json({ error: "API key not found" }, { status: 404 });
     }
 
-    await audit({
-        actorId: ctx.userId,
-        orgId: ctx.teamId,
-        action: "API_KEY_DELETED",
-        entity: "ApiKey",
-        entityId: id,
-        metadata: {}
-    });
+    if (key.isActive) {
+        const revoked = await prisma.apiKey.updateMany({
+            where: { id, teamId: ctx.teamId, isActive: true },
+            data: { isActive: false }
+        });
+
+        if (revoked.count !== 1) {
+            return NextResponse.json({ error: "API key not found" }, { status: 404 });
+        }
+
+        try {
+            await audit({
+                actorId: ctx.userId,
+                orgId: ctx.teamId,
+                action: "API_KEY_REVOKED",
+                entity: "ApiKey",
+                entityId: id,
+                metadata: {}
+            });
+        } catch (error) {
+            logger.error("[Settings API] Failed to audit API key revocation", {
+                error: error instanceof Error ? error.message : "Unknown error",
+                keyId: id,
+            });
+        }
+    }
 
     return NextResponse.json({ success: true });
 }

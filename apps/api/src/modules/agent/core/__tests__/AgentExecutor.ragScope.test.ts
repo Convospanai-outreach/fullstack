@@ -8,13 +8,14 @@ describe("AgentExecutor agentic RAG scoping", () => {
         const ragContext = await buildAgenticRagContext(
             {
                 goal: "Research Acme buying signals",
+                teamId: "team-1",
                 context: { campaignId: "campaign-123" }
             },
             searchKnowledge
         );
 
         expect(ragContext).toBe("campaign knowledge");
-        expect(searchKnowledge).toHaveBeenCalledWith("campaign-123", "Research Acme buying signals");
+        expect(searchKnowledge).toHaveBeenCalledWith("campaign-123", "Research Acme buying signals", "team-1");
     });
 
     it("falls back to a direct campaignId when context does not carry one", async () => {
@@ -23,13 +24,14 @@ describe("AgentExecutor agentic RAG scoping", () => {
         const ragContext = await buildAgenticRagContext(
             {
                 goal: "A".repeat(140),
+                teamId: "team-1",
                 campaignId: "campaign-direct"
             },
             searchKnowledge
         );
 
         expect(ragContext).toBe("fallback campaign knowledge");
-        expect(searchKnowledge).toHaveBeenCalledWith("campaign-direct", "A".repeat(100));
+        expect(searchKnowledge).toHaveBeenCalledWith("campaign-direct", "A".repeat(100), "team-1");
     });
 
     it("returns empty context without calling search when campaign scope is unavailable", async () => {
@@ -38,7 +40,23 @@ describe("AgentExecutor agentic RAG scoping", () => {
         const ragContext = await buildAgenticRagContext(
             {
                 goal: "Research Acme buying signals",
+                teamId: "team-1",
                 context: { leadId: "lead-1" }
+            },
+            searchKnowledge
+        );
+
+        expect(ragContext).toBe("");
+        expect(searchKnowledge).not.toHaveBeenCalled();
+    });
+
+    it("returns empty context without calling search when team context is unavailable", async () => {
+        const searchKnowledge = vi.fn();
+
+        const ragContext = await buildAgenticRagContext(
+            {
+                goal: "Research Acme buying signals",
+                context: { campaignId: "campaign-123" }
             },
             searchKnowledge
         );

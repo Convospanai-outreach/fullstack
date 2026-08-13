@@ -160,7 +160,7 @@ export const HELP_PROMPTS = [
 export const HELP_QUICK_ACTIONS: HelpAction[] = [
     { label: "Open help center", href: "/help", kind: "page" },
     { label: "Contact support", href: "/contact", kind: "page" },
-    { label: "Email support", href: "mailto:support@craftmyfunnel.live", kind: "mailto" },
+    { label: "Email support", href: "mailto:contact.us@craftmyfunnel.live", kind: "mailto" },
 ];
 
 function tokenize(input: string): string[] {

@@ -7,7 +7,11 @@ export class KnowledgeIngressService {
      * Ingests knowledge for a specific campaign.
      * Can pull from URLs, local files, or provided text.
      */
-    static async ingressCampaignKnowledge(campaignId: string, source: string, type: 'URL' | 'TEXT' | 'FILE') {
+    static async ingressCampaignKnowledge(campaignId: string, source: string, type: 'URL' | 'TEXT' | 'FILE', teamId: string) {
+        if (!teamId?.trim()) {
+            throw new Error("Campaign not found");
+        }
+
         console.log(`[KnowledgeIngress] Ingesting knowledge for Campaign ${campaignId} from ${source}...`);
 
         let content = "";
@@ -21,17 +25,16 @@ export class KnowledgeIngressService {
             content = `File content from ${source}`;
         }
 
+        const campaign = await prisma.campaign.findFirst({
+            where: { id: campaignId, teamId },
+            select: { teamId: true }
+        });
+        if (!campaign?.teamId) throw new Error("Campaign not found");
+
         // 1. Data Sterilization via TOON
         const { optimizedPrompt: sterilized } = await TOON.process(content, "system");
 
         // 2. Save to Vector Store (addDocument handles embedding internally)
-
-        // Fetch teamId for the campaign
-        const campaign = await prisma.campaign.findUnique({
-            where: { id: campaignId },
-            select: { teamId: true }
-        });
-        if (!campaign?.teamId) throw new Error("Campaign not found");
 
         // Find or create a knowledge base for this team
         let kb = await prisma.knowledgeBase.findFirst({
@@ -61,16 +64,19 @@ export class KnowledgeIngressService {
      * Agentic RAG Search:
      * Searches for campaign-specific knowledge before generation.
      */
-    static async agenticSearch(campaignId: string, query: string) {
-        // 1. Sterilize Query
-        const { optimizedPrompt: safeQuery } = await TOON.process(query, "system");
+    static async agenticSearch(campaignId: string, query: string, teamId: string) {
+        if (!teamId?.trim()) {
+            return "";
+        }
 
-        // Fetch teamId
-        const campaign = await prisma.campaign.findUnique({
-            where: { id: campaignId },
+        const campaign = await prisma.campaign.findFirst({
+            where: { id: campaignId, teamId },
             select: { teamId: true }
         });
         if (!campaign?.teamId) return "";
+
+        // 1. Sterilize Query
+        const { optimizedPrompt: safeQuery } = await TOON.process(query, "system");
 
         // 2. Vector Search (using teamId as required by VectorStore.search)
         const results = await vectorStore.search(safeQuery, campaign.teamId, 5);

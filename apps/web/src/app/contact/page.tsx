@@ -66,7 +66,7 @@ export default function ContactPage() {
                                 <span className="font-semibold">Email support</span>
                             </div>
                             <p className="text-gray-400 text-sm">General questions and account help</p>
-                            <a href="mailto:support@craftmyfunnel.live" className="text-white font-medium hover:text-indigo-400 transition-colors">support@craftmyfunnel.live</a>
+                            <a href="mailto:contact.us@craftmyfunnel.live" className="text-white font-medium hover:text-indigo-400 transition-colors">contact.us@craftmyfunnel.live</a>
                         </div>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-purple-500/20 transition-colors space-y-2">
@@ -75,7 +75,7 @@ export default function ContactPage() {
                                 <span className="font-semibold">Enterprise sales</span>
                             </div>
                             <p className="text-gray-400 text-sm">Custom plans, SSO, and rollout support</p>
-                            <a href="mailto:support@craftmyfunnel.live" className="text-white font-medium hover:text-purple-400 transition-colors">support@craftmyfunnel.live</a>
+                            <a href="mailto:contact.us@craftmyfunnel.live" className="text-white font-medium hover:text-purple-400 transition-colors">contact.us@craftmyfunnel.live</a>
                         </div>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-emerald-500/20 transition-colors space-y-2">

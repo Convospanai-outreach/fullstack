@@ -10,7 +10,7 @@ export default function SecurityPage() {
           <p>Connected integrations should use least-privilege OAuth scopes. For Gmail send-only mailbox connection, the application should request only the access needed to send user-approved emails.</p>
           <p>OAuth tokens, refresh tokens, SMTP passwords, and credentials should not be exposed in frontend code, public logs, analytics tools, or support screenshots.</p>
           <p>Users should only connect Google Workspace accounts, Gmail mailboxes, domains, and sender identities they own or are authorized to use.</p>
-          <p>To report a security concern, contact <a className="text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a>.</p>
+          <p>To report a security concern, contact <a className="text-cyan-300 underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>.</p>
         </section>
       </article>
     </main>

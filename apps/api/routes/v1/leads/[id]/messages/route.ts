@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
 export async function GET(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const auth = await validateApiKey(req, "leads:read");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:read");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { id: leadId } = params;
 
@@ -28,19 +27,32 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { id: string } }
 ) {
-    const auth = await validateApiKey(req, "leads:write");
-    if (!auth) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:write");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const { id: leadId } = params;
 
     try {
-        const body = await req.json();
+        let body;
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Malformed JSON" }, { status: 400 });
+        }
         const { content, direction, platform } = body;
 
         if (!content || !direction || !platform) {
             return NextResponse.json({ error: "content, direction, and platform are required" }, { status: 400 });
+        }
+
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, teamId: auth.teamId },
+            select: { id: true },
+        });
+
+        if (!lead) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
 
         const message = await prisma.message.create({

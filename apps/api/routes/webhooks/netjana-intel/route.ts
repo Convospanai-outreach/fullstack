@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateApiKey } from "@/lib/apiAuth";
+import { authorizeApiKey } from "@/lib/apiAuth";
 import {
     ingestNetjanaSignal,
     validateNetjanaPayload,
@@ -12,10 +12,9 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid source" }, { status: 401 });
     }
 
-    const auth = await validateApiKey(req, "leads:write");
-    if (!auth?.teamId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const authResult = await authorizeApiKey(req, "leads:write");
+    if (!authResult.ok) return authResult.response;
+    const auth = authResult.context;
 
     const rawBody = await req.text();
     let payload: unknown;

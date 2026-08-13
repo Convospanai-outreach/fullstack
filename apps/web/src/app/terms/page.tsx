@@ -160,7 +160,7 @@ const sections = [
   {
     title: "Contact Information",
     body: [
-      "For questions regarding these Terms & Conditions, please contact CraftMyFunnel at support@craftmyfunnel.live.",
+      "For questions regarding these Terms & Conditions, please contact CraftMyFunnel at contact.us@craftmyfunnel.live.",
     ],
   },
 ];
@@ -232,7 +232,7 @@ export default function TermsPage() {
             </div>
 
             <div className="mt-12 rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-5 text-sm leading-7 text-cyan-50">
-              Contact: <a className="font-semibold underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a>
+              Contact: <a className="font-semibold underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a>
             </div>
           </article>
         </div>

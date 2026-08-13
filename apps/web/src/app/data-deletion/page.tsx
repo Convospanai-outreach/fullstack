@@ -7,7 +7,7 @@ export default function DataDeletionPage() {
         <p className="mt-3 text-sm text-slate-400">Last updated: May 25, 2026</p>
         <section className="mt-8 space-y-4 text-sm leading-7 text-slate-300">
           <p>Users may request deletion of account data, workspace data, campaign data, uploaded lead data, connected integration data, mailbox information, and Google OAuth tokens where applicable.</p>
-          <p>To request deletion, email <a className="text-cyan-300 underline" href="mailto:support@craftmyfunnel.live">support@craftmyfunnel.live</a> with your account email, workspace name, and deletion request.</p>
+          <p>To request deletion, email <a className="text-cyan-300 underline" href="mailto:contact.us@craftmyfunnel.live">contact.us@craftmyfunnel.live</a> with your account email, workspace name, and deletion request.</p>
           <p>Users may also disconnect Google mailboxes from the application setup page where available.</p>
           <p>When a Google integration is disconnected or deletion is requested, Google access tokens and refresh tokens should be revoked or removed from CraftMyFunnel systems where applicable.</p>
         </section>
