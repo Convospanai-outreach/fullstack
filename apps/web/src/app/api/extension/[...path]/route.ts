@@ -12,7 +12,19 @@ function targetUrl(req: NextRequest, pathParts: string[]): URL {
     return new URL(`/extension/${pathParts.join("/")}${req.nextUrl.search}`, INTERNAL_API_ORIGIN);
 }
 
+function corsHeaders(req: NextRequest): HeadersInit {
+    const origin = req.headers.get("origin") || "";
+    if (!origin.startsWith("chrome-extension://")) return {};
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, x-extension-key",
+        "Access-Control-Max-Age": "600"
+    };
+}
+
 async function forwardExtensionRequest(req: NextRequest, pathParts: string[]) {
+    const cors = corsHeaders(req);
     try {
         const headers = new Headers(req.headers);
         headers.delete("host");
@@ -31,14 +43,21 @@ async function forwardExtensionRequest(req: NextRequest, pathParts: string[]) {
             redirect: "manual"
         });
 
+        const responseHeaders = new Headers(upstream.headers);
+        for (const [key, value] of Object.entries(cors)) responseHeaders.set(key, value);
+
         return new NextResponse(upstream.body, {
             status: upstream.status,
-            headers: upstream.headers
+            headers: responseHeaders
         });
     } catch (error) {
         const message = error instanceof Error ? error.message : "Extension proxy failure";
-        return NextResponse.json({ ok: false, error: message }, { status: 502 });
+        return NextResponse.json({ ok: false, error: message }, { status: 502, headers: cors });
     }
+}
+
+export async function OPTIONS(req: NextRequest) {
+    return new NextResponse(null, { status: 204, headers: corsHeaders(req) });
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
