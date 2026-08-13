@@ -99,7 +99,7 @@ describe("api key auth", () => {
     await expect(validateApiKey(request(legacyKey("cs_live_")), "leads:read")).resolves.toBeNull();
   });
 
-  it("throttles failed attempts by server source and route family before lookup", async () => {
+  it("throttles failed attempts by server source and route family", async () => {
     mockPrisma.apiKey.findFirst.mockResolvedValue(null);
     let result = await authorizeApiKey(request(newKey("c")), "leads:read");
 
@@ -115,7 +115,30 @@ describe("api key auth", () => {
       expect(result.response.status).toBe(429);
       expect(result.response.headers.get("Retry-After")).toBeTruthy();
     }
-    expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledTimes(10);
+    // 1 initial call + 10 loop iterations: every well-formed candidate key now reaches the
+    // DB lookup, even once the bucket is tripped, so a valid key is never falsely blocked.
+    expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledTimes(11);
+  });
+
+  it("never blocks a request presenting a genuinely valid key, even with the bucket tripped", async () => {
+    mockPrisma.apiKey.findFirst.mockResolvedValue(null);
+    for (let i = 1; i <= 10; i += 1) {
+      await authorizeApiKey(request(newKey(String(i % 10)), "server-source-3"), "leads:read");
+    }
+    const tripped = await authorizeApiKey(request(newKey("e"), "server-source-3"), "leads:read");
+    expect(tripped.ok).toBe(false);
+    if (!tripped.ok) expect(tripped.response.status).toBe(429);
+
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-valid",
+      teamId: "team-valid",
+      scopes: ["leads:read"],
+      isActive: true,
+    });
+    const result = await authorizeApiKey(request(newKey("d"), "server-source-3"), "leads:read");
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.context.teamId).toBe("team-valid");
   });
 
   it("does not let spoofed client source headers or dynamic ids bypass failed-auth throttles", async () => {

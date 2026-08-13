@@ -164,21 +164,24 @@ export function resetApiKeyAuthRateLimitForTests() {
     globalFailedAuthBucket = null;
 }
 
-export async function authorizeApiKey(req: NextRequest, requiredScope?: string): Promise<ApiKeyAuthResult> {
-    const throttleResponse = getFailedApiKeyAuthThrottleResponse(req);
-    if (throttleResponse) {
-        return { ok: false, response: throttleResponse };
-    }
+// Only consulted on a failing attempt, never before a lookup succeeds - a request bearing a
+// genuinely valid key must never be blocked by unrelated failed attempts sharing the same
+// source bucket (e.g. behind a proxy with TRUST_PROXY unset, every client's request.ip
+// collapses to one bucket, so one bad actor could otherwise 429 every valid key at once).
+function rejectFailedApiKeyAttempt(req: NextRequest): NextResponse {
+    return getFailedApiKeyAuthThrottleResponse(req) || recordFailedApiKeyAuth(req);
+}
 
+export async function authorizeApiKey(req: NextRequest, requiredScope?: string): Promise<ApiKeyAuthResult> {
     const apiKey = req.headers.get("x-api-key");
 
     if (!apiKey) {
-        return { ok: false, response: recordFailedApiKeyAuth(req) };
+        return { ok: false, response: rejectFailedApiKeyAttempt(req) };
     }
 
     const lookupValues = getApiKeyLookupValues(apiKey);
     if (lookupValues.length === 0) {
-        return { ok: false, response: recordFailedApiKeyAuth(req) };
+        return { ok: false, response: rejectFailedApiKeyAttempt(req) };
     }
 
     const keyRecord = await prisma.apiKey.findFirst({
@@ -186,11 +189,11 @@ export async function authorizeApiKey(req: NextRequest, requiredScope?: string):
     });
 
     if (!keyRecord || !keyRecord.isActive) {
-        return { ok: false, response: recordFailedApiKeyAuth(req) };
+        return { ok: false, response: rejectFailedApiKeyAttempt(req) };
     }
 
     if (requiredScope && !keyRecord.scopes.includes(requiredScope)) {
-        return { ok: false, response: recordFailedApiKeyAuth(req) };
+        return { ok: false, response: rejectFailedApiKeyAttempt(req) };
     }
 
     // Async update last used (non-blocking)
