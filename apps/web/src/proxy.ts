@@ -52,6 +52,8 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
     const authApiPrefixes = ["/api/auth", "/api/proxy/auth"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
+    // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
+    const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
@@ -145,7 +147,8 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
 
     // 1. CORS for API routes
-    if (path.startsWith("/api")) {
+    // Extension routes handle their own CORS/OPTIONS (chrome-extension:// origins) in their route handler.
+    if (path.startsWith("/api") && !extensionApiPrefixes.some((prefix) => path.startsWith(prefix))) {
         const origin = req.headers.get("origin");
         const allowedOrigins = process.env['ALLOWED_ORIGINS']?.split(",") || ["http://localhost:3000"];
 
@@ -206,6 +209,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         cleanPath.startsWith("/static") ||
         cleanPath.startsWith("/images") ||
         webhookApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
+        extensionApiPrefixes.some((prefix) => cleanPath.startsWith(prefix)) ||
         publicApiPrefixes.some((prefix) => cleanPath.startsWith(prefix));
 
     if (!isPublic) {

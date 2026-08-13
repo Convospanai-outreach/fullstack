@@ -3,7 +3,8 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
-const TOKEN_TTL_SECONDS = 15 * 60;
+// background.js has no re-mint/refresh flow, so this is a standing credential, not a copy-paste window.
+const TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export async function POST() {
     const user = await findOrCreateClerkAppUser();
