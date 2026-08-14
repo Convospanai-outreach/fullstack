@@ -704,14 +704,15 @@ model MailboxSyncCursor {
 }
 
 model CampaignSequence {
-  id         String   @id @default(uuid())
-  teamId     String
-  campaignId String?
-  name       String
-  status     String   @default("DRAFT")
-  timezone   String   @default("UTC")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String   @id @default(uuid())
+  teamId            String
+  campaignId        String?
+  name              String
+  status            String   @default("DRAFT")
+  timezone          String   @default("UTC")
+  senderMailboxIds  String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   team        Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
   campaign    Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)

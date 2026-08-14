@@ -16,6 +16,7 @@ import AnalyticsTab from "@/components/campaigns/AnalyticsTab";
 import ExecutionTimeline from "@/components/campaigns/ExecutionTimeline";
 import { PolicyGuard } from "@/components/governance/PolicyGuard";
 import { checkCampaignPolicy } from "@/lib/policyUtils";
+import SequenceTab from "@/components/campaigns/sequence/SequenceTab";
 
 // Removed unused Switch import
 
@@ -244,7 +245,7 @@ export default function CampaignDetailPage({
                 {/* Tabs */}
                 <div className="border-b border-white/10 mb-6">
                     <nav className="-mb-px flex space-x-8">
-                        {["overview", "leads", "activity", "timeline", "analytics"].map((tab) => (
+                        {["overview", "sequence", "leads", "activity", "timeline", "analytics"].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -435,6 +436,13 @@ export default function CampaignDetailPage({
                                     </button>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* SEQUENCE TAB */}
+                    {activeTab === "sequence" && (
+                        <div className="lg:col-span-3">
+                            <SequenceTab campaignId={campaignId} />
                         </div>
                     )}
 
