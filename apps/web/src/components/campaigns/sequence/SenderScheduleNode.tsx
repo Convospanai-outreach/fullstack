@@ -30,6 +30,7 @@ export interface SenderScheduleNodeData {
     mailboxes: SequenceMailbox[];
     timezone: string;
     onChange: (update: { senderMailboxIds?: string[]; timezone?: string }) => void;
+    disabled: boolean;
 }
 
 export default function SenderScheduleNode({ data }: NodeProps<SenderScheduleNodeData>) {
@@ -68,7 +69,12 @@ export default function SenderScheduleNode({ data }: NodeProps<SenderScheduleNod
         <>
             <Card className="w-80 overflow-hidden p-0">
                 <div className="grid grid-cols-2 divide-x divide-border">
-                    <button type="button" onClick={openSenders} className="p-4 text-left transition hover:bg-accent">
+                    <button
+                        type="button"
+                        onClick={openSenders}
+                        disabled={data.disabled}
+                        className="p-4 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         <div className="text-xs uppercase tracking-wide text-muted-foreground">Senders</div>
                         <div className="mt-1 text-sm font-medium">
                             {data.senderMailboxIds.length > 0
@@ -76,7 +82,12 @@ export default function SenderScheduleNode({ data }: NodeProps<SenderScheduleNod
                                 : "Select senders"}
                         </div>
                     </button>
-                    <button type="button" onClick={openSchedule} className="p-4 text-left transition hover:bg-accent">
+                    <button
+                        type="button"
+                        onClick={openSchedule}
+                        disabled={data.disabled}
+                        className="p-4 text-left transition hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                    >
                         <div className="text-xs uppercase tracking-wide text-muted-foreground">Schedule</div>
                         <div className="mt-1 text-sm font-medium">{data.timezone}</div>
                     </button>

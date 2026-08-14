@@ -109,7 +109,7 @@ export default function SequenceCanvas({
             id: "start",
             type: "senderSchedule",
             position: { x: 0, y: 0 },
-            data: { senderMailboxIds, mailboxes, timezone, onChange: onSenderScheduleChange },
+            data: { senderMailboxIds, mailboxes, timezone, onChange: onSenderScheduleChange, disabled },
             draggable: false,
             selectable: false,
         };

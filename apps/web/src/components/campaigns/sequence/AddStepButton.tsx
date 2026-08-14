@@ -22,7 +22,7 @@ export default function AddStepButton({
     }
 
     return (
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenu open={disabled ? false : open} onOpenChange={(next) => !disabled && setOpen(next)}>
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
