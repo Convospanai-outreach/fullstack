@@ -11,6 +11,10 @@ import { findStepDefinition } from "./stepDefinitions";
 export interface SequenceStepItem {
     id: string;
     stepType: string;
+    delayDays: number;
+    delayHours: number;
+    subject: string | null;
+    body: string | null;
 }
 
 interface SequenceStepNodeData {
@@ -90,7 +94,7 @@ export default function SequenceCanvas({
     const addStep = useCallback(
         (stepType: string) => {
             const id = `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-            onStepsChange([...steps, { id, stepType }]);
+            onStepsChange([...steps, { id, stepType, delayDays: 0, delayHours: 0, subject: null, body: null }]);
         },
         [steps, onStepsChange]
     );
