@@ -4,7 +4,7 @@ import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
-export const LINKEDIN_STEP_TYPES = new Set([
+const LINKEDIN_STEP_TYPES = new Set([
     "CHAT_MESSAGE",
     "VISIT_PROFILE",
     "LI_WITHDRAW",

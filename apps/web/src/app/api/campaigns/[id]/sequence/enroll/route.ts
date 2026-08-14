@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { LINKEDIN_STEP_TYPES } from "../route";
 
 export const dynamic = "force-dynamic";
+
+// Must mirror sequenceService.ts's normalize()/stepType() on apps/api exactly: trim, lowercase,
+// hyphens to underscores. That engine only ever advances these four types; anything else hard-fails
+// a step run with UNSUPPORTED_STEP_TYPE and leaves the enrollment stuck in "SCHEDULING" forever,
+// with no automated exit or retry - so this must be an allowlist of what's known-safe, not a
+// denylist of LinkedIn step names (older rows can carry other stray/legacy values entirely).
+const SUPPORTED_STEP_TYPES = new Set(["email", "condition", "delay", "manual_review"]);
+function normalizedStepType(stepType: string) {
+    return stepType.trim().toLowerCase().replace(/-/g, "_");
+}
+
+function firstStepDelayMs(step: { delayDays: number; delayHours: number }) {
+    return (step.delayDays * 24 + step.delayHours) * 60 * 60 * 1000;
+}
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -30,15 +43,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
             return NextResponse.json({ error: "This campaign has no sequence steps to enroll leads into" }, { status: 400 });
         }
 
-        // Sequence execution only supports EMAIL steps today (see SequenceService.processDue) -
-        // a LinkedIn step hard-fails its run with UNSUPPORTED_STEP_TYPE and leaves the enrollment
-        // stuck in "SCHEDULING" forever, with no automated exit or retry. Refuse enrollment
-        // up front rather than create enrollments that can never complete.
-        const linkedinStep = sequence.steps.find((s) => LINKEDIN_STEP_TYPES.has(s.stepType));
-        if (linkedinStep) {
+        const unsupportedStep = sequence.steps.find((s) => !SUPPORTED_STEP_TYPES.has(normalizedStepType(s.stepType)));
+        if (unsupportedStep) {
             return NextResponse.json(
                 {
-                    error: `Cannot enroll leads yet: step ${linkedinStep.stepOrder + 1} ("${linkedinStep.stepType}") is a LinkedIn step, which sequence execution does not support. Remove or replace it before enrolling.`,
+                    error: `Cannot enroll leads yet: step ${unsupportedStep.stepOrder + 1} ("${unsupportedStep.stepType}") is not a type sequence execution supports (only email/condition/delay/manual_review). Remove or replace it before enrolling.`,
                 },
                 { status: 400 },
             );
@@ -53,6 +62,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
         }
 
         const now = new Date();
+        const firstStep = sequence.steps[0]!;
+        const nextRunAt = new Date(now.getTime() + firstStepDelayMs(firstStep));
         const result = await prisma.sequenceEnrollment.createMany({
             data: leads.map((lead) => ({
                 teamId,
@@ -61,7 +72,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
                 campaignId,
                 status: "ACTIVE",
                 currentStepOrder: 0,
-                nextRunAt: now,
+                nextRunAt,
             })),
             skipDuplicates: true,
         });
