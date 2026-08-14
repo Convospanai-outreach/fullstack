@@ -58,7 +58,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         const { CampaignService } = await import("@/lib/campaignService");
 
-        if (body.action === "start" || body.status === "active") {
+        if (body.action === "start") {
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);
