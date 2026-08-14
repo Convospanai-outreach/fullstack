@@ -21,6 +21,7 @@ interface SequenceStepFromApi {
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [enrolling, setEnrolling] = useState(false);
     const [steps, setSteps] = useState<SequenceStepItem[]>([]);
     const [senderMailboxIds, setSenderMailboxIds] = useState<string[]>([]);
     const [timezone, setTimezone] = useState("UTC");
@@ -121,6 +122,40 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
         }
     }
 
+    async function handleEnroll() {
+        const confirmed = window.confirm(
+            "Enroll every lead assigned to this campaign into the currently saved sequence? " +
+                "Unsaved edits will not be included, and this starts sending real outbound steps - there is no undo."
+        );
+        if (!confirmed) return;
+
+        setEnrolling(true);
+        try {
+            const res = await fetch(getBrowserApiUrl(`/campaigns/${campaignId}/sequence/enroll`), {
+                method: "POST",
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Failed to enroll leads");
+                return;
+            }
+            if (data.enrolled > 0) {
+                toast.success(
+                    `Enrolled ${data.enrolled} lead${data.enrolled === 1 ? "" : "s"}` +
+                        (data.alreadyEnrolled > 0 ? ` (${data.alreadyEnrolled} already enrolled)` : "")
+                );
+            } else if (data.candidates === 0) {
+                toast.info(data.message || "No leads are assigned to this campaign");
+            } else {
+                toast.info("All assigned leads are already enrolled");
+            }
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to enroll leads");
+        } finally {
+            setEnrolling(false);
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex h-96 items-center justify-center">
@@ -134,11 +169,20 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
             <AIPanel />
 
             <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border">
-                <div className="flex items-center justify-end border-b border-border bg-card p-3">
+                <div className="flex items-center justify-end gap-2 border-b border-border bg-card p-3">
+                    <button
+                        type="button"
+                        onClick={handleEnroll}
+                        disabled={saving || enrolling || steps.length === 0}
+                        className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:opacity-60"
+                    >
+                        {enrolling && <Loader2 className="h-4 w-4 animate-spin" />}
+                        {enrolling ? "Enrolling..." : "Enroll leads"}
+                    </button>
                     <button
                         type="button"
                         onClick={handleSave}
-                        disabled={saving}
+                        disabled={saving || enrolling}
                         className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
                     >
                         {saving && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -154,7 +198,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         timezone={timezone}
                         onSenderScheduleChange={handleSenderScheduleChange}
                         linkedinLocked={linkedinLocked}
-                        disabled={saving}
+                        disabled={saving || enrolling}
                     />
                 </div>
             </div>
