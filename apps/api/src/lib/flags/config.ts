@@ -49,5 +49,12 @@ export const FEATURE_DEFINITIONS: Record<string, FeatureDefinition> = {
         description: "Fully autonomous agent loops",
         layer: CapabilityLayer.EXPERIMENTAL,
         defaultValue: false
+    },
+
+    "whatsapp_outbound": {
+        key: "whatsapp_outbound",
+        description: "Outbound WhatsApp messaging",
+        layer: CapabilityLayer.ADVANCED_OPS,
+        defaultValue: false
     }
 };

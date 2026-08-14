@@ -1,15 +1,6 @@
 export const PRODUCT_FLAGS = {
     betaMode: true,
     emailFirstBeta: true,
-    enableLinkedInAutomation: false,
-    enableEdgeRuntime: false,
-    enableCallerWorkspace: false,
-    enablePlaybooks: false,
-    enableWorkflows: false,
-    enableStudio: false,
-    enableMarketplace: false,
-    enableKnowledgeBase: false,
-    enableAgentBuilder: false,
 };
 
 export const HIDDEN_FEATURES_COOKIE = "convo-hidden-features";

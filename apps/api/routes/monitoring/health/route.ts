@@ -22,14 +22,7 @@ export async function GET(_req: Request) {
     });
 
     if (membership?.role !== "admin" && membership?.role !== "owner") {
-        // return new NextResponse("Forbidden", { status: 403 }); 
-        // Allowing for MVP visibility if authenticated? No, let's keep it restricted.
-        // Actually, let's allow all logged-in users to see "system status" page if we want transparency, 
-        // but detailed internal metrics should be admin.
-        // Sticking to admin-only for now as per plan.
-        if (process.env.NODE_ENV === "production" && membership?.role !== "admin") {
-            // return new NextResponse("Forbidden", { status: 403 });
-        }
+        return new NextResponse("Forbidden", { status: 403 });
     }
 
     const health = await monitoringService.checkHealth();

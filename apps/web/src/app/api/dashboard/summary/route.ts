@@ -192,17 +192,6 @@ export async function GET() {
       };
     });
 
-    if (recentActivity.length === 0) {
-      recentActivity = [
-        {
-          id: 'ready-1',
-          type: 'campaign_activated',
-          description: 'Outreach Pipeline Active — Ready for imports and draft generation',
-          timestamp: new Date().toISOString(),
-        },
-      ];
-    }
-
     // Calculate setup completion percent
     const [mailboxesCount, campaignsCount, policy] = await Promise.all([
       prisma.connectedMailbox.count({ where: { teamId, status: "CONNECTED" } }),
