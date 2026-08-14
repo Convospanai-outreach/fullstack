@@ -633,10 +633,14 @@ function ExtensionSyncToken() {
     }
   }
 
-  function copy() {
+  async function copy() {
     if (!syncToken) return;
-    navigator.clipboard.writeText(syncToken.token);
-    toast.success("Copied to clipboard");
+    try {
+      await navigator.clipboard.writeText(syncToken.token);
+      toast.success("Copied to clipboard");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to copy to clipboard");
+    }
   }
 
   return (
