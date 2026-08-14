@@ -26,10 +26,10 @@ export default function ScraperPage() {
     };
 
     return (
-        <main style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
             <h1>Web Scraper</h1>
             <ScrapeForm onSubmit={handleScrape} loading={loading} />
             {result && <ScrapeResult result={result} />}
-        </main>
+        </div>
     );
 }
