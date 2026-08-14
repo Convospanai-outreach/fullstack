@@ -1,5 +1,10 @@
+import { randomUUID } from "crypto";
+import { LinkedInAdapter } from "./adapters/linkedinAdapter";
+import { GenericAdapter } from "./adapters/genericAdapter";
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+const linkedInAdapter = new LinkedInAdapter();
+const genericAdapter = new GenericAdapter();
 
 export interface ShadowSignalPayload {
     source: string;
@@ -35,28 +40,30 @@ class ShadowIngestionService {
 
     async scrape(payload: any): Promise<IngestionResult> {
         try {
-            const res = await fetch(`${API_URL}/scraper/scrape`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ payload })
-            });
-            return await res.json();
+            const { target, url } = payload;
+            const data = target === "linkedin"
+                ? await linkedInAdapter.scrape(url)
+                : await genericAdapter.scrape(url);
+
+            return {
+                success: true,
+                data,
+                frictionScore: 0,
+                isWarmLead: false,
+                detectedICPs: [],
+                signalId: randomUUID(),
+            };
         } catch (error) {
-            console.error("Scrape proxy failed:", error);
+            console.error("Scrape failed:", error);
             throw error;
         }
     }
 
     async batchScrape(requests: any[]): Promise<IngestionResult[]> {
         try {
-            const res = await fetch(`${API_URL}/scraper/batch-scrape`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ requests })
-            });
-            return await res.json();
+            return await Promise.all(requests.map((request) => this.scrape(request)));
         } catch (error) {
-            console.error("Batch scrape proxy failed:", error);
+            console.error("Batch scrape failed:", error);
             return [];
         }
     }
