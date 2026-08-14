@@ -646,6 +646,7 @@ function ExtensionSyncToken() {
         The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account.
       </p>
       <button
+        type="button"
         onClick={generate}
         disabled={generating}
         className="mt-4 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
@@ -658,7 +659,7 @@ function ExtensionSyncToken() {
             <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
               {syncToken.token}
             </code>
-            <button onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
+            <button type="button" onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
               <Copy className="h-4 w-4" />
             </button>
           </div>
