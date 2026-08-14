@@ -22,6 +22,33 @@ services:
       retries: 5
 
   # ─────────────────────────────────────────────
+  # PostgreSQL for edge-fastapi — deliberately separate from the `postgres`
+  # service above. edge-fastapi manages its own schema (SQLAlchemy
+  # Base.metadata.create_all, no Prisma migrations) and its WorkflowRecord/
+  # EdgeSetting tables are a distinct source of truth per edge node, not a
+  # replica of apps/api's Prisma Workflow/WorkflowRun model (see OPEN-28).
+  # Sharing the `postgres` DB by default let both silently coexist in one
+  # database with no relationship to each other.
+  # ─────────────────────────────────────────────
+  postgres-edge:
+    image: pgvector/pgvector:pg16
+    container_name: craftmyfunnel-postgres-edge-split
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: craftmyfunnel_edge
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-edge:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────
   # Redis (distributed rate-limiting / BullMQ)
   # ─────────────────────────────────────────────
   redis:
@@ -52,7 +79,7 @@ services:
     container_name: craftmyfunnel-edge-fastapi-split
     restart: unless-stopped
     environment:
-      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/craftmyfunnel}
+      DATABASE_URL: ${EDGE_DATABASE_URL:-postgresql://postgres:postgres@postgres-edge:5432/craftmyfunnel_edge}
       EDGE_MODE: ${EDGE_MODE:-false}
       HARDWARE_SIGNATURE: uuid-550e8400-e29b-41d4-a716-446655440000
       OFFLINE_MODEL_PATH: /app/models/custom/Phi-3-Custom.gguf
@@ -74,7 +101,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      postgres:
+      postgres-edge:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -184,4 +211,5 @@ services:
 
 volumes:
   pgdata:
+  pgdata-edge:
   redisdata:
