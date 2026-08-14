@@ -14,9 +14,11 @@ export class WorkerManager {
     private concurrencyLimit: number = parseInt(process.env['WORKER_CONCURRENCY'] || '5');
     private scheduleInterval: number = parseInt(process.env['SCHEDULE_INTERVAL_MS'] || '60000');
     private lastScheduleTick: number = 0;
+    private lastSequenceTick: number = 0;
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
     private lastWarmupTick: number = 0;
+    private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private warmupInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WARMUP_INTERVAL_MS'] || '3600000'); // 1 hour
@@ -60,6 +62,18 @@ export class WorkerManager {
             console.log("[Worker] Running internal scheduler tick...");
             await schedulerService.processDueSchedules();
             this.lastScheduleTick = now;
+        }
+
+        // Advance due CampaignSequence enrollments (nothing else drives this periodically -
+        // see OPEN-32)
+        if (now - this.lastSequenceTick >= this.sequenceInterval) {
+            console.log("[Worker] Processing due sequence steps...");
+            const { SequenceService } = await import("@/modules/email-campaigner/service/sequenceService");
+            const results = await SequenceService.processDue({});
+            if (results.length > 0) {
+                console.log(`[Worker] Processed ${results.length} due sequence step(s).`);
+            }
+            this.lastSequenceTick = now;
         }
 
         // Fix [HIGH-2]: Reset stale jobs every 5 minutes

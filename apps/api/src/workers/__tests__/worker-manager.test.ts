@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { JobQueue } from "@/lib/queue";
+import { SequenceService } from "@/modules/email-campaigner/service/sequenceService";
 import { worker } from "../job-processor";
 import { WorkerManager } from "../worker-manager";
 
@@ -13,6 +14,16 @@ vi.mock("@/lib/queue", () => ({
 
 vi.mock("@/modules/scheduler/schedulerService", () => ({
     schedulerService: { processDueSchedules: vi.fn().mockResolvedValue(undefined) },
+}));
+
+vi.mock("@/modules/email-campaigner/service/sequenceService", () => ({
+    SequenceService: { processDue: vi.fn().mockResolvedValue([]) },
+}));
+
+vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
+    renewDueGoogleMailboxWatches: vi.fn().mockResolvedValue([]),
+    syncDueGoogleMailboxes: vi.fn().mockResolvedValue([]),
+    advanceMailboxWarmup: vi.fn().mockResolvedValue({ count: 0 }),
 }));
 
 vi.mock("../job-processor", () => ({
@@ -92,5 +103,28 @@ describe("WorkerManager claim propagation", () => {
         resolveSecond();
         await Promise.all([first, second]);
         expect((manager as any).activeJobs.size).toBe(0);
+    });
+});
+
+describe("WorkerManager maintenance tick", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("processes due sequence steps on the maintenance tick", async () => {
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+
+        expect(SequenceService.processDue).toHaveBeenCalledWith({});
+    });
+
+    it("does not re-run sequence processing before its interval elapses", async () => {
+        const manager = new WorkerManager();
+
+        await (manager as any).handleMaintenanceTick();
+        await (manager as any).handleMaintenanceTick();
+
+        expect(SequenceService.processDue).toHaveBeenCalledTimes(1);
     });
 });
