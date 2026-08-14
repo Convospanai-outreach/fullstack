@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Circle,
+  Copy,
   CreditCard,
   ExternalLink,
   FileText,
@@ -25,6 +26,7 @@ import {
   Target,
   Users,
 } from "lucide-react";
+import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 
@@ -602,7 +604,69 @@ function WorkspaceIdentity({ formData, setFormData }: any) {
 }
 
 function OptionalChannels({ status }: { status: SetupStatus }) {
-  return <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey]]} />;
+  return (
+    <div className="space-y-5">
+      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey]]} />
+      <ExtensionSyncToken />
+    </div>
+  );
+}
+
+function ExtensionSyncToken() {
+  const [syncToken, setSyncToken] = useState<{ token: string; expiresAt: string } | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/extension/token", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        toast.error(data.error || "Failed to generate sync token");
+        return;
+      }
+      setSyncToken({ token: data.token, expiresAt: data.expiresAt });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to generate sync token");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function copy() {
+    if (!syncToken) return;
+    navigator.clipboard.writeText(syncToken.token);
+    toast.success("Copied to clipboard");
+  }
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-lg font-semibold text-white">Chrome extension sync token</h3>
+      <p className="mt-2 text-sm text-slate-400">
+        The extension popup needs this token, separate from the shared extension key, to authenticate saved leads back to your account.
+      </p>
+      <button
+        onClick={generate}
+        disabled={generating}
+        className="mt-4 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+      >
+        {generating ? "Generating..." : "Generate sync token"}
+      </button>
+      {syncToken && (
+        <div className="mt-4 space-y-2">
+          <div className="flex gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-white/10 bg-slate-950/70 p-3 text-xs text-slate-100">
+              {syncToken.token}
+            </code>
+            <button onClick={copy} aria-label="Copy sync token" className="rounded-lg border border-white/10 bg-white/5 p-3 text-slate-200 hover:bg-white/10">
+              <Copy className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-xs text-slate-500">Paste into the extension popup's "Sync token" field. Expires {new Date(syncToken.expiresAt).toLocaleDateString()}.</p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function MessageVoice({ formData, setFormData }: any) {
