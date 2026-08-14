@@ -20,6 +20,7 @@ export interface SequenceStepItem {
 interface SequenceStepNodeData {
     stepType: string;
     onRemove: () => void;
+    disabled: boolean;
 }
 
 function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
@@ -34,7 +35,8 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
                 <button
                     type="button"
                     onClick={data.onRemove}
-                    className="text-muted-foreground transition hover:text-foreground"
+                    disabled={data.disabled}
+                    className="text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
                     aria-label="Remove step"
                 >
                     <X className="h-4 w-4" />
@@ -48,13 +50,14 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
 interface AddStepNodeData {
     linkedinLocked: boolean;
     onSelect: (stepType: string) => void;
+    disabled: boolean;
 }
 
 function AddStepFlowNode({ data }: NodeProps<AddStepNodeData>) {
     return (
         <div className="relative flex justify-center">
             <Handle type="target" position={Position.Top} className="!bg-blue-500" />
-            <AddStepButton linkedinLocked={data.linkedinLocked} onSelect={data.onSelect} />
+            <AddStepButton linkedinLocked={data.linkedinLocked} onSelect={data.onSelect} disabled={data.disabled} />
         </div>
     );
 }
@@ -75,6 +78,7 @@ export default function SequenceCanvas({
     timezone,
     onSenderScheduleChange,
     linkedinLocked,
+    disabled = false,
 }: {
     steps: SequenceStepItem[];
     onStepsChange: (steps: SequenceStepItem[]) => void;
@@ -83,6 +87,7 @@ export default function SequenceCanvas({
     timezone: string;
     onSenderScheduleChange: (update: { senderMailboxIds?: string[]; timezone?: string }) => void;
     linkedinLocked: boolean;
+    disabled?: boolean;
 }) {
     const removeStep = useCallback(
         (stepId: string) => {
@@ -113,7 +118,7 @@ export default function SequenceCanvas({
             id: step.id,
             type: "sequenceStep",
             position: { x: 0, y: (index + 1) * NODE_GAP },
-            data: { stepType: step.stepType, onRemove: () => removeStep(step.id) },
+            data: { stepType: step.stepType, onRemove: () => removeStep(step.id), disabled },
             draggable: false,
             selectable: false,
         }));
@@ -122,13 +127,13 @@ export default function SequenceCanvas({
             id: "add-step",
             type: "addStep",
             position: { x: 0, y: (steps.length + 1) * NODE_GAP },
-            data: { linkedinLocked, onSelect: addStep },
+            data: { linkedinLocked, onSelect: addStep, disabled },
             draggable: false,
             selectable: false,
         };
 
         return [startNode, ...stepNodes, addNode];
-    }, [steps, senderMailboxIds, mailboxes, timezone, onSenderScheduleChange, removeStep, linkedinLocked, addStep]);
+    }, [steps, senderMailboxIds, mailboxes, timezone, onSenderScheduleChange, removeStep, linkedinLocked, addStep, disabled]);
 
     const edges: Edge[] = useMemo(() => {
         const chain = ["start", ...steps.map((s) => s.id), "add-step"];

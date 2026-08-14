@@ -154,6 +154,7 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                         timezone={timezone}
                         onSenderScheduleChange={handleSenderScheduleChange}
                         linkedinLocked={linkedinLocked}
+                        disabled={saving}
                     />
                 </div>
             </div>

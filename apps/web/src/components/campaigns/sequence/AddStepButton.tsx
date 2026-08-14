@@ -8,9 +8,11 @@ import StepPicker from "./StepPicker";
 export default function AddStepButton({
     linkedinLocked,
     onSelect,
+    disabled,
 }: {
     linkedinLocked: boolean;
     onSelect: (stepType: string) => void;
+    disabled?: boolean;
 }) {
     const [open, setOpen] = useState(false);
 
@@ -24,7 +26,8 @@ export default function AddStepButton({
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/50 px-4 py-2 text-sm font-medium text-blue-500 transition hover:bg-blue-500/10"
+                    disabled={disabled}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/50 px-4 py-2 text-sm font-medium text-blue-500 transition hover:bg-blue-500/10 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Plus className="h-4 w-4" /> Add step
                 </button>
