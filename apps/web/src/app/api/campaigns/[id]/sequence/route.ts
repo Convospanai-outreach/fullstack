@@ -14,9 +14,11 @@ const LINKEDIN_STEP_TYPES = new Set([
     "LI_VOICE",
 ]);
 
+const ALL_STEP_TYPES = new Set(["EMAIL", ...LINKEDIN_STEP_TYPES]);
+
 const StepSchema = z.object({
     id: z.string().optional(),
-    stepType: z.string().min(1),
+    stepType: z.string().refine((v) => ALL_STEP_TYPES.has(v), { message: "Unsupported step type" }),
     stepOrder: z.number().int().min(0),
     delayDays: z.number().int().min(0).default(0),
     delayHours: z.number().int().min(0).default(0),

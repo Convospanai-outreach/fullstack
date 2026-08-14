@@ -12,6 +12,10 @@ interface SequenceStepFromApi {
     id: string;
     stepType: string;
     stepOrder: number;
+    delayDays: number;
+    delayHours: number;
+    subject: string | null;
+    body: string | null;
 }
 
 export default function SequenceTab({ campaignId }: { campaignId: string }) {
@@ -36,16 +40,25 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
 
                 if (!sequenceRes.ok) throw new Error("Failed to load sequence");
                 const sequenceData = await sequenceRes.json();
-                const mailboxesData = mailboxesRes.ok ? await mailboxesRes.json() : [];
+                const mailboxesData = mailboxesRes.ok ? await mailboxesRes.json() : { mailboxes: [] };
 
                 if (cancelled) return;
 
                 const loadedSteps: SequenceStepFromApi[] = sequenceData.steps || [];
-                setSteps(loadedSteps.map((s) => ({ id: s.id, stepType: s.stepType })));
+                setSteps(
+                    loadedSteps.map((s) => ({
+                        id: s.id,
+                        stepType: s.stepType,
+                        delayDays: s.delayDays,
+                        delayHours: s.delayHours,
+                        subject: s.subject,
+                        body: s.body,
+                    }))
+                );
                 setSenderMailboxIds(sequenceData.sequence?.senderMailboxIds || []);
                 setTimezone(sequenceData.sequence?.timezone || "UTC");
                 setLinkedinLocked(Boolean(sequenceData.linkedinLocked));
-                setMailboxes(Array.isArray(mailboxesData) ? mailboxesData : []);
+                setMailboxes(Array.isArray(mailboxesData.mailboxes) ? mailboxesData.mailboxes : []);
             } catch (error: any) {
                 if (!cancelled) toast.error(error?.message || "Failed to load sequence");
             } finally {
@@ -71,7 +84,15 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    steps: steps.map((s, index) => ({ id: s.id, stepType: s.stepType, stepOrder: index })),
+                    steps: steps.map((s, index) => ({
+                        id: s.id,
+                        stepType: s.stepType,
+                        stepOrder: index,
+                        delayDays: s.delayDays,
+                        delayHours: s.delayHours,
+                        subject: s.subject ?? undefined,
+                        body: s.body ?? undefined,
+                    })),
                     senderMailboxIds,
                     timezone,
                 }),
@@ -82,7 +103,16 @@ export default function SequenceTab({ campaignId }: { campaignId: string }) {
                 return;
             }
             const savedSteps: SequenceStepFromApi[] = data.steps || [];
-            setSteps(savedSteps.map((s) => ({ id: s.id, stepType: s.stepType })));
+            setSteps(
+                savedSteps.map((s) => ({
+                    id: s.id,
+                    stepType: s.stepType,
+                    delayDays: s.delayDays,
+                    delayHours: s.delayHours,
+                    subject: s.subject,
+                    body: s.body,
+                }))
+            );
             toast.success("Sequence saved");
         } catch (error: any) {
             toast.error(error?.message || "Failed to save sequence");
