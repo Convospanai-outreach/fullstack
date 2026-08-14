@@ -13,7 +13,7 @@
  * - Added: KPIRow (north-star metrics above the fold)
  * - Added: WorkflowSection (progressive disclosure — rail + active step detail)
  * - Added: BottomGrid (activity feed + mini-stat stack)
- * - Data: fetches from /api/dashboard/summary (stub with TODO for real Supabase queries)
+ * - Data: fetches from /api/dashboard/summary (real Prisma-backed aggregation, not a stub)
  * - Loading: independent Suspense-like states per section via useState
  */
 
