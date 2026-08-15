@@ -147,7 +147,18 @@ export async function POST(req: Request) {
                     } else if (notes.planId && notes.userId) {
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
                         if (plan) {
-                            const periodEnd = new Date();
+                            // Extend from the existing period end if it's still in the
+                            // future, so an early renewal doesn't shorten already-paid
+                            // time; otherwise (lapsed or new subscription) start from now.
+                            const existingSubscription = await prisma.subscription.findUnique({
+                                where: { userId: notes.userId },
+                                select: { currentPeriodEnd: true }
+                            });
+                            const now = new Date();
+                            const base = existingSubscription && existingSubscription.currentPeriodEnd > now
+                                ? existingSubscription.currentPeriodEnd
+                                : now;
+                            const periodEnd = new Date(base);
                             periodEnd.setDate(periodEnd.getDate() + 30);
 
                             const subscription = await prisma.subscription.upsert({

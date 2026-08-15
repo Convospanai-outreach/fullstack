@@ -11,6 +11,7 @@ const { mockPrisma, mockAddCredits } = vi.hoisted(() => ({
         },
         subscription: {
             upsert: vi.fn(),
+            findUnique: vi.fn(),
         },
         invoice: {
             create: vi.fn(),
@@ -41,6 +42,7 @@ describe("/webhooks/razorpay", () => {
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
+        mockPrisma.subscription.findUnique.mockResolvedValue(null);
         mockAddCredits.mockResolvedValue({ granted: true });
     });
 
@@ -310,6 +312,72 @@ describe("/webhooks/razorpay", () => {
 
         expect(response.status).toBe(200);
         expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("extends the existing period end on early renewal instead of shortening it to now + 30 days", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
+
+        // 20 days still remaining on the current period.
+        const currentPeriodEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+        mockPrisma.subscription.findUnique.mockResolvedValue({ currentPeriodEnd });
+
+        const { POST } = await import("./route");
+        await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_renew",
+                        order_id: "order_renew",
+                        amount: 9900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "US" },
+                    },
+                },
+            },
+        }) as any);
+
+        const expectedEnd = new Date(currentPeriodEnd);
+        expectedEnd.setDate(expectedEnd.getDate() + 30);
+
+        expect(mockPrisma.subscription.upsert).toHaveBeenCalledWith(expect.objectContaining({
+            update: expect.objectContaining({ currentPeriodEnd: expectedEnd }),
+        }));
+    });
+
+    it("resets the period end to now + 30 days when the existing subscription has already lapsed", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
+
+        // Lapsed 5 days ago.
+        const currentPeriodEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+        mockPrisma.subscription.findUnique.mockResolvedValue({ currentPeriodEnd });
+
+        const before = Date.now();
+        const { POST } = await import("./route");
+        await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_lapsed",
+                        order_id: "order_lapsed",
+                        amount: 9900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "US" },
+                    },
+                },
+            },
+        }) as any);
+        const after = Date.now();
+
+        const call = mockPrisma.subscription.upsert.mock.calls[0][0];
+        const grantedEnd = call.update.currentPeriodEnd.getTime();
+        // Should be ~30 days from "now" (somewhere between the call's before/after
+        // bounds), not from the lapsed currentPeriodEnd.
+        expect(grantedEnd).toBeGreaterThanOrEqual(before + 30 * 24 * 60 * 60 * 1000 - 1000);
+        expect(grantedEnd).toBeLessThanOrEqual(after + 30 * 24 * 60 * 60 * 1000 + 1000);
     });
 
     it("ignores a subscription payment whose planId does not match a known plan", async () => {
