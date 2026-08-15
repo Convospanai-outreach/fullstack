@@ -1,18 +1,17 @@
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { runLinkedInAction } from "@/linkedin/puppeteerRunner";
+import { logger } from "@/lib/logger";
 
 class LinkedInRunnerService {
     async runAutomation(input: { profileUrl: string; action: string }) {
         try {
-            const res = await fetch(`${API_URL}/linkedin/automate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ input })
-            });
-            if (!res.ok) throw new Error("LinkedIn automation proxy failure");
-            return await res.json();
+            const result = await runLinkedInAction(input);
+            if (!result.ok) {
+                throw new Error(result.error || "LinkedIn automation failed");
+            }
+            return { result };
         } catch (error) {
-            console.error("[LinkedInRunnerService] Automation proxy failed:", error);
+            logger.error("[LinkedInRunnerService] Automation failed:", error);
             throw error;
         }
     }
