@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { Modal } from '@/components/ui/Modal';
 import { Coins, ArrowUpRight, History, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { BILLING_COUNTRIES, INDIAN_STATES } from '@/lib/billingAddress';
 
 const BUNDLES = [
     { id: "starter", label: "Starter Pack", credits: 500, price: 500, desc: "Perfect for testing" },
@@ -18,6 +20,11 @@ export default function CreditsPage() {
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [purchasing, setPurchasing] = useState<string | null>(null);
+    const [billingModalOpen, setBillingModalOpen] = useState(false);
+    const [pendingBundle, setPendingBundle] = useState<typeof BUNDLES[0] | null>(null);
+    const [billingCountry, setBillingCountry] = useState("IN");
+    const [billingCustomCountry, setBillingCustomCountry] = useState("");
+    const [billingState, setBillingState] = useState("Delhi");
 
     useEffect(() => {
         loadData();
@@ -44,13 +51,18 @@ export default function CreditsPage() {
         }
     };
 
-    const handleTopUp = async (bundle: typeof BUNDLES[0]) => {
+    const openTopUpModal = (bundle: typeof BUNDLES[0]) => {
+        setPendingBundle(bundle);
+        setBillingModalOpen(true);
+    };
+
+    const handleTopUp = async (bundle: typeof BUNDLES[0], country: string, state: string) => {
         setPurchasing(bundle.id);
         try {
             const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ tierId: bundle.id })
+                body: JSON.stringify({ tierId: bundle.id, country, state: country === "IN" ? state : undefined })
             });
 
             const order = await res.json();
@@ -127,7 +139,7 @@ export default function CreditsPage() {
                                 <p className="text-xs text-gray-400 mb-6 h-8">{bundle.desc}</p>
                                 <button
                                     disabled={purchasing !== null}
-                                    onClick={() => handleTopUp(bundle)}
+                                    onClick={() => openTopUpModal(bundle)}
                                     className={`w-full py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition-all ${bundle.popular
                                         ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20'
                                         : 'bg-white/10 hover:bg-white/20 text-white'
@@ -190,6 +202,76 @@ export default function CreditsPage() {
                     </table>
                 </div>
             </GlassCard>
+
+            <Modal
+                open={billingModalOpen}
+                onClose={() => setBillingModalOpen(false)}
+                title="Confirm Billing Address"
+                footer={
+                    <>
+                        <button
+                            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-300 hover:bg-white/10"
+                            onClick={() => setBillingModalOpen(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            disabled={purchasing !== null || (billingCountry === "OTHER" && !billingCustomCountry.trim())}
+                            className="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50"
+                            onClick={() => {
+                                setBillingModalOpen(false);
+                                if (pendingBundle) {
+                                    const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
+                                    handleTopUp(pendingBundle, resolvedCountry, billingState);
+                                }
+                            }}
+                        >
+                            Confirm & Pay
+                        </button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-xs text-gray-400">Used to determine GST treatment on your invoice.</p>
+                    <div>
+                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <select
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            value={billingCountry}
+                            onChange={(e) => setBillingCountry(e.target.value)}
+                        >
+                            {BILLING_COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {billingCountry === "IN" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <select
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingState}
+                                onChange={(e) => setBillingState(e.target.value)}
+                            >
+                                {INDIAN_STATES.map((s) => (
+                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {billingCountry === "OTHER" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <input
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingCustomCountry}
+                                onChange={(e) => setBillingCustomCountry(e.target.value)}
+                                placeholder="Enter your country"
+                            />
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }
