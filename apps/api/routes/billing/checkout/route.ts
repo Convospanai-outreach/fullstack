@@ -30,7 +30,14 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { priceId, planId } = body;
+        const { priceId, planId, country, state } = body;
+
+        if (!country || typeof country !== "string") {
+            return new NextResponse("Billing country is required", { status: 400 });
+        }
+        if (country === "IN" && (!state || typeof state !== "string")) {
+            return new NextResponse("Billing state is required for India", { status: 400 });
+        }
 
         let orderAmount = 0;
         let plan: { id: string; monthlyPrice: number; name: string } | null = null;
@@ -60,12 +67,20 @@ export async function POST(req: Request) {
             return new NextResponse("Invalid Amount", { status: 400 });
         }
 
+        // Persist as the team's last-known billing address; the exact value used for
+        // *this* transaction is snapshotted into the order notes below so a later
+        // address change never rewrites the tax treatment of an already-issued invoice.
+        await prisma.team.update({
+            where: { id: teamId },
+            data: { billingCountry: country, billingState: country === "IN" ? state : null }
+        });
+
         const currency = process.env['APP_CURRENCY'] || "USD";
         const order = await billingService.createOrder(
             orderAmount,
             currency,
             `receipt_${Date.now()}`,
-            { userId, teamId, priceId, planId: plan?.id }
+            { userId, teamId, priceId, planId: plan?.id, country, state: country === "IN" ? state : undefined }
         );
 
         return NextResponse.json({

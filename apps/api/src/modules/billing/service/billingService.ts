@@ -41,13 +41,23 @@ class BillingService {
         }
     }
 
-    async createTopUpOrder(teamId: string, amount: number, credits: number) {
+    async createTopUpOrder(
+        teamId: string,
+        userId: string,
+        amount: number,
+        credits: number,
+        country: string,
+        state?: string
+    ) {
         // Top-up tiers are INR-denominated (see routes/billing/topup/route.ts TIERS);
         // unrelated to the USD-denominated /pricing subscription checkout.
         return this.createOrder(amount, "INR", `topup_${teamId}_${Date.now()}`, {
             type: "topup",
             teamId,
-            credits
+            userId,
+            credits,
+            country,
+            state
         });
     }
 

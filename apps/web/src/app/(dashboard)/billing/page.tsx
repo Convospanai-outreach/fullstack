@@ -21,9 +21,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/Modal";
 import { UsageLimitMeter } from "@/components/enterprise/UsageLimitMeter";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Download } from "lucide-react";
 import useSWR from "swr";
+import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -35,7 +38,16 @@ export default function BillingPage() {
         revalidateOnFocus: false,
     });
     const { data: usage } = useSWR(getBrowserApiUrl("/billing/usage"), fetcher);
+    const { data: invoiceData } = useSWR(getBrowserApiUrl("/billing/invoices"), fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
+    const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+    const [billingModalOpen, setBillingModalOpen] = useState(false);
+    const [pendingTierId, setPendingTierId] = useState<string | null>(null);
+    const [billingCountry, setBillingCountry] = useState("IN");
+    const [billingCustomCountry, setBillingCustomCountry] = useState("");
+    const [billingState, setBillingState] = useState("Delhi");
+
+    const invoices = invoiceData?.invoices || [];
 
     const subscription = rawSubscription || {
         active: true,
@@ -43,14 +55,25 @@ export default function BillingPage() {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     };
 
-    const handleTopUp = async (tierId: string) => {
+    const openTopUpModal = (tierId: string) => {
+        setPendingTierId(tierId);
+        setBillingModalOpen(true);
+    };
+
+    const downloadInvoice = (id: string) => {
+        setDownloadingInvoiceId(id);
+        window.open(getBrowserApiUrl(`/billing/invoices/${id}/download`), "_blank");
+        setDownloadingInvoiceId(null);
+    };
+
+    const handleTopUp = async (tierId: string, country: string, state: string) => {
         setTopUpLoading(true);
         try {
             // Create Razorpay order
             const response = await fetch(getBrowserApiUrl('/billing/topup'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ tierId })
+                body: JSON.stringify({ tierId, country, state: country === "IN" ? state : undefined })
             });
 
             const data = await response.json();
@@ -173,7 +196,11 @@ export default function BillingPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2 mt-4">
-                                <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5">
+                                <button
+                                    className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5 disabled:opacity-50"
+                                    disabled={invoices.length === 0}
+                                    onClick={() => invoices[0] && downloadInvoice(invoices[0].id)}
+                                >
                                     <div className="flex items-center gap-3">
                                         <History className="w-5 h-5 text-text-muted group-hover:text-accent-blue" />
                                         <span className="text-sm font-semibold text-white">Download Last Invoice</span>
@@ -187,6 +214,36 @@ export default function BillingPage() {
                                     </div>
                                     <ChevronRight className="w-4 h-4 text-text-muted" />
                                 </button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Invoice History</CardTitle>
+                            <CardDescription>Tax invoices for every payment on this workspace</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-2 mt-2">
+                                {invoices.length === 0 && (
+                                    <div className="text-xs text-text-muted">No invoices yet.</div>
+                                )}
+                                {invoices.map((inv: any) => (
+                                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5">
+                                        <div>
+                                            <p className="text-xs font-mono text-white">{inv.invoiceNumber}</p>
+                                            <p className="text-[10px] text-text-muted">{new Date(inv.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                        <button
+                                            className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-accent-blue disabled:opacity-50"
+                                            disabled={downloadingInvoiceId === inv.id}
+                                            onClick={() => downloadInvoice(inv.id)}
+                                            aria-label={`Download ${inv.invoiceNumber}`}
+                                        >
+                                            <Download className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         </CardContent>
                     </Card>
@@ -232,7 +289,7 @@ export default function BillingPage() {
                                     <Button
                                         variant="default"
                                         className="mt-6 bg-accent-gold hover:bg-accent-gold/90 text-slate-950 shadow-glow-gold"
-                                        onClick={() => handleTopUp("starter")}
+                                        onClick={() => openTopUpModal("starter")}
                                         disabled={topUpLoading}
                                     >
                                         <PlusCircle className="w-4 h-4 mr-2" />
@@ -293,6 +350,70 @@ export default function BillingPage() {
                     </div>
                 </div>
             </div>
+
+            <Modal
+                open={billingModalOpen}
+                onClose={() => setBillingModalOpen(false)}
+                title="Confirm Billing Address"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setBillingModalOpen(false)}>Cancel</Button>
+                        <Button
+                            disabled={topUpLoading || (billingCountry === "OTHER" && !billingCustomCountry.trim())}
+                            onClick={() => {
+                                setBillingModalOpen(false);
+                                if (pendingTierId) {
+                                    const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
+                                    handleTopUp(pendingTierId, resolvedCountry, billingState);
+                                }
+                            }}
+                        >
+                            Confirm & Pay
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-xs text-text-muted">Used to determine GST treatment on your invoice.</p>
+                    <div>
+                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <select
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            value={billingCountry}
+                            onChange={(e) => setBillingCountry(e.target.value)}
+                        >
+                            {BILLING_COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {billingCountry === "IN" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <select
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingState}
+                                onChange={(e) => setBillingState(e.target.value)}
+                            >
+                                {INDIAN_STATES.map((s) => (
+                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {billingCountry === "OTHER" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <input
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingCustomCountry}
+                                onChange={(e) => setBillingCustomCountry(e.target.value)}
+                                placeholder="Enter your country"
+                            />
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }

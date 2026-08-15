@@ -936,6 +936,12 @@ model Team {
   landingPages     LandingPage[]
   landingLeads     LandingLead[]
   landingEvents    LandingEvent[]
+  invoices         Invoice[]
+
+  // Billing address (used for invoice GST treatment: India + same state as
+  // seller = CGST/SGST, India + other state = IGST, non-India = zero-rated export)
+  billingCountry String?
+  billingState   String?
 
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
@@ -1067,13 +1073,35 @@ model CreditLedger {
 }
 
 model Invoice {
-  id             String       @id @default(uuid())
-  subscriptionId String
-  amount         Int
-  status         String
-  invoiceUrl     String?
-  createdAt      DateTime     @default(now())
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique
+  teamId         String
+  userId         String
+  subscriptionId String?
+  type           String // subscription, topup
+  description    String
+  amount         Int // total amount actually charged, in the currency's smallest unit - the source of truth, never re-derived from a live Plan price
+  currency       String
+  paymentId      String
+  orderId        String?
+
+  // GST breakup - null/NONE when the sale is a non-India zero-rated export of services.
+  // Amount is treated as tax-inclusive: taxableValue = amount - taxAmount.
+  taxableValue Int?
+  taxAmount    Int?
+  taxType      String? // CGST_SGST (same state as seller), IGST (other Indian state), NONE (export)
+  taxRate      Int? // percent, e.g. 18
+
+  billingCountry String?
+  billingState   String?
+
+  status       String // paid, refunded
+  createdAt    DateTime      @default(now())
+  team         Team          @relation(fields: [teamId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([teamId])
 }
 
 model Webhook {
@@ -1188,6 +1216,7 @@ model User {
   datasetReviews     DatasetReview[]
   sentInvitations    UserInvitation[]
   approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
+  invoices           Invoice[]
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)

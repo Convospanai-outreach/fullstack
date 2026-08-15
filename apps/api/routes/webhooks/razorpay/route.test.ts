@@ -12,6 +12,9 @@ const { mockPrisma, mockAddCredits } = vi.hoisted(() => ({
         subscription: {
             upsert: vi.fn(),
         },
+        invoice: {
+            create: vi.fn(),
+        },
     },
     mockAddCredits: vi.fn(),
 }));
@@ -55,8 +58,9 @@ describe("/webhooks/razorpay", () => {
         expect(mockAddCredits).not.toHaveBeenCalled();
     });
 
-    it("grants the plan's monthly credits and upserts a Subscription on a captured subscription payment", async () => {
+    it("grants the plan's monthly credits, upserts a Subscription, and invoices with CGST/SGST for a Delhi customer", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
 
         const { POST } = await import("./route");
         const response = await POST(signedRequest({
@@ -67,7 +71,8 @@ describe("/webhooks/razorpay", () => {
                         id: "pay_123",
                         order_id: "order_123",
                         amount: 9900,
-                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth" },
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "IN", state: "Delhi" },
                     },
                 },
             },
@@ -85,6 +90,78 @@ describe("/webhooks/razorpay", () => {
             expect.objectContaining({ paymentId: "pay_123" }),
             "subscription"
         );
+        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                invoiceNumber: "INV-pay_123",
+                teamId: "team-1",
+                userId: "user-1",
+                subscriptionId: "sub-1",
+                amount: 9900,
+                currency: "USD",
+                taxableValue: 8390, // 9900 / 1.18 rounded
+                taxAmount: 1510,
+                taxType: "CGST_SGST",
+                taxRate: 18,
+                billingCountry: "IN",
+                billingState: "Delhi",
+                status: "paid",
+            }),
+        }));
+    });
+
+    it("invoices with IGST for a customer outside Delhi", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-2" });
+
+        const { POST } = await import("./route");
+        await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_mh",
+                        order_id: "order_mh",
+                        amount: 4900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "IN", state: "Maharashtra" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ taxType: "IGST", taxRate: 18 }),
+        }));
+    });
+
+    it("invoices with no GST for a non-India customer (zero-rated export of services)", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-3" });
+
+        const { POST } = await import("./route");
+        await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_us",
+                        order_id: "order_us",
+                        amount: 4900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "US" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                taxableValue: 4900,
+                taxAmount: 0,
+                taxType: "NONE",
+                taxRate: null,
+            }),
+        }));
     });
 
     it("does not grant credits twice for a retried webhook delivery of the same payment", async () => {
@@ -107,6 +184,7 @@ describe("/webhooks/razorpay", () => {
 
         expect(response.status).toBe(200);
         expect(mockAddCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
     });
 
     it("ignores a subscription payment whose planId does not match a known plan", async () => {

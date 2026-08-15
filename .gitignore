@@ -1,4 +1,5 @@
 node_modules/
+/company documents/
 .next/
 build/
 dist/

@@ -2,6 +2,49 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
+import { computeGst } from "@/lib/gst";
+
+async function createInvoice(params: {
+    teamId: string;
+    userId: string;
+    subscriptionId?: string;
+    type: string;
+    description: string;
+    amount: number;
+    currency: string;
+    paymentId: string;
+    orderId?: string;
+    country?: string;
+    state?: string;
+}) {
+    const { taxableValue, taxAmount, taxType, taxRate } = computeGst(
+        params.amount,
+        params.country || "IN",
+        params.state
+    );
+
+    await prisma.invoice.create({
+        data: {
+            invoiceNumber: `INV-${params.paymentId}`,
+            teamId: params.teamId,
+            userId: params.userId,
+            subscriptionId: params.subscriptionId,
+            type: params.type,
+            description: params.description,
+            amount: params.amount,
+            currency: params.currency,
+            paymentId: params.paymentId,
+            orderId: params.orderId,
+            taxableValue,
+            taxAmount,
+            taxType,
+            taxRate,
+            billingCountry: params.country,
+            billingState: params.state,
+            status: "paid"
+        }
+    });
+}
 
 export async function POST(req: Request) {
     try {
@@ -51,13 +94,28 @@ export async function POST(req: Request) {
                     if (notes.type === 'topup' && notes.credits) {
                         const credits = parseInt(notes.credits);
                         if (credits > 0) {
+                            const description = `${credits} credits top-up via Razorpay (ID: ${payment.id})`;
                             await addCredits(
                                 notes.teamId,
                                 credits,
-                                `Top-up via Razorpay (ID: ${payment.id})`,
+                                description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
+                            if (notes.userId) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    type: "topup",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state
+                                });
+                            }
                         }
                     } else if (notes.planId && notes.userId) {
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
@@ -65,7 +123,7 @@ export async function POST(req: Request) {
                             const periodEnd = new Date();
                             periodEnd.setDate(periodEnd.getDate() + 30);
 
-                            await prisma.subscription.upsert({
+                            const subscription = await prisma.subscription.upsert({
                                 where: { userId: notes.userId },
                                 update: { planId: plan.id, status: "active", currentPeriodEnd: periodEnd },
                                 create: {
@@ -76,15 +134,29 @@ export async function POST(req: Request) {
                                 }
                             });
 
+                            const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
                             if (plan.creditsPerMonth > 0) {
                                 await addCredits(
                                     notes.teamId,
                                     plan.creditsPerMonth,
-                                    `${plan.name} subscription via Razorpay (ID: ${payment.id})`,
+                                    description,
                                     { paymentId: payment.id, orderId: payment.order_id },
                                     "subscription"
                                 );
                             }
+                            await createInvoice({
+                                teamId: notes.teamId,
+                                userId: notes.userId,
+                                subscriptionId: subscription.id,
+                                type: "subscription",
+                                description,
+                                amount: payment.amount,
+                                currency: payment.currency,
+                                paymentId: payment.id,
+                                orderId: payment.order_id,
+                                country: notes.country,
+                                state: notes.state
+                            });
                         } else {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
                         }
@@ -93,13 +165,28 @@ export async function POST(req: Request) {
                         const amountInRupees = payment.amount / 100;
                         const credits = Math.floor(amountInRupees / 10);
                         if (credits > 0) {
+                            const description = `Top-up via Razorpay (ID: ${payment.id})`;
                             await addCredits(
                                 notes.teamId,
                                 credits,
-                                `Top-up via Razorpay (ID: ${payment.id})`,
+                                description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
+                            if (notes.userId) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    type: "topup",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state
+                                });
+                            }
                         }
                     }
                 }
