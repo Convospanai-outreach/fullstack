@@ -2,13 +2,16 @@ import { razorpay, isRazorpayConfigured } from "@/lib/razorpay";
 import { prisma } from "@/lib/db";
 
 class BillingService {
+    /**
+     * @param amount Amount in the currency's smallest unit (e.g. cents, paise) - NOT major units.
+     */
     async createOrder(amount: number, currency: string = "INR", receipt: string, notes: any = {}) {
         try {
             if (!isRazorpayConfigured || !razorpay) {
                 throw new Error("Razorpay is not configured");
             }
             const options = {
-                amount: amount * 100, // Razorpay accepts amount in smallest currency unit
+                amount,
                 currency,
                 receipt,
                 notes,
@@ -39,6 +42,8 @@ class BillingService {
     }
 
     async createTopUpOrder(teamId: string, amount: number, credits: number) {
+        // Top-up tiers are INR-denominated (see routes/billing/topup/route.ts TIERS);
+        // unrelated to the USD-denominated /pricing subscription checkout.
         return this.createOrder(amount, "INR", `topup_${teamId}_${Date.now()}`, {
             type: "topup",
             teamId,
@@ -67,8 +72,10 @@ class BillingService {
             return { active: false, plan: "free", currentPeriodEnd: null };
         }
 
+        const notExpired = subscription.currentPeriodEnd.getTime() > Date.now();
+
         return {
-            active: subscription.status === "active",
+            active: subscription.status === "active" && notExpired,
             plan: subscription.plan.name || "free",
             currentPeriodEnd: subscription.currentPeriodEnd,
             credits: subscription.plan.creditsPerMonth

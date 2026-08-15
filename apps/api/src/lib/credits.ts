@@ -65,7 +65,8 @@ export async function addCredits(
     teamId: string,
     amount: number,
     description: string,
-    meta?: any
+    meta?: any,
+    type: string = "topup"
 ): Promise<void> {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error("Add amount must be a positive number");
@@ -80,7 +81,7 @@ export async function addCredits(
                 teamId,
                 amount,
                 description,
-                type: "topup",
+                type,
                 meta: meta || {}
             }
         })

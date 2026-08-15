@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     CreditCard,
     Coins,
@@ -29,6 +30,7 @@ const fetcher = (url: string) => fetch(url).then((res) => res.json());
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export default function BillingPage() {
+    const router = useRouter();
     const { data: rawSubscription, isLoading, error } = useSWR(getBrowserApiUrl("/billing/subscription"), fetcher, {
         revalidateOnFocus: false,
     });
@@ -152,7 +154,11 @@ export default function BillingPage() {
                                         </div>
                                     </div>
 
-                                    <Button variant="outline" className="w-full mt-8 border-white/10">
+                                    <Button
+                                        variant="outline"
+                                        className="w-full mt-8 border-white/10"
+                                        onClick={() => router.push("/pricing")}
+                                    >
                                         Manage Subscription
                                     </Button>
                                 </div>
