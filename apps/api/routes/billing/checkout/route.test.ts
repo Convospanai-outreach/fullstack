@@ -78,6 +78,32 @@ describe("/billing/checkout", () => {
         );
     });
 
+    it("does not create an order when the caller is not ADMIN", async () => {
+        mockAuthorizeRole.mockRejectedValue(new Error("Forbidden"));
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", monthlyPrice: 9900 });
+
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ planId: "growth", country: "IN", state: "Delhi" }) as any);
+
+        expect(response.status).toBe(500);
+        expect(mockCreateOrder).not.toHaveBeenCalled();
+    });
+
+    it("treats a lowercase country code as India", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", monthlyPrice: 9900 });
+
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ planId: "growth", country: "in", state: "Delhi" }) as any);
+
+        expect(response.status).toBe(200);
+        expect(mockCreateOrder).toHaveBeenCalledWith(
+            11682,
+            expect.any(String),
+            expect.any(String),
+            expect.objectContaining({ country: "IN", state: "Delhi", taxType: "CGST_SGST" })
+        );
+    });
+
     it("charges the bare plan price with no GST for a non-India customer", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 4900 });
 
