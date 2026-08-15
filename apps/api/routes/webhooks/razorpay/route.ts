@@ -147,43 +147,48 @@ export async function POST(req: Request) {
                     } else if (notes.planId && notes.userId) {
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
                         if (plan) {
-                            // Extend from the existing period end if it's still in the
-                            // future, so an early renewal doesn't shorten already-paid
-                            // time; otherwise (lapsed or new subscription) start from now.
-                            const existingSubscription = await prisma.subscription.findUnique({
-                                where: { userId: notes.userId },
-                                select: { currentPeriodEnd: true }
-                            });
-                            const now = new Date();
-                            const base = existingSubscription && existingSubscription.currentPeriodEnd > now
-                                ? existingSubscription.currentPeriodEnd
-                                : now;
-                            const periodEnd = new Date(base);
-                            periodEnd.setDate(periodEnd.getDate() + 30);
-
-                            const subscription = await prisma.subscription.upsert({
-                                where: { userId: notes.userId },
-                                update: { planId: plan.id, status: "active", currentPeriodEnd: periodEnd },
-                                create: {
-                                    userId: notes.userId,
-                                    planId: plan.id,
-                                    status: "active",
-                                    currentPeriodEnd: periodEnd
-                                }
-                            });
-
                             const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
-                            let granted = true;
-                            if (plan.creditsPerMonth > 0) {
-                                ({ granted } = await addCredits(
-                                    notes.teamId,
-                                    plan.creditsPerMonth,
-                                    description,
-                                    { paymentId: payment.id, orderId: payment.order_id },
-                                    "subscription"
-                                ));
-                            }
+
+                            // Reserve this payment against concurrent/retried deliveries
+                            // before touching the subscription. Without this, two
+                            // deliveries can both pass the pre-check above and both
+                            // extend currentPeriodEnd - the reservation must come first,
+                            // not just gate the invoice, or a zero-credit plan (which has
+                            // no other atomic write) extends the period twice per payment.
+                            const { granted } = await addCredits(
+                                notes.teamId,
+                                plan.creditsPerMonth,
+                                description,
+                                { paymentId: payment.id, orderId: payment.order_id },
+                                "subscription"
+                            );
+
                             if (granted) {
+                                // Extend from the existing period end if it's still in the
+                                // future, so an early renewal doesn't shorten already-paid
+                                // time; otherwise (lapsed or new subscription) start from now.
+                                const existingSubscription = await prisma.subscription.findUnique({
+                                    where: { userId: notes.userId },
+                                    select: { currentPeriodEnd: true }
+                                });
+                                const now = new Date();
+                                const base = existingSubscription && existingSubscription.currentPeriodEnd > now
+                                    ? existingSubscription.currentPeriodEnd
+                                    : now;
+                                const periodEnd = new Date(base);
+                                periodEnd.setDate(periodEnd.getDate() + 30);
+
+                                const subscription = await prisma.subscription.upsert({
+                                    where: { userId: notes.userId },
+                                    update: { planId: plan.id, status: "active", currentPeriodEnd: periodEnd },
+                                    create: {
+                                        userId: notes.userId,
+                                        planId: plan.id,
+                                        status: "active",
+                                        currentPeriodEnd: periodEnd
+                                    }
+                                });
+
                                 await createInvoice({
                                     teamId: notes.teamId,
                                     userId: notes.userId,
