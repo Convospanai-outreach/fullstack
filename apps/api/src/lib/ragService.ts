@@ -1,5 +1,4 @@
-
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { vectorStore } from "@/modules/rag/service/vectorStore";
 
 export interface RAGOptions {
     maxTokens?: number;
@@ -14,33 +13,19 @@ export class RAGService {
         teamId: string,
         options: RAGOptions = {}
     ): Promise<string> {
-        try {
-            const res = await fetch(`${API_URL}/rag/retrieve`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query, teamId, options })
-            });
-            if (!res.ok) throw new Error("RAG proxy failure");
-            const data = await res.json();
-            return data.context || "";
-        } catch (e) {
-            console.error("RAG retrieval proxy failed:", e);
-            return "";
-        }
+        const results = await vectorStore.search(query, teamId, options.limit ?? 5);
+        const filtered = options.minRelevance !== undefined
+            ? results.filter((r) => r.similarity >= options.minRelevance!)
+            : results;
+        return vectorStore.formatContext(filtered);
     }
 
     static async getRetrievalStats(query: string, teamId: string): Promise<any> {
-        try {
-            const res = await fetch(`${API_URL}/rag/stats`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ query, teamId })
-            });
-            if (!res.ok) throw new Error("RAG stats failure");
-            return await res.json();
-        } catch (e) {
-            console.error("RAG stats proxy failed:", e);
-            return null;
-        }
+        const results = await vectorStore.search(query, teamId);
+        const totalResults = results.length;
+        const avgSimilarity = totalResults > 0
+            ? results.reduce((sum, r) => sum + r.similarity, 0) / totalResults
+            : 0;
+        return { totalResults, avgSimilarity };
     }
 }
