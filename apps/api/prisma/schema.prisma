@@ -1029,7 +1029,12 @@ model CreditTransaction {
   amount      Int // Negative for usage, positive for top-up
   description String
   type        String // "usage", "topup", "bonus"
-  meta        Json? // Store jobId or paymentId
+  meta        Json? // Store jobId or other context
+  // Set only for payment-triggered grants (Razorpay webhook). Unique so a duplicate
+  // webhook delivery is rejected by the DB instead of relying on a check-then-write
+  // read, which is racy under concurrent deliveries. Null for usage/refund/bonus
+  // transactions, which Postgres does not enforce uniqueness across.
+  paymentId   String?  @unique
   createdAt   DateTime @default(now())
   team        Team     @relation(fields: [teamId], references: [id])
 

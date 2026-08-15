@@ -105,14 +105,13 @@ export async function POST(req: Request) {
             const notes = payment.notes;
 
             if (notes.teamId) {
-                // Razorpay retries webhook delivery; a payment already recorded
-                // must not grant credits or create an invoice a second time.
-                // Zero-credit subscriptions (e.g. a plan with creditsPerMonth = 0)
-                // create an invoice but no CreditTransaction, so both must be checked.
+                // Cheap early-exit for a known retry. Not the correctness guarantee
+                // by itself (two concurrent deliveries can both pass this read before
+                // either writes) - that comes from the unique constraints on
+                // CreditTransaction.paymentId and Invoice.invoiceNumber below, which
+                // the DB enforces atomically regardless of this race.
                 const [existingCredit, existingInvoice] = await Promise.all([
-                    prisma.creditTransaction.findFirst({
-                        where: { teamId: notes.teamId, meta: { path: ["paymentId"], equals: payment.id } }
-                    }),
+                    prisma.creditTransaction.findFirst({ where: { paymentId: payment.id } }),
                     prisma.invoice.findFirst({ where: { paymentId: payment.id } })
                 ]);
                 const existing = existingCredit || existingInvoice;
@@ -122,14 +121,14 @@ export async function POST(req: Request) {
                         const credits = parseInt(notes.credits);
                         if (credits > 0) {
                             const description = `${credits} credits top-up via Razorpay (ID: ${payment.id})`;
-                            await addCredits(
+                            const { granted } = await addCredits(
                                 notes.teamId,
                                 credits,
                                 description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
-                            if (notes.userId) {
+                            if (granted && notes.userId) {
                                 await createInvoice({
                                     teamId: notes.teamId,
                                     userId: notes.userId,
@@ -163,29 +162,32 @@ export async function POST(req: Request) {
                             });
 
                             const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
+                            let granted = true;
                             if (plan.creditsPerMonth > 0) {
-                                await addCredits(
+                                ({ granted } = await addCredits(
                                     notes.teamId,
                                     plan.creditsPerMonth,
                                     description,
                                     { paymentId: payment.id, orderId: payment.order_id },
                                     "subscription"
-                                );
+                                ));
                             }
-                            await createInvoice({
-                                teamId: notes.teamId,
-                                userId: notes.userId,
-                                subscriptionId: subscription.id,
-                                type: "subscription",
-                                description,
-                                amount: payment.amount,
-                                currency: payment.currency,
-                                paymentId: payment.id,
-                                orderId: payment.order_id,
-                                country: notes.country,
-                                state: notes.state,
-                                ...resolveTax(payment, notes)
-                            });
+                            if (granted) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    subscriptionId: subscription.id,
+                                    type: "subscription",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
+                                });
+                            }
                         } else {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
                         }
@@ -195,14 +197,14 @@ export async function POST(req: Request) {
                         const credits = Math.floor(amountInRupees / 10);
                         if (credits > 0) {
                             const description = `Top-up via Razorpay (ID: ${payment.id})`;
-                            await addCredits(
+                            const { granted } = await addCredits(
                                 notes.teamId,
                                 credits,
                                 description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
-                            if (notes.userId) {
+                            if (granted && notes.userId) {
                                 await createInvoice({
                                     teamId: notes.teamId,
                                     userId: notes.userId,

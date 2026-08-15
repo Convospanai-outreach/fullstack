@@ -41,6 +41,7 @@ describe("/webhooks/razorpay", () => {
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
+        mockAddCredits.mockResolvedValue({ granted: true });
     });
 
     it("rejects a mismatched-length signature with 400 instead of throwing", async () => {
@@ -231,6 +232,33 @@ describe("/webhooks/razorpay", () => {
         expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
     });
 
+    it("does not create a duplicate invoice when two concurrent deliveries both pass the pre-check but the DB rejects the second credit grant", async () => {
+        // Simulates the race CodeAnt flagged: the findFirst pre-check is a separate
+        // read from the write, so both concurrent deliveries can see !existing. The
+        // real guard is the unique constraint on CreditTransaction.paymentId, which
+        // addCredits surfaces as granted: false for the loser instead of throwing.
+        mockAddCredits.mockResolvedValue({ granted: false });
+
+        const { POST } = await import("./route");
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_race",
+                        order_id: "order_race",
+                        amount: 50000,
+                        notes: { teamId: "team-1", type: "topup", credits: "500", userId: "user-1" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(response.status).toBe(200);
+        expect(mockAddCredits).toHaveBeenCalledTimes(1);
+        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+    });
+
     it("does not re-create an invoice on retry for a zero-credit plan (no CreditTransaction exists to guard on)", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-free", name: "FREE", creditsPerMonth: 0 });
         mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-free" });
@@ -256,6 +284,31 @@ describe("/webhooks/razorpay", () => {
 
         expect(response.status).toBe(200);
         expect(mockAddCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("does not create a duplicate subscription invoice when the concurrent credit grant loses the race", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-race" });
+        mockAddCredits.mockResolvedValue({ granted: false });
+
+        const { POST } = await import("./route");
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_sub_race",
+                        order_id: "order_sub_race",
+                        amount: 9900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "US" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(response.status).toBe(200);
         expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
     });
 
