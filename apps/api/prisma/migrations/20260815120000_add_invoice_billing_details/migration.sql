@@ -29,6 +29,9 @@ CREATE UNIQUE INDEX "Invoice_invoiceNumber_key" ON "Invoice"("invoiceNumber");
 -- CreateIndex
 CREATE INDEX "Invoice_teamId_idx" ON "Invoice"("teamId");
 
+-- CreateIndex
+CREATE INDEX "Invoice_paymentId_idx" ON "Invoice"("paymentId");
+
 -- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 

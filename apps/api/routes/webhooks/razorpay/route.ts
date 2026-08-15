@@ -23,27 +23,33 @@ async function createInvoice(params: {
         params.state
     );
 
-    await prisma.invoice.create({
-        data: {
-            invoiceNumber: `INV-${params.paymentId}`,
-            teamId: params.teamId,
-            userId: params.userId,
-            subscriptionId: params.subscriptionId,
-            type: params.type,
-            description: params.description,
-            amount: params.amount,
-            currency: params.currency,
-            paymentId: params.paymentId,
-            orderId: params.orderId,
-            taxableValue,
-            taxAmount,
-            taxType,
-            taxRate,
-            billingCountry: params.country,
-            billingState: params.state,
-            status: "paid"
-        }
-    });
+    try {
+        await prisma.invoice.create({
+            data: {
+                invoiceNumber: `INV-${params.paymentId}`,
+                teamId: params.teamId,
+                userId: params.userId,
+                subscriptionId: params.subscriptionId,
+                type: params.type,
+                description: params.description,
+                amount: params.amount,
+                currency: params.currency,
+                paymentId: params.paymentId,
+                orderId: params.orderId,
+                taxableValue,
+                taxAmount,
+                taxType,
+                taxRate,
+                billingCountry: params.country,
+                billingState: params.state,
+                status: "paid"
+            }
+        });
+    } catch (error: any) {
+        // Unique constraint on invoiceNumber (INV-{paymentId}) means a concurrent
+        // or retried webhook delivery already created this invoice — not an error.
+        if (error?.code !== "P2002") throw error;
+    }
 }
 
 export async function POST(req: Request) {
@@ -85,10 +91,16 @@ export async function POST(req: Request) {
 
             if (notes.teamId) {
                 // Razorpay retries webhook delivery; a payment already recorded
-                // must not grant credits a second time.
-                const existing = await prisma.creditTransaction.findFirst({
-                    where: { teamId: notes.teamId, meta: { path: ["paymentId"], equals: payment.id } }
-                });
+                // must not grant credits or create an invoice a second time.
+                // Zero-credit subscriptions (e.g. a plan with creditsPerMonth = 0)
+                // create an invoice but no CreditTransaction, so both must be checked.
+                const [existingCredit, existingInvoice] = await Promise.all([
+                    prisma.creditTransaction.findFirst({
+                        where: { teamId: notes.teamId, meta: { path: ["paymentId"], equals: payment.id } }
+                    }),
+                    prisma.invoice.findFirst({ where: { paymentId: payment.id } })
+                ]);
+                const existing = existingCredit || existingInvoice;
 
                 if (!existing) {
                     if (notes.type === 'topup' && notes.credits) {

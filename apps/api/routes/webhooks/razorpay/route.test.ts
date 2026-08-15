@@ -14,6 +14,7 @@ const { mockPrisma, mockAddCredits } = vi.hoisted(() => ({
         },
         invoice: {
             create: vi.fn(),
+            findFirst: vi.fn(),
         },
     },
     mockAddCredits: vi.fn(),
@@ -39,6 +40,7 @@ describe("/webhooks/razorpay", () => {
         vi.clearAllMocks();
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
+        mockPrisma.invoice.findFirst.mockResolvedValue(null);
     });
 
     it("rejects a mismatched-length signature with 400 instead of throwing", async () => {
@@ -177,6 +179,34 @@ describe("/webhooks/razorpay", () => {
                         order_id: "order_dup",
                         amount: 50000,
                         notes: { teamId: "team-1", type: "topup", credits: "500" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(response.status).toBe(200);
+        expect(mockAddCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("does not re-create an invoice on retry for a zero-credit plan (no CreditTransaction exists to guard on)", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-free", name: "FREE", creditsPerMonth: 0 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-free" });
+        // No CreditTransaction was ever written for this payment (credits = 0), but the
+        // invoice from the first delivery is now findable by paymentId.
+        mockPrisma.invoice.findFirst.mockResolvedValue({ id: "inv-existing" });
+
+        const { POST } = await import("./route");
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_free",
+                        order_id: "order_free",
+                        amount: 0,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-free", country: "IN", state: "Delhi" },
                     },
                 },
             },

@@ -1102,6 +1102,7 @@ model Invoice {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id])
 
   @@index([teamId])
+  @@index([paymentId])
 }
 
 model Webhook {
