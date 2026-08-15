@@ -8,10 +8,11 @@ export async function POST(req: NextRequest) {
 
     const { tierId } = await req.json();
 
+    // Amounts are in paise (smallest INR unit): rupee price * 100.
     const TIERS: Record<string, { amount: number; credits: number }> = {
-        starter: { amount: 500, credits: 500 },
-        pro: { amount: 1800, credits: 2000 },
-        power: { amount: 8000, credits: 10000 }
+        starter: { amount: 50000, credits: 500 }, // ₹500
+        pro: { amount: 180000, credits: 2000 }, // ₹1800
+        power: { amount: 800000, credits: 10000 } // ₹8000
     };
 
     const tier = TIERS[String(tierId || "").toLowerCase()];

@@ -1,30 +1,31 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
 import { prisma } from "@/lib/db";
 
+// Amounts are in the currency's smallest unit (e.g. cents), matching Plan.monthlyPrice.
 const PRICING_TIERS: Record<string, number> = {
     // Pro Plan
-    "price_1Q": 29,
-    "price_pro_monthly": 29,
-    "price_pro_yearly": 290,
+    "price_1Q": 2900,
+    "price_pro_monthly": 2900,
+    "price_pro_yearly": 29000,
     // Enterprise / Growth
-    "price_growth": 99,
-    "price_enterprise": 299
+    "price_growth": 9900,
+    "price_enterprise": 29900
 };
 
 const PLAN_ALIASES: Record<string, string> = {
     starter: "PRO",
     pro: "PRO",
+    growth: "GROWTH",
     enterprise: "ENTERPRISE"
 };
 
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId, teamId } = await getCurrentContext();
 
-        if (!session?.user?.id) {
+        if (!userId || !teamId) {
             return new NextResponse("Unauthorized", { status: 401 });
         }
 
@@ -32,32 +33,27 @@ export async function POST(req: Request) {
         const { priceId, planId } = body;
 
         let orderAmount = 0;
+        let plan: { id: string; monthlyPrice: number; name: string } | null = null;
 
-        // 1. Determine Amount from Price ID (Subscription)
-        if (priceId) {
-            // Check known tiers
-            const tierPrice = Object.entries(PRICING_TIERS).find(([key]) => priceId.includes(key))?.[1];
-            if (tierPrice) {
-                orderAmount = tierPrice;
-            } else {
-                console.warn(`[Checkout] Unknown priceId: ${priceId}`);
-            }
-        }
-
-        // 2. Plan-based pricing (server-side lookup)
-        if (!orderAmount && planId) {
+        // 1. Plan-based pricing (server-side lookup) - the primary path used by /pricing
+        if (planId) {
             const normalized = String(planId).toLowerCase();
             const planName = PLAN_ALIASES[normalized] || normalized.toUpperCase();
-            const plan = await prisma.plan.findUnique({ where: { name: planName } });
+            plan = await prisma.plan.findUnique({ where: { name: planName } });
             if (!plan) {
                 return new NextResponse("Invalid Plan", { status: 400 });
             }
             orderAmount = plan.monthlyPrice;
         }
 
-        // Default to PRO if still 0 (Safety net or error?)
-        if (orderAmount === 0 && priceId) {
-            return new NextResponse("Invalid Price Configuration", { status: 400 });
+        // 2. Determine Amount from Price ID (legacy path)
+        if (!orderAmount && priceId) {
+            const tierPrice = Object.entries(PRICING_TIERS).find(([key]) => priceId.includes(key))?.[1];
+            if (tierPrice) {
+                orderAmount = tierPrice;
+            } else {
+                console.warn(`[Checkout] Unknown priceId: ${priceId}`);
+            }
         }
 
         if (orderAmount <= 0) {
@@ -69,14 +65,14 @@ export async function POST(req: Request) {
             orderAmount,
             currency,
             `receipt_${Date.now()}`,
-            { userId: session.user.id, priceId }
+            { userId, teamId, priceId, planId: plan?.id }
         );
 
-        return NextResponse.json({ 
-            orderId: order.id, 
-            amount: order.amount, 
-            currency: order.currency, 
-            key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID'] 
+        return NextResponse.json({
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key: process.env['NEXT_PUBLIC_RAZORPAY_KEY_ID']
         });
     } catch (error) {
         console.error("[RAZORPAY_CHECKOUT]", error);
