@@ -2,6 +2,70 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
+import { computeGstInclusive } from "@/lib/gst";
+
+// GST is normally computed and added on top of the price at order-creation
+// time (checkout/topup), then snapshotted into the order notes so the
+// webhook reads it rather than re-deriving it. Orders that never went
+// through those routes (the unrecognized-notes-shape fallback below) carry
+// no such snapshot, so tax is extracted from the amount actually charged.
+function resolveTax(payment: any, notes: any) {
+    if (notes.taxableValue !== undefined && notes.taxableValue !== null) {
+        return {
+            taxableValue: Number(notes.taxableValue),
+            taxAmount: Number(notes.taxAmount) || 0,
+            taxType: notes.taxType || "NONE",
+            taxRate: notes.taxRate !== undefined && notes.taxRate !== null && notes.taxRate !== "" ? Number(notes.taxRate) : null
+        };
+    }
+    return computeGstInclusive(payment.amount, notes.country || "IN", notes.state);
+}
+
+async function createInvoice(params: {
+    teamId: string;
+    userId: string;
+    subscriptionId?: string;
+    type: string;
+    description: string;
+    amount: number;
+    currency: string;
+    paymentId: string;
+    orderId?: string;
+    country?: string;
+    state?: string;
+    taxableValue: number;
+    taxAmount: number;
+    taxType: string;
+    taxRate: number | null;
+}) {
+    try {
+        await prisma.invoice.create({
+            data: {
+                invoiceNumber: `INV-${params.paymentId}`,
+                teamId: params.teamId,
+                userId: params.userId,
+                subscriptionId: params.subscriptionId,
+                type: params.type,
+                description: params.description,
+                amount: params.amount,
+                currency: params.currency,
+                paymentId: params.paymentId,
+                orderId: params.orderId,
+                taxableValue: params.taxableValue,
+                taxAmount: params.taxAmount,
+                taxType: params.taxType,
+                taxRate: params.taxRate,
+                billingCountry: params.country,
+                billingState: params.state,
+                status: "paid"
+            }
+        });
+    } catch (error: any) {
+        // Unique constraint on invoiceNumber (INV-{paymentId}) means a concurrent
+        // or retried webhook delivery already created this invoice — not an error.
+        if (error?.code !== "P2002") throw error;
+    }
+}
 
 export async function POST(req: Request) {
     try {
@@ -41,31 +105,63 @@ export async function POST(req: Request) {
             const notes = payment.notes;
 
             if (notes.teamId) {
-                // Razorpay retries webhook delivery; a payment already recorded
-                // must not grant credits a second time.
-                const existing = await prisma.creditTransaction.findFirst({
-                    where: { teamId: notes.teamId, meta: { path: ["paymentId"], equals: payment.id } }
-                });
+                // Cheap early-exit for a known retry. Not the correctness guarantee
+                // by itself (two concurrent deliveries can both pass this read before
+                // either writes) - that comes from the unique constraints on
+                // CreditTransaction.paymentId and Invoice.invoiceNumber below, which
+                // the DB enforces atomically regardless of this race.
+                const [existingCredit, existingInvoice] = await Promise.all([
+                    prisma.creditTransaction.findFirst({ where: { paymentId: payment.id } }),
+                    prisma.invoice.findFirst({ where: { paymentId: payment.id } })
+                ]);
+                const existing = existingCredit || existingInvoice;
 
                 if (!existing) {
                     if (notes.type === 'topup' && notes.credits) {
                         const credits = parseInt(notes.credits);
                         if (credits > 0) {
-                            await addCredits(
+                            const description = `${credits} credits top-up via Razorpay (ID: ${payment.id})`;
+                            const { granted } = await addCredits(
                                 notes.teamId,
                                 credits,
-                                `Top-up via Razorpay (ID: ${payment.id})`,
+                                description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
+                            if (granted && notes.userId) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    type: "topup",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
+                                });
+                            }
                         }
                     } else if (notes.planId && notes.userId) {
                         const plan = await prisma.plan.findUnique({ where: { id: notes.planId } });
                         if (plan) {
-                            const periodEnd = new Date();
+                            // Extend from the existing period end if it's still in the
+                            // future, so an early renewal doesn't shorten already-paid
+                            // time; otherwise (lapsed or new subscription) start from now.
+                            const existingSubscription = await prisma.subscription.findUnique({
+                                where: { userId: notes.userId },
+                                select: { currentPeriodEnd: true }
+                            });
+                            const now = new Date();
+                            const base = existingSubscription && existingSubscription.currentPeriodEnd > now
+                                ? existingSubscription.currentPeriodEnd
+                                : now;
+                            const periodEnd = new Date(base);
                             periodEnd.setDate(periodEnd.getDate() + 30);
 
-                            await prisma.subscription.upsert({
+                            const subscription = await prisma.subscription.upsert({
                                 where: { userId: notes.userId },
                                 update: { planId: plan.id, status: "active", currentPeriodEnd: periodEnd },
                                 create: {
@@ -76,14 +172,32 @@ export async function POST(req: Request) {
                                 }
                             });
 
+                            const description = `${plan.name} plan subscription via Razorpay (ID: ${payment.id})`;
+                            let granted = true;
                             if (plan.creditsPerMonth > 0) {
-                                await addCredits(
+                                ({ granted } = await addCredits(
                                     notes.teamId,
                                     plan.creditsPerMonth,
-                                    `${plan.name} subscription via Razorpay (ID: ${payment.id})`,
+                                    description,
                                     { paymentId: payment.id, orderId: payment.order_id },
                                     "subscription"
-                                );
+                                ));
+                            }
+                            if (granted) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    subscriptionId: subscription.id,
+                                    type: "subscription",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
+                                });
                             }
                         } else {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
@@ -93,13 +207,29 @@ export async function POST(req: Request) {
                         const amountInRupees = payment.amount / 100;
                         const credits = Math.floor(amountInRupees / 10);
                         if (credits > 0) {
-                            await addCredits(
+                            const description = `Top-up via Razorpay (ID: ${payment.id})`;
+                            const { granted } = await addCredits(
                                 notes.teamId,
                                 credits,
-                                `Top-up via Razorpay (ID: ${payment.id})`,
+                                description,
                                 { paymentId: payment.id, orderId: payment.order_id },
                                 "topup"
                             );
+                            if (granted && notes.userId) {
+                                await createInvoice({
+                                    teamId: notes.teamId,
+                                    userId: notes.userId,
+                                    type: "topup",
+                                    description,
+                                    amount: payment.amount,
+                                    currency: payment.currency,
+                                    paymentId: payment.id,
+                                    orderId: payment.order_id,
+                                    country: notes.country,
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
+                                });
+                            }
                         }
                     }
                 }

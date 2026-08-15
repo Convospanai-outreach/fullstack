@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
+import { computeGstExclusive } from "@/lib/gst";
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.teamId || !ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { tierId } = await req.json();
+    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+
+    const { tierId, country, state } = await req.json();
+
+    if (!country || typeof country !== "string") {
+        return NextResponse.json({ error: "Billing country is required" }, { status: 400 });
+    }
+    if (country === "IN" && (!state || typeof state !== "string")) {
+        return NextResponse.json({ error: "Billing state is required for India" }, { status: 400 });
+    }
 
     // Amounts are in paise (smallest INR unit): rupee price * 100.
     const TIERS: Record<string, { amount: number; credits: number }> = {
@@ -21,7 +33,23 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        const order = await billingService.createTopUpOrder(ctx.teamId, tier.amount, tier.credits);
+        await prisma.team.update({
+            where: { id: ctx.teamId },
+            data: { billingCountry: country, billingState: country === "IN" ? state : null }
+        });
+
+        // GST is added on top of the tier's base price for Indian customers.
+        const gst = computeGstExclusive(tier.amount, country, country === "IN" ? state : undefined);
+
+        const order = await billingService.createTopUpOrder(
+            ctx.teamId,
+            ctx.userId,
+            gst.totalAmount,
+            tier.credits,
+            country,
+            country === "IN" ? state : undefined,
+            gst
+        );
 
         return NextResponse.json({
             id: order.id,

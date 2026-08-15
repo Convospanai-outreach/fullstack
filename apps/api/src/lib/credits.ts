@@ -60,6 +60,13 @@ export async function deductCredits(
 
 /**
  * Adds credits to a team (e.g. from top-up).
+ *
+ * If `meta.paymentId` is set, the grant is atomic against concurrent or
+ * retried callers for the same payment: the unique constraint on
+ * CreditTransaction.paymentId rejects a duplicate insert, and since both
+ * statements run in one transaction, the team's credit increment rolls back
+ * with it. Returns `granted: false` (instead of throwing) when this happens,
+ * so a caller can treat it the same as "already processed".
  */
 export async function addCredits(
     teamId: string,
@@ -67,25 +74,34 @@ export async function addCredits(
     description: string,
     meta?: any,
     type: string = "topup"
-): Promise<void> {
+): Promise<{ granted: boolean }> {
     if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error("Add amount must be a positive number");
     }
-    await prisma.$transaction([
-        prisma.team.update({
-            where: { id: teamId },
-            data: { credits: { increment: amount } }
-        }),
-        prisma.creditTransaction.create({
-            data: {
-                teamId,
-                amount,
-                description,
-                type,
-                meta: meta || {}
-            }
-        })
-    ]);
+    try {
+        await prisma.$transaction([
+            prisma.team.update({
+                where: { id: teamId },
+                data: { credits: { increment: amount } }
+            }),
+            prisma.creditTransaction.create({
+                data: {
+                    teamId,
+                    amount,
+                    description,
+                    type,
+                    meta: meta || {},
+                    paymentId: meta?.paymentId ?? null
+                }
+            })
+        ]);
+        return { granted: true };
+    } catch (error: any) {
+        if (error?.code === "P2002") {
+            return { granted: false };
+        }
+        throw error;
+    }
 }
 
 /**

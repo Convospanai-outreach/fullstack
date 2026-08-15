@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
+import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 
 type Plan = {
     name: "Starter" | "Growth" | "Enterprise";
@@ -88,7 +90,15 @@ const proofPoints = [
 
 export default function PricingPage() {
     const router = useRouter();
-    const [isAnnual, setIsAnnual] = useState(true);
+    // Defaults to monthly: checkout always charges plan.monthlyPrice regardless of
+    // this toggle (annual billing isn't wired up server-side yet), so showing the
+    // discounted annual price by default would misrepresent what gets charged.
+    const [isAnnual, setIsAnnual] = useState(false);
+    const [billingModalOpen, setBillingModalOpen] = useState(false);
+    const [pendingPlan, setPendingPlan] = useState<Plan["name"] | null>(null);
+    const [billingCountry, setBillingCountry] = useState("IN");
+    const [billingCustomCountry, setBillingCustomCountry] = useState("");
+    const [billingState, setBillingState] = useState("Delhi");
 
     const hasSessionCookie = () => {
         if (typeof document === "undefined") {
@@ -112,7 +122,7 @@ export default function PricingPage() {
         });
     };
 
-    const handleCheckout = async (plan: Plan["name"]) => {
+    const handleCheckout = (plan: Plan["name"]) => {
         if (plan === "Enterprise") {
             router.push("/contact");
             return;
@@ -122,6 +132,17 @@ export default function PricingPage() {
             router.push("/signup");
             return;
         }
+
+        setPendingPlan(plan);
+        setBillingModalOpen(true);
+    };
+
+    const confirmCheckout = async () => {
+        const plan = pendingPlan;
+        if (!plan) return;
+        setBillingModalOpen(false);
+
+        const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
 
         try {
             const isLoaded = await loadRazorpayScript();
@@ -135,7 +156,11 @@ export default function PricingPage() {
             const res = await fetch(`${base}/billing/checkout`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ planId: plan.toLowerCase() }),
+                body: JSON.stringify({
+                    planId: plan.toLowerCase(),
+                    country: resolvedCountry,
+                    state: resolvedCountry === "IN" ? billingState : undefined,
+                }),
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Failed to create order");
@@ -341,6 +366,64 @@ export default function PricingPage() {
                     ))}
                 </div>
             </div>
+
+            <Modal
+                open={billingModalOpen}
+                onClose={() => setBillingModalOpen(false)}
+                title="Confirm Billing Address"
+                footer={
+                    <>
+                        <Button variant="outline" onClick={() => setBillingModalOpen(false)}>Cancel</Button>
+                        <Button
+                            disabled={billingCountry === "OTHER" && !billingCustomCountry.trim()}
+                            onClick={confirmCheckout}
+                        >
+                            Confirm & Pay
+                        </Button>
+                    </>
+                }
+            >
+                <div className="space-y-4">
+                    <p className="text-xs text-slate-400">Used to determine GST treatment on your invoice.</p>
+                    <div>
+                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <select
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            value={billingCountry}
+                            onChange={(e) => setBillingCountry(e.target.value)}
+                        >
+                            {BILLING_COUNTRIES.map((c) => (
+                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {billingCountry === "IN" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <select
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingState}
+                                onChange={(e) => setBillingState(e.target.value)}
+                            >
+                                {INDIAN_STATES.map((s) => (
+                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    {billingCountry === "OTHER" && (
+                        <div>
+                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <input
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                value={billingCustomCountry}
+                                onChange={(e) => setBillingCustomCountry(e.target.value)}
+                                placeholder="Enter your country"
+                            />
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 }
