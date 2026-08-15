@@ -19,6 +19,21 @@ export class EmailService {
         fromEmail?: string,
         teamId?: string
     ) {
+        if (isServer || !API_URL) {
+            const host = process.env["SMTP_HOST"] || "localhost";
+            const user = process.env["SMTP_USER"] || "noreply@localhost";
+            const password = process.env["SMTP_PASSWORD"] || "local";
+            const port = Number(process.env["SMTP_PORT"] || 587);
+            const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
+            const resolvedFromName = fromName || process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
+            const resolvedFromEmail = fromEmail || process.env["SMTP_FROM_EMAIL"] || user;
+
+            return sendViaSMTP(
+                { host, port, secure, user, password, fromName: resolvedFromName, fromEmail: resolvedFromEmail },
+                { to, subject, html: body }
+            );
+        }
+
         const res = await fetch(`${API_URL}/email/send`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
