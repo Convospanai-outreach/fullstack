@@ -1,19 +1,19 @@
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
 
 export class EnrichmentService {
     static async enrichLead(leadId: string) {
-        try {
-            const res = await fetch(`${API_URL}/enrichment/lead`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ leadId })
-            });
-            if (!res.ok) throw new Error("Enrichment proxy failure");
-            return await res.json();
-        } catch (error) {
-            console.error("[EnrichmentService] Enrichment proxy failed:", error);
-            throw error;
-        }
+        const lead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { teamId: true }
+        });
+
+        const job = await JobQueue.enqueue("lead_enrichment", {
+            leadId,
+            teamId: lead?.teamId ?? undefined
+        });
+
+        return { success: true, jobId: job.id };
     }
 }

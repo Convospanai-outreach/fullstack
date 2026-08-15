@@ -62,23 +62,53 @@ const WEB_OWNED_API_ROOTS = new Set([
     "campaigns",
     "contact",
     "dashboard",
-    "email",
     "extension",
     "health",
     "help",
     "integrations",
     "invitations",
     "invite-requests",
-    "leads",
     "metrics",
     "register",
-    "settings",
     "studio",
     "support",
     "upload",
     "webhooks",
-    "workflows",
 ]);
+
+// `settings`, `email`, and `leads` only have SOME of their paths implemented under
+// apps/web/src/app/api/** - the rest are apps/api-only routes (settings/sso,
+// settings/guardrails, email/send, leads/bulk, leads/[id]/enrich, etc). Whole-root
+// matching like WEB_OWNED_API_ROOTS above would redirect those apps/api-only paths
+// to a nonexistent apps/web route (a 404) instead of proxying them upstream, so these
+// three need path-level matching instead. `workflows` has zero apps/web routes at all
+// (the whole builder lives in apps/api), so it's intentionally absent from both sets.
+const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import"]);
+
+export function isWebOwnedPath(pathParts: string[]): boolean {
+    const [root, second, third] = pathParts;
+
+    if (root === "settings") {
+        // Only apps/web/src/app/api/settings/{branding,hidden-features} exist; everything
+        // else (sso, guardrails, crm, governance, audit, keys, webhooks, ...) is apps/api-only.
+        return second === "branding" || second === "hidden-features";
+    }
+
+    if (root === "email") {
+        // Only the public, unauthenticated one-click unsubscribe link is web-owned;
+        // send/compose/track/verify all live in apps/api.
+        return second === "unsubscribe";
+    }
+
+    if (root === "leads") {
+        if (pathParts.length === 1) return true; // GET/POST /leads (list, create)
+        if (pathParts.length === 2) return !LEADS_RESERVED_SEGMENTS.has(second || ""); // /leads/[id], not /leads/bulk|export|import
+        if (pathParts.length === 3) return third === "timeline"; // /leads/[id]/timeline
+        return false; // /leads/[id]/{action,enrich,identity,journey,...} - apps/api-only
+    }
+
+    return false;
+}
 
 function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
     if (!pathParts || pathParts.length === 0) return null;
@@ -98,7 +128,7 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
         return null;
     }
 
-    if (WEB_OWNED_API_ROOTS.has(root)) {
+    if (WEB_OWNED_API_ROOTS.has(root) || isWebOwnedPath(pathParts)) {
         const apiPath = pathParts.join("/");
         return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
     }
