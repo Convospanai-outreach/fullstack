@@ -2,7 +2,24 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { addCredits } from "@/lib/credits";
-import { computeGst } from "@/lib/gst";
+import { computeGstInclusive } from "@/lib/gst";
+
+// GST is normally computed and added on top of the price at order-creation
+// time (checkout/topup), then snapshotted into the order notes so the
+// webhook reads it rather than re-deriving it. Orders that never went
+// through those routes (the unrecognized-notes-shape fallback below) carry
+// no such snapshot, so tax is extracted from the amount actually charged.
+function resolveTax(payment: any, notes: any) {
+    if (notes.taxableValue !== undefined && notes.taxableValue !== null) {
+        return {
+            taxableValue: Number(notes.taxableValue),
+            taxAmount: Number(notes.taxAmount) || 0,
+            taxType: notes.taxType || "NONE",
+            taxRate: notes.taxRate !== undefined && notes.taxRate !== null && notes.taxRate !== "" ? Number(notes.taxRate) : null
+        };
+    }
+    return computeGstInclusive(payment.amount, notes.country || "IN", notes.state);
+}
 
 async function createInvoice(params: {
     teamId: string;
@@ -16,13 +33,11 @@ async function createInvoice(params: {
     orderId?: string;
     country?: string;
     state?: string;
+    taxableValue: number;
+    taxAmount: number;
+    taxType: string;
+    taxRate: number | null;
 }) {
-    const { taxableValue, taxAmount, taxType, taxRate } = computeGst(
-        params.amount,
-        params.country || "IN",
-        params.state
-    );
-
     try {
         await prisma.invoice.create({
             data: {
@@ -36,10 +51,10 @@ async function createInvoice(params: {
                 currency: params.currency,
                 paymentId: params.paymentId,
                 orderId: params.orderId,
-                taxableValue,
-                taxAmount,
-                taxType,
-                taxRate,
+                taxableValue: params.taxableValue,
+                taxAmount: params.taxAmount,
+                taxType: params.taxType,
+                taxRate: params.taxRate,
                 billingCountry: params.country,
                 billingState: params.state,
                 status: "paid"
@@ -125,7 +140,8 @@ export async function POST(req: Request) {
                                     paymentId: payment.id,
                                     orderId: payment.order_id,
                                     country: notes.country,
-                                    state: notes.state
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
                                 });
                             }
                         }
@@ -167,7 +183,8 @@ export async function POST(req: Request) {
                                 paymentId: payment.id,
                                 orderId: payment.order_id,
                                 country: notes.country,
-                                state: notes.state
+                                state: notes.state,
+                                ...resolveTax(payment, notes)
                             });
                         } else {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
@@ -196,7 +213,8 @@ export async function POST(req: Request) {
                                     paymentId: payment.id,
                                     orderId: payment.order_id,
                                     country: notes.country,
-                                    state: notes.state
+                                    state: notes.state,
+                                    ...resolveTax(payment, notes)
                                 });
                             }
                         }

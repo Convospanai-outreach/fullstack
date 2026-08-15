@@ -1086,7 +1086,7 @@ model Invoice {
   orderId        String?
 
   // GST breakup - null/NONE when the sale is a non-India zero-rated export of services.
-  // Amount is treated as tax-inclusive: taxableValue = amount - taxAmount.
+  // GST is added on top of taxableValue at order-creation time: amount = taxableValue + taxAmount.
   taxableValue Int?
   taxAmount    Int?
   taxType      String? // CGST_SGST (same state as seller), IGST (other Indian state), NONE (export)

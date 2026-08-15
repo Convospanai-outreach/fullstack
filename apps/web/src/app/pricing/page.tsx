@@ -90,7 +90,10 @@ const proofPoints = [
 
 export default function PricingPage() {
     const router = useRouter();
-    const [isAnnual, setIsAnnual] = useState(true);
+    // Defaults to monthly: checkout always charges plan.monthlyPrice regardless of
+    // this toggle (annual billing isn't wired up server-side yet), so showing the
+    // discounted annual price by default would misrepresent what gets charged.
+    const [isAnnual, setIsAnnual] = useState(false);
     const [billingModalOpen, setBillingModalOpen] = useState(false);
     const [pendingPlan, setPendingPlan] = useState<Plan["name"] | null>(null);
     const [billingCountry, setBillingCountry] = useState("IN");

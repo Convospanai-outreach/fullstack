@@ -60,11 +60,12 @@ describe("/webhooks/razorpay", () => {
         expect(mockAddCredits).not.toHaveBeenCalled();
     });
 
-    it("grants the plan's monthly credits, upserts a Subscription, and invoices with CGST/SGST for a Delhi customer", async () => {
+    it("grants the plan's monthly credits, upserts a Subscription, and invoices using the GST snapshotted at order-creation time", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
         mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
 
         const { POST } = await import("./route");
+        // amount (11682) is what checkout actually charged: 9900 base + 1782 CGST/SGST added on top.
         const response = await POST(signedRequest({
             event: "payment.captured",
             payload: {
@@ -72,9 +73,12 @@ describe("/webhooks/razorpay", () => {
                     entity: {
                         id: "pay_123",
                         order_id: "order_123",
-                        amount: 9900,
+                        amount: 11682,
                         currency: "USD",
-                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "IN", state: "Delhi" },
+                        notes: {
+                            teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "IN", state: "Delhi",
+                            taxableValue: 9900, taxAmount: 1782, taxType: "CGST_SGST", taxRate: 18,
+                        },
                     },
                 },
             },
@@ -98,10 +102,10 @@ describe("/webhooks/razorpay", () => {
                 teamId: "team-1",
                 userId: "user-1",
                 subscriptionId: "sub-1",
-                amount: 9900,
+                amount: 11682,
                 currency: "USD",
-                taxableValue: 8390, // 9900 / 1.18 rounded
-                taxAmount: 1510,
+                taxableValue: 9900,
+                taxAmount: 1782,
                 taxType: "CGST_SGST",
                 taxRate: 18,
                 billingCountry: "IN",
@@ -123,9 +127,12 @@ describe("/webhooks/razorpay", () => {
                     entity: {
                         id: "pay_mh",
                         order_id: "order_mh",
-                        amount: 4900,
+                        amount: 5782,
                         currency: "USD",
-                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "IN", state: "Maharashtra" },
+                        notes: {
+                            teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "IN", state: "Maharashtra",
+                            taxableValue: 4900, taxAmount: 882, taxType: "IGST", taxRate: 18,
+                        },
                     },
                 },
             },
@@ -150,7 +157,10 @@ describe("/webhooks/razorpay", () => {
                         order_id: "order_us",
                         amount: 4900,
                         currency: "USD",
-                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "US" },
+                        notes: {
+                            teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "US",
+                            taxableValue: 4900, taxAmount: 0, taxType: "NONE", taxRate: null,
+                        },
                     },
                 },
             },
@@ -162,6 +172,38 @@ describe("/webhooks/razorpay", () => {
                 taxAmount: 0,
                 taxType: "NONE",
                 taxRate: null,
+            }),
+        }));
+    });
+
+    it("falls back to extracting GST from the charged amount when notes carry no order-time tax snapshot", async () => {
+        // Simulates a payment whose notes never went through checkout/topup (e.g. a
+        // manually created Razorpay payment link) - no taxableValue/taxAmount to read.
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
+        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-4" });
+
+        const { POST } = await import("./route");
+        await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_legacy",
+                        order_id: "order_legacy",
+                        amount: 9900,
+                        currency: "USD",
+                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-pro", country: "IN", state: "Delhi" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({
+                taxableValue: 8390, // extracted from the already-charged 9900 as tax-inclusive
+                taxAmount: 1510,
+                taxType: "CGST_SGST",
+                taxRate: 18,
             }),
         }));
     });

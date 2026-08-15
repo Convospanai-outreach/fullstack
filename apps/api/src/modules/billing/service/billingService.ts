@@ -47,7 +47,8 @@ class BillingService {
         amount: number,
         credits: number,
         country: string,
-        state?: string
+        state?: string,
+        tax?: { taxableValue: number; taxAmount: number; taxType: string; taxRate: number | null }
     ) {
         // Top-up tiers are INR-denominated (see routes/billing/topup/route.ts TIERS);
         // unrelated to the USD-denominated /pricing subscription checkout.
@@ -57,7 +58,11 @@ class BillingService {
             userId,
             credits,
             country,
-            state
+            state,
+            taxableValue: tax?.taxableValue,
+            taxAmount: tax?.taxAmount,
+            taxType: tax?.taxType,
+            taxRate: tax?.taxRate
         });
     }
 

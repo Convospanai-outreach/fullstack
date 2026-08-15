@@ -156,7 +156,7 @@ function renderInvoiceHtml(inv: InvoicePdfData): string {
   <table class="line-items">
     <thead><tr><th>Description</th><th style="text-align:right">Amount</th></tr></thead>
     <tbody>
-      <tr><td>${escapeHtml(inv.description)}</td><td style="text-align:right">${formatMoney(inv.amount, inv.currency)}</td></tr>
+      <tr><td>${escapeHtml(inv.description)}</td><td style="text-align:right">${formatMoney(inv.taxableValue ?? inv.amount, inv.currency)}</td></tr>
     </tbody>
   </table>
 

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { billingService } from "@/modules/billing/service/billingService";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
+import { computeGstExclusive } from "@/lib/gst";
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.teamId || !ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    await authorizeRole(ctx.userId, ctx.teamId, TeamRole.ADMIN);
 
     const { tierId, country, state } = await req.json();
 
@@ -34,13 +38,17 @@ export async function POST(req: NextRequest) {
             data: { billingCountry: country, billingState: country === "IN" ? state : null }
         });
 
+        // GST is added on top of the tier's base price for Indian customers.
+        const gst = computeGstExclusive(tier.amount, country, country === "IN" ? state : undefined);
+
         const order = await billingService.createTopUpOrder(
             ctx.teamId,
             ctx.userId,
-            tier.amount,
+            gst.totalAmount,
             tier.credits,
             country,
-            country === "IN" ? state : undefined
+            country === "IN" ? state : undefined,
+            gst
         );
 
         return NextResponse.json({
