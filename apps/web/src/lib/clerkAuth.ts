@@ -98,6 +98,19 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
 
     if (pendingInvitation) {
         return prisma.$transaction(async (tx: any) => {
+            // Re-check and claim atomically inside the transaction: the lookup above
+            // ran before this transaction started, so between then and now the
+            // invitation could have been revoked or expired. Claiming it here with
+            // the same pending/unexpired condition (instead of an unconditional
+            // update by id) means a stale invitation can no longer grant access.
+            const claim = await tx.userInvitation.updateMany({
+                where: { id: pendingInvitation.id, status: "pending", expiresAt: { gt: now } },
+                data: { status: "accepted", acceptedAt: now }
+            });
+            if (claim.count === 0) {
+                return null;
+            }
+
             const user = await tx.user.create({
                 data: {
                     clerkUserId: input.clerkUserId,
@@ -130,16 +143,11 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                 });
             }
 
-            await tx.userInvitation.update({
-                where: { id: pendingInvitation.id },
-                data: { status: "accepted", acceptedAt: now }
-            });
-
             return tx.user.findUnique({
                 where: { id: user.id },
                 include: { memberships: true }
             });
-        }) as Promise<AppUserWithMemberships>;
+        }) as Promise<AppUserWithMemberships | null>;
     }
 
     const approvedInvite = await prisma.inviteRequest.findFirst({
