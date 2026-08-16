@@ -34,7 +34,10 @@ export async function POST(req: Request) {
         await authorizeRole(userId, teamId, TeamRole.ADMIN);
 
         const body = await req.json();
-        const { priceId, planId, country, state } = body;
+        const { priceId, planId, state } = body;
+        // Normalized so "in"/"In" is recognized as India for GST purposes, not
+        // silently treated as a non-India zero-rated export.
+        const country = typeof body.country === "string" ? body.country.trim().toUpperCase() : body.country;
 
         if (!country || typeof country !== "string") {
             return new NextResponse("Billing country is required", { status: 400 });

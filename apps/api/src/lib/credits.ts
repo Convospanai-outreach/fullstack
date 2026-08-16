@@ -67,6 +67,10 @@ export async function deductCredits(
  * statements run in one transaction, the team's credit increment rolls back
  * with it. Returns `granted: false` (instead of throwing) when this happens,
  * so a caller can treat it the same as "already processed".
+ *
+ * `amount` of 0 is allowed: a zero-credit plan still needs the atomic
+ * paymentId reservation above to guard whatever it gates (e.g. a
+ * subscription renewal) against the same concurrent-delivery race.
  */
 export async function addCredits(
     teamId: string,
@@ -75,8 +79,8 @@ export async function addCredits(
     meta?: any,
     type: string = "topup"
 ): Promise<{ granted: boolean }> {
-    if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error("Add amount must be a positive number");
+    if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error("Add amount must not be negative");
     }
     try {
         await prisma.$transaction([

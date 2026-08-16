@@ -67,6 +67,31 @@ describe("/billing/topup", () => {
         );
     });
 
+    it("does not create an order when the caller is not ADMIN", async () => {
+        mockAuthorizeRole.mockRejectedValue(new Error("Forbidden"));
+
+        const { POST } = await import("./route");
+        await expect(POST(jsonRequest({ tierId: "starter", country: "IN", state: "Karnataka" }) as any)).rejects.toThrow("Forbidden");
+
+        expect(mockCreateTopUpOrder).not.toHaveBeenCalled();
+    });
+
+    it("treats a lowercase country code as India", async () => {
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ tierId: "starter", country: "in", state: "Karnataka" }) as any);
+
+        expect(response.status).toBe(200);
+        expect(mockCreateTopUpOrder).toHaveBeenCalledWith(
+            "team-1",
+            "user-1",
+            59000,
+            500,
+            "IN",
+            "Karnataka",
+            { taxableValue: 50000, taxAmount: 9000, taxType: "IGST", taxRate: 18, totalAmount: 59000 }
+        );
+    });
+
     it("charges the bare tier amount with no GST for a non-India customer", async () => {
         const { POST } = await import("./route");
         await POST(jsonRequest({ tierId: "starter", country: "US" }) as any);

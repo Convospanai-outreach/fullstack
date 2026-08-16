@@ -11,6 +11,14 @@ async function getBrowser(): Promise<Browser> {
         browserPromise = puppeteer.launch({
             headless: true,
             args: ["--no-sandbox", "--disable-setuid-sandbox"]
+        }).then((browser) => {
+            // A crashed/disconnected browser must not stay cached, or every
+            // subsequent download fails until the process restarts.
+            browser.on("disconnected", () => { browserPromise = null; });
+            return browser;
+        }).catch((err) => {
+            browserPromise = null;
+            throw err;
         });
     }
     return browserPromise;
