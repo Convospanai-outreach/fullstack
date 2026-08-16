@@ -164,30 +164,23 @@ export async function POST(req: Request) {
                             );
 
                             if (granted) {
-                                // Extend from the existing period end if it's still in the
-                                // future, so an early renewal doesn't shorten already-paid
-                                // time; otherwise (lapsed or new subscription) start from now.
-                                const existingSubscription = await prisma.subscription.findUnique({
-                                    where: { userId: notes.userId },
-                                    select: { currentPeriodEnd: true }
-                                });
-                                const now = new Date();
-                                const base = existingSubscription && existingSubscription.currentPeriodEnd > now
-                                    ? existingSubscription.currentPeriodEnd
-                                    : now;
-                                const periodEnd = new Date(base);
-                                periodEnd.setDate(periodEnd.getDate() + 30);
-
-                                const subscription = await prisma.subscription.upsert({
-                                    where: { userId: notes.userId },
-                                    update: { planId: plan.id, status: "active", currentPeriodEnd: periodEnd },
-                                    create: {
-                                        userId: notes.userId,
-                                        planId: plan.id,
-                                        status: "active",
-                                        currentPeriodEnd: periodEnd
-                                    }
-                                });
+                                // A read-then-upsert here would race: two distinct renewal
+                                // payments for the same user, each having won its own
+                                // paymentId reservation above, can still both read the same
+                                // currentPeriodEnd and overwrite each other, losing one paid
+                                // month. GREATEST(...)+30 days is computed by Postgres in a
+                                // single statement, so concurrent deliveries serialize on the
+                                // row instead of racing in application code.
+                                const [subscription] = await prisma.$queryRaw<{ id: string }[]>`
+                                    INSERT INTO "Subscription" (id, "userId", "planId", status, "currentPeriodEnd", "createdAt", "updatedAt")
+                                    VALUES (gen_random_uuid(), ${notes.userId}, ${plan.id}, 'active', NOW() + INTERVAL '30 days', NOW(), NOW())
+                                    ON CONFLICT ("userId") DO UPDATE SET
+                                        "planId" = EXCLUDED."planId",
+                                        status = 'active',
+                                        "currentPeriodEnd" = GREATEST("Subscription"."currentPeriodEnd", NOW()) + INTERVAL '30 days',
+                                        "updatedAt" = NOW()
+                                    RETURNING id
+                                `;
 
                                 await createInvoice({
                                     teamId: notes.teamId,

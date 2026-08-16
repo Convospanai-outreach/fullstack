@@ -9,10 +9,7 @@ const { mockPrisma, mockAddCredits } = vi.hoisted(() => ({
         plan: {
             findUnique: vi.fn(),
         },
-        subscription: {
-            upsert: vi.fn(),
-            findUnique: vi.fn(),
-        },
+        $queryRaw: vi.fn(),
         invoice: {
             create: vi.fn(),
             findFirst: vi.fn(),
@@ -42,7 +39,7 @@ describe("/webhooks/razorpay", () => {
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
-        mockPrisma.subscription.findUnique.mockResolvedValue(null);
+        mockPrisma.$queryRaw.mockResolvedValue([{ id: "sub-1" }]);
         mockAddCredits.mockResolvedValue({ granted: true });
     });
 
@@ -65,7 +62,6 @@ describe("/webhooks/razorpay", () => {
 
     it("grants the plan's monthly credits, upserts a Subscription, and invoices using the GST snapshotted at order-creation time", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
 
         const { POST } = await import("./route");
         // amount (11682) is what checkout actually charged: 9900 base + 1782 CGST/SGST added on top.
@@ -88,10 +84,10 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockPrisma.subscription.upsert).toHaveBeenCalledWith(expect.objectContaining({
-            where: { userId: "user-1" },
-            create: expect.objectContaining({ userId: "user-1", planId: "plan-growth", status: "active" }),
-        }));
+        const [strings, userId, planId] = mockPrisma.$queryRaw.mock.calls[0];
+        expect(strings.join("")).toContain('INSERT INTO "Subscription"');
+        expect(userId).toBe("user-1");
+        expect(planId).toBe("plan-growth");
         expect(mockAddCredits).toHaveBeenCalledWith(
             "team-1",
             2500,
@@ -120,7 +116,6 @@ describe("/webhooks/razorpay", () => {
 
     it("invoices with IGST for a customer outside Delhi", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-2" });
 
         const { POST } = await import("./route");
         await POST(signedRequest({
@@ -148,7 +143,6 @@ describe("/webhooks/razorpay", () => {
 
     it("invoices with no GST for a non-India customer (zero-rated export of services)", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-3" });
 
         const { POST } = await import("./route");
         await POST(signedRequest({
@@ -183,7 +177,6 @@ describe("/webhooks/razorpay", () => {
         // Simulates a payment whose notes never went through checkout/topup (e.g. a
         // manually created Razorpay payment link) - no taxableValue/taxAmount to read.
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", creditsPerMonth: 500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-4" });
 
         const { POST } = await import("./route");
         await POST(signedRequest({
@@ -263,7 +256,6 @@ describe("/webhooks/razorpay", () => {
 
     it("does not re-create an invoice on retry for a zero-credit plan (no CreditTransaction exists to guard on)", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-free", name: "FREE", creditsPerMonth: 0 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-free" });
         // No CreditTransaction was ever written for this payment (credits = 0), but the
         // invoice from the first delivery is now findable by paymentId.
         mockPrisma.invoice.findFirst.mockResolvedValue({ id: "inv-existing" });
@@ -291,7 +283,6 @@ describe("/webhooks/razorpay", () => {
 
     it("does not create a duplicate subscription invoice when the concurrent credit grant loses the race", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-race" });
         mockAddCredits.mockResolvedValue({ granted: false });
 
         const { POST } = await import("./route");
@@ -311,16 +302,18 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
+        expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
         expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
     });
 
-    it("extends the existing period end on early renewal instead of shortening it to now + 30 days", async () => {
+    it("extends the subscription via a single atomic INSERT ... ON CONFLICT statement, not a separate read-then-write", async () => {
+        // The period math (GREATEST(currentPeriodEnd, NOW()) + 30 days) is computed
+        // by Postgres inside this one statement specifically so that two concurrent
+        // deliveries for different payments serialize on the row instead of both
+        // reading the same currentPeriodEnd and overwriting each other. That can't
+        // be exercised against a mocked client - assert the statement shape and
+        // params instead, and rely on the DB to do the arithmetic correctly.
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
-
-        // 20 days still remaining on the current period.
-        const currentPeriodEnd = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
-        mockPrisma.subscription.findUnique.mockResolvedValue({ currentPeriodEnd });
 
         const { POST } = await import("./route");
         await POST(signedRequest({
@@ -338,46 +331,13 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        const expectedEnd = new Date(currentPeriodEnd);
-        expectedEnd.setDate(expectedEnd.getDate() + 30);
-
-        expect(mockPrisma.subscription.upsert).toHaveBeenCalledWith(expect.objectContaining({
-            update: expect.objectContaining({ currentPeriodEnd: expectedEnd }),
-        }));
-    });
-
-    it("resets the period end to now + 30 days when the existing subscription has already lapsed", async () => {
-        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
-        mockPrisma.subscription.upsert.mockResolvedValue({ id: "sub-1" });
-
-        // Lapsed 5 days ago.
-        const currentPeriodEnd = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-        mockPrisma.subscription.findUnique.mockResolvedValue({ currentPeriodEnd });
-
-        const before = Date.now();
-        const { POST } = await import("./route");
-        await POST(signedRequest({
-            event: "payment.captured",
-            payload: {
-                payment: {
-                    entity: {
-                        id: "pay_lapsed",
-                        order_id: "order_lapsed",
-                        amount: 9900,
-                        currency: "USD",
-                        notes: { teamId: "team-1", userId: "user-1", planId: "plan-growth", country: "US" },
-                    },
-                },
-            },
-        }) as any);
-        const after = Date.now();
-
-        const call = mockPrisma.subscription.upsert.mock.calls[0][0];
-        const grantedEnd = call.update.currentPeriodEnd.getTime();
-        // Should be ~30 days from "now" (somewhere between the call's before/after
-        // bounds), not from the lapsed currentPeriodEnd.
-        expect(grantedEnd).toBeGreaterThanOrEqual(before + 30 * 24 * 60 * 60 * 1000 - 1000);
-        expect(grantedEnd).toBeLessThanOrEqual(after + 30 * 24 * 60 * 60 * 1000 + 1000);
+        const [strings, userId, planId] = mockPrisma.$queryRaw.mock.calls[0];
+        const sql = strings.join("");
+        expect(userId).toBe("user-1");
+        expect(planId).toBe("plan-growth");
+        expect(sql).toContain("ON CONFLICT");
+        expect(sql).toContain("GREATEST");
+        expect(sql).toContain("INTERVAL '30 days'");
     });
 
     it("ignores a subscription payment whose planId does not match a known plan", async () => {
@@ -399,7 +359,7 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockPrisma.subscription.upsert).not.toHaveBeenCalled();
+        expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
         expect(mockAddCredits).not.toHaveBeenCalled();
     });
 });
