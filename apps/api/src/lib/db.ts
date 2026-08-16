@@ -58,3 +58,9 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 if (process.env['NODE_ENV'] !== "production") {
     globalForPrisma.prisma = prisma;
 }
+
+// `prisma` is wrapped in $extends(...) above, so its $transaction callback
+// receives an extended client whose type doesn't structurally match the
+// plain Prisma.TransactionClient from @prisma/client. Derive the type from
+// the actual exported client instead of the generic one.
+export type TransactionClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];

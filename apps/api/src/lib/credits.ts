@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import type { TransactionClient } from "@/lib/db";
 
 /**
  * Checks if a team has enough credits for an operation.
@@ -71,34 +72,52 @@ export async function deductCredits(
  * `amount` of 0 is allowed: a zero-credit plan still needs the atomic
  * paymentId reservation above to guard whatever it gates (e.g. a
  * subscription renewal) against the same concurrent-delivery race.
+ *
+ * Pass `tx` to run inside a caller-owned transaction (e.g. alongside a
+ * subscription update and invoice creation, so all of it commits or none of
+ * it does). In that mode a duplicate paymentId is NOT caught here - it's
+ * thrown so the caller's transaction aborts and rolls back cleanly, since
+ * Postgres won't accept further statements on a connection after one inside
+ * the same transaction has already errored. The caller is expected to catch
+ * P2002 around its own `prisma.$transaction(...)` call and treat it as
+ * "already processed" instead.
  */
 export async function addCredits(
     teamId: string,
     amount: number,
     description: string,
     meta?: any,
-    type: string = "topup"
+    type: string = "topup",
+    tx?: TransactionClient
 ): Promise<{ granted: boolean }> {
     if (!Number.isFinite(amount) || amount < 0) {
         throw new Error("Add amount must not be negative");
     }
+
+    const grant = async (client: TransactionClient) => {
+        await client.team.update({
+            where: { id: teamId },
+            data: { credits: { increment: amount } }
+        });
+        await client.creditTransaction.create({
+            data: {
+                teamId,
+                amount,
+                description,
+                type,
+                meta: meta || {},
+                paymentId: meta?.paymentId ?? null
+            }
+        });
+    };
+
+    if (tx) {
+        await grant(tx);
+        return { granted: true };
+    }
+
     try {
-        await prisma.$transaction([
-            prisma.team.update({
-                where: { id: teamId },
-                data: { credits: { increment: amount } }
-            }),
-            prisma.creditTransaction.create({
-                data: {
-                    teamId,
-                    amount,
-                    description,
-                    type,
-                    meta: meta || {},
-                    paymentId: meta?.paymentId ?? null
-                }
-            })
-        ]);
+        await prisma.$transaction((t) => grant(t));
         return { granted: true };
     } catch (error: any) {
         if (error?.code === "P2002") {

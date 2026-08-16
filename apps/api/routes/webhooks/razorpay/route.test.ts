@@ -1,25 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import crypto from "crypto";
 
-const { mockPrisma, mockAddCredits } = vi.hoisted(() => ({
-    mockPrisma: {
-        creditTransaction: {
-            findFirst: vi.fn(),
-        },
-        plan: {
-            findUnique: vi.fn(),
-        },
+const { mockPrisma, mockTx } = vi.hoisted(() => {
+    const mockTx = {
+        team: { update: vi.fn() },
+        creditTransaction: { create: vi.fn() },
+        invoice: { create: vi.fn() },
         $queryRaw: vi.fn(),
-        invoice: {
-            create: vi.fn(),
-            findFirst: vi.fn(),
-        },
-    },
-    mockAddCredits: vi.fn(),
-}));
+    };
+    const mockPrisma = {
+        creditTransaction: { findFirst: vi.fn() },
+        plan: { findUnique: vi.fn() },
+        invoice: { findFirst: vi.fn() },
+        $transaction: vi.fn(),
+    };
+    return { mockPrisma, mockTx };
+});
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
-vi.mock("@/lib/credits", () => ({ addCredits: mockAddCredits }));
 
 const WEBHOOK_SECRET = "test_webhook_secret";
 
@@ -39,8 +37,14 @@ describe("/webhooks/razorpay", () => {
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
-        mockPrisma.$queryRaw.mockResolvedValue([{ id: "sub-1" }]);
-        mockAddCredits.mockResolvedValue({ granted: true });
+        // The real addCredits/createInvoice run against this mocked tx client, so
+        // the credit-grant-then-invoice flow (and its P2002 propagation) is
+        // exercised for real rather than stubbed out at the addCredits boundary.
+        mockPrisma.$transaction.mockImplementation((cb: any) => cb(mockTx));
+        mockTx.team.update.mockResolvedValue({});
+        mockTx.creditTransaction.create.mockResolvedValue({});
+        mockTx.invoice.create.mockResolvedValue({});
+        mockTx.$queryRaw.mockResolvedValue([{ id: "sub-1" }]);
     });
 
     it("rejects a mismatched-length signature with 400 instead of throwing", async () => {
@@ -57,7 +61,7 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(400);
-        expect(mockAddCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("grants the plan's monthly credits, upserts a Subscription, and invoices using the GST snapshotted at order-creation time", async () => {
@@ -84,18 +88,18 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        const [strings, userId, planId] = mockPrisma.$queryRaw.mock.calls[0];
+        expect(mockTx.team.update).toHaveBeenCalledWith(expect.objectContaining({
+            where: { id: "team-1" },
+            data: { credits: { increment: 2500 } },
+        }));
+        expect(mockTx.creditTransaction.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ teamId: "team-1", amount: 2500, paymentId: "pay_123", type: "subscription" }),
+        }));
+        const [strings, userId, planId] = mockTx.$queryRaw.mock.calls[0];
         expect(strings.join("")).toContain('INSERT INTO "Subscription"');
         expect(userId).toBe("user-1");
         expect(planId).toBe("plan-growth");
-        expect(mockAddCredits).toHaveBeenCalledWith(
-            "team-1",
-            2500,
-            expect.stringContaining("GROWTH"),
-            expect.objectContaining({ paymentId: "pay_123" }),
-            "subscription"
-        );
-        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockTx.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 invoiceNumber: "INV-pay_123",
                 teamId: "team-1",
@@ -136,7 +140,7 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockTx.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({ taxType: "IGST", taxRate: 18 }),
         }));
     });
@@ -163,7 +167,7 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockTx.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 taxableValue: 4900,
                 taxAmount: 0,
@@ -194,7 +198,7 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        expect(mockPrisma.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
+        expect(mockTx.invoice.create).toHaveBeenCalledWith(expect.objectContaining({
             data: expect.objectContaining({
                 taxableValue: 8390, // extracted from the already-charged 9900 as tax-inclusive
                 taxAmount: 1510,
@@ -223,16 +227,17 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockAddCredits).not.toHaveBeenCalled();
-        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("does not create a duplicate invoice when two concurrent deliveries both pass the pre-check but the DB rejects the second credit grant", async () => {
         // Simulates the race CodeAnt flagged: the findFirst pre-check is a separate
         // read from the write, so both concurrent deliveries can see !existing. The
-        // real guard is the unique constraint on CreditTransaction.paymentId, which
-        // addCredits surfaces as granted: false for the loser instead of throwing.
-        mockAddCredits.mockResolvedValue({ granted: false });
+        // real guard is the unique constraint on CreditTransaction.paymentId - here
+        // simulated by the tx's own creditTransaction.create rejecting with P2002,
+        // which should propagate out of addCredits and be caught as "already done".
+        const conflict = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+        mockTx.creditTransaction.create.mockRejectedValue(conflict);
 
         const { POST } = await import("./route");
         const response = await POST(signedRequest({
@@ -250,8 +255,31 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockAddCredits).toHaveBeenCalledTimes(1);
-        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+        expect(mockTx.invoice.create).not.toHaveBeenCalled();
+    });
+
+    it("rolls back the credit grant (500, so Razorpay retries) when invoice creation fails for a reason other than a duplicate", async () => {
+        // The whole point of running these in one transaction: a transient failure
+        // here must not leave the payment credited with no invoice and no way for
+        // a retry to notice, which is what happened before this fix.
+        mockTx.invoice.create.mockRejectedValue(new Error("connection reset"));
+
+        const { POST } = await import("./route");
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_transient",
+                        order_id: "order_transient",
+                        amount: 50000,
+                        notes: { teamId: "team-1", type: "topup", credits: "500", userId: "user-1" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(response.status).toBe(500);
     });
 
     it("does not re-create an invoice on retry for a zero-credit plan (no CreditTransaction exists to guard on)", async () => {
@@ -277,13 +305,13 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockAddCredits).not.toHaveBeenCalled();
-        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it("does not create a duplicate subscription invoice when the concurrent credit grant loses the race", async () => {
         mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-growth", name: "GROWTH", creditsPerMonth: 2500 });
-        mockAddCredits.mockResolvedValue({ granted: false });
+        const conflict = Object.assign(new Error("Unique constraint failed"), { code: "P2002" });
+        mockTx.creditTransaction.create.mockRejectedValue(conflict);
 
         const { POST } = await import("./route");
         const response = await POST(signedRequest({
@@ -302,8 +330,8 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
-        expect(mockPrisma.invoice.create).not.toHaveBeenCalled();
+        expect(mockTx.$queryRaw).not.toHaveBeenCalled();
+        expect(mockTx.invoice.create).not.toHaveBeenCalled();
     });
 
     it("extends the subscription via a single atomic INSERT ... ON CONFLICT statement, not a separate read-then-write", async () => {
@@ -331,7 +359,7 @@ describe("/webhooks/razorpay", () => {
             },
         }) as any);
 
-        const [strings, userId, planId] = mockPrisma.$queryRaw.mock.calls[0];
+        const [strings, userId, planId] = mockTx.$queryRaw.mock.calls[0];
         const sql = strings.join("");
         expect(userId).toBe("user-1");
         expect(planId).toBe("plan-growth");
@@ -359,7 +387,6 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(200);
-        expect(mockPrisma.$queryRaw).not.toHaveBeenCalled();
-        expect(mockAddCredits).not.toHaveBeenCalled();
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 });
