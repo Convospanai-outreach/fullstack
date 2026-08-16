@@ -69,6 +69,59 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
         }) as Promise<AppUserWithMemberships>;
     }
 
+    const now = new Date();
+
+    const pendingInvitation = await prisma.userInvitation.findFirst({
+        where: { email, status: "pending", expiresAt: { gt: now } },
+        orderBy: { createdAt: "desc" }
+    });
+
+    if (pendingInvitation) {
+        return prisma.$transaction(async (tx: any) => {
+            const user = await tx.user.create({
+                data: {
+                    clerkUserId: input.clerkUserId,
+                    email,
+                    name: input.name || email,
+                    emailVerified: now,
+                    enterpriseRole: pendingInvitation.role,
+                    settings: { create: { theme: "dark" } }
+                },
+                include: { memberships: true }
+            });
+
+            const existingMember = await tx.teamMember.findFirst({
+                where: { teamId: pendingInvitation.teamId, email }
+            });
+
+            if (existingMember) {
+                await tx.teamMember.update({
+                    where: { id: existingMember.id },
+                    data: { userId: user.id, status: "active" }
+                });
+            } else {
+                const teamRole = pendingInvitation.role === UserRole.ORG_ADMIN
+                    ? "admin"
+                    : pendingInvitation.role === UserRole.VIEWER
+                        ? "viewer"
+                        : "member";
+                await tx.teamMember.create({
+                    data: { teamId: pendingInvitation.teamId, userId: user.id, email, role: teamRole, status: "active" }
+                });
+            }
+
+            await tx.userInvitation.update({
+                where: { id: pendingInvitation.id },
+                data: { status: "accepted", acceptedAt: now }
+            });
+
+            return tx.user.findUnique({
+                where: { id: user.id },
+                include: { memberships: true }
+            });
+        }) as Promise<AppUserWithMemberships>;
+    }
+
     const approvedInvite = await prisma.inviteRequest.findFirst({
         where: {
             email,
@@ -82,7 +135,6 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
     }
 
     const displayName = input.name || approvedInvite.name || email;
-    const now = new Date();
 
     return prisma.$transaction(async (tx: any) => {
         const user = await tx.user.create({

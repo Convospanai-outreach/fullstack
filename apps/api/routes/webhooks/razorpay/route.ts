@@ -211,6 +211,19 @@ export async function POST(req: Request) {
                             }
                         } else {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
+                            // Payment was captured but nothing was provisioned - persist this so
+                            // it's queryable/alertable instead of only visible in ephemeral logs.
+                            try {
+                                const { AuditService } = await import("@/modules/audit/auditService");
+                                await AuditService.log(
+                                    notes.teamId,
+                                    notes.userId,
+                                    "WEBHOOK_UNRECOGNIZED_PLAN",
+                                    "Billing",
+                                    payment.id,
+                                    { planId: notes.planId, amount: payment.amount, currency: payment.currency }
+                                );
+                            } catch (e) { }
                         }
                     } else {
                         // Fallback logic for payments with no recognized notes shape.

@@ -53,7 +53,7 @@ export class TrainingManager {
                         .update(JSON.stringify({ baseModel, datasetVersion: dataset.version, recordCount: dataset.records.length }))
                         .digest('hex').substring(0, 16);
                 })(),
-                changelog: `Automated training run based on dataset ${dataset.version}`,
+                changelog: `[SIMULATED - no real fine-tuning API call is made] Automated training run based on dataset ${dataset.version}`,
                 status: 'TRAINING'
             }
         });

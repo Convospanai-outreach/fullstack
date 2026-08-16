@@ -21,7 +21,8 @@ import {
     Plus,
     Bot,
     Database,
-    Loader2
+    Loader2,
+    AlertTriangle
 } from "lucide-react";
 import { toast } from "sonner";
 import { AgentNode } from "@/components/orchestrator/nodes/AgentNode";
@@ -69,13 +70,13 @@ export default function AgentBuilderPage() {
 
     const handleRunSimulation = async () => {
         setIsRunning(true);
-        toast.message("Initializing Agent Swarm...", {
-            description: "Spinning up secure containers for 2 agents."
+        toast.message("Previewing layout...", {
+            description: "This is a visual preview only — no agents actually run."
         });
 
         await new Promise(r => setTimeout(r, 2000));
-        toast.success("Workflow Executed Successfully", {
-            description: "Processed 1 sample lead through the pipeline."
+        toast("Preview complete", {
+            description: "Nothing was executed. This canvas isn't wired to a real agent runtime yet."
         });
         setIsRunning(false);
     };
@@ -102,7 +103,7 @@ export default function AgentBuilderPage() {
                         <div className="bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10 pointer-events-auto flex gap-2 shadow-2xl">
                             <Button
                                 variant="outline"
-                                onClick={() => toast.success("Workflow Saved")}
+                                onClick={() => toast("Not saved", { description: "This preview canvas doesn't persist changes yet." })}
                                 className="h-8 border-white/10 hover:bg-white/5"
                             >
                                 <Save className="w-4 h-4 mr-2" />
@@ -125,6 +126,14 @@ export default function AgentBuilderPage() {
                                     </>
                                 )}
                             </Button>
+                        </div>
+                    </div>
+
+                    {/* Preview notice */}
+                    <div className="absolute bottom-4 left-4 right-4 z-10 flex justify-center pointer-events-none px-2">
+                        <div className="bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs px-3 py-2 rounded-xl flex items-center gap-2 backdrop-blur-md shadow-2xl">
+                            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                            Preview only — this canvas isn&apos;t wired to a real agent runtime. Nothing here saves or executes.
                         </div>
                     </div>
 

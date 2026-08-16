@@ -65,7 +65,11 @@ export default function WebhooksPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Delete this webhook and all logs?")) return;
         try {
-            await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/settings/webhooks?id=${id}`, { method: "DELETE" });
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/settings/webhooks?id=${id}`, { method: "DELETE" });
+            if (!res.ok) {
+                toast.error("Failed to delete webhook");
+                return;
+            }
             toast.success("Webhook deleted");
             loadWebhooks();
         } catch (e) {

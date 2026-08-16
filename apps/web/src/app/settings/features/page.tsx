@@ -23,6 +23,7 @@ type HiddenFeatureStatus = {
     description: string;
     openPath: string;
     pathPrefixes: string[];
+    built: boolean;
     enabled: boolean;
     ready: boolean;
     readinessReason: string;
@@ -239,7 +240,7 @@ export default function HiddenFeaturesPage() {
                                         {isSaving ? "Saving..." : feature.enabled ? "Hide Again" : "Turn On"}
                                     </button>
 
-                                    {feature.enabled ? (
+                                    {feature.enabled && feature.built ? (
                                         <Link
                                             href={feature.openPath}
                                             className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500"
@@ -247,6 +248,11 @@ export default function HiddenFeaturesPage() {
                                             Open Surface
                                             <ExternalLink className="w-4 h-4" />
                                         </Link>
+                                    ) : feature.enabled && !feature.built ? (
+                                        <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-amber-200">
+                                            Not built yet
+                                            <AlertTriangle className="w-4 h-4" />
+                                        </div>
                                     ) : (
                                         <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-gray-300">
                                             Hidden Route
