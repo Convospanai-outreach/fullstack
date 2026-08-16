@@ -2,9 +2,13 @@
 
 import { SignUp } from "@clerk/nextjs";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 export default function SignupPage() {
+    const searchParams = useSearchParams();
+    const inviteToken = searchParams.get("token") || undefined;
+
     return (
         <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
             <div className="w-full max-w-md">
@@ -20,6 +24,7 @@ export default function SignupPage() {
                     signInUrl="/login"
                     fallbackRedirectUrl="/dashboard"
                     forceRedirectUrl="/dashboard"
+                    {...(inviteToken ? { unsafeMetadata: { inviteToken } } : {})}
                 />
             </div>
         </main>

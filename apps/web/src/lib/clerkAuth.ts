@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/prisma-safe";
+import { findValidInvitation } from "@/lib/invitations";
 
 type AppUserWithMemberships = {
     id: string;
@@ -39,14 +40,17 @@ export async function findOrCreateClerkAppUser(): Promise<AppUserWithMemberships
     const email = primaryEmail(clerkUser);
     if (!email) return null;
 
+    const inviteToken = clerkUser?.unsafeMetadata?.["inviteToken"];
+
     return syncClerkUserToApp({
         clerkUserId,
         email,
-        name: clerkUser?.fullName || clerkUser?.firstName || email
+        name: clerkUser?.fullName || clerkUser?.firstName || email,
+        inviteToken: typeof inviteToken === "string" ? inviteToken : undefined
     });
 }
 
-export async function syncClerkUserToApp(input: { clerkUserId: string; email: string; name?: string | null }) {
+export async function syncClerkUserToApp(input: { clerkUserId: string; email: string; name?: string | null; inviteToken?: string | undefined }) {
     const email = input.email.toLowerCase();
     if (!email) return null;
 
@@ -71,10 +75,22 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
 
     const now = new Date();
 
-    const pendingInvitation = await prisma.userInvitation.findFirst({
-        where: { email, status: "pending", expiresAt: { gt: now } },
-        orderBy: { createdAt: "desc" }
-    });
+    // Prefer the exact invitation the user's link/token pointed at - falling back to
+    // an email-only lookup (ambiguous when the same email has multiple pending
+    // invitations from different teams) only when no token made it through signup.
+    let pendingInvitation = null as Awaited<ReturnType<typeof prisma.userInvitation.findFirst>>;
+    if (input.inviteToken) {
+        const { invitation } = await findValidInvitation(input.inviteToken);
+        if (invitation && invitation.email.toLowerCase() === email) {
+            pendingInvitation = invitation;
+        }
+    }
+    if (!pendingInvitation) {
+        pendingInvitation = await prisma.userInvitation.findFirst({
+            where: { email, status: "pending", expiresAt: { gt: now } },
+            orderBy: { createdAt: "desc" }
+        });
+    }
 
     if (pendingInvitation) {
         return prisma.$transaction(async (tx: any) => {

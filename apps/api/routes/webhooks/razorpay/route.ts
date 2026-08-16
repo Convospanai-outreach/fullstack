@@ -213,17 +213,18 @@ export async function POST(req: Request) {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
                             // Payment was captured but nothing was provisioned - persist this so
                             // it's queryable/alertable instead of only visible in ephemeral logs.
-                            try {
-                                const { AuditService } = await import("@/modules/audit/auditService");
-                                await AuditService.log(
-                                    notes.teamId,
-                                    notes.userId,
-                                    "WEBHOOK_UNRECOGNIZED_PLAN",
-                                    "Billing",
-                                    payment.id,
-                                    { planId: notes.planId, amount: payment.amount, currency: payment.currency }
-                                );
-                            } catch (e) { }
+                            // Deliberately not caught: if this write fails, nothing durable exists
+                            // for this event at all, so let the outer handler 500 and have Razorpay
+                            // retry rather than acknowledging an event we never actually recorded.
+                            const { AuditService } = await import("@/modules/audit/auditService");
+                            await AuditService.log(
+                                notes.teamId,
+                                notes.userId,
+                                "WEBHOOK_UNRECOGNIZED_PLAN",
+                                "Billing",
+                                payment.id,
+                                { planId: notes.planId, amount: payment.amount, currency: payment.currency }
+                            );
                         }
                     } else {
                         // Fallback logic for payments with no recognized notes shape.
