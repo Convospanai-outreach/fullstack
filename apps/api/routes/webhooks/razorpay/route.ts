@@ -213,9 +213,10 @@ export async function POST(req: Request) {
                             console.error(`[Webhook] Unknown planId in payment notes: ${notes.planId}`);
                             // Payment was captured but nothing was provisioned - persist this so
                             // it's queryable/alertable instead of only visible in ephemeral logs.
-                            // Deliberately not caught: if this write fails, nothing durable exists
-                            // for this event at all, so let the outer handler 500 and have Razorpay
-                            // retry rather than acknowledging an event we never actually recorded.
+                            // strict:true - if this write fails, nothing durable exists for this
+                            // event at all, so let the failure propagate to the outer handler's
+                            // 500 and have Razorpay retry rather than acknowledging an event we
+                            // never actually recorded (AuditService.log swallows errors by default).
                             const { AuditService } = await import("@/modules/audit/auditService");
                             await AuditService.log(
                                 notes.teamId,
@@ -223,7 +224,10 @@ export async function POST(req: Request) {
                                 "WEBHOOK_UNRECOGNIZED_PLAN",
                                 "Billing",
                                 payment.id,
-                                { planId: notes.planId, amount: payment.amount, currency: payment.currency }
+                                { planId: notes.planId, amount: payment.amount, currency: payment.currency },
+                                null,
+                                null,
+                                true
                             );
                         }
                     } else {

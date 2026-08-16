@@ -4,7 +4,7 @@ import { syncClerkUserToApp } from "@/lib/clerkAuth";
 
 export const runtime = "nodejs";
 
-type ClerkEmail = { id: string; email_address: string };
+type ClerkEmail = { id: string; email_address: string; verification?: { status?: string | null } | null };
 type ClerkUserPayload = {
     id: string;
     first_name?: string | null;
@@ -20,8 +20,10 @@ function getInviteToken(data: ClerkUserPayload) {
 }
 
 function getPrimaryEmail(data: ClerkUserPayload) {
-    const primary = data.email_addresses?.find((email) => email.id === data.primary_email_address_id);
-    return (primary?.email_address || data.email_addresses?.[0]?.email_address || "").toLowerCase();
+    // Only trust addresses Clerk has actually verified - see clerkAuth.ts's primaryEmail().
+    const verified = data.email_addresses?.filter((email) => email.verification?.status === "verified") ?? [];
+    const primary = verified.find((email) => email.id === data.primary_email_address_id);
+    return (primary?.email_address || verified[0]?.email_address || "").toLowerCase();
 }
 
 function getDisplayName(data: ClerkUserPayload) {

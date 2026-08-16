@@ -12,9 +12,12 @@ type AppUserWithMemberships = {
 };
 
 function primaryEmail(user: Awaited<ReturnType<typeof currentUser>>) {
-    const primaryId = user?.primaryEmailAddressId;
-    const primary = user?.emailAddresses.find((email) => email.id === primaryId);
-    return (primary?.emailAddress || user?.emailAddresses[0]?.emailAddress || "").toLowerCase();
+    // Only trust addresses Clerk has actually verified - an unverified address on the
+    // account isn't proof the user controls it, and this email is used to auto-match
+    // pending team invitations.
+    const verified = user?.emailAddresses.filter((email) => email.verification?.status === "verified") ?? [];
+    const primary = verified.find((email) => email.id === user?.primaryEmailAddressId);
+    return (primary?.emailAddress || verified[0]?.emailAddress || "").toLowerCase();
 }
 
 export async function getClerkUserId() {
@@ -75,17 +78,18 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
 
     const now = new Date();
 
-    // Prefer the exact invitation the user's link/token pointed at - falling back to
+    // Prefer the exact invitation the user's link/token pointed at. Only fall back to
     // an email-only lookup (ambiguous when the same email has multiple pending
-    // invitations from different teams) only when no token made it through signup.
+    // invitations from different teams) when no token made it through signup at all -
+    // if a token WAS supplied but is invalid/expired/for a different email, don't
+    // silently substitute a different team's invitation instead.
     let pendingInvitation = null as Awaited<ReturnType<typeof prisma.userInvitation.findFirst>>;
     if (input.inviteToken) {
         const { invitation } = await findValidInvitation(input.inviteToken);
         if (invitation && invitation.email.toLowerCase() === email) {
             pendingInvitation = invitation;
         }
-    }
-    if (!pendingInvitation) {
+    } else {
         pendingInvitation = await prisma.userInvitation.findFirst({
             where: { email, status: "pending", expiresAt: { gt: now } },
             orderBy: { createdAt: "desc" }
