@@ -89,7 +89,7 @@ export default function InvitesPage() {
     };
 
     return (
-        <main className="min-h-screen bg-black p-8 text-white">
+        <div className="min-h-screen bg-black p-8 text-white">
             <div className="mx-auto max-w-6xl">
                 <div className="mb-8 flex items-center justify-between">
                     <SectionHeader title="Invite Requests" subtitle="Waitlist requests, approvals, and invite links" />
@@ -213,6 +213,6 @@ export default function InvitesPage() {
                     </table>
                 </div>
             </div>
-        </main>
+        </div>
     );
 }

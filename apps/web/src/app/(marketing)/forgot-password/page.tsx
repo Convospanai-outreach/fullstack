@@ -8,7 +8,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function ForgotPasswordPage() {
     return (
-        <main className="min-h-screen p-4">
+        <div className="min-h-screen p-4">
             <div className="relative mx-auto flex min-h-screen w-full max-w-4xl items-center justify-center py-10">
                 <div className="grid w-full gap-8 lg:grid-cols-[1fr,0.95fr]">
                     <div className="space-y-6 self-center">
@@ -55,6 +55,6 @@ export default function ForgotPasswordPage() {
                     </GlassCard>
                 </div>
             </div>
-        </main>
+        </div>
     );
 }

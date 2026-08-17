@@ -10,7 +10,7 @@ export default function SignupPage() {
     const inviteToken = searchParams.get("token") || undefined;
 
     return (
-        <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
+        <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
             <div className="w-full max-w-md">
                 <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-black text-white">
                     <LogoMark priority className="h-9 w-9" />
@@ -27,6 +27,6 @@ export default function SignupPage() {
                     {...(inviteToken ? { unsafeMetadata: { inviteToken } } : {})}
                 />
             </div>
-        </main>
+        </div>
     );
 }

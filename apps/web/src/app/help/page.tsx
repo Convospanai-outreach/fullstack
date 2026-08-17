@@ -225,7 +225,7 @@ export default function HelpPage() {
                             </div>
                         </aside>
 
-                        <main className="rounded-[28px] border border-white/10 bg-[#081221] p-6">
+                        <div className="rounded-[28px] border border-white/10 bg-[#081221] p-6">
                             {activeArticle ? (
                                 <article id={activeArticle.slug} className="space-y-3">
                                     {renderArticleContent(activeArticle.content)}
@@ -250,7 +250,7 @@ export default function HelpPage() {
                                     ))}
                                 </div>
                             )}
-                        </main>
+                        </div>
                     </div>
                 </section>
 

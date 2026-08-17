@@ -18,9 +18,9 @@ export default function FunnelLayout({
         The main scroll container. We do NOT add top padding or max-width here
         so the cinematic full-screen canvas can expand to the full viewport.
       */}
-      <main className="flex-1 w-full relative z-10">
+      <div className="flex-1 w-full relative z-10">
         {children}
-      </main>
+      </div>
 
       {/* 
         Global footer will render naturally at the very bottom of the document

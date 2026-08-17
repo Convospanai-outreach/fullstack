@@ -12,9 +12,9 @@ export default function Home() {
   return (
     <div className="relative min-h-screen flex flex-col bg-[#020617] text-white">
       <NavBar />
-      <main className="flex-1 w-full relative z-10">
+      <div className="flex-1 w-full relative z-10">
         <CinematicHome />
-      </main>
+      </div>
       <Footer />
     </div>
   );

@@ -19,7 +19,7 @@ export default function ICPListPage() {
     if (loading) return <div style={{ padding: 24 }}>Loading ICPs...</div>;
 
     return (
-        <main style={{ padding: 24 }}>
+        <div style={{ padding: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
                 <h1>Ideal Customer Profiles</h1>
                 <a href="/icp-builder/new" style={{ padding: "8px 16px", background: "#0ea5e9", color: "#fff", borderRadius: 6, textDecoration: "none" }}>
@@ -32,6 +32,6 @@ export default function ICPListPage() {
                     <ICPCard key={icp.id} icp={icp} />
                 ))}
             </div>
-        </main>
+        </div>
     );
 }

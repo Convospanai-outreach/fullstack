@@ -25,11 +25,11 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             </aside>
 
             {/* Content Area */}
-            <main className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-8">
                 <div className="max-w-4xl mx-auto">
                     {children}
                 </div>
-            </main>
+            </div>
         </div>
     );
 }

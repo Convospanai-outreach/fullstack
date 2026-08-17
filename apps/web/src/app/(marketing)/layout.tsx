@@ -9,9 +9,9 @@ export default function MarketingLayout({
     return (
         <div className="relative flex min-h-screen flex-col bg-background/50 selection:bg-purple-500/30">
             <NavBar />
-            <main className="flex-1 pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10">
+            <div className="flex-1 pt-24 pb-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full z-10">
                 {children}
-            </main>
+            </div>
             <Footer />
 
             {/* Enhanced Background Gradients */}
