@@ -311,15 +311,15 @@ export default function SetupWizardPage() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
         <Loader2 className="h-8 w-8 animate-spin text-cyan-400" />
-      </main>
+      </div>
     );
   }
 
   if (!status) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-200">
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6 text-slate-200">
         <section className="max-w-lg rounded-lg border border-amber-400/30 bg-amber-950/20 p-6">
           <AlertTriangle className="h-6 w-6 text-amber-300" />
           <h1 className="mt-4 text-2xl font-semibold text-white">Setup is unavailable</h1>
@@ -328,7 +328,7 @@ export default function SetupWizardPage() {
             Retry setup
           </button>
         </section>
-      </main>
+      </div>
     );
   }
 
@@ -336,7 +336,7 @@ export default function SetupWizardPage() {
   const ActiveIcon = active.icon;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-4 py-6 md:px-6 lg:flex-row">
         <aside className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-80">
           <div className="flex h-full flex-col rounded-lg border border-white/10 bg-slate-900/70">
@@ -448,7 +448,7 @@ export default function SetupWizardPage() {
           </form>
         </section>
       </div>
-    </main>
+    </div>
   );
 }
 

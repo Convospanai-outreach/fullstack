@@ -32,7 +32,7 @@ export default function EmailFinderPage() {
     };
 
     return (
-        <main style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
+        <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
             <h1>Email Finder</h1>
             <p style={{ color: "#6b7280", marginBottom: 24 }}>
                 Find professional email addresses using Hunter.io
@@ -47,6 +47,6 @@ export default function EmailFinderPage() {
             )}
 
             {result && <EmailResult result={result} />}
-        </main>
+        </div>
     );
 }

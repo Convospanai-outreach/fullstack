@@ -57,7 +57,7 @@ export default function DashboardPage() {
     const showQuickStart = !stats?.campaignsCount || stats.campaignsCount === 0;
 
     return (
-        <main className="p-8 min-h-screen relative overflow-hidden">
+        <div className="p-8 min-h-screen relative overflow-hidden">
             <div className="relative z-10">
                 <div className="flex justify-between items-center mb-8">
                     <SectionHeader title="Dashboard" subtitle="Overview of your AI Agent Army" />
@@ -102,6 +102,6 @@ export default function DashboardPage() {
                     <AnalyticsDashboard />
                 )}
             </div>
-        </main>
+        </div>
     );
 }

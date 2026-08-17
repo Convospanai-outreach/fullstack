@@ -24,7 +24,7 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
     };
 
     return (
-        <main className="relative min-h-screen overflow-hidden p-4">
+        <div className="relative min-h-screen overflow-hidden p-4">
             <div className="pointer-events-none fixed inset-0">
                 <div className="absolute left-1/4 top-1/4 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-cyan-600/10 blur-[120px]" />
                 <div className="absolute right-1/4 bottom-1/4 h-[400px] w-[400px] rounded-full bg-violet-600/8 blur-[100px]" />
@@ -61,6 +61,6 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
                     </div>
                 </GlassCard>
             </div>
-        </main>
+        </div>
     );
 }

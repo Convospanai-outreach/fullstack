@@ -34,7 +34,7 @@ export default function RunnerPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-950 p-6 md:p-10">
+        <div className="min-h-screen bg-slate-950 p-6 md:p-10">
             <div className="mx-auto max-w-5xl space-y-6">
                 <div className="space-y-2">
                     <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">LinkedIn Operations</p>
@@ -83,6 +83,6 @@ export default function RunnerPage() {
                     </pre>
                 </GlassCard>
             </div>
-        </main>
+        </div>
     );
 }

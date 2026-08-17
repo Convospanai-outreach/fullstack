@@ -214,7 +214,7 @@ export default function CinematicHome() {
 
   return (
     <>
-    <main
+    <div
       ref={mainRef}
       className="relative"
       style={{ minHeight: `${ACTS.length * 100}vh` }}
@@ -285,7 +285,7 @@ export default function CinematicHome() {
             "linear-gradient(to bottom, transparent 0%, #070a18 55%, #070a18 100%)",
         }}
       />
-    </main>
+    </div>
 
     {/* --- POST-FUNNEL SECTIONS (normal scroll, no fixed canvas) --- */}
 

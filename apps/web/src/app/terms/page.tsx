@@ -171,7 +171,7 @@ function slugify(value: string) {
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-[#070a18] text-white">
+    <div className="min-h-screen bg-[#070a18] text-white">
       <section className="relative overflow-hidden bg-[radial-gradient(circle_at_25%_15%,rgba(37,99,235,0.22),transparent_30%),radial-gradient(circle_at_70%_10%,rgba(124,58,237,0.28),transparent_34%),linear-gradient(135deg,#070a18_0%,#11174a_48%,#2b0b3d_100%)] px-6 py-16 sm:py-20">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:72px_72px] opacity-40" />
         <div className="relative mx-auto max-w-6xl">
@@ -237,6 +237,6 @@ export default function TermsPage() {
           </article>
         </div>
       </section>
-    </main>
+    </div>
   );
 }
