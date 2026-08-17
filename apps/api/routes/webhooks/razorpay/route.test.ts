@@ -12,6 +12,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         creditTransaction: { findFirst: vi.fn() },
         plan: { findUnique: vi.fn() },
         invoice: { findFirst: vi.fn() },
+        auditLog: { create: vi.fn() },
         $transaction: vi.fn(),
     };
     return { mockPrisma, mockTx };
@@ -37,6 +38,7 @@ describe("/webhooks/razorpay", () => {
         process.env["RAZORPAY_WEBHOOK_SECRET"] = WEBHOOK_SECRET;
         mockPrisma.creditTransaction.findFirst.mockResolvedValue(null);
         mockPrisma.invoice.findFirst.mockResolvedValue(null);
+        mockPrisma.auditLog.create.mockResolvedValue({});
         // The real addCredits/createInvoice run against this mocked tx client, so
         // the credit-grant-then-invoice flow (and its P2002 propagation) is
         // exercised for real rather than stubbed out at the addCredits boundary.
@@ -388,5 +390,27 @@ describe("/webhooks/razorpay", () => {
 
         expect(response.status).toBe(200);
         expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("500s (for a Razorpay retry) when the unrecognized-plan audit write itself fails", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue(null);
+        mockPrisma.auditLog.create.mockRejectedValue(new Error("db unavailable"));
+
+        const { POST } = await import("./route");
+        const response = await POST(signedRequest({
+            event: "payment.captured",
+            payload: {
+                payment: {
+                    entity: {
+                        id: "pay_bad_plan_audit_fails",
+                        order_id: "order_bad_plan_audit_fails",
+                        amount: 9900,
+                        notes: { teamId: "team-1", userId: "user-1", planId: "does-not-exist" },
+                    },
+                },
+            },
+        }) as any);
+
+        expect(response.status).toBe(500);
     });
 });

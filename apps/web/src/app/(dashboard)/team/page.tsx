@@ -54,10 +54,11 @@ export default function TeamPage() {
     const handlePolicyUpdate = async () => {
         const toastId = toast.loading("Saving policy...");
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/policy', {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/policy', {
                 method: 'PATCH',
                 body: JSON.stringify(policy)
             });
+            if (!res.ok) throw new Error("Failed");
             toast.dismiss(toastId);
             toast.success("Policy updated");
         } catch (e) {

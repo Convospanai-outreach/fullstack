@@ -273,14 +273,18 @@ export default function SetupWizardPage() {
 
   async function syncMailbox(mailboxId: string) {
     setActionMessage("Syncing mailbox activity...");
-    const res = await fetch(`${apiBase}/integrations/google/mailboxes/sync`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mailboxId }),
-    });
-    const data = await readJson(res);
-    setActionMessage(`Sync complete: ${data.replies ?? 0} replies, ${data.bounces ?? 0} bounces.`);
-    await loadMailboxes();
+    try {
+      const res = await fetch(`${apiBase}/integrations/google/mailboxes/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mailboxId }),
+      });
+      const data = await readJson(res);
+      setActionMessage(`Sync complete: ${data.replies ?? 0} replies, ${data.bounces ?? 0} bounces.`);
+      await loadMailboxes();
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to sync mailbox activity.");
+    }
   }
 
   async function checkDomain() {

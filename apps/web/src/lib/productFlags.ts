@@ -29,9 +29,15 @@ export interface HiddenFeatureDefinition {
     description: string;
     openPath: string;
     pathPrefixes: string[];
+    /** False when openPath doesn't resolve to a built page yet — hides the "Open Surface" link. */
+    built: boolean;
 }
 
-export const HIDDEN_FEATURES: Record<HiddenFeatureKey, HiddenFeatureDefinition> = {
+const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set(["command-center", "runtime", "sovereign", "edge"]);
+
+type HiddenFeatureBase = Omit<HiddenFeatureDefinition, "built">;
+
+const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
     "agents": {
         key: "agents",
         label: "Agent Swarm",
@@ -145,6 +151,13 @@ export const HIDDEN_FEATURES: Record<HiddenFeatureKey, HiddenFeatureDefinition> 
         pathPrefixes: ["/workflows"],
     },
 };
+
+export const HIDDEN_FEATURES: Record<HiddenFeatureKey, HiddenFeatureDefinition> = Object.fromEntries(
+    Object.entries(HIDDEN_FEATURES_BASE).map(([key, feature]) => [
+        key,
+        { ...feature, built: !UNBUILT_FEATURE_KEYS.has(feature.key) },
+    ])
+) as Record<HiddenFeatureKey, HiddenFeatureDefinition>;
 
 const HIDDEN_FEATURE_KEYS = Object.keys(HIDDEN_FEATURES) as HiddenFeatureKey[];
 const HIDDEN_FEATURE_KEY_SET = new Set<HiddenFeatureKey>(HIDDEN_FEATURE_KEYS);

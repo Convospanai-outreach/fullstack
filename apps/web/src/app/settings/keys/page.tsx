@@ -57,7 +57,11 @@ export default function ApiKeysPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Are you sure? Integration using this key will stop working.")) return;
         try {
-            await fetch(getBrowserApiUrl(`/settings/keys/${id}`), { method: "DELETE" });
+            const res = await fetch(getBrowserApiUrl(`/settings/keys/${id}`), { method: "DELETE" });
+            if (!res.ok) {
+                toast.error("Failed to revoke key");
+                return;
+            }
             toast.success("Key revoked");
             loadKeys();
         } catch (e) {

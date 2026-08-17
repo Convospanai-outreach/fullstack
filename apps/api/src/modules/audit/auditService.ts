@@ -14,7 +14,8 @@ export class AuditService {
         resourceId: string | null,
         details: any = {},
         ipAddress: string | null = null,
-        correlationId: string | null = null
+        correlationId: string | null = null,
+        strict: boolean = false
     ) {
         // [Observability] Auto-discover correlation ID if missing
         if (!correlationId) {
@@ -61,7 +62,13 @@ export class AuditService {
             });
         } catch (error) {
             console.error("[AuditService] Failed to log action:", error);
-            // Non-blocking: don't throw, just log error so flow continues
+            // Non-blocking by default: don't throw, just log error so flow continues.
+            // Callers whose only durable record of an event IS this audit log (e.g. a
+            // webhook branch with no other side effect to retry on) can pass strict:true
+            // to have the failure propagate instead of being silently absorbed here.
+            if (strict) {
+                throw error;
+            }
         }
     }
 

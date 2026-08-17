@@ -1,0 +1,50 @@
+name: Production Health Check
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check-health:
+    name: Check /health endpoints
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - name: Poll apps/web and apps/api health endpoints
+        shell: bash
+        run: |
+          set -uo pipefail
+          failed=false
+
+          check() {
+            local name="$1"
+            local url="$2"
+            local body http_code
+            body="$(curl -sS --max-time 15 -w '\n%{http_code}' "$url")"
+            http_code="$(echo "$body" | tail -n1)"
+            body="$(echo "$body" | sed '$d')"
+            if [[ "$http_code" != "200" ]]; then
+              echo "::error::$name ($url) returned HTTP $http_code: $body"
+              failed=true
+              return
+            fi
+            if echo "$body" | grep -qi '"database"[[:space:]]*:[[:space:]]*"down"'; then
+              echo "::error::$name ($url) reports database down: $body"
+              failed=true
+              return
+            fi
+            echo "$name OK: $body"
+          }
+
+          check "apps/api" "https://api.craftmyfunnel.live/health"
+          check "apps/web" "https://www.craftmyfunnel.live/api/health"
+
+          if [[ "$failed" == "true" ]]; then
+            echo "### Production health check FAILED" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "### Production health check passed" >> "$GITHUB_STEP_SUMMARY"
