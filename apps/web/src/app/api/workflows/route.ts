@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const { prisma } = await import("@/lib/db");
     const workflows = await prisma.workflow.findMany({
         where: { teamId: ctx.teamId },
         orderBy: { updatedAt: 'desc' }
@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
         }
     ];
 
+    const { prisma } = await import("@/lib/db");
     const workflow = await prisma.workflow.create({
         data: {
             teamId: ctx.teamId,

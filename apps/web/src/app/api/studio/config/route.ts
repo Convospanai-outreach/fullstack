@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
@@ -10,6 +9,7 @@ export async function POST(req: NextRequest) {
 
     try {
         const body = await req.json();
+        const { prisma } = await import("@/lib/db");
 
         await prisma.team.update({
             where: { id: ctx.teamId },
@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest) {
     }
 
     try {
+        const { prisma } = await import("@/lib/db");
         const team = await prisma.team.findUnique({
             where: { id: ctx.teamId },
             select: { aiConfig: true }
