@@ -59,6 +59,18 @@ listed in "Coverage gaps" below.
 | ROI API: the `?months=` window only ever scoped `history` — `funnel`, `financials`, and `campaigns` still aggregate the team's entire lifetime, so the KPI tiles and the trend chart silently cover different periods | **Addressed via clarification, not full re-scoping** — properly date-scoping funnel/financials/campaigns would need additional schema queries (e.g. campaign send timestamps aren't currently fetched) and is really a separate feature, not a wiring fix. Instead: the toggle now has a tooltip and the chart card title/description explicitly say what it controls, the KPI grid is labeled "Lifetime totals," and the CSV export sections are labeled accordingly, so the two periods are no longer silently conflated |
 | `/api/contact`'s SMTP-down fallback claims `status: "queued"` / success but the payload is only `console.info`-logged, not persisted anywhere — an unrecoverable false-success. **Investigating this surfaced that `/contact/page.tsx` actually posts to `/api/support/contact`, not `/api/contact` at all** — `/api/contact` has zero live callers anywhere in the app, so the original audit's A2 finding was effectively describing a dead code path, and my earlier "fix" (copying the queued-success pattern from `/api/support/contact`) fixed an endpoint nothing calls | **Fixed by reverting to an honest failure response** — no durable queue backs this endpoint, so it now returns a `503` instead of a false-success `200`, rather than building new persistence infrastructure for an endpoint with no current caller |
 
+## Follow-up pattern sweep (checking every other page for the same bug classes already found)
+
+Since two bug classes recurred repeatedly across the fixes above (the Next.js 15 async-`params` bug,
+and missing fetch cancellation on an id/filter change), every other dynamic `[id]`/`[slug]` route was
+checked for the same patterns rather than waiting for another audit or bot pass to find them one at a time.
+
+| Finding | Status |
+|---|---|
+| `/jobs/[id]` had the exact same async-`params` bug as the original `/leads/[id]` finding (`params: { id: string }` read synchronously off what's actually a `Promise` in this Next.js version) — job detail view always called `getJob(undefined)` and never loaded any job | **Fixed** — `use(params)`, same pattern as `/leads/[id]` and `/campaigns/[id]` |
+| `/workflows/[id]` had the same missing-fetch-cancellation pattern as `/leads/[id]` and the ROI months toggle | **Fixed** — added `AbortController` + reset `workflow`/`loading` state on `id` change |
+| Checked `/campaigns/[id]/edit`, `/landing-agent/[id]/{brief,editor,wireframes}`, `/p/[slug]`, `/p/[slug]/thank-you` for the same two patterns | **Clean** — all already use `use(params)` or the client-side `useParams()` hook correctly (the latter reads synchronously from the router and isn't affected by the async-params-as-Promise change at all) |
+
 ---
 
 ## TL;DR — one root cause explains most of the "BROKEN" findings below
