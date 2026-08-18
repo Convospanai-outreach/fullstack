@@ -27,6 +27,7 @@ export default function BrandingSettingsPage() {
     const [portalTitle, setPortalTitle] = useState("");
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -41,6 +42,12 @@ export default function BrandingSettingsPage() {
             })
             .catch(() => {});
     }, []);
+
+    // Resolved separately (not inline at the <img> sink) so the preview only
+    // ever renders a value this effect itself validated and produced.
+    useEffect(() => {
+        setPreviewSrc(logoUrl ? getSafeImageUrl(logoUrl) : null);
+    }, [logoUrl]);
 
     const handleLogoUpload = async (file: File) => {
         setUploading(true);
@@ -125,9 +132,9 @@ export default function BrandingSettingsPage() {
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Logo</label>
                         <div className="flex items-center gap-4">
-                            {logoUrl && getSafeImageUrl(logoUrl) ? (
+                            {previewSrc ? (
                                 <img
-                                    src={getSafeImageUrl(logoUrl)!}
+                                    src={previewSrc}
                                     alt="Logo preview"
                                     className="h-12 w-12 rounded bg-white/5 object-contain"
                                 />
