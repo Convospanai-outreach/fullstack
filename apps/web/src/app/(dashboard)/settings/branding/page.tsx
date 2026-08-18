@@ -6,10 +6,19 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { Palette, Globe, Upload } from 'lucide-react';
 
-// Only http(s)/data-image URLs are safe to hand to <img src> — logoUrl is a
-// free-text field a team admin can set to anything, so reject javascript:/etc.
-function isSafeImageUrl(url: string): boolean {
-    return /^(https?:\/\/|data:image\/)/i.test(url.trim());
+// logoUrl is free text a team admin can set to anything, so before handing it
+// to <img src> rebuild it through URL parsing and only keep the result if the
+// scheme is http(s) — returns a freshly-constructed string, not the original
+// tainted input, so it's never a raw pass-through of untrusted text.
+function getSafeImageUrl(url: string): string | null {
+    const trimmed = url.trim();
+    if (/^data:image\//i.test(trimmed)) return trimmed;
+    try {
+        const parsed = new URL(trimmed);
+        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : null;
+    } catch {
+        return null;
+    }
 }
 
 export default function BrandingSettingsPage() {
@@ -116,9 +125,9 @@ export default function BrandingSettingsPage() {
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Logo</label>
                         <div className="flex items-center gap-4">
-                            {logoUrl && isSafeImageUrl(logoUrl) ? (
+                            {logoUrl && getSafeImageUrl(logoUrl) ? (
                                 <img
-                                    src={logoUrl}
+                                    src={getSafeImageUrl(logoUrl)!}
                                     alt="Logo preview"
                                     className="h-12 w-12 rounded bg-white/5 object-contain"
                                 />
