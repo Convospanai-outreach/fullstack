@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getJob, retryJob } from "@/lib/api/jobs";
 
 export default function JobDetailPage({
     params,
 }: {
-    params: { id: string };
+    params: Promise<{ id: string }>;
 }) {
+    const { id } = use(params);
     const router = useRouter();
     const [job, setJob] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -23,11 +24,11 @@ export default function JobDetailPage({
             }
         }, 3000);
         return () => clearInterval(interval);
-    }, [params.id, job?.status]);
+    }, [id, job?.status]);
 
     const loadJob = async () => {
         try {
-            const data = await getJob(params.id);
+            const data = await getJob(id);
             setJob(data);
             setLoading(false);
         } catch (err) {
@@ -38,7 +39,7 @@ export default function JobDetailPage({
 
     const handleRetry = async () => {
         try {
-            await retryJob(params.id);
+            await retryJob(id);
             loadJob();
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to retry job");

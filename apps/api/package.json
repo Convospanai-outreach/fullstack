@@ -33,7 +33,7 @@
         "dotenv": "^17.0.0",
         "eventsource": "^4.1.0",
         "fastify": "^5.8.5",
-        "geoip-lite": "^2.0.2",
+        "geoip-lite": "1.4.10",
         "google-auth-library": "^10.9.0",
         "googleapis": "^171.4.0",
         "grapesjs": "^0.23.2",
