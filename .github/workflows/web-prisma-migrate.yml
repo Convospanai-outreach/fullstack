@@ -31,25 +31,25 @@ jobs:
         working-directory: apps/web
         run: npx prisma validate --schema prisma/schema.prisma
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Generate Prisma Client for apps/web
         working-directory: apps/web
         run: npx prisma generate --schema prisma/schema.prisma
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Verify database target without secrets
         run: |
           node -e "const u=new URL(process.env.DIRECT_URL); console.log({protocol:u.protocol, username:u.username, host:u.hostname, port:u.port, database:u.pathname}); if(process.env.DIRECT_URL.includes('YOUR-PASSWORD') || process.env.DIRECT_URL.includes('PASSWORD') || process.env.DIRECT_URL.includes('PROJECT_REF')) { throw new Error('Direct URL still contains placeholder text'); }"
         env:
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Run Prisma migrate deploy for apps/web
         working-directory: apps/web
         run: npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
         env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
-          DIRECT_URL: ${{ secrets.SUPABASE_DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}

@@ -196,12 +196,12 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           {/* Tools — discovery surface for gated/hidden feature areas */}
           <div className="mt-1 pt-4 border-t border-white/6">
             <Link
-              href="/settings/features"
+              href="/tools"
               onClick={onClose}
               className={`
                 flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
                 transition-colors duration-150
-                ${pathname?.startsWith('/settings/features')
+                ${pathname?.startsWith('/tools')
                   ? 'bg-blue-500/12 text-blue-400'
                   : 'text-white/45 hover:bg-white/4 hover:text-white/70'
                 }
