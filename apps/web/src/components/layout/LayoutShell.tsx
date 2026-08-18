@@ -7,7 +7,7 @@ import Footer from "@/components/Footer";
 const DASHBOARD_PREFIXES = [
     "/dashboard", "/campaigns", "/workflows", "/leads", "/inbox",
     "/templates", "/pipeline", "/playbooks", "/knowledge", "/marketplace",
-    "/approvals", "/billing", "/settings", "/agents", "/command-center",
+    "/approvals", "/billing", "/settings", "/agents",
     "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
     "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
     "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",

@@ -1,16 +1,54 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Palette, Globe } from 'lucide-react';
+import { Palette, Globe, Upload } from 'lucide-react';
 
 export default function BrandingSettingsPage() {
     const [logoUrl, setLogoUrl] = useState("");
     const [primaryColor, setPrimaryColor] = useState("#3B82F6");
     const [portalTitle, setPortalTitle] = useState("");
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        fetch("/api/settings/branding")
+            .then((res) => res.json())
+            .then((data) => {
+                const branding = data?.branding;
+                if (!branding) return;
+                if (branding.logoUrl) setLogoUrl(branding.logoUrl);
+                if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
+                if (branding.portalTitle) setPortalTitle(branding.portalTitle);
+            })
+            .catch(() => {});
+    }, []);
+
+    const handleLogoUpload = async (file: File) => {
+        setUploading(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/api/settings/branding/logo", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok && data?.url) {
+                setLogoUrl(data.url);
+                toast.success("Logo uploaded — click Save Changes to apply it");
+            } else {
+                toast.error(data?.error || "Failed to upload logo");
+            }
+        } catch (e) {
+            toast.error("Error uploading logo");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleSave = async () => {
         setLoading(true);
@@ -70,7 +108,40 @@ export default function BrandingSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Logo URL</label>
+                        <label className="text-sm text-gray-400">Logo</label>
+                        <div className="flex items-center gap-4">
+                            {logoUrl ? (
+                                <img
+                                    src={logoUrl}
+                                    alt="Logo preview"
+                                    className="h-12 w-12 rounded bg-white/5 object-contain"
+                                />
+                            ) : (
+                                <div className="h-12 w-12 rounded bg-white/5 flex items-center justify-center text-gray-600">
+                                    <Palette className="w-5 h-5" />
+                                </div>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                            >
+                                <Upload className="w-4 h-4" />
+                                {uploading ? "Uploading..." : "Upload Logo"}
+                            </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                                className="hidden"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleLogoUpload(file);
+                                    e.target.value = "";
+                                }}
+                            />
+                        </div>
                         <input
                             type="text"
                             className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-white"
@@ -78,7 +149,7 @@ export default function BrandingSettingsPage() {
                             value={logoUrl}
                             onChange={e => setLogoUrl(e.target.value)}
                         />
-                        <p className="text-xs text-gray-500">Upload feature coming soon. Use a public URL for now.</p>
+                        <p className="text-xs text-gray-500">Upload a PNG, JPEG, WebP, or SVG (max 2MB), or paste a public URL directly.</p>
                     </div>
 
                     <button
