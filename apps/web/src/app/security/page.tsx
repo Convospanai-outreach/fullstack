@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "Security | CraftMyFunnel",
+  description: "How CraftMyFunnel protects connected accounts, credentials, and application data.",
+};
+
 export default function SecurityPage() {
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-12 text-slate-200">

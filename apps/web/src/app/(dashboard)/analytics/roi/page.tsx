@@ -31,26 +31,67 @@ import {
     Area
 } from "recharts";
 
+const MONTH_OPTIONS = [3, 6, 12] as const;
+
 export default function ROIDashboardPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [months, setMonths] = useState<number>(6);
 
     useEffect(() => {
-        // Fetch data
-        fetch(getBrowserApiUrl("/analytics/roi"))
+        setLoading(true);
+        const ctrl = new AbortController();
+        fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`), { signal: ctrl.signal })
             .then(res => res.json())
             .then(json => {
                 setData(json);
                 setLoading(false);
             })
             .catch(err => {
+                if (err?.name === "AbortError") return;
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+        return () => ctrl.abort();
+    }, [months]);
 
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+
+    const toCsvSection = (title: string, rows: Array<Record<string, unknown>>, fallbackHeaders: string[]) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : fallbackHeaders;
+        return [
+            title,
+            headers.join(","),
+            ...rows.map((row) => headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")),
+        ].join("\n");
+    };
+
+    const exportReport = () => {
+        const funnel = data?.funnel || {};
+        const financials = data?.financials || {};
+        const history: Array<Record<string, unknown>> = Array.isArray(data?.history) ? data.history : [];
+        const campaigns: Array<Record<string, unknown>> = Array.isArray(data?.campaigns) ? data.campaigns : [];
+
+        const csvSections = [
+            toCsvSection("Funnel & Financials", [{ ...funnel, ...financials }], [
+                "totalLeads", "totalSent", "opportunities", "wins", "conversionRate",
+                "spend", "revenue", "roi", "profit",
+            ]),
+            toCsvSection("Top Campaigns", campaigns, ["id", "name", "sent", "openRate", "replyRate", "status"]),
+            toCsvSection("Revenue vs Spend History", history, ["date", "revenue", "spend"]),
+        ];
+
+        const blob = new Blob([csvSections.join("\n\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `campaign-roi-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-6">
@@ -62,11 +103,21 @@ export default function ROIDashboardPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="ghost" className="text-text-secondary">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Last 6 Months
-                    </Button>
-                    <Button variant="outline" className="border-white/10">
+                    <div className="flex items-center gap-1 rounded-lg border border-white/10 p-1">
+                        <Calendar className="w-4 h-4 mx-2 text-text-secondary" />
+                        {MONTH_OPTIONS.map((opt) => (
+                            <Button
+                                key={opt}
+                                size="sm"
+                                variant={months === opt ? "default" : "ghost"}
+                                className={months === opt ? "" : "text-text-secondary"}
+                                onClick={() => setMonths(opt)}
+                            >
+                                {opt}mo
+                            </Button>
+                        ))}
+                    </div>
+                    <Button variant="outline" className="border-white/10" onClick={exportReport} disabled={loading}>
                         <Download className="w-4 h-4 mr-2" />
                         Export Report
                     </Button>

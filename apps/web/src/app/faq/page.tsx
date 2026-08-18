@@ -3,6 +3,11 @@ import GlassCard from "../../components/GlassCard";
 import { getContent } from "../../lib/cms";
 import ReactMarkdown from "react-markdown";
 
+export const metadata = {
+    title: "FAQ | CraftMyFunnel",
+    description: "Common questions about CraftMyFunnel's AI-managed outbound workflows.",
+};
+
 export default function FAQPage() {
     let title = "Common Questions, Personal Answers";
     let sections: { title: string; body: string }[] = [];

@@ -30,13 +30,22 @@ export default function GuardrailsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [policy, setPolicy] = useState<any>(null);
+    const [loadError, setLoadError] = useState(false);
     const [newItem, setNewItem] = useState({ block: "", competitor: "" });
 
     useEffect(() => {
         fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/guardrails")
             .then(res => res.json())
             .then(data => {
-                if (data.success) setPolicy(data.policy);
+                if (data.success) {
+                    setPolicy(data.policy);
+                } else {
+                    setLoadError(true);
+                }
+                setLoading(false);
+            })
+            .catch(() => {
+                setLoadError(true);
                 setLoading(false);
             });
     }, []);
@@ -72,6 +81,7 @@ export default function GuardrailsPage() {
     };
 
     if (loading) return <GovernanceLayout>Loading Policy...</GovernanceLayout>;
+    if (loadError || !policy) return <GovernanceLayout>Failed to load guardrail policy. Please try again later.</GovernanceLayout>;
 
     return (
         <GovernanceLayout>

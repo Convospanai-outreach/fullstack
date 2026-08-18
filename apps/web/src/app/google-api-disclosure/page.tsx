@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "Google API Disclosure | CraftMyFunnel",
+  description: "CraftMyFunnel's use of Google API Services and Limited Use policy compliance.",
+};
+
 export default function GoogleApiDisclosurePage() {
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-12 text-slate-200">

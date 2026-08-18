@@ -11,13 +11,19 @@ const DASHBOARD_PREFIXES = [
     "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
     "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
     "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",
-    "/onboarding", "/profile", "/scraper-bridge", "/security", "/setup"
+    "/onboarding", "/profile", "/scraper-bridge", "/setup"
+    // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
+    // top-level public page (not inside the (dashboard) route group), so it needs
+    // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
 ];
 
+// Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
+// that layout supplies its own NavBar/Footer, so LayoutShell must not duplicate them.
+// Top-level pages like /about, /pricing, /contact, /privacy, /terms are NOT in that
+// route group and rely on LayoutShell's generic Header/Footer fallback below.
 const MARKETING_PREFIXES = [
-    "/", "/about", "/pricing", "/contact",
-    "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/privacy", "/terms", "/p", "/funnel",
+    "/", "/login", "/signup", "/forgot-password", "/magic-link",
+    "/verify-email", "/p", "/funnel",
 ];
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
