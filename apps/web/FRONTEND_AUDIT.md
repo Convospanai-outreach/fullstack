@@ -39,6 +39,16 @@ that were never reached. Re-run those before treating this as a full sign-off.
 site yet.** Re-run (at least) the previously-broken routes after deploy, and finish the untested routes
 listed in "Coverage gaps" below.
 
+## Ultrareview follow-ups (found in review of the fix commit itself)
+
+| Finding | Status |
+|---|---|
+| A1 fix was incomplete: `/security` is still in `LayoutShell`'s `DASHBOARD_PREFIXES` (a separate list from the `MARKETING_PREFIXES` fixed earlier), so it still rendered with no chrome | **Fixed** — removed from `DASHBOARD_PREFIXES` |
+| `apps/api`'s new `/analytics/roi?months=` handling: `Number(null)` is `0`, which is finite, so the intended `: 6` default was unreachable dead code — any caller that omits `months` (e.g. `ROIService.getSummary()`, feeding the executive dashboard's ROI chart) silently got a 1-month window instead of 6 | **Fixed** — branch on the raw query string before coercing to `Number` |
+| ROI months toggle had no fetch cancellation — rapid clicking between 3/6/12mo could let a stale response overwrite a newer one, desyncing the highlighted button from the displayed data | **Fixed** — added `AbortController`, aborted in the effect cleanup |
+| "Export Report" only exported the history table, silently dropping the funnel/financials/campaigns data also shown on the page, despite the button's name implying the whole report | **Fixed** — export now includes all four sections (funnel & financials, top campaigns, and history) in one CSV |
+| `UserManagementPage`'s new in-`<tbody>` loading row was unreachable — dead code — because a pre-existing early `return` above it already short-circuited the whole component while `loading` was true | **Fixed** — removed the early return so the loading/error states render inside the full page shell, matching the `InvitesPage` sibling pattern |
+
 ---
 
 ## TL;DR — one root cause explains most of the "BROKEN" findings below

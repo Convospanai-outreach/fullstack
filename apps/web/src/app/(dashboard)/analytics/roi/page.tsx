@@ -40,29 +40,49 @@ export default function ROIDashboardPage() {
 
     useEffect(() => {
         setLoading(true);
-        fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`))
+        const ctrl = new AbortController();
+        fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`), { signal: ctrl.signal })
             .then(res => res.json())
             .then(json => {
                 setData(json);
                 setLoading(false);
             })
             .catch(err => {
+                if (err?.name === "AbortError") return;
                 console.error(err);
                 setLoading(false);
             });
+        return () => ctrl.abort();
     }, [months]);
 
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
-    const exportReport = () => {
-        const rows: Array<Record<string, unknown>> = Array.isArray(data?.history) ? data.history : [];
-        const headers = rows.length > 0 ? Object.keys(rows[0]) : ["date", "revenue", "spend"];
-        const csvLines = [
+    const toCsvSection = (title: string, rows: Array<Record<string, unknown>>, fallbackHeaders: string[]) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : fallbackHeaders;
+        return [
+            title,
             headers.join(","),
             ...rows.map((row) => headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")),
+        ].join("\n");
+    };
+
+    const exportReport = () => {
+        const funnel = data?.funnel || {};
+        const financials = data?.financials || {};
+        const history: Array<Record<string, unknown>> = Array.isArray(data?.history) ? data.history : [];
+        const campaigns: Array<Record<string, unknown>> = Array.isArray(data?.campaigns) ? data.campaigns : [];
+
+        const csvSections = [
+            toCsvSection("Funnel & Financials", [{ ...funnel, ...financials }], [
+                "totalLeads", "totalSent", "opportunities", "wins", "conversionRate",
+                "spend", "revenue", "roi", "profit",
+            ]),
+            toCsvSection("Top Campaigns", campaigns, ["id", "name", "sent", "openRate", "replyRate", "status"]),
+            toCsvSection("Revenue vs Spend History", history, ["date", "revenue", "spend"]),
         ];
-        const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+
+        const blob = new Blob([csvSections.join("\n\n")], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;

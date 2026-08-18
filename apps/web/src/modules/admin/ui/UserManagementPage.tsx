@@ -108,8 +108,6 @@ export default function UserManagementPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading users...</div>;
-
     return (
         <div className="p-8 min-h-screen bg-black relative overflow-hidden">
             {/* Background Gradients */}

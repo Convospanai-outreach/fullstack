@@ -11,7 +11,10 @@ const DASHBOARD_PREFIXES = [
     "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
     "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
     "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",
-    "/onboarding", "/profile", "/scraper-bridge", "/security", "/setup"
+    "/onboarding", "/profile", "/scraper-bridge", "/setup"
+    // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
+    // top-level public page (not inside the (dashboard) route group), so it needs
+    // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —

@@ -7,7 +7,8 @@ export async function GET(req: Request) {
     if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const requestedMonths = Number(searchParams.get("months"));
+    const rawMonths = searchParams.get("months");
+    const requestedMonths = rawMonths ? Number(rawMonths) : NaN;
     const monthsBack = Number.isFinite(requestedMonths)
         ? Math.min(Math.max(Math.trunc(requestedMonths), 1), 24)
         : 6;
