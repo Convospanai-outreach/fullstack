@@ -71,6 +71,24 @@ checked for the same patterns rather than waiting for another audit or bot pass 
 | `/workflows/[id]` had the same missing-fetch-cancellation pattern as `/leads/[id]` and the ROI months toggle | **Fixed** — added `AbortController` + reset `workflow`/`loading` state on `id` change |
 | Checked `/campaigns/[id]/edit`, `/landing-agent/[id]/{brief,editor,wireframes}`, `/p/[slug]`, `/p/[slug]/thank-you` for the same two patterns | **Clean** — all already use `use(params)` or the client-side `useParams()` hook correctly (the latter reads synchronously from the router and isn't affected by the async-params-as-Promise change at all) |
 
+## Half-done features completed
+
+Beyond fixing broken behavior, a pass was made looking for features that were fully wired up
+server-side (or partially built client-side) but never actually reachable/usable — stub UI, dead
+imports, "coming soon" placeholders sitting on top of working backends.
+
+| Finding | Status |
+|---|---|
+| `WelcomeTour` — a fully-built onboarding tour component existed at `src/components/onboarding/WelcomeTour.tsx` but was never imported/rendered anywhere in the app, so no user could ever see it | **Fixed** — mounted in `(dashboard)/layout.tsx` alongside `Omnibox`. Also fixed a stale comment that inaccurately described its localStorage-gating as hardcoded-always-show, and fixed a tour step targeting `a[href='/agents']`, a nav link that no longer exists in `DashboardSidebar` — repointed to `a[href='/leads']`, which does |
+| Campaign sequence builder's step picker had a static "Conditions are coming soon" message in the Conditions tab, and clicking any step in the sequence canvas had no way to configure it (no delay, no subject/body, no condition rules) — despite the backend (`apps/api`'s `sequenceService.ts`) already fully implementing condition evaluation (`leadStatusIn/NotIn`, `pipelineStateIn/NotIn`, `hasEmail`) with nothing in the UI to set it | **Fixed (user-approved: "Build the full step editor").** Added `StepEditorDialog.tsx` — a config panel opened by a new pencil/edit button on each step node (and auto-opened when a step is first added): delay (days/hours) for all step types, subject+body for Email, message body for LinkedIn steps with one, and a full condition builder (tag inputs for lead-status include/exclude, pipeline-stage chip toggles sourced from the canonical `PIPELINE_STAGES`, and a has-email tri-state select) for the Conditions tab. Each step node now shows a one-line summary of its configured state. `StepPicker.tsx`'s Conditions tab now lists the real "Lead condition" step type instead of the static placeholder. Verified by tracing the round-trip in source rather than live browser (see note below): `SequenceTab.tsx` maps `subject`/`body`/`delayDays`/`delayHours` on both the load-hydrate and save paths, `apps/api`'s `normalize()` lowercases `stepType` before comparison so `CONDITION` correctly matches the backend's `"condition"` check, and `conditionPasses()`'s `?.length &&` guards mean an emptied tag list is correctly treated as "no filter" rather than "match nothing." **Not independently re-verified live** — the local dev server runs Clerk in keyless/temporary-key mode (a separate auth instance from production) and the app's invite-only signup gate blocked creating a fresh local test account, so this couldn't be click-tested in a browser this session; re-test in the browser after deploy |
+
+## Still open (deferred, not yet started)
+
+| Item | Status |
+|---|---|
+| `settings/branding/page.tsx`'s logo field: "Upload feature coming soon. Use a public URL for now." | **Approved (Vercel Blob), not started** — needs the `marketplace` skill loaded first per repo convention before any provisioning |
+| `DashboardSidebar.tsx` line ~158: `{/* TODO: org switcher — open org selection modal */}` | **Not triaged** — found during the stub-marker search, not yet raised with the user |
+
 ---
 
 ## TL;DR — one root cause explains most of the "BROKEN" findings below
