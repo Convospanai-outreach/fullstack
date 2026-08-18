@@ -704,14 +704,15 @@ model MailboxSyncCursor {
 }
 
 model CampaignSequence {
-  id         String   @id @default(uuid())
-  teamId     String
-  campaignId String?
-  name       String
-  status     String   @default("DRAFT")
-  timezone   String   @default("UTC")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                String   @id @default(uuid())
+  teamId            String
+  campaignId        String?
+  name              String
+  status            String   @default("DRAFT")
+  timezone          String   @default("UTC")
+  senderMailboxIds  String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   team        Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
   campaign    Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
@@ -935,6 +936,12 @@ model Team {
   landingPages     LandingPage[]
   landingLeads     LandingLead[]
   landingEvents    LandingEvent[]
+  invoices         Invoice[]
+
+  // Billing address (used for invoice GST treatment: India + same state as
+  // seller = CGST/SGST, India + other state = IGST, non-India = zero-rated export)
+  billingCountry String?
+  billingState   String?
 
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
@@ -1022,7 +1029,12 @@ model CreditTransaction {
   amount      Int // Negative for usage, positive for top-up
   description String
   type        String // "usage", "topup", "bonus"
-  meta        Json? // Store jobId or paymentId
+  meta        Json? // Store jobId or other context
+  // Set only for payment-triggered grants (Razorpay webhook). Unique so a duplicate
+  // webhook delivery is rejected by the DB instead of relying on a check-then-write
+  // read, which is racy under concurrent deliveries. Null for usage/refund/bonus
+  // transactions, which Postgres does not enforce uniqueness across.
+  paymentId   String?  @unique
   createdAt   DateTime @default(now())
   team        Team     @relation(fields: [teamId], references: [id])
 
@@ -1066,13 +1078,36 @@ model CreditLedger {
 }
 
 model Invoice {
-  id             String       @id @default(uuid())
-  subscriptionId String
-  amount         Int
-  status         String
-  invoiceUrl     String?
-  createdAt      DateTime     @default(now())
-  subscription   Subscription @relation(fields: [subscriptionId], references: [id])
+  id             String        @id @default(uuid())
+  invoiceNumber  String        @unique
+  teamId         String
+  userId         String
+  subscriptionId String?
+  type           String // subscription, topup
+  description    String
+  amount         Int // total amount actually charged, in the currency's smallest unit - the source of truth, never re-derived from a live Plan price
+  currency       String
+  paymentId      String
+  orderId        String?
+
+  // GST breakup - null/NONE when the sale is a non-India zero-rated export of services.
+  // GST is added on top of taxableValue at order-creation time: amount = taxableValue + taxAmount.
+  taxableValue Int?
+  taxAmount    Int?
+  taxType      String? // CGST_SGST (same state as seller), IGST (other Indian state), NONE (export)
+  taxRate      Int? // percent, e.g. 18
+
+  billingCountry String?
+  billingState   String?
+
+  status       String // paid, refunded
+  createdAt    DateTime      @default(now())
+  team         Team          @relation(fields: [teamId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([teamId])
+  @@index([paymentId])
 }
 
 model Webhook {
@@ -1187,6 +1222,7 @@ model User {
   datasetReviews     DatasetReview[]
   sentInvitations    UserInvitation[]
   approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
+  invoices           Invoice[]
 
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)

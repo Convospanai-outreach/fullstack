@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { getJob, retryJob } from "@/lib/api/jobs";
 
 export default function JobDetailPage({
@@ -49,22 +50,22 @@ export default function JobDetailPage({
     const getStatusColor = (status: string) => {
         switch (status) {
             case "completed":
-                return "bg-green-100 text-green-800 border-green-300";
+                return "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200 border-emerald-400 dark:border-emerald-700";
             case "running":
-                return "bg-blue-100 text-blue-800 border-blue-300";
+                return "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200 border-sky-400 dark:border-sky-700";
             case "failed":
-                return "bg-red-100 text-red-800 border-red-300";
+                return "bg-red-100 text-red-900 dark:bg-red-950 dark:text-red-200 border-red-400 dark:border-red-700";
             default:
-                return "bg-gray-100 text-gray-800 border-gray-300";
+                return "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-200 border-gray-400 dark:border-gray-600";
         }
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div role="status" aria-live="polite" className="min-h-[50vh] flex items-center justify-center">
                 <div className="text-center">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <p className="mt-2 text-gray-600">Loading job...</p>
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary" aria-hidden="true"></div>
+                    <p className="mt-2 text-sm font-medium text-foreground">Loading job details...</p>
                 </div>
             </div>
         );
@@ -72,120 +73,120 @@ export default function JobDetailPage({
 
     if (error || !job) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <p className="text-red-600 mb-4">{error || "Job not found"}</p>
-                    <button
-                        onClick={() => router.push("/jobs")}
-                        className="text-blue-600 hover:text-blue-700"
+            <div role="alert" className="min-h-[50vh] flex items-center justify-center">
+                <div className="text-center bg-card p-6 rounded-lg border border-border shadow-sm max-w-md">
+                    <p className="text-destructive font-semibold mb-4">{error || "Job not found"}</p>
+                    <Link
+                        href="/jobs"
+                        className="inline-flex items-center text-sm font-semibold text-sky-700 dark:text-sky-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded"
                     >
-                        Back to jobs
-                    </button>
+                        ← Back to jobs
+                    </Link>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <button
-                    onClick={() => router.push("/jobs")}
-                    className="text-blue-600 hover:text-blue-700 mb-4"
-                >
-                    ← Back to jobs
-                </button>
+        <div className="max-w-4xl space-y-6">
+            <Link
+                href="/jobs"
+                className="inline-flex items-center text-sm font-semibold text-sky-700 dark:text-sky-400 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded mb-2"
+            >
+                ← Back to jobs
+            </Link>
 
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <h1 className="text-2xl font-bold text-gray-900">Job Details</h1>
-                        <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(
-                                job.status
-                            )}`}
-                        >
-                            {job.status}
-                        </span>
+            <div className="bg-card rounded-lg border border-border shadow-sm p-6 space-y-6">
+                <div className="flex flex-wrap justify-between items-start gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold text-foreground">Job Details</h1>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">ID: {job.id}</p>
                     </div>
+                    <span
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                            job.status
+                        )}`}
+                    >
+                        {job.status}
+                    </span>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <p className="text-sm text-gray-600">Job ID</p>
-                            <p className="font-mono text-sm">{job.id}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Type</p>
-                            <p className="font-medium">{job.type.replace(/_/g, " ")}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Priority</p>
-                            <p className="font-medium">{job.priority}</p>
-                        </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Attempts</p>
-                            <p className="font-medium">
-                                {job.attempts} / {job.maxAttempts}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</p>
+                        <p className="font-semibold text-foreground mt-0.5">{job.type.replace(/_/g, " ")}</p>
+                    </div>
+                    <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Priority</p>
+                        <p className="font-semibold text-foreground mt-0.5">{job.priority}</p>
+                    </div>
+                    <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attempts</p>
+                        <p className="font-semibold text-foreground mt-0.5">
+                            {job.attempts} / {job.maxAttempts}
+                        </p>
+                    </div>
+                    <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Created</p>
+                        <p className="font-semibold text-foreground mt-0.5">
+                            {new Date(job.createdAt).toLocaleString()}
+                        </p>
+                    </div>
+                    {job.startedAt && (
+                        <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Started</p>
+                            <p className="font-semibold text-foreground mt-0.5">
+                                {new Date(job.startedAt).toLocaleString()}
                             </p>
                         </div>
-                        <div>
-                            <p className="text-sm text-gray-600">Created</p>
-                            <p className="font-medium">
-                                {new Date(job.createdAt).toLocaleString()}
+                    )}
+                    {job.completedAt && (
+                        <div className="p-3 bg-muted/30 rounded-md border border-border/50">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Completed</p>
+                            <p className="font-semibold text-foreground mt-0.5">
+                                {new Date(job.completedAt).toLocaleString()}
                             </p>
                         </div>
-                        {job.startedAt && (
-                            <div>
-                                <p className="text-sm text-gray-600">Started</p>
-                                <p className="font-medium">
-                                    {new Date(job.startedAt).toLocaleString()}
-                                </p>
-                            </div>
-                        )}
-                        {job.completedAt && (
-                            <div>
-                                <p className="text-sm text-gray-600">Completed</p>
-                                <p className="font-medium">
-                                    {new Date(job.completedAt).toLocaleString()}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-
-                    {job.status === "failed" && job.attempts < job.maxAttempts && (
-                        <button
-                            onClick={handleRetry}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                        >
-                            Retry Job
-                        </button>
                     )}
                 </div>
 
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
-                    <h2 className="text-lg font-semibold mb-3">Payload</h2>
-                    <pre className="bg-gray-50 p-4 rounded overflow-x-auto text-sm">
-                        {JSON.stringify(job.payload, null, 2)}
-                    </pre>
-                </div>
-
-                {job.result && (
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h2 className="text-lg font-semibold mb-3">Result</h2>
-                        <pre className="bg-gray-50 p-4 rounded overflow-x-auto text-sm">
-                            {JSON.stringify(job.result, null, 2)}
-                        </pre>
-                    </div>
-                )}
-
-                {job.error && (
-                    <div className="bg-white rounded-lg shadow p-6">
-                        <h2 className="text-lg font-semibold mb-3 text-red-600">Error</h2>
-                        <pre className="bg-red-50 p-4 rounded overflow-x-auto text-sm text-red-800">
-                            {job.error}
-                        </pre>
+                {job.status === "failed" && job.attempts < job.maxAttempts && (
+                    <div>
+                        <button
+                            onClick={handleRetry}
+                            className="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700"
+                        >
+                            Retry Job
+                        </button>
                     </div>
                 )}
             </div>
+
+            <section aria-labelledby="job-payload-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+                <h2 id="job-payload-heading" className="text-lg font-bold text-foreground mb-3">Payload</h2>
+                <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
+                    {JSON.stringify(job.payload, null, 2)}
+                </pre>
+            </section>
+
+            {job.result && (
+                <section aria-labelledby="job-result-heading" className="bg-card rounded-lg border border-border shadow-sm p-6">
+                    <h2 id="job-result-heading" className="text-lg font-bold text-foreground mb-3">Result</h2>
+                    <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono border border-border/50">
+                        {JSON.stringify(job.result, null, 2)}
+                    </pre>
+                </section>
+            )}
+
+            {job.error && (
+                <section aria-labelledby="job-error-heading" className="bg-card rounded-lg border border-red-300 dark:border-red-800 shadow-sm p-6">
+                    <h2 id="job-error-heading" className="text-lg font-bold text-red-700 dark:text-red-400 mb-3">Error</h2>
+                    <pre className="bg-red-50 dark:bg-red-950/40 p-4 rounded-md overflow-x-auto text-xs text-red-900 dark:text-red-200 font-mono border border-red-200 dark:border-red-900/60">
+                        {job.error}
+                    </pre>
+                </section>
+            )}
         </div>
     );
 }
+

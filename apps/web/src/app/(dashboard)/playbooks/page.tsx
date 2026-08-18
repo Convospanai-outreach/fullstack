@@ -47,8 +47,8 @@ export default function PlaybooksPage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-text-primary">Playbooks</h1>
-                    <p className="text-text-secondary mt-1">Standardized templates for your team.</p>
+                    <h1 className="text-3xl font-bold text-foreground">Playbooks</h1>
+                    <p className="text-muted-foreground mt-1 text-sm">Standardized templates for your team.</p>
                 </div>
                 <PrimaryButton onClick={handleCreate}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -57,15 +57,16 @@ export default function PlaybooksPage() {
             </div>
 
             {loading ? (
-                <div className="flex justify-center py-20">
-                    <Loader2 className="w-8 h-8 animate-spin text-accent-blue" />
+                <div role="status" aria-live="polite" className="flex justify-center py-20">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden="true" />
+                    <span className="sr-only">Loading playbooks...</span>
                 </div>
             ) : (
                 <>
                     {playbooks.length === 0 ? (
-                        <div className="text-center py-20 border border-dashed border-border-subtle rounded-xl bg-white/5">
-                            <h3 className="text-lg font-medium text-text-primary">No playbooks yet</h3>
-                            <p className="text-text-secondary mb-4">Create your first template to get started.</p>
+                        <div className="text-center py-20 border border-dashed border-border rounded-xl bg-card">
+                            <h3 className="text-lg font-semibold text-foreground">No playbooks yet</h3>
+                            <p className="text-muted-foreground mb-4 text-sm">Create your first template to get started.</p>
                             <PrimaryButton onClick={handleCreate}>Create Playbook</PrimaryButton>
                         </div>
                     ) : (
@@ -80,3 +81,4 @@ export default function PlaybooksPage() {
         </div>
     )
 }
+
