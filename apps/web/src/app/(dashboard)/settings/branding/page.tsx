@@ -6,6 +6,12 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { Palette, Globe, Upload } from 'lucide-react';
 
+// Only http(s)/data-image URLs are safe to hand to <img src> — logoUrl is a
+// free-text field a team admin can set to anything, so reject javascript:/etc.
+function isSafeImageUrl(url: string): boolean {
+    return /^(https?:\/\/|data:image\/)/i.test(url.trim());
+}
+
 export default function BrandingSettingsPage() {
     const [logoUrl, setLogoUrl] = useState("");
     const [primaryColor, setPrimaryColor] = useState("#3B82F6");
@@ -110,7 +116,7 @@ export default function BrandingSettingsPage() {
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Logo</label>
                         <div className="flex items-center gap-4">
-                            {logoUrl ? (
+                            {logoUrl && isSafeImageUrl(logoUrl) ? (
                                 <img
                                     src={logoUrl}
                                     alt="Logo preview"
