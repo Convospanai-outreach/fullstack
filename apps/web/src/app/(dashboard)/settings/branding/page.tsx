@@ -11,11 +11,18 @@ import { Palette, Globe, Upload } from 'lucide-react';
 // scheme is http(s) — returns a freshly-constructed string, not the original
 // tainted input, so it's never a raw pass-through of untrusted text.
 function getSafeImageUrl(url: string): string | null {
+    if (!url || typeof url !== "string") return null;
     const trimmed = url.trim();
-    if (/^data:image\//i.test(trimmed)) return trimmed;
+    if (!trimmed) return null;
+    if (/^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/i.test(trimmed)) {
+        return trimmed;
+    }
     try {
         const parsed = new URL(trimmed);
-        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.href : null;
+        if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            return parsed.href;
+        }
+        return null;
     } catch {
         return null;
     }

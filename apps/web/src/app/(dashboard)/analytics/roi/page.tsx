@@ -36,20 +36,29 @@ const MONTH_OPTIONS = [3, 6, 12] as const;
 export default function ROIDashboardPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [months, setMonths] = useState<number>(6);
 
     useEffect(() => {
         setLoading(true);
         const ctrl = new AbortController();
         fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`), { signal: ctrl.signal })
-            .then(res => res.json())
+            .then(async (res) => {
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    throw new Error(errBody?.error || `Failed to load ROI metrics (HTTP ${res.status})`);
+                }
+                return res.json();
+            })
             .then(json => {
                 setData(json);
+                setError(null);
                 setLoading(false);
             })
             .catch(err => {
                 if (err?.name === "AbortError") return;
                 console.error(err);
+                setError(err?.message || "Failed to load ROI metrics");
                 setLoading(false);
             });
         return () => ctrl.abort();

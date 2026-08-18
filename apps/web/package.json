@@ -93,7 +93,7 @@
         "dexie-react-hooks": "^4.2.0",
         "eventsource": "^4.1.0",
         "framer-motion": "^12.23.26",
-        "geoip-lite": "^2.0.2",
+        "geoip-lite": "1.4.10",
         "grapesjs": "^0.23.2",
         "gsap": "^3.15.0",
         "ioredis": "^5.9.1",

@@ -35,6 +35,12 @@ export async function POST(req: NextRequest) {
             });
         }
 
+        const { checkTeamPermission, TeamRole } = await import("@/lib/permissions");
+        const isAdmin = await checkTeamPermission(userId, teamId, TeamRole.ADMIN);
+        if (!isAdmin) {
+            return NextResponse.json({ ok: false, error: "Forbidden: Admin permissions required to modify branding" }, { status: 403 });
+        }
+
         const body = await req.json().catch(() => ({}));
         const { logoUrl, primaryColor, portalTitle } = body || {};
 

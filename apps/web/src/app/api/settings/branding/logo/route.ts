@@ -14,6 +14,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const { checkTeamPermission, TeamRole } = await import("@/lib/permissions");
+        const isAdmin = await checkTeamPermission(userId, teamId, TeamRole.ADMIN);
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Forbidden: Admin permissions required to upload branding logo" }, { status: 403 });
+        }
+
         const formData = await req.formData();
         const file = formData.get("file") as File | null;
 
