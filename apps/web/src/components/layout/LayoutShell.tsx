@@ -25,7 +25,8 @@ const DASHBOARD_PREFIXES = [
 // route group and rely on LayoutShell's generic Header/Footer fallback below.
 const MARKETING_PREFIXES = [
     "/", "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/p", "/funnel",
+    "/verify-email", "/p", "/funnel", "/accept-invite", "/agent-login",
+    "/client-login",
 ];
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {
