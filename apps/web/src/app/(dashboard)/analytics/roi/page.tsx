@@ -58,12 +58,21 @@ export default function ROIDashboardPage() {
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
 
+    // Prevent CSV formula injection: a cell whose text starts with =, +, -, or @ can
+    // be interpreted as a formula by Excel/Sheets when the file is opened. Prefixing
+    // with an apostrophe forces spreadsheet apps to treat it as plain text.
+    const csvSafeCell = (value: unknown) => {
+        let str = value === null || value === undefined ? "" : String(value);
+        if (/^[=+\-@]/.test(str)) str = `'${str}`;
+        return JSON.stringify(str);
+    };
+
     const toCsvSection = (title: string, rows: Array<Record<string, unknown>>, fallbackHeaders: string[]) => {
         const headers = rows.length > 0 ? Object.keys(rows[0]) : fallbackHeaders;
         return [
             title,
             headers.join(","),
-            ...rows.map((row) => headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")),
+            ...rows.map((row) => headers.map((h) => csvSafeCell(row[h])).join(",")),
         ].join("\n");
     };
 
@@ -74,12 +83,12 @@ export default function ROIDashboardPage() {
         const campaigns: Array<Record<string, unknown>> = Array.isArray(data?.campaigns) ? data.campaigns : [];
 
         const csvSections = [
-            toCsvSection("Funnel & Financials", [{ ...funnel, ...financials }], [
+            toCsvSection("Funnel & Financials (lifetime)", [{ ...funnel, ...financials }], [
                 "totalLeads", "totalSent", "opportunities", "wins", "conversionRate",
                 "spend", "revenue", "roi", "profit",
             ]),
-            toCsvSection("Top Campaigns", campaigns, ["id", "name", "sent", "openRate", "replyRate", "status"]),
-            toCsvSection("Revenue vs Spend History", history, ["date", "revenue", "spend"]),
+            toCsvSection("Top Campaigns (lifetime)", campaigns, ["id", "name", "sent", "openRate", "replyRate", "status"]),
+            toCsvSection(`Revenue vs Spend History (last ${months} months)`, history, ["date", "revenue", "spend"]),
         ];
 
         const blob = new Blob([csvSections.join("\n\n")], { type: "text/csv;charset=utf-8;" });
@@ -103,7 +112,10 @@ export default function ROIDashboardPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <div className="flex items-center gap-1 rounded-lg border border-white/10 p-1">
+                    <div
+                        className="flex items-center gap-1 rounded-lg border border-white/10 p-1"
+                        title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
+                    >
                         <Calendar className="w-4 h-4 mx-2 text-text-secondary" />
                         {MONTH_OPTIONS.map((opt) => (
                             <Button
@@ -125,6 +137,7 @@ export default function ROIDashboardPage() {
             </div>
 
             {/* KPI Grid */}
+            <p className="text-xs uppercase tracking-wide text-text-secondary mb-2">Lifetime totals</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
                     <>
@@ -164,8 +177,8 @@ export default function ROIDashboardPage() {
                 <div className="lg:col-span-2 space-y-8">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Revenue vs Spend</CardTitle>
-                            <CardDescription>Financial performance over time</CardDescription>
+                            <CardTitle>Revenue vs Spend ({months}mo)</CardTitle>
+                            <CardDescription>Financial performance over the last {months} months</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="h-[300px] w-full mt-4">
