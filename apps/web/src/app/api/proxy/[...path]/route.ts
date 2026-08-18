@@ -69,17 +69,18 @@ const WEB_OWNED_API_ROOTS = new Set([
     "register",
     "studio",
     "support",
-    "webhooks",
+    // "webhooks" removed: only webhooks/clerk is web-owned — see isWebOwnedPath below.
 ]);
 
-// `settings`, `admin`, `dashboard`, `upload`, `integrations`, `email`, and `leads` only
-// have SOME of their paths implemented under apps/web/src/app/api/** - the rest are
-// apps/api-only routes (settings/sso, admin/ai-config, dashboard/stats, upload/pdf,
-// integrations/google/domain-checks, email/send, leads/bulk, etc). Whole-root matching
-// like WEB_OWNED_API_ROOTS above would redirect those apps/api-only paths to a
-// nonexistent apps/web route (a 404) instead of proxying them upstream, so these need
-// path-level matching instead. `workflows` has zero apps/web routes at all (the whole
-// builder lives in apps/api), so it's intentionally absent from both sets.
+// `settings`, `admin`, `dashboard`, `upload`, `integrations`, `email`, `leads`, and
+// `webhooks` only have SOME of their paths implemented under apps/web/src/app/api/** -
+// the rest are apps/api-only routes (settings/sso, admin/ai-config, dashboard/stats,
+// upload/pdf, integrations/google/domain-checks, email/send, leads/bulk,
+// webhooks/razorpay, etc). Whole-root matching like WEB_OWNED_API_ROOTS above would
+// redirect those apps/api-only paths to a nonexistent apps/web route (a 404) instead
+// of proxying them upstream, so these need path-level matching instead. `workflows` has
+// zero apps/web routes at all (the whole builder lives in apps/api), so it's
+// intentionally absent from both sets.
 const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import"]);
 
 export function isWebOwnedPath(pathParts: string[]): boolean {
@@ -134,6 +135,12 @@ export function isWebOwnedPath(pathParts: string[]): boolean {
         if (pathParts.length === 2) return !LEADS_RESERVED_SEGMENTS.has(second || ""); // /leads/[id], not /leads/bulk|export|import
         if (pathParts.length === 3) return third === "timeline"; // /leads/[id]/timeline
         return false; // /leads/[id]/{action,enrich,identity,journey,...} - apps/api-only
+    }
+
+    if (root === "webhooks") {
+        // Only apps/web/src/app/api/webhooks/clerk exists; all other webhook receivers
+        // (razorpay, stripe, etc.) should forward to apps/api.
+        return second === "clerk";
     }
 
     return false;

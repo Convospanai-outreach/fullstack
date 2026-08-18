@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { useSession } from "next-auth/react";
 
@@ -29,6 +29,24 @@ const PLANS = [
 export default function BillingPage() {
     const { data: session } = useSession();
     const [loading, setLoading] = useState<string | null>(null);
+    const [balance, setBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchBalance = async () => {
+            try {
+                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage");
+                if (!res.ok) throw new Error("Failed");
+                const data = await res.json();
+                setBalance(data.balance);
+            } catch {
+                // Leave balance null — display will show fallback
+            } finally {
+                setBalanceLoading(false);
+            }
+        };
+        fetchBalance();
+    }, []);
 
     const loadRazorpayScript = () => {
         return new Promise((resolve) => {
@@ -169,8 +187,9 @@ export default function BillingPage() {
                             </div>
                         </div>
                         <div className="text-right">
-                            {/* Ideally fetch real balance here */}
-                            <div className="text-3xl font-bold text-white">---</div>
+                            <div className="text-3xl font-bold text-white">
+                                {balanceLoading ? "..." : balance !== null ? balance.toLocaleString() : "---"}
+                            </div>
                             <div className="text-xs text-gray-400">Current Credits</div>
                         </div>
                     </div>

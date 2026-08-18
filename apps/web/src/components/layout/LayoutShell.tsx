@@ -43,6 +43,12 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
     const showHeader = !isDashboard && !isMarketing;
     const showFooter = !isDashboard && !isMarketing;
 
+    if (isDashboard) {
+        // Dashboard layout owns its own <main id="main-content"> wrapper.
+        // LayoutShell must not add a second <main> around the sidebar chrome.
+        return <>{children}</>;
+    }
+
     return (
         <>
             {showHeader && <Header />}
