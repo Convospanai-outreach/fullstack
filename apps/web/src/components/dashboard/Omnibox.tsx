@@ -10,10 +10,17 @@ import {
     Database,
     ArrowRight,
     Command,
-    Loader2
+    Loader2,
+    LayoutDashboard,
+    Inbox,
+    Activity,
+    ShieldCheck,
+    CreditCard,
+    Wrench,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { HIDDEN_FEATURES } from "@/lib/productFlags";
 
 interface SearchResults {
     leads: any[];
@@ -91,11 +98,36 @@ export function Omnibox() {
         { label: "Knowledge Base", icon: Database, color: "text-amber-400", href: "/knowledge" },
     ];
 
+    // Static pages + tools — jump-to navigation, no network round-trip needed.
+    const staticPages = [
+        { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { name: "Leads", href: "/leads", icon: Users },
+        { name: "Campaigns", href: "/campaigns", icon: Megaphone },
+        { name: "Inbox", href: "/inbox", icon: Inbox },
+        { name: "Intel", href: "/intel", icon: Activity },
+        { name: "Governance", href: "/governance", icon: ShieldCheck },
+        { name: "Billing", href: "/billing", icon: CreditCard },
+        { name: "CRM", href: "/crm", icon: Activity },
+        { name: "Tools", href: "/tools", icon: Wrench },
+    ];
+    const staticTools = Object.values(HIDDEN_FEATURES)
+        .filter((f) => f.built)
+        .map((f) => ({ name: f.label, href: f.openPath, icon: Wrench }));
+
+    const staticMatches = (() => {
+        const q = query.trim().toLowerCase();
+        if (!q) return [];
+        return [...staticPages, ...staticTools]
+            .filter((item) => item.name.toLowerCase().includes(q))
+            .map((item) => ({ ...item, type: "Page" }));
+    })();
+
     const flattenedResults = [
         ...(results?.leads.map(l => ({ ...l, type: "Lead", icon: Users })) || []),
         ...(results?.campaigns.map(c => ({ ...c, type: "Campaign", icon: Megaphone })) || []),
         ...(results?.workflows.map(w => ({ ...w, type: "Workflow", icon: Workflow })) || []),
         ...(results?.knowledge.map(k => ({ ...k, type: "Knowledge", icon: Database })) || []),
+        ...staticMatches,
     ];
 
     const handleSelect = (item: any) => {
