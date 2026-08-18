@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Omnibox } from "@/components/dashboard/Omnibox";
+import WelcomeTour from "@/components/onboarding/WelcomeTour";
 
 export default function DashboardLayout({
     children,
@@ -77,6 +78,7 @@ export default function DashboardLayout({
 
             {/* Global overlays */}
             <Omnibox />
+            <WelcomeTour />
         </div>
     );
 }
