@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 export default function UserManagementPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [showCreate, setShowCreate] = useState(false);
     const [latestInviteLink, setLatestInviteLink] = useState("");
     const [newUser, setNewUser] = useState({
@@ -36,6 +37,7 @@ export default function UserManagementPage() {
         try {
             const res = await fetch("/api/admin/users");
             if (res.ok) {
+                setError(null);
                 const data = await res.json();
                 setUsers(data);
                 const mapped = data.reduce((acc: any, user: any) => {
@@ -46,12 +48,14 @@ export default function UserManagementPage() {
                     return acc;
                 }, {});
                 setRoleEdits(mapped);
+            } else if (res.status === 403) {
+                setError("You don't have permission to view users.");
             } else {
-                // Handle non-admin access gracefully
-                console.error("Failed to fetch users");
+                setError("Failed to load users.");
             }
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load users.");
         } finally {
             setLoading(false);
         }
@@ -206,7 +210,13 @@ export default function UserManagementPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-white/10">
-                            {users.map((user) => (
+                            {loading ? (
+                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>Loading users...</td></tr>
+                            ) : error ? (
+                                <tr><td className="px-6 py-6 text-red-400" colSpan={6}>{error}</td></tr>
+                            ) : users.length === 0 ? (
+                                <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>No users yet.</td></tr>
+                            ) : users.map((user) => (
                                 <tr key={user.id} className="hover:bg-white/5 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="text-white font-medium">{user.name || "Unknown"}</div>

@@ -33,6 +33,14 @@ export const RATE_LIMITS = {
     windowMs: 60 * 60 * 1000,
     maxRequests: 5,
   },
+  // Passive session-check endpoints (NextAuth's SessionProvider polling,
+  // the Clerk auth-gate check on every dashboard page load) are hit far more
+  // often than actual sign-in attempts and must not share the strict AUTH
+  // bucket meant for brute-force protection.
+  SESSION_CHECK: {
+    windowMs: 60 * 1000,
+    maxRequests: 60,
+  },
   AUTHENTICATED: {
     windowMs: 60 * 1000,
     maxRequests: 1000,

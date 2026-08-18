@@ -14,10 +14,13 @@ const DASHBOARD_PREFIXES = [
     "/onboarding", "/profile", "/scraper-bridge", "/security", "/setup"
 ];
 
+// Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
+// that layout supplies its own NavBar/Footer, so LayoutShell must not duplicate them.
+// Top-level pages like /about, /pricing, /contact, /privacy, /terms are NOT in that
+// route group and rely on LayoutShell's generic Header/Footer fallback below.
 const MARKETING_PREFIXES = [
-    "/", "/about", "/pricing", "/contact",
-    "/login", "/signup", "/forgot-password", "/magic-link",
-    "/verify-email", "/privacy", "/terms", "/p", "/funnel",
+    "/", "/login", "/signup", "/forgot-password", "/magic-link",
+    "/verify-email", "/p", "/funnel",
 ];
 
 export function LayoutShell({ children }: { children: React.ReactNode }) {

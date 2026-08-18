@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function GET() {
+export async function GET(req: Request) {
     const { teamId } = await getCurrentContext();
     if (!teamId) return new NextResponse("Unauthorized", { status: 401 });
+
+    const { searchParams } = new URL(req.url);
+    const requestedMonths = Number(searchParams.get("months"));
+    const monthsBack = Number.isFinite(requestedMonths)
+        ? Math.min(Math.max(Math.trunc(requestedMonths), 1), 24)
+        : 6;
 
     try {
         // Fetch all campaigns for the team
@@ -62,10 +68,10 @@ export async function GET() {
             };
         });
 
-        // 3. Pipeline History (last 6 months)
+        // 3. Pipeline History (last N months, default 6)
         const now = new Date();
         const months: { key: string; start: Date; end: Date }[] = [];
-        for (let i = 5; i >= 0; i -= 1) {
+        for (let i = monthsBack - 1; i >= 0; i -= 1) {
             const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
             const key = start.toISOString().slice(0, 7);

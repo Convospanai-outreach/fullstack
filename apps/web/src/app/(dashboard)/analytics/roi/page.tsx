@@ -31,13 +31,16 @@ import {
     Area
 } from "recharts";
 
+const MONTH_OPTIONS = [3, 6, 12] as const;
+
 export default function ROIDashboardPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [months, setMonths] = useState<number>(6);
 
     useEffect(() => {
-        // Fetch data
-        fetch(getBrowserApiUrl("/analytics/roi"))
+        setLoading(true);
+        fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`))
             .then(res => res.json())
             .then(json => {
                 setData(json);
@@ -47,10 +50,28 @@ export default function ROIDashboardPage() {
                 console.error(err);
                 setLoading(false);
             });
-    }, []);
+    }, [months]);
 
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+
+    const exportReport = () => {
+        const rows: Array<Record<string, unknown>> = Array.isArray(data?.history) ? data.history : [];
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : ["date", "revenue", "spend"];
+        const csvLines = [
+            headers.join(","),
+            ...rows.map((row) => headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")),
+        ];
+        const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `campaign-roi-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="space-y-6">
@@ -62,11 +83,21 @@ export default function ROIDashboardPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="ghost" className="text-text-secondary">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Last 6 Months
-                    </Button>
-                    <Button variant="outline" className="border-white/10">
+                    <div className="flex items-center gap-1 rounded-lg border border-white/10 p-1">
+                        <Calendar className="w-4 h-4 mx-2 text-text-secondary" />
+                        {MONTH_OPTIONS.map((opt) => (
+                            <Button
+                                key={opt}
+                                size="sm"
+                                variant={months === opt ? "default" : "ghost"}
+                                className={months === opt ? "" : "text-text-secondary"}
+                                onClick={() => setMonths(opt)}
+                            >
+                                {opt}mo
+                            </Button>
+                        ))}
+                    </div>
+                    <Button variant="outline" className="border-white/10" onClick={exportReport} disabled={loading}>
                         <Download className="w-4 h-4 mr-2" />
                         Export Report
                     </Button>

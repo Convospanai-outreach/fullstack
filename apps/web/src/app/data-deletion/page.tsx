@@ -1,3 +1,8 @@
+export const metadata = {
+  title: "Data Deletion Request | CraftMyFunnel",
+  description: "How to request deletion of your data from CraftMyFunnel.",
+};
+
 export default function DataDeletionPage() {
   return (
     <div className="min-h-screen bg-slate-950 px-6 py-12 text-slate-200">

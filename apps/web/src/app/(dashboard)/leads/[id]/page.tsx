@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { LeadDetail } from "@/components/crm/LeadDetail";
 
 const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
 
-export default function LeadPage({ params }: { params: { id: string } }) {
+export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     const [lead, setLead] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`${API_BASE}/leads/${params.id}`)
+        fetch(`${API_BASE}/leads/${id}`)
             .then((res) => res.json())
             .then((data) => {
                 setLead(data);
@@ -20,7 +21,7 @@ export default function LeadPage({ params }: { params: { id: string } }) {
                 console.error(err);
                 setLoading(false);
             });
-    }, [params.id]);
+    }, [id]);
 
     if (loading) return <div className="p-8 text-white/60">Loading lead details...</div>;
     if (!lead || lead.error) return <div className="p-8 text-white/60">Lead not found</div>;

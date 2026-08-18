@@ -1,2 +1,7 @@
+export const metadata = {
+  title: "Support | CraftMyFunnel",
+  description: "Get help with Google Workspace setup, Gmail OAuth, domain readiness, billing, and technical issues.",
+};
+
 export default function SupportPage() {
 return <div className='min-h-screen bg-slate-950 px-6 py-12 text-slate-200'><article className='mx-auto max-w-4xl rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-xl'><p className='text-sm font-semibold uppercase tracking-wide text-cyan-300'>CraftMyFunnel</p><h1 className='mt-3 text-4xl font-bold text-white'>Support</h1><div className='mt-6 space-y-4 text-sm leading-7'><p>CraftMyFunnel support can help with Google Workspace setup, Gmail OAuth connection, domain readiness checks, SPF, DKIM, DMARC, MX records, account access, billing, and technical issues.</p><p>Email: <a className='text-cyan-300 underline' href='mailto:contact.us@craftmyfunnel.live'>contact.us@craftmyfunnel.live</a></p><p>Include workspace name, account email, issue details, and screenshots where relevant.</p></div></article></div>}

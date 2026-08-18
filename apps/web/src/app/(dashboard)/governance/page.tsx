@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import GovernanceLayout from "@/components/governance/GovernanceLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -82,9 +83,12 @@ export default function GovernancePage() {
                             <p className="text-text-secondary text-sm">Audit logs and prompt guardrail policies are recorded for workspace activity.</p>
                         </div>
                     </div>
-                    <button className="bg-white/10 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-white/15 transition border border-white/10">
+                    <Link
+                        href="/governance/audit"
+                        className="bg-white/10 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-white/15 transition border border-white/10"
+                    >
                         View Audit Log
-                    </button>
+                    </Link>
                 </div>
             </div>
         </GovernanceLayout>
