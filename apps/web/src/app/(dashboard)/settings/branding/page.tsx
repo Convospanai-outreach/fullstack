@@ -108,15 +108,16 @@ export default function BrandingSettingsPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <GlassCard className="p-6 space-y-6">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Palette className="w-5 h-5 text-blue-400" /> Appearance
+                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <Palette className="w-5 h-5 text-primary" aria-hidden="true" /> Appearance
                     </h3>
 
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Portal Title</label>
+                        <label htmlFor="portal-title" className="text-sm font-medium text-foreground">Portal Title</label>
                         <input
+                            id="portal-title"
                             type="text"
-                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-white"
+                            className="w-full bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors"
                             placeholder="My Agency Portal"
                             value={portalTitle}
                             onChange={e => setPortalTitle(e.target.value)}
@@ -124,39 +125,40 @@ export default function BrandingSettingsPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Primary Color</label>
+                        <label htmlFor="primary-color" className="text-sm font-medium text-foreground">Primary Color</label>
                         <div className="flex gap-4 items-center">
                             <input
+                                id="primary-color"
                                 type="color"
-                                className="h-10 w-20 rounded bg-transparent cursor-pointer"
+                                className="h-10 w-20 rounded border border-border bg-transparent cursor-pointer"
                                 value={primaryColor}
                                 onChange={e => setPrimaryColor(e.target.value)}
                             />
-                            <span className="text-gray-400 font-mono">{primaryColor}</span>
+                            <span className="text-muted-foreground font-mono text-sm">{primaryColor}</span>
                         </div>
                     </div>
 
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Logo</label>
+                        <label htmlFor="logo-url" className="text-sm font-medium text-foreground">Logo</label>
                         <div className="flex items-center gap-4">
                             {previewSrc ? (
                                 <img
                                     src={previewSrc}
                                     alt="Logo preview"
-                                    className="h-12 w-12 rounded bg-white/5 object-contain"
+                                    className="h-12 w-12 rounded-md bg-muted/50 border border-border object-contain p-1"
                                 />
                             ) : (
-                                <div className="h-12 w-12 rounded bg-white/5 flex items-center justify-center text-gray-600">
-                                    <Palette className="w-5 h-5" />
+                                <div className="h-12 w-12 rounded-md bg-muted/50 border border-border flex items-center justify-center text-muted-foreground">
+                                    <Palette className="w-5 h-5" aria-hidden="true" />
                                 </div>
                             )}
                             <button
                                 type="button"
                                 onClick={() => fileInputRef.current?.click()}
                                 disabled={uploading}
-                                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium disabled:opacity-50"
+                                className="flex items-center gap-2 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border rounded-md text-sm font-medium disabled:opacity-50 transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
                             >
-                                <Upload className="w-4 h-4" />
+                                <Upload className="w-4 h-4" aria-hidden="true" />
                                 {uploading ? "Uploading..." : "Upload Logo"}
                             </button>
                             <input
@@ -172,35 +174,36 @@ export default function BrandingSettingsPage() {
                             />
                         </div>
                         <input
+                            id="logo-url"
                             type="text"
-                            className="w-full bg-black/40 border border-white/10 rounded px-3 py-2 text-white"
+                            className="w-full bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors"
                             placeholder="https://agency.com/logo.png"
                             value={logoUrl}
                             onChange={e => setLogoUrl(e.target.value)}
                         />
-                        <p className="text-xs text-gray-500">Upload a PNG, JPEG, WebP, or SVG (max 2MB), or paste a public URL directly.</p>
+                        <p className="text-xs text-muted-foreground">Upload a PNG, JPEG, WebP, or SVG (max 2MB), or paste a public URL directly.</p>
                     </div>
 
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium w-full"
+                        className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-semibold text-sm w-full shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
                     >
                         {loading ? "Saving..." : "Save Changes"}
                     </button>
                 </GlassCard>
 
                 <GlassCard className="p-6 space-y-6">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Globe className="w-5 h-5 text-purple-400" /> Custom Domain
+                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                        <Globe className="w-5 h-5 text-purple-600 dark:text-purple-400" aria-hidden="true" /> Custom Domain
                     </h3>
-                    <p className="text-sm text-gray-400">Connect your own domain (e.g., portable.agency.com).</p>
+                    <p className="text-sm text-muted-foreground">Connect your own domain (e.g., portable.agency.com).</p>
 
-                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg text-yellow-200 text-sm">
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-md text-amber-800 dark:text-amber-200 text-sm">
                         This feature requires CNAME verification. Please contact support to enable custom domains for your account.
                     </div>
 
-                    <button className="px-6 py-2 bg-white/10 text-gray-400 rounded-lg font-medium w-full cursor-not-allowed">
+                    <button disabled className="px-6 py-2 bg-muted text-muted-foreground border border-border rounded-md font-medium text-sm w-full cursor-not-allowed opacity-70">
                         Manage Domains (Locked)
                     </button>
                 </GlassCard>
@@ -208,3 +211,4 @@ export default function BrandingSettingsPage() {
         </div>
     );
 }
+
