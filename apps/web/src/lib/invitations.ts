@@ -21,8 +21,18 @@ export function getInviteLink(token: string) {
     return `${getAppBaseUrl()}/accept-invite?token=${encodeURIComponent(token)}`;
 }
 
+export const WORKSPACE_ASSIGNABLE_ROLES: UserRole[] = [
+    UserRole.ORG_ADMIN,
+    UserRole.CMS_EDITOR,
+    UserRole.SALES_MANAGER,
+    UserRole.SALES_USER,
+    UserRole.CALLER,
+    UserRole.VIEWER,
+    UserRole.COMPLIANCE_OFFICER,
+];
+
 export function isAssignableInviteRole(role: string): role is UserRole {
-    return Object.values(UserRole).includes(role as UserRole);
+    return WORKSPACE_ASSIGNABLE_ROLES.includes(role as UserRole);
 }
 
 export async function maybeSendInviteEmail(email: string, inviteLink: string) {
@@ -76,4 +86,3 @@ export async function findValidInvitation(token: string) {
 
     return { invitation, error: null };
 }
-
