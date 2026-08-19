@@ -70,7 +70,27 @@ describe("Branding Route Validation (SEC-03)", () => {
         expect(data.error).toMatch(/Invalid primaryColor/);
     });
 
-    it("accepts valid https URL and valid hex color", async () => {
+    it("rejects out-of-range RGB/RGBA values such as rgb(999,999,999) or rgba(0,0,0,2.5)", async () => {
+        const { POST } = await import("../route");
+        
+        // Out of range RGB
+        const reqRgb = new Request("http://localhost/api/settings/branding", {
+            method: "POST",
+            body: JSON.stringify({ primaryColor: "rgb(999, 999, 999)" }),
+        });
+        const resRgb = await POST(reqRgb as any);
+        expect(resRgb.status).toBe(400);
+
+        // Out of range alpha
+        const reqRgba = new Request("http://localhost/api/settings/branding", {
+            method: "POST",
+            body: JSON.stringify({ primaryColor: "rgba(0, 0, 0, 2.5)" }),
+        });
+        const resRgba = await POST(reqRgba as any);
+        expect(resRgba.status).toBe(400);
+    });
+
+    it("accepts valid https URL, valid hex, and valid rgb/rgba colors", async () => {
         mockPrisma.team.findUnique.mockResolvedValue({ branding: {} });
         mockPrisma.team.update.mockResolvedValue({ id: "team-1" });
 
@@ -79,7 +99,7 @@ describe("Branding Route Validation (SEC-03)", () => {
             method: "POST",
             body: JSON.stringify({
                 logoUrl: "https://example.com/logo.png",
-                primaryColor: "#4f46e5",
+                primaryColor: "rgba(79, 70, 229, 0.8)",
                 portalTitle: "Acme Portal <script>",
             }),
         });
@@ -91,7 +111,7 @@ describe("Branding Route Validation (SEC-03)", () => {
             data: {
                 branding: {
                     logoUrl: "https://example.com/logo.png",
-                    primaryColor: "#4f46e5",
+                    primaryColor: "rgba(79, 70, 229, 0.8)",
                     portalTitle: "Acme Portal script",
                 },
             },

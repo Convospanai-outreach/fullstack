@@ -131,6 +131,26 @@ describe("OutboxService", () => {
                 leadId: "lead-1",
             });
         });
+
+        it("maps PAYMENT_CAPTURED prioritizing payload.paymentId over aggregateId", async () => {
+            const { OutboxService } = await import("@/lib/outboxService");
+            const mapped = OutboxService.mapEventToJob({
+                eventType: "PAYMENT_CAPTURED",
+                aggregateType: "Payment",
+                aggregateId: "pay-aggregate-id",
+                teamId: "team-1",
+                payload: { paymentId: "pay-real-id", credits: 500, userId: "user-1" },
+            });
+
+            expect(mapped.type).toBe("workflow_step");
+            expect(mapped.payload).toEqual({
+                teamId: "team-1",
+                eventType: "PAYMENT_CAPTURED",
+                paymentId: "pay-real-id",
+                credits: 500,
+                userId: "user-1",
+            });
+        });
     });
 
     describe("relayPendingEvents", () => {
@@ -160,6 +180,36 @@ describe("OutboxService", () => {
                 "sequence_execution",
                 expect.objectContaining({ enrollmentId: "en-1", teamId: "team-1" }),
                 { teamId: "team-1", idempotencyKey: "outbox_relay_key-1" }
+            );
+        });
+
+        it("claims and retries retryable FAILED events", async () => {
+            const failedCandidate = {
+                id: "ev-failed",
+                teamId: "team-1",
+                eventType: "LANDING_LEAD_CREATED",
+                aggregateType: "LandingLead",
+                aggregateId: "lead-99",
+                payload: {},
+                idempotencyKey: "key-failed",
+                version: 2,
+                status: "FAILED",
+                updatedAt: new Date(Date.now() - 120000),
+            };
+
+            mockPrisma.outboxEvent.findMany.mockResolvedValue([failedCandidate]);
+            mockPrisma.outboxEvent.updateMany.mockResolvedValue({ count: 1 });
+            mockPrisma.outboxEvent.findUnique.mockResolvedValue(failedCandidate);
+            mockJobQueue.enqueue.mockResolvedValue({ id: "job-retry" });
+
+            const { OutboxService } = await import("@/lib/outboxService");
+            const relayedCount = await OutboxService.relayPendingEvents(10);
+
+            expect(relayedCount).toBe(1);
+            expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+                "lead_scoring",
+                expect.objectContaining({ leadId: "lead-99", teamId: "team-1" }),
+                { teamId: "team-1", idempotencyKey: "outbox_relay_key-failed" }
             );
         });
 
