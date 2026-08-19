@@ -110,9 +110,10 @@ export default function CRMSettingsPage() {
                     <ProviderCard
                         name="Salesforce"
                         icon={<div className="w-8 h-8 bg-[#00A1E0] rounded-lg flex items-center justify-center text-white font-bold text-xs">SF</div>}
-                        isActive={activeProvider === 'SALESFORCE'}
-                        connected={integrations.some(i => i.provider === 'SALESFORCE' && i.isActive)}
-                        onClick={() => setActiveProvider('SALESFORCE')}
+                        isActive={false}
+                        connected={false}
+                        comingSoon
+                        onClick={() => toast.info("Salesforce sync isn't built yet — HubSpot is the only live integration.")}
                     />
                 </div>
 
@@ -212,20 +213,24 @@ export default function CRMSettingsPage() {
     );
 }
 
-function ProviderCard({ name, icon, isActive, connected, onClick }: any) {
+function ProviderCard({ name, icon, isActive, connected, comingSoon, onClick }: any) {
     return (
         <button
             onClick={onClick}
             className={`w-full p-4 rounded-2xl border transition-all flex items-center justify-between ${isActive
                 ? 'bg-blue-500/10 border-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.1)]'
-                : 'bg-white/5 border-white/10 hover:bg-white/10'
+                : comingSoon
+                    ? 'bg-white/5 border-white/10 opacity-60'
+                    : 'bg-white/5 border-white/10 hover:bg-white/10'
                 }`}
         >
             <div className="flex items-center gap-4 text-left">
                 {icon}
                 <div>
                     <div className="text-sm font-bold text-white">{name}</div>
-                    <div className="text-[10px] text-gray-500">{connected ? 'Connected' : 'Setup required'}</div>
+                    <div className="text-[10px] text-gray-500">
+                        {comingSoon ? 'Coming soon' : connected ? 'Connected' : 'Setup required'}
+                    </div>
                 </div>
             </div>
             {connected && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}

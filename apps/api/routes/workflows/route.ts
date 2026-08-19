@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function GET(_req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const workflows = await prisma.workflow.findMany({
         where: { teamId: ctx.teamId },
@@ -16,7 +17,12 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const hasPerm = await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN);
+    if (!hasPerm) {
+        return NextResponse.json({ error: "Forbidden: Admin permissions required to create workflows" }, { status: 403 });
+    }
 
     const body = await req.json();
     const { name, description } = body;

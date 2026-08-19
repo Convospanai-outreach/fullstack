@@ -2,6 +2,7 @@ import { vi, Mock } from "vitest";
 import { syncClerkUserToApp } from "../clerkAuth";
 import { prisma } from "@/lib/db";
 import { findValidInvitation } from "@/lib/invitations";
+import { UserRole } from "@/types/prisma-safe";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -12,11 +13,15 @@ vi.mock("@/lib/db", () => ({
     },
 }));
 
-vi.mock("@/lib/invitations", () => ({
-    findValidInvitation: vi.fn(),
-}));
+vi.mock("@/lib/invitations", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("@/lib/invitations")>();
+    return {
+        ...actual,
+        findValidInvitation: vi.fn(),
+    };
+});
 
-describe("syncClerkUserToApp - invitation claim atomicity", () => {
+describe("syncClerkUserToApp - invitation claim atomicity & privilege escalation prevention (SEC-07)", () => {
     const invitation = {
         id: "inv-1",
         email: "new-user@example.com",
@@ -54,16 +59,40 @@ describe("syncClerkUserToApp - invitation claim atomicity", () => {
             where: { id: invitation.id, status: "pending", expiresAt: expect.any(Object) },
             data: { status: "accepted", acceptedAt: expect.any(Date) },
         });
-        expect(mockTx.user.create).toHaveBeenCalled();
+        expect(mockTx.user.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    enterpriseRole: "SALES_USER",
+                }),
+            })
+        );
         expect(mockTx.teamMember.create).toHaveBeenCalled();
         expect(result).toEqual({ id: "user-1", memberships: [] });
     });
 
+    it("does not elevate user to SUPER_ADMIN if invitation contained unassignable global role", async () => {
+        (findValidInvitation as Mock).mockResolvedValue({
+            invitation: { ...invitation, role: "SUPER_ADMIN" },
+            error: null,
+        });
+        mockTx.userInvitation.updateMany.mockResolvedValue({ count: 1 });
+
+        await syncClerkUserToApp({
+            clerkUserId: "clerk-admin-exploit",
+            email: invitation.email,
+            inviteToken: "super-admin-token",
+        });
+
+        expect(mockTx.user.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    enterpriseRole: UserRole.VIEWER, // Blocked from receiving SUPER_ADMIN
+                }),
+            })
+        );
+    });
+
     it("does not create a user or grant membership if the invitation was revoked/expired concurrently", async () => {
-        // The pre-transaction lookup (findValidInvitation) still returned the invitation as
-        // valid, but by the time the transaction's conditional claim runs, it no longer
-        // matches status:"pending" (revoked/expired in the race window) - updateMany matches
-        // zero rows.
         mockTx.userInvitation.updateMany.mockResolvedValue({ count: 0 });
 
         const result = await syncClerkUserToApp({

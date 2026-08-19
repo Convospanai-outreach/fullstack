@@ -43,6 +43,17 @@ export async function PUT(req: Request) {
         const body = await req.json();
         const { provider, accessToken, refreshToken, expiresAt, isActive, fieldMapping, syncSettings } = body;
 
+        // Only HUBSPOT is currently implemented. Salesforce/Pipedrive are "Coming Soon"
+        // in the UI — reject them at the API level too so a direct PUT can't create a
+        // record that shows "Connected" with no backing sync logic.
+        const ALLOWED_PROVIDERS = ["HUBSPOT"] as const;
+        if (!provider || !ALLOWED_PROVIDERS.includes(provider as typeof ALLOWED_PROVIDERS[number])) {
+            return NextResponse.json(
+                { error: `Unsupported CRM provider. Allowed: ${ALLOWED_PROVIDERS.join(", ")}` },
+                { status: 400 }
+            );
+        }
+
         const updateData: any = {
             accessToken,
             refreshToken,

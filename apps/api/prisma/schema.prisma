@@ -527,7 +527,7 @@ model ConnectedMailbox {
   assignedUserId        String?
   provider              String    @default("GOOGLE_WORKSPACE")
   authType              String    @default("OAUTH")
-  email                 String    @unique
+  email                 String
   displayName           String?
   status                String    @default("CONNECTED")
   scopes                String[]  @default([])
@@ -973,6 +973,8 @@ model Team {
   domainAuthenticationChecks DomainAuthenticationCheck[]
   userInvitations            UserInvitation[]
   edgeNode                   EdgeNode?
+  outboxEvents               OutboxEvent[]
+  blindIndexes               BlindIndex[]
 }
 
 model CrmIntegration {
@@ -1866,7 +1868,7 @@ model PatentGuardrail {
   claimText String                       @db.Text // Patent claim text to check against
   patentId  String
   riskLevel String                       @default("HIGH")
-  vector    String? // For similarity search
+  vector    Unsupported("vector(1536)")? // For similarity search
 
   @@map("patent_guardrails")
 }
@@ -1887,7 +1889,7 @@ model LLMCache {
   prompt     String                       @db.Text
   promptHash String                       @unique // Optimized lookup
   response   String                       @db.Text
-  embedding  String? // Using vector type for semantic search
+  embedding  Unsupported("vector(1536)")? // Using vector type for semantic search
   tokensIn   Int                          @default(0)
   tokensOut  Int                          @default(0)
   createdAt  DateTime                     @default(now())
@@ -2400,4 +2402,40 @@ model EngagementLog {
 
   @@index([email])
   @@index([event])
+}
+
+model OutboxEvent {
+  id             String    @id @default(uuid())
+  teamId         String
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  payload        Json
+  idempotencyKey String    @unique
+  status         String    @default("PENDING") // "PENDING", "PROCESSING", "RELAYED", "FAILED"
+  version        Int       @default(1)
+  error          String?
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+
+  team           Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([teamId, eventType])
+  @@index([aggregateType, aggregateId])
+}
+
+model BlindIndex {
+  id         String   @id @default(uuid())
+  teamId     String
+  entityType String
+  entityId   String
+  fieldName  String
+  indexHash  String
+  createdAt  DateTime @default(now())
+
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, entityType, entityId, fieldName])
+  @@index([teamId, entityType, fieldName, indexHash])
 }

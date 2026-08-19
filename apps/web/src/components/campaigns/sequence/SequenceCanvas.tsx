@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import ReactFlow, { Background, Controls, Node, Edge, NodeTypes, Handle, Position, NodeProps } from "reactflow";
 import "reactflow/dist/style.css";
-import { X } from "lucide-react";
+import { X, Pencil } from "lucide-react";
 import SenderScheduleNode, { SenderScheduleNodeData, SequenceMailbox } from "./SenderScheduleNode";
 import AddStepButton from "./AddStepButton";
+import StepEditorDialog from "./StepEditorDialog";
 import { findStepDefinition } from "./stepDefinitions";
 
 export interface SequenceStepItem {
@@ -19,19 +20,50 @@ export interface SequenceStepItem {
 
 interface SequenceStepNodeData {
     stepType: string;
+    delayDays: number;
+    delayHours: number;
+    subject: string | null;
+    body: string | null;
     onRemove: () => void;
+    onEdit: () => void;
     disabled: boolean;
+}
+
+function stepSummary(data: SequenceStepNodeData, isCondition: boolean): string | null {
+    if (isCondition) {
+        return data.body ? "Configured" : "Click to configure";
+    }
+    const parts: string[] = [];
+    if (data.delayDays || data.delayHours) {
+        const bits = [data.delayDays ? `${data.delayDays}d` : null, data.delayHours ? `${data.delayHours}h` : null]
+            .filter(Boolean)
+            .join(" ");
+        parts.push(`Wait ${bits}`);
+    }
+    if (data.subject) parts.push(`"${data.subject}"`);
+    else if (data.body) parts.push("Message set");
+    return parts.length > 0 ? parts.join(" · ") : null;
 }
 
 function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
     const def = findStepDefinition(data.stepType);
     const Icon = def?.icon;
+    const summary = stepSummary(data, Boolean(def?.isCondition));
     return (
         <div className="relative w-80 rounded-lg border border-border bg-card p-4 shadow-sm">
             <Handle type="target" position={Position.Top} className="!bg-blue-500" />
             <div className="flex items-center gap-2.5">
                 {Icon && <Icon className="h-4 w-4 shrink-0 text-blue-500" />}
                 <span className="flex-1 text-sm font-medium">{def?.label || data.stepType}</span>
+                <button
+                    type="button"
+                    onClick={data.onEdit}
+                    disabled={data.disabled}
+                    className="text-muted-foreground transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Edit step"
+                >
+                    <Pencil className="h-3.5 w-3.5" />
+                </button>
                 <button
                     type="button"
                     onClick={data.onRemove}
@@ -42,6 +74,7 @@ function SequenceStepNode({ data }: NodeProps<SequenceStepNodeData>) {
                     <X className="h-4 w-4" />
                 </button>
             </div>
+            {summary && <p className="mt-1.5 truncate text-xs text-muted-foreground">{summary}</p>}
             <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
         </div>
     );
@@ -89,6 +122,8 @@ export default function SequenceCanvas({
     linkedinLocked: boolean;
     disabled?: boolean;
 }) {
+    const [editingStepId, setEditingStepId] = useState<string | null>(null);
+
     const removeStep = useCallback(
         (stepId: string) => {
             onStepsChange(steps.filter((s) => s.id !== stepId));
@@ -100,9 +135,19 @@ export default function SequenceCanvas({
         (stepType: string) => {
             const id = `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
             onStepsChange([...steps, { id, stepType, delayDays: 0, delayHours: 0, subject: null, body: null }]);
+            setEditingStepId(id);
         },
         [steps, onStepsChange]
     );
+
+    const updateStep = useCallback(
+        (updated: SequenceStepItem) => {
+            onStepsChange(steps.map((s) => (s.id === updated.id ? updated : s)));
+        },
+        [steps, onStepsChange]
+    );
+
+    const editingStep = steps.find((s) => s.id === editingStepId) || null;
 
     const nodes: Node[] = useMemo(() => {
         const startNode: Node<SenderScheduleNodeData> = {
@@ -118,7 +163,16 @@ export default function SequenceCanvas({
             id: step.id,
             type: "sequenceStep",
             position: { x: 0, y: (index + 1) * NODE_GAP },
-            data: { stepType: step.stepType, onRemove: () => removeStep(step.id), disabled },
+            data: {
+                stepType: step.stepType,
+                delayDays: step.delayDays,
+                delayHours: step.delayHours,
+                subject: step.subject,
+                body: step.body,
+                onRemove: () => removeStep(step.id),
+                onEdit: () => setEditingStepId(step.id),
+                disabled,
+            },
             draggable: false,
             selectable: false,
         }));
@@ -161,6 +215,12 @@ export default function SequenceCanvas({
                 <Background gap={16} size={1} />
                 <Controls showInteractive={false} />
             </ReactFlow>
+            <StepEditorDialog
+                step={editingStep}
+                open={Boolean(editingStepId)}
+                onOpenChange={(open) => !open && setEditingStepId(null)}
+                onSave={updateStep}
+            />
         </div>
     );
 }

@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-// Simple Tour steps
+// Simple Tour steps — targets must match real hrefs in DashboardSidebar.tsx's nav config
 const TOUR_STEPS = [
     { target: "h1", content: "Welcome to CraftMyFunnel! This is your command center.", position: "bottom" },
+    { target: "a[href='/leads']", content: "Track and manage your leads here.", position: "right" },
     { target: "a[href='/campaigns']", content: "Create and manage your email campaigns here.", position: "right" },
-    { target: "a[href='/agents']", content: "Configure AI agents to handle specialized tasks.", position: "right" },
     { target: "a[href='/settings']", content: "Manage your API keys and team settings.", position: "right" },
 ];
 
@@ -16,7 +16,7 @@ export default function WelcomeTour() {
     const [visible, setVisible] = useState(false);
     const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
 
-    // Initial check - hardcoded to always show for demo, or check localstorage
+    // Show once per browser: gated by localStorage, cleared only by handleClose below.
     useEffect(() => {
         const hasSeenTour = localStorage.getItem("convo_tour_seen");
         if (!hasSeenTour) {

@@ -28,13 +28,13 @@ import {
   CreditCard,
   BarChart2,
   ShieldCheck,
-  ChevronDown,
   MoreHorizontal,
   Users,
   Wrench,
   X,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
 import { HIDDEN_FEATURES, PRODUCT_FLAGS } from "@/lib/productFlags";
 
 interface NavItem {
@@ -108,7 +108,6 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     .toUpperCase() || 'U';
 
   // Org name from Clerk org, or fallback
-  const orgName = 'My workspace';
 
   const planLabel = PRODUCT_FLAGS.emailFirstBeta ? 'Enterprise · Beta' : 'Pro plan';
 
@@ -151,14 +150,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
         {/* Workspace switcher */}
         <div className="px-2 mb-3">
-          <button
-            className="w-full flex items-center justify-between border border-white/6 bg-white/2 rounded-md px-2 py-1.5 text-left group"
-            aria-label="Switch workspace"
-          >
-            {/* TODO: org switcher — open org selection modal */}
-            <span className="text-[12px] font-normal text-white/50 truncate">{orgName}</span>
-            <ChevronDown className="w-3 h-3 text-white/25 flex-shrink-0 ml-1" />
-          </button>
+          <WorkspaceSwitcher />
         </div>
 
         {/* Nav groups */}

@@ -7,6 +7,8 @@ import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
 import { landingEventNameEnum } from "./schemas";
+import { OutboxService } from "@/lib/outboxService";
+import { BlindIndexService } from "@/lib/blindIndexService";
 
 function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
@@ -573,44 +575,92 @@ export const landingAgentService = {
             throw new Error("Published landing page not found");
         }
 
-        const lead = await prisma.landingLead.create({
-            data: {
-                landingPageId: page.id,
-                campaignId: page.campaignId,
-                teamId: page.teamId,
-                sessionId: input.payload.sessionId,
-                pageVersion: input.payload.pageVersion ?? page.version,
-                name: input.payload.name,
-                email: input.payload.email,
-                phone: input.payload.phone,
-                company: input.payload.company,
-                title: input.payload.title,
-                rawPayload: sanitizeJson(input.payload.rawPayload) as Prisma.InputJsonValue | undefined,
-                utmSource: input.payload.utmSource,
-                utmMedium: input.payload.utmMedium,
-                utmCampaign: input.payload.utmCampaign,
-                utmTerm: input.payload.utmTerm,
-                utmContent: input.payload.utmContent,
-                referrer: input.payload.referrer,
-                ipAddress: input.ipAddress,
-                userAgent: input.userAgent,
-            },
-        });
-
-        await prisma.landingEvent.create({
-            data: {
-                landingPageId: page.id,
-                campaignId: page.campaignId,
-                teamId: page.teamId,
-                sessionId: input.payload.sessionId,
-                pageVersion: input.payload.pageVersion ?? page.version,
-                eventName: "form_submit",
-                eventData: {
-                    leadId: lead.id,
+        const lead = await prisma.$transaction(async (tx) => {
+            const createdLead = await tx.landingLead.create({
+                data: {
+                    landingPageId: page.id,
+                    campaignId: page.campaignId,
+                    teamId: page.teamId,
+                    sessionId: input.payload.sessionId,
+                    pageVersion: input.payload.pageVersion ?? page.version,
+                    name: input.payload.name,
+                    email: input.payload.email,
+                    phone: input.payload.phone,
+                    company: input.payload.company,
+                    title: input.payload.title,
+                    rawPayload: sanitizeJson(input.payload.rawPayload) as Prisma.InputJsonValue | undefined,
+                    utmSource: input.payload.utmSource,
+                    utmMedium: input.payload.utmMedium,
+                    utmCampaign: input.payload.utmCampaign,
+                    utmTerm: input.payload.utmTerm,
+                    utmContent: input.payload.utmContent,
+                    referrer: input.payload.referrer,
+                    ipAddress: input.ipAddress,
+                    userAgent: input.userAgent,
                 },
-                ipAddress: input.ipAddress,
-                userAgent: input.userAgent,
-            },
+            });
+
+            if (input.payload.email) {
+                await BlindIndexService.createBlindIndex(
+                    {
+                        teamId: page.teamId,
+                        entityType: "LandingLead",
+                        entityId: createdLead.id,
+                        fieldName: "email",
+                        plaintext: input.payload.email,
+                    },
+                    tx
+                );
+            }
+
+            if (input.payload.phone) {
+                await BlindIndexService.createBlindIndex(
+                    {
+                        teamId: page.teamId,
+                        entityType: "LandingLead",
+                        entityId: createdLead.id,
+                        fieldName: "phone",
+                        plaintext: input.payload.phone,
+                    },
+                    tx
+                );
+            }
+
+            await OutboxService.publishEvent(
+                {
+                    teamId: page.teamId,
+                    eventType: "LANDING_LEAD_CREATED",
+                    aggregateType: "LandingLead",
+                    aggregateId: createdLead.id,
+                    payload: {
+                        slug: page.slug,
+                        landingPageId: page.id,
+                        campaignId: page.campaignId,
+                        email: input.payload.email,
+                        name: input.payload.name,
+                    },
+                    idempotencyKey: `landing_lead_${createdLead.id}`,
+                },
+                tx
+            );
+
+            await tx.landingEvent.create({
+                data: {
+                    landingPageId: page.id,
+                    campaignId: page.campaignId,
+                    teamId: page.teamId,
+                    sessionId: input.payload.sessionId,
+                    pageVersion: input.payload.pageVersion ?? page.version,
+                    eventName: "form_submit",
+                    eventData: {
+                        leadId: createdLead.id,
+                    },
+                    ipAddress: input.ipAddress,
+                    userAgent: input.userAgent,
+                },
+            });
+
+            return createdLead;
         });
 
         try {
