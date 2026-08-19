@@ -38,8 +38,15 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        const ext = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
-        const blob = await put(`branding/${teamId}/logo-${Date.now()}${ext}`, file, {
+        const MIME_TO_EXT: Record<string, string> = {
+            "image/png": ".png",
+            "image/jpeg": ".jpg",
+            "image/webp": ".webp",
+            "image/svg+xml": ".svg",
+        };
+        const ext = MIME_TO_EXT[file.type] || ".png";
+        const sanitizedTeamId = teamId.replace(/[^a-zA-Z0-9_-]/g, "");
+        const blob = await put(`branding/${sanitizedTeamId}/logo-${Date.now()}${ext}`, file, {
             access: "public",
             addRandomSuffix: false,
         });

@@ -13,6 +13,16 @@ export class WorkflowService {
 
         if (!workflow || !workflow.isActive) return null;
 
+        // Verify lead ownership under current tenant
+        const lead = await prisma.lead.findFirst({
+            where: { id: entityId, teamId },
+            select: { id: true }
+        });
+
+        if (!lead) {
+            throw new Error("Lead not found or does not belong to team");
+        }
+
         // Create a Run record
         const run = await prisma.workflowRun.create({
             data: {
@@ -79,7 +89,9 @@ export class WorkflowService {
                 case "ai":
                     // Generate AI draft and store in context
                     if (run.entityId) {
-                        const lead = await prisma.lead.findUnique({ where: { id: run.entityId } });
+                        const lead = await prisma.lead.findFirst({
+                            where: { id: run.entityId, teamId: run.workflow.teamId }
+                        });
                         if (lead) {
                             const draft = await aiService.generateEmailDraft(lead, null, run.workflow.teamId);
                             const newContext = { ...(run.context as any), lastAiDraft: draft };
@@ -93,12 +105,19 @@ export class WorkflowService {
 
                 case "action":
                     if (node.data.actionType === 'EMAIL' && run.entityId) {
-                        // Enqueue actual email sending job
-                        await JobQueue.enqueue("email_sending", {
-                            leadId: run.entityId,
-                            campaignId: "workflow-" + run.workflowId,
-                            context: run.context
+                        const lead = await prisma.lead.findFirst({
+                            where: { id: run.entityId, teamId: run.workflow.teamId }
                         });
+                        if (lead) {
+                            // Enqueue actual email sending job
+                            await JobQueue.enqueue("email_sending", {
+                                leadId: lead.id,
+                                campaignId: "workflow-" + run.workflowId,
+                                context: run.context
+                            }, {
+                                teamId: run.workflow.teamId
+                            });
+                        }
                     }
                     break;
 
@@ -115,7 +134,9 @@ export class WorkflowService {
                     let conditionResult = false;
 
                     if (conditionType === 'REPLIED' && run.entityId) {
-                        const lead = await prisma.lead.findUnique({ where: { id: run.entityId } });
+                        const lead = await prisma.lead.findFirst({
+                            where: { id: run.entityId, teamId: run.workflow.teamId }
+                        });
                         conditionResult = lead?.status === 'replied';
                     }
 

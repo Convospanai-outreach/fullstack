@@ -373,6 +373,26 @@ export class SequenceService {
                 errorMessage: null,
             },
         });
+
+        try {
+            const { OutboxService } = await import("@/lib/outboxService");
+            await OutboxService.publishEvent({
+                teamId: run.teamId,
+                eventType: "SEQUENCE_STEP_COMPLETED",
+                aggregateType: "SequenceStepRun",
+                aggregateId: run.id,
+                payload: {
+                    enrollmentId: run.enrollmentId,
+                    sequenceId: run.enrollment?.sequenceId,
+                    leadId: run.leadId,
+                    providerId: result.providerId,
+                },
+                idempotencyKey: `sequence_step_run_${run.id}_completed`,
+            });
+        } catch {
+            // Outbox event emission is resilient
+        }
+
         await this.scheduleNextStep(run, now);
         return { runId: run.id, status: "SENT", providerMessageId: result.providerId };
     }

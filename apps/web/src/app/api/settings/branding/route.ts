@@ -3,6 +3,31 @@ import { getCurrentContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+function isValidHttpUrl(urlString: unknown): boolean {
+    if (!urlString || typeof urlString !== "string") return true;
+    try {
+        const url = new URL(urlString);
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function isValidColor(colorString: unknown): boolean {
+    if (!colorString || typeof colorString !== "string") return true;
+    return (
+        /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(colorString) ||
+        /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(colorString) ||
+        /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)$/i.test(colorString)
+    );
+}
+
+function sanitizeText(text: unknown, maxLength = 100): string | undefined {
+    if (text === undefined || text === null) return undefined;
+    if (typeof text !== "string") return "";
+    return text.replace(/[<>]/g, "").trim().slice(0, maxLength);
+}
+
 export async function GET() {
     try {
         const { userId, teamId } = await getCurrentContext();
@@ -24,7 +49,7 @@ export async function GET() {
     }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: Request | NextRequest) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) {
@@ -42,7 +67,19 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json().catch(() => ({}));
-        const { logoUrl, primaryColor, portalTitle } = body || {};
+        const { logoUrl, primaryColor, portalTitle, faviconUrl } = body || {};
+
+        if (logoUrl && !isValidHttpUrl(logoUrl)) {
+            return NextResponse.json({ ok: false, error: "Invalid logoUrl: must use http or https protocol" }, { status: 400 });
+        }
+        if (faviconUrl && !isValidHttpUrl(faviconUrl)) {
+            return NextResponse.json({ ok: false, error: "Invalid faviconUrl: must use http or https protocol" }, { status: 400 });
+        }
+        if (primaryColor && !isValidColor(primaryColor)) {
+            return NextResponse.json({ ok: false, error: "Invalid primaryColor format: must be valid hex or rgb color" }, { status: 400 });
+        }
+
+        const sanitizedTitle = sanitizeText(portalTitle);
 
         const { prisma } = await import("@/lib/db");
         const team = await prisma.team.findUnique({
@@ -53,9 +90,10 @@ export async function POST(req: NextRequest) {
 
         const updatedBranding = {
             ...currentBranding,
-            logoUrl: logoUrl ?? currentBranding["logoUrl"],
-            primaryColor: primaryColor ?? currentBranding["primaryColor"],
-            portalTitle: portalTitle ?? currentBranding["portalTitle"],
+            logoUrl: logoUrl !== undefined ? logoUrl : currentBranding["logoUrl"],
+            faviconUrl: faviconUrl !== undefined ? faviconUrl : currentBranding["faviconUrl"],
+            primaryColor: primaryColor !== undefined ? primaryColor : currentBranding["primaryColor"],
+            portalTitle: sanitizedTitle !== undefined ? sanitizedTitle : currentBranding["portalTitle"],
         };
 
         await prisma.team.update({

@@ -6,7 +6,7 @@ import { APIError, handleAPIError } from "@/lib/apiResponse";
 export async function POST(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
-        if (!userId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
 
         const contentType = req.headers.get("content-type") || "";
 
@@ -23,6 +23,7 @@ export async function POST(req: Request) {
 
         if (!csvContent) throw new APIError("Empty file content", 400, "BAD_REQUEST");
 
+        // Enforce session teamId strictly
         const result = await csvIngestionService.processCSV(csvContent, teamId, mapping);
 
         return NextResponse.json(result);

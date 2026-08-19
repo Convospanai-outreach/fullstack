@@ -6,6 +6,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         team: { update: vi.fn() },
         creditTransaction: { create: vi.fn() },
         invoice: { create: vi.fn() },
+        outboxEvent: { create: vi.fn() },
         $queryRaw: vi.fn(),
     };
     const mockPrisma = {
@@ -13,6 +14,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         plan: { findUnique: vi.fn() },
         invoice: { findFirst: vi.fn() },
         auditLog: { create: vi.fn() },
+        outboxEvent: { create: vi.fn(), findUnique: vi.fn() },
         $transaction: vi.fn(),
     };
     return { mockPrisma, mockTx };

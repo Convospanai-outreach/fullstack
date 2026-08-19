@@ -47,6 +47,7 @@ export type JobType =
     | "event_processing"
     | "CSV_IMPORT"
     | "SEQUENCE_ACTION"
+    | "sequence_execution"
     | "INTEL_FOLLOWUP_REFRESH"
     | "lead_scoring";
 

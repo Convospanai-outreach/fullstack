@@ -1,5 +1,13 @@
-
-const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+function getApiBaseUrl(): string {
+    if (typeof window !== "undefined") {
+        return "/api/proxy";
+    }
+    return (
+        process.env['API_INTERNAL_ORIGIN'] ||
+        process.env['NEXT_PUBLIC_API_URL'] ||
+        "http://127.0.0.1:3001"
+    );
+}
 
 export interface CSVRow {
     email: string;
@@ -16,15 +24,17 @@ class CSVIngestionService {
      */
     async suggestMapping(headers: string[]) {
         try {
-            const res = await fetch(`${API_URL}/csv/suggest-mapping`, {
+            const baseUrl = getApiBaseUrl();
+            const res = await fetch(`${baseUrl}/import/suggest-mapping`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ headers })
             });
+            if (!res.ok) return this.autoDetectFieldMapping(headers);
             return await res.json();
         } catch (error) {
             console.error("Mapping suggestion proxy failed:", error);
-            return {};
+            return this.autoDetectFieldMapping(headers);
         }
     }
 
@@ -47,12 +57,13 @@ class CSVIngestionService {
 
     async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>) {
         try {
-            const res = await fetch(`${API_URL}/csv/process`, {
+            const baseUrl = getApiBaseUrl();
+            const res = await fetch(`${baseUrl}/leads/import`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ csvContent, teamId, mapping })
             });
-            if (!res.ok) throw new Error("CSV process proxy failure");
+            if (!res.ok) throw new Error(`CSV process failed with status ${res.status}`);
             return await res.json();
         } catch (error) {
             console.error("CSV process proxy failed:", error);
