@@ -79,19 +79,11 @@ export async function POST(req: Request) {
 
     const smtpConfig = getSmtpConfig();
     if (!smtpConfig) {
-        console.info("Contact request queued without SMTP delivery", {
-            name: safeName,
-            email: safeEmail,
-            subject: safeSubject,
-        });
-
-        return NextResponse.json({
-            success: true,
-            ticketId,
-            status: "queued",
-            delivery: "queued",
-            message: "Message received. SMTP is not configured in this environment.",
-        });
+        // No durable storage backs this endpoint, so an unsent message would be lost
+        // with no way to retry or recover it — report failure honestly instead of a
+        // false "queued" success (unlike /api/support/contact, which can afford to
+        // treat "queued" as best-effort since it's paired with a support ticket flow).
+        return NextResponse.json({ error: "Contact service is not configured", ticketId, status: "failed" }, { status: 503 });
     }
 
     const html = `

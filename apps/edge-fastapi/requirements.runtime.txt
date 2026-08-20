@@ -1,3 +1,6 @@
+# Lean runtime subset — Dockerfile's default REQUIREMENTS_FILE. No NLP/PII
+# scrubbing (presidio/spacy) or embedding stack (torch/sentence-transformers).
+# See requirements.txt for the full dependency set and the sibling-files note.
 fastapi
 uvicorn
 pydantic

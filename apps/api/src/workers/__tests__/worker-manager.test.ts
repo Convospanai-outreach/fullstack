@@ -30,6 +30,10 @@ vi.mock("../job-processor", () => ({
     worker: { performJob: vi.fn().mockResolvedValue(undefined) },
 }));
 
+vi.mock("@/lib/outboxService", () => ({
+    OutboxService: { relayPendingEvents: vi.fn().mockResolvedValue(0) },
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();

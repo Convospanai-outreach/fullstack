@@ -40,7 +40,7 @@ export const FEATURE_DEFINITIONS: Record<string, FeatureDefinition> = {
         key: "linkedin_automation",
         description: "Automated LinkedIn actions",
         layer: CapabilityLayer.ADVANCED_OPS,
-        defaultValue: false
+        defaultValue: true
     },
 
     // Experimental: Cutting edge, potentially unstable

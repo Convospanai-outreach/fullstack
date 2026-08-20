@@ -45,12 +45,7 @@ RUN git clone --depth 1 https://github.com/ggerganov/llama.cpp.git && \
     cmake --build . --config Release -j$(nproc)
 
 # Verify llama.cpp binary was built - search common locations
-RUN find /opt/llama.cpp/build -name 'llama-cli' -o -name 'main' 2>/dev/null | head -5 && \
-    BINARY=$(find /opt/llama.cpp/build -name 'llama-cli' -type f | head -1) && \
-    if [ -z "$BINARY" ]; then \
-      echo "WARN: llama-cli not found, trying 'main'" && \
-      BINARY=$(find /opt/llama.cpp/build -name 'main' -type f | head -1); \
-    fi && \
+RUN BINARY=$(find /opt/llama.cpp -name 'llama-cli' -type f -o -name 'main' -type f 2>/dev/null | head -1) && \
     if [ -z "$BINARY" ]; then \
       echo "FATAL: No llama.cpp binary found after build" && exit 1; \
     fi && \
@@ -72,7 +67,7 @@ RUN mkdir -p /opt/models
 # Using the official Microsoft Phi-3 GGUF from Hugging Face
 RUN cd /opt/models && \
     echo "Downloading Phi-3 model (this may take several minutes)..." && \
-    wget --progress=dot:giga -O phi-3-mini-4k-instruct-q4.gguf \
+    wget --tries=5 --timeout=60 --progress=dot:giga -O phi-3-mini-4k-instruct-q4.gguf \
     "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf" && \
     echo "Model downloaded successfully" && \
     ls -lh phi-3-mini-4k-instruct-q4.gguf

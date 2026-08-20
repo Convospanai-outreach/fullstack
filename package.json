@@ -2,6 +2,9 @@
   "name": "craftmyfunnel-platform",
   "private": true,
   "description": "CraftMyFunnel monorepo orchestration root",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "workspaces": [
     "apps/web",
     "apps/api",
@@ -27,6 +30,7 @@
     "schema:verify:readonly": "node scripts/db/verify-schema-readiness.mjs",
     "schema:verify:production": "node scripts/db/verify-schema-readiness.mjs --production",
     "db:schema:compare": "node scripts/db/compare-prisma-schemas.mjs",
+    "db:schema:sync": "node scripts/db/sync-prisma-schema.mjs",
     "readiness:audit:no-seed": "node scripts/readiness/no-seed-readiness-audit.mjs",
     "readiness:check-db-shape": "npx tsx scripts/readiness/check-db-shape.ts",
     "readiness:check-migration-status": "npx tsx scripts/readiness/check-migration-status.ts",
@@ -41,7 +45,8 @@
     "next": "16.2.11",
     "esbuild": "0.28.1",
     "postcss": "8.5.25",
-    "uuid": "11.1.1",
+    "uuid": "14.0.1",
+    "geoip-lite": "1.4.10",
     "ws": "8.21.0",
     "fast-uri": "3.1.5",
     "find-my-way": "9.7.0",

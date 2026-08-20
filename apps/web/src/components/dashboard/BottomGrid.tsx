@@ -119,14 +119,14 @@ export function BottomGrid({
         </div>
 
         {/* Pending sends */}
-        <div className="bg-[#101624] border border-white/7 rounded-lg p-3 flex-1">
+        <div className="bg-[#101624] border border-white/7 rounded-lg p-3 flex-1" title="Approved drafts waiting for mailbox transmission">
           <p className="text-[10px] uppercase tracking-wide text-white/28">Pending sends</p>
           <p className="text-[20px] font-medium text-slate-200 leading-none mt-1">{draftsPendingSend}</p>
           <p className="text-[10px] mt-0.5">
             {draftsPendingSend > 0 ? (
-              <span className="text-amber-400">Needs your action</span>
+              <span className="text-amber-400">Awaiting mailbox dispatch</span>
             ) : (
-              <span className="text-white/25">All clear</span>
+              <span className="text-white/25">Queue clear</span>
             )}
           </p>
         </div>
