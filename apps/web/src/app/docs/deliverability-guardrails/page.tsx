@@ -66,7 +66,7 @@ export default function DeliverabilityDocPage() {
                             Many third-party providers (including Google Workspace and Gmail API) overwrite custom message ID headers during wire transmission. CraftMyFunnel employs a two-step post-send sync:
                         </p>
                         <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 font-mono text-xs text-slate-300">
-                            <div className="text-blue-400 font-bold">// Dispatch & Wire Capture Flow</div>
+                            <div className="text-blue-400 font-bold">{"// Dispatch & Wire Capture Flow"}</div>
                             <div>1. Generate explicit RFC 5322 Message-ID header: &lt;uuid@domain&gt;</div>
                             <div>2. Dispatch via Google Workspace / Gmail API endpoint</div>
                             <div>3. Re-fetch wire representation to capture actual provider-assigned Message-ID</div>

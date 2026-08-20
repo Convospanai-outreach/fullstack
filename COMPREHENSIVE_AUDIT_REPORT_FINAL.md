@@ -106,6 +106,8 @@ This comprehensive audit examines the CraftMyFunnel fullstack application for fl
 - Migrate `console.log` to structured logger (Winston/Pino).
 - Migrate Next.js `middleware.ts` to `proxy` convention (future task).
 
+> **Recount 2026-08-20** (see `docs/audits/tech-debt-audit-2026-08-20.md` #7 — the 260+ figure above is stale): a plain `grep` for `: any\b|<any>|as any\b` across `apps/web/src` and `apps/api/{src,routes}` (excluding `*.test.ts`) now finds **1,253** matches (595 web / 658 api), and `console.log` finds **463** (208 web / 255 api). These are raw substring counts, not a typed lint pass, so treat them as an order-of-magnitude signal rather than an exact figure — no dedicated cleanup sprint is planned; chip away opportunistically when touching a file for other reasons, per the tech-debt audit's Phase 2 guidance.
+
 ---
 
 ## Conclusion

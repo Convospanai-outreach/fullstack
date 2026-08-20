@@ -74,7 +74,7 @@ export default function SecurityArchitectureDocPage() {
                             To protect sensitive prospect information at rest while retaining high-performance exact-match search capabilities, CraftMyFunnel implements the <strong>Blind Indexing Pattern</strong> (<code className="text-blue-300">BlindIndexService</code>):
                         </p>
                         <div className="p-5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-3 font-mono text-xs text-slate-300">
-                            <div className="text-emerald-400 font-bold">// Deterministic Blind Hash Generation</div>
+                            <div className="text-emerald-400 font-bold">{"// Deterministic Blind Hash Generation"}</div>
                             <div>1. PII field (e.g. email/phone) is normalized (lowercase, trimmed)</div>
                             <div>2. Computed hash: HMAC-SHA256(normalized_value, BLIND_INDEX_SALT + ":" + teamId)</div>
                             <div>3. Raw PII is stored encrypted with AES-256-GCM / Fernet</div>
