@@ -162,17 +162,21 @@ export class OutboxService {
     /**
      * Scans for pending outbox events, claims them, and relays them to the JobQueue.
      * Concurrency-safe via versioned updates.
+     * Includes retryable FAILED events (up to MAX_RETRIES) with backoff.
      */
     static async relayPendingEvents(batchSize: number = 50): Promise<number> {
         const now = new Date();
-        const staleThreshold = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes
+        const staleThreshold = new Date(now.getTime() - 5 * 60 * 1000); // 5 minutes for stuck PROCESSING
+        const retryThreshold = new Date(now.getTime() - 1 * 60 * 1000); // 1 minute backoff for FAILED
+        const MAX_RETRIES = 5;
 
-        // Find candidate events: PENDING, or stuck in PROCESSING for > 5 min
+        // Find candidate events: PENDING, stuck PROCESSING, or retryable FAILED
         const candidates = await prisma.outboxEvent.findMany({
             where: {
                 OR: [
                     { status: "PENDING" },
                     { status: "PROCESSING", createdAt: { lte: staleThreshold } },
+                    { status: "FAILED", version: { lte: MAX_RETRIES }, createdAt: { lte: retryThreshold } },
                 ],
             },
             orderBy: { createdAt: "asc" },
@@ -191,7 +195,7 @@ export class OutboxService {
                 where: {
                     id: candidate.id,
                     version: candidate.version,
-                    status: { in: ["PENDING", "PROCESSING"] },
+                    status: { in: ["PENDING", "PROCESSING", "FAILED"] },
                 },
                 data: {
                     status: "PROCESSING",

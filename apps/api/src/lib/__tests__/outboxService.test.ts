@@ -163,6 +163,36 @@ describe("OutboxService", () => {
             );
         });
 
+        it("claims and retries retryable FAILED events", async () => {
+            const failedCandidate = {
+                id: "ev-failed",
+                teamId: "team-1",
+                eventType: "LANDING_LEAD_CREATED",
+                aggregateType: "LandingLead",
+                aggregateId: "lead-99",
+                payload: {},
+                idempotencyKey: "key-failed",
+                version: 2,
+                status: "FAILED",
+                updatedAt: new Date(Date.now() - 120000),
+            };
+
+            mockPrisma.outboxEvent.findMany.mockResolvedValue([failedCandidate]);
+            mockPrisma.outboxEvent.updateMany.mockResolvedValue({ count: 1 });
+            mockPrisma.outboxEvent.findUnique.mockResolvedValue(failedCandidate);
+            mockJobQueue.enqueue.mockResolvedValue({ id: "job-retry" });
+
+            const { OutboxService } = await import("@/lib/outboxService");
+            const relayedCount = await OutboxService.relayPendingEvents(10);
+
+            expect(relayedCount).toBe(1);
+            expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
+                "lead_scoring",
+                expect.objectContaining({ leadId: "lead-99", teamId: "team-1" }),
+                { teamId: "team-1", idempotencyKey: "outbox_relay_key-failed" }
+            );
+        });
+
         it("returns 0 when no events are pending", async () => {
             mockPrisma.outboxEvent.findMany.mockResolvedValue([]);
 
