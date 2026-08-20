@@ -93,22 +93,9 @@ export class OutboxService {
                     payload: {
                         teamId: event.teamId,
                         eventType: "PAYMENT_CAPTURED",
-                        paymentId: p.paymentId || event.aggregateId,
+                        paymentId: event.aggregateId,
                         credits: p.credits,
                         userId: p.userId,
-                    },
-                };
-
-            case "ORDER_CAPTURED":
-                return {
-                    type: "order_captured",
-                    payload: {
-                        teamId: event.teamId,
-                        orderId: p.orderId || event.aggregateId,
-                        productId: p.productId,
-                        customerId: p.customerId,
-                        amount: p.amount,
-                        gateway: p.gateway,
                     },
                 };
 

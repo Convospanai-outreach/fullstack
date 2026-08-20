@@ -258,11 +258,10 @@ export async function POST(req: Request) {
                                     await OutboxService.publishEvent({
                                         teamId: notes.teamId,
                                         eventType: "PAYMENT_CAPTURED",
-                                        aggregateType: "Payment",
-                                        aggregateId: payment.id,
+                                        aggregateType: "Subscription",
+                                        aggregateId: subscription.id,
                                         payload: {
                                             type: "subscription",
-                                            subscriptionId: subscription.id,
                                             planId: plan.id,
                                             paymentId: payment.id,
                                             userId: notes.userId,

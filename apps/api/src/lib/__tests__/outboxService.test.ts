@@ -131,26 +131,6 @@ describe("OutboxService", () => {
                 leadId: "lead-1",
             });
         });
-
-        it("maps PAYMENT_CAPTURED prioritizing payload.paymentId over aggregateId", async () => {
-            const { OutboxService } = await import("@/lib/outboxService");
-            const mapped = OutboxService.mapEventToJob({
-                eventType: "PAYMENT_CAPTURED",
-                aggregateType: "Payment",
-                aggregateId: "pay-aggregate-id",
-                teamId: "team-1",
-                payload: { paymentId: "pay-real-id", credits: 500, userId: "user-1" },
-            });
-
-            expect(mapped.type).toBe("workflow_step");
-            expect(mapped.payload).toEqual({
-                teamId: "team-1",
-                eventType: "PAYMENT_CAPTURED",
-                paymentId: "pay-real-id",
-                credits: 500,
-                userId: "user-1",
-            });
-        });
     });
 
     describe("relayPendingEvents", () => {
