@@ -20,7 +20,6 @@
         "start": "npm run repair:vendor && node scripts/run-with-app-env.mjs scripts/start-production.mjs",
         "lint": "node scripts/lint.mjs",
         "typecheck": "node scripts/run-with-env.mjs NODE_OPTIONS=--max-old-space-size=8192 -- tsc --noEmit",
-        "worker": "node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/workers/index.ts",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest",
         "test:ui": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest --ui",
         "test:coverage": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run tests/unit --coverage",
