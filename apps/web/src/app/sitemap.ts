@@ -22,6 +22,48 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.9,
         },
         {
+            url: `${baseUrl}/use-cases`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        {
+            url: `${baseUrl}/use-cases/facility-management`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/use-cases/security-services`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/use-cases/staffing`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/use-cases/training`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/use-cases/consulting`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
+            url: `${baseUrl}/use-cases/managed-services`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.8,
+        },
+        {
             url: `${baseUrl}/faq`,
             lastModified,
             changeFrequency: "weekly",

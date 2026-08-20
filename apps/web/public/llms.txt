@@ -38,6 +38,16 @@ CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage b
 - [CraftMyFunnel vs Instantly](https://craftmyfunnel.live/vs/instantly): Quality and reputation protection vs mass cold email blasting.
 - [CraftMyFunnel vs Lemlist](https://craftmyfunnel.live/vs/lemlist): Vertical industry playbooks and multi-tenant security vs generic sequences.
 
+## Vertical Use Cases & Playbooks
+
+- [Industry Use Cases Hub](https://craftmyfunnel.live/use-cases): Overview of vertical outbound playbooks and signal workflows.
+- [Facility Management](https://craftmyfunnel.live/use-cases/facility-management): Commercial property lease renewals, expansions, and RFP discovery.
+- [Security Services](https://craftmyfunnel.live/use-cases/security-services): Manager-approved physical guarding and corporate risk proposals.
+- [Staffing & Recruiting](https://craftmyfunnel.live/use-cases/staffing): Hiring surge intent signals and batch candidate availability pitches.
+- [L&D / Corporate Training](https://craftmyfunnel.live/use-cases/training): Enterprise software adoption triggers and executive learning curriculum proposals.
+- [Consulting & Advisory](https://craftmyfunnel.live/use-cases/consulting): Executive-level partner-approved outreach for strategic advisory firms.
+- [Managed IT Services](https://craftmyfunnel.live/use-cases/managed-services): Recurring IT retainer and MSP client acquisition workflows.
+
 ## System Specification Reference
 
 - Full architectural documentation and feature specifications: [llms-full.txt](https://craftmyfunnel.live/llms-full.txt).

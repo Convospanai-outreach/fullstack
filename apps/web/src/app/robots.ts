@@ -26,7 +26,7 @@ export default function robots(): MetadataRoute.Robots {
                     "Bingbot",
                     "cohere-ai",
                 ],
-                allow: ["/", "/pricing", "/faq", "/docs", "/vs", "/about", "/contact", "/security", "/governance", "/privacy", "/terms", "/llms.txt", "/llms-full.txt"],
+                allow: ["/", "/pricing", "/use-cases", "/faq", "/docs", "/vs", "/about", "/contact", "/security", "/governance", "/privacy", "/terms", "/llms.txt", "/llms-full.txt"],
                 disallow: ["/admin", "/dashboard", "/settings", "/api"],
             },
         ],

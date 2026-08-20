@@ -21,6 +21,8 @@ export default function Footer() {
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Product</h4>
                         <ul className="space-y-2 text-sm text-gray-500">
                             <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
+                            <li><Link href="/use-cases" className="hover:text-white transition-colors">Use Cases</Link></li>
+                            <li><Link href="/vs" className="hover:text-white transition-colors">Comparisons</Link></li>
                             <li><Link href="/signup" className="hover:text-white transition-colors">Start pilot</Link></li>
                             <li><Link href="/login" className="hover:text-white transition-colors">Sign in</Link></li>
                         </ul>
@@ -29,6 +31,7 @@ export default function Footer() {
                     <div className="space-y-3">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-gray-300">Resources</h4>
                         <ul className="space-y-2 text-sm text-gray-500">
+                            <li><Link href="/docs" className="hover:text-white transition-colors">Documentation</Link></li>
                             <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
                             <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
                             <li><Link href="/support" className="hover:text-white transition-colors">Support</Link></li>
