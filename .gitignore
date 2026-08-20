@@ -38,3 +38,12 @@ fix-env.js
 /src
 /tsconfig.json
 .env*
+
+# design-sync (see .design-sync/NOTES.md)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.design-sync/pkg/dist/
+.design-sync/pkg/node_modules/
