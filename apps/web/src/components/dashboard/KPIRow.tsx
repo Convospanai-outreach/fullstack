@@ -55,6 +55,7 @@ export function KPIRow({ data, loading }: KPIRowProps) {
     {
       id: "meetings",
       label: "Meetings Secured",
+      tooltip: "Total qualified meetings booked across active campaigns",
       value: data.meetingsBooked,
       renderDelta: () => <DeltaBadge value={data.meetingsDelta} />,
       isPrimary: true
@@ -62,22 +63,25 @@ export function KPIRow({ data, loading }: KPIRowProps) {
     {
       id: "leads",
       label: "Active Pipeline",
+      tooltip: "Leads currently in active outreach sequences",
       value: data.activeLeads,
       renderDelta: () => <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest">Live State</span>
     },
     {
       id: "drafts",
       label: "Drafts Queued",
+      tooltip: "Total AI-generated drafts in review pipeline across campaigns",
       value: data.draftsReady,
       renderDelta: () => (
         data.draftsPendingSend > 0
-          ? <span className="text-amber-500/80 font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-amber-500/20 px-1.5 bg-amber-500/5">{data.draftsPendingSend} Pending</span>
+          ? <span className="text-amber-500/80 font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-amber-500/20 px-1.5 bg-amber-500/5">{data.draftsPendingSend} Dispatch Ready</span>
           : <span className="text-emerald-500/80 font-mono text-[9px] uppercase tracking-widest">Optimized</span>
       )
     },
     {
       id: "open_rate",
       label: "Signal Capture",
+      tooltip: "Engagement and reply rate performance across outreach",
       value: `${data.openRatePct}%`,
       renderDelta: () => <DeltaBadge value={data.openRateDelta} unit="%" />
     }
@@ -101,7 +105,7 @@ export function KPIRow({ data, loading }: KPIRowProps) {
           )}
           
           <div className="flex items-start justify-between">
-            <h3 className="text-[9px] text-zinc-500 uppercase tracking-[0.25em] font-medium">
+            <h3 title={kpi.tooltip} className="text-[9px] text-zinc-500 uppercase tracking-[0.25em] font-medium cursor-help hover:text-zinc-300 transition-colors">
               {kpi.label}
             </h3>
             <span className="text-[7px] text-zinc-700 font-mono tracking-widest">0{idx + 1}</span>

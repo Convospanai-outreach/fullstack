@@ -180,9 +180,14 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
             include: { memberships: true }
         });
 
+        const companyName = (approvedInvite.company || "My Team").trim();
+        const teamName = companyName.toLowerCase().endsWith("workspace")
+            ? companyName
+            : `${companyName} Workspace`;
+
         await tx.team.create({
             data: {
-                name: `${approvedInvite.company} Workspace`,
+                name: teamName,
                 members: {
                     create: {
                         userId: user.id,
