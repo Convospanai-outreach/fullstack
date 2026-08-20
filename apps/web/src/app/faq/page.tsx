@@ -78,7 +78,7 @@ export default function FAQPage() {
                                 className="p-6 sm:p-7 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3 hover:border-slate-700 transition-colors"
                             >
                                 <h2 className="text-lg font-bold text-white flex items-start gap-3">
-                                    <span className="text-blue-400 font-mono text-sm shrink-0 mt-0.5">0{idx + 1}.</span>
+                                    <span className="text-blue-400 font-mono text-sm shrink-0 mt-0.5">{String(idx + 1).padStart(2, "0")}.</span>
                                     <span>{section.title}</span>
                                 </h2>
                                 <div className="pl-7 text-sm text-slate-300 leading-relaxed prose prose-invert prose-p:my-1.5 prose-strong:text-white prose-ul:my-2">
