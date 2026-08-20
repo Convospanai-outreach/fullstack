@@ -7,6 +7,7 @@ const { mockPrisma, mockTx } = vi.hoisted(() => {
         creditTransaction: { create: vi.fn() },
         invoice: { create: vi.fn() },
         outboxEvent: { create: vi.fn() },
+        order: { updateMany: vi.fn(), findUnique: vi.fn() },
         $queryRaw: vi.fn(),
     };
     const mockPrisma = {
@@ -414,5 +415,52 @@ describe("/webhooks/razorpay", () => {
         }) as any);
 
         expect(response.status).toBe(500);
+    });
+
+    describe("Route checkout orders (notes.checkoutOrderId)", () => {
+        it("captures the order and publishes ORDER_CAPTURED, bypassing the credit-grant flow entirely", async () => {
+            mockTx.order.updateMany.mockResolvedValue({ count: 1 });
+            mockTx.order.findUnique.mockResolvedValue({
+                id: "order-1", teamId: "team-1", productId: "prod-1", customerEmail: "buyer@example.com", amount: 5000,
+            });
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: {
+                    payment: {
+                        entity: { id: "pay_route_1", order_id: "rzp_order_1", amount: 5000, notes: { checkoutOrderId: "order-1" } },
+                    },
+                },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockTx.order.updateMany).toHaveBeenCalledWith({
+                where: { id: "order-1", status: "PENDING" },
+                data: { status: "CAPTURED", gatewayPaymentId: "pay_route_1" },
+            });
+            expect(mockTx.outboxEvent.create).toHaveBeenCalledWith(expect.objectContaining({
+                data: expect.objectContaining({ eventType: "ORDER_CAPTURED", teamId: "team-1", idempotencyKey: "razorpay_order_order-1" }),
+            }));
+            expect(mockPrisma.creditTransaction.findFirst).not.toHaveBeenCalled();
+        });
+
+        it("does not re-publish when the order is no longer PENDING (retry no-op)", async () => {
+            mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+
+            const { POST } = await import("./route");
+            const response = await POST(signedRequest({
+                event: "payment.captured",
+                payload: {
+                    payment: {
+                        entity: { id: "pay_route_2", order_id: "rzp_order_2", amount: 5000, notes: { checkoutOrderId: "order-2" } },
+                    },
+                },
+            }) as any);
+
+            expect(response.status).toBe(200);
+            expect(mockTx.order.findUnique).not.toHaveBeenCalled();
+            expect(mockTx.outboxEvent.create).not.toHaveBeenCalled();
+        });
     });
 });

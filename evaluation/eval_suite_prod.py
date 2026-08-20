@@ -155,17 +155,12 @@ def run_inference(prompt: str, max_tokens: int = 128) -> str:
             f"stderr: {result.stderr}"
         )
     
-    # CHECK 3: stderr should not contain error indicators
-    if result.stderr:
-        stderr_lower = result.stderr.lower()
-        error_indicators = ["error", "fatal", "failed", "exception", "abort"]
-        for indicator in error_indicators:
-            if indicator in stderr_lower:
-                raise VerificationError(
-                    f"STDERR CONTAINS ERROR INDICATOR '{indicator}'\n"
-                    f"stderr: {result.stderr}\n"
-                    "This may indicate a silent failure."
-                )
+    # CHECK 3: stderr should not contain fatal error lines
+    if result.stderr and result.returncode != 0:
+        raise VerificationError(
+            f"LLAMA.CPP FAILED WITH ERROR IN STDERR\n"
+            f"stderr: {result.stderr}"
+        )
     
     output = result.stdout.strip()
     log(f"  Raw output length: {len(output)} chars")

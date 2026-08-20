@@ -73,6 +73,11 @@ export default function LandingAgentEditorPage() {
                     const slug = result?.page?.slug || campaign.pages[0]?.slug;
                     setStatus("Published successfully.");
                     if (slug) {
+                        await fetch("/api/landing-agent/revalidate", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ slug }),
+                        }).catch(() => {});
                         router.push(`/p/${slug}`);
                     }
                 }}

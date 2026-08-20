@@ -111,6 +111,44 @@ export default function ROIDashboardPage() {
         URL.revokeObjectURL(url);
     };
 
+    // Dynamically calculate month-over-month trends from history if available
+    const computeTrend = (key: "revenue" | "spend") => {
+        const history = Array.isArray(data?.history) ? data.history : [];
+        if (history.length < 2) return undefined;
+        const current = history[history.length - 1]?.[key] || 0;
+        const previous = history[history.length - 2]?.[key] || 0;
+        if (previous === 0 && current === 0) return undefined;
+        if (previous === 0) return { value: 100, isUp: true };
+        const delta = ((current - previous) / previous) * 100;
+        if (delta === 0) return undefined;
+        return {
+            value: Number(Math.abs(delta).toFixed(1)),
+            isUp: delta > 0
+        };
+    };
+
+    const computeRoiTrend = () => {
+        const history = Array.isArray(data?.history) ? data.history : [];
+        if (history.length < 2) return undefined;
+        const currRev = history[history.length - 1]?.revenue || 0;
+        const currSpend = history[history.length - 1]?.spend || 0;
+        const prevRev = history[history.length - 2]?.revenue || 0;
+        const prevSpend = history[history.length - 2]?.spend || 0;
+        const currRoi = currSpend > 0 ? ((currRev - currSpend) / currSpend) * 100 : 0;
+        const prevRoi = prevSpend > 0 ? ((prevRev - prevSpend) / prevSpend) * 100 : 0;
+        if (currRoi === 0 && prevRoi === 0) return undefined;
+        const delta = currRoi - prevRoi;
+        if (delta === 0) return undefined;
+        return {
+            value: Number(Math.abs(delta).toFixed(1)),
+            isUp: delta > 0
+        };
+    };
+
+    const revenueTrend = computeTrend("revenue");
+    const spendTrend = computeTrend("spend");
+    const roiTrend = computeRoiTrend();
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-end mb-8">
@@ -155,21 +193,21 @@ export default function ROIDashboardPage() {
                             value={formatCurrency(data?.financials?.revenue || 0)}
                             icon={DollarSign}
                             description="Attributed to AI Campaigns"
-                            trend={{ value: 12.5, isUp: true }}
+                            trend={revenueTrend}
                         />
                         <StatCard
                             label="Marketing Spend"
                             value={formatCurrency(data?.financials?.spend || 0)}
                             icon={PieChart}
                             description="Compute + Platform Costs"
-                            trend={{ value: 2.1, isUp: false }}
+                            trend={spendTrend}
                         />
                         <StatCard
                             label="Return on Ad Spend"
                             value={`${(data?.financials?.roi || 0).toFixed(1)}%`}
                             icon={TrendingUp}
                             description="Efficiency Ratio"
-                            trend={{ value: 5.4, isUp: true }}
+                            trend={roiTrend}
                         />
                         <StatCard
                             label="Conversion Rate"

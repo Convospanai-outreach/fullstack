@@ -5,6 +5,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { UsageStats } from '@/components/dashboard/settings/UsageStats';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import {
     Wallet,
     Users,
@@ -12,7 +13,8 @@ import {
     Settings2,
     ShieldAlert,
     User as UserIcon,
-    Save
+    Save,
+    CreditCard
 } from 'lucide-react';
 
 interface Member {
@@ -122,10 +124,19 @@ export default function BudgetingPage() {
 
     return (
         <div className="space-y-8 max-w-6xl">
-            <SectionHeader
-                title="Budgeting & Credit Quotas"
-                subtitle="Manage financial guardrails and allocate credits across your organization."
-            />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <SectionHeader
+                    title="Budgeting & Credit Quotas"
+                    subtitle="Manage financial guardrails and allocate credits across your organization."
+                />
+                <Link
+                    href="/credits"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/20 transition-all"
+                >
+                    <CreditCard className="w-4 h-4" />
+                    Buy Credits / Top Up
+                </Link>
+            </div>
 
             {/* Global Usage Overview */}
             <UsageStats />

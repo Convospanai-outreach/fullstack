@@ -1,3 +1,8 @@
+# Full local-dev / all-features install (README's `pip install -r requirements.txt`).
+# Two other manually-maintained subsets exist for different deploy targets —
+# check both when adding/removing a dependency here:
+#   requirements.runtime.txt — lean default used by Dockerfile (no NLP/embedding stack)
+#   requirements.pi.txt      — Raspberry Pi 5 arm64 build (drops torch/sentence-transformers/onnxruntime)
 fastapi
 uvicorn
 pydantic

@@ -10,19 +10,30 @@ import { Download, Star, Bot, Zap, BookOpen } from 'lucide-react';
 export default function MarketplacePage() {
     const [templates, setTemplates] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState(false);
     const router = useRouter();
 
-    useEffect(() => {
+    const fetchTemplates = () => {
+        setLoading(true);
+        setLoadError(false);
         fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/marketplace")
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to load marketplace");
+                return res.json();
+            })
             .then(data => {
-                setTemplates(data);
+                setTemplates(Array.isArray(data) ? data : []);
                 setLoading(false);
             })
             .catch(err => {
                 console.error(err);
+                setLoadError(true);
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchTemplates();
     }, []);
 
     const handleInstall = async (templateId: string, type: string) => {
@@ -59,6 +70,22 @@ export default function MarketplacePage() {
     };
 
     if (loading) return <div className="p-8">Loading marketplace...</div>;
+    if (loadError) {
+        return (
+            <div className="p-8 space-y-8 max-w-7xl mx-auto">
+                <SectionHeader
+                    title="Agent Marketplace"
+                    subtitle="Discover pre-built agents, workflows, and growth playbooks"
+                />
+                <div className="py-20 text-center space-y-4">
+                    <p className="text-red-400">Couldn't load the marketplace.</p>
+                    <button onClick={fetchTemplates} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors">
+                        Retry
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 space-y-8 max-w-7xl mx-auto">
@@ -118,8 +145,8 @@ export default function MarketplacePage() {
                             <Bot className="w-12 h-12 text-gray-600" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-medium text-white">No items found</h3>
-                            <p className="text-gray-500">The marketplace is currently empty. Run the seed script to populate.</p>
+                            <h3 className="text-lg font-medium text-white">No items available yet</h3>
+                            <p className="text-gray-500">Check back soon — pre-built agents, workflows, and playbooks will appear here.</p>
                         </div>
                     </div>
                 )}

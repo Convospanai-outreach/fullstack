@@ -5,6 +5,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface Notification {
     id: string;
@@ -32,12 +33,18 @@ export default function NotificationsPage() {
     }, []);
 
     const markRead = async (id: string) => {
-        await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/notifications", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "markRead", id })
-        });
-        setNotifications(prev => prev.filter(n => n.id !== id));
+        try {
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/notifications", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "markRead", id })
+            });
+            if (!res.ok) throw new Error("Failed to dismiss notification");
+            setNotifications(prev => prev.filter(n => n.id !== id));
+        } catch (err) {
+            console.error(err);
+            toast.error("Couldn't dismiss notification — try again");
+        }
     };
 
     return (
