@@ -168,6 +168,17 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       "/scheduler",
       "/integrations/google/oauth/callback",
       "/integrations/google/pubsub",
+      // Funnel visitors have no CraftMyFunnel session; the seller is resolved
+      // from the (public, active-only) Product, not from the caller - see
+      // checkout/api/session.ts. The Stripe Connect OAuth callback is a plain
+      // redirect from stripe.com carrying no session either; its state token
+      // (see gateways/oauthState.ts) is the actual security boundary, same
+      // pattern as the Google OAuth callback above.
+      "/checkout/session",
+      "/checkout/accounts/stripe/callback",
+      // Product display info (name/price) for the public checkout page -
+      // active-only lookup, no team data leaked, see publicProduct.ts.
+      "/checkout/public-products",
     ];
     const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
     const isV1Route = registeredPath.startsWith('/v1');

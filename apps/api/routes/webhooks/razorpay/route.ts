@@ -103,6 +103,41 @@ export async function POST(req: Request) {
             const payment = payload.payment.entity;
             const notes = payment.notes;
 
+            // Route (funnel checkout) orders are a separate flow from the platform's
+            // own credit-grant/subscription billing below - they never create a
+            // CreditTransaction or Invoice, so they need their own idempotency check
+            // (an atomic PENDING -> CAPTURED transition) rather than reusing that
+            // table's existence check, and must not fall through into the generic
+            // credit-topup fallback further down.
+            if (notes.checkoutOrderId) {
+                await prisma.$transaction(async (tx) => {
+                    const claim = await tx.order.updateMany({
+                        where: { id: notes.checkoutOrderId, status: "PENDING" },
+                        data: { status: "CAPTURED", gatewayPaymentId: payment.id },
+                    });
+                    if (claim.count === 1) {
+                        const order = await tx.order.findUnique({ where: { id: notes.checkoutOrderId } });
+                        if (order) {
+                            await OutboxService.publishEvent({
+                                teamId: order.teamId,
+                                eventType: "ORDER_CAPTURED",
+                                aggregateType: "Order",
+                                aggregateId: order.id,
+                                payload: {
+                                    orderId: order.id,
+                                    productId: order.productId,
+                                    customerId: order.customerEmail,
+                                    amount: order.amount,
+                                    gateway: "RAZORPAY",
+                                },
+                                idempotencyKey: `razorpay_order_${order.id}`,
+                            }, tx);
+                        }
+                    }
+                });
+                return NextResponse.json({ status: "ok" });
+            }
+
             if (notes.teamId) {
                 // Cheap early-exit for a known retry. Not the correctness guarantee
                 // by itself (two concurrent deliveries can both pass this read before

@@ -15,7 +15,7 @@ export default function GovernancePage() {
                     label="Trust Score"
                     value="Pending"
                     icon={ShieldCheck}
-                    description="System evaluation in progress"
+                    description="Calculates domain reputation & security posture after 25+ events"
                 />
                 <StatCard
                     label="Active Policies"
