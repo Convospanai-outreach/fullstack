@@ -12,6 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
+function formatTeamName(name?: string | null): string {
+    if (!name) return "Select Team";
+    return name.replace(/\bWorkspace\s+Workspace\b/gi, "Workspace").trim();
+}
+
 export function WorkspaceSwitcher() {
     const [teams, setTeams] = useState<any[]>([]);
     const [activeTeam, setActiveTeam] = useState<any>(null);
@@ -78,7 +83,7 @@ export function WorkspaceSwitcher() {
                             {activeTeam?.name?.charAt(0) || "T"}
                         </div>
                         <div className="text-left">
-                            <p className="text-sm font-medium text-white line-clamp-1">{activeTeam?.name || "Select Team"}</p>
+                            <p className="text-sm font-medium text-white line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
                             <p className="text-xs text-gray-400">Free Plan</p>
                         </div>
                     </div>
@@ -95,7 +100,7 @@ export function WorkspaceSwitcher() {
                     >
                         <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-gray-400" />
-                            <span>{team.name}</span>
+                            <span>{formatTeamName(team.name)}</span>
                         </div>
                         {activeTeam?.id === team.id && <Check className="w-4 h-4 text-blue-500" />}
                     </DropdownMenuItem>

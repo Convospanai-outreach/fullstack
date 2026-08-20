@@ -4,45 +4,51 @@ type Props = {
 
 export default function ScrapeResult({ result }: Props) {
     return (
-        <div style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
-            <h3 style={{ margin: 0, marginBottom: 16 }}>Scrape Result</h3>
+        <section aria-labelledby="scrape-result-heading" className="bg-card text-card-foreground p-6 rounded-lg border border-border shadow-sm">
+            <h2 id="scrape-result-heading" className="text-xl font-bold mb-4 text-foreground">Scrape Result</h2>
 
-            <div style={{ marginBottom: 16 }}>
-                <span style={{ fontWeight: 600, marginRight: 8 }}>Status:</span>
-                <span style={{ color: result.success ? "#10b981" : "#ef4444" }}>
+            <div className="mb-3 flex items-center gap-2">
+                <span className="font-semibold text-foreground">Status:</span>
+                <span className={`font-medium ${result.success ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
                     {result.success ? "Success" : "Failed"}
                 </span>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-                <span style={{ fontWeight: 600, marginRight: 8 }}>URL:</span>
-                <a href={result.metadata.url} target="_blank" rel="noopener noreferrer" style={{ color: "#0ea5e9" }}>
-                    {result.metadata.url}
+            <div className="mb-3 flex items-center gap-2">
+                <span className="font-semibold text-foreground">URL:</span>
+                <a
+                    href={result.metadata?.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sky-700 dark:text-sky-400 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-sky-600 rounded"
+                >
+                    {result.metadata?.url}
                 </a>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-                <span style={{ fontWeight: 600, marginRight: 8 }}>Duration:</span>
-                {result.metadata.duration}ms
+            <div className="mb-4 flex items-center gap-2">
+                <span className="font-semibold text-foreground">Duration:</span>
+                <span className="text-foreground">{result.metadata?.duration}ms</span>
             </div>
 
             {result.screenshot && (
-                <div style={{ marginBottom: 16 }}>
-                    <h4 style={{ marginBottom: 8 }}>Screenshot</h4>
+                <div className="mb-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-2">Screenshot</h3>
                     <img
                         src={`data:image/png;base64,${result.screenshot}`}
-                        alt="Scraped Screenshot"
-                        style={{ maxWidth: "100%", border: "1px solid #e5e7eb", borderRadius: 6 }}
+                        alt="Screenshot of scraped web page"
+                        className="max-w-full rounded-md border border-border"
                     />
                 </div>
             )}
 
             <div>
-                <h4 style={{ marginBottom: 8 }}>Data</h4>
-                <pre style={{ background: "#f3f4f6", padding: 16, borderRadius: 6, overflowX: "auto", fontSize: 12 }}>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Data</h3>
+                <pre className="bg-muted p-4 rounded-md overflow-x-auto text-xs text-foreground font-mono">
                     {JSON.stringify(result.data, null, 2)}
                 </pre>
             </div>
-        </div>
+        </section>
     );
 }
+

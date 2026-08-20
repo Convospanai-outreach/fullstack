@@ -401,6 +401,7 @@ model Agent {
 
 model ICP {
   id          String   @id @default(uuid())
+  teamId      String
   name        String
   description String?
   criteria    Json
@@ -408,7 +409,70 @@ model ICP {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
   @@index([status])
+}
+
+// A tenant's connected Stripe (Connect, Standard/OAuth) or Razorpay (Route,
+// linked account) account. Funnel checkout money settles into this account,
+// not a CraftMyFunnel platform account - see OPEN-52.
+model PaymentAccount {
+  id                String   @id @default(cuid())
+  teamId            String
+  gateway           String // "STRIPE" | "RAZORPAY"
+  status            String   @default("PENDING") // PENDING | ACTIVE | DISABLED
+  externalAccountId String? // Stripe connected account id ("acct_...") / Razorpay linked account id ("acc_...")
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, gateway])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  teamId      String
+  name        String
+  description String?
+  priceAmount Int // smallest currency unit (e.g. cents / paise)
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team   Team    @relation(fields: [teamId], references: [id])
+  orders Order[]
+
+  @@index([teamId])
+}
+
+model Order {
+  id               String   @id @default(cuid())
+  teamId           String
+  productId        String
+  gateway          String // "STRIPE" | "RAZORPAY"
+  gatewayAccountId String? // the PaymentAccount.externalAccountId funds were routed to
+  gatewaySessionId String? // Stripe Checkout Session id / Razorpay order id
+  gatewayPaymentId String? // Stripe PaymentIntent id / Razorpay payment id
+  customerEmail    String?
+  customerName     String?
+  amount           Int
+  currency         String
+  status           String   @default("PENDING") // PENDING | CAPTURED | FAILED | REFUNDED
+  landingPageSlug  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  team    Team    @relation(fields: [teamId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([gateway, gatewayPaymentId])
+  @@index([teamId])
+  @@index([productId])
 }
 
 model Job {
@@ -527,7 +591,7 @@ model ConnectedMailbox {
   assignedUserId        String?
   provider              String    @default("GOOGLE_WORKSPACE")
   authType              String    @default("OAUTH")
-  email                 String    @unique
+  email                 String
   displayName           String?
   status                String    @default("CONNECTED")
   scopes                String[]  @default([])
@@ -952,6 +1016,10 @@ model Team {
   ssoConfiguration           SsoConfiguration?
   userQuotas                 UserQuota[]
   crmIntegrations            CrmIntegration[]
+  icps                       ICP[]
+  paymentAccounts            PaymentAccount[]
+  products                   Product[]
+  orders                     Order[]
   approvalRequests           ApprovalRequest[]
   caseStudies                CaseStudy[]
   agentTasks                 AgentTask[]
@@ -973,6 +1041,8 @@ model Team {
   domainAuthenticationChecks DomainAuthenticationCheck[]
   userInvitations            UserInvitation[]
   edgeNode                   EdgeNode?
+  outboxEvents               OutboxEvent[]
+  blindIndexes               BlindIndex[]
 }
 
 model CrmIntegration {
@@ -1866,7 +1936,7 @@ model PatentGuardrail {
   claimText String                       @db.Text // Patent claim text to check against
   patentId  String
   riskLevel String                       @default("HIGH")
-  vector    String? // For similarity search
+  vector    Unsupported("vector(1536)")? // For similarity search
 
   @@map("patent_guardrails")
 }
@@ -1887,7 +1957,7 @@ model LLMCache {
   prompt     String                       @db.Text
   promptHash String                       @unique // Optimized lookup
   response   String                       @db.Text
-  embedding  String? // Using vector type for semantic search
+  embedding  Unsupported("vector(1536)")? // Using vector type for semantic search
   tokensIn   Int                          @default(0)
   tokensOut  Int                          @default(0)
   createdAt  DateTime                     @default(now())
@@ -2400,4 +2470,40 @@ model EngagementLog {
 
   @@index([email])
   @@index([event])
+}
+
+model OutboxEvent {
+  id             String    @id @default(uuid())
+  teamId         String
+  eventType      String
+  aggregateType  String
+  aggregateId    String
+  payload        Json
+  idempotencyKey String    @unique
+  status         String    @default("PENDING") // "PENDING", "PROCESSING", "RELAYED", "FAILED"
+  version        Int       @default(1)
+  error          String?
+  createdAt      DateTime  @default(now())
+  processedAt    DateTime?
+
+  team           Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([teamId, eventType])
+  @@index([aggregateType, aggregateId])
+}
+
+model BlindIndex {
+  id         String   @id @default(uuid())
+  teamId     String
+  entityType String
+  entityId   String
+  fieldName  String
+  indexHash  String
+  createdAt  DateTime @default(now())
+
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, entityType, entityId, fieldName])
+  @@index([teamId, entityType, fieldName, indexHash])
 }

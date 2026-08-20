@@ -10,8 +10,8 @@ interface StatCardProps {
     trend?: {
         value: number;
         isUp: boolean;
-    };
-    description?: string;
+    } | undefined;
+    description?: string | undefined;
 }
 
 export function StatCard({ label, value, icon: Icon, trend, description }: StatCardProps) {

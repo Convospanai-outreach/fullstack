@@ -17,14 +17,16 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
     };
 
     return (
-        <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 24, borderRadius: 10, marginBottom: 24 }}>
-            <div style={{ marginBottom: 16 }}>
-                <label htmlFor="scrape-target" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>Target</label>
+        <form onSubmit={handleSubmit} className="bg-card text-card-foreground p-6 rounded-lg border border-border shadow-sm mb-6">
+            <div className="mb-4">
+                <label htmlFor="scrape-target" className="block mb-2 text-sm font-semibold text-foreground">
+                    Target
+                </label>
                 <select
                     id="scrape-target"
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm"
                 >
                     <option value="linkedin">LinkedIn Profile</option>
                     <option value="twitter">Twitter Profile</option>
@@ -32,14 +34,17 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
                 </select>
             </div>
 
-            <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>URL</label>
+            <div className="mb-6">
+                <label htmlFor="scrape-url" className="block mb-2 text-sm font-semibold text-foreground">
+                    URL
+                </label>
                 <input
+                    id="scrape-url"
                     type="url"
                     value={url}
                     onChange={(e) => setUrl(e.target.value)}
                     required
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    className="w-full px-3 py-2 text-sm bg-background text-foreground border border-gray-400 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary shadow-sm placeholder:text-muted-foreground"
                     placeholder="https://linkedin.com/in/example"
                 />
             </div>
@@ -47,17 +52,11 @@ export default function ScrapeForm({ onSubmit, loading }: Props) {
             <button
                 type="submit"
                 disabled={loading}
-                style={{
-                    padding: "10px 20px",
-                    background: loading ? "#9ca3af" : "#0ea5e9",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    cursor: loading ? "not-allowed" : "pointer",
-                }}
+                className="px-5 py-2.5 text-sm font-semibold text-white bg-sky-700 hover:bg-sky-800 disabled:bg-gray-500 disabled:cursor-not-allowed rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-700"
             >
                 {loading ? "Scraping..." : "Scrape"}
             </button>
         </form>
     );
 }
+

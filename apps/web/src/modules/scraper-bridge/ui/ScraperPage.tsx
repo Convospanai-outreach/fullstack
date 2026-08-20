@@ -26,10 +26,14 @@ export default function ScraperPage() {
     };
 
     return (
-        <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
-            <h1>Web Scraper</h1>
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+            <div>
+                <h1 className="text-3xl font-bold text-foreground">Web Scraper</h1>
+                <p className="mt-1 text-sm text-muted-foreground">Extract structured data from web profiles and URLs.</p>
+            </div>
             <ScrapeForm onSubmit={handleScrape} loading={loading} />
             {result && <ScrapeResult result={result} />}
         </div>
     );
 }
+

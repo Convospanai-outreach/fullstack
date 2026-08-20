@@ -2,21 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { TaskEnvelopeSchema, LegacyJobSchema } from "@/contracts/taskEnvelope";
+import { getCurrentContext } from "@/lib/auth";
 
-// GET /api/jobs - List all jobs
+// GET /api/jobs - List all jobs for current tenant
 export async function GET(req: NextRequest) {
     try {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const type = searchParams.get("type") || undefined;
         const status = searchParams.get("status") || undefined;
-        const limit = parseInt(searchParams.get("limit") || "50");
+        const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
         const offset = parseInt(searchParams.get("offset") || "0");
 
-        // const result = await JobQueue.dequeue(); 
-        // Actually, JobQueue doesn't have a generic list method yet. Let's use Prisma directly in the route if needed or add it.
-        // For now, let's keep it simple and use Prisma since it's just a GET route.
         const jobs = await prisma.job.findMany({
             where: {
+                teamId: ctx.teamId,
                 ...(type && { type }),
                 ...(status && { status })
             },
@@ -24,9 +28,8 @@ export async function GET(req: NextRequest) {
             skip: offset,
             orderBy: { createdAt: "desc" }
         });
-        const result = jobs;
 
-        return NextResponse.json(result);
+        return NextResponse.json(jobs);
     } catch (error) {
         console.error("Error fetching jobs:", error);
         return NextResponse.json(
@@ -39,6 +42,11 @@ export async function GET(req: NextRequest) {
 // POST /api/jobs - Create new job
 export async function POST(req: NextRequest) {
     try {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await req.json();
         const unsafeTypes = new Set([
             "email_sending",
@@ -54,7 +62,7 @@ export async function POST(req: NextRequest) {
             const envelope = TaskEnvelopeSchema.parse(body);
             job = await JobQueue.enqueue(envelope.task_type as any, envelope.payload, {
                 priority: body.priority ?? 0,
-                teamId: envelope.tenant_id,
+                teamId: ctx.teamId,
                 idempotencyKey: envelope.idempotency_key,
                 requireIdempotency: unsafeTypes.has(envelope.task_type),
                 version: envelope.version,
@@ -70,7 +78,7 @@ export async function POST(req: NextRequest) {
             const legacy = LegacyJobSchema.parse(body);
             job = await JobQueue.enqueue(legacy.type as any, legacy.payload, {
                 priority: legacy.priority ?? 0,
-                teamId: legacy.teamId ?? null,
+                teamId: ctx.teamId,
                 idempotencyKey: legacy.idempotencyKey,
                 requireIdempotency: unsafeTypes.has(legacy.type)
             });

@@ -57,6 +57,49 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html lang="en" className="dark" data-scroll-behavior="smooth">
         <head>
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@graph": [
+                  {
+                    "@type": "Organization",
+                    "@id": "https://craftmyfunnel.live/#organization",
+                    "name": "CraftMyFunnel",
+                    "url": "https://craftmyfunnel.live",
+                    "logo": "https://craftmyfunnel.live/craftmyfunnel-logo.png",
+                    "description": "Governed AI outreach and qualified meeting workflow platform for B2B service teams and revenue operations.",
+                    "sameAs": [
+                      "https://github.com/Convospanai-outreach/fullstack",
+                      "https://twitter.com/craftmyfunnel"
+                    ]
+                  },
+                  {
+                    "@type": "SoftwareApplication",
+                    "@id": "https://craftmyfunnel.live/#software",
+                    "name": "CraftMyFunnel",
+                    "applicationCategory": "BusinessApplication",
+                    "operatingSystem": "Web Browser, Cloud",
+                    "offers": {
+                      "@type": "Offer",
+                      "price": "0",
+                      "priceCurrency": "USD"
+                    },
+                    "description": "Governed B2B outreach platform combining intent signal ingestion, AI draft generation with human review, deliverability guardrails, and meeting tracking.",
+                    "featureList": [
+                      "Human-in-the-loop email draft approval queue",
+                      "Google Workspace & Gmail deliverability guardrails",
+                      "Deterministic blind indexing and transactional outbox",
+                      "RFC 5322 Message-ID threading & RFC 8058 unsubscribe support",
+                      "Multi-tenant workspace isolation and role-based access control",
+                      "Vertical outbound playbooks and AI personalization"
+                    ]
+                  }
+                ]
+              })
+            }}
+          />
           {posthogKey && (
             <Script id="posthog-header" strategy="beforeInteractive">
               {`

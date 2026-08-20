@@ -11,16 +11,21 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch(`${API_BASE}/leads/${id}`)
+        setLoading(true);
+        setLead(null);
+        const ctrl = new AbortController();
+        fetch(`${API_BASE}/leads/${id}`, { signal: ctrl.signal })
             .then((res) => res.json())
             .then((data) => {
                 setLead(data);
                 setLoading(false);
             })
             .catch((err) => {
+                if (err?.name === "AbortError") return;
                 console.error(err);
                 setLoading(false);
             });
+        return () => ctrl.abort();
     }, [id]);
 
     if (loading) return <div className="p-8 text-white/60">Loading lead details...</div>;

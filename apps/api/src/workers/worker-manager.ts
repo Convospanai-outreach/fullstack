@@ -18,10 +18,12 @@ export class WorkerManager {
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
     private lastWarmupTick: number = 0;
+    private lastOutboxTick: number = 0;
     private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private warmupInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WARMUP_INTERVAL_MS'] || '3600000'); // 1 hour
+    private outboxInterval: number = parseInt(process.env['OUTBOX_RELAY_INTERVAL_MS'] || '2000'); // 2 seconds
 
     async start() {
         if (this.isRunning) return;
@@ -109,6 +111,15 @@ export class WorkerManager {
                 console.log(`[Worker] Advanced warmup for ${result.count} mailboxes.`);
             }
             this.lastWarmupTick = now;
+        }
+
+        if (now - this.lastOutboxTick >= this.outboxInterval) {
+            const { OutboxService } = await import("@/lib/outboxService");
+            const relayedCount = await OutboxService.relayPendingEvents(50);
+            if (relayedCount > 0) {
+                console.log(`[Worker] Relayed ${relayedCount} outbox event(s).`);
+            }
+            this.lastOutboxTick = now;
         }
     }
 

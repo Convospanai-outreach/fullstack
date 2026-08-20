@@ -5,6 +5,8 @@ import { JobClaimLostError, JobQueue } from "@/lib/queue";
 import { handleGmailHistorySync } from "../handlers/gmail-history-sync-worker";
 import { executeCampaign } from "../handlers/campaign-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
+import { WorkflowService } from "@/lib/workflowService";
+import { AuditService } from "@/modules/audit/auditService";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -30,6 +32,18 @@ vi.mock("../handlers/gmail-history-sync-worker", () => ({
 
 vi.mock("../handlers/campaign-worker", () => ({
     executeCampaign: vi.fn(),
+}));
+
+vi.mock("@/lib/workflowService", () => ({
+    WorkflowService: {
+        processNode: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/audit/auditService", () => ({
+    AuditService: {
+        log: vi.fn(),
+    },
 }));
 
 describe("job-processor", () => {
@@ -197,6 +211,69 @@ describe("job-processor", () => {
         expect(handleGmailHistorySync).toHaveBeenCalledTimes(1);
         expect(JobQueue.complete).toHaveBeenCalledWith(mockJob.id, 5, { synced: 1 });
         expect(JobQueue.fail).not.toHaveBeenCalled();
+    });
+
+    it("dispatches workflow_step jobs with runId/nodeId to WorkflowService.processNode", async () => {
+        const mockJob = {
+            id: "job-wf-1",
+            status: "running",
+            version: 1,
+            type: "workflow_step",
+            payload: { runId: "run-1", nodeId: "node-1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (WorkflowService.processNode as Mock).mockResolvedValueOnce({ nextNode: "node-2" });
+
+        const result = await worker.performJob({ jobId: "job-wf-1", version: 1 });
+
+        expect(WorkflowService.processNode).toHaveBeenCalledWith("run-1", "node-1");
+        expect(result).toEqual({ nextNode: "node-2" });
+    });
+
+    it("dispatches outbox-relayed workflow_step jobs (eventType, no runId/nodeId) to an audit log instead of throwing", async () => {
+        const mockJob = {
+            id: "job-wf-2",
+            status: "running",
+            version: 1,
+            type: "workflow_step",
+            payload: { teamId: "t1", eventType: "PAYMENT_CAPTURED", paymentId: "pay_1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+
+        const result = await worker.performJob({ jobId: "job-wf-2", version: 1 });
+
+        expect(AuditService.log).toHaveBeenCalledWith(
+            "t1",
+            null,
+            "PAYMENT_CAPTURED",
+            "OutboxEvent",
+            "pay_1",
+            mockJob.payload
+        );
+        expect(result).toEqual({ acknowledged: true, eventType: "PAYMENT_CAPTURED" });
+    });
+
+    it("dispatches order_captured jobs to an audit log", async () => {
+        const mockJob = {
+            id: "job-order-1",
+            status: "running",
+            version: 1,
+            type: "order_captured",
+            payload: { teamId: "t1", orderId: "order_1", productId: "prod_1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+
+        const result = await worker.performJob({ jobId: "job-order-1", version: 1 });
+
+        expect(AuditService.log).toHaveBeenCalledWith(
+            "t1",
+            null,
+            "ORDER_CAPTURED",
+            "Order",
+            "order_1",
+            mockJob.payload
+        );
+        expect(result).toEqual({ acknowledged: true });
     });
 
     it("propagates a completion claim-loss outcome without calling fail", async () => {
