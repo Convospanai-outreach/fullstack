@@ -33,7 +33,7 @@ export interface HiddenFeatureDefinition {
     built: boolean;
 }
 
-const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set(["command-center", "runtime", "sovereign", "edge"]);
+const UNBUILT_FEATURE_KEYS: ReadonlySet<HiddenFeatureKey> = new Set([]);
 
 type HiddenFeatureBase = Omit<HiddenFeatureDefinition, "built">;
 
