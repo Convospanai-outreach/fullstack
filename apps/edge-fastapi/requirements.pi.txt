@@ -1,3 +1,7 @@
+# Raspberry Pi 5 arm64 build (docker:edge:pi5). Drops torch/sentence-transformers/
+# onnxruntime (too heavy for Pi) and uses the small en_core_web_sm spacy model
+# instead of en_core_web_lg. See requirements.txt for the full dependency set
+# and the sibling-files note.
 fastapi
 uvicorn
 pydantic
