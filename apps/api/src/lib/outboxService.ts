@@ -93,7 +93,7 @@ export class OutboxService {
                     payload: {
                         teamId: event.teamId,
                         eventType: "PAYMENT_CAPTURED",
-                        paymentId: p.paymentId || event.aggregateId,
+                        paymentId: event.aggregateId,
                         credits: p.credits,
                         userId: p.userId,
                     },
