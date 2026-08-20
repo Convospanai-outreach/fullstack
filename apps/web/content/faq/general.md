@@ -1,31 +1,45 @@
 ---
 title: "Frequently Asked Questions"
-description: "Governed pipeline infrastructure. Clear answers for B2B operators running real outbound teams."
+description: "Truth stated flat. Built for operators who decide, not machines that guess."
 ---
 
-### What is CraftMyFunnel?
-Governed funnel infrastructure. We connect live buyer signals, approved AI outreach, human follow-up tasks, and sovereign processing into one closed loop. Built for operators running real B2B service teams, not demo environments.
+### Do I need to be technical?
+No. You need judgment.
 
-### Why not just use autonomous cold email tools?
-Autonomous tools blast unverified lists and hallucinate claims. Signals disappear. Domains burn. Deals die between messages. CraftMyFunnel enforces a strict approval gate: AI drafts the message from live account context, a manager clears it, and it dispatches only when verified. Zero rogue sends.
+The machine does the typing. You do the deciding.
+
+### Will automation make my outreach feel robotic?
+Robotic outreach fails because nobody approved it.
+
+Every message here waits for a human "yes" first. That is the whole point of governed.
+
+### Is this just another tool to learn?
+Tools ask you to learn them.
+
+CraftMyFunnel asks you what you want, then gets out of your way.
+
+### Why not let AI send everything automatically?
+Autonomous outreach burns sending domains and kills credibility.
+
+Signals disappear. Follow-ups stall. Deals die between unreviewed messages. When a manager approves the draft before dispatch, deal quality stays protected.
 
 ### How does the Human-in-the-Loop approval gate work?
-Every draft surfaces in an interactive review queue with the prospect's LinkedIn snapshot and signal context. Managers approve, edit inline, or reject in batch. When cleared, the Transactional Outbox dispatches with human-like jitter. Nothing leaves your mailbox unchecked.
+Every draft surfaces in a single review queue with the prospect's real-time LinkedIn context.
 
-### What are the four core platform layers?
-1. **Layer 01 — NetJana (Buyer Signals)**: Monitors hiring surges, expansions, and executive movement so your team works active-market accounts.
-2. **Layer 02 — CMF Core (AI Outreach)**: Synthesizes contextual drafts and routes every message through manager approval.
-3. **Layer 03 — Human Layer (Conversion Moat)**: Assigns caller tasks, follow-up suggestions, and stage-specific handoffs for high-value accounts.
-4. **Layer 04 — Sovereign EDGE**: Provides zero-data-retention processing and deterministic blind indexing for enterprise compliance.
+You approve, edit inline, or reject in seconds. Nothing leaves your mailbox unchecked.
 
-### How does CraftMyFunnel protect sending domain health?
-We enforce deliverability at the wire level: RFC 5322 Message-ID threading, RFC 8058 one-click unsubscribe headers, automated 5% bounce circuit breakers, and daily mailbox velocity caps. If an inbox hits friction, the platform pauses it automatically.
+### What are the four platform layers?
+1. **Layer 01 — NetJana (Buyer Signals)**: Finds active-market accounts before they post RFPs.
+2. **Layer 02 — CMF Core (AI Outreach)**: Drafts the message and waits for your sign-off.
+3. **Layer 03 — Human Layer (Conversion Moat)**: Guides caller tasks when digital touchpoints stall.
+4. **Layer 04 — Sovereign EDGE**: Protects your data with deterministic encryption and local isolation.
 
-### How does data security and blind indexing work?
-Every prospect record is isolated by workspace `teamId`. Sensitive PII is encrypted at rest using deterministic HMAC-SHA256 blind indexing. Your team searches exact matches without exposing plaintext data to third-party models or risking cross-tenant leakage.
+### How does CraftMyFunnel protect domain health?
+At the wire level.
 
-### What are Vertical Outbound Playbooks?
-Pre-calibrated sequence blueprints engineered for specific B2B service sectors: facility management, physical security, recruiting, corporate L&D, consulting, and managed IT. They embed proven stage cadences and messaging frameworks so operators launch in minutes.
+We enforce RFC 5322 Message-ID threading, RFC 8058 one-click unsubscribe headers, and automatic 5% bounce circuit breakers. If an inbox hits friction, we pause it before your domain burns.
 
 ### Who is CraftMyFunnel built for?
-B2B operators who run high-ACV service pipelines where deal trust matters. If you blast 50,000 generic emails a day to sell $20 widgets, this is not for you. If you manage high-value client relationships and need governed pipeline control, this is built for you.
+Operators running real B2B service teams.
+
+If you blast 50,000 spam emails a day to sell cheap software, look elsewhere. If you sell high-value contracts and care about your reputation, welcome.
