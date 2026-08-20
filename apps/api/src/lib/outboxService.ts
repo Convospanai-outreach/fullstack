@@ -99,6 +99,19 @@ export class OutboxService {
                     },
                 };
 
+            case "ORDER_CAPTURED":
+                return {
+                    type: "order_captured",
+                    payload: {
+                        teamId: event.teamId,
+                        orderId: p.orderId || event.aggregateId,
+                        productId: p.productId,
+                        customerId: p.customerId,
+                        amount: p.amount,
+                        gateway: p.gateway,
+                    },
+                };
+
             default:
                 return {
                     type: "event_processing",
