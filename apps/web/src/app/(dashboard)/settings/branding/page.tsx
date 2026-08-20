@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Palette, Globe, Upload } from 'lucide-react';
+import { Palette, Globe, Upload, ArrowRight } from 'lucide-react';
 
 // logoUrl is free text a team admin can set to anything, so before handing it
 // to <img src> rebuild it through URL parsing and only keep the result if the
@@ -193,19 +194,29 @@ export default function BrandingSettingsPage() {
                     </button>
                 </GlassCard>
 
-                <GlassCard className="p-6 space-y-6">
-                    <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Globe className="w-5 h-5 text-purple-600 dark:text-purple-400" aria-hidden="true" /> Custom Domain
-                    </h3>
-                    <p className="text-sm text-muted-foreground">Connect your own domain (e.g., portable.agency.com).</p>
+                <GlassCard className="p-6 space-y-6 flex flex-col justify-between">
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <Globe className="w-5 h-5 text-purple-600 dark:text-purple-400" aria-hidden="true" /> Custom Domain
+                        </h3>
+                        <p className="text-sm text-muted-foreground">Host your client portal and outreach tracking on your own branded domain (e.g., outreach.yourdomain.com).</p>
 
-                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-md text-amber-800 dark:text-amber-200 text-sm">
-                        This feature requires CNAME verification. Please contact support to enable custom domains for your account.
+                        <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-2 text-sm text-muted-foreground">
+                            <div className="font-semibold text-foreground">Enterprise & Dedicated Routing:</div>
+                            <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
+                                <li>Requires CNAME DNS verification with automatic SSL provisioning.</li>
+                                <li>Available for Enterprise plans and custom domain add-ons.</li>
+                            </ul>
+                        </div>
                     </div>
 
-                    <button disabled className="px-6 py-2 bg-muted text-muted-foreground border border-border rounded-md font-medium text-sm w-full cursor-not-allowed opacity-70">
-                        Manage Domains (Locked)
-                    </button>
+                    <Link
+                        href="/support"
+                        className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border rounded-xl font-medium text-sm w-full transition-colors"
+                    >
+                        Request Custom Domain Setup
+                        <ArrowRight className="w-4 h-4" />
+                    </Link>
                 </GlassCard>
             </div>
         </div>

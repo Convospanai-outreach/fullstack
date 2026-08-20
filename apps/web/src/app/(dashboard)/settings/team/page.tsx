@@ -158,7 +158,30 @@ export default function TeamSettingsPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {members.map((member) => (
+                        {members.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-12 text-center text-gray-400">
+                                    <div className="flex flex-col items-center justify-center space-y-3">
+                                        <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400">
+                                            <UserCheck className="w-6 h-6" />
+                                        </div>
+                                        <div className="font-medium text-white">No team members found</div>
+                                        <p className="text-xs text-gray-500 max-w-sm">
+                                            Add collaborators to manage campaigns, approval queues, and domain settings together.
+                                        </p>
+                                        {canManage && (
+                                            <button
+                                                onClick={() => setIsInviteModalOpen(true)}
+                                                className="mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                                            >
+                                                + Invite your first collaborator
+                                            </button>
+                                        )}
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            members.map((member) => (
                             <tr key={member.id} className="hover:bg-white/5 transition-colors group">
                                 <td className="px-6 py-5">
                                     <div className="flex items-center gap-4">
@@ -224,7 +247,7 @@ export default function TeamSettingsPage() {
                                     )}
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>

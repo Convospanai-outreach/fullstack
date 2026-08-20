@@ -19,12 +19,13 @@ const NAV_GROUPS = [
   {
     label: "Use Cases",
     items: [
-      { label: "Facility Management", href: "/#industries" },
-      { label: "Security Services", href: "/#industries" },
-      { label: "Staffing", href: "/#industries" },
-      { label: "L&D / Training", href: "/#industries" },
-      { label: "Consulting", href: "/#industries" },
-      { label: "Managed Services", href: "/#industries" },
+      { label: "All Use Cases", href: "/use-cases" },
+      { label: "Facility Management", href: "/use-cases/facility-management" },
+      { label: "Security Services", href: "/use-cases/security-services" },
+      { label: "Staffing & Recruiting", href: "/use-cases/staffing" },
+      { label: "L&D / Training", href: "/use-cases/training" },
+      { label: "Consulting & Advisory", href: "/use-cases/consulting" },
+      { label: "Managed IT Services", href: "/use-cases/managed-services" },
     ],
   },
   {

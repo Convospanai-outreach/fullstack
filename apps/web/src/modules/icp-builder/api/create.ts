@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { icpService } from "../service/icpService";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: Request) {
     try {
+        const { teamId } = await getCurrentContext();
+        if (!teamId) {
+            return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+        }
         const body = await req.json();
-        const icp = await icpService.create(body);
+        const icp = await icpService.create(teamId, body);
         return NextResponse.json({ ok: true, icp });
     } catch (err: any) {
         return NextResponse.json(

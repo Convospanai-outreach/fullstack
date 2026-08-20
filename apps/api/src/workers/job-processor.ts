@@ -11,6 +11,8 @@ import { handleSequenceExecution } from "./handlers/sequence-worker";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
+import { WorkflowService } from "@/lib/workflowService";
+import { AuditService } from "@/modules/audit/auditService";
 
 function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
@@ -81,6 +83,56 @@ async function runHandler(jobType: string, payload: JobPayload) {
 
         case "INBOX_SYNC":
             return handleGmailHistorySync(payload);
+
+        case "workflow_step": {
+            // Two producers share this job type: WorkflowService.enqueueNodeProcessing
+            // (runId/nodeId — a real workflow-builder run advancing one node) and
+            // OutboxService.mapEventToJob's PAYMENT_CAPTURED case (eventType-tagged,
+            // no runId/nodeId — a downstream signal with no consumer wired yet).
+            const runId = asString(payload.runId);
+            const nodeId = asString(payload.nodeId);
+            if (runId && nodeId) {
+                return WorkflowService.processNode(runId, nodeId);
+            }
+
+            const eventType = asString((payload as any).eventType);
+            if (eventType) {
+                const teamId = asString(payload.teamId);
+                if (teamId) {
+                    await AuditService.log(
+                        teamId,
+                        null,
+                        eventType,
+                        "OutboxEvent",
+                        asString((payload as any).paymentId) || null,
+                        payload
+                    );
+                }
+                return { acknowledged: true, eventType };
+            }
+
+            throw new Error("workflow_step payload is missing runId/nodeId and eventType");
+        }
+
+        case "order_captured": {
+            // No publisher yet — OutboxService.mapEventToJob wires ORDER_CAPTURED
+            // events here ahead of the checkout/order model that will emit them.
+            // Recorded as an audit trail until a real downstream action (sequence
+            // enrollment, course-access grant) is scoped.
+            const teamId = asString(payload.teamId);
+            if (!teamId) {
+                throw new Error("order_captured payload is missing teamId");
+            }
+            await AuditService.log(
+                teamId,
+                null,
+                "ORDER_CAPTURED",
+                "Order",
+                asString((payload as any).orderId) || null,
+                payload
+            );
+            return { acknowledged: true };
+        }
 
         default:
             throw new Error(`No worker handler registered for job type ${jobType}`);

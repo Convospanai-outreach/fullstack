@@ -4,7 +4,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/Progress";
-import { Zap, Database, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { Zap, Database, TrendingUp, PlusCircle } from "lucide-react";
 
 interface UsageData {
     credits: number;
@@ -53,9 +54,16 @@ export function UsageStats() {
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {/* Credits Card */}
-            <Card>
-                <CardHeader>
+            <Card className="flex flex-col justify-between">
+                <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
                     <CardTitle>Available Credits</CardTitle>
+                    <Link
+                        href="/credits"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        Top Up
+                    </Link>
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-between">

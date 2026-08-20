@@ -401,6 +401,7 @@ model Agent {
 
 model ICP {
   id          String   @id @default(uuid())
+  teamId      String
   name        String
   description String?
   criteria    Json
@@ -408,7 +409,70 @@ model ICP {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
   @@index([status])
+}
+
+// A tenant's connected Stripe (Connect, Standard/OAuth) or Razorpay (Route,
+// linked account) account. Funnel checkout money settles into this account,
+// not a CraftMyFunnel platform account - see OPEN-52.
+model PaymentAccount {
+  id                String   @id @default(cuid())
+  teamId            String
+  gateway           String // "STRIPE" | "RAZORPAY"
+  status            String   @default("PENDING") // PENDING | ACTIVE | DISABLED
+  externalAccountId String? // Stripe connected account id ("acct_...") / Razorpay linked account id ("acc_...")
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@unique([teamId, gateway])
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  teamId      String
+  name        String
+  description String?
+  priceAmount Int // smallest currency unit (e.g. cents / paise)
+  currency    String   @default("USD")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  team   Team    @relation(fields: [teamId], references: [id])
+  orders Order[]
+
+  @@index([teamId])
+}
+
+model Order {
+  id               String   @id @default(cuid())
+  teamId           String
+  productId        String
+  gateway          String // "STRIPE" | "RAZORPAY"
+  gatewayAccountId String? // the PaymentAccount.externalAccountId funds were routed to
+  gatewaySessionId String? // Stripe Checkout Session id / Razorpay order id
+  gatewayPaymentId String? // Stripe PaymentIntent id / Razorpay payment id
+  customerEmail    String?
+  customerName     String?
+  amount           Int
+  currency         String
+  status           String   @default("PENDING") // PENDING | CAPTURED | FAILED | REFUNDED
+  landingPageSlug  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  team    Team    @relation(fields: [teamId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([gateway, gatewayPaymentId])
+  @@index([teamId])
+  @@index([productId])
 }
 
 model Job {
@@ -952,6 +1016,10 @@ model Team {
   ssoConfiguration           SsoConfiguration?
   userQuotas                 UserQuota[]
   crmIntegrations            CrmIntegration[]
+  icps                       ICP[]
+  paymentAccounts            PaymentAccount[]
+  products                   Product[]
+  orders                     Order[]
   approvalRequests           ApprovalRequest[]
   caseStudies                CaseStudy[]
   agentTasks                 AgentTask[]

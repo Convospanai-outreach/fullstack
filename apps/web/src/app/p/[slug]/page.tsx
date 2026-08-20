@@ -1,10 +1,19 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import PublishedLandingRenderer from "@/components/landing-agent/PublishedLandingRenderer";
 
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+// Static per slug, refreshed on an hourly fallback in addition to the
+// on-demand revalidation triggered by the publish action (see
+// apps/web/src/app/api/landing-agent/revalidate/route.ts).
+export const revalidate = 3600;
+
+function getApiBaseUrl(): string {
+    return (
+        process.env["API_INTERNAL_ORIGIN"] ||
+        process.env["NEXT_PUBLIC_API_URL"] ||
+        "http://127.0.0.1:3001"
+    );
+}
 
 interface PublicPagePayload {
     id: string;
@@ -14,41 +23,43 @@ interface PublicPagePayload {
     renderedJson: unknown;
 }
 
-export default function PublicLandingPage() {
-    const params = useParams<{ slug: string }>();
-    const slug = typeof params?.slug === "string" ? params.slug : "";
-    const [pageData, setPageData] = useState<PublicPagePayload | null>(null);
-    const [error, setError] = useState<string | null>(null);
+async function fetchPublicPage(slug: string): Promise<PublicPagePayload | null> {
+    const res = await fetch(`${getApiBaseUrl()}/landing-agent/public/${slug}/page`, {
+        next: { revalidate },
+    });
 
-    useEffect(() => {
-        if (!slug) return;
-        setError(null);
-        setPageData(null);
-        fetch(`${API_BASE}/landing-agent/public/${slug}/page`)
-            .then(async (res) => {
-                if (!res.ok) {
-                    const payload = await res.json().catch(() => null);
-                    const upstreamError = typeof payload?.error === "string" ? payload.error : "";
-                    if (res.status === 404) {
-                        throw new Error("Page not found");
-                    }
-                    if (res.status >= 500 || /fetch failed|bad gateway|econnrefused/i.test(upstreamError)) {
-                        throw new Error("Failed to load page");
-                    }
-                    throw new Error(upstreamError || "Failed to load page");
-                }
-                return res.json();
-            })
-            .then((data) => setPageData(data))
-            .catch((err: any) => setError(err?.message || "Failed to load page"));
-    }, [slug]);
-
-    if (error) {
-        return <div className="p-10 text-rose-300">{error}</div>;
+    if (res.status === 404) {
+        return null;
     }
+    if (!res.ok) {
+        throw new Error("Failed to load page");
+    }
+    return res.json();
+}
+
+export async function generateMetadata({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+    const { slug } = await params;
+    const page = await fetchPublicPage(slug).catch(() => null);
+    if (!page) return {};
+    return {
+        title: page.title || undefined,
+    };
+}
+
+export default async function PublicLandingPage({
+    params,
+}: {
+    params: Promise<{ slug: string }>;
+}) {
+    const { slug } = await params;
+    const pageData = await fetchPublicPage(slug);
 
     if (!pageData) {
-        return <div className="p-10 text-slate-500">Loading landing page...</div>;
+        notFound();
     }
 
     return (

@@ -1,4 +1,17 @@
 name: Phi-3 Verification
+# NOTE: this workflow's display name is stale — its jobs (below) are
+# destructive-migration scanning and safety-invariant checks, unrelated to
+# any Phi-3 model. Left as-is rather than renamed: branch protection or
+# other tooling may reference this exact check name, and confirming that
+# is out of scope for a repo-hygiene pass (tech-debt-audit 2026-08-20 #10).
+#
+# Migration-safety gate — scan-destructive-migrations, verify-safety-invariants.
+# Three sibling workflows cover distinct concerns and deliberately are NOT
+# merged into this one: ci.yml (general build/typecheck/docker-smoke),
+# production-gate.yml (deploy-readiness checks), vercel-parity-build.yml
+# (Vercel-specific build parity). All four duplicate the same
+# detect-docs-only/docs-only-validation boilerplate — a real DRY gap,
+# flagged but not consolidated here (would need a reusable workflow).
 
 on:
   pull_request:
