@@ -2,6 +2,9 @@
   "name": "craftmyfunnel-platform",
   "private": true,
   "description": "CraftMyFunnel monorepo orchestration root",
+  "engines": {
+    "node": ">=22 <23"
+  },
   "workspaces": [
     "apps/web",
     "apps/api",

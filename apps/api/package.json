@@ -2,6 +2,9 @@
     "name": "craftmyfunnel-api-split",
     "private": true,
     "type": "module",
+    "engines": {
+        "node": ">=22 <23"
+    },
     "scripts": {
         "dev": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx --watch server.ts",
         "start": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp PORT=3001 -- tsx server.ts",
