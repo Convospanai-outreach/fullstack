@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 export default function FAQPage() {
-    let title = "Common Questions, Personal Answers";
+    let title = "Frequently Asked Questions";
     let sections: { title: string; body: string }[] = [];
 
     try {
@@ -24,22 +24,40 @@ export default function FAQPage() {
             .filter(Boolean)
             .map((section) => {
                 const lines = section.trim().split("\n");
-                const sectionTitle = lines[0].trim();
+                const sectionTitle = lines[0]?.trim() || "";
                 const sectionBody = lines.slice(1).join("\n").trim();
                 return { title: sectionTitle, body: sectionBody };
-            });
+            })
+            .filter((s) => s.title && s.body);
     } catch (error) {
         console.error("CMS failed to load FAQ content, falling back to empty state", error);
     }
 
+    const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": sections.map((s) => ({
+            "@type": "Question",
+            "name": s.title,
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": s.body
+            }
+        }))
+    };
+
     return (
         <div className="section pt-32 pb-20">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+            />
             <SectionTitle title={title} />
-            <div className="grid gap-6 max-w-2xl mx-auto mt-12">
+            <div className="grid gap-6 max-w-3xl mx-auto mt-12 px-4">
                 {sections.length > 0 ? (
                     sections.map((section, idx) => (
                         <GlassCard key={idx} title={section.title}>
-                            <div className="prose prose-invert text-gray-300">
+                            <div className="prose prose-invert text-gray-300 text-sm leading-relaxed">
                                 <ReactMarkdown>{section.body}</ReactMarkdown>
                             </div>
                         </GlassCard>

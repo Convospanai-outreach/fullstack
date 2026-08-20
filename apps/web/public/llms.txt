@@ -1,0 +1,43 @@
+# CraftMyFunnel
+
+> Governed AI-driven B2B outreach and qualified meeting workflow platform.
+
+CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage buyer signals, AI-personalized outreach with mandatory human-in-the-loop approvals, email deliverability guardrails, and qualified meeting tracking.
+
+## Core Capabilities
+
+- **Governed Multi-Channel Outreach**: Orchestrates personalized outreach via Gmail/Google Workspace with Phase-2 support for LinkedIn and WhatsApp.
+- **Human-in-the-Loop Approval Queue**: Every AI-generated draft requires explicit human review and approval before dispatching, preventing unvetted AI hallucinations or brand damage.
+- **Deliverability & Reputation Guardrails**: Automated mailbox warm-up tracking, bounce-rate circuit breakers, RFC 5322 Message-ID threading, and RFC 8058 one-click unsubscribe compliance.
+- **Buyer Signal & Intent Ingestion**: Scrapes and ingests signals from LinkedIn Sales Navigator, CSV lists, webhooks, and inbound landing agents.
+- **Transactional Outbox & Blind Indexing**: Enterprise-grade multi-tenant architecture with atomic outbox relay loops and deterministic HMAC-SHA256 blind indexing for encrypted PII search.
+- **Vertical Playbooks**: Pre-configured outbound sequence templates and prompts tailored for SaaS, IT services, consulting, marketing agencies, and recruiting.
+
+## Target Audience
+
+- B2B Lead Generation & Marketing Agencies
+- High-Growth SaaS Outbound Sales Teams
+- Professional Services & Consulting Firms
+- Revenue Operations & Demand Generation Leaders
+
+## Key Resources & Documentation
+
+- [Platform Documentation Hub](https://craftmyfunnel.live/docs): Full architectural guides and technical specifications.
+- [Governed Outreach Guide](https://craftmyfunnel.live/docs/governed-outreach): Human-in-the-loop review queue and AI draft validation mechanics.
+- [Deliverability & Compliance Engine](https://craftmyfunnel.live/docs/deliverability-guardrails): RFC 5322 Message-ID sync, RFC 8058 unsubscribe, and mailbox warmup.
+- [Security & Blind Indexing](https://craftmyfunnel.live/docs/security-architecture): Multi-tenant isolation, Transactional Outbox, and HMAC-SHA256 blind indexing.
+- [REST API & Webhooks](https://craftmyfunnel.live/docs/api): Public developer API specification.
+- [Frequently Asked Questions](https://craftmyfunnel.live/faq): Detailed answers regarding deliverability, approval workflows, and integrations.
+- [Pricing & Credit Tiers](https://craftmyfunnel.live/pricing): Transparent per-workspace subscription and credit allocation tiers.
+- [Terms of Service](https://craftmyfunnel.live/terms): Platform usage and acceptable outreach policies.
+- [Privacy Policy](https://craftmyfunnel.live/privacy): Data protection and privacy compliance.
+
+## Platform Comparisons & Alternatives
+
+- [CraftMyFunnel vs Apollo.io](https://craftmyfunnel.live/vs/apollo): Governed outbound workflows with approval gates vs contact database sequencer.
+- [CraftMyFunnel vs Instantly](https://craftmyfunnel.live/vs/instantly): Quality and reputation protection vs mass cold email blasting.
+- [CraftMyFunnel vs Lemlist](https://craftmyfunnel.live/vs/lemlist): Vertical industry playbooks and multi-tenant security vs generic sequences.
+
+## System Specification Reference
+
+- Full architectural documentation and feature specifications: [llms-full.txt](https://craftmyfunnel.live/llms-full.txt).
