@@ -401,6 +401,7 @@ model Agent {
 
 model ICP {
   id          String   @id @default(uuid())
+  teamId      String
   name        String
   description String?
   criteria    Json
@@ -408,6 +409,9 @@ model ICP {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@index([teamId])
   @@index([status])
 }
 
@@ -952,6 +956,7 @@ model Team {
   ssoConfiguration           SsoConfiguration?
   userQuotas                 UserQuota[]
   crmIntegrations            CrmIntegration[]
+  icps                       ICP[]
   approvalRequests           ApprovalRequest[]
   caseStudies                CaseStudy[]
   agentTasks                 AgentTask[]

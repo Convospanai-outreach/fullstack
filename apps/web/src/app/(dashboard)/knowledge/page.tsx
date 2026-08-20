@@ -5,43 +5,67 @@ import { GlassCard } from "@/components/ui/GlassCard"
 import { UploadModal } from "@/components/knowledge/UploadModal"
 import { Search, Database } from "lucide-react"
 import { Input } from "@/components/ui/Input"
+import { toast } from "sonner"
 
 export default function KnowledgePage() {
     const [kbId, setKbId] = useState<string | null>(null)
-    const [_loading, setLoading] = useState(true)
+    const [loading, setLoading] = useState(true)
+    const [initError, setInitError] = useState(false)
     const [docs, setDocs] = useState<any[]>([])
     const [query, setQuery] = useState("")
+    const [searching, setSearching] = useState(false)
 
     // Fetch initial KB (create default if none)
     useEffect(() => {
         const init = async () => {
-            const listRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge")
-            const listData = await listRes.json()
+            setLoading(true)
+            setInitError(false)
+            try {
+                const listRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge")
+                if (!listRes.ok) throw new Error("Failed to load knowledge bases")
+                const listData = await listRes.json()
 
-            if (listData.data && listData.data.length > 0) {
-                setKbId(listData.data[0].id)
-                // In a real app we'd fetch docs here, but we don't have a list-docs endpoint yet, strictly search or upload.
-                // Let's implement a quick search for "*" or just use search to list.
-                // For now, we'll just wait for user action.
-            } else {
-                // Auto-create default KB
-                const createRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge", {
-                    method: "POST",
-                    body: JSON.stringify({ name: "General Knowledge", description: "Default team context" })
-                })
-                const createData = await createRes.json()
-                setKbId(createData.data.id)
+                if (listData.data && listData.data.length > 0) {
+                    setKbId(listData.data[0].id)
+                    // In a real app we'd fetch docs here, but we don't have a list-docs endpoint yet, strictly search or upload.
+                    // Let's implement a quick search for "*" or just use search to list.
+                    // For now, we'll just wait for user action.
+                } else {
+                    // Auto-create default KB
+                    const createRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name: "General Knowledge", description: "Default team context" })
+                    })
+                    if (!createRes.ok) throw new Error("Failed to create default knowledge base")
+                    const createData = await createRes.json()
+                    setKbId(createData.data.id)
+                }
+            } catch (err) {
+                console.error(err)
+                setInitError(true)
+                toast.error("Couldn't load the knowledge vault")
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
         }
         init()
     }, [])
 
     const handleTestSearch = async () => {
         if (!kbId || !query) return
-        const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
-        const data = await res.json()
-        setDocs(data.data)
+        setSearching(true)
+        try {
+            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
+            if (!res.ok) throw new Error("Search failed")
+            const data = await res.json()
+            setDocs(Array.isArray(data.data) ? data.data : [])
+        } catch (err) {
+            console.error(err)
+            toast.error("Search failed — try again")
+        } finally {
+            setSearching(false)
+        }
     }
 
     return (
@@ -54,6 +78,15 @@ export default function KnowledgePage() {
                 {kbId && <UploadModal knowledgeBaseId={kbId} onUploadComplete={() => { }} />}
             </div>
 
+            {loading ? (
+                <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
+                    Loading knowledge vault...
+                </div>
+            ) : initError ? (
+                <div className="text-center py-10 text-red-400 bg-white/5 rounded-xl border border-dashed border-white/10">
+                    Couldn't load the knowledge vault. Refresh to try again.
+                </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Search / Test Playground */}
                 <div className="md:col-span-2 space-y-6">
@@ -71,7 +104,8 @@ export default function KnowledgePage() {
                             />
                             <button
                                 onClick={handleTestSearch}
-                                className="bg-white/10 p-2 rounded-md hover:bg-white/20"
+                                disabled={searching}
+                                className="bg-white/10 p-2 rounded-md hover:bg-white/20 disabled:opacity-50"
                             >
                                 <Search className="w-5 h-5" />
                             </button>
@@ -80,7 +114,12 @@ export default function KnowledgePage() {
 
                     <div className="space-y-4">
                         <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wider">Retrieval Results</h3>
-                        {docs.length === 0 && (
+                        {searching && (
+                            <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
+                                Searching...
+                            </div>
+                        )}
+                        {!searching && docs.length === 0 && (
                             <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
                                 No results found or no search performed.
                             </div>
@@ -118,6 +157,7 @@ export default function KnowledgePage() {
                     </GlassCard>
                 </div>
             </div>
+            )}
         </div>
     )
 }
