@@ -6,7 +6,7 @@ import { AuditLogTable } from "@/components/audit/AuditLogTable";
 
 export default function AuditPage() {
     return (
-        <main className="p-8 min-h-screen bg-black relative overflow-hidden">
+        <div className="p-8 min-h-screen bg-black relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
@@ -20,6 +20,6 @@ export default function AuditPage() {
                     <AuditLogTable apiUrl={(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/audit"} />
                 </div>
             </div>
-        </main>
+        </div>
     );
 }

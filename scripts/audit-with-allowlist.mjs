@@ -19,6 +19,18 @@ const ALLOWLIST = new Map([
         "unpatched advisory range, same non-exploitable usage as GHSA-w3rx-r6r6-pgpr " +
         "above. See OPEN_ITEMS.md OPEN-13.",
     ],
+    [
+        "GHSA-ggr8-5vv4-36mx",
+        "deepmerge-ts@7.1.5 (via prisma -> @prisma/config): stack exhaustion on " +
+        "a self-referential object graph. Only reachable call site is " +
+        "@prisma/config's prisma.config.ts/.js loader (c12's `merger` option), " +
+        "invoked solely by the `prisma` CLI (generate/migrate/studio) - never on " +
+        "the running server's request path, never fed network or user-supplied " +
+        "data. A patched version (8.0.0) exists but @prisma/config@7.9.1 (latest) " +
+        "still pins 7.1.5, and forcing it via npm overrides conflicts with the " +
+        "pre-existing per-workspace overrides in apps/api and apps/web " +
+        "package.json. See OPEN_ITEMS.md OPEN-40.",
+    ],
 ]);
 
 function runAudit() {

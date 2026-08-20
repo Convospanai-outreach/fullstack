@@ -12,16 +12,21 @@ export default function WorkflowEditorPage() {
 
     useEffect(() => {
         if (!id) return;
-        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${id}`)
+        setLoading(true);
+        setWorkflow(null);
+        const ctrl = new AbortController();
+        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${id}`, { signal: ctrl.signal })
             .then(res => res.json())
             .then(data => {
                 setWorkflow(data);
                 setLoading(false);
             })
             .catch(err => {
+                if (err?.name === "AbortError") return;
                 console.error(err);
                 setLoading(false);
             });
+        return () => ctrl.abort();
     }, [id]);
 
     if (loading) return <div className="p-8 text-white/60">Loading workflow...</div>;

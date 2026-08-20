@@ -31,26 +31,123 @@ import {
     Area
 } from "recharts";
 
+const MONTH_OPTIONS = [3, 6, 12] as const;
+
 export default function ROIDashboardPage() {
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [months, setMonths] = useState<number>(6);
 
     useEffect(() => {
-        // Fetch data
-        fetch(getBrowserApiUrl("/analytics/roi"))
-            .then(res => res.json())
+        setLoading(true);
+        const ctrl = new AbortController();
+        fetch(getBrowserApiUrl(`/analytics/roi?months=${months}`), { signal: ctrl.signal })
+            .then(async (res) => {
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({}));
+                    throw new Error(errBody?.error || `Failed to load ROI metrics (HTTP ${res.status})`);
+                }
+                return res.json();
+            })
             .then(json => {
                 setData(json);
+                setError(null);
                 setLoading(false);
             })
             .catch(err => {
+                if (err?.name === "AbortError") return;
                 console.error(err);
+                setError(err?.message || "Failed to load ROI metrics");
                 setLoading(false);
             });
-    }, []);
+        return () => ctrl.abort();
+    }, [months]);
 
     const formatCurrency = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+
+    // Prevent CSV formula injection: a cell whose text starts with =, +, -, or @ can
+    // be interpreted as a formula by Excel/Sheets when the file is opened. Prefixing
+    // with an apostrophe forces spreadsheet apps to treat it as plain text.
+    const csvSafeCell = (value: unknown) => {
+        let str = value === null || value === undefined ? "" : String(value);
+        if (/^[=+\-@]/.test(str)) str = `'${str}`;
+        return JSON.stringify(str);
+    };
+
+    const toCsvSection = (title: string, rows: Array<Record<string, unknown>>, fallbackHeaders: string[]) => {
+        const headers = rows.length > 0 ? Object.keys(rows[0]) : fallbackHeaders;
+        return [
+            title,
+            headers.join(","),
+            ...rows.map((row) => headers.map((h) => csvSafeCell(row[h])).join(",")),
+        ].join("\n");
+    };
+
+    const exportReport = () => {
+        const funnel = data?.funnel || {};
+        const financials = data?.financials || {};
+        const history: Array<Record<string, unknown>> = Array.isArray(data?.history) ? data.history : [];
+        const campaigns: Array<Record<string, unknown>> = Array.isArray(data?.campaigns) ? data.campaigns : [];
+
+        const csvSections = [
+            toCsvSection("Funnel & Financials (lifetime)", [{ ...funnel, ...financials }], [
+                "totalLeads", "totalSent", "opportunities", "wins", "conversionRate",
+                "spend", "revenue", "roi", "profit",
+            ]),
+            toCsvSection("Top Campaigns (lifetime)", campaigns, ["id", "name", "sent", "openRate", "replyRate", "status"]),
+            toCsvSection(`Revenue vs Spend History (last ${months} months)`, history, ["date", "revenue", "spend"]),
+        ];
+
+        const blob = new Blob([csvSections.join("\n\n")], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `campaign-roi-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
+    // Dynamically calculate month-over-month trends from history if available
+    const computeTrend = (key: "revenue" | "spend") => {
+        const history = Array.isArray(data?.history) ? data.history : [];
+        if (history.length < 2) return undefined;
+        const current = history[history.length - 1]?.[key] || 0;
+        const previous = history[history.length - 2]?.[key] || 0;
+        if (previous === 0 && current === 0) return undefined;
+        if (previous === 0) return { value: 100, isUp: true };
+        const delta = ((current - previous) / previous) * 100;
+        if (delta === 0) return undefined;
+        return {
+            value: Number(Math.abs(delta).toFixed(1)),
+            isUp: delta > 0
+        };
+    };
+
+    const computeRoiTrend = () => {
+        const history = Array.isArray(data?.history) ? data.history : [];
+        if (history.length < 2) return undefined;
+        const currRev = history[history.length - 1]?.revenue || 0;
+        const currSpend = history[history.length - 1]?.spend || 0;
+        const prevRev = history[history.length - 2]?.revenue || 0;
+        const prevSpend = history[history.length - 2]?.spend || 0;
+        const currRoi = currSpend > 0 ? ((currRev - currSpend) / currSpend) * 100 : 0;
+        const prevRoi = prevSpend > 0 ? ((prevRev - prevSpend) / prevSpend) * 100 : 0;
+        if (currRoi === 0 && prevRoi === 0) return undefined;
+        const delta = currRoi - prevRoi;
+        if (delta === 0) return undefined;
+        return {
+            value: Number(Math.abs(delta).toFixed(1)),
+            isUp: delta > 0
+        };
+    };
+
+    const revenueTrend = computeTrend("revenue");
+    const spendTrend = computeTrend("spend");
+    const roiTrend = computeRoiTrend();
 
     return (
         <div className="space-y-6">
@@ -62,11 +159,24 @@ export default function ROIDashboardPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="ghost" className="text-text-secondary">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        Last 6 Months
-                    </Button>
-                    <Button variant="outline" className="border-white/10">
+                    <div
+                        className="flex items-center gap-1 rounded-lg border border-white/10 p-1"
+                        title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
+                    >
+                        <Calendar className="w-4 h-4 mx-2 text-text-secondary" />
+                        {MONTH_OPTIONS.map((opt) => (
+                            <Button
+                                key={opt}
+                                size="sm"
+                                variant={months === opt ? "default" : "ghost"}
+                                className={months === opt ? "" : "text-text-secondary"}
+                                onClick={() => setMonths(opt)}
+                            >
+                                {opt}mo
+                            </Button>
+                        ))}
+                    </div>
+                    <Button variant="outline" className="border-white/10" onClick={exportReport} disabled={loading}>
                         <Download className="w-4 h-4 mr-2" />
                         Export Report
                     </Button>
@@ -74,6 +184,7 @@ export default function ROIDashboardPage() {
             </div>
 
             {/* KPI Grid */}
+            <p className="text-xs uppercase tracking-wide text-text-secondary mb-2">Lifetime totals</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
                     <>
@@ -82,21 +193,21 @@ export default function ROIDashboardPage() {
                             value={formatCurrency(data?.financials?.revenue || 0)}
                             icon={DollarSign}
                             description="Attributed to AI Campaigns"
-                            trend={{ value: 12.5, isUp: true }}
+                            trend={revenueTrend}
                         />
                         <StatCard
                             label="Marketing Spend"
                             value={formatCurrency(data?.financials?.spend || 0)}
                             icon={PieChart}
                             description="Compute + Platform Costs"
-                            trend={{ value: 2.1, isUp: false }}
+                            trend={spendTrend}
                         />
                         <StatCard
                             label="Return on Ad Spend"
                             value={`${(data?.financials?.roi || 0).toFixed(1)}%`}
                             icon={TrendingUp}
                             description="Efficiency Ratio"
-                            trend={{ value: 5.4, isUp: true }}
+                            trend={roiTrend}
                         />
                         <StatCard
                             label="Conversion Rate"
@@ -113,8 +224,8 @@ export default function ROIDashboardPage() {
                 <div className="lg:col-span-2 space-y-8">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Revenue vs Spend</CardTitle>
-                            <CardDescription>Financial performance over time</CardDescription>
+                            <CardTitle>Revenue vs Spend ({months}mo)</CardTitle>
+                            <CardDescription>Financial performance over the last {months} months</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div className="h-[300px] w-full mt-4">

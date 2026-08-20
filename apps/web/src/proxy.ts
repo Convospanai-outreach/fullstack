@@ -51,6 +51,8 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const correlationId = req.headers.get('x-correlation-id') || crypto.randomUUID();
     const isDevelopment = process.env['NODE_ENV'] !== 'production';
     const authApiPrefixes = ["/api/auth", "/api/proxy/auth"];
+    // Read-only session checks, not sign-in attempts — see RATE_LIMITS.SESSION_CHECK.
+    const sessionCheckApiPaths = ["/api/auth/session", "/api/auth/clerk-sync"];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
     const extensionApiPrefixes = ["/api/extension"];
@@ -114,27 +116,31 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     if (path.startsWith("/api")) {
         let rateLimitResponse: NextResponse | null = null;
         
-        // 1. Authentication endpoints (strictest)
-        if (authApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+        // 1. Passive session-check endpoints (polled far more often than real sign-ins)
+        if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
+        }
+        // 2. Authentication endpoints (strictest)
+        else if (authApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
-        // 2. Webhook endpoints
+        // 3. Webhook endpoints
         else if (webhookApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
-        // 3. Error logging endpoint
+        // 4. Error logging endpoint
         else if (clientErrorLogPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
         }
-        // 4. Admin endpoints (high limit, but tracked)
+        // 5. Admin endpoints (high limit, but tracked)
         else if (adminApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
         }
-        // 5. Authenticated endpoints (requires valid token)
+        // 6. Authenticated endpoints (requires valid token)
         else if (userId) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTHENTICATED, 'authenticated', userId);
         }
-        // 6. Public endpoints (per IP)
+        // 7. Public endpoints (per IP)
         else {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.PUBLIC, 'public', userId);
         }
@@ -321,7 +327,21 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const clerkFrontendHost = clerkFrontendApi.startsWith('http')
         ? clerkFrontendApi
         : `https://${clerkFrontendApi}`;
-    
+
+    // NEXT_PUBLIC_API_URL is baked into client bundles and may point at a
+    // cross-origin API host (e.g. during the Oracle VM migration) instead of
+    // the same-origin /api/proxy path. When it's an absolute URL, its origin
+    // must be allowlisted or the browser blocks every client-side API call.
+    let publicApiOrigin = '';
+    const publicApiUrl = process.env['NEXT_PUBLIC_API_URL'] || '';
+    if (/^https?:\/\//.test(publicApiUrl)) {
+        try {
+            publicApiOrigin = new URL(publicApiUrl).origin;
+        } catch {
+            publicApiOrigin = '';
+        }
+    }
+
     const cspValues = [
         "default-src 'self'",
         // Scripts: Allow self, Clerk, Google Auth, Razorpay, and Cloudflare Turnstile (Clerk bot protection)
@@ -333,7 +353,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
         // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI}`,
+        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
         // Frames: Clerk, Google Auth, Razorpay & Cloudflare Turnstile (Clerk bot protection)
         `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com`,
         // Media/Workers: Stricter constraints

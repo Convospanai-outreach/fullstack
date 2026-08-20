@@ -7,7 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function MagicLinkPage() {
     return (
-        <main className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md text-center">
                 <div className="mb-8 flex justify-center">
                     <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center animate-pulse">
@@ -35,6 +35,6 @@ export default function MagicLinkPage() {
                     </div>
                 </GlassCard>
             </div>
-        </main>
+        </div>
     );
 }

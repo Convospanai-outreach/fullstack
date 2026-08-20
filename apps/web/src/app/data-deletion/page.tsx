@@ -1,6 +1,11 @@
+export const metadata = {
+  title: "Data Deletion Request | CraftMyFunnel",
+  description: "How to request deletion of your data from CraftMyFunnel.",
+};
+
 export default function DataDeletionPage() {
   return (
-    <main className="min-h-screen bg-slate-950 px-6 py-12 text-slate-200">
+    <div className="min-h-screen bg-slate-950 px-6 py-12 text-slate-200">
       <article className="mx-auto max-w-4xl rounded-2xl border border-white/10 bg-slate-900/70 p-8 shadow-xl">
         <p className="text-sm font-semibold uppercase tracking-wide text-cyan-300">CraftMyFunnel</p>
         <h1 className="mt-3 text-4xl font-bold text-white">Data Deletion Request</h1>
@@ -12,6 +17,6 @@ export default function DataDeletionPage() {
           <p>When a Google integration is disconnected or deletion is requested, Google access tokens and refresh tokens should be revoked or removed from CraftMyFunnel systems where applicable.</p>
         </section>
       </article>
-    </main>
+    </div>
   );
 }

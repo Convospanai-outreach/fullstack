@@ -7,6 +7,7 @@ import {
     STALE_JOB_RECOVERY_PAGE_SIZE,
 } from "../queue";
 import { prisma } from "@/lib/db";
+import { NotificationDispatcher } from "@/lib/notifications";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -18,6 +19,12 @@ vi.mock("@/lib/db", () => ({
             create: vi.fn()
         }
     }
+}));
+
+vi.mock("@/lib/notifications", () => ({
+    NotificationDispatcher: {
+        send: vi.fn(),
+    },
 }));
 
 describe("JobQueue.dequeue", () => {
@@ -262,6 +269,72 @@ describe("JobQueue.defer", () => {
             reason: "MAILBOX_LEASE_CONTENDED",
         })).rejects.toBeInstanceOf(JobClaimLostError);
         expect(prisma.job.findUnique).not.toHaveBeenCalled();
+    });
+});
+
+describe("JobQueue.fail", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("dispatches a SYSTEM notification to the job's owner on permanent failure", async () => {
+        const runningJob = {
+            id: "job-1",
+            status: "running",
+            type: "INBOX_SYNC",
+            attempts: 3,
+            maxAttempts: 3,
+            payload: { userId: "user-1", mailboxId: "mailbox-1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(runningJob);
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce({ ...runningJob, status: "dead_lettered" });
+
+        await JobQueue.fail("job-1", 3, "upstream timeout");
+
+        expect(NotificationDispatcher.send).toHaveBeenCalledWith(
+            "user-1",
+            "SYSTEM",
+            "Job Failed",
+            "Job INBOX_SYNC permanently failed after 3 attempts",
+            { jobId: "job-1", error: "upstream timeout" }
+        );
+    });
+
+    it("does not dispatch a notification when the job payload has no userId", async () => {
+        const runningJob = {
+            id: "job-2",
+            status: "running",
+            type: "INBOX_SYNC",
+            attempts: 3,
+            maxAttempts: 3,
+            payload: { mailboxId: "mailbox-1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(runningJob);
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce({ ...runningJob, status: "dead_lettered" });
+
+        await JobQueue.fail("job-2", 3, "upstream timeout");
+
+        expect(NotificationDispatcher.send).not.toHaveBeenCalled();
+    });
+
+    it("schedules a retry (and does not dispatch a notification) when attempts remain", async () => {
+        const runningJob = {
+            id: "job-3",
+            status: "running",
+            type: "INBOX_SYNC",
+            attempts: 1,
+            maxAttempts: 3,
+            payload: { userId: "user-1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(runningJob);
+        (prisma.job.updateMany as Mock).mockResolvedValueOnce({ count: 1 });
+        (prisma.job.findUnique as Mock).mockResolvedValueOnce({ ...runningJob, status: "queued" });
+
+        await JobQueue.fail("job-3", 3, "transient error");
+
+        expect(NotificationDispatcher.send).not.toHaveBeenCalled();
     });
 });
 

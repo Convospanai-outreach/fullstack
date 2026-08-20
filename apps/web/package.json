@@ -1,6 +1,9 @@
 {
     "name": "craftmyfunnel-full-scaffold",
     "private": true,
+    "engines": {
+        "node": ">=22 <23"
+    },
     "repository": {
         "type": "git",
         "url": "git+https://github.com/craftmyfunnel-outreach/fullstack.git"
@@ -17,7 +20,6 @@
         "start": "npm run repair:vendor && node scripts/run-with-app-env.mjs scripts/start-production.mjs",
         "lint": "node scripts/lint.mjs",
         "typecheck": "node scripts/run-with-env.mjs NODE_OPTIONS=--max-old-space-size=8192 -- tsc --noEmit",
-        "worker": "node scripts/run-with-env.mjs PRISMA_CLIENT_ENGINE_TYPE=client -- tsx -r dotenv/config src/workers/index.ts",
         "test": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest",
         "test:ui": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest --ui",
         "test:coverage": "node scripts/run-with-env.mjs TEMP=./tmp TMP=./tmp -- vitest run tests/unit --coverage",
@@ -82,6 +84,7 @@
         "@react-three/fiber": "^9.4.2",
         "@sentry/nextjs": "^10.32.1",
         "@types/three": "^0.182.0",
+        "@vercel/blob": "^2.8.0",
         "axios": "^1.18.0",
         "bcryptjs": "^3.0.3",
         "class-variance-authority": "^0.7.1",
@@ -92,7 +95,7 @@
         "dexie-react-hooks": "^4.2.0",
         "eventsource": "^4.1.0",
         "framer-motion": "^12.23.26",
-        "geoip-lite": "^2.0.2",
+        "geoip-lite": "1.4.10",
         "grapesjs": "^0.23.2",
         "gsap": "^3.15.0",
         "ioredis": "^5.9.1",

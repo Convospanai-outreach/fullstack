@@ -35,12 +35,14 @@ export default function InvitesPage() {
     const [inviteRequests, setInviteRequests] = useState<InviteRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [approvingId, setApprovingId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchInvites = async () => {
         setLoading(true);
         try {
             const res = await fetch("/api/admin/invites");
             if (res.ok) {
+                setError(null);
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     setInvites(data);
@@ -49,6 +51,10 @@ export default function InvitesPage() {
                     setInvites(data.invites || []);
                     setInviteRequests(data.inviteRequests || []);
                 }
+            } else if (res.status === 403) {
+                setError("You don't have permission to view invites.");
+            } else {
+                setError("Failed to load invites.");
             }
         } finally {
             setLoading(false);
@@ -89,7 +95,7 @@ export default function InvitesPage() {
     };
 
     return (
-        <main className="min-h-screen bg-black p-8 text-white">
+        <div className="min-h-screen bg-black p-8 text-white">
             <div className="mx-auto max-w-6xl">
                 <div className="mb-8 flex items-center justify-between">
                     <SectionHeader title="Invite Requests" subtitle="Waitlist requests, approvals, and invite links" />
@@ -112,6 +118,8 @@ export default function InvitesPage() {
                         <tbody className="divide-y divide-white/10">
                             {loading ? (
                                 <tr><td className="px-6 py-6 text-gray-400" colSpan={5}>Loading invite requests...</td></tr>
+                            ) : error ? (
+                                <tr><td className="px-6 py-6 text-red-400" colSpan={5}>{error}</td></tr>
                             ) : inviteRequests.length === 0 ? (
                                 <tr><td className="px-6 py-6 text-gray-400" colSpan={5}>No invite requests yet.</td></tr>
                             ) : inviteRequests.map((request) => (
@@ -186,6 +194,8 @@ export default function InvitesPage() {
                         <tbody className="divide-y divide-white/10">
                             {loading ? (
                                 <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>Loading invites...</td></tr>
+                            ) : error ? (
+                                <tr><td className="px-6 py-6 text-red-400" colSpan={6}>{error}</td></tr>
                             ) : invites.length === 0 ? (
                                 <tr><td className="px-6 py-6 text-gray-400" colSpan={6}>No invites yet.</td></tr>
                             ) : invites.map((invite) => (
@@ -213,6 +223,6 @@ export default function InvitesPage() {
                     </table>
                 </div>
             </div>
-        </main>
+        </div>
     );
 }

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { aiService } from "@/lib/aiService";
+import { NotificationDispatcher } from "@/lib/notifications";
 
 export class IntentScoringService {
     async processWebhookData(data: any): Promise<void> {
@@ -65,25 +66,23 @@ export class IntentScoringService {
 
         try {
             // Identify Super Admin / Master Admin
-            // For now, we'll notify all users with 'admin' role or specific super admin
-            // Optimization: Fetch specific admin user ID
+            // Matches the ADMIN designation used elsewhere (ClientErrorAlertService, intel-followup-worker)
             const admins = await prisma.user.findMany({
-                where: { role: "admin" } // Adjust role as needed
+                where: { role: "ADMIN" }
             });
 
             for (const admin of admins) {
-                await prisma.notification.create({
-                    data: {
-                        userId: admin.id,
-                        type: "CRITICAL_ALERT",
-                        message: `High Karmic Friction Detected (Score: ${score.toFixed(1)})`,
-                        meta: {
-                            source: "Scraper Webhook",
-                            dataPreview: JSON.stringify(data).substring(0, 100),
-                            score
-                        }
+                await NotificationDispatcher.send(
+                    admin.id,
+                    "SYSTEM",
+                    "High Friction Detected",
+                    `High Karmic Friction Detected (Score: ${score.toFixed(1)})`,
+                    {
+                        source: "Scraper Webhook",
+                        dataPreview: JSON.stringify(data).substring(0, 100),
+                        score
                     }
-                });
+                );
             }
 
             // If no admins found, log warning

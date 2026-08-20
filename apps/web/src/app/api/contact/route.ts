@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { randomUUID } from "crypto";
 
 type ContactPayload = {
     name: string;
@@ -25,6 +26,12 @@ function validatePayload(payload: ContactPayload): string | null {
     if (!EMAIL_REGEX.test(payload.email ?? "")) return "A valid email is required";
     if (payload.message.length > 4000) return "Message is too long";
     return null;
+}
+
+function generateTicketId(): string {
+    const stamp = new Date().toISOString().slice(0, 10).replaceAll("-", "");
+    const suffix = randomUUID().slice(0, 8).toUpperCase();
+    return `CONTACT-${stamp}-${suffix}`;
 }
 
 function getSmtpConfig() {
@@ -63,16 +70,21 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: validationError }, { status: 400 });
     }
 
-    const smtpConfig = getSmtpConfig();
-    if (!smtpConfig) {
-        return NextResponse.json({ error: "Contact service is not configured" }, { status: 503 });
-    }
-
     const recipient = process.env["CONTACT_RECEIVER_EMAIL"] || "contact.us@craftmyfunnel.live";
+    const ticketId = generateTicketId();
     const safeName = sanitize(payload.name.trim());
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());
     const safeMessage = sanitize(payload.message.trim()).replaceAll("\n", "<br/>");
+
+    const smtpConfig = getSmtpConfig();
+    if (!smtpConfig) {
+        // No durable storage backs this endpoint, so an unsent message would be lost
+        // with no way to retry or recover it — report failure honestly instead of a
+        // false "queued" success (unlike /api/support/contact, which can afford to
+        // treat "queued" as best-effort since it's paired with a support ticket flow).
+        return NextResponse.json({ error: "Contact service is not configured", ticketId, status: "failed" }, { status: 503 });
+    }
 
     const html = `
         <h2>New Contact Request</h2>
@@ -94,8 +106,14 @@ export async function POST(req: Request) {
     );
 
     if (!result.success) {
-        return NextResponse.json({ error: "Failed to deliver message" }, { status: 502 });
+        return NextResponse.json({ error: "Failed to deliver message", ticketId, status: "failed" }, { status: 502 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+        success: true,
+        ticketId,
+        status: "submitted",
+        delivery: "sent",
+        message: "Message submitted successfully.",
+    });
 }

@@ -39,7 +39,7 @@ export default function SsoLoginPage() {
     };
 
     return (
-        <main className="min-h-screen flex items-center justify-center p-4">
+        <div className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <SectionHeader
                     title="Enterprise Sign-In"
@@ -89,6 +89,6 @@ export default function SsoLoginPage() {
                     </form>
                 </GlassCard>
             </div>
-        </main>
+        </div>
     );
 }

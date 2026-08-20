@@ -31,6 +31,18 @@ export class FeatureFlagService {
             return false;
         }
 
+        // linkedin_automation is enabled by default for every team, product
+        // surface, and product mode (2026-08-20 decision, see OPEN_ITEMS.md
+        // OPEN-54) — bypasses the productSurface/ProductMode gating below,
+        // which still applies to every other flag. DB override still wins.
+        if (featureKey === "linkedin_automation") {
+            const flagOverride = await prisma.featureFlag.findUnique({ where: { key: featureKey } });
+            if (flagOverride !== null && flagOverride !== undefined) {
+                return flagOverride.isEnabled;
+            }
+            return definition.defaultValue;
+        }
+
         // 1. Fetch Team Policy
         const policy = await prisma.organizationPolicy.findUnique({
             where: { organizationId: teamId }
@@ -40,8 +52,7 @@ export class FeatureFlagService {
         const productSurface = policy?.productSurface || "outreach";
 
         const runtimeOnlyFeatures = new Set([
-            "autonomous_agents",
-            "linkedin_automation"
+            "autonomous_agents"
         ]);
         if (productSurface !== "runtime" && runtimeOnlyFeatures.has(featureKey)) {
             return false;

@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/prisma-safe";
-import { findValidInvitation } from "@/lib/invitations";
+import { findValidInvitation, isAssignableInviteRole } from "@/lib/invitations";
 
 type AppUserWithMemberships = {
     id: string;
@@ -111,13 +111,17 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                 return null;
             }
 
+            const assignedEnterpriseRole = isAssignableInviteRole(pendingInvitation.role)
+                ? pendingInvitation.role
+                : UserRole.VIEWER;
+
             const user = await tx.user.create({
                 data: {
                     clerkUserId: input.clerkUserId,
                     email,
                     name: input.name || email,
                     emailVerified: now,
-                    enterpriseRole: pendingInvitation.role,
+                    enterpriseRole: assignedEnterpriseRole,
                     settings: { create: { theme: "dark" } }
                 },
                 include: { memberships: true }
@@ -176,9 +180,14 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
             include: { memberships: true }
         });
 
+        const companyName = (approvedInvite.company || "My Team").trim();
+        const teamName = companyName.toLowerCase().endsWith("workspace")
+            ? companyName
+            : `${companyName} Workspace`;
+
         await tx.team.create({
             data: {
-                name: `${approvedInvite.company} Workspace`,
+                name: teamName,
                 members: {
                     create: {
                         userId: user.id,

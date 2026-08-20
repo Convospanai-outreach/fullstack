@@ -24,6 +24,7 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
         try {
             const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/playbooks/${playbook.id}/instantiate`, {
                 method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ values: params })
             })
             const json = await res.json()
@@ -45,22 +46,22 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
 
     return (
         <>
-            <GlassCard className="flex flex-col h-full hover:border-accent-blue/50 transition-colors">
+            <GlassCard className="flex flex-col h-full hover:border-primary/50 transition-colors">
                 <div className="flex-1 space-y-4">
                     <div className="flex items-start justify-between">
-                        <div className="p-2 bg-accent-blue/10 rounded-lg text-accent-blue">
+                        <div className="p-2 bg-primary/10 rounded-lg text-primary">
                             <BookOpen className="w-6 h-6" />
                         </div>
-                        {playbook.isLocked && <span className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded">Locked</span>}
+                        {playbook.isLocked && <span className="text-xs bg-red-500/10 text-red-700 dark:text-red-400 font-semibold px-2 py-1 rounded">Locked</span>}
                     </div>
 
                     <div>
-                        <h3 className="font-bold text-lg text-text-primary">{playbook.name}</h3>
-                        <p className="text-sm text-text-secondary mt-1">{playbook.description || "No description"}</p>
+                        <h3 className="font-bold text-lg text-foreground">{playbook.name}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{playbook.description || "No description"}</p>
                     </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-border-subtle">
+                <div className="mt-6 pt-4 border-t border-border">
                     <PrimaryButton
                         onClick={() => setIsOpen(true)}
                         className="w-full justify-center"
@@ -72,26 +73,29 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
             </GlassCard>
 
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                <DialogContent className="bg-bg-base border-border-subtle text-text-primary">
+                <DialogContent className="bg-card border-border text-foreground">
                     <DialogHeader>
                         <DialogTitle>Configure Playbook: {playbook.name}</DialogTitle>
                     </DialogHeader>
 
                     <div className="py-4 space-y-4">
-                        <p className="text-sm text-text-secondary">
+                        <p className="text-sm text-muted-foreground">
                             This playbook requires some inputs to customize the campaign for your needs.
                         </p>
 
                         {requiredParams.length === 0 && (
-                            <div className="p-3 bg-white/5 rounded text-sm text-text-muted italic">
+                            <div className="p-3 bg-muted/40 rounded-md border border-border/50 text-sm text-muted-foreground italic">
                                 No parameters required. Ready to launch.
                             </div>
                         )}
 
                         {requiredParams.map((key: string) => (
                             <div key={key} className="space-y-2">
-                                <label className="text-sm font-medium capitalize">{key.replace(/_/g, ' ')}</label>
+                                <label htmlFor={`param-${key}`} className="text-sm font-medium text-foreground capitalize">
+                                    {key.replace(/_/g, ' ')}
+                                </label>
                                 <Input
+                                    id={`param-${key}`}
                                     placeholder={`Enter ${key}...`}
                                     value={params[key] || ""}
                                     onChange={(e) => setParams(prev => ({ ...prev, [key]: e.target.value }))}
@@ -102,8 +106,9 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
 
                     <div className="flex justify-end gap-3">
                         <button
+                            type="button"
                             onClick={() => setIsOpen(false)}
-                            className="text-sm text-text-secondary hover:text-text-primary"
+                            className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-primary"
                         >
                             Cancel
                         </button>
@@ -115,5 +120,5 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
             </Dialog>
         </>
     )
-
 }
+

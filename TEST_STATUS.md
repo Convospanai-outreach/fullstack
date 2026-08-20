@@ -1,3 +1,5 @@
+> ⚠️ **DEPRECATED (July 2026)** — This document is historical context only. The canonical active tracker is [`OPEN_ITEMS.md`](OPEN_ITEMS.md). The consolidated assessment lives at [`docs/SYSTEM_READINESS_ASSESSMENT.md`](docs/SYSTEM_READINESS_ASSESSMENT.md). Do not update this file.
+
 # Testing & Audit Report Summary
 
 ## 📋 Quick Status

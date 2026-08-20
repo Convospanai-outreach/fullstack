@@ -151,7 +151,7 @@ export default function SuperAdminDashboardClient() {
     }, [data]);
 
     return (
-        <main className="min-h-screen bg-black p-6 text-white">
+        <div className="min-h-screen bg-black p-6 text-white">
             <div className="mx-auto max-w-7xl space-y-6">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <SectionHeader
@@ -335,7 +335,7 @@ export default function SuperAdminDashboardClient() {
                     </>
                 )}
             </div>
-        </main>
+        </div>
     );
 }
 

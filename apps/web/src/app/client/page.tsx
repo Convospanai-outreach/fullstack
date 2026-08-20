@@ -59,7 +59,7 @@ export default function ClientPortalPage() {
     }, [campaigns]);
 
     return (
-        <main className="min-h-screen bg-slate-950 p-6 text-white">
+        <div className="min-h-screen bg-slate-950 p-6 text-white">
             <div className="mx-auto max-w-6xl space-y-8">
                 <header className="flex flex-col gap-4 border-b border-white/10 pb-6 md:flex-row md:items-center md:justify-between">
                     <div>
@@ -175,6 +175,6 @@ export default function ClientPortalPage() {
                     )}
                 </section>
             </div>
-        </main>
+        </div>
     );
 }

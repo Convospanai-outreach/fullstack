@@ -11,6 +11,8 @@ export default function ICPBuilderPage() {
     const [loading, setLoading] = useState(false);
     const [generated, setGenerated] = useState(false);
     const [result, setResult] = useState<{ keywords: string[], booleanString: string, personaHook: string } | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const [formData, setFormData] = useState({
         industry: "",
@@ -36,6 +38,7 @@ export default function ICPBuilderPage() {
             const data = await res.json();
             setResult(data);
             setGenerated(true);
+            setSaved(false);
             setStep(2);
             toast.success("Ideal Customer Profile generated!");
         } catch (error: any) {
@@ -43,6 +46,33 @@ export default function ICPBuilderPage() {
             toast.error(error.message || "Failed to generate ICP");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        if (!result) return;
+        setSaving(true);
+        try {
+            const name = [formData.industry, formData.role].filter(Boolean).join(" – ") || "ICP Profile";
+            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/icp-builder/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    name,
+                    description: formData.painPoints || undefined,
+                    criteria: { ...formData, ...result },
+                }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data?.ok === false) {
+                throw new Error(data?.error || "Failed to save profile");
+            }
+            setSaved(true);
+            toast.success("Profile saved");
+        } catch (error: any) {
+            toast.error(error.message || "Failed to save profile");
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -172,9 +202,9 @@ export default function ICPBuilderPage() {
                                     </p>
                                 </GlassCard>
 
-                                <Button className="w-full mt-4" variant="outline">
+                                <Button className="w-full mt-4" variant="outline" onClick={handleSaveProfile} disabled={saving || saved}>
                                     <Save className="w-4 h-4 mr-2" />
-                                    Save Profile
+                                    {saving ? "Saving..." : saved ? "Saved" : "Save Profile"}
                                 </Button>
                             </div>
                         ) : (

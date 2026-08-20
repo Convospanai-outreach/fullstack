@@ -28,13 +28,13 @@ import {
   CreditCard,
   BarChart2,
   ShieldCheck,
-  ChevronDown,
   MoreHorizontal,
   Users,
   Wrench,
   X,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
+import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
 import { HIDDEN_FEATURES, PRODUCT_FLAGS } from "@/lib/productFlags";
 
 interface NavItem {
@@ -108,7 +108,6 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     .toUpperCase() || 'U';
 
   // Org name from Clerk org, or fallback
-  const orgName = 'My workspace';
 
   const planLabel = PRODUCT_FLAGS.emailFirstBeta ? 'Enterprise · Beta' : 'Pro plan';
 
@@ -151,14 +150,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
         {/* Workspace switcher */}
         <div className="px-2 mb-3">
-          <button
-            className="w-full flex items-center justify-between border border-white/6 bg-white/2 rounded-md px-2 py-1.5 text-left group"
-            aria-label="Switch workspace"
-          >
-            {/* TODO: org switcher — open org selection modal */}
-            <span className="text-[12px] font-normal text-white/50 truncate">{orgName}</span>
-            <ChevronDown className="w-3 h-3 text-white/25 flex-shrink-0 ml-1" />
-          </button>
+          <WorkspaceSwitcher />
         </div>
 
         {/* Nav groups */}
@@ -204,12 +196,12 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           {/* Tools — discovery surface for gated/hidden feature areas */}
           <div className="mt-1 pt-4 border-t border-white/6">
             <Link
-              href="/settings/features"
+              href="/tools"
               onClick={onClose}
               className={`
                 flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
                 transition-colors duration-150
-                ${pathname?.startsWith('/settings/features')
+                ${pathname?.startsWith('/tools')
                   ? 'bg-blue-500/12 text-blue-400'
                   : 'text-white/45 hover:bg-white/4 hover:text-white/70'
                 }

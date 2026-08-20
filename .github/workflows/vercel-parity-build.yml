@@ -1,5 +1,14 @@
 name: Vercel Parity Build
 
+# Vercel-specific build-parity check — vercel-parity-build, vercel-parity-gate.
+# Three sibling workflows cover distinct concerns and deliberately are NOT
+# merged into this one (see tech-debt-audit 2026-08-20 #10): ci.yml (general
+# build/typecheck/docker-smoke), verify.yml (migration-safety invariant
+# scanning), production-gate.yml (deploy-readiness checks). All four
+# duplicate the same detect-docs-only/docs-only-validation boilerplate — a
+# real DRY gap, flagged but not consolidated here (would need a reusable
+# workflow).
+
 on:
   push:
     branches:

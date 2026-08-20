@@ -120,7 +120,7 @@ export default function AdminHealthPage() {
   }, [range]);
 
   return (
-    <main className="p-8 min-h-screen bg-black relative overflow-hidden">
+    <div className="p-8 min-h-screen bg-black relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute top-[-12%] left-[-8%] w-[48%] h-[48%] bg-cyan-900/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-12%] w-[50%] h-[50%] bg-emerald-900/20 rounded-full blur-[120px]" />
@@ -327,7 +327,7 @@ export default function AdminHealthPage() {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

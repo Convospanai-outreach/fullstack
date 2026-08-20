@@ -54,7 +54,7 @@ export default function CSVPage() {
     };
 
     return (
-        <main className="p-8 min-h-screen bg-black relative overflow-hidden">
+        <div className="p-8 min-h-screen bg-black relative overflow-hidden">
             {/* Background Gradients */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-purple-900/20 rounded-full blur-[120px]" />
@@ -147,6 +147,6 @@ export default function CSVPage() {
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
     );
 }

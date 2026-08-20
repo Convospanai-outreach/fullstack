@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/db";
 import { Job } from "@prisma/client";
 import { EXECUTION_MODES, RUNTIME_TARGETS } from "@/contracts/executionModes";
+import { NotificationDispatcher } from "@/lib/notifications";
 
 /**
  * The WorkerManager-owned queue uses lowercase status values. Uppercase values
@@ -46,8 +47,10 @@ export type JobType =
     | "event_processing"
     | "CSV_IMPORT"
     | "SEQUENCE_ACTION"
+    | "sequence_execution"
     | "INTEL_FOLLOWUP_REFRESH"
-    | "lead_scoring";
+    | "lead_scoring"
+    | "order_captured";
 
 export interface JobPayload {
     leadId?: string | undefined;
@@ -323,14 +326,13 @@ export class JobQueue {
             
             const payload = job.payload as any;
             if (payload && payload.userId) {
-                await prisma.notification.create({
-                    data: {
-                        userId: payload.userId,
-                        type: 'JOB_DEAD_LETTERED',
-                        message: `Job ${job.type} permanently failed after ${job.attempts} attempts`,
-                        meta: { jobId: job.id, error }
-                    }
-                });
+                await NotificationDispatcher.send(
+                    payload.userId,
+                    "SYSTEM",
+                    "Job Failed",
+                    `Job ${job.type} permanently failed after ${job.attempts} attempts`,
+                    { jobId: job.id, error }
+                );
             }
             
             return updatedJob;

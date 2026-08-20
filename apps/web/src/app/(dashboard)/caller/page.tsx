@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { 
+import { toast } from "sonner";
+import {
     Flame, 
     TrendingUp, 
     Clock, 
@@ -84,7 +85,12 @@ export default function CallerPage() {
             });
             if (res.ok) {
                 await fetchQueue();
+            } else {
+                toast.error("Failed to claim lead");
             }
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to claim lead");
         } finally {
             setProcessingId(null);
         }
@@ -116,7 +122,12 @@ export default function CallerPage() {
                 setNotes("");
                 setActiveLead(null);
                 await fetchQueue();
+            } else {
+                toast.error("Failed to log call outcome");
             }
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to log call outcome");
         } finally {
             setProcessingId(null);
         }
