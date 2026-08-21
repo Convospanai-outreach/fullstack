@@ -11,6 +11,13 @@ function firstParam(value: string | string[] | undefined) {
     return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
+function intentTier(intentScore?: number | null) {
+    const score = intentScore ?? 0;
+    if (score >= 0.7) return { label: "HOT", className: "text-red-400 border-red-500/25 bg-red-500/5" };
+    if (score >= 0.4) return { label: "WARM", className: "text-amber-400 border-amber-500/25 bg-amber-500/5" };
+    return { label: "COLD", className: "text-blue-400 border-blue-500/25 bg-blue-500/5" };
+}
+
 function displayLeadStatus(status?: string | null) {
     if (!status) return "NEW STATE";
     const labels: Record<string, string> = {
@@ -173,7 +180,9 @@ export default async function LeadsPage({
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[1px] bg-white/10 border-[0.5px] border-white/10 p-[1px]">
-                    {leads.map((lead, index) => (
+                    {leads.map((lead, index) => {
+                        const tier = intentTier(lead.intentScore);
+                        return (
                         <Link
                             key={lead.id}
                             href={`/leads/${lead.id}`}
@@ -185,9 +194,14 @@ export default async function LeadsPage({
                                     <div className="w-9 h-9 bg-white/2 border border-white/10 flex items-center justify-center text-zinc-400 font-mono text-xs select-none">
                                         {lead.fullName?.[0] || lead.email?.[0]?.toUpperCase() || "?"}
                                     </div>
-                                    <span className="text-[9px] font-mono border-[0.5px] border-white/10 px-1.5 py-0.5 text-zinc-400 bg-white/2 uppercase tracking-wide">
-                                        {displayLeadStatus(lead.status)}
-                                    </span>
+                                    <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[9px] font-mono border-[0.5px] border-white/10 px-1.5 py-0.5 text-zinc-400 bg-white/2 uppercase tracking-wide">
+                                            {displayLeadStatus(lead.status)}
+                                        </span>
+                                        <span className={`text-[8.5px] font-mono border-[0.5px] px-1.5 py-0.5 uppercase tracking-wide ${tier.className}`}>
+                                            {tier.label} · {Math.round((lead.intentScore ?? 0) * 100)}%
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="text-[13px] font-medium text-white group-hover:text-zinc-200 transition-colors truncate">
@@ -206,7 +220,8 @@ export default async function LeadsPage({
                                 </div>
                             </div>
                         </Link>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
