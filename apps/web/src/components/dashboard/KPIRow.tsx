@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface KPIData {
@@ -65,6 +66,7 @@ export function KPIRow({ data, loading }: KPIRowProps) {
       label: "Active Pipeline",
       tooltip: "Leads currently in active outreach sequences",
       value: data.activeLeads,
+      href: "/leads",
       renderDelta: () => <span className="text-zinc-500 font-mono text-[9px] uppercase tracking-widest">Live State</span>
     },
     {
@@ -72,6 +74,7 @@ export function KPIRow({ data, loading }: KPIRowProps) {
       label: "Drafts Queued",
       tooltip: "Total AI-generated drafts in review pipeline across campaigns",
       value: data.draftsReady,
+      href: "/approvals",
       renderDelta: () => (
         data.draftsPendingSend > 0
           ? <span className="text-amber-500/80 font-mono text-[9px] uppercase tracking-widest border-[0.5px] border-amber-500/20 px-1.5 bg-amber-500/5">{data.draftsPendingSend} Dispatch Ready</span>
@@ -83,36 +86,48 @@ export function KPIRow({ data, loading }: KPIRowProps) {
       label: "Signal Capture",
       tooltip: "Engagement and reply rate performance across outreach",
       value: `${data.openRatePct}%`,
+      href: "/analytics/roi",
       renderDelta: () => <DeltaBadge value={data.openRateDelta} unit="%" />
     }
   ];
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-white/10 border-[0.5px] border-white/10 mb-8 p-[1px]">
-      {kpis.map((kpi, idx) => (
+      {kpis.map((kpi, idx) => {
+        const Wrapper = kpi.href ? Link : "div";
+        const wrapperProps = kpi.href ? { href: kpi.href } : {};
+        return (
         <motion.div
           key={kpi.id}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...transitionCurve, delay: idx * 0.08 }}
-          className={cn(
-            "relative flex flex-col justify-between p-5 bg-[#030303] overflow-hidden group hover:bg-[#080808] transition-colors duration-500 ease-out",
-            kpi.isPrimary ? "bg-[#06080A]" : ""
-          )}
         >
+          <Wrapper
+            {...(wrapperProps as any)}
+            className={cn(
+              "relative flex flex-col justify-between p-5 bg-[#030303] overflow-hidden group hover:bg-[#080808] transition-colors duration-500 ease-out h-full",
+              kpi.isPrimary ? "bg-[#06080A]" : "",
+              kpi.href ? "cursor-pointer" : ""
+            )}
+          >
           {kpi.isPrimary && (
             <div className="absolute top-0 right-0 w-full h-[1px] bg-gradient-to-r from-transparent via-blue-500/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
           )}
-          
+
           <div className="flex items-start justify-between">
             <h3 title={kpi.tooltip} className="text-[9px] text-zinc-500 uppercase tracking-[0.25em] font-medium cursor-help hover:text-zinc-300 transition-colors">
               {kpi.label}
             </h3>
-            <span className="text-[7px] text-zinc-700 font-mono tracking-widest">0{idx + 1}</span>
+            {kpi.href ? (
+              <span className="text-[11px] text-zinc-700 group-hover:text-zinc-400 transition-colors">›</span>
+            ) : (
+              <span className="text-[7px] text-zinc-700 font-mono tracking-widest">0{idx + 1}</span>
+            )}
           </div>
 
           <div className="mt-8 flex flex-col gap-3">
-            <motion.div 
+            <motion.div
               initial={{ scale: 0.95, filter: 'blur(4px)' }}
               animate={{ scale: 1, filter: 'blur(0px)' }}
               transition={{ ...transitionCurve, delay: (idx * 0.08) + 0.1 }}
@@ -127,8 +142,10 @@ export function KPIRow({ data, loading }: KPIRowProps) {
               {kpi.renderDelta()}
             </div>
           </div>
+          </Wrapper>
         </motion.div>
-      ))}
+        );
+      })}
     </div>
   );
 }

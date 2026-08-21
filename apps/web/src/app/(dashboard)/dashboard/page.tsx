@@ -22,6 +22,9 @@ import { SetupBanner } from "@/components/dashboard/SetupBanner";
 import { KPIRow } from "@/components/dashboard/KPIRow";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
 import { BottomGrid } from "@/components/dashboard/BottomGrid";
+import { PipelineTrendCard } from "@/components/dashboard/PipelineTrendCard";
+import { RecentLeadsCard } from "@/components/dashboard/RecentLeadsCard";
+import { LeadDrilldown, type DrilldownLead } from "@/components/dashboard/LeadDrilldown";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -56,6 +59,8 @@ interface DashboardData {
   kpis: DashboardKPIs;
   workflow: DashboardWorkflow;
   recentActivity: ActivityItem[];
+  recentLeads: DrilldownLead[];
+  pipelineTrend: number[];
   setupPercent: number;
 }
 
@@ -65,6 +70,7 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<DrilldownLead | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +111,19 @@ export default function DashboardPage() {
 
       {/* KPI row — always visible, north-star metrics */}
       <KPIRow data={data?.kpis ?? null} loading={loading} />
+
+      {/* Tier 2 — pipeline trend + recent leads (row click opens drill-down) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-4">
+        <PipelineTrendCard trend={data?.pipelineTrend ?? []} loading={loading} />
+        <RecentLeadsCard
+          leads={data?.recentLeads ?? []}
+          totalLeads={data?.kpis.activeLeads ?? 0}
+          loading={loading}
+          onSelect={setSelectedLead}
+        />
+      </div>
+
+      <LeadDrilldown lead={selectedLead} onClose={() => setSelectedLead(null)} />
 
       {/* Workflow section — progressive disclosure */}
       <div className="mb-4">
