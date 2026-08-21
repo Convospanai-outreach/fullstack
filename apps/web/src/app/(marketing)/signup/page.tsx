@@ -22,8 +22,8 @@ export default function SignupPage() {
                 <SignUp
                     routing="hash"
                     signInUrl="/login"
-                    fallbackRedirectUrl="/dashboard"
-                    forceRedirectUrl="/dashboard"
+                    fallbackRedirectUrl="/onboarding"
+                    forceRedirectUrl="/onboarding"
                     {...(inviteToken ? { unsafeMetadata: { inviteToken } } : {})}
                 />
             </div>
