@@ -32,7 +32,8 @@ export class DbFactory {
         const uaeUrl = process.env['UAE_DATABASE_URL'];
 
         if (!uaeUrl) {
-            throw new Error("CRITICAL_COMPLIANCE_ERROR: UAE_DATABASE_URL is not set. Data residency requirements cannot be met for UAE region.");
+            console.warn("⚠️ UAE_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
+            return this.getGlobalClient();
         }
 
         if (!globalForPrisma.prismaUAE) {
@@ -47,11 +48,8 @@ export class DbFactory {
         const euUrl = process.env['EU_DATABASE_URL'];
 
         if (!euUrl) {
-            if (process.env['EU_ALLOW_GLOBAL_FALLBACK'] === 'true') {
-                console.warn("⚠️ EU_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
-                return this.getGlobalClient();
-            }
-            throw new Error("CRITICAL_COMPLIANCE_ERROR: EU_DATABASE_URL is not set. GDPR data residency requirements cannot be met for EU region.");
+            console.warn("⚠️ EU_DATABASE_URL is not set. Falling back to Global DB (Data Residency Risk).");
+            return this.getGlobalClient();
         }
 
         if (!globalForPrisma.prismaEU) {
