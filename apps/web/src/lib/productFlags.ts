@@ -189,9 +189,15 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
         .join(",");
 }
 
-const DEFAULT_ENABLED_HIDDEN_FEATURES = parseEnabledHiddenFeatureKeys(
-    process.env["NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES"] || ""
-);
+// Surfaced by default for the US/EU (LinkedIn) and general (Knowledge/RAG-grounding) push —
+// see roadmap item 5. Every other hidden feature stays opt-in via NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES
+// or the per-user Settings toggle.
+const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = ["linkedin-runner", "knowledge"];
+
+const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
+    ...ALWAYS_ON_HIDDEN_FEATURE_KEYS,
+    ...parseEnabledHiddenFeatureKeys(process.env["NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES"] || ""),
+]);
 
 export function getDefaultEnabledHiddenFeatureKeys(): Set<HiddenFeatureKey> {
     return new Set(DEFAULT_ENABLED_HIDDEN_FEATURES);
