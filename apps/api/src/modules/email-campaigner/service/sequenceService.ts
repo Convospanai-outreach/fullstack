@@ -62,10 +62,44 @@ function retryAtForMailbox(reason?: string, now = new Date()) {
     return tomorrow;
 }
 
-function delayMs(step: any) {
+// Timezone offset (ms, positive east of UTC) at a given instant, per IANA zone.
+function tzOffsetMs(instant: Date, timeZone: string) {
+    const dtf = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        hourCycle: "h23",
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+    const parts: Record<string, string> = {};
+    for (const part of dtf.formatToParts(instant)) {
+        if (part.type !== "literal") parts[part.type] = part.value;
+    }
+    const asUtc = Date.UTC(
+        Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+        Number(parts.hour), Number(parts.minute), Number(parts.second),
+    );
+    return asUtc - instant.getTime();
+}
+
+// Adds `days` to `now` while preserving its local wall-clock time in `timeZone`,
+// so a multi-day delay lands at the same local hour even across a DST transition.
+function addLocalDays(now: Date, days: number, timeZone: string) {
+    if (days === 0) return now;
+    const offsetAtNow = tzOffsetMs(now, timeZone);
+    const localAsUtc = now.getTime() + offsetAtNow;
+    const shiftedLocalAsUtc = localAsUtc + days * 24 * 60 * 60 * 1000;
+
+    // The offset can differ at the shifted date (DST); resolve it against the shifted instant.
+    let guess = new Date(shiftedLocalAsUtc - offsetAtNow);
+    const offsetAtShifted = tzOffsetMs(guess, timeZone);
+    return new Date(shiftedLocalAsUtc - offsetAtShifted);
+}
+
+export function computeScheduledAt(now: Date, step: any, timezone?: string) {
     const days = Number.isFinite(step?.delayDays) ? step.delayDays : 0;
     const hours = Number.isFinite(step?.delayHours) ? step.delayHours : 0;
-    return ((days * 24) + hours) * 60 * 60 * 1000;
+    const afterDays = addLocalDays(now, days, timezone || "UTC");
+    return new Date(afterDays.getTime() + hours * 60 * 60 * 1000);
 }
 
 function safeJsonObject(value: string | null | undefined): ConditionConfig {
@@ -434,7 +468,10 @@ export class SequenceService {
 
     private static async scheduleNextStep(run: any, now: Date) {
         const client = db();
-        const enrollment = run.enrollment || await client.sequenceEnrollment.findUnique({ where: { id: run.enrollmentId } });
+        const enrollment = run.enrollment || await client.sequenceEnrollment.findUnique({
+            where: { id: run.enrollmentId },
+            include: { sequence: true },
+        });
         const currentStep = run.step || await client.sequenceStep.findUnique({ where: { id: run.sequenceStepId } });
         const nextStep = await client.sequenceStep.findFirst({
             where: {
@@ -459,7 +496,7 @@ export class SequenceService {
             return;
         }
 
-        const scheduledAt = new Date(now.getTime() + delayMs(nextStep));
+        const scheduledAt = computeScheduledAt(now, nextStep, enrollment.sequence?.timezone);
         const existing = await client.sequenceStepRun.findFirst({
             where: {
                 enrollmentId: enrollment.id,
