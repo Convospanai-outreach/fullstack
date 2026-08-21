@@ -9,6 +9,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findUnique: vi.fn() },
         email: { create: vi.fn() },
+        team: { findUnique: vi.fn().mockResolvedValue({ mailingAddress: null }) },
     },
 }));
 

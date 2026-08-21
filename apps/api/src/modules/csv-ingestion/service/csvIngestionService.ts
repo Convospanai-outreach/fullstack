@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/db";
 import Papa from "papaparse";
+import { ConsentService, ConsentMethod } from "@/modules/whatsapp/ConsentService";
+
+export interface ConsentAttestation {
+    userId: string;
+    hasConsent: boolean;
+}
 
 export interface CSVRow {
     email: string;
@@ -36,7 +42,7 @@ class CSVIngestionService {
         return mapping;
     }
 
-    async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>, campaignId?: string) {
+    async processCSV(csvContent: string, teamId: string | null, mapping?: Record<string, string>, campaignId?: string, consent?: ConsentAttestation) {
         try {
             const parsed = Papa.parse(csvContent, {
                 header: true,
@@ -119,7 +125,7 @@ class CSVIngestionService {
                     const linkedIn = linkedInKey ? row[linkedInKey]?.trim() : undefined;
                     const location = locationKey ? row[locationKey]?.trim() : undefined;
 
-                    await prisma.lead.create({
+                    const createdLead = await prisma.lead.create({
                         data: {
                             email,
                             fullName,
@@ -132,6 +138,20 @@ class CSVIngestionService {
                             status: "NEW",
                         }
                     });
+
+                    if (consent?.hasConsent) {
+                        // DPDP Act 2023 / GDPR: log the importer's attestation of consent to the ledger.
+                        // Non-blocking — a logging failure shouldn't fail the row's lead creation.
+                        await ConsentService.recordConsent(
+                            createdLead.id,
+                            consent.userId,
+                            ConsentMethod.WEB_FORM,
+                            "Attested by importer during CSV import",
+                            "EMAIL"
+                        ).catch((e) => {
+                            console.warn("[CSVIngestion] Failed to record consent ledger entry:", e?.message || e);
+                        });
+                    }
 
                     created++;
                 } catch (e: any) {

@@ -11,21 +11,22 @@ export enum ConsentMethod {
 export class ConsentService {
 
     /**
-     * Records explicit WhatsApp consent with full audit trail
+     * Records explicit consent with full audit trail
      * DPDP Act 2023 Compliance: Must log who, when, how
      */
     static async recordConsent(
         leadId: string,
         userId: string,
         method: ConsentMethod,
-        notes?: string
+        notes?: string,
+        channel: string = "WHATSAPP"
     ) {
         // 1. Create Ledger Entry (Source of Truth)
         await prisma.consentLedger.create({
             data: {
                 leadId,
                 userId,
-                channel: "WHATSAPP",
+                channel,
                 purpose: "MARKETING_AND_SUPPORT", // Default purpose for now
                 status: "GRANTED",
                 proof: null, // Can be added later
@@ -33,15 +34,18 @@ export class ConsentService {
             }
         });
 
-        // 2. Update Lead record (Cache)
-        const lead = await prisma.lead.update({
-            where: { id: leadId },
-            data: {
-                whatsappConsent: true,
-                whatsappConsentAt: new Date(),
-                whatsappConsentBy: userId
-            }
-        });
+        // 2. Update Lead record (Cache) — the whatsappConsent* columns are WhatsApp-specific;
+        // other channels rely on the ConsentLedger above as their source of truth.
+        const lead = channel === "WHATSAPP"
+            ? await prisma.lead.update({
+                where: { id: leadId },
+                data: {
+                    whatsappConsent: true,
+                    whatsappConsentAt: new Date(),
+                    whatsappConsentBy: userId
+                }
+            })
+            : await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
 
         // Create immutable audit log
         const { AuditService } = await import("@/modules/audit/auditService");
@@ -54,7 +58,7 @@ export class ConsentService {
                 "Lead",
                 leadId,
                 {
-                    consentType: "WHATSAPP",
+                    consentType: channel,
                     method,
                     notes,
                     leadEmail: lead.email,
@@ -67,9 +71,9 @@ export class ConsentService {
     }
 
     /**
-     * Validates that consent exists before allowing WhatsApp messaging
+     * Validates that consent exists before allowing messaging on the given channel
      */
-    static async validateConsent(leadId: string): Promise<{
+    static async validateConsent(leadId: string, channel: string = "WHATSAPP"): Promise<{
         hasConsent: boolean;
         reason?: string;
     }> {
@@ -77,43 +81,45 @@ export class ConsentService {
         const activeConsent = await prisma.consentLedger.findFirst({
             where: {
                 leadId,
-                channel: "WHATSAPP",
+                channel,
                 status: "GRANTED"
             },
             orderBy: { grantedAt: "desc" }
         });
 
         if (!activeConsent) {
-            return { hasConsent: false, reason: "No active WhatsApp consent found in ledger" };
+            return { hasConsent: false, reason: `No active ${channel} consent found in ledger` };
         }
 
         return { hasConsent: true };
     }
 
     /**
-     * Revokes WhatsApp consent (Opt-Out)
+     * Revokes consent (Opt-Out)
      * DPDP Act 2023: Users must be able to withdraw consent easily
      */
-    static async revokeConsent(leadId: string, userId?: string, reason?: string) {
+    static async revokeConsent(leadId: string, userId?: string, reason?: string, channel: string = "WHATSAPP") {
         // 1. Create Ledger Entry (Revocation)
         await prisma.consentLedger.create({
             data: {
                 leadId,
                 userId: userId || null,
-                channel: "WHATSAPP",
+                channel,
                 purpose: "REVOCATION",
                 status: "REVOKED", // Using string literal matching the Enum
                 notes: reason || null
             }
         });
 
-        // 2. Update Lead (Cache)
-        const lead = await prisma.lead.update({
-            where: { id: leadId },
-            data: {
-                whatsappConsent: false
-            }
-        });
+        // 2. Update Lead (Cache) — WhatsApp-specific column, see recordConsent.
+        const lead = channel === "WHATSAPP"
+            ? await prisma.lead.update({
+                where: { id: leadId },
+                data: {
+                    whatsappConsent: false
+                }
+            })
+            : await prisma.lead.findUniqueOrThrow({ where: { id: leadId } });
 
         // Log revocation
         const { AuditService } = await import("@/modules/audit/auditService");
@@ -126,7 +132,7 @@ export class ConsentService {
                 "Lead",
                 leadId,
                 {
-                    consentType: "WHATSAPP",
+                    consentType: channel,
                     reason,
                     revokedAt: new Date().toISOString()
                 }

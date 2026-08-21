@@ -23,8 +23,17 @@ export type EmailSendResult = {
     error?: string;
 };
 
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
 class EmailService {
-    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string) {
+    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null) {
         if (!publicBaseUrl) return body;
         const baseUrl = publicBaseUrl.replace(/\/$/, "");
         const tracked = body.replace(/href=(["'])(https?:\/\/[^"']+)\1/gi, (_match, quote, href) => {
@@ -32,9 +41,14 @@ class EmailService {
             const trackedHref = `${baseUrl}/api/proxy/email/track/click/${trackingId}?url=${encodeURIComponent(href)}&sig=${encodeURIComponent(sig)}`;
             return `href=${quote}${trackedHref}${quote}`;
         });
+        // CAN-SPAM requires a physical postal address in every marketing email; omitted when the team hasn't set one.
+        const addressLine = mailingAddress
+            ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
+            : "";
         return `${tracked}
                 <img src="${baseUrl}/api/proxy/email/track/open/${trackingId}" width="1" height="1" alt="" style="display:none" />
-                <p style="font-size:12px;color:#64748b"><a href="${baseUrl}/api/proxy/email/unsubscribe/${trackingId}">Unsubscribe</a></p>`;
+                <p style="font-size:12px;color:#64748b"><a href="${baseUrl}/api/proxy/email/unsubscribe/${trackingId}">Unsubscribe</a></p>
+                ${addressLine}`;
     }
 
     private async persistDeliveredEmail(input: {
@@ -141,7 +155,10 @@ class EmailService {
 
         const trackingId = crypto.randomUUID();
         const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
-        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl);
+        const mailingAddress = teamId
+            ? (await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }))?.mailingAddress
+            : undefined;
+        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress);
 
         let gmailOutcome: GmailSendOutcome | undefined;
 
