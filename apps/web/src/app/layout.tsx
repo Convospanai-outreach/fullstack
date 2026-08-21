@@ -57,6 +57,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html lang="en" className="dark" data-scroll-behavior="smooth">
         <head>
+          <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Summary" />
+          <link rel="alternate" type="text/markdown" href="/llms-full.txt" title="LLM Full Architecture Specification" />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
@@ -73,7 +75,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "sameAs": [
                       "https://github.com/Convospanai-outreach/fullstack",
                       "https://twitter.com/craftmyfunnel"
+                    ],
+                    "contactPoint": {
+                      "@type": "ContactPoint",
+                      "email": "contact.us@craftmyfunnel.live",
+                      "contactType": "customer support",
+                      "availableLanguage": ["English"]
+                    },
+                    "knowsAbout": [
+                      "B2B Outreach Automation",
+                      "Human-in-the-Loop AI Review",
+                      "Email Deliverability & RFC 5322 Message-ID",
+                      "RFC 8058 One-Click Unsubscribe",
+                      "Multi-Tenant Isolation & HMAC-SHA256 Blind Indexing",
+                      "Transactional Outbox Pattern"
                     ]
+                  },
+                  {
+                    "@type": "WebSite",
+                    "@id": "https://craftmyfunnel.live/#website",
+                    "url": "https://craftmyfunnel.live",
+                    "name": "CraftMyFunnel",
+                    "publisher": {
+                      "@id": "https://craftmyfunnel.live/#organization"
+                    }
                   },
                   {
                     "@type": "SoftwareApplication",
@@ -82,9 +107,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "applicationCategory": "BusinessApplication",
                     "operatingSystem": "Web Browser, Cloud",
                     "offers": {
-                      "@type": "Offer",
-                      "price": "0",
-                      "priceCurrency": "USD"
+                      "@type": "AggregateOffer",
+                      "priceCurrency": "USD",
+                      "lowPrice": "49",
+                      "highPrice": "499",
+                      "offerCount": "3",
+                      "offers": [
+                        {
+                          "@type": "Offer",
+                          "name": "Pilot",
+                          "price": "49",
+                          "priceCurrency": "USD",
+                          "description": "30-day growth pilot package for one ICP, one geography, and one offer"
+                        },
+                        {
+                          "@type": "Offer",
+                          "name": "Growth Autopilot",
+                          "price": "99",
+                          "priceCurrency": "USD",
+                          "description": "Monthly managed campaign operations for repeatable pipeline tracking"
+                        },
+                        {
+                          "@type": "Offer",
+                          "name": "Enterprise",
+                          "price": "499",
+                          "priceCurrency": "USD",
+                          "description": "Custom vertical playbooks, governance, and private-data execution options"
+                        }
+                      ]
                     },
                     "description": "Governed B2B outreach platform combining intent signal ingestion, AI draft generation with human review, deliverability guardrails, and meeting tracking.",
                     "featureList": [
