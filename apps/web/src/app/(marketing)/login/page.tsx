@@ -1,95 +1,88 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
 import { LogoMark } from "@/components/brand/LogoMark";
 
-const clerkMountScript = `
-(() => {
-  const mountNode = document.getElementById("clerk-sign-in-root");
-  if (!mountNode || mountNode.dataset.clerkMounted === "true") return;
-  mountNode.dataset.clerkMounted = "true";
-
-  const waitFor = (predicate, timeoutMs = 15000) =>
-    new Promise((resolve, reject) => {
-      const startedAt = Date.now();
-      const check = () => {
-        const value = predicate();
-        if (value) {
-          resolve(value);
-          return;
-        }
-
-        if (Date.now() - startedAt > timeoutMs) {
-          reject(new Error("Clerk did not initialize in time"));
-          return;
-        }
-
-        window.setTimeout(check, 100);
-      };
-
-      check();
+function waitFor<T>(predicate: () => T | undefined | null, timeoutMs = 15000): Promise<T> {
+    return new Promise((resolve, reject) => {
+        const startedAt = Date.now();
+        const check = () => {
+            const value = predicate();
+            if (value) {
+                resolve(value);
+                return;
+            }
+            if (Date.now() - startedAt > timeoutMs) {
+                reject(new Error("Clerk did not initialize in time"));
+                return;
+            }
+            window.setTimeout(check, 100);
+        };
+        check();
     });
+}
 
-  const loadScript = (src) =>
-    new Promise((resolve, reject) => {
-      if ([...document.scripts].some((script) => script.src === src)) {
-        resolve();
-        return;
-      }
-
-      const script = document.createElement("script");
-      script.src = src;
-      script.async = true;
-      script.crossOrigin = "anonymous";
-      script.onload = resolve;
-      script.onerror = reject;
-      document.head.appendChild(script);
+function loadScript(src: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+        if ([...document.scripts].some((script) => script.src === src)) {
+            resolve();
+            return;
+        }
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.crossOrigin = "anonymous";
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(script);
     });
+}
 
-  const getRedirectUrl = () => {
+function getRedirectUrl() {
     const params = new URLSearchParams(window.location.search);
     return params.get("redirect_url") || params.get("callbackUrl") || "/dashboard";
-  };
-
-  const setUnavailable = () => {
-    mountNode.textContent = "Sign in is unavailable right now. Please refresh and try again.";
-    mountNode.className = "text-center text-sm text-rose-300";
-  };
-
-  (async () => {
-    try {
-      const clerk = await waitFor(() => window.Clerk);
-      const uiUrl =
-        document.querySelector('link[href*="/npm/@clerk/ui@"]')?.href ||
-        "https://clerk.craftmyfunnel.live/npm/@clerk/ui@1/dist/ui.browser.js";
-
-      await loadScript(uiUrl);
-      const ClerkUI = await waitFor(() => window.__internal_ClerkUICtor);
-      await clerk.load({ ui: { ClerkUI } });
-
-      clerk.mountSignIn(mountNode, {
-        routing: "hash",
-        signUpUrl: "/signup",
-        fallbackRedirectUrl: getRedirectUrl(),
-        forceRedirectUrl: getRedirectUrl(),
-      });
-    } catch {
-      setUnavailable();
-    }
-  })();
-})();
-`;
+}
 
 function LoginForm() {
-    return (
-        <>
-            <div id="clerk-sign-in-root" />
-            <script dangerouslySetInnerHTML={{ __html: clerkMountScript }} />
-        </>
-    );
+    const mountRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const mountNode = mountRef.current;
+        if (!mountNode || mountNode.getAttribute("data-clerk-mounted") === "true") return;
+        mountNode.setAttribute("data-clerk-mounted", "true");
+
+        const setUnavailable = () => {
+            mountNode.textContent = "Sign in is unavailable right now. Please refresh and try again.";
+            mountNode.className = "text-center text-sm text-rose-300";
+        };
+
+        (async () => {
+            try {
+                const clerk = await waitFor(() => (window as any).Clerk);
+                const uiUrl =
+                    document.querySelector('link[href*="/npm/@clerk/ui@"]')?.getAttribute("href") ||
+                    "https://clerk.craftmyfunnel.live/npm/@clerk/ui@1/dist/ui.browser.js";
+
+                await loadScript(uiUrl);
+                const ClerkUI = await waitFor(() => (window as any).__internal_ClerkUICtor);
+                await clerk.load({ ui: { ClerkUI } });
+
+                clerk.mountSignIn(mountNode, {
+                    routing: "hash",
+                    signUpUrl: "/signup",
+                    fallbackRedirectUrl: getRedirectUrl(),
+                    forceRedirectUrl: getRedirectUrl(),
+                });
+            } catch {
+                setUnavailable();
+            }
+        })();
+    }, []);
+
+    return <div id="clerk-sign-in-root" ref={mountRef} />;
 }
 
 function InviteRequiredNotice() {
