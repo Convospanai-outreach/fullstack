@@ -57,3 +57,19 @@ By enforcing strict daily sending limits per connected mailbox, automatic bounce
 
 ### Does CraftMyFunnel support multi-client agencies?
 Yes. Workspaces feature strict multi-tenant isolation, role-based access control, individual user credit quotas, and whitelabel portal branding.
+
+---
+
+## Canonical Public Resources
+
+- Documentation Hub: https://craftmyfunnel.live/docs
+- Governed Outreach Architecture: https://craftmyfunnel.live/docs/governed-outreach
+- Deliverability & RFC Engine: https://craftmyfunnel.live/docs/deliverability-guardrails
+- Security & Blind Indexing: https://craftmyfunnel.live/docs/security-architecture
+- Developer REST API & Webhooks: https://craftmyfunnel.live/docs/api
+- Platform FAQ: https://craftmyfunnel.live/faq
+- Pricing & Plans: https://craftmyfunnel.live/pricing
+- Competitor Comparisons: https://craftmyfunnel.live/vs (Apollo: /vs/apollo, Instantly: /vs/instantly, Lemlist: /vs/lemlist)
+- Vertical Use Cases: https://craftmyfunnel.live/use-cases (/use-cases/facility-management, /use-cases/security-services, /use-cases/staffing, /use-cases/training, /use-cases/consulting, /use-cases/managed-services)
+- Trust & Compliance: https://craftmyfunnel.live/security, https://craftmyfunnel.live/google-api-disclosure, https://craftmyfunnel.live/data-deletion, https://craftmyfunnel.live/terms, https://craftmyfunnel.live/privacy
+

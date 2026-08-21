@@ -29,6 +29,9 @@ CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage b
 - [REST API & Webhooks](https://craftmyfunnel.live/docs/api): Public developer API specification.
 - [Frequently Asked Questions](https://craftmyfunnel.live/faq): Detailed answers regarding deliverability, approval workflows, and integrations.
 - [Pricing & Credit Tiers](https://craftmyfunnel.live/pricing): Transparent per-workspace subscription and credit allocation tiers.
+- [Help Center & Support](https://craftmyfunnel.live/help): User guides, setup walkthroughs, and troubleshooting.
+- [Google API Disclosure](https://craftmyfunnel.live/google-api-disclosure): Compliance with Google API Services User Data Policy and Limited Use requirements.
+- [Data Deletion Policy](https://craftmyfunnel.live/data-deletion): Workspace data retention, export, and deletion instructions.
 - [Terms of Service](https://craftmyfunnel.live/terms): Platform usage and acceptable outreach policies.
 - [Privacy Policy](https://craftmyfunnel.live/privacy): Data protection and privacy compliance.
 

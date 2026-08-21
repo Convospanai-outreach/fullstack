@@ -2,10 +2,12 @@
 
 import { useUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import {
     Building2,
     CheckCircle2,
     Mail,
+    MapPin,
     Settings2,
     ShieldCheck,
     UserCircle,
@@ -27,6 +29,35 @@ export default function GeneralSettingsPage() {
     const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Workspace User";
     const userEmail = user?.primaryEmailAddress?.emailAddress || "user@workspace.com";
     const userInitials = initials(userName, userEmail);
+
+    const [mailingAddress, setMailingAddress] = useState("");
+    const [savingAddress, setSavingAddress] = useState(false);
+    const [addressSaved, setAddressSaved] = useState(false);
+
+    useEffect(() => {
+        fetch("/api/settings/compliance")
+            .then((res) => res.json())
+            .then((data) => setMailingAddress(data?.mailingAddress || ""))
+            .catch(() => {});
+    }, []);
+
+    const handleSaveAddress = async () => {
+        setSavingAddress(true);
+        setAddressSaved(false);
+        try {
+            const res = await fetch("/api/settings/compliance", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mailingAddress }),
+            });
+            const data = await res.json();
+            if (data?.ok) setAddressSaved(true);
+        } catch {
+            // no-op; button simply won't show the saved state
+        } finally {
+            setSavingAddress(false);
+        }
+    };
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -114,6 +145,36 @@ export default function GeneralSettingsPage() {
                     <h3 className="font-semibold text-white">Usage Controls</h3>
                     <p className="mt-2 text-sm leading-6 text-gray-400">Check credit limits and approval rules for local campaign testing.</p>
                 </Link>
+            </section>
+
+            <section className="rounded-xl border border-white/10 bg-white/[0.03] p-6">
+                <div className="flex items-center gap-3">
+                    <div className="rounded-lg bg-amber-500/10 p-2 text-amber-300">
+                        <MapPin className="h-5 w-5" />
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-white">Mailing Address</h2>
+                        <p className="text-sm text-gray-400">
+                            Shown in the footer of outbound marketing emails. Required by CAN-SPAM for US-bound campaigns.
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-start">
+                    <textarea
+                        value={mailingAddress}
+                        onChange={(e) => setMailingAddress(e.target.value)}
+                        placeholder="123 Main St, Suite 400, San Francisco, CA 94105, USA"
+                        rows={3}
+                        className="w-full flex-1 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-sm text-gray-200 placeholder:text-gray-600 focus:border-brand-500/50 focus:outline-none"
+                    />
+                    <button
+                        onClick={handleSaveAddress}
+                        disabled={savingAddress}
+                        className="shrink-0 rounded-lg bg-brand-500/15 px-4 py-2 text-sm font-semibold text-brand-300 transition-colors hover:bg-brand-500/25 disabled:opacity-50"
+                    >
+                        {savingAddress ? "Saving..." : addressSaved ? "Saved" : "Save"}
+                    </button>
+                </div>
             </section>
         </div>
     );

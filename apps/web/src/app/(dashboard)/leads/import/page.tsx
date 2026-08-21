@@ -29,6 +29,7 @@ export default function ImportLeadsPage() {
     const [importing, setImporting] = useState(false);
     const [result, setResult] = useState<any>(null);
     const [error, setError] = useState("");
+    const [hasConsent, setHasConsent] = useState(false);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -76,7 +77,7 @@ export default function ImportLeadsPage() {
         setResult(null);
 
         try {
-            const importResult = await importCSV(csvText, fieldMapping, campaignId);
+            const importResult = await importCSV(csvText, fieldMapping, campaignId, hasConsent);
             setResult(importResult);
 
             if (importResult.created > 0) {
@@ -189,6 +190,17 @@ export default function ImportLeadsPage() {
                 {/* Import Button */}
                 {csvText && (
                     <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 mb-6 backdrop-blur-md">
+                        <label className="flex items-start gap-3 mb-4 text-sm text-slate-300 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={hasConsent}
+                                onChange={(e) => setHasConsent(e.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-slate-950/40 text-indigo-500 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <span>
+                                I confirm these leads have given consent to be contacted, or contacting them is otherwise lawful under applicable data protection law (e.g. DPDP, GDPR).
+                            </span>
+                        </label>
                         <button
                             onClick={handleImport}
                             disabled={importing}

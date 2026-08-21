@@ -90,7 +90,7 @@ export default function FacilityManagementUseCasePage() {
                             </div>
                             <h3 className="text-base font-bold text-white">Expansion & Lease Signals</h3>
                             <p className="text-xs text-slate-400 leading-relaxed">
-                                NetJana monitors commercial real estate lease expirations, corporate moves, and corporate facility expansions to pinpoint high-intent accounts.
+                                CraftMyFunnel's buyer signal engine monitors commercial real estate lease expirations, corporate moves, and corporate facility expansions to pinpoint high-intent accounts.
                             </p>
                         </div>
 

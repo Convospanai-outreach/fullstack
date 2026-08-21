@@ -92,7 +92,8 @@ export async function deleteLead(id: string) {
 export async function importCSV(
     csvText: string,
     fieldMapping?: { [key: string]: string },
-    campaignId?: string
+    campaignId?: string,
+    hasConsent?: boolean
 ) {
     const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
     const res = await fetch(apiBase + "/upload/csv", {
@@ -102,6 +103,7 @@ export async function importCSV(
             csv: csvText,
             fieldMapping,
             campaignId,
+            hasConsent: hasConsent === true,
         }),
     });
     if (!res.ok) {

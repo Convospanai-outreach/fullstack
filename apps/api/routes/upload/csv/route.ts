@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     let csvText: string = "";
     let fieldMapping: any = undefined;
     let campaignId: string | undefined = undefined;
+    let hasConsent = false;
 
     if (contentType?.includes("application/json")) {
       // JSON payload with CSV text and mapping
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
       csvText = body.csv || body.csvText || "";
       fieldMapping = body.fieldMapping;
       campaignId = body.campaignId;
+      hasConsent = body.hasConsent === true;
     } else {
       // Plain text CSV
       csvText = await req.text();
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     // Process CSV import
     const { csvIngestionService } = await import("@/modules/csv-ingestion/service/csvIngestionService");
     // @ts-ignore
-    const result = await csvIngestionService.processCSV(csvText, teamId, fieldMapping, campaignId);
+    const result = await csvIngestionService.processCSV(csvText, teamId, fieldMapping, campaignId, { userId, hasConsent });
 
     // MANDATORY AUDIT LOG
     await audit({

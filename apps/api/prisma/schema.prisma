@@ -1007,6 +1007,10 @@ model Team {
   billingCountry String?
   billingState   String?
 
+  // Physical postal address shown in outbound marketing email footers.
+  // Required for CAN-SPAM compliance; not set = no footer is injected.
+  mailingAddress String?
+
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
   domains                    CustomDomain[]
