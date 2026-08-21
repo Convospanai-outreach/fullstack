@@ -15,11 +15,29 @@ function isValidHttpUrl(urlString: unknown): boolean {
 
 function isValidColor(colorString: unknown): boolean {
     if (!colorString || typeof colorString !== "string") return true;
-    return (
-        /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(colorString) ||
-        /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/i.test(colorString) ||
-        /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*[\d.]+\s*\)$/i.test(colorString)
-    );
+    const str = colorString.trim();
+
+    // Hex: #fff, #ffffff, #ffffffff
+    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(str)) {
+        return true;
+    }
+
+    // rgb(r, g, b) where r, g, b in [0, 255]
+    const rgbMatch = str.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/i);
+    if (rgbMatch) {
+        const [_, r, g, b] = rgbMatch;
+        return Number(r) <= 255 && Number(g) <= 255 && Number(b) <= 255;
+    }
+
+    // rgba(r, g, b, a) where r, g, b in [0, 255] and a in [0, 1]
+    const rgbaMatch = str.match(/^rgba\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*([01]?(?:\.\d+)?)\s*\)$/i);
+    if (rgbaMatch) {
+        const [_, r, g, b, a] = rgbaMatch;
+        const numA = Number(a);
+        return Number(r) <= 255 && Number(g) <= 255 && Number(b) <= 255 && numA >= 0 && numA <= 1;
+    }
+
+    return false;
 }
 
 function sanitizeText(text: unknown, maxLength = 100): string | undefined {
