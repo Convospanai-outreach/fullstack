@@ -40,6 +40,8 @@ export async function GET() {
           pendingSendCount: 0,
         },
         recentActivity: [],
+        recentLeads: [],
+        pipelineTrend: [],
         setupPercent: 0,
       });
     }
@@ -172,6 +174,50 @@ export async function GET() {
       }),
     ]);
 
+    // Recent leads for the Tier-2 leads table (row click opens the drill-down slide-over)
+    const recentLeadsRaw = await prisma.lead.findMany({
+      where: { teamId },
+      orderBy: { updatedAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        company: true,
+        status: true,
+        updatedAt: true,
+      },
+    });
+    const recentLeads = recentLeadsRaw.map((lead) => ({
+      id: lead.id,
+      name: lead.fullName || lead.email || "Unknown",
+      company: lead.company || "—",
+      status: lead.status,
+      lastActivityAt: lead.updatedAt.toISOString(),
+    }));
+
+    // Pipeline trend: cumulative leads created per day, last 30 days
+    const trendStart = new Date();
+    trendStart.setDate(trendStart.getDate() - 29);
+    trendStart.setHours(0, 0, 0, 0);
+    const [leadsBeforeWindow, leadsInWindow] = await Promise.all([
+      prisma.lead.count({ where: { teamId, createdAt: { lt: trendStart } } }),
+      prisma.lead.findMany({
+        where: { teamId, createdAt: { gte: trendStart } },
+        select: { createdAt: true },
+      }),
+    ]);
+    const dayBuckets = new Array(30).fill(0);
+    for (const { createdAt } of leadsInWindow) {
+      const dayIndex = Math.floor((createdAt.getTime() - trendStart.getTime()) / 86400000);
+      if (dayIndex >= 0 && dayIndex < 30) dayBuckets[dayIndex]++;
+    }
+    let running = leadsBeforeWindow;
+    const pipelineTrend = dayBuckets.map((count) => {
+      running += count;
+      return running;
+    });
+
     // Map recentActivity list
     let recentActivity = recentActivities.map((act) => {
       let type: 'meeting_booked' | 'draft_generated' | 'follow_up_flagged' | 'campaign_activated' = 'draft_generated';
@@ -228,6 +274,8 @@ export async function GET() {
         pendingSendCount: draftsCount,
       },
       recentActivity,
+      recentLeads,
+      pipelineTrend,
       setupPercent,
     });
 

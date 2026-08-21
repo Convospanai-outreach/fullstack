@@ -18,10 +18,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import useSWR from "swr";
 import {
   LayoutDashboard,
   Megaphone,
-  Inbox,
   Activity,
   Bot,
   Settings,
@@ -36,6 +36,8 @@ import {
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
 import { HIDDEN_FEATURES, PRODUCT_FLAGS } from "@/lib/productFlags";
+
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 interface NavItem {
   href: string;
@@ -65,10 +67,8 @@ const buildNavGroups = (): NavGroup[] => {
     {
       items: [
         { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { href: '/approvals', label: 'Approvals', icon: ShieldCheck },
         { href: '/leads', label: 'Leads', icon: Users },
         { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
-        { href: '/inbox', label: 'Inbox', icon: Inbox },
       ],
     },
     {
@@ -98,6 +98,9 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const { user } = useUser();
 
   const navGroups = buildNavGroups();
+  const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher, { refreshInterval: 30000 });
+  const pendingActionCount = approvals?.requests?.length ?? 0;
+  const isActionCenterActive = pathname?.startsWith('/approvals') || pathname?.startsWith('/inbox');
   const userName = user?.fullName ?? user?.firstName ?? 'User';
   const userInitials = userName
     .split(' ')
@@ -192,6 +195,36 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
               </div>
             </div>
           ))}
+
+          {/* Action Center — Approvals + Inbox merged into one badged queue.
+              /inbox already redirects to /approvals, so this reflects the real single surface. */}
+          <div className="mt-1">
+            <div className="pt-4 pb-1 px-2">
+              <span className="text-[10px] uppercase font-medium tracking-wide text-white/20">
+                Action Center
+              </span>
+            </div>
+            <Link
+              href="/approvals"
+              onClick={onClose}
+              className={`
+                flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
+                transition-colors duration-150
+                ${isActionCenterActive
+                  ? 'bg-blue-500/12 text-blue-400'
+                  : 'text-white/45 hover:bg-white/4 hover:text-white/70'
+                }
+              `}
+            >
+              <ShieldCheck className="w-[14px] h-[14px] flex-shrink-0" />
+              <span className="flex-1">Approvals & Inbox</span>
+              {pendingActionCount > 0 && (
+                <span className="text-[9.5px] border border-white/15 rounded px-1 text-white/50">
+                  {pendingActionCount}
+                </span>
+              )}
+            </Link>
+          </div>
 
           {/* Tools — discovery surface for gated/hidden feature areas */}
           <div className="mt-1 pt-4 border-t border-white/6">
