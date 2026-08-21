@@ -1116,25 +1116,32 @@ model CreditTransaction {
 }
 
 model Subscription {
-  id               String    @id @default(uuid())
-  userId           String    @unique
-  planId           String
-  status           String // active, trialing, canceled
-  currentPeriodEnd DateTime
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  user             User      @relation(fields: [userId], references: [id])
-  plan             Plan      @relation(fields: [planId], references: [id])
-  invoices         Invoice[]
+  id                     String    @id @default(uuid())
+  userId                 String    @unique
+  planId                 String
+  status                 String // active, trialing, canceled
+  currentPeriodEnd       DateTime
+  gateway                String    @default("RAZORPAY") // RAZORPAY | STRIPE
+  externalSubscriptionId String? // Stripe subscription id ("sub_..."); null for Razorpay
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  user                   User      @relation(fields: [userId], references: [id])
+  plan                   Plan      @relation(fields: [planId], references: [id])
+  invoices               Invoice[]
+
+  @@index([gateway, externalSubscriptionId])
 }
 
 model Plan {
   id              String         @id @default(uuid())
   name            String         @unique // FREE, PRO, ENTERPRISE
-  monthlyPrice    Int
+  monthlyPrice    Int // INR price, smallest unit (paise) - charged via Razorpay
   creditsPerMonth Int
   maxAgents       Int
   features        Json
+  // Non-INR pricing, e.g. {"USD": {"amount": 2900, "stripePriceId": "price_..."}, "EUR": {...}}.
+  // amount is in the currency's smallest unit. Charged via Stripe. Null/missing currency = not sold there yet.
+  stripePrices    Json?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   subscriptions   Subscription[]
@@ -1161,6 +1168,7 @@ model Invoice {
   description    String
   amount         Int // total amount actually charged, in the currency's smallest unit - the source of truth, never re-derived from a live Plan price
   currency       String
+  gateway        String        @default("RAZORPAY") // RAZORPAY | STRIPE
   paymentId      String
   orderId        String?
 

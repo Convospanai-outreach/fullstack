@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -88,6 +88,18 @@ const proofPoints = [
     "Lead and meeting workflow tracking",
 ];
 
+// Matches PLAN_ALIASES in apps/api/routes/billing/checkout/route.ts, which maps
+// these same lowercase names to the real Plan.name rows (PRO/GROWTH/ENTERPRISE).
+const DB_PLAN_NAME: Record<Plan["name"], string> = {
+    Starter: "PRO",
+    Growth: "GROWTH",
+    Enterprise: "ENTERPRISE",
+};
+
+type LivePrice = { currency: string; amount: number | null; available: boolean };
+
+const CURRENCY_SYMBOL: Record<string, string> = { USD: "$", EUR: "€", INR: "₹" };
+
 export default function PricingPage() {
     const router = useRouter();
     // Defaults to monthly: checkout always charges plan.monthlyPrice regardless of
@@ -99,6 +111,26 @@ export default function PricingPage() {
     const [billingCountry, setBillingCountry] = useState("IN");
     const [billingCustomCountry, setBillingCustomCountry] = useState("");
     const [billingState, setBillingState] = useState("Delhi");
+    const [livePrices, setLivePrices] = useState<Record<string, LivePrice> | null>(null);
+
+    // Refetches whenever the visitor picks a different billing country in the modal,
+    // so the displayed price always matches what checkout would actually charge.
+    useEffect(() => {
+        const resolvedCountry = billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry;
+        const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+        const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
+
+        fetch(`${base}/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
+            .then((res) => res.json())
+            .then((data) => {
+                const byName: Record<string, LivePrice> = {};
+                for (const p of data.plans || []) {
+                    byName[p.name] = { currency: data.currency, amount: p.amount, available: p.available ?? true };
+                }
+                setLivePrices(byName);
+            })
+            .catch(() => setLivePrices(null));
+    }, [billingCountry, billingCustomCountry]);
 
     const hasSessionCookie = () => {
         if (typeof document === "undefined") {
@@ -145,12 +177,6 @@ export default function PricingPage() {
         const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
 
         try {
-            const isLoaded = await loadRazorpayScript();
-            if (!isLoaded) {
-                toast.error("Failed to load payment gateway");
-                return;
-            }
-
             const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
             const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
             const res = await fetch(`${base}/billing/checkout`, {
@@ -164,6 +190,18 @@ export default function PricingPage() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.message || "Failed to create order");
+
+            if (data.gateway === "STRIPE") {
+                // Stripe Checkout is hosted - redirect instead of opening a client-side popup.
+                window.location.href = data.url;
+                return;
+            }
+
+            const isLoaded = await loadRazorpayScript();
+            if (!isLoaded) {
+                toast.error("Failed to load payment gateway");
+                return;
+            }
 
             const options = {
                 key: data.key,
@@ -223,7 +261,14 @@ export default function PricingPage() {
                 <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-3">
                     {plans.map((plan) => {
                         const Icon = plan.icon;
-                        const price = isAnnual ? plan.annualPrice : plan.monthlyPrice;
+                        const live = livePrices?.[DB_PLAN_NAME[plan.name]];
+                        // Live price only applies to the monthly figure - annual billing isn't
+                        // wired up server-side yet (see the toggle's comment above), so the
+                        // annual column stays on the static marketing estimate either way.
+                        const price = isAnnual
+                            ? plan.annualPrice
+                            : live?.amount != null ? Math.round(live.amount / 100) : plan.monthlyPrice;
+                        const currencySymbol = !isAnnual && live ? (CURRENCY_SYMBOL[live.currency] || live.currency + " ") : "$";
                         const ctaText = plan.name === "Enterprise"
                             ? "Talk to Sales"
                             : plan.name === "Growth"
@@ -258,7 +303,7 @@ export default function PricingPage() {
 
                                     <div className="mb-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                                         <div className="flex items-baseline gap-1">
-                                            <span className="text-4xl font-black text-white">${price}</span>
+                                            <span className="text-4xl font-black text-white">{currencySymbol}{price}</span>
                                             <span className="text-sm font-medium text-slate-400">/month</span>
                                         </div>
                                         <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
