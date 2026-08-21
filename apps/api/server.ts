@@ -179,6 +179,9 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // Product display info (name/price) for the public checkout page -
       // active-only lookup, no team data leaked, see publicProduct.ts.
       "/checkout/public-products",
+      // Plan pricing for the public /pricing marketing page - visitors see
+      // real prices before signing up, no team-specific data returned.
+      "/billing/plans",
     ];
     const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
     const isV1Route = registeredPath.startsWith('/v1');

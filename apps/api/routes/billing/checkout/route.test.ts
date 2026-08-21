@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockGetCurrentContext, mockCreateOrder, mockAuthorizeRole } = vi.hoisted(() => ({
+const { mockPrisma, mockGetCurrentContext, mockCreateOrder, mockAuthorizeRole, mockCreateSubscriptionCheckoutSession } = vi.hoisted(() => ({
     mockPrisma: {
         plan: { findUnique: vi.fn() },
         team: { update: vi.fn() },
@@ -8,6 +8,7 @@ const { mockPrisma, mockGetCurrentContext, mockCreateOrder, mockAuthorizeRole } 
     mockGetCurrentContext: vi.fn(),
     mockCreateOrder: vi.fn(),
     mockAuthorizeRole: vi.fn(),
+    mockCreateSubscriptionCheckoutSession: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
@@ -18,6 +19,9 @@ vi.mock("@/lib/permissions", () => ({
 }));
 vi.mock("@/modules/billing/service/billingService", () => ({
     billingService: { createOrder: mockCreateOrder },
+}));
+vi.mock("@/modules/billing/service/stripeSubscriptionGateway", () => ({
+    createSubscriptionCheckoutSession: mockCreateSubscriptionCheckoutSession,
 }));
 
 function jsonRequest(body: any) {
@@ -104,22 +108,46 @@ describe("/billing/checkout", () => {
         );
     });
 
-    it("charges the bare plan price with no GST for a non-India customer", async () => {
-        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 4900 });
+    it("routes a non-India customer to Stripe checkout using the plan's USD price, skipping GST", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({
+            id: "plan-pro",
+            name: "PRO",
+            monthlyPrice: 4900,
+            stripePrices: { USD: { amount: 2900, stripePriceId: "price_pro_usd" } },
+        });
+        mockCreateSubscriptionCheckoutSession.mockResolvedValue({ url: "https://checkout.stripe.com/session_1", sessionId: "cs_1" });
 
         const { POST } = await import("./route");
-        await POST(jsonRequest({ planId: "starter", country: "US" }) as any);
+        const response = await POST(jsonRequest({ planId: "starter", country: "US" }) as any);
+        const body = await response.json();
 
-        expect(mockCreateOrder).toHaveBeenCalledWith(
-            4900,
-            expect.any(String),
-            expect.any(String),
-            expect.objectContaining({ taxableValue: 4900, taxAmount: 0, taxType: "NONE", taxRate: null })
+        expect(response.status).toBe(200);
+        expect(body).toEqual({ gateway: "STRIPE", url: "https://checkout.stripe.com/session_1" });
+        expect(mockCreateSubscriptionCheckoutSession).toHaveBeenCalledWith(
+            expect.objectContaining({ stripePriceId: "price_pro_usd", teamId: "team-1", userId: "user-1", planId: "plan-pro" })
         );
+        expect(mockCreateOrder).not.toHaveBeenCalled();
+    });
+
+    it("400s when the plan has no Stripe price for the customer's currency", async () => {
+        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 4900, stripePrices: null });
+
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ planId: "starter", country: "US" }) as any);
+
+        expect(response.status).toBe(400);
+        expect(mockCreateOrder).not.toHaveBeenCalled();
+        expect(mockCreateSubscriptionCheckoutSession).not.toHaveBeenCalled();
     });
 
     it("persists the billing address on the team and clears state for non-India", async () => {
-        mockPrisma.plan.findUnique.mockResolvedValue({ id: "plan-pro", name: "PRO", monthlyPrice: 4900 });
+        mockPrisma.plan.findUnique.mockResolvedValue({
+            id: "plan-pro",
+            name: "PRO",
+            monthlyPrice: 4900,
+            stripePrices: { USD: { amount: 2900, stripePriceId: "price_pro_usd" } },
+        });
+        mockCreateSubscriptionCheckoutSession.mockResolvedValue({ url: "https://checkout.stripe.com/session_1", sessionId: "cs_1" });
 
         const { POST } = await import("./route");
         await POST(jsonRequest({ planId: "starter", country: "US" }) as any);

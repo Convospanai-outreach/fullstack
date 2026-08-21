@@ -4,6 +4,8 @@ import { billingService } from "@/modules/billing/service/billingService";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { computeGstExclusive } from "@/lib/gst";
+import { resolveBillingCurrency, resolveGateway } from "@/modules/billing/service/gatewaySelector";
+import { createSubscriptionCheckoutSession } from "@/modules/billing/service/stripeSubscriptionGateway";
 
 // Amounts are in the currency's smallest unit (e.g. cents), matching Plan.monthlyPrice.
 const PRICING_TIERS: Record<string, number> = {
@@ -47,7 +49,7 @@ export async function POST(req: Request) {
         }
 
         let orderAmount = 0;
-        let plan: { id: string; monthlyPrice: number; name: string } | null = null;
+        let plan: { id: string; monthlyPrice: number; name: string; stripePrices: unknown } | null = null;
 
         // 1. Plan-based pricing (server-side lookup) - the primary path used by /pricing
         if (planId) {
@@ -82,11 +84,39 @@ export async function POST(req: Request) {
             data: { billingCountry: country, billingState: country === "IN" ? state : null }
         });
 
+        const billingCurrency = resolveBillingCurrency(country);
+        const gateway = resolveGateway(billingCurrency);
+
+        // Stripe path: only available via the plan-based lookup above (needs Plan.stripePrices).
+        // GST is India-only and doesn't apply outside it, so it's skipped entirely here.
+        if (gateway === "STRIPE") {
+            if (!plan) {
+                return new NextResponse("Stripe checkout requires a planId", { status: 400 });
+            }
+            const stripePrices = (plan.stripePrices as Record<string, { amount: number; stripePriceId: string }> | null) || {};
+            const priceForCurrency = stripePrices[billingCurrency];
+            if (!priceForCurrency?.stripePriceId) {
+                return new NextResponse(`This plan is not yet available in ${billingCurrency}`, { status: 400 });
+            }
+
+            const baseUrl = (process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"] || "").replace(/\/$/, "");
+            const session = await createSubscriptionCheckoutSession({
+                stripePriceId: priceForCurrency.stripePriceId,
+                teamId,
+                userId,
+                planId: plan.id,
+                successUrl: `${baseUrl}/dashboard/billing?checkout=success`,
+                cancelUrl: `${baseUrl}/pricing?checkout=cancelled`,
+            });
+
+            return NextResponse.json({ gateway: "STRIPE", url: session.url });
+        }
+
         // GST is added on top of the plan price for Indian customers; the customer
         // is charged taxableValue + taxAmount, not the bare plan price.
         const gst = computeGstExclusive(orderAmount, country, country === "IN" ? state : undefined);
 
-        const currency = process.env['APP_CURRENCY'] || "USD";
+        const currency = billingCurrency;
         const order = await billingService.createOrder(
             gst.totalAmount,
             currency,
@@ -98,6 +128,7 @@ export async function POST(req: Request) {
         );
 
         return NextResponse.json({
+            gateway: "RAZORPAY",
             orderId: order.id,
             amount: order.amount,
             currency: order.currency,
