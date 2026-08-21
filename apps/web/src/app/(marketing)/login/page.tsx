@@ -1,4 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 const clerkMountScript = `
@@ -87,7 +92,42 @@ function LoginForm() {
     );
 }
 
+function InviteRequiredNotice() {
+    const clerk = useClerk();
+    const [signingOut, setSigningOut] = useState(false);
+
+    const handleSignOut = async () => {
+        setSigningOut(true);
+        try {
+            await clerk.signOut({ redirectUrl: "/login" });
+        } catch {
+            setSigningOut(false);
+        }
+    };
+
+    return (
+        <div className="rounded-2xl border border-amber-400/20 bg-amber-400/10 p-6 text-center text-sm text-amber-100">
+            <p>
+                This account isn&apos;t linked to an approved workspace yet. If you were invited,
+                make sure you&apos;re signed in with the exact email your invite was sent to.
+                Otherwise, request access and wait for approval before signing in.
+            </p>
+            <button
+                type="button"
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="mt-4 inline-block rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200 disabled:opacity-60"
+            >
+                {signingOut ? "Signing out..." : "Sign out and try a different account"}
+            </button>
+        </div>
+    );
+}
+
 export default function LoginPage() {
+    const searchParams = useSearchParams();
+    const inviteRequired = searchParams.get("invite") === "required";
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-12 text-white">
             <div className="w-full max-w-md">
@@ -95,7 +135,7 @@ export default function LoginPage() {
                     <LogoMark priority className="h-9 w-9" />
                     CraftMyFunnel
                 </Link>
-                <LoginForm />
+                {inviteRequired ? <InviteRequiredNotice /> : <LoginForm />}
             </div>
         </div>
     );
