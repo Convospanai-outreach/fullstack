@@ -1,14 +1,39 @@
 import type { MetadataRoute } from "next";
-
-function getBaseUrl() {
+import fs from "fs";
+import path from "path";function getBaseUrl() {
     return (process.env["NEXT_PUBLIC_SITE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000").replace(/\/$/, "");
+}
+
+function getBlogSlugs() {
+    try {
+        const blogDir = path.join(process.cwd(), "content", "blog");
+        const files = fs.readdirSync(blogDir);
+        return files.filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
+    } catch (e) {
+        return [];
+    }
 }
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = getBaseUrl();
     const lastModified = new Date();
+    
+    const blogSlugs = getBlogSlugs();
+    const blogEntries: MetadataRoute.Sitemap = blogSlugs.map(slug => ({
+        url: `${baseUrl}/blog/${slug}`,
+        lastModified,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+    }));
 
     return [
+        {
+            url: `${baseUrl}/blog`,
+            lastModified,
+            changeFrequency: "daily",
+            priority: 0.9,
+        },
+        ...blogEntries,
         {
             url: baseUrl,
             lastModified,
