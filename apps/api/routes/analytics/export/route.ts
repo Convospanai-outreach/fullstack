@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { auth } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import Papa from "papaparse";
 
 export async function GET(_req: NextRequest) {
     try {
-        const session = await auth();
-        if (!session || !session.user) {
+        const { userId } = await getCurrentContext();
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

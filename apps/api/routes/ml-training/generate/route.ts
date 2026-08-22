@@ -5,11 +5,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAdminUser } from "@/lib/admin";
 import { syntheticDataGenerator } from "@/modules/ml-training/generators/SyntheticGenerator";
 import { z } from "zod";
-import { UserRole } from "@prisma/client";
 import { logger } from "@/lib/logger";
 
 const generateSchema = z.object({
@@ -28,11 +26,9 @@ const generateSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-
     // Require admin or system_admin role
-    const allowedRoles: string[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN];
-    if (!session || !allowedRoles.includes((session.user as any).enterpriseRole)) {
+    const admin = await getAdminUser();
+    if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

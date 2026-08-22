@@ -1,24 +1,21 @@
 
 import { aiService } from "@/lib/aiService";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getCurrentContext } from "@/lib/auth";
 
 /**
  * Backend AI Execution Hub.
- * 
+ *
  * Routes incoming AI action requests to the actual SDK-dependent services.
  */
 export async function POST(req: Request) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
         const body = await req.json();
         const { action, ...params } = body;
-        const ctx = await getCurrentContext();
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Team context required for AI execution" }, { status: 401 });
         }

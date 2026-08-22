@@ -5,18 +5,17 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { evaluationService } from "@/modules/ml-training/evaluation/EvaluationService";
 import { prisma } from "@/lib/db";
 
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: { version: string } }
 ) {
-    const session = await getServerSession(authOptions);
+    const { userId } = await getCurrentContextFromRequest(req);
 
-    if (!session) {
+    if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
+
+async function getAgentAuditRole(req: NextRequest): Promise<UserRole | null> {
+    const { userId } = await getCurrentContextFromRequest(req);
+    if (!userId) return null;
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } });
+    return user?.enterpriseRole ?? null;
+}
 
 export async function GET(req: NextRequest) {
     // Verify admin access
-    const session = await getServerSession(authOptions);
-    const role = session?.user?.enterpriseRole as UserRole | undefined;
+    const role = await getAgentAuditRole(req);
     const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
-    if (!session || !role || !allowedRoles.includes(role)) {
+    if (!role || !allowedRoles.includes(role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -64,10 +69,9 @@ export async function GET(req: NextRequest) {
 
 // Export audit logs for compliance reporting
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    const role = session?.user?.enterpriseRole as UserRole | undefined;
+    const role = await getAgentAuditRole(req);
     const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
-    if (!session || !role || !allowedRoles.includes(role)) {
+    if (!role || !allowedRoles.includes(role)) {
         return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }
 

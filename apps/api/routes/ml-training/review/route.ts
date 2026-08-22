@@ -5,8 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { reviewService } from "@/modules/ml-training/review/ReviewService";
 import { z } from "zod";
 
@@ -37,9 +36,9 @@ const reviewDatasetSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const { userId } = await getCurrentContextFromRequest(req);
 
-    if (!session) {
+    if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -52,7 +51,7 @@ export async function POST(req: NextRequest) {
 
             const result = await reviewService.reviewRecord(
                 recordId,
-                session.user.id,
+                userId,
                 score,
                 approved
             );
@@ -67,7 +66,7 @@ export async function POST(req: NextRequest) {
 
             const result = await reviewService.submitDatasetReview({
                 ...data,
-                reviewerId: session.user.id
+                reviewerId: userId
             });
 
             return NextResponse.json({
@@ -85,9 +84,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const { userId } = await getCurrentContextFromRequest(req);
 
-    if (!session) {
+    if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

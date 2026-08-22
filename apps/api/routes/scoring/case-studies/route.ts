@@ -7,8 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 
@@ -20,14 +19,14 @@ async function getTeamId(userId: string): Promise<string | null> {
     return member?.teamId ?? null;
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { userId } = await getCurrentContextFromRequest(req);
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const teamId = await getTeamId(session.user.id);
+        const teamId = await getTeamId(userId);
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
@@ -49,12 +48,12 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { userId } = await getCurrentContextFromRequest(req);
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const teamId = await getTeamId(session.user.id);
+        const teamId = await getTeamId(userId);
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
@@ -120,12 +119,12 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const { userId } = await getCurrentContextFromRequest(req);
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const teamId = await getTeamId(session.user.id);
+        const teamId = await getTeamId(userId);
         if (!teamId) {
             return NextResponse.json({ error: "No team found" }, { status: 400 });
         }
