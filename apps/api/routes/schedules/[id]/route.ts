@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
 
-    const { id } = params;
     const body = await req.json();
 
     // Verify ownership
@@ -24,11 +24,10 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     return NextResponse.json(updated);
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
-
-    const { id } = params;
 
     const existing = await prisma.schedule.findFirst({
         where: { id, teamId }

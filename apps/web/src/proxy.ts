@@ -58,7 +58,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public"];
+    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe"];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;

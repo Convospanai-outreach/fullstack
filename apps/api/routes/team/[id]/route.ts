@@ -5,13 +5,12 @@ import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole, checkTeamPermission } from "@/lib/permissions";
 import { teamService } from "@/modules/team/service/teamService";
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         await authorizeRole(userId, teamId, TeamRole.ADMIN);
-
-        const { id } = params;
 
         const memberToRemove = await prisma.teamMember.findFirst({
             where: { id, teamId }

@@ -13,7 +13,7 @@ import { logger } from "@/lib/logger";
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { action: string } }
+    { params }: { params: Promise<{ action: string }> }
 ) {
     const isAdmin = await checkAdmin();
 
@@ -22,7 +22,7 @@ export async function POST(
         return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
-    const { action } = params;
+    const { action } = await params;
 
     try {
         // REG-6 Fix: Use getServerSession directly with first-team fallback.

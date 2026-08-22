@@ -14,7 +14,7 @@ import { logger } from "@/lib/logger";
 
 export async function GET(
     _req: NextRequest,
-    { params }: { params: { leadId: string } }
+    { params }: { params: Promise<{ leadId: string }> }
 ) {
     try {
         const session = await getServerSession(authOptions);
@@ -22,7 +22,7 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { leadId } = params;
+        const { leadId } = await params;
 
         if (!leadId) {
             return NextResponse.json(

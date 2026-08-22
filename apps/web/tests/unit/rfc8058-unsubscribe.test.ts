@@ -7,7 +7,7 @@ describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance & Antivirus Pre-fet
       method: "GET",
     });
 
-    const res = await GET(req as any, { params: { trackingId: "test-tracking-id-123" } });
+    const res = await GET(req as any, { params: Promise.resolve({ trackingId: "test-tracking-id-123" }) } as any);
     expect(res.status).toBe(200);
     expect(res.headers.get("Content-Type")).toContain("text/html");
     const bodyText = await res.text();
@@ -21,7 +21,7 @@ describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance & Antivirus Pre-fet
       headers: { "List-Unsubscribe": "One-Click" },
     });
 
-    const res = await POST(req as any, { params: { trackingId: "test-tracking-id-123" } });
+    const res = await POST(req as any, { params: Promise.resolve({ trackingId: "test-tracking-id-123" }) } as any);
     expect(res.status).toBe(200);
     const bodyText = await res.text();
     expect(bodyText).toBe("Unsubscribe request recorded.");
@@ -37,8 +37,8 @@ describe("RFC 8058 One-Click Unsubscribe Endpoint Compliance & Antivirus Pre-fet
       headers: { "List-Unsubscribe": "One-Click" },
     });
 
-    const res1 = await POST(req1 as any, { params: { trackingId: "dup-token-123" } });
-    const res2 = await POST(req2 as any, { params: { trackingId: "dup-token-123" } });
+    const res1 = await POST(req1 as any, { params: Promise.resolve({ trackingId: "dup-token-123" }) } as any);
+    const res2 = await POST(req2 as any, { params: Promise.resolve({ trackingId: "dup-token-123" }) } as any);
 
     expect(res1.status).toBe(200);
     expect(res2.status).toBe(200);

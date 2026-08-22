@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { JobQueue } from "@/lib/queue";
 import { prisma } from "@/lib/db";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const body = await req.json();
         const { action, message } = body; // action: "CONNECT", "MESSAGE"
 
-        const lead = await prisma.lead.findUnique({ where: { id: params.id } });
+        const lead = await prisma.lead.findUnique({ where: { id } });
         if (!lead || !lead.linkedIn) {
             return NextResponse.json({ error: "Lead or LinkedIn URL not found" }, { status: 404 });
         }
