@@ -1,0 +1,26 @@
+name: Deploy to Oracle VMs
+
+on:
+  workflow_run:
+    workflows: ["Register Docker Images to GHCR"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        host_secret: [ORACLE_API_MAIN_HOST, ORACLE_API_WORKER_HOST]
+    steps:
+      - name: Pull and restart on ${{ matrix.host_secret }}
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets[matrix.host_secret] }}
+          username: ${{ secrets.ORACLE_SSH_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          script: |
+            cd /opt/fullstack
+            docker compose pull
+            docker compose up -d
