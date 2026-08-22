@@ -43,6 +43,11 @@ export async function GET(req: Request) {
             systemEventCount,
             recentAudit,
             recentSystemEvents,
+            subscriptions,
+            invoices,
+            jobStatusCounts,
+            recentFailedJobs,
+            recentOutages,
         ] = await Promise.all([
             prisma.user.findMany({
                 orderBy: { createdAt: "desc" },
@@ -156,6 +161,68 @@ export async function GET(req: Request) {
             prisma.systemEvent.findMany({
                 orderBy: { timestamp: "desc" },
                 take: 10,
+                select: {
+                    id: true,
+                    type: true,
+                    name: true,
+                    teamId: true,
+                    timestamp: true,
+                },
+            }),
+            prisma.subscription.findMany({
+                select: {
+                    id: true,
+                    status: true,
+                    gateway: true,
+                    currentPeriodEnd: true,
+                    createdAt: true,
+                    plan: { select: { id: true, name: true, monthlyPrice: true, creditsPerMonth: true } },
+                    user: { select: { id: true, email: true, name: true } },
+                },
+            }),
+            prisma.invoice.findMany({
+                where: { createdAt: { gte: startDate } },
+                orderBy: { createdAt: "desc" },
+                take: 20,
+                select: {
+                    id: true,
+                    invoiceNumber: true,
+                    type: true,
+                    description: true,
+                    amount: true,
+                    currency: true,
+                    gateway: true,
+                    status: true,
+                    createdAt: true,
+                    team: { select: { name: true } },
+                    user: { select: { email: true } },
+                },
+            }),
+            prisma.job.groupBy({
+                by: ["status"],
+                where: { createdAt: { gte: startDate } },
+                _count: { _all: true },
+            }),
+            prisma.job.findMany({
+                where: { status: "failed", createdAt: { gte: startDate } },
+                orderBy: { createdAt: "desc" },
+                take: 10,
+                select: {
+                    id: true,
+                    type: true,
+                    error: true,
+                    attempts: true,
+                    createdAt: true,
+                    teamId: true,
+                },
+            }),
+            prisma.systemEvent.findMany({
+                where: {
+                    timestamp: { gte: startDate },
+                    type: { in: ["ERROR", "OUTAGE", "DEGRADATION", "CRITICAL", "HEALTH_CHECK_FAILED"] },
+                },
+                orderBy: { timestamp: "desc" },
+                take: 15,
                 select: {
                     id: true,
                     type: true,
@@ -301,13 +368,84 @@ export async function GET(req: Request) {
             }
         );
 
+        const totalRevenueCents = invoices
+            .filter((inv) => inv.status === "paid")
+            .reduce((sum, inv) => sum + inv.amount, 0);
+
+        const newUsersInWindow = users.filter((u) => u.createdAt >= startDate).length;
+        const activeUsersInWindow = usersRows.filter((u) => u.llmRequests > 0 || u.creditsSpent > 0).length;
+
+        const jobStatusMap: Record<string, number> = {};
+        for (const count of jobStatusCounts) {
+            jobStatusMap[count.status] = count._count._all;
+        }
+
+        const totalsEnriched = {
+            ...totals,
+            newUsersInWindow,
+            activeUsersInWindow,
+            totalRevenueCents,
+            subscriptionsCount: subscriptions.length,
+            activeSubscriptionsCount: subscriptions.filter((s) => s.status === "active").length,
+            failedJobsCount: jobStatusMap["failed"] || 0,
+            completedJobsCount: jobStatusMap["completed"] || 0,
+            queuedJobsCount: jobStatusMap["queued"] || 0,
+        };
+
         return NextResponse.json({
             range,
             windowStart: startDate.toISOString(),
             generatedAt: new Date().toISOString(),
-            totals,
+            totals: totalsEnriched,
             users: usersRows,
             teams: teamRows,
+            billing: {
+                totalRevenueCents,
+                subscriptions: subscriptions.map((s) => ({
+                    id: s.id,
+                    status: s.status,
+                    gateway: s.gateway,
+                    currentPeriodEnd: s.currentPeriodEnd,
+                    createdAt: s.createdAt,
+                    planName: s.plan?.name || "UNKNOWN",
+                    monthlyPrice: s.plan?.monthlyPrice || 0,
+                    userEmail: s.user?.email || "Unknown",
+                    userName: s.user?.name || null,
+                })),
+                invoices: invoices.map((inv) => ({
+                    id: inv.id,
+                    invoiceNumber: inv.invoiceNumber,
+                    type: inv.type,
+                    description: inv.description,
+                    amount: inv.amount,
+                    currency: inv.currency,
+                    gateway: inv.gateway,
+                    status: inv.status,
+                    createdAt: inv.createdAt,
+                    teamName: inv.team?.name || null,
+                    userEmail: inv.user?.email || null,
+                })),
+            },
+            jobHealth: {
+                counts: jobStatusMap,
+                recentFailed: recentFailedJobs.map((j) => ({
+                    id: j.id,
+                    type: j.type,
+                    error: j.error,
+                    attempts: j.attempts,
+                    createdAt: j.createdAt,
+                    teamId: j.teamId,
+                })),
+            },
+            outages: {
+                recentEvents: recentOutages.map((o) => ({
+                    id: o.id,
+                    type: o.type,
+                    name: o.name,
+                    teamId: o.teamId,
+                    timestamp: o.timestamp,
+                })),
+            },
             apiKeys: apiKeys.map((key) => ({
                 id: key.id,
                 name: key.name,

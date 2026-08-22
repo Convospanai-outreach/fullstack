@@ -10,6 +10,9 @@ const { mockCheckAdmin, mockPrisma } = vi.hoisted(() => ({
         creditTransaction: { groupBy: vi.fn() },
         auditLog: { count: vi.fn(), findMany: vi.fn() },
         systemEvent: { count: vi.fn(), findMany: vi.fn() },
+        subscription: { findMany: vi.fn() },
+        invoice: { findMany: vi.fn() },
+        job: { groupBy: vi.fn(), findMany: vi.fn() },
     },
 }));
 
@@ -64,6 +67,10 @@ describe("super admin overview route", () => {
         mockPrisma.systemEvent.count.mockResolvedValue(1);
         mockPrisma.auditLog.findMany.mockResolvedValue([]);
         mockPrisma.systemEvent.findMany.mockResolvedValue([]);
+        mockPrisma.subscription.findMany.mockResolvedValue([]);
+        mockPrisma.invoice.findMany.mockResolvedValue([]);
+        mockPrisma.job.groupBy.mockResolvedValue([]);
+        mockPrisma.job.findMany.mockResolvedValue([]);
     });
 
     it("rejects non-super admins", async () => {

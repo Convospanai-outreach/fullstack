@@ -33,9 +33,9 @@ export const metadata = {
 
 import { Toaster } from "sonner";
 import { CommandPalette } from "@/components/ui/CommandPalette";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const gaId = process.env["NEXT_PUBLIC_GA_ID"];
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
   const app = (
@@ -164,22 +164,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           )}
         </head>
         <body className="min-h-screen flex flex-col font-sans antialiased bg-[#020617] text-slate-200 selection:bg-indigo-500/30 selection:text-indigo-200">
-          {gaId && (
-            <>
-              <Script
-                src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-                strategy="afterInteractive"
-              />
-              <Script id="google-analytics" strategy="afterInteractive">
-                {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}', { page_path: window.location.pathname });
-              `}
-              </Script>
-            </>
-          )}
+          <GoogleAnalytics />
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:bg-brand-500 focus:text-white focus:rounded-lg focus:shadow-xl focus:outline-none transition-all"
