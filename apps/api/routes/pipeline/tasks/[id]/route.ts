@@ -4,15 +4,14 @@ import { prisma } from '@/lib/db';
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const { userId } = await getCurrentContextFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        const { id } = params;
         const body = await req.json();
         const { status, title, description, priority, dueDate } = body;
 

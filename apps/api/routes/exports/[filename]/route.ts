@@ -3,13 +3,12 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 
-export async function GET(req: NextRequest, { params }: { params: { filename: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
+    const { filename } = await params;
     const { userId } = await getCurrentContextFromRequest(req);
     if (!userId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
-
-    const { filename } = params;
     // Basic sanitization
     const safeFilename = path.basename(filename);
     const filePath = path.join(process.cwd(), "storage", "exports", safeFilename);
