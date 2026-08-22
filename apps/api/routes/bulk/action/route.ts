@@ -1,12 +1,11 @@
 
 import { NextResponse } from "next/server";
 import { bulkService } from "@/modules/bulk/service/BulkService";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session) return new NextResponse("Unauthorized", { status: 401 });
+    const { userId } = await getCurrentContext();
+    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
     const { action, type, ids, payload } = await req.json();
 

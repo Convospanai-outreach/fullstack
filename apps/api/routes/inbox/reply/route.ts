@@ -1,13 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { JobQueue } from "@/lib/queue";
 
-export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) return new NextResponse("Unauthorized", { status: 401 });
-    const { teamId, id: userId } = session.user as any;
+export async function POST(req: NextRequest) {
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
+    if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
 
     try {
         const { leadId, content, platform } = await req.json();
@@ -39,7 +38,7 @@ export async function POST(req: Request) {
                 content,
                 direction: "OUTBOUND",
                 platform: platform || "LINKEDIN",
-                sender: session.user.name || "Me",
+                sender: user?.name || "Me",
                 isRead: true
             }
         });

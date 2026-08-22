@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { ConsentService } from "@/modules/whatsapp/ConsentService";
 import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { prisma } from "@/lib/db";
@@ -8,9 +8,9 @@ import { WhatsAppService } from "@/services/WhatsAppService";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-    const token = await getToken({ req });
+    const { userId } = await getCurrentContextFromRequest(req);
 
-    if (!token || !token.sub) {
+    if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -94,9 +94,9 @@ export async function POST(req: NextRequest) {
 
 // GET endpoint to check if a lead can receive WhatsApp messages
 export async function GET(req: NextRequest) {
-    const token = await getToken({ req });
+    const { userId } = await getCurrentContextFromRequest(req);
 
-    if (!token) {
+    if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

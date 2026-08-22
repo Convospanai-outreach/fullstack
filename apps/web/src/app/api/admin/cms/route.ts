@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, canAccessCMS } from "@/lib/auth";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
 const CONTENT_DIR = path.join(process.cwd(), "content");
+
+async function getActorEnterpriseRole() {
+    const clerkActor = await findOrCreateClerkAppUser();
+    if (clerkActor) return clerkActor.enterpriseRole;
+
+    const session = await getServerSession(authOptions);
+    return session?.user?.enterpriseRole;
+}
 
 // Helper to sanitize and resolve paths safely
 function getSafePath(file: string): string {
@@ -79,8 +88,8 @@ function getGitToken(): string | null {
 }
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!canAccessCMS(session?.user?.enterpriseRole)) {
+    const enterpriseRole = await getActorEnterpriseRole();
+    if (!canAccessCMS(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -112,8 +121,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!canAccessCMS(session?.user?.enterpriseRole)) {
+    const enterpriseRole = await getActorEnterpriseRole();
+    if (!canAccessCMS(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -135,8 +144,8 @@ export async function POST(req: NextRequest) {
 
 // Git Commit & Sync
 export async function PUT(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    if (!canAccessCMS(session?.user?.enterpriseRole)) {
+    const enterpriseRole = await getActorEnterpriseRole();
+    if (!canAccessCMS(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

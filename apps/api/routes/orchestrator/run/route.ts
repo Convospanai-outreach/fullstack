@@ -1,20 +1,16 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { audit } from "@/lib/governance/audit";
 import { checkLimits } from "@/lib/governance/limits";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.email) {
+export async function POST(req: NextRequest) {
+  const { userId } = await getCurrentContextFromRequest(req);
+  if (!userId) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
-
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-  if (!user) return new NextResponse("User not found", { status: 404 });
 
   const body = await req.json();
   const { campaignId } = body;
@@ -53,7 +49,7 @@ export async function POST(req: Request) {
     await checkLimits(teamId, "CAMPAIGN_RUN");
     await enforcePolicy({
       orgId: teamId,
-      userId: user.id,
+      userId,
       action: "CAMPAIGN_RUN",
       payload: { campaignId, scheduled: !!startDate, approvalId: body.approvalId }
     });
@@ -61,11 +57,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 403 });
   }
 
-  const job = await JobQueue.enqueue("campaign_execution", { campaignId, userId: user.id }, { processAt });
+  const job = await JobQueue.enqueue("campaign_execution", { campaignId, userId }, { processAt });
 
   // Mandatory Audit Logging
   await audit({
-    actorId: user.id,
+    actorId: userId,
     orgId: teamId,
     action: startDate ? "CAMPAIGN_SCHEDULED" : "CAMPAIGN_RUN",
     entity: "Campaign",

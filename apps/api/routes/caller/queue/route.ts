@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getCurrentContextFromRequest } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { CallerService } from "@/modules/caller/CallerService";
 import { UserRole, ConversationState } from "@prisma/client";
 import { z } from "zod";
@@ -36,13 +37,16 @@ const CallerActionSchema = z.discriminatedUnion("action", [
 ]);
 
 export async function GET(req: NextRequest) {
-    const token = await getToken({ req });
-    if (!token || !token.sub || !isAllowed(token.enterpriseRole)) {
+    const { userId } = await getCurrentContextFromRequest(req);
+    const user = userId
+        ? await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } })
+        : null;
+    if (!userId || !user || !isAllowed(user.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     try {
-        const queue = await CallerService.getQueue(token.sub);
+        const queue = await CallerService.getQueue(userId);
         return NextResponse.json(queue);
     } catch (error) {
         console.error("Queue fetch error:", error);
@@ -51,8 +55,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const token = await getToken({ req });
-    if (!token || !token.sub || !isAllowed(token.enterpriseRole)) {
+    const { userId } = await getCurrentContextFromRequest(req);
+    const user = userId
+        ? await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } })
+        : null;
+    if (!userId || !user || !isAllowed(user.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -69,12 +76,12 @@ export async function POST(req: NextRequest) {
         const data = validation.data;
 
         if (data.action === "claim") {
-            const result = await CallerService.claimLead(data.leadId, token.sub);
+            const result = await CallerService.claimLead(data.leadId, userId);
             return NextResponse.json({ result });
         }
 
         if (data.action === "complete") {
-            await CallerService.completeTask(data.leadId, token.sub, data.outcome as ConversationState, data.notes);
+            await CallerService.completeTask(data.leadId, userId, data.outcome as ConversationState, data.notes);
             return NextResponse.json({ success: true });
         }
 

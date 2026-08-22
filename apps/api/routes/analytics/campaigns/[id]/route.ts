@@ -1,14 +1,13 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { analyticsService } from "@/modules/analytics/service/analyticsService";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+    const { userId } = await getCurrentContextFromRequest(req);
+    if (!userId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -25,14 +24,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
 
     // Verify user is in the team or is the owner
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) return new NextResponse("User not found", { status: 404 });
-
     const membership = await prisma.teamMember.findFirst({
-        where: { userId: user.id, teamId: campaign.teamId || "" }
+        where: { userId, teamId: campaign.teamId || "" }
     });
 
-    if (!membership && campaign.ownerId !== user.id) {
+    if (!membership && campaign.ownerId !== userId) {
         return new NextResponse("Forbidden", { status: 403 });
     }
 

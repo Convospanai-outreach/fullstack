@@ -8,30 +8,36 @@
  * - Monitor rate limit usage
  */
 
-import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import { 
-  getRateLimitStats, 
-  getRateLimitStatus, 
-  resetRateLimit, 
-  clearAllRateLimits 
+import { NextRequest, NextResponse } from 'next/server';
+import { getCurrentContextFromRequest } from '@/lib/auth';
+import { prisma } from '@/lib/db';
+import {
+  getRateLimitStats,
+  getRateLimitStatus,
+  resetRateLimit,
+  clearAllRateLimits
 } from '@/lib/rateLimit';
+
+async function getRateLimitAdminRole(req: NextRequest): Promise<string | null | undefined> {
+  const { userId } = await getCurrentContextFromRequest(req);
+  if (!userId) return undefined;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } });
+  return user?.enterpriseRole ?? null;
+}
 
 /**
  * GET /api/admin/rate-limits
  * Get overall rate limit statistics
  */
-export async function GET(_req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const userRole = await getRateLimitAdminRole(req);
+
+    if (userRole === undefined) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     // Check if user has admin role
-    const userRole = (session.user as any).enterpriseRole;
     if (userRole !== 'SYSTEM_ADMIN' && userRole !== 'ORG_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -55,16 +61,15 @@ export async function GET(_req: Request) {
  * POST /api/admin/rate-limits
  * Manage rate limits (reset specific or clear all)
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user) {
+    const userRole = await getRateLimitAdminRole(req);
+
+    if (userRole === undefined) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    
+
     // Check if user has admin role
-    const userRole = (session.user as any).enterpriseRole;
     if (userRole !== 'SYSTEM_ADMIN' && userRole !== 'ORG_ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

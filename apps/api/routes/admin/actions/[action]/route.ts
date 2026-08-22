@@ -4,9 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { checkAdmin } from "@/lib/admin";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
@@ -15,21 +13,20 @@ export async function POST(
     req: NextRequest,
     { params }: { params: { action: string } }
 ) {
-    const isAdmin = await checkAdmin();
+    const admin = await getAdminUser();
 
     // Strict RBAC: Only Admin or Operator
-    if (!isAdmin) {
+    if (!admin) {
         return NextResponse.json({ error: "Unauthorized: Admin access required" }, { status: 401 });
     }
 
     const { action } = params;
 
     try {
-        // REG-6 Fix: Use getServerSession directly with first-team fallback.
+        // REG-6 Fix: Use the already-resolved admin identity with first-team fallback.
         // Avoids getCurrentContext() which throws 409 for multi-tenant admins
         // who have no workspace cookie set — a common scenario for operators.
-        const session = await getServerSession(authOptions);
-        const userId = session?.user?.id;
+        const userId = admin.id;
 
         // Allow an optional teamId in request body for scoped operations
         let teamId: string | null = null;
