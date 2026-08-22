@@ -2,7 +2,7 @@ type AnalyticsProperties = Record<string, unknown>;
 
 declare global {
     interface Window {
-        gtag?: (command: "event", eventName: string, properties?: AnalyticsProperties) => void;
+        gtag?: (...args: any[]) => void;
     }
 }
 
