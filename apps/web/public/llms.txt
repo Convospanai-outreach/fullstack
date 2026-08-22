@@ -22,6 +22,7 @@ CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage b
 
 ## Key Resources & Documentation
 
+- [AI Sales & Automation Blog](https://craftmyfunnel.live/blog): Insights and guides on AI Search Optimization (AGO), multi-agent systems, and LLM-powered sales pipelines.
 - [Platform Documentation Hub](https://craftmyfunnel.live/docs): Full architectural guides and technical specifications.
 - [Governed Outreach Guide](https://craftmyfunnel.live/docs/governed-outreach): Human-in-the-loop review queue and AI draft validation mechanics.
 - [Deliverability & Compliance Engine](https://craftmyfunnel.live/docs/deliverability-guardrails): RFC 5322 Message-ID sync, RFC 8058 unsubscribe, and mailbox warmup.

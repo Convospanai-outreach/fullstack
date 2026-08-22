@@ -40,6 +40,7 @@ const NAV_GROUPS = [
   {
     label: "Resources",
     items: [
+      { label: "Blog", href: "/blog" },
       { label: "Help Center", href: "/help" },
       { label: "FAQ", href: "/faq" },
       { label: "Contact", href: "/contact" },
