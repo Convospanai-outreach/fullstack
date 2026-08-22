@@ -1,14 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentContext } from '@/lib/auth';
 import { EmailService } from '@/lib/emailService';
 import { prisma } from '@/lib/db';
 
 export async function POST() {
     try {
-        const session = await getServerSession(authOptions);
+        const { userId } = await getCurrentContext();
 
-        if (!session?.user?.email) {
+        if (!userId) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
                 { status: 401 }
@@ -17,8 +16,8 @@ export async function POST() {
 
         // Check if already verified
         const user = await prisma.user.findUnique({
-            where: { email: session.user.email },
-            select: { emailVerified: true, name: true }
+            where: { id: userId },
+            select: { email: true, emailVerified: true, name: true }
         });
 
         if (!user) {
@@ -36,11 +35,11 @@ export async function POST() {
         }
 
         // Create new verification token
-        const token = await EmailService.createVerificationToken(session.user.email);
+        const token = await EmailService.createVerificationToken(user.email);
 
         // Send verification email
         await EmailService.sendVerificationEmail(
-            session.user.email,
+            user.email,
             user.name || 'User',
             token
         );

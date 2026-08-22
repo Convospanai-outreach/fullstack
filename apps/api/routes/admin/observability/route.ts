@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAdminUser } from "@/lib/admin";
 import { UserRole } from "@prisma/client";
 
 export async function GET(req: Request) {
-    const session = await getServerSession(authOptions);
-
     // Strict Admin Check
-    if (!session || (session.user as any).enterpriseRole !== UserRole.SYSTEM_ADMIN) {
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+    if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

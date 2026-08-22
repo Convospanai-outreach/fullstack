@@ -1,22 +1,16 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 
-export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+export async function POST(req: NextRequest) {
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
+    if (!userId || !teamId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return new NextResponse("User not found", { status: 404 });
-
-    const { teamId } = await import("@/lib/auth").then(m => m.getCurrentContextFromRequest(req));
-    if (!teamId) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
 
     const { authorizeRole, TeamRole, canExportData } = await import("@/lib/permissions");
     try {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CampaignAgent } from "@/lib/ai/agents/CampaignAgent";
-import { getServerSession } from "next-auth";
-import { authOptions, getCurrentContext } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 
@@ -13,12 +12,12 @@ const campaignSchema = z.object({
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user?.email) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { isRateLimited } = aiLimiter.check(5, session.user.email);
+        const { isRateLimited } = aiLimiter.check(5, ctx.userId);
         if (isRateLimited) {
             return NextResponse.json({ error: "Rate limit exceeded. Please wait a minute." }, { status: 429 });
         }
@@ -33,7 +32,6 @@ export async function POST(req: NextRequest) {
         const { goal, targetAudience, tone } = validation.data;
         const input = { goal, audience: targetAudience, tone };
 
-        const ctx = await getCurrentContext();
         const agent = new CampaignAgent(ctx.teamId || undefined);
         const result = await agent.generateSequence(input);
 
