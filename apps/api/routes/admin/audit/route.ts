@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@prisma/client";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 
 /**
  * Audit Log Viewer API
@@ -13,11 +13,14 @@ import { UserRole } from "@prisma/client";
  * - SYSTEM_ADMIN
  */
 export async function GET(req: NextRequest) {
-    const token = await getToken({ req });
+    const { userId } = await getCurrentContextFromRequest(req);
+    const user = userId
+        ? await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } })
+        : null;
 
     // Authorization check
     const allowedRoles: UserRole[] = [UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER, UserRole.SYSTEM_ADMIN];
-    if (!token || !allowedRoles.includes(token.enterpriseRole as UserRole)) {
+    if (!user || !allowedRoles.includes(user.enterpriseRole)) {
         return NextResponse.json({ error: "Forbidden - Requires admin access" }, { status: 403 });
     }
 
