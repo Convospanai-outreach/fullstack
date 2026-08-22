@@ -39,9 +39,10 @@ async function processUnsubscribe(trackingId: string) {
     }
 }
 
-export async function GET(req: NextRequest, { params }: { params: { trackingId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
     // RFC 8058 Compliance: GET must NOT mutate database state to prevent antivirus scanner mass-unsubscribes.
     // Renders a clean HTML confirmation page requiring a human click.
+    const { trackingId } = await params;
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { trackingId: 
     <div class="card">
         <h1>Confirm Unsubscribe</h1>
         <p>Are you sure you want to stop receiving outreach emails from this campaign?</p>
-        <form method="POST" action="/api/email/unsubscribe/${params.trackingId}">
+        <form method="POST" action="/api/email/unsubscribe/${trackingId}">
             <button type="submit">Confirm Unsubscribe</button>
         </form>
     </div>
@@ -74,10 +75,11 @@ export async function GET(req: NextRequest, { params }: { params: { trackingId: 
     });
 }
 
-export async function POST(req: NextRequest, { params }: { params: { trackingId: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
     // RFC 8058 One-Click HTTP POST handler: Mutates database state & upserts suppression entry
     try {
-        await processUnsubscribe(params.trackingId);
+        const { trackingId } = await params;
+        await processUnsubscribe(trackingId);
     } catch {
         return new NextResponse("Unsubscribe request recorded.", { status: 200 });
     }
