@@ -1,7 +1,7 @@
 ---
 title: "How to Use Large Language Models to Personalize Cold Emails at Scale"
 description: "Learn the exact prompt engineering and data architecture required to use Large Language Models (LLMs) to personalize B2B cold emails at infinite scale."
-date: "2026-08-23T04:00:00.000Z"
+date: "2026-06-10T08:36:55.384Z"
 ---
 
 The biggest paradox in B2B sales outreach has always been the tradeoff between volume and personalization. If you want high volume, you send generic, templated emails that nobody reads. If you want hyper-personalization, your SDRs can only send 20 emails a day. 

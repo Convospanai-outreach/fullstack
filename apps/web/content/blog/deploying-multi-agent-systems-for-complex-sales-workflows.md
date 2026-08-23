@@ -1,7 +1,7 @@
 ---
 title: "Deploying Multi-Agent Systems for Complex Sales Workflows"
 description: "Go beyond single-prompt AI. Learn the architecture of Multi-Agent Systems (MAS) and how specialized AI agents collaborate to automate complex B2B sales cycles."
-date: "2026-08-23T06:30:00.000Z"
+date: "2026-05-04T01:25:23.076Z"
 ---
 
 The first wave of AI in sales was defined by the "single prompt." A sales rep would ask an AI, *"Write an email to this prospect,"* and the AI would generate a draft. While efficient, this approach is fundamentally limited. A single prompt cannot handle the complex, multi-step reality of a B2B sales cycle. 

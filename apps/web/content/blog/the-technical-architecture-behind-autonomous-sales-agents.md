@@ -1,7 +1,7 @@
 ---
 title: "The Technical Architecture Behind Autonomous Sales Agents"
 description: "A deep dive for CTOs and engineers. Explore the tech stack, orchestration layers, and LLM integrations required to build autonomous AI sales agents."
-date: "2026-08-23T09:30:00.000Z"
+date: "2026-08-16T21:23:04.615Z"
 ---
 
 The marketing copy surrounding AI sales tools is often filled with buzzwords: *Autonomous, Intelligent, Agentic.* But for engineering teams tasked with evaluating, integrating, or building these systems, the buzzwords are meaningless. They need to know what happens under the hood.

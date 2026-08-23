@@ -1,7 +1,7 @@
 ---
 title: "The Rise of AI SDRs: Automating the Top of the Funnel"
 description: "Explore how AI Sales Development Representatives (SDRs) are transforming B2B outreach, the technology behind them, and how human roles are evolving in response."
-date: "2026-08-23T03:30:00.000Z"
+date: "2026-08-04T22:39:13.846Z"
 ---
 
 For years, the Sales Development Representative (SDR) has been the engine room of B2B revenue growth. It is a grueling, high-turnover role defined by metrics: hundreds of cold calls, thousands of generic emails, and constant rejection, all in the pursuit of a few qualified meetings. 

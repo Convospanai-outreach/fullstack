@@ -228,8 +228,77 @@ export default function PricingPage() {
         }
     };
 
+    const pricingSchema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Pricing",
+                        "item": "https://craftmyfunnel.live/pricing"
+                    }
+                ]
+            },
+            {
+                "@type": "Product",
+                "name": "CraftMyFunnel Outbound Automation Platform",
+                "description": "Governed AI outreach and qualified meeting workflow automation platform for B2B service teams.",
+                "brand": {
+                    "@type": "Brand",
+                    "name": "CraftMyFunnel"
+                },
+                "offers": {
+                    "@type": "AggregateOffer",
+                    "priceCurrency": "USD",
+                    "lowPrice": "49",
+                    "highPrice": "499",
+                    "offerCount": "3",
+                    "offers": [
+                        {
+                            "@type": "Offer",
+                            "name": "Pilot",
+                            "price": "49",
+                            "priceCurrency": "USD",
+                            "description": "30-day growth pilot package for one ICP, one geography, and one offer",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        },
+                        {
+                            "@type": "Offer",
+                            "name": "Growth Autopilot",
+                            "price": "99",
+                            "priceCurrency": "USD",
+                            "description": "Monthly managed campaign operations for repeatable pipeline tracking",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        },
+                        {
+                            "@type": "Offer",
+                            "name": "Enterprise",
+                            "price": "499",
+                            "priceCurrency": "USD",
+                            "description": "Custom vertical playbooks, governance, and private-data execution options",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        }
+                    ]
+                }
+            }
+        ]
+    };
+
     return (
         <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingSchema) }}
+            />
             <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
             <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 

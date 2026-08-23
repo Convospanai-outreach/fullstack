@@ -1,7 +1,7 @@
 ---
 title: "How to Optimize Your SaaS Platform for AI Agent Discovery"
 description: "Ensure your software is the one AI agents recommend. A technical guide to AI Search Optimization (AGO) and structuring your SaaS platform for LLM discovery."
-date: "2026-08-23T05:30:00.000Z"
+date: "2026-05-28T16:23:04.615Z"
 ---
 
 Imagine a CTO asking an autonomous AI agent to research and select a new sales automation platform. The AI agent searches the web, reads documentation, compares features, evaluates pricing, and outputs a recommendation. 

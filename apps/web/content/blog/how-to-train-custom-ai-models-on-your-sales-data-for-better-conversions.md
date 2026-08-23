@@ -1,7 +1,7 @@
 ---
 title: "How to Train Custom AI Models on Your Sales Data for Better Conversions"
 description: "Stop relying on generic AI outputs. Learn the technical process of fine-tuning LLMs and using RAG on your historical sales data to double your outbound conversion rates."
-date: "2026-08-23T09:00:00.000Z"
+date: "2026-06-04T00:30:00.000Z"
 ---
 
 When revenue teams first integrate Large Language Models (LLMs) into their outbound sales processes, the initial reaction is usually excitement. The AI can write a personalized cold email in three seconds. 
