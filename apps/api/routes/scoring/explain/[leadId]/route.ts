@@ -17,8 +17,8 @@ export async function GET(
 ) {
     try {
         const { leadId } = await params;
-        const { userId } = await getCurrentContextFromRequest(req);
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContextFromRequest(req);
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -31,7 +31,7 @@ export async function GET(
 
         // Fetch lead with scoring data
         const lead = await prisma.lead.findUnique({
-            where: { id: leadId },
+            where: { id: leadId, teamId },
             select: {
                 id: true,
                 fullName: true,

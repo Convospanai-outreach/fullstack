@@ -112,6 +112,7 @@ export default function PricingPage() {
     const [billingCustomCountry, setBillingCustomCountry] = useState("");
     const [billingState, setBillingState] = useState("Delhi");
     const [livePrices, setLivePrices] = useState<Record<string, LivePrice> | null>(null);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
 
     // Refetches whenever the visitor picks a different billing country in the modal,
     // so the displayed price always matches what checkout would actually charge.
@@ -139,6 +140,10 @@ export default function PricingPage() {
         return document.cookie.includes("next-auth.session-token=") ||
             document.cookie.includes("__Secure-next-auth.session-token=");
     };
+
+    useEffect(() => {
+        setIsLoggedIn(hasSessionCookie());
+    }, []);
 
     const loadRazorpayScript = () => {
         return new Promise((resolve) => {
@@ -269,11 +274,16 @@ export default function PricingPage() {
                             ? plan.annualPrice
                             : live?.amount != null ? Math.round(live.amount / 100) : plan.monthlyPrice;
                         const currencySymbol = !isAnnual && live ? (CURRENCY_SYMBOL[live.currency] || live.currency + " ") : "$";
-                        const ctaText = plan.name === "Enterprise"
-                            ? "Talk to Sales"
-                            : plan.name === "Growth"
-                              ? "Start Guided Growth Pilot"
-                              : "Start Pilot";
+                        const isEnterprise = plan.name === "Enterprise";
+                        let ctaText = isEnterprise ? "Talk to Sales" : "Start Pilot";
+                        
+                        if (!isEnterprise) {
+                            if (plan.name === "Growth") {
+                                ctaText = isLoggedIn ? "Start Guided Growth Pilot" : "Sign Up for Growth Pilot";
+                            } else {
+                                ctaText = isLoggedIn ? "Start Pilot" : "Sign Up for Pilot";
+                            }
+                        }
 
                         return (
                             <div key={plan.name} className="relative">
