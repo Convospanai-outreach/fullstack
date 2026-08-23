@@ -66,29 +66,56 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "BlogPosting",
-    "headline": post.title,
-    "description": post.description,
-    "datePublished": post.date,
-    "dateModified": post.date,
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": postUrl,
-    },
-    "author": {
-      "@type": "Organization",
-      "name": "CraftMyFunnel Editorial Team",
-      "url": siteUrl,
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "CraftMyFunnel",
-      "url": siteUrl,
-      "logo": {
-        "@type": "ImageObject",
-        "url": `${siteUrl}/favicon.ico`,
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": siteUrl
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog",
+            "item": `${siteUrl}/blog`
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": post.title,
+            "item": postUrl
+          }
+        ]
       },
-    },
+      {
+        "@type": "BlogPosting",
+        "headline": post.title,
+        "description": post.description,
+        "datePublished": post.date,
+        "dateModified": post.date,
+        "mainEntityOfPage": {
+          "@type": "WebPage",
+          "@id": postUrl,
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "CraftMyFunnel Editorial Team",
+          "url": siteUrl,
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "CraftMyFunnel",
+          "url": siteUrl,
+          "logo": {
+            "@type": "ImageObject",
+            "url": `${siteUrl}/favicon.ico`,
+          },
+        },
+      }
+    ]
   };
 
   return (
