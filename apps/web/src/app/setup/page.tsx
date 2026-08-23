@@ -29,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
+import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -50,6 +51,8 @@ type SetupStatus = {
   edgeNodeOptional: boolean;
   edgeNodeStatus: "UP" | "DOWN" | "NOT_CONFIGURED";
   edgeNodeMessage: string;
+  edgeNodePaired: boolean;
+  edgeNodePairingStatus: string;
   readyToLaunch: boolean;
   completionPercent: number;
   teamName: string;
@@ -610,9 +613,36 @@ function WorkspaceIdentity({ formData, setFormData }: any) {
 function OptionalChannels({ status }: { status: SetupStatus }) {
   return (
     <div className="space-y-5">
-      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey]]} />
+      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey], ["WhatsApp Business API connected", status.hasWhatsApp]]} />
       <ExtensionSyncToken />
+      <WabaSetupSection />
     </div>
+  );
+}
+
+function WabaSetupSection() {
+  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const [settings, setSettings] = useState<WabaSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${apiBase}/whatsapp/settings`)
+      .then((res) => (res.ok ? res.json() : { hasWaba: false, phoneNumberId: null }))
+      .then((data) => { if (!cancelled) setSettings(data); })
+      .catch(() => { if (!cancelled) setSettings({ hasWaba: false, phoneNumberId: null }); });
+    return () => { cancelled = true; };
+  }, [apiBase]);
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-lg font-semibold text-white">WhatsApp Business API (optional)</h3>
+      <p className="mt-2 text-sm text-slate-400">
+        Only needed if you plan to send WhatsApp messages from drip sequences. Skip this if you don&apos;t have a WhatsApp Business account yet - sequences will queue a task for a rep to send manually instead.
+      </p>
+      <div className="mt-4">
+        {settings ? <WabaSetupCard settings={settings} onSaved={setSettings} /> : <p className="text-sm text-slate-500">Loading...</p>}
+      </div>
+    </section>
   );
 }
 
@@ -761,7 +791,73 @@ function CommercialReadiness({ status }: { status: SetupStatus }) {
 }
 
 function Handoffs({ status }: { status: SetupStatus }) {
-  return <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />;
+  return (
+    <div className="space-y-5">
+      <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />
+      <EdgeNodePairingSection paired={status.edgeNodePaired} pairingStatus={status.edgeNodePairingStatus} />
+    </div>
+  );
+}
+
+function EdgeNodePairingSection({ paired, pairingStatus }: { paired: boolean; pairingStatus: string }) {
+  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const [fingerprint, setFingerprint] = useState("");
+  const [publicKey, setPublicKey] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
+  const [justPaired, setJustPaired] = useState(false);
+
+  async function pair() {
+    setPairing(true);
+    setPairError(null);
+    try {
+      const res = await fetch(`${apiBase}/edge/nodes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hardwareFingerprint: fingerprint, publicKey, endpoint: endpoint || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setJustPaired(true);
+    } catch (error: any) {
+      setPairError(error?.message || "Failed to pair edge node");
+    } finally {
+      setPairing(false);
+    }
+  }
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-lg font-semibold text-white">Sovereign Wall edge node (optional)</h3>
+      <p className="mt-2 text-sm text-slate-400">
+        Only needed if you&apos;ve bought a physical Sovereign Wall device for on-premise PII masking. Skip this otherwise - it has no effect on the rest of your setup.
+      </p>
+      {(paired || justPaired) ? (
+        <div className="mt-4 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm">
+          Node paired ({pairingStatus}). Manage it from Settings &gt; Compliance.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <p className="text-xs text-slate-500">
+            Find the hardware fingerprint and public key in your device&apos;s startup log (printed once the node is powered on with cloud connectivity configured).
+          </p>
+          <Field label="Hardware fingerprint"><input className={inputClass} value={fingerprint} onChange={(e) => setFingerprint(e.target.value)} /></Field>
+          <Field label="Public key (PEM)"><textarea className={`${inputClass} min-h-28 font-mono text-xs`} value={publicKey} onChange={(e) => setPublicKey(e.target.value)} /></Field>
+          <Field label="Endpoint (optional, LAN address)"><input className={inputClass} value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="http://192.168.1.50:8000" /></Field>
+          {pairError && <p className="text-xs text-rose-400">{pairError}</p>}
+          <button
+            type="button"
+            onClick={pair}
+            disabled={pairing || !fingerprint || !publicKey}
+            className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+          >
+            {pairing ? "Pairing..." : "Pair node"}
+          </button>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function NotificationsStep() {
