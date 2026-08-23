@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
 import {
     XAxis,
     YAxis,
@@ -151,6 +152,7 @@ export default function ROIDashboardPage() {
 
     return (
         <div className="space-y-6">
+            <AnalyticsTabs />
             <div className="flex justify-between items-end mb-8">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tight mb-2">Campaign ROI</h1>
