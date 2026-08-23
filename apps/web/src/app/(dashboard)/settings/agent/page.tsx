@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bot, Save, Loader2, Sparkles, MessageSquare, AlertCircle } from "lucide-react";
+import { Save, Loader2, Sparkles, MessageSquare, AlertCircle } from "lucide-react";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 type AgentSettings = {
     tone_preference: string;
@@ -28,7 +31,7 @@ export default function AgentSettingsPage() {
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/agent");
+                const res = await fetch(getBrowserApiUrl("/settings/agent"));
                 const data = await res.json();
                 if (Array.isArray(data)) {
                     const newSettings = { ...settings };
@@ -52,7 +55,7 @@ export default function AgentSettingsPage() {
     const handleSave = async (key: string, value: string) => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/agent", {
+            const res = await fetch(getBrowserApiUrl("/settings/agent"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ key, value }),
@@ -79,16 +82,14 @@ export default function AgentSettingsPage() {
 
     return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <Bot className="text-purple-500" /> AI Sales Agent
-                </h1>
-                <p className="text-gray-400 mt-2">Configure how your AI agent behaves and interacts with leads.</p>
-            </div>
+            <SectionHeader
+                title="AI Sales Agent"
+                subtitle="Configure how your AI agent behaves and interacts with leads."
+            />
 
             <div className="grid gap-6">
                 {/* Tone Preference */}
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
+                <GlassCard className="p-6 space-y-4">
                     <div className="flex items-center gap-2 text-purple-400 font-semibold">
                         <MessageSquare className="w-5 h-5" />
                         <h3>Tone of Voice</h3>
@@ -109,10 +110,10 @@ export default function AgentSettingsPage() {
                             <Save className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                </div>
+                </GlassCard>
 
                 {/* Value Propositions */}
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
+                <GlassCard className="p-6 space-y-4">
                     <div className="flex items-center gap-2 text-blue-400 font-semibold">
                         <Sparkles className="w-5 h-5" />
                         <h3>Core Value Propositions</h3>
@@ -133,10 +134,10 @@ export default function AgentSettingsPage() {
                             <Save className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                </div>
+                </GlassCard>
 
                 {/* Forbidden Words */}
-                <div className="glass p-6 rounded-2xl border border-white/10 space-y-4">
+                <GlassCard className="p-6 space-y-4">
                     <div className="flex items-center gap-2 text-red-400 font-semibold">
                         <AlertCircle className="w-5 h-5" />
                         <h3>Guardrails (Negative Constraints)</h3>
@@ -157,7 +158,7 @@ export default function AgentSettingsPage() {
                             <Save className="w-5 h-5 text-white" />
                         </button>
                     </div>
-                </div>
+                </GlassCard>
             </div>
         </div>
     );
