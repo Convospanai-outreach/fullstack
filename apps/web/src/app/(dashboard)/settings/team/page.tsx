@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTeamRole, TeamRole } from "@/hooks/useTeamRole";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 interface TeamMember {
     id: string;
@@ -43,7 +45,7 @@ export default function TeamSettingsPage() {
 
     const loadMembers = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team/members");
+            const res = await fetch(getBrowserApiUrl("/team/members"));
             const data = await res.json();
             if (data.success) {
                 setMembers(data.data);
@@ -59,7 +61,7 @@ export default function TeamSettingsPage() {
         e.preventDefault();
         setInviting(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team/members", {
+            const res = await fetch(getBrowserApiUrl("/team/members"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: inviteEmail, role: inviteRole })
@@ -85,7 +87,7 @@ export default function TeamSettingsPage() {
         if (!confirm("Are you sure you want to remove this member?")) return;
 
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, { method: "DELETE" });
+            const res = await fetch(getBrowserApiUrl(`/team/members/${id}`), { method: "DELETE" });
             const data = await res.json();
             if (data.success) {
                 toast.success("Member removed");
@@ -100,7 +102,7 @@ export default function TeamSettingsPage() {
 
     const handleRoleUpdate = async (id: string, newRole: string) => {
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, {
+            const res = await fetch(getBrowserApiUrl(`/team/members/${id}`), {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ role: newRole })
@@ -132,10 +134,7 @@ export default function TeamSettingsPage() {
         <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* Header */}
             <div className="flex justify-between items-end">
-                <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Team Members</h1>
-                    <p className="text-gray-400 mt-1">Manage workspace access and granular permissions.</p>
-                </div>
+                <SectionHeader title="Team Members" subtitle="Manage workspace access and granular permissions." />
                 {canManage && (
                     <button
                         onClick={() => setIsInviteModalOpen(true)}

@@ -12,6 +12,7 @@ import {
     ShieldCheck,
     UserCircle,
 } from "lucide-react";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 function initials(name?: string | null, email?: string | null) {
     const source = name?.trim() || email?.trim() || "User";
@@ -66,10 +67,10 @@ export default function GeneralSettingsPage() {
                     <Settings2 className="h-4 w-4" />
                     Workspace settings
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">General</h1>
-                <p className="max-w-2xl text-sm text-gray-400">
-                    Review your local session, workspace setup status, and the next places to finish configuration.
-                </p>
+                <SectionHeader
+                    title="General"
+                    subtitle="Review your local session, workspace setup status, and the next places to finish configuration."
+                />
             </div>
 
             <section className="grid gap-4 md:grid-cols-[1.3fr_0.7fr]">
