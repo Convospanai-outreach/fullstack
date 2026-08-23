@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function NotificationsPage() {
-    const { data: settings } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings", fetcher);
+    const { data: settings } = useSWR(getBrowserApiUrl("/settings"), fetcher);
     // Note: /api/settings returns 'notifications' object nested
     const [toggles, setToggles] = useState({
         emailGlobal: true,
@@ -31,12 +34,12 @@ export default function NotificationsPage() {
         setToggles(newToggles);
 
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/notifications", {
+            await fetch(getBrowserApiUrl("/settings/notifications"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ [key]: value })
             });
-            mutate((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings");
+            mutate(getBrowserApiUrl("/settings"));
         } catch (error) {
             console.error("Failed to update notification");
         }
@@ -44,12 +47,9 @@ export default function NotificationsPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold text-white">Notifications</h1>
-                <p className="text-gray-400">Control how and when we contact you.</p>
-            </div>
+            <SectionHeader title="Notifications" subtitle="Control how and when we contact you." />
 
-            <div className="glass border border-white/10 rounded-xl p-8 space-y-8">
+            <GlassCard className="p-8 space-y-8">
                 {/* Email Section */}
                 <div>
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -88,7 +88,7 @@ export default function NotificationsPage() {
                         onChange={(v) => handleToggle("inAppGlobal", v)}
                     />
                 </div>
-            </div>
+            </GlassCard>
         </div>
     );
 }
