@@ -15,6 +15,7 @@ const CATEGORY_BY_KEY: Record<HiddenFeatureKey, Category> = {
     "csv-ingestion": "Outreach",
     "linkedin-runner": "Outreach",
     "caller": "Outreach",
+    "whatsapp": "Outreach",
     "studio": "Outreach",
     "workflows": "Automation",
     "agents": "Automation",

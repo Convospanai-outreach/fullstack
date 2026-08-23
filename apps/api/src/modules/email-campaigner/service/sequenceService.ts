@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
 import { assertMailboxCanSend, isSuppressed } from "./googleMailboxService";
+import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
@@ -407,6 +408,17 @@ export class SequenceService {
                 errorMessage: null,
             },
         });
+
+        try {
+            await advanceLeadAfterEmailSent(prisma, {
+                leadId: run.leadId,
+                teamId: run.teamId,
+                campaignId: run.campaignId,
+                emailId: email?.id,
+            });
+        } catch {
+            // Lead stage advancement is best-effort - the send itself already succeeded.
+        }
 
         try {
             const { OutboxService } = await import("@/lib/outboxService");

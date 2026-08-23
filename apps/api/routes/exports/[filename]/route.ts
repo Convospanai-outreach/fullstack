@@ -5,12 +5,19 @@ import path from "path";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
     const { filename } = await params;
-    const { userId } = await getCurrentContextFromRequest(req);
-    if (!userId) {
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
+    if (!userId || !teamId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
+
     // Basic sanitization
     const safeFilename = path.basename(filename);
+
+    // Authorization check: ensure the file belongs to the user's team
+    if (!safeFilename.startsWith(`${teamId}_`)) {
+        return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const filePath = path.join(process.cwd(), "storage", "exports", safeFilename);
 
     if (!fs.existsSync(filePath)) {

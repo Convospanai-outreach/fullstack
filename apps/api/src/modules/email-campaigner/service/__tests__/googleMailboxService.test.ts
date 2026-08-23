@@ -57,7 +57,7 @@ const { mockDb } = vi.hoisted(() => {
             update: vi.fn(),
         },
         message: { create: vi.fn() },
-        lead: { findUnique: vi.fn(), update: vi.fn() },
+        lead: { findUnique: vi.fn(), findFirst: vi.fn().mockResolvedValue({ id: "lead-1", status: "NEW", pipelineState: "COLD" }), update: vi.fn() },
         suppressionEntry: { upsert: vi.fn() },
     };
     db.$queryRaw = vi.fn().mockResolvedValue([{ id: "cursor-1" }]);
@@ -1137,7 +1137,11 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
             emailEvent: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockImplementation(async () => { order.push("event-create"); return { id: "event-1" }; }), update: vi.fn().mockResolvedValue({}) },
             message: { create: vi.fn().mockResolvedValue({}) },
             connectedMailbox: { update: vi.fn().mockResolvedValue({}) },
-            lead: { update: vi.fn().mockResolvedValue({}), findUnique: vi.fn() },
+            lead: {
+                update: vi.fn().mockResolvedValue({}),
+                findUnique: vi.fn(),
+                findFirst: vi.fn().mockResolvedValue({ id: "lead-1", status: "NEW", pipelineState: "COLD" }),
+            },
             suppressionEntry: { upsert: vi.fn() },
         };
         const commitTx = {
@@ -1170,9 +1174,15 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
             data: { replyCount: { increment: 1 } },
         });
         expect(eventTx.email.update).toHaveBeenCalled();
+        expect(eventTx.lead.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: "lead-1" }) }));
         expect(eventTx.lead.update).toHaveBeenCalledWith({
             where: { id: "lead-1" },
-            data: { status: "REPLIED", updatedAt: expect.any(Date) },
+            data: {
+                status: "REPLIED",
+                pipelineState: "HOT",
+                pipelineStateChangedAt: expect.any(Date),
+                hotAt: expect.any(Date),
+            },
         });
         expect(prisma.emailEvent.create).not.toHaveBeenCalled();
         expect(prisma.message.create).not.toHaveBeenCalled();
@@ -1323,7 +1333,11 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
                 },
                 message: { create: failurePoint === "message" ? vi.fn(fail) : vi.fn().mockResolvedValue({}) },
                 connectedMailbox: { update: vi.fn().mockResolvedValue({}) },
-                lead: { update: failurePoint === "lead" ? vi.fn(fail) : vi.fn().mockResolvedValue({}), findUnique: vi.fn() },
+                lead: {
+                    update: failurePoint === "lead" ? vi.fn(fail) : vi.fn().mockResolvedValue({}),
+                    findUnique: vi.fn(),
+                    findFirst: vi.fn().mockResolvedValue({ id: "lead-1", status: "NEW", pipelineState: "COLD" }),
+                },
                 suppressionEntry: { upsert: vi.fn() },
             };
             const result = await callback(tx);
