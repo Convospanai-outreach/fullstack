@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
+import { getEdgeRuntimeAvailability, getEdgeNodeStatusSnapshot } from "@/lib/edgeRuntime";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 const SENSITIVE_CONFIG_KEYS = [
@@ -144,7 +144,12 @@ export async function GET(req: Request) {
 
         // Step 11: Advanced
         const edgeAvailability = await getEdgeRuntimeAvailability();
-        const hasWhatsApp = !!process.env['WHATSAPP_ACCESS_TOKEN'];
+        // Per-team checks (not global env vars) - these reflect whether THIS team
+        // has actually configured the add-on, not whether the platform could
+        // support it somewhere. See /whatsapp/settings and /edge/nodes.
+        const hasWhatsApp = !!team.whatsappPhoneNumberId;
+        const edgeNode = await prisma.edgeNode.findUnique({ where: { teamId: ctx.teamId } });
+        const edgeNodeSnapshot = getEdgeNodeStatusSnapshot(edgeNode);
         const hasGoogleOAuth = !!process.env['GOOGLE_CLIENT_ID'];
         const hasRedis = !!process.env['REDIS_URL'];
         const hasEdgeNode = edgeAvailability.configured;
@@ -198,6 +203,11 @@ export async function GET(req: Request) {
             edgeNodeOptional: edgeAvailability.optional,
             edgeNodeStatus: edgeAvailability.status,
             edgeNodeMessage: edgeAvailability.message,
+            // Distinct from the edgeNode* fields above (those cover the global
+            // on-prem AI runtime). This is specifically "has this team paired a
+            // physical Sovereign Wall device" - see POST /edge/nodes.
+            edgeNodePaired: !!edgeNode && !edgeNode.revokedAt,
+            edgeNodePairingStatus: edgeNodeSnapshot.status,
             readyToLaunch, completionPercent,
 
             // Raw config data so the UI can prefill forms
