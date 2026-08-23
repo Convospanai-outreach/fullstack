@@ -89,19 +89,40 @@ const USE_CASES = [
 export default function UseCasesHubPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "CraftMyFunnel Industry Use Cases",
-        "description": "Explore how B2B companies across facility management, security, staffing, consulting, training, and managed services automate outbound sales with human approval governance.",
-        "url": "https://craftmyfunnel.live/use-cases",
-        "mainEntity": {
-            "@type": "ItemList",
-            "itemListElement": USE_CASES.map((uc, index) => ({
-                "@type": "ListItem",
-                "position": index + 1,
-                "name": uc.title,
-                "url": `https://craftmyfunnel.live/use-cases/${uc.slug}`
-            }))
-        }
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    }
+                ]
+            },
+            {
+                "@type": "CollectionPage",
+                "name": "CraftMyFunnel Industry Use Cases",
+                "description": "Explore how B2B companies across facility management, security, staffing, consulting, training, and managed services automate outbound sales with human approval governance.",
+                "url": "https://craftmyfunnel.live/use-cases",
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "itemListElement": USE_CASES.map((uc, index) => ({
+                        "@type": "ListItem",
+                        "position": index + 1,
+                        "name": uc.title,
+                        "url": `https://craftmyfunnel.live/use-cases/${uc.slug}`
+                    }))
+                }
+            }
+        ]
     };
 
     return (

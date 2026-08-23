@@ -14,22 +14,49 @@ export const metadata: Metadata = {
 export default function FacilityManagementUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Facility Management & Commercial Property Outbound Playbook",
-        "description": "How facility management and commercial property service providers automate outbound sales using intent signals and governed approval queues.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Facility Management",
+                        "item": "https://craftmyfunnel.live/use-cases/facility-management"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Facility Management & Commercial Property Outbound Playbook",
+                "description": "How facility management and commercial property service providers automate outbound sales using intent signals and governed approval queues.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/facility-management"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/facility-management"
+        ]
     };
 
     return (

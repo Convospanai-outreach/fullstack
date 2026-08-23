@@ -14,14 +14,41 @@ export const metadata: Metadata = {
 export default function SecurityArchitectureDocPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "TechArticle",
-        "headline": "Security, Outbox & Blind Indexing Architecture in CraftMyFunnel",
-        "description": "Technical specification of multi-tenant data isolation, Transactional Outbox relay, and HMAC-SHA256 blind indexing.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "url": "https://craftmyfunnel.live/docs/security-architecture"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Security Architecture",
+                        "item": "https://craftmyfunnel.live/docs/security-architecture"
+                    }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "headline": "Security, Outbox & Blind Indexing Architecture in CraftMyFunnel",
+                "description": "Technical specification of multi-tenant data isolation, Transactional Outbox relay, and HMAC-SHA256 blind indexing.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "url": "https://craftmyfunnel.live/docs/security-architecture"
+            }
+        ]
     };
 
     return (

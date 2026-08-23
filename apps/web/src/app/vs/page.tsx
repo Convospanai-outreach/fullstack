@@ -56,19 +56,40 @@ const COMPARISONS = [
 export default function ComparisonsIndexPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "CraftMyFunnel Product Comparisons",
-        "description": "Comprehensive feature comparisons between CraftMyFunnel and leading cold email and sales engagement tools.",
-        "url": "https://craftmyfunnel.live/vs",
-        "mainEntity": {
-            "@type": "ItemList",
-            "itemListElement": COMPARISONS.map((c, i) => ({
-                "@type": "ListItem",
-                "position": i + 1,
-                "name": c.title,
-                "url": `https://craftmyfunnel.live/vs/${c.slug}`
-            }))
-        }
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Product Comparisons",
+                        "item": "https://craftmyfunnel.live/vs"
+                    }
+                ]
+            },
+            {
+                "@type": "CollectionPage",
+                "name": "CraftMyFunnel Product Comparisons",
+                "description": "Comprehensive feature comparisons between CraftMyFunnel and leading cold email and sales engagement tools.",
+                "url": "https://craftmyfunnel.live/vs",
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "itemListElement": COMPARISONS.map((c, i) => ({
+                        "@type": "ListItem",
+                        "position": i + 1,
+                        "name": c.title,
+                        "url": `https://craftmyfunnel.live/vs/${c.slug}`
+                    }))
+                }
+            }
+        ]
     };
 
     return (
