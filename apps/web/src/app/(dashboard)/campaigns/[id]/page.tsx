@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import StatusBadge from "@/components/campaigns/StatusBadge";
 import ActivityFeed from "@/components/shared/ActivityFeed";
 import {
@@ -109,7 +110,7 @@ export default function CampaignDetailPage({
             loadAnalytics();
             loadActivities(); // Refresh activity log
         } catch (err) {
-            alert("Failed to update status");
+            toast.error("Failed to update status");
         }
     };
 
@@ -120,7 +121,7 @@ export default function CampaignDetailPage({
             loadCampaign();
             loadActivities();
         } catch (err) {
-            alert("Failed to update campaign");
+            toast.error("Failed to update campaign");
         }
     };
 
@@ -131,7 +132,7 @@ export default function CampaignDetailPage({
             await deleteCampaign(campaignId);
             router.push("/campaigns");
         } catch (err) {
-            alert("Failed to delete campaign");
+            toast.error("Failed to delete campaign");
         }
     };
 
