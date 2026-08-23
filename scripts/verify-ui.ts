@@ -48,7 +48,7 @@ async function verify() {
             const bodyText = await page.evaluate(() => document.body.innerText.substring(0, 200));
 
             // Check for critical "clerk" classes we added
-            const clerkCards = await page.locator('.clerk-card').count();
+            const clerkCards = await page.locator('.glass-card').count();
             const glassPanels = await page.locator('.glass-panel').count();
 
             findings.push({
