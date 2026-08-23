@@ -9,21 +9,21 @@ import { ClerkProvider } from "@clerk/nextjs";
 
 export const metadata = {
   metadataBase: new URL(process.env["NEXTAUTH_URL"] || "http://localhost:3000"),
-  title: "CraftMyFunnel — Governed Funnel Workflows for B2B Service Teams",
-  description: "CraftMyFunnel helps B2B service teams manage buyer signals, approved outreach, follow-ups, and qualified meeting tracking.",
-  keywords: "governed funnel workflows, qualified meetings, buyer intent, approved outreach, B2B service companies, vertical playbooks",
+  title: "CraftMyFunnel AI — Governed Funnel Workflows for B2B Service Teams",
+  description: "CraftMyFunnel AI helps B2B service teams manage buyer signals, approved outreach, follow-ups, and qualified meeting tracking.",
+  keywords: "governed funnel workflows, qualified meetings, buyer intent, approved outreach, B2B service companies, vertical playbooks, AI outreach",
   icons: {
     icon: "/craftmyfunnel-logo.png",
     apple: "/craftmyfunnel-logo.png",
   },
   openGraph: {
-    title: "CraftMyFunnel — Governed Funnel Workflows",
+    title: "CraftMyFunnel AI — Governed Funnel Workflows",
     description: "Manage buyer signals, approved outreach, follow-ups, and qualified meetings in one governed workflow.",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CraftMyFunnel — Governed Funnel Workflows",
+    title: "CraftMyFunnel AI — Governed Funnel Workflows",
     description: "Manage buyer signals, approved outreach, follow-ups, and qualified meetings in one governed workflow.",
   },
   verification: {
@@ -68,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {
                     "@type": "Organization",
                     "@id": "https://craftmyfunnel.live/#organization",
-                    "name": "CraftMyFunnel",
+                    "name": "CraftMyFunnel AI",
                     "url": "https://craftmyfunnel.live",
                     "logo": "https://craftmyfunnel.live/craftmyfunnel-logo.png",
                     "description": "Governed AI outreach and qualified meeting workflow platform for B2B service teams and revenue operations.",
@@ -95,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "@type": "WebSite",
                     "@id": "https://craftmyfunnel.live/#website",
                     "url": "https://craftmyfunnel.live",
-                    "name": "CraftMyFunnel",
+                    "name": "CraftMyFunnel AI",
                     "publisher": {
                       "@id": "https://craftmyfunnel.live/#organization"
                     }
@@ -103,7 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   {
                     "@type": "SoftwareApplication",
                     "@id": "https://craftmyfunnel.live/#software",
-                    "name": "CraftMyFunnel",
+                    "name": "CraftMyFunnel AI",
                     "applicationCategory": "BusinessApplication",
                     "operatingSystem": "Web Browser, Cloud",
                     "offers": {

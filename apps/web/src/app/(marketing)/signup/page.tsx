@@ -14,7 +14,7 @@ export default function SignupPage() {
             <div className="w-full max-w-md">
                 <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-black text-white">
                     <LogoMark priority className="h-9 w-9" />
-                    CraftMyFunnel
+                    CraftMyFunnel AI
                 </Link>
                 <div className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">
                     Signup is invite-only. Use the approved workspace email or the invite link emailed by Clerk.

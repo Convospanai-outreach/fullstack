@@ -1,6 +1,6 @@
 export const metadata = {
-    title: "Create Account | CraftMyFunnel",
-    description: "Launch an AI-managed growth operations autopilot for buyer-signal-to-meeting workflows.",
+    title: "Create Account | CraftMyFunnel AI",
+    description: "Create your CraftMyFunnel AI account to manage your AI agents and growth workflows.",
 };
 
 export default function SignupLayout({

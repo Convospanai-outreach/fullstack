@@ -51,11 +51,12 @@ const ACTS = [
   {
     id: "intake",
     eyebrow: "Act 0 — Market Intake",
-    categoryBadge: "Governed Outbound & Buyer Intel Engine",
+    categoryBadge: "CraftMyFunnel AI Engine",
     headline: "Somewhere out there, a company needs exactly what you sell.",
     sub: "Most teams spend their week guessing who to contact. The market is moving. Your pipeline is not.",
     tag: null,
-    color: "cyan",
+    isSolution: false,
+    color: "slate",
   },
   {
     id: "leak",
@@ -64,99 +65,116 @@ const ACTS = [
     headline: "Signals disappear. Follow-ups stall. Deals die between messages.",
     sub: "Manual prospecting, ungoverned mass outreach, and no rescue layer turn warm intent into lost revenue every day.",
     tag: "Outbound Crisis",
-    color: "violet",
+    isSolution: false,
+    color: "rose",
   },
   {
     id: "shift",
     eyebrow: "The Paradigm Shift",
     categoryBadge: null,
     headline: "Market intent goes in. Governed pipeline comes out. Revenue keeps feeding the loop.",
-    sub: "CraftMyFunnel connects four purpose-built layers so nothing leaks between signal and signed contract.",
+    sub: "CraftMyFunnel AI connects four purpose-built layers so nothing leaks between signal and signed contract.",
     tag: "Governed Engine",
-    color: "cyan",
+    isSolution: false,
+    color: "indigo",
   },
   {
     id: "signal",
     eyebrow: "Layer 01 — NetJana",
-    categoryBadge: null,
+    solutionBadge: "CraftMyFunnel AI — Layer 01 Solution",
     headline: "Be the first call. Never the second.",
     sub: "Monitors hiring surges, expansion, tenders, and executive movement so your team works active-market accounts — not cold lists.",
     tag: "Buyer Signals",
     solves: "Who should I reach out to this week?",
+    isSolution: true,
     color: "cyan",
   },
   {
     id: "outreach",
     eyebrow: "Layer 02 — CMF Core",
-    categoryBadge: null,
+    solutionBadge: "CraftMyFunnel AI — Layer 02 Solution",
     headline: "AI drafts. Managers approve. Nothing goes out unchecked.",
     sub: "Drafts hyper-personalized outreach, prepares channel context, and keeps manager approval in the loop before anything sends.",
     tag: "AI Outreach SaaS",
     solves: "How do I reach them, and how do I know it went well?",
+    isSolution: true,
     color: "violet",
   },
   {
     id: "human",
     eyebrow: "Layer 03 — Human Layer",
-    categoryBadge: null,
+    solutionBadge: "CraftMyFunnel AI — Layer 03 Solution",
     headline: "The deals email cannot close, your people can.",
     sub: "Caller tasks, manual stage updates, and follow-up suggestions keep high-value leads moving between message and contract.",
     tag: "Conversion Moat",
     solves: "What happens when the digital channel is not enough?",
+    isSolution: true,
     color: "mint",
   },
   {
     id: "edge",
     eyebrow: "Layer 04 — Covospan EDGE",
-    categoryBadge: null,
+    solutionBadge: "CraftMyFunnel AI — Layer 04 Solution",
     headline: "Their trust is the contract. Keep it with you.",
     sub: "Runs sensitive AI checks, memory logs, and outreach processing close to your own data — with encrypted local storage and on-device audit trails.",
     tag: "Sovereign Edge Node",
     solves: "How do I run this without putting sensitive client data in someone else's cloud?",
+    isSolution: true,
     color: "crystal",
   },
   {
     id: "revenue",
     eyebrow: "The Output Node",
-    categoryBadge: null,
+    solutionBadge: "CraftMyFunnel AI — Verified Result",
     headline: "From scattered follow-ups to qualified meetings.",
     sub: "Every signal captured, every outreach governed, every conversation rescued — compresses into pipeline your team can actually close.",
     tag: "Qualified Revenue",
+    isSolution: true,
     color: "amber",
   },
   {
     id: "launch",
     eyebrow: "Ready to Pilot",
-    categoryBadge: null,
+    categoryBadge: "CraftMyFunnel AI Pilot",
     headline: "Stop losing the deals you have already earned.",
-    sub: "Request early access to the CraftMyFunnel pilot programme and see the full funnel working on your own accounts.",
+    sub: "Request early access to the CraftMyFunnel AI pilot programme and see the full funnel working on your own accounts.",
     tag: null,
+    isSolution: true,
     color: "amber",
   },
 ] as const;
 
 const TAG_COLORS: Record<string, string> = {
-  cyan:    "border-cyan-400/40 text-cyan-300 bg-cyan-400/10 shadow-[0_0_15px_rgba(56,189,248,0.2)]",
-  violet:  "border-violet-400/40 text-violet-300 bg-violet-400/10 shadow-[0_0_15px_rgba(139,92,246,0.2)]",
-  mint:    "border-emerald-400/40 text-emerald-300 bg-emerald-400/10 shadow-[0_0_15px_rgba(16,185,129,0.2)]",
-  crystal: "border-sky-400/40 text-sky-300 bg-sky-400/10 shadow-[0_0_15px_rgba(56,189,248,0.2)]",
-  amber:   "border-amber-400/40 text-amber-300 bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.2)]",
+  slate:   "border-slate-600/40 text-slate-300 bg-slate-800/40",
+  rose:    "border-rose-500/40 text-rose-300 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.2)]",
+  indigo:  "border-indigo-500/40 text-indigo-300 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]",
+  cyan:    "border-cyan-400/50 text-cyan-200 bg-cyan-400/15 shadow-[0_0_20px_rgba(56,189,248,0.3)]",
+  violet:  "border-violet-400/50 text-violet-200 bg-violet-400/15 shadow-[0_0_20px_rgba(139,92,246,0.3)]",
+  mint:    "border-emerald-400/50 text-emerald-200 bg-emerald-400/15 shadow-[0_0_20px_rgba(16,185,129,0.3)]",
+  crystal: "border-sky-400/50 text-sky-200 bg-sky-400/15 shadow-[0_0_20px_rgba(56,189,248,0.3)]",
+  amber:   "border-amber-400/60 text-amber-200 bg-amber-400/20 shadow-[0_0_25px_rgba(251,191,36,0.35)]",
 };
 
 const CARD_GLOW: Record<string, string> = {
-  cyan:    "border-cyan-400/30 shadow-[0_0_40px_rgba(56,189,248,0.15)] bg-slate-950/80",
-  violet:  "border-violet-400/30 shadow-[0_0_40px_rgba(139,92,246,0.15)] bg-slate-950/80",
-  mint:    "border-emerald-400/30 shadow-[0_0_40px_rgba(16,185,129,0.15)] bg-slate-950/80",
-  crystal: "border-sky-400/30 shadow-[0_0_40px_rgba(56,189,248,0.15)] bg-slate-950/80",
-  amber:   "border-amber-400/30 shadow-[0_0_40px_rgba(251,191,36,0.18)] bg-slate-950/80",
+  slate:   "border-slate-800 bg-slate-950/80 shadow-[0_0_30px_rgba(0,0,0,0.8)]",
+  rose:    "border-rose-900/50 bg-gradient-to-b from-slate-950 via-slate-950 to-rose-950/20 shadow-[0_0_35px_rgba(244,63,94,0.12)]",
+  indigo:  "border-indigo-900/50 bg-gradient-to-b from-slate-950 via-slate-950 to-indigo-950/20 shadow-[0_0_35px_rgba(99,102,241,0.12)]",
+  cyan:    "border-cyan-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-cyan-950/40 shadow-[0_0_50px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400/30",
+  violet:  "border-violet-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-violet-950/40 shadow-[0_0_50px_rgba(139,92,246,0.25)] ring-1 ring-violet-400/30",
+  mint:    "border-emerald-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-emerald-950/40 shadow-[0_0_50px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/30",
+  crystal: "border-sky-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-sky-950/40 shadow-[0_0_50px_rgba(56,189,248,0.25)] ring-1 ring-sky-400/30",
+  amber:   "border-amber-400/70 bg-gradient-to-br from-slate-950 via-slate-900/95 to-amber-950/40 shadow-[0_0_60px_rgba(251,191,36,0.35)] ring-1 ring-amber-400/40",
 };
 
 const HEADLINE_COLORS: Record<string, string> = {
-  cyan:    "from-cyan-200 via-sky-300 to-indigo-300",
-  violet:  "from-violet-200 via-purple-300 to-indigo-400",
-  mint:    "from-emerald-200 via-teal-300 to-cyan-400",
-  crystal: "from-sky-200 via-blue-300 to-indigo-300",
-  amber:   "from-amber-200 via-yellow-300 to-orange-400",
+  slate:   "from-white to-slate-300",
+  rose:    "from-rose-200 via-pink-300 to-rose-400",
+  indigo:  "from-indigo-200 via-sky-300 to-indigo-400",
+  cyan:    "from-cyan-100 via-sky-200 to-teal-300",
+  violet:  "from-violet-100 via-fuchsia-200 to-indigo-300",
+  mint:    "from-emerald-100 via-teal-200 to-emerald-300",
+  crystal: "from-sky-100 via-cyan-200 to-blue-300",
+  amber:   "from-amber-100 via-yellow-200 to-amber-400",
 };
 
 function getPrefersReducedMotion() {
@@ -409,7 +427,15 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
       className={`pointer-events-auto max-w-xl w-full ${isLeft ? "ml-0 mr-auto lg:ml-16" : "mr-0 ml-auto lg:mr-16"}`}
     >
       <div className={`rounded-[28px] border p-8 backdrop-blur-2xl transition-all duration-500 ${glowCls}`}>
-        {/* Category Pill (Act 0 only) */}
+        {/* Solution Badge (Layer 01 onwards) */}
+        {"solutionBadge" in act && act.solutionBadge && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-white shadow-lg backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+            {act.solutionBadge}
+          </div>
+        )}
+
+        {/* Category Pill (Act 0 & Pilot) */}
         {"categoryBadge" in act && act.categoryBadge && (
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-cyan-300 shadow-[0_0_15px_rgba(56,189,248,0.25)]">
             <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
