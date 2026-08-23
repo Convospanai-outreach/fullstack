@@ -21,6 +21,7 @@ export type HiddenFeatureKey =
     | "scraper-bridge"
     | "sovereign"
     | "studio"
+    | "whatsapp"
     | "workflows";
 
 export interface HiddenFeatureDefinition {
@@ -51,6 +52,13 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
         description: "Dedicated caller workflows and queue handling.",
         openPath: "/caller",
         pathPrefixes: ["/caller"],
+    },
+    "whatsapp": {
+        key: "whatsapp",
+        label: "WhatsApp",
+        description: "Conversation status, consent, and message history for WhatsApp outreach.",
+        openPath: "/whatsapp",
+        pathPrefixes: ["/whatsapp"],
     },
     "command-center": {
         key: "command-center",
@@ -192,7 +200,7 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
 // Surfaced by default for the US/EU (LinkedIn) and general (Knowledge/RAG-grounding) push —
 // see roadmap item 5. Every other hidden feature stays opt-in via NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES
 // or the per-user Settings toggle.
-const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = ["linkedin-runner", "knowledge"];
+const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = ["linkedin-runner", "knowledge", "caller", "whatsapp"];
 
 const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
     ...ALWAYS_ON_HIDDEN_FEATURE_KEYS,
