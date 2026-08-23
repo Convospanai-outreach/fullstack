@@ -19,6 +19,7 @@ import {
     Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 interface ApiKey {
     id: string;
@@ -58,7 +59,7 @@ export default function SecurityKeysPage() {
 
     const fetchKeys = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/keys");
+            const res = await fetch(getBrowserApiUrl("/governance/keys"));
             const data = await res.json();
             if (data.success) setKeys(data.keys);
         } catch (err) {
@@ -100,7 +101,7 @@ export default function SecurityKeysPage() {
 
         setCreating(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/keys", {
+            const res = await fetch(getBrowserApiUrl("/governance/keys"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: newKeyName, scopes: selectedScopes }),

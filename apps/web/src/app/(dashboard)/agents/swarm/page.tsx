@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Bot, Loader2, Play, RefreshCw, Sparkles, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const DEFAULT_ROLES = [
     "User Simulator",
@@ -127,7 +128,7 @@ export default function AgentSwarmPage() {
         }
 
         try {
-            const res = await fetch(`${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/orchestrator/swarm/status?swarmId=${targetSwarmId}`);
+            const res = await fetch(getBrowserApiUrl(`/orchestrator/swarm/status?swarmId=${targetSwarmId}`));
             const data = await res.json();
             if (!res.ok) {
                 throw new Error(data?.error || "Failed to fetch swarm status");
@@ -153,7 +154,7 @@ export default function AgentSwarmPage() {
         setError("");
         setStatus(null);
         try {
-            const res = await fetch(`${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/orchestrator/swarm/run`, {
+            const res = await fetch(getBrowserApiUrl("/orchestrator/swarm/run"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

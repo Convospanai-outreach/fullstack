@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
 
@@ -37,8 +38,8 @@ export default function PipelinePage() {
     const loadData = async () => {
         try {
             const [leadsRes, statsRes] = await Promise.all([
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads"),
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/stats")
+                fetch(getBrowserApiUrl("/leads")),
+                fetch(getBrowserApiUrl("/pipeline/stats"))
             ]);
 
             const leadsData = await leadsRes.json();
@@ -55,7 +56,7 @@ export default function PipelinePage() {
 
     const analyzeLead = async (leadId: string) => {
         toast.promise(
-            fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/ai/analyze", {
+            fetch(getBrowserApiUrl("/pipeline/ai/analyze"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leadId, action: "suggestTasks" })
