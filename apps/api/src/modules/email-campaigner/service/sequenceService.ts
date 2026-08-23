@@ -2,6 +2,10 @@ import { prisma } from "@/lib/db";
 import { emailService } from "@/modules/email-campaigner";
 import { assertMailboxCanSend, isSuppressed } from "./googleMailboxService";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
+import { WhatsAppService } from "@/services/WhatsAppService";
+import { ConsentService } from "@/modules/whatsapp/ConsentService";
+import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
+import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
@@ -228,6 +232,10 @@ export class SequenceService {
             return { runId: run.id, status: "COMPLETED" };
         }
 
+        if (type === "whatsapp") {
+            return this.executeWhatsAppRun(run, lead, now);
+        }
+
         if (type !== "email") {
             await this.failRun(run.id, "UNSUPPORTED_STEP_TYPE", `Unsupported sequence step type: ${run.step?.stepType}`, false, now);
             return { runId: run.id, status: "FAILED", errorCode: "UNSUPPORTED_STEP_TYPE" };
@@ -441,6 +449,100 @@ export class SequenceService {
 
         await this.scheduleNextStep(run, now);
         return { runId: run.id, status: "SENT", providerMessageId: result.providerId };
+    }
+
+    private static async executeWhatsAppRun(run: any, lead: any, now: Date) {
+        const client = db();
+
+        if (!lead?.phone) {
+            await this.failRun(run.id, "MISSING_PHONE", "Lead has no phone number.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "MISSING_PHONE" };
+        }
+
+        // Consent revocation is a terminal condition for this step only - it doesn't
+        // exit the whole enrollment, since other steps (e.g. email) may still be valid.
+        if (!lead.whatsappConsent) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: { status: "SKIPPED_NO_CONSENT", completedAt: now, errorCode: "NO_WHATSAPP_CONSENT" },
+            });
+            await this.scheduleNextStep(run, now);
+            return { runId: run.id, status: "SKIPPED_NO_CONSENT" };
+        }
+
+        const consent = await ConsentService.validateConsent(run.leadId, "WHATSAPP");
+        if (!consent.hasConsent) {
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: { status: "SKIPPED_NO_CONSENT", completedAt: now, errorCode: "NO_WHATSAPP_CONSENT" },
+            });
+            await this.scheduleNextStep(run, now);
+            return { runId: run.id, status: "SKIPPED_NO_CONSENT" };
+        }
+
+        const message = typeof run.step?.body === "string" && run.step.body.trim() ? run.step.body.trim() : "";
+        if (!message) {
+            await this.failRun(run.id, "MISSING_BODY", "WhatsApp sequence step has no message.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "MISSING_BODY" };
+        }
+
+        const validation = await TemplateGuard.validateMessage(run.leadId, message, false);
+        const wabaConfig = await getTeamWabaConfig(run.teamId);
+
+        // No per-team WABA configured, or this send requires a pre-approved template
+        // (first contact / outside the 24h window) which we don't manage automatically -
+        // both cases fall back to a human rep sending the message manually.
+        if (!wabaConfig || validation.requiresTemplate) {
+            const ownerId = run.enrollment?.campaign?.ownerId;
+            if (ownerId) {
+                const { PipelineService } = await import("@/modules/analytics/service/PipelineService");
+                await PipelineService.createTask({
+                    teamId: run.teamId,
+                    userId: ownerId,
+                    leadId: run.leadId,
+                    title: `Send WhatsApp message to ${lead.name || lead.email || lead.phone}`,
+                    description: !wabaConfig
+                        ? `WhatsApp isn't automated for this team yet. Suggested message:\n\n${message}`
+                        : `This message requires an approved WhatsApp template (${validation.reason}). Suggested message:\n\n${message}`,
+                    priority: "MEDIUM",
+                });
+            }
+
+            await client.sequenceStepRun.update({
+                where: { id: run.id },
+                data: { status: "AWAITING_MANUAL_REVIEW", completedAt: now },
+            });
+            await client.sequenceEnrollment.update({
+                where: { id: run.enrollmentId },
+                data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+            });
+            return { runId: run.id, status: "AWAITING_MANUAL_REVIEW" };
+        }
+
+        try {
+            await WhatsAppService.sendMessage(run.leadId, message, false, lead.phone, wabaConfig);
+        } catch (error: any) {
+            await this.failRun(run.id, "WHATSAPP_SEND_FAILED", error?.message || "WhatsApp send failed.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "WHATSAPP_SEND_FAILED" };
+        }
+
+        await TemplateGuard.recordMessageSent(run.leadId, message, false);
+
+        await client.sequenceStepRun.update({
+            where: { id: run.id },
+            data: { status: "SENT", completedAt: now, errorCode: null, errorMessage: null },
+        });
+
+        try {
+            // Reuses the email-shaped transition action: the underlying state change
+            // (NEW/COLD -> CONTACTED/WARM) is channel-agnostic outreach-sent logic.
+            await advanceLeadAfterEmailSent(prisma, { leadId: run.leadId, teamId: run.teamId, campaignId: run.campaignId });
+        } catch {
+            // Lead stage advancement is best-effort - the send itself already succeeded.
+        }
+
+        await this.scheduleNextStep(run, now);
+        return { runId: run.id, status: "SENT" };
     }
 
     private static isRetryableEmailError(error?: string) {

@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Eye, UserMinus, UserPlus, Phone, GitBranch, LucideIcon } from "lucide-react";
+import { Mail, MessageSquare, Eye, UserMinus, UserPlus, Phone, GitBranch, LucideIcon, MessageCircle } from "lucide-react";
 
 export interface StepDefinition {
     id: string;
@@ -21,6 +21,7 @@ export const stepGroups: StepGroup[] = [
         group: "Most used",
         items: [
             { id: "EMAIL", label: "Email", icon: Mail, requiresLinkedIn: false, hasSubject: true, hasMessageBody: true },
+            { id: "WHATSAPP", label: "WhatsApp message", icon: MessageCircle, requiresLinkedIn: false, hasMessageBody: true },
             { id: "CHAT_MESSAGE", label: "Chat message", icon: MessageSquare, requiresLinkedIn: true, hasMessageBody: true },
             { id: "VISIT_PROFILE", label: "Visit profile", icon: Eye, requiresLinkedIn: true },
         ],
