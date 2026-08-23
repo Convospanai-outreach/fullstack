@@ -23,10 +23,10 @@ The Edge Node runs as a containerized FastAPI application.
 
 ### Installation Steps
 
-1. **Clone the Edge Node Services**:
+1. **Clone the Edge Node Service**:
    ```bash
    git clone <repo-url>
-   cd services/edge-node
+   cd apps/edge-fastapi
    ```
 
 2. **Configure Environment**:
@@ -41,6 +41,11 @@ The Edge Node runs as a containerized FastAPI application.
    ```bash
    docker-compose -f docker-compose.edge.yml up -d
    ```
+   `docker-compose.edge.yml` (repo root) is a local dev-simulation harness that
+   also includes the Cloudflare tunnel service used in [Networking &
+   Resilience](#7-networking--resilience). For containerised local dev without
+   the tunnel, `apps/docker-compose.split.yml` runs the same `edge-fastapi`
+   image alongside the rest of the split stack.
 
 ## 4. Hardware Attestation
 
@@ -70,6 +75,7 @@ sequenceDiagram
 | `/v1/critique` | POST | Compare output against local "Golden Records". |
 | `/v1/reidentify` | POST | Reverse lookup for tokenized PII (Identity Vault). |
 | `/search` | POST | Semantic search against local vector database. |
+| `/activity` | GET | Recent node activity feed (function, entity types/counts, timestamp - never plaintext). |
 
 ## 6. Security Protocols
 

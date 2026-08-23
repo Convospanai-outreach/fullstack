@@ -6,7 +6,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from presidio_analyzer import AnalyzerEngine
 from sqlalchemy import text as sql_text
 
-from database import GoldenRecord, PIITokenMap
+from database import EdgeActivityLog, GoldenRecord, PIITokenMap
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +141,23 @@ class LocalIntelligenceService:
         if mode in {"llm", "all"}:
             self.load_llm()
 
+    def _log_activity(self, function: str, entity_types=None, entity_count: int = 0, session_id: Optional[str] = None):
+        """Records that a function ran and what kind of entities it touched.
+        Never pass plaintext PII values here - counts and entity types only."""
+        db = self.db_session_factory()
+        try:
+            db.add(EdgeActivityLog(
+                function=function,
+                entity_types=entity_types,
+                entity_count=entity_count,
+                session_id=session_id,
+            ))
+            db.commit()
+        except Exception as exc:
+            logger.error("Activity log write failed: %s", exc)
+        finally:
+            db.close()
+
     def sanitize_and_tag(self, text: str, session_id: str) -> Tuple[str, Dict[str, int]]:
         self.load_analyzer()
 
@@ -184,6 +201,13 @@ class LocalIntelligenceService:
         finally:
             db.close()
 
+        self._log_activity(
+            "sanitize",
+            entity_types=sorted(token_stats.keys()),
+            entity_count=sum(token_stats.values()),
+            session_id=session_id,
+        )
+
         return "".join(sanitized_text_list), token_stats
 
     def reidentify_token(self, token_id: str, session_id: Optional[str] = None) -> Optional[str]:
@@ -195,6 +219,7 @@ class LocalIntelligenceService:
 
             record = query.first()
             if record:
+                self._log_activity("reidentify", entity_types=[record.token_type], entity_count=1, session_id=record.session_id)
                 return self._decrypt_pii(record.original_text)
             return None
         except Exception as exc:
@@ -231,12 +256,14 @@ class LocalIntelligenceService:
             similarity = float(similarity)
 
             if similarity < 0.8:
+                self._log_activity("critique")
                 return {
                     "status": "REJECTED",
                     "score": similarity,
                     "reason": f"Deviation from Golden Standard (Score: {similarity:.2f} < 0.8)",
                 }
 
+            self._log_activity("critique")
             return {"status": "APPROVED", "score": similarity}
         except Exception as exc:
             logger.error("Critique failed: %s", exc)
