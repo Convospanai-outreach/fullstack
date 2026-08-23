@@ -6,6 +6,7 @@ export async function PATCH(
     req: NextRequest,
     { params }: { params: Promise<{ leadId: string }> }
 ) {
+    const { leadId } = await params;
     const ctx = await getCurrentContext();
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

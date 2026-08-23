@@ -7,6 +7,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const { userId } = await getCurrentContextFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

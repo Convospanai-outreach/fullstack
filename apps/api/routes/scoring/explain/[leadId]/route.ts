@@ -16,6 +16,7 @@ export async function GET(
     { params }: { params: Promise<{ leadId: string }> }
 ) {
     try {
+        const { leadId } = await params;
         const { userId } = await getCurrentContextFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
