@@ -4,14 +4,15 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
     _req: Request,
-    { params }: { params: { runId: string } }
+    { params }: { params: Promise<{ runId: string }> }
 ) {
+    const { runId } = await params;
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
         const traces = await prisma.aiTrace.findMany({
-            where: { runId: params.runId },
+            where: { runId },
             orderBy: { createdAt: 'asc' }
         });
 

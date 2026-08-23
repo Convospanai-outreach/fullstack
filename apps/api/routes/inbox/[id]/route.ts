@@ -3,12 +3,12 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { InboxService } from "@/lib/inboxService";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const ctx = await getCurrentContext();
     if (!ctx.userId || !ctx.teamId) return new NextResponse("Unauthorized", { status: 401 });
 
     try {
-        const leadId = params.id;
+        const { id: leadId } = await params;
 
         // Mark messages as read
         await InboxService.markAsRead(leadId);

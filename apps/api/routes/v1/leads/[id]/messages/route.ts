@@ -4,13 +4,13 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const authResult = await authorizeApiKey(req, "leads:read");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
 
-    const { id: leadId } = params;
+    const { id: leadId } = await params;
 
     const messages = await prisma.message.findMany({
         where: { 
@@ -25,13 +25,13 @@ export async function GET(
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const authResult = await authorizeApiKey(req, "leads:write");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
 
-    const { id: leadId } = params;
+    const { id: leadId } = await params;
 
     try {
         let body;

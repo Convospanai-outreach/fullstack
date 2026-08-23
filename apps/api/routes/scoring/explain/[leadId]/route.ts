@@ -13,15 +13,14 @@ import { logger } from "@/lib/logger";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { leadId: string } }
+    { params }: { params: Promise<{ leadId: string }> }
 ) {
     try {
+        const { leadId } = await params;
         const { userId } = await getCurrentContextFromRequest(req);
         if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-
-        const { leadId } = params;
 
         if (!leadId) {
             return NextResponse.json(

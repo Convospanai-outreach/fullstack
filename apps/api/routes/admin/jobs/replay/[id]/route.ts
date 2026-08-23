@@ -5,7 +5,7 @@ import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 
 export async function POST(
     _req: NextRequest,
-    context: { params: { id: string } }
+    context: { params: Promise<{ id: string }> }
 ) {
     try {
         const isAdmin = await checkAdmin();

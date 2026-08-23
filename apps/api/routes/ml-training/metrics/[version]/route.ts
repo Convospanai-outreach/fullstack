@@ -11,7 +11,7 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { version: string } }
+    { params }: { params: Promise<{ version: string }> }
 ) {
     const { userId } = await getCurrentContextFromRequest(req);
 
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     try {
-        const { version } = params;
+        const { version } = await params;
 
         // Find model version
         const modelVersion = await prisma.modelVersion.findUnique({
