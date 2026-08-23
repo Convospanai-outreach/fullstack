@@ -2,27 +2,27 @@
 
 > Governed AI-driven B2B outreach and qualified meeting workflow platform.
 
-CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage buyer signals, AI-personalized outreach with mandatory human-in-the-loop approvals, email deliverability guardrails, and qualified meeting tracking.
+CraftMyFunnel helps B2B revenue teams, marketing agencies, and enterprise sales organizations manage live buyer signals, AI-personalized outreach with mandatory human-in-the-loop approvals, email deliverability guardrails, and qualified pipeline tracking.
 
-## Core Capabilities
+## Core Capabilities & Architecture
 
 - **Governed Multi-Channel Outreach**: Orchestrates personalized outreach via Gmail/Google Workspace with Phase-2 support for LinkedIn and WhatsApp.
 - **Human-in-the-Loop Approval Queue**: Every AI-generated draft requires explicit human review and approval before dispatching, preventing unvetted AI hallucinations or brand damage.
 - **Deliverability & Reputation Guardrails**: Automated mailbox warm-up tracking, bounce-rate circuit breakers, RFC 5322 Message-ID threading, and RFC 8058 one-click unsubscribe compliance.
 - **Buyer Signal & Intent Ingestion**: Scrapes and ingests signals from LinkedIn Sales Navigator, CSV lists, webhooks, and inbound landing agents.
 - **Transactional Outbox & Blind Indexing**: Enterprise-grade multi-tenant architecture with atomic outbox relay loops and deterministic HMAC-SHA256 blind indexing for encrypted PII search.
-- **Vertical Playbooks**: Pre-configured outbound sequence templates and prompts tailored for SaaS, IT services, consulting, marketing agencies, and recruiting.
+- **Contextual RAG with pgvector**: Semantic vector search retrieving verified customer case studies, technical specs, and industry proof points for precise, non-fluffy message synthesis.
+- **Vertical Playbooks**: Pre-configured outbound sequence templates and prompts tailored for SaaS, IT services, consulting, marketing agencies, staffing, and recruiting.
 
 ## Target Audience
 
-- B2B Lead Generation & Marketing Agencies
 - High-Growth SaaS Outbound Sales Teams
-- Professional Services & Consulting Firms
-- Revenue Operations & Demand Generation Leaders
+- B2B Lead Generation & Revenue Operations Agencies
+- Professional Services, Consulting & Advisory Firms
+- Enterprise Revenue Leaders requiring strict data governance and sovereign AI pipelines
 
-## Key Resources & Documentation
+## Platform Documentation & Trust Hub
 
-- [AI Sales & Automation Blog](https://craftmyfunnel.live/blog): Insights and guides on AI Search Optimization (AGO), multi-agent systems, and LLM-powered sales pipelines.
 - [Platform Documentation Hub](https://craftmyfunnel.live/docs): Full architectural guides and technical specifications.
 - [Governed Outreach Guide](https://craftmyfunnel.live/docs/governed-outreach): Human-in-the-loop review queue and AI draft validation mechanics.
 - [Deliverability & Compliance Engine](https://craftmyfunnel.live/docs/deliverability-guardrails): RFC 5322 Message-ID sync, RFC 8058 unsubscribe, and mailbox warmup.
@@ -52,6 +52,22 @@ CraftMyFunnel helps B2B service teams, agencies, and revenue operations manage b
 - [Consulting & Advisory](https://craftmyfunnel.live/use-cases/consulting): Executive-level partner-approved outreach for strategic advisory firms.
 - [Managed IT Services](https://craftmyfunnel.live/use-cases/managed-services): Recurring IT retainer and MSP client acquisition workflows.
 
-## System Specification Reference
+## AI Engineering & Technical Blog Library
 
-- Full architectural documentation and feature specifications: [llms-full.txt](https://craftmyfunnel.live/llms-full.txt).
+- [AI Search Optimization (AGO)](https://craftmyfunnel.live/blog/ai-search-optimization-ago-how-to-ensure-ai-agents-recommend-your-saas): How to ensure AI agents and LLMs recommend your B2B SaaS platform.
+- [AIO vs SEO](https://craftmyfunnel.live/blog/aio-artificial-intelligence-optimization-vs-seo-what-you-need-to-know): Transitioning from traditional search ranking to AI engine optimization.
+- [AI Agents vs Traditional SDR Teams](https://craftmyfunnel.live/blog/ai-agents-vs-traditional-sdr-teams-cost-comparison-and-performance-breakdown): Financial benchmarks, unit economics, and throughput comparison.
+- [Contextual RAG for Sales](https://craftmyfunnel.live/blog/contextual-rag-for-sales-hyper-personalizing-b2b-outreach-with-vector-search): Implementing dense vector embeddings and pgvector for precision outreach.
+- [Sovereign AI Pipelines](https://craftmyfunnel.live/blog/how-to-build-a-sovereign-ai-pipeline-for-enterprise-outbound-sales): Zero-retention endpoints, HMAC blind indexing, and private edge nodes.
+- [Email Deliverability Guide for AI Outreach](https://craftmyfunnel.live/blog/the-complete-guide-to-email-deliverability-for-ai-generated-cold-outreach): SPF, DKIM, DMARC, RFC 5322, RFC 8058, and circuit breakers.
+- [LLM Agent Evaluation Frameworks](https://craftmyfunnel.live/blog/llm-agent-evaluation-frameworks-for-sales-pipeline-automation): Benchmarks, synthetic evals, and LLM-as-a-Judge rubrics.
+- [Overcoming Hallucinations in AI Sales Agents](https://craftmyfunnel.live/blog/overcoming-hallucinations-in-ai-sales-agents): Grounding strategies and human-in-the-loop review queues.
+- [Multi-Agent Systems for Sales Workflows](https://craftmyfunnel.live/blog/deploying-multi-agent-systems-for-complex-sales-workflows): Orchestrating specialized research, synthesis, and dispatch agents.
+- [Predictive Lead Scoring with ML & LLMs](https://craftmyfunnel.live/blog/predictive-lead-scoring-with-machine-learning-and-llms): Combining behavioral signals with semantic intent modeling.
+- [Autonomous Sales Pipelines](https://craftmyfunnel.live/blog/building-an-autonomous-pipeline-integrating-llms-into-your-sales-funnel): End-to-end integration of LLMs from top-of-funnel to meeting booking.
+- [The Future of CRM & AI Workflows](https://craftmyfunnel.live/blog/the-future-of-crm-why-ai-agents-will-replace-traditional-workflows): Why autonomous agents are replacing manual CRM data entry.
+- [The Technical Architecture of Sales Agents](https://craftmyfunnel.live/blog/the-technical-architecture-behind-autonomous-sales-agents): Deep dive into queues, lease locks, and fast runtime inference.
+
+## Complete Specification
+
+For the complete technical and architectural specification formatted for LLM system prompts and autonomous agents, see: [llms-full.txt](https://craftmyfunnel.live/llms-full.txt).

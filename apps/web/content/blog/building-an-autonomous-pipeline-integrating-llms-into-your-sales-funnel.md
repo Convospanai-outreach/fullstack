@@ -1,7 +1,7 @@
 ---
 title: "Building an Autonomous Pipeline: Integrating LLMs into Your Sales Funnel"
 description: "A comprehensive guide on integrating Large Language Models (LLMs) to build a fully autonomous sales pipeline, from lead generation to qualified meetings."
-date: "2026-08-23T02:30:00.000Z"
+date: "2026-04-15T01:04:36.923Z"
 ---
 
 The concept of a "sales funnel" has remained relatively unchanged for decades. Leads enter at the top through marketing efforts, sales development representatives (SDRs) qualify them in the middle, and account executives (AEs) close them at the bottom. However, the manual effort required to move a lead from the top to the middle of the funnel is immense. 
