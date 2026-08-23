@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Users, Phone } from "lucide-react";
+import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
+
+const API_BASE = process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy";
 
 interface WhatsAppMessage {
     id: string;
@@ -35,6 +38,7 @@ function directionBadge(direction: string) {
 
 export default function WhatsAppPage() {
     const [data, setData] = useState<Overview | null>(null);
+    const [settings, setSettings] = useState<WabaSettings | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -42,10 +46,17 @@ export default function WhatsAppPage() {
         let cancelled = false;
         const load = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/whatsapp/overview");
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = await res.json();
-                if (!cancelled) setData(json);
+                const [overviewRes, settingsRes] = await Promise.all([
+                    fetch(`${API_BASE}/whatsapp/overview`),
+                    fetch(`${API_BASE}/whatsapp/settings`),
+                ]);
+                if (!overviewRes.ok) throw new Error(`HTTP ${overviewRes.status}`);
+                const overviewJson = await overviewRes.json();
+                const settingsJson = settingsRes.ok ? await settingsRes.json() : { hasWaba: false, phoneNumberId: null };
+                if (!cancelled) {
+                    setData(overviewJson);
+                    setSettings(settingsJson);
+                }
             } catch (e: any) {
                 if (!cancelled) setError(e.message || "Failed to load");
             } finally {
@@ -65,7 +76,7 @@ export default function WhatsAppPage() {
                     <MessageCircle className="h-6 w-6" /> WhatsApp
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                    Conversation activity, consent, and delivery status. Sending is manual per-lead today (see lead detail) - not yet automated from drip sequences.
+                    Conversation activity, consent, delivery status, and drip sequence automation.
                 </p>
             </div>
 
@@ -74,6 +85,8 @@ export default function WhatsAppPage() {
                     Couldn&apos;t load WhatsApp activity: {error}
                 </Card>
             )}
+
+            {settings && <WabaSetupCard settings={settings} onSaved={setSettings} />}
 
             {data && (
                 <>

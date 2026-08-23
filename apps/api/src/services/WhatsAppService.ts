@@ -5,16 +5,25 @@ export const WhatsAppService = {
   /**
    * Sends a message via WhatsApp Business API (Meta).
    * Requires valid credentials; no mock mode in production path.
+   * `credentials` lets callers (e.g. per-team sequence sends) use a team's own
+   * WABA instead of the global env-var account; omit to use the global account.
    */
-  async sendMessage(leadId: string, message: string, isTemplate: boolean, recipientPhone: string): Promise<boolean> {
-    const hasCredentials = !!process.env["WHATSAPP_ACCESS_TOKEN"] && !!process.env["WHATSAPP_PHONE_NUMBER_ID"];
-    if (!hasCredentials) {
+  async sendMessage(
+    leadId: string,
+    message: string,
+    isTemplate: boolean,
+    recipientPhone: string,
+    credentials?: { phoneNumberId: string; accessToken: string }
+  ): Promise<boolean> {
+    const phoneNumberId = credentials?.phoneNumberId || process.env["WHATSAPP_PHONE_NUMBER_ID"];
+    const accessToken = credentials?.accessToken || process.env["WHATSAPP_ACCESS_TOKEN"];
+    if (!phoneNumberId || !accessToken) {
       logger.error("[WhatsApp] Missing credentials for production send.");
       throw new Error("WhatsApp integration not configured (Missing Credentials)");
     }
 
     try {
-      const url = `https://graph.facebook.com/v19.0/${process.env["WHATSAPP_PHONE_NUMBER_ID"]}/messages`;
+      const url = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
 
       const payload: any = {
         messaging_product: "whatsapp",
@@ -34,7 +43,7 @@ export const WhatsAppService = {
 
       await axios.post(url, payload, {
         headers: {
-          Authorization: `Bearer ${process.env["WHATSAPP_ACCESS_TOKEN"]}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json"
         },
         timeout: 5000

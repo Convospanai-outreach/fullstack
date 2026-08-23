@@ -7,6 +7,7 @@ fastapi
 uvicorn
 pydantic
 cryptography
+httpx
 presidio-analyzer
 presidio-anonymizer
 spacy==3.7.0

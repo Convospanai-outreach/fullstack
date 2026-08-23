@@ -7,7 +7,8 @@ import {
     Coins,
     BarChart2,
     Cpu,
-    RefreshCw
+    RefreshCw,
+    ShieldAlert
 } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import {
@@ -20,6 +21,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
 
 interface LLMStat {
     name: string;
@@ -34,11 +37,17 @@ interface LLMStat {
 export default function AIPerformancePage() {
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<LLMStat[]>([]);
+    const [forbidden, setForbidden] = useState(false);
 
     const fetchStats = async () => {
         setLoading(true);
+        setForbidden(false);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/llm-stats");
+            const res = await fetch(getBrowserApiUrl("/admin/llm-stats"));
+            if (res.status === 403) {
+                setForbidden(true);
+                return;
+            }
             const data = await res.json();
             if (data.success) {
                 setStats(data.stats);
@@ -60,6 +69,7 @@ export default function AIPerformancePage() {
 
     return (
         <div className="space-y-6">
+            <AnalyticsTabs />
             <div className="flex justify-between items-center mb-2">
                 <div>
                     <h1 className="text-3xl font-bold text-white tracking-tight">AI Fleet Performance</h1>
@@ -71,6 +81,20 @@ export default function AIPerformancePage() {
                 </Button>
             </div>
 
+            {forbidden ? (
+                <Card>
+                    <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                        <ShieldAlert className="w-8 h-8 text-text-muted" />
+                        <div>
+                            <p className="text-white font-semibold">Admin access required</p>
+                            <p className="text-text-secondary text-sm mt-1">
+                                AI fleet performance metrics are only visible to team admins.
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {loading ? (
                     <>
@@ -102,7 +126,6 @@ export default function AIPerformancePage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
-                {/* Latency Comparison Chart */}
                 {/* Latency Comparison Chart */}
                 <Card>
                     <CardHeader>
@@ -136,7 +159,6 @@ export default function AIPerformancePage() {
                     </CardContent>
                 </Card>
 
-                {/* Reliability & Volume Card */}
                 {/* Reliability & Volume Card */}
                 <Card>
                     <CardHeader>
@@ -213,6 +235,8 @@ export default function AIPerformancePage() {
                     ))
                 )}
             </div>
+            </>
+            )}
         </div>
     );
 }

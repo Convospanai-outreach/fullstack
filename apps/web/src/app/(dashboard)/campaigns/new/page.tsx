@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function NewCampaignPage() {
@@ -55,22 +54,19 @@ export default function NewCampaignPage() {
                 <ArrowLeft className="w-4 h-4" /> Back to Campaigns
             </Link>
 
-            <Card className="border-white/10 bg-slate-950/80">
-                <CardHeader>
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-accent-blue/10 rounded-lg text-accent-blue">
-                            <Megaphone className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <CardTitle className="text-xl font-bold text-white">Create Outreach Campaign</CardTitle>
-                            <p className="text-xs text-text-secondary mt-1">
-                                Create a new campaign workflow to organize leads, copy, and human approvals.
-                            </p>
-                        </div>
+            <div className="glass-card p-6">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-accent-blue/10 rounded-lg text-accent-blue">
+                        <Megaphone className="w-5 h-5" />
                     </div>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-white">Create Outreach Campaign</h2>
+                        <p className="text-xs text-text-secondary mt-1">
+                            Create a new campaign workflow to organize leads, copy, and human approvals.
+                        </p>
+                    </div>
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
                                 Campaign Name <span className="text-rose-400">*</span>
@@ -110,8 +106,7 @@ export default function NewCampaignPage() {
                             </Button>
                         </div>
                     </form>
-                </CardContent>
-            </Card>
+            </div>
         </div>
     );
 }

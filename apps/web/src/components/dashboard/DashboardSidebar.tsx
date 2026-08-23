@@ -32,6 +32,16 @@ import {
   Users,
   Wrench,
   X,
+  GitBranch,
+  Calendar,
+  FileText,
+  Target,
+  Layout,
+  Zap,
+  Lock,
+  Gauge,
+  ClipboardList,
+  Building2,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
@@ -53,6 +63,7 @@ interface NavGroup {
 // Build nav groups; filter CRM Bridge when emailFirstBeta is true (per existing logic)
 const buildNavGroups = (): NavGroup[] => {
   const account: NavItem[] = [
+    { href: '/team', label: 'Team', icon: Building2 },
     { href: '/billing', label: 'Billing', icon: CreditCard },
   ];
 
@@ -68,15 +79,34 @@ const buildNavGroups = (): NavGroup[] => {
       items: [
         { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { href: '/leads', label: 'Leads', icon: Users },
+        { href: '/pipeline', label: 'Pipeline', icon: GitBranch },
         { href: '/campaigns', label: 'Campaigns', icon: Megaphone },
+        { href: '/calendar', label: 'Calendar', icon: Calendar },
       ],
     },
     {
       label: 'Analyze',
       items: [
         { href: '/intel', label: 'Intel', icon: Activity },
-        { href: '/analytics/roi', label: 'Campaign ROI', icon: BarChart2 },
+        { href: '/analytics/roi', label: 'Analytics', icon: BarChart2 },
         { href: '/governance', label: 'Governance', icon: ShieldCheck },
+      ],
+    },
+    {
+      label: 'Growth',
+      items: [
+        { href: '/templates', label: 'Templates', icon: FileText },
+        { href: '/icp-builder', label: 'ICP Builder', icon: Target },
+        { href: '/landing-agent/new', label: 'Landing Pages', icon: Layout },
+        { href: '/automations', label: 'Automations', icon: Zap },
+      ],
+    },
+    {
+      label: 'Operations',
+      items: [
+        { href: '/admin', label: 'Admin', icon: Lock },
+        { href: '/monitoring', label: 'Monitoring', icon: Gauge },
+        { href: '/audit-logs', label: 'Audit Logs', icon: ClipboardList },
       ],
     },
     {
@@ -247,23 +277,19 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           </div>
         </nav>
 
-        {/* User identity row — single source of truth */}
+        {/* User identity row — single source of truth. Links to /profile, which
+            previously had no way to be reached from the dashboard chrome at all. */}
         <div className="border-t border-white/5 px-2 py-3">
-          <div className="flex items-center gap-2">
+          <Link href="/profile" onClick={onClose} className="flex items-center gap-2 group">
             <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-medium flex-shrink-0">
               {userInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-slate-300 truncate leading-none">{userName}</p>
+              <p className="text-[12px] font-medium text-slate-300 truncate leading-none group-hover:text-white transition-colors">{userName}</p>
               <p className="text-[10px] text-white/30 mt-0.5 leading-none">{planLabel}</p>
             </div>
-            <button
-              className="p-1 text-white/20 hover:text-white/50 transition-colors flex-shrink-0"
-              aria-label="User menu"
-            >
-              <MoreHorizontal className="w-3.5 h-3.5" />
-            </button>
-          </div>
+            <MoreHorizontal className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0" />
+          </Link>
         </div>
       </aside>
     </>
