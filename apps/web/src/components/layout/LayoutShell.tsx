@@ -4,19 +4,28 @@ import { usePathname } from "next/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
-const DASHBOARD_PREFIXES = [
-    "/dashboard", "/campaigns", "/workflows", "/leads", "/inbox",
-    "/templates", "/pipeline", "/playbooks", "/knowledge", "/marketplace",
-    "/approvals", "/billing", "/settings", "/agents",
-    "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
-    "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
-    "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",
-    "/profile", "/tools"
+// Kept in sync with apps/web/src/app/(dashboard)/* by
+// tests/unit/dashboard-prefixes.test.ts, which fails the build if a new
+// top-level folder is added there without a matching entry here (this list
+// previously drifted silently - /whatsapp, /edge, /sovereign, /runtime, and
+// /command-center were missing and rendered with the wrong marketing chrome
+// instead of the dashboard sidebar).
+export const DASHBOARD_PREFIXES = [
+    "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
+    "/automations", "/billing", "/calendar", "/caller", "/campaigns",
+    "/command-center", "/crm", "/dashboard", "/edge", "/governance",
+    "/icp-builder", "/inbox", "/intel", "/jobs", "/knowledge",
+    "/landing-agent", "/leads", "/marketplace", "/monitoring",
+    "/notifications", "/pipeline", "/playbooks", "/profile", "/runtime",
+    "/settings", "/sovereign", "/studio", "/team", "/templates", "/tools",
+    "/whatsapp", "/workflows"
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
     // "/setup", "/scraper-bridge", "/onboarding" excluded for the same reason —
-    // none of them are inside the (dashboard) route group.
+    // none of them are inside the (dashboard) route group. ("/scraper-bridge" and
+    // "/hunter-email-finder" and "/csv-ingestion" are registered in productFlags.ts's
+    // HIDDEN_FEATURES but have no page directory yet - built: false.)
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
