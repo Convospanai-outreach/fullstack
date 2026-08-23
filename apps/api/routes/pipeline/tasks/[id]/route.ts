@@ -12,6 +12,7 @@ export async function PATCH(
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
         const body = await req.json();
         const { status, title, description, priority, dueDate } = body;
 
