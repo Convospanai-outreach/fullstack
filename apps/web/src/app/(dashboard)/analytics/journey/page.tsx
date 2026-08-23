@@ -11,9 +11,7 @@ import {
     Clock,
     PhoneCall,
     Award,
-    Download,
-    TrendingUp,
-    BarChart3
+    Download
 } from "lucide-react";
 import {
     Card,
@@ -26,7 +24,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
-import Link from "next/link";
+import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
 
 export default function LeadJourneyAnalyticsPage() {
     const [data, setData] = useState<any>(null);
@@ -47,25 +45,13 @@ export default function LeadJourneyAnalyticsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header with Navigation Tabs */}
+            <AnalyticsTabs />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
                 <div>
                     <h1 className="text-3xl font-black text-white tracking-tight mb-2">Lead Journey Funnel</h1>
                     <p className="text-text-secondary max-w-xl">
                         Measure conversion velocity, transition funnels, and caller performance metrics across pipeline stages.
                     </p>
-                </div>
-                <div className="flex gap-2">
-                    <Link href="/analytics/roi">
-                        <Button variant="outline" className="border-white/10 hover:bg-white/5">
-                            <TrendingUp className="w-4 h-4 mr-2 text-violet-400" />
-                            Campaign ROI
-                        </Button>
-                    </Link>
-                    <Button variant="default" className="bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25">
-                        <BarChart3 className="w-4 h-4 mr-2" />
-                        Lead Journey Funnel
-                    </Button>
                 </div>
             </div>
 
