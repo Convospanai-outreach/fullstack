@@ -6,9 +6,10 @@ const PIXEL = Buffer.from(
     "base64"
 );
 
-export async function GET(req: NextRequest, { params }: { params: { trackingId: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ trackingId: string }> }) {
     try {
-        await recordEmailOpen({ token: params.trackingId, headers: req.headers });
+        const { trackingId } = await params;
+        await recordEmailOpen({ token: trackingId, headers: req.headers });
     } catch {
         // Tracking pixels should not leak token validity or operational details.
     }

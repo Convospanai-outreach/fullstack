@@ -5,13 +5,12 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    const { id: campaignId } = await params;
     const { userId } = await getCurrentContextFromRequest(req);
     if (!userId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
-
-    const campaignId = params.id;
 
     // Check ownership or team access
     const campaign = await prisma.campaign.findUnique({

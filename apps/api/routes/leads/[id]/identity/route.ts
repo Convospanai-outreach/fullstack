@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
 import { IdentityService } from "@/lib/identity/IdentityService";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const prisma = DbFactory.getClient('GLOBAL'); // Start with Global
 
         // 1. Try finding a Lead first (Standard Flow)

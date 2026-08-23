@@ -4,8 +4,9 @@ import { prisma } from "@/lib/db";
 
 export async function GET(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const authResult = await authorizeApiKey(req, "leads:read");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
@@ -16,7 +17,7 @@ export async function GET(
     }
 
     const lead = await prisma.lead.findUnique({
-        where: { id: params.id, teamId: auth.teamId },
+        where: { id, teamId: auth.teamId },
         include: {
             emails: {
                 take: 5,
@@ -34,8 +35,9 @@ export async function GET(
 
 export async function PATCH(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const authResult = await authorizeApiKey(req, "leads:write");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
@@ -53,7 +55,7 @@ export async function PATCH(
         delete body.teamId;
 
         const lead = await prisma.lead.update({
-            where: { id: params.id, teamId: auth.teamId },
+            where: { id, teamId: auth.teamId },
             data: body
         });
 
@@ -65,8 +67,9 @@ export async function PATCH(
 
 export async function DELETE(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params;
     const authResult = await authorizeApiKey(req, "leads:write");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
@@ -78,7 +81,7 @@ export async function DELETE(
 
     try {
         await prisma.lead.delete({
-            where: { id: params.id, teamId: auth.teamId }
+            where: { id, teamId: auth.teamId }
         });
 
         return NextResponse.json({ success: true });

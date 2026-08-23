@@ -5,13 +5,13 @@ import { WorkflowService } from "@/lib/workflowService";
 
 export async function POST(
     req: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     const authResult = await authorizeApiKey(req, "workflows:run");
     if (!authResult.ok) return authResult.response;
     const auth = authResult.context;
 
-    const { id: workflowId } = params;
+    const { id: workflowId } = await params;
 
     try {
         const body = await req.json();
