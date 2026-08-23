@@ -1,0 +1,135 @@
+- generic [active] [ref=f2e1]:
+  - link "Skip to main content" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Notifications alt+T"
+  - main [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - navigation [ref=f2e5]:
+        - generic [ref=f2e6]:
+          - link "CraftMyFunnel logo CraftMyFunnel" [ref=f2e7] [cursor=pointer]:
+            - /url: /
+            - img "CraftMyFunnel logo" [ref=f2e8]
+            - generic [ref=f2e9]: CraftMyFunnel
+          - generic [ref=f2e10]:
+            - button "Product" [ref=f2e12]
+            - button "Use Cases" [ref=f2e16]
+            - button "Platform" [ref=f2e20]
+            - button "Resources" [ref=f2e24]
+          - generic [ref=f2e27]:
+            - link "Sign In" [ref=f2e29] [cursor=pointer]:
+              - /url: /login
+            - link "Get Started" [ref=f2e30] [cursor=pointer]:
+              - /url: /signup
+      - generic [ref=f2e33]:
+        - link [ref=f2e34] [cursor=pointer]:
+          - /url: /
+          - img "CraftMyFunnel logo" [ref=f2e35]
+          - text: CraftMyFunnel
+        - generic [ref=f2e37]:
+          - generic [ref=f2e38]:
+            - generic [ref=f2e40]:
+              - heading "Sign in to My Application" [level=1] [ref=f2e41]
+              - paragraph [ref=f2e42]: Welcome back! Please sign in to continue
+            - generic [ref=f2e43]:
+              - button "Sign in with Google Continue with Google" [ref=f2e46] [cursor=pointer]:
+                - generic [ref=f2e47]:
+                  - generic "Sign in with Google" [ref=f2e49]
+                  - generic [ref=f2e50]: Continue with Google
+              - paragraph [ref=f2e53]: or
+              - generic [ref=f2e55]:
+                - generic [ref=f2e56]:
+                  - generic [ref=f2e59]:
+                    - generic [ref=f2e60]: Email address
+                    - textbox "Email address" [ref=f2e62]:
+                      - /placeholder: Enter your email address
+                  - generic:
+                    - generic: Password
+                    - generic:
+                      - textbox:
+                        - /placeholder: Enter your password
+                      - button
+                - button "Continue" [ref=f2e65] [cursor=pointer]
+          - generic [ref=f2e69]:
+            - generic [ref=f2e70]:
+              - generic [ref=f2e71]: Don’t have an account?
+              - link "Sign up" [ref=f2e72] [cursor=pointer]:
+                - /url: http://localhost:3000/signup
+            - generic [ref=f2e74]:
+              - generic [ref=f2e76]:
+                - paragraph [ref=f2e77]: Secured by
+                - link "Clerk logo" [ref=f2e78] [cursor=pointer]:
+                  - /url: https://go.clerk.com/components
+              - paragraph [ref=f2e84]: Development mode
+      - generic [ref=f2e86]:
+        - generic [ref=f2e87]:
+          - generic [ref=f2e88]:
+            - link "CraftMyFunnel logo CraftMyFunnel" [ref=f2e89] [cursor=pointer]:
+              - /url: /
+              - img "CraftMyFunnel logo" [ref=f2e90]
+              - generic [ref=f2e91]: CraftMyFunnel
+            - paragraph [ref=f2e92]: Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.
+            - link "contact.us@craftmyfunnel.live" [ref=f2e93] [cursor=pointer]:
+              - /url: mailto:contact.us@craftmyfunnel.live
+          - generic [ref=f2e94]:
+            - heading "Product" [level=4] [ref=f2e95]
+            - list [ref=f2e96]:
+              - listitem [ref=f2e97]:
+                - link "Pricing" [ref=f2e98] [cursor=pointer]:
+                  - /url: /pricing
+              - listitem [ref=f2e99]:
+                - link "Use Cases" [ref=f2e100] [cursor=pointer]:
+                  - /url: /use-cases
+              - listitem [ref=f2e101]:
+                - link "Comparisons" [ref=f2e102] [cursor=pointer]:
+                  - /url: /vs
+              - listitem [ref=f2e103]:
+                - link "Start pilot" [ref=f2e104] [cursor=pointer]:
+                  - /url: /signup
+              - listitem [ref=f2e105]:
+                - link "Sign in" [ref=f2e106] [cursor=pointer]:
+                  - /url: /login
+          - generic [ref=f2e107]:
+            - heading "Resources" [level=4] [ref=f2e108]
+            - list [ref=f2e109]:
+              - listitem [ref=f2e110]:
+                - link "Documentation" [ref=f2e111] [cursor=pointer]:
+                  - /url: /docs
+              - listitem [ref=f2e112]:
+                - link "Help Center" [ref=f2e113] [cursor=pointer]:
+                  - /url: /help
+              - listitem [ref=f2e114]:
+                - link "FAQ" [ref=f2e115] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=f2e116]:
+                - link "Support" [ref=f2e117] [cursor=pointer]:
+                  - /url: /support
+          - generic [ref=f2e118]:
+            - heading "Legal" [level=4] [ref=f2e119]
+            - list [ref=f2e120]:
+              - listitem [ref=f2e121]:
+                - link "Terms & Conditions" [ref=f2e122] [cursor=pointer]:
+                  - /url: /terms
+              - listitem [ref=f2e123]:
+                - link "Privacy" [ref=f2e124] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f2e125]:
+                - link "Data Deletion" [ref=f2e126] [cursor=pointer]:
+                  - /url: /data-deletion
+          - generic [ref=f2e127]:
+            - heading "Trust" [level=4] [ref=f2e128]
+            - list [ref=f2e129]:
+              - listitem [ref=f2e130]:
+                - link "Security" [ref=f2e131] [cursor=pointer]:
+                  - /url: /security
+              - listitem [ref=f2e132]:
+                - link "Google API Disclosure" [ref=f2e133] [cursor=pointer]:
+                  - /url: /google-api-disclosure
+              - listitem [ref=f2e134]:
+                - link "Contact" [ref=f2e135] [cursor=pointer]:
+                  - /url: /contact
+        - generic [ref=f2e136]:
+          - paragraph [ref=f2e139]: Governed Funnel Infrastructure
+          - paragraph [ref=f2e140]: © 2026 CraftMyFunnel. Built for operators, not demos.
+  - button "Open help assistant" [ref=f2e141]:
+    - generic [ref=f2e150]: Need help?
+  - button "Open Next.js Dev Tools" [ref=f2e156] [cursor=pointer]

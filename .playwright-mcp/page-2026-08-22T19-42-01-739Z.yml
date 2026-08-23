@@ -1,0 +1,62 @@
+- generic [active] [ref=f1e1]:
+  - link "Skip to main content" [ref=f1e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Notifications alt+T"
+  - generic [ref=f1e3]:
+    - navigation "Main navigation" [ref=f1e4]:
+      - link "CraftMyFunnel logo CraftMyFunnel" [ref=f1e6] [cursor=pointer]:
+        - /url: /dashboard
+        - img "CraftMyFunnel logo" [ref=f1e7]
+        - generic [ref=f1e8]: CraftMyFunnel
+      - navigation [ref=f1e11]:
+        - generic [ref=f1e13]:
+          - link "Dashboard" [ref=f1e14] [cursor=pointer]:
+            - /url: /dashboard
+          - link "Leads" [ref=f1e20] [cursor=pointer]:
+            - /url: /leads
+          - link "Campaigns" [ref=f1e26] [cursor=pointer]:
+            - /url: /campaigns
+        - generic [ref=f1e30]:
+          - generic [ref=f1e31]: Analyze
+          - generic [ref=f1e32]:
+            - link "Intel" [ref=f1e33] [cursor=pointer]:
+              - /url: /intel
+            - link "Campaign ROI" [ref=f1e36] [cursor=pointer]:
+              - /url: /analytics/roi
+            - link "Governance" [ref=f1e38] [cursor=pointer]:
+              - /url: /governance
+        - generic [ref=f1e42]:
+          - generic [ref=f1e43]: Account
+          - generic [ref=f1e44]:
+            - link "Billing" [ref=f1e45] [cursor=pointer]:
+              - /url: /billing
+            - link "Settings" [ref=f1e48] [cursor=pointer]:
+              - /url: /settings
+        - generic [ref=f1e52]:
+          - generic [ref=f1e53]: Action Center
+          - link "Approvals & Inbox" [ref=f1e54] [cursor=pointer]:
+            - /url: /approvals
+        - link "Tools 16" [ref=f1e60] [cursor=pointer]:
+          - /url: /tools
+          - generic [ref=f1e63]: Tools
+          - generic [ref=f1e64]: "16"
+      - generic [ref=f1e66]:
+        - generic [ref=f1e67]: U
+        - generic [ref=f1e68]:
+          - paragraph [ref=f1e69]: User
+          - paragraph [ref=f1e70]: Enterprise · Beta
+        - button "User menu" [ref=f1e71]
+    - generic [ref=f1e76]:
+      - banner [ref=f1e77]:
+        - button "Search leads, campaigns… (⌘K)" [ref=f1e78]:
+          - generic [ref=f1e82]: Search leads, campaigns…
+          - generic [ref=f1e83]: ⌘K
+        - generic [ref=f1e84]:
+          - generic [ref=f1e89]: Manual mode
+          - link "Help" [ref=f1e91] [cursor=pointer]:
+            - /url: /help
+      - main [ref=f1e95]:
+        - paragraph [ref=f1e118]: Workflow
+  - button "Open help assistant" [ref=f1e162]:
+    - generic [ref=f1e171]: Need help?
+  - alert [ref=f1e172]

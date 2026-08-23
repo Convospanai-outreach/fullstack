@@ -1,0 +1,8 @@
+- generic [active] [ref=f4e1]:
+  - link "Skip to main content" [ref=f4e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Notifications alt+T"
+  - paragraph [ref=f4e8]: Loading CraftMyFunnel...
+  - button "Open help assistant" [ref=f4e9]:
+    - generic [ref=f4e18]: Need help?
+  - alert [ref=f4e19]
