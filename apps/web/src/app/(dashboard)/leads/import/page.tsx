@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { importCSV } from "@/lib/api/leads";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 // Basic auto-detection
 const autoDetectFieldMapping = (headers: string[]): Record<string, string> => {
     const mapping: Record<string, string> = {};
@@ -95,34 +96,29 @@ export default function ImportLeadsPage() {
     return (
         <div className="min-h-screen text-slate-200">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <div className="mb-6">
-                    <button
-                        onClick={() => router.push("/leads")}
-                        className="text-indigo-400 hover:text-indigo-300 transition-colors mb-4 flex items-center gap-1 text-sm font-semibold"
-                    >
-                        ← Back to leads
-                    </button>
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Import Leads from CSV</h1>
-                    <p className="mt-2 text-slate-400">
-                        Upload a CSV file with lead information
-                    </p>
-                </div>
+                <button
+                    onClick={() => router.push("/leads")}
+                    className="text-primary hover:text-primary/80 transition-colors mb-4 flex items-center gap-1 text-sm font-semibold"
+                >
+                    ← Back to leads
+                </button>
+                <SectionHeader title="Import Leads from CSV" subtitle="Upload a CSV file with lead information" />
 
                 {/* File Upload */}
-                <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 mb-6 backdrop-blur-md shadow-glow shadow-glow-cyan/5">
-                    <h2 className="text-lg font-semibold text-white mb-4">1. Upload CSV File</h2>
+                <div className="glass-card p-6 mb-6">
+                    <h2 className="text-lg font-semibold text-foreground mb-4">1. Upload CSV File</h2>
                     <input
                         type="file"
                         accept=".csv"
                         onChange={handleFileUpload}
-                        className="block w-full text-sm text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-indigo-950/40 file:text-indigo-300 hover:file:bg-indigo-900/40 border border-white/5 bg-slate-950/20 p-4 rounded-xl transition-all"
+                        className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 border border-input bg-background p-4 rounded-md transition-all"
                     />
                 </div>
 
                 {/* CSV Preview */}
                 {preview.length > 0 && (
-                    <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 mb-6 backdrop-blur-md">
-                        <h2 className="text-lg font-semibold text-white mb-4">2. Preview (First 5 Rows)</h2>
+                    <div className="glass-card p-6 mb-6">
+                        <h2 className="text-lg font-semibold text-foreground mb-4">2. Preview (First 5 Rows)</h2>
                         <div className="overflow-x-auto border border-white/5 rounded-lg">
                             <table className="min-w-full divide-y divide-white/5">
                                 <thead className="bg-slate-900/40 border-b border-white/5">
@@ -158,8 +154,8 @@ export default function ImportLeadsPage() {
 
                 {/* Field Mapping */}
                 {headers.length > 0 && (
-                    <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 mb-6 backdrop-blur-md">
-                        <h2 className="text-lg font-semibold text-white mb-4">3. Map Fields</h2>
+                    <div className="glass-card p-6 mb-6">
+                        <h2 className="text-lg font-semibold text-foreground mb-4">3. Map Fields</h2>
                         <div className="grid grid-cols-2 gap-4">
                             {headers.map((header) => (
                                 <div key={header} className="flex items-center gap-2">
@@ -189,7 +185,7 @@ export default function ImportLeadsPage() {
 
                 {/* Import Button */}
                 {csvText && (
-                    <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 mb-6 backdrop-blur-md">
+                    <div className="glass-card p-6 mb-6">
                         <label className="flex items-start gap-3 mb-4 text-sm text-slate-300 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -220,8 +216,8 @@ export default function ImportLeadsPage() {
 
                 {/* Results */}
                 {result && (
-                    <div className="bg-[#050d17]/60 border border-white/5 rounded-xl p-6 backdrop-blur-md">
-                        <h2 className="text-lg font-semibold text-white mb-4">Import Results</h2>
+                    <div className="glass-card p-6">
+                        <h2 className="text-lg font-semibold text-foreground mb-4">Import Results</h2>
                         <div className="grid grid-cols-3 gap-4 mb-4">
                             <div className="text-center p-4 bg-green-950/20 border border-green-900/30 rounded">
                                 <p className="text-3xl font-bold text-green-400">

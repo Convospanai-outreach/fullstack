@@ -2,8 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { LeadDetail } from "@/components/crm/LeadDetail";
-
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export default function LeadPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -14,7 +13,7 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
         setLoading(true);
         setLead(null);
         const ctrl = new AbortController();
-        fetch(`${API_BASE}/leads/${id}`, { signal: ctrl.signal })
+        fetch(getBrowserApiUrl(`/leads/${id}`), { signal: ctrl.signal })
             .then((res) => res.json())
             .then((data) => {
                 setLead(data);
