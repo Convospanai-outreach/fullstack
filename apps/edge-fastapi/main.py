@@ -80,6 +80,16 @@ if EDGE_MODE:
     from services.local_intelligence import LocalIntelligenceService
     local_intelligence = LocalIntelligenceService(SessionLocal)
 
+# Optional cloud heartbeat: lets the dashboard show this node as connected.
+# Entirely opt-in - only runs when EDGE_CLOUD_API_URL is set, so teams who
+# haven't bought/paired a physical node are completely unaffected. Pairing
+# itself (giving the cloud this node's public key) is a one-time admin step
+# in the dashboard; this only sends the recurring "still alive" signal.
+cloud_registration_client = None
+if os.getenv("EDGE_CLOUD_API_URL", "").strip():
+    from services.cloud_registration import build_client_from_env
+    cloud_registration_client = build_client_from_env(SessionLocal, HARDWARE_SIGNATURE)
+
 # --- Schemas ---
 
 class SanitizeRequest(BaseModel):
@@ -181,7 +191,20 @@ def startup_event():
         logger.info("Edge mode enabled.")
     else:
         logger.info("Edge mode disabled.")
+    if cloud_registration_client:
+        logger.info(
+            f"Cloud connectivity enabled. If not yet paired, pair from the dashboard with "
+            f"fingerprint={HARDWARE_SIGNATURE} and publicKey below:\n{cloud_registration_client.public_key_pem()}"
+        )
+        cloud_registration_client.start()
+    else:
+        logger.info("Cloud connectivity disabled (EDGE_CLOUD_API_URL not set) - optional service, not required.")
     logger.info("Edge Node Startup Complete.")
+
+@app.on_event("shutdown")
+def shutdown_event():
+    if cloud_registration_client:
+        cloud_registration_client.stop()
 
 @app.get("/health", response_model=StatusResponse)
 def health_check():
