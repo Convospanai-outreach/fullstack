@@ -1011,6 +1011,13 @@ model Team {
   // Required for CAN-SPAM compliance; not set = no footer is injected.
   mailingAddress String?
 
+  // WhatsApp Business API ownership, set at setup time. Automated sequence sends
+  // require both fields; a team with either unset falls back to human-in-the-loop
+  // (a Task is created for a rep instead of an automatic send). See wabaCredentials.ts.
+  whatsappPhoneNumberId       String?
+  whatsappAccessTokenEnc      Json?
+  whatsappWabaConfiguredAt    DateTime?
+
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
   domains                    CustomDomain[]
