@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { InboxService } from "@/lib/inboxService";
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await auth();
-        if (!session || !session.user) {
+        const { userId } = await getCurrentContext();
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -16,7 +17,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const senderName = session.user.name || "Agent";
+        const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+        const senderName = user?.name || "Agent";
         const draft = await InboxService.saveDraft(leadId, content, senderName);
 
         return NextResponse.json({ draft });
@@ -29,8 +31,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     try {
-        const session = await auth();
-        if (!session || !session.user) {
+        const { userId } = await getCurrentContext();
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

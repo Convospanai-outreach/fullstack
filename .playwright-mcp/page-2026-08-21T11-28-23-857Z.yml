@@ -1,0 +1,77 @@
+- generic [active] [ref=f7e1]:
+  - link "Skip to main content" [ref=f7e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - alert [ref=f7e102]: CraftMyFunnel — Governed Funnel Workflows for B2B Service Teams
+  - region "Notifications alt+T"
+  - generic [ref=f7e103]:
+    - navigation "Main navigation" [ref=f7e104]:
+      - link "CraftMyFunnel logo CraftMyFunnel" [ref=f7e106] [cursor=pointer]:
+        - /url: /dashboard
+        - img "CraftMyFunnel logo" [ref=f7e107]
+        - generic [ref=f7e108]: CraftMyFunnel
+      - button "S Smoke Test Workspace Free Plan" [ref=f7e110]:
+        - generic [ref=f7e111]:
+          - generic [ref=f7e112]: S
+          - generic [ref=f7e113]:
+            - paragraph [ref=f7e114]: Smoke Test Workspace
+            - paragraph [ref=f7e115]: Free Plan
+      - navigation [ref=f7e119]:
+        - generic [ref=f7e121]:
+          - link "Dashboard" [ref=f7e122] [cursor=pointer]:
+            - /url: /dashboard
+          - link "Leads" [ref=f7e128] [cursor=pointer]:
+            - /url: /leads
+          - link "Campaigns" [ref=f7e134] [cursor=pointer]:
+            - /url: /campaigns
+        - generic [ref=f7e138]:
+          - generic [ref=f7e139]: Analyze
+          - generic [ref=f7e140]:
+            - link "Intel" [ref=f7e141] [cursor=pointer]:
+              - /url: /intel
+            - link "Campaign ROI" [ref=f7e144] [cursor=pointer]:
+              - /url: /analytics/roi
+            - link "Governance" [ref=f7e146] [cursor=pointer]:
+              - /url: /governance
+        - generic [ref=f7e150]:
+          - generic [ref=f7e151]: Account
+          - generic [ref=f7e152]:
+            - link "Billing" [ref=f7e153] [cursor=pointer]:
+              - /url: /billing
+            - link "Settings" [ref=f7e156] [cursor=pointer]:
+              - /url: /settings
+        - generic [ref=f7e160]:
+          - generic [ref=f7e161]: Action Center
+          - link "Approvals & Inbox" [ref=f7e162] [cursor=pointer]:
+            - /url: /approvals
+        - link "Tools 16" [ref=f7e168] [cursor=pointer]:
+          - /url: /tools
+          - generic [ref=f7e171]: Tools
+          - generic [ref=f7e172]: "16"
+      - generic [ref=f7e174]:
+        - generic [ref=f7e175]: U
+        - generic [ref=f7e176]:
+          - paragraph [ref=f7e177]: User
+          - paragraph [ref=f7e178]: Enterprise · Beta
+        - button "User menu" [ref=f7e179]
+    - generic [ref=f7e184]:
+      - banner [ref=f7e185]:
+        - button "Search leads, campaigns… (⌘K)" [ref=f7e186]:
+          - generic [ref=f7e190]: Search leads, campaigns…
+          - generic [ref=f7e191]: ⌘K
+        - generic [ref=f7e192]:
+          - 'button "System status: online. Click to expand." [ref=f7e194]':
+            - generic [ref=f7e199]: All Systems Operational
+          - generic [ref=f7e203]: Manual mode
+          - link "View notifications" [ref=f7e205] [cursor=pointer]:
+            - /url: /notifications
+          - link "Help" [ref=f7e209] [cursor=pointer]:
+            - /url: /help
+      - main [ref=f7e213]:
+        - paragraph [ref=f7e236]: Workflow
+  - button "Open help assistant" [ref=f7e280]:
+    - generic [ref=f7e289]: Need help?
+  - generic [ref=f7e290]:
+    - generic [ref=f7e291]: Track and manage your leads here.
+    - generic [ref=f7e292]:
+      - button "Skip" [ref=f7e293]
+      - button "Next" [ref=f7e294]

@@ -58,7 +58,17 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const extensionApiPrefixes = ["/api/extension"];
     const clientErrorLogPrefixes = ["/api/errors/client", "/api/proxy/errors/client"];
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
-    const publicApiPrefixes = ["/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact", "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk", "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe"];
+    const publicApiPrefixes = [
+        "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
+        "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk",
+        "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe",
+        // Anonymous funnel-visitor checkout - see apps/api/server.ts's own publicPaths for the
+        // same routes (they carry no CraftMyFunnel session by design; security boundary is the
+        // Stripe/Razorpay state token, not a Clerk cookie).
+        "/api/proxy/checkout", "/api/checkout",
+        // Public pricing shown on /pricing before signup.
+        "/api/proxy/billing/plans", "/api/billing/plans",
+    ];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
     let token: Record<string, unknown> | null = null;

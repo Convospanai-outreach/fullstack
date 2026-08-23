@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ICPAgent } from "@/lib/ai/agents/ICPAgent";
-import { getServerSession } from "next-auth";
-import { authOptions, getCurrentContext } from "@/lib/auth";
+import { getCurrentContext } from "@/lib/auth";
 import { aiLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import { handleAPIError } from "@/lib/apiResponse";
@@ -15,12 +14,12 @@ const icpSchema = z.object({
 
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session || !session.user?.email) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { isRateLimited } = aiLimiter.check(5, session.user.email); // 5 requests per minute
+        const { isRateLimited } = aiLimiter.check(5, ctx.userId); // 5 requests per minute
         if (isRateLimited) {
             return NextResponse.json({ error: "Rate limit exceeded. Please wait a minute." }, { status: 429 });
         }
@@ -41,7 +40,6 @@ export async function POST(req: NextRequest) {
             painPoints
         };
 
-        const ctx = await getCurrentContext();
         const agent = new ICPAgent(ctx.teamId || undefined);
         const result = await agent.generate(input);
 

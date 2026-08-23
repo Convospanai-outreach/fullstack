@@ -3,16 +3,13 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { NurtureService } from "@/modules/learning/NurtureService";
-import { authOptions } from "@/lib/auth";
-import { getServerSession } from "next-auth";
 import { NextRequest } from "next/server"; // Added NextRequest import
 import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(_req: NextRequest) { // Changed type to NextRequest
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const ctx = await getCurrentContext();
+        if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { searchParams } = new URL(_req.url);
@@ -36,9 +33,8 @@ export async function POST(_req: NextRequest) { // Changed type to NextRequest
 export async function GET(_req: NextRequest) {
     // Return upcoming events for the radar widget
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         const ctx = await getCurrentContext();
+        if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const horizon = new Date();

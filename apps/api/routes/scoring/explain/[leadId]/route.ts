@@ -6,19 +6,18 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { leadScoringService, caseStudyService } from "@/modules/scoring";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 export async function GET(
-    _req: NextRequest,
+    req: NextRequest,
     { params }: { params: Promise<{ leadId: string }> }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const { userId } = await getCurrentContextFromRequest(req);
+        if (!userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 

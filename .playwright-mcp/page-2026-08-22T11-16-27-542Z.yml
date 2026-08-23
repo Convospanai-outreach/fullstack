@@ -1,0 +1,99 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Notifications alt+T"
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - link "CraftMyFunnel logo CraftMyFunnel Pro" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "CraftMyFunnel logo" [ref=e6]
+        - generic [ref=e7]: CraftMyFunnel
+        - generic [ref=e8]: Pro
+      - generic [ref=e9]:
+        - navigation [ref=e10]:
+          - link "Pricing" [ref=e11] [cursor=pointer]:
+            - /url: /pricing
+          - link "Support" [ref=e12] [cursor=pointer]:
+            - /url: /contact
+        - generic [ref=e14]:
+          - link [ref=e89] [cursor=pointer]:
+            - /url: /pricing
+            - button "Upgrade" [ref=e90]
+          - link "View notifications" [ref=e91] [cursor=pointer]:
+            - /url: /notifications
+          - button [ref=e16]
+  - main [ref=e18]
+  - contentinfo [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - link "CraftMyFunnel logo CraftMyFunnel" [ref=e26] [cursor=pointer]:
+            - /url: /
+            - img "CraftMyFunnel logo" [ref=e27]
+            - generic [ref=e28]: CraftMyFunnel
+          - paragraph [ref=e29]: Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.
+          - link "contact.us@craftmyfunnel.live" [ref=e30] [cursor=pointer]:
+            - /url: mailto:contact.us@craftmyfunnel.live
+        - generic [ref=e31]:
+          - heading "Product" [level=4] [ref=e32]
+          - list [ref=e33]:
+            - listitem [ref=e34]:
+              - link "Pricing" [ref=e35] [cursor=pointer]:
+                - /url: /pricing
+            - listitem [ref=e36]:
+              - link "Use Cases" [ref=e37] [cursor=pointer]:
+                - /url: /use-cases
+            - listitem [ref=e38]:
+              - link "Comparisons" [ref=e39] [cursor=pointer]:
+                - /url: /vs
+            - listitem [ref=e40]:
+              - link "Start pilot" [ref=e41] [cursor=pointer]:
+                - /url: /signup
+            - listitem [ref=e42]:
+              - link "Sign in" [ref=e43] [cursor=pointer]:
+                - /url: /login
+        - generic [ref=e44]:
+          - heading "Resources" [level=4] [ref=e45]
+          - list [ref=e46]:
+            - listitem [ref=e47]:
+              - link "Documentation" [ref=e48] [cursor=pointer]:
+                - /url: /docs
+            - listitem [ref=e49]:
+              - link "Help Center" [ref=e50] [cursor=pointer]:
+                - /url: /help
+            - listitem [ref=e51]:
+              - link "FAQ" [ref=e52] [cursor=pointer]:
+                - /url: /faq
+            - listitem [ref=e53]:
+              - link "Support" [ref=e54] [cursor=pointer]:
+                - /url: /support
+        - generic [ref=e55]:
+          - heading "Legal" [level=4] [ref=e56]
+          - list [ref=e57]:
+            - listitem [ref=e58]:
+              - link "Terms & Conditions" [ref=e59] [cursor=pointer]:
+                - /url: /terms
+            - listitem [ref=e60]:
+              - link "Privacy" [ref=e61] [cursor=pointer]:
+                - /url: /privacy
+            - listitem [ref=e62]:
+              - link "Data Deletion" [ref=e63] [cursor=pointer]:
+                - /url: /data-deletion
+        - generic [ref=e64]:
+          - heading "Trust" [level=4] [ref=e65]
+          - list [ref=e66]:
+            - listitem [ref=e67]:
+              - link "Security" [ref=e68] [cursor=pointer]:
+                - /url: /security
+            - listitem [ref=e69]:
+              - link "Google API Disclosure" [ref=e70] [cursor=pointer]:
+                - /url: /google-api-disclosure
+            - listitem [ref=e71]:
+              - link "Contact" [ref=e72] [cursor=pointer]:
+                - /url: /contact
+      - generic [ref=e73]:
+        - paragraph [ref=e76]: Governed Funnel Infrastructure
+        - paragraph [ref=e77]: © 2026 CraftMyFunnel. Built for operators, not demos.
+  - button "Open help assistant" [ref=e78]:
+    - generic [ref=e87]: Need help?
+  - alert [ref=e88]

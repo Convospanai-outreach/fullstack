@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import fs from "fs";
 import path from "path";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ filename: string }> }) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
+    const { userId } = await getCurrentContextFromRequest(req);
+    if (!userId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 

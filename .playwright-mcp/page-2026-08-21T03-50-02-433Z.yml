@@ -1,0 +1,208 @@
+- generic [active] [ref=f3e1]:
+  - link "Skip to main content" [ref=f3e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - alert [ref=f3e20]: CraftMyFunnel — Governed Funnel Workflows for B2B Service Teams
+  - region "Notifications alt+T"
+  - generic [ref=f3e21]:
+    - navigation "Main navigation" [ref=f3e22]:
+      - link "CraftMyFunnel logo CraftMyFunnel" [ref=f3e24] [cursor=pointer]:
+        - /url: /dashboard
+        - img "CraftMyFunnel logo" [ref=f3e25]
+        - generic [ref=f3e26]: CraftMyFunnel
+      - button "S Smoke Test Workspace Free Plan" [ref=f3e28]:
+        - generic [ref=f3e29]:
+          - generic [ref=f3e30]: S
+          - generic [ref=f3e31]:
+            - paragraph [ref=f3e32]: Smoke Test Workspace
+            - paragraph [ref=f3e33]: Free Plan
+      - navigation [ref=f3e37]:
+        - generic [ref=f3e39]:
+          - link "Dashboard" [ref=f3e40] [cursor=pointer]:
+            - /url: /dashboard
+          - link "Leads" [ref=f3e46] [cursor=pointer]:
+            - /url: /leads
+          - link "Campaigns" [ref=f3e52] [cursor=pointer]:
+            - /url: /campaigns
+        - generic [ref=f3e56]:
+          - generic [ref=f3e57]: Analyze
+          - generic [ref=f3e58]:
+            - link "Intel" [ref=f3e59] [cursor=pointer]:
+              - /url: /intel
+            - link "Campaign ROI" [ref=f3e62] [cursor=pointer]:
+              - /url: /analytics/roi
+            - link "Governance" [ref=f3e64] [cursor=pointer]:
+              - /url: /governance
+        - generic [ref=f3e68]:
+          - generic [ref=f3e69]: Account
+          - generic [ref=f3e70]:
+            - link "Billing" [ref=f3e71] [cursor=pointer]:
+              - /url: /billing
+            - link "Settings" [ref=f3e74] [cursor=pointer]:
+              - /url: /settings
+        - generic [ref=f3e78]:
+          - generic [ref=f3e79]: Action Center
+          - link "Approvals & Inbox" [ref=f3e80] [cursor=pointer]:
+            - /url: /approvals
+        - link "Tools 16" [ref=f3e86] [cursor=pointer]:
+          - /url: /tools
+          - generic [ref=f3e89]: Tools
+          - generic [ref=f3e90]: "16"
+      - generic [ref=f3e92]:
+        - generic [ref=f3e93]: U
+        - generic [ref=f3e94]:
+          - paragraph [ref=f3e95]: User
+          - paragraph [ref=f3e96]: Enterprise · Beta
+        - button "User menu" [ref=f3e97]
+    - generic [ref=f3e102]:
+      - banner [ref=f3e103]:
+        - button "Search leads, campaigns… (⌘K)" [ref=f3e104]:
+          - generic [ref=f3e108]: Search leads, campaigns…
+          - generic [ref=f3e109]: ⌘K
+        - generic [ref=f3e110]:
+          - 'button "System status: online. Click to expand." [ref=f3e112]':
+            - generic [ref=f3e117]: All Systems Operational
+          - generic [ref=f3e121]: Manual mode
+          - link "View notifications" [ref=f3e123] [cursor=pointer]:
+            - /url: /notifications
+          - link "Help" [ref=f3e127] [cursor=pointer]:
+            - /url: /help
+      - main [ref=f3e131]:
+        - generic [ref=f3e133]:
+          - generic [ref=f3e135]:
+            - generic [ref=f3e136]:
+              - paragraph [ref=f3e137]: Launch readiness · 75% complete
+              - paragraph [ref=f3e140]: Complete your setup to unlock the full workflow.
+            - generic [ref=f3e141]:
+              - link "Open setup →" [ref=f3e142] [cursor=pointer]:
+                - /url: /setup
+              - button "Dismiss banner" [ref=f3e143]
+          - generic [ref=f3e147]:
+            - generic [ref=f3e149]:
+              - generic [ref=f3e151]:
+                - heading "Meetings Secured" [level=3] [ref=f3e152]
+                - generic [ref=f3e153]: "01"
+              - generic [ref=f3e154]:
+                - generic [ref=f3e155]: "0"
+                - generic [ref=f3e156]: — N/A
+            - link "Active Pipeline › 4 Live State" [ref=f3e159] [cursor=pointer]:
+              - /url: /leads
+              - generic [ref=f3e160]:
+                - heading "Active Pipeline" [level=3] [ref=f3e161]
+                - generic [ref=f3e162]: ›
+              - generic [ref=f3e163]:
+                - generic [ref=f3e164]: "4"
+                - generic [ref=f3e165]: Live State
+            - link "Drafts Queued › 4 Optimized" [ref=f3e168] [cursor=pointer]:
+              - /url: /approvals
+              - generic [ref=f3e169]:
+                - heading "Drafts Queued" [level=3] [ref=f3e170]
+                - generic [ref=f3e171]: ›
+              - generic [ref=f3e172]:
+                - generic [ref=f3e173]: "4"
+                - generic [ref=f3e174]: Optimized
+            - link "Signal Capture › 0% — N/A" [ref=f3e177] [cursor=pointer]:
+              - /url: /analytics/roi
+              - generic [ref=f3e178]:
+                - heading "Signal Capture" [level=3] [ref=f3e179]
+                - generic [ref=f3e180]: ›
+              - generic [ref=f3e181]:
+                - generic [ref=f3e182]: 0%
+                - generic [ref=f3e183]: — N/A
+          - generic [ref=f3e185]:
+            - generic [ref=f3e186]:
+              - generic [ref=f3e187]:
+                - paragraph [ref=f3e188]: Pipeline trend — 30 days
+                - generic [ref=f3e189]: "+2"
+              - paragraph [ref=f3e193]: 4active pipeline
+            - generic [ref=f3e194]:
+              - paragraph [ref=f3e195]: Recent leads
+              - generic [ref=f3e196]:
+                - generic [ref=f3e197]:
+                  - generic [ref=f3e198]: Company
+                  - generic [ref=f3e199]: Status
+                  - generic [ref=f3e200]: Activity
+                - button "sid Contacted 17d ago" [ref=f3e201]:
+                  - generic [ref=f3e202]: sid
+                  - generic [ref=f3e203]: Contacted
+                  - generic [ref=f3e204]: 17d ago
+                - button "sid SENT 20d ago" [ref=f3e205]:
+                  - generic [ref=f3e206]: sid
+                  - generic [ref=f3e207]: SENT
+                  - generic [ref=f3e208]: 20d ago
+                - button "sid New 31d ago" [ref=f3e209]:
+                  - generic [ref=f3e210]: sid
+                  - generic [ref=f3e211]: New
+                  - generic [ref=f3e212]: 31d ago
+                - button "surbhi New 31d ago" [ref=f3e213]:
+                  - generic [ref=f3e214]: surbhi
+                  - generic [ref=f3e215]: New
+                  - generic [ref=f3e216]: 31d ago
+              - link "View all 4 →" [ref=f3e217] [cursor=pointer]:
+                - /url: /leads
+          - complementary [ref=f3e288]:
+            - generic [ref=f3e289]:
+              - generic [ref=f3e290]:
+                - paragraph [ref=f3e291]: sid
+                - paragraph [ref=f3e292]: —
+              - button "Close" [ref=f3e293]
+            - generic [ref=f3e297]:
+              - paragraph [ref=f3e298]: "Status: CONTACTED"
+              - paragraph [ref=f3e299]: "Last activity: 8/3/2026, 11:12:05 AM"
+            - generic [ref=f3e300]:
+              - generic [ref=f3e303]:
+                - text: Queued in Approvals
+                - link "View →" [ref=f3e304] [cursor=pointer]:
+                  - /url: /approvals
+              - link "View in Leads →" [ref=f3e302] [cursor=pointer]:
+                - /url: /leads?search=sid
+          - generic [ref=f3e218]:
+            - paragraph [ref=f3e219]: Workflow
+            - generic [ref=f3e220]:
+              - generic [ref=f3e221]:
+                - generic [ref=f3e223]:
+                  - paragraph [ref=f3e227]: Import leads
+                  - paragraph [ref=f3e228]: 4 imported
+                - generic [ref=f3e229]:
+                  - paragraph [ref=f3e233]: Generate drafts
+                  - paragraph [ref=f3e234]: 6 drafts
+                - generic [ref=f3e235]:
+                  - paragraph [ref=f3e239]: Review follow-ups
+                  - paragraph [ref=f3e240]: 0 reviewed
+                - generic [ref=f3e241]:
+                  - generic [ref=f3e242]: "4"
+                  - paragraph [ref=f3e243]: Send drafts
+                  - paragraph [ref=f3e244]: 4 pending
+              - generic [ref=f3e245]:
+                - generic [ref=f3e246]: 📤
+                - generic [ref=f3e247]:
+                  - paragraph [ref=f3e248]: Send 4 queued drafts
+                  - paragraph [ref=f3e249]: Review and send queued email drafts. Once approved, emails move to the outbound queue.
+                  - generic [ref=f3e250]:
+                    - link "Open approvals →" [ref=f3e251] [cursor=pointer]:
+                      - /url: /approvals
+                    - link "View all 6 drafts" [ref=f3e252] [cursor=pointer]:
+                      - /url: /approvals
+                    - generic [ref=f3e253]: ~4 min
+          - generic [ref=f3e254]:
+            - generic [ref=f3e255]:
+              - paragraph [ref=f3e256]: Recent activity
+              - generic [ref=f3e260]:
+                - text: No activity yet today.
+                - link "Import leads to get started" [ref=f3e261] [cursor=pointer]:
+                  - /url: /leads/import
+            - generic [ref=f3e262]:
+              - generic [ref=f3e263]:
+                - paragraph [ref=f3e264]: Qualified meetings
+                - paragraph [ref=f3e265]: "0"
+                - paragraph [ref=f3e266]: No change
+              - generic "Approved drafts waiting for mailbox transmission" [ref=f3e267]:
+                - paragraph [ref=f3e268]: Pending sends
+                - paragraph [ref=f3e269]: "0"
+                - paragraph [ref=f3e270]: Queue clear
+  - button "Open help assistant" [ref=f3e271]:
+    - generic [ref=f3e280]: Need help?
+  - generic [ref=f3e281]:
+    - generic [ref=f3e282]: Track and manage your leads here.
+    - generic [ref=f3e283]:
+      - button "Skip" [ref=f3e284]
+      - button "Next" [ref=f3e285]

@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet data-dc-atomics>
+<style>
+  body{margin:0}
+  a{color:inherit;text-decoration:none}
+  a:hover{opacity:0.85}
+  ::selection{background:rgba(99,102,241,0.35)}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+  * { box-sizing:border-box }
+</style>
+</helmet>
+
+<div style="display:flex;min-height:100vh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:{{ c.bg }};color:{{ c.text }};transition:background 0.25s,color 0.25s;position:relative;overflow:hidden">
+
+  <div style="position:absolute;inset:0;background:{{ c.glow }};pointer-events:none;z-index:0"></div>
+
+  <!-- Sidebar -->
+  <aside style="position:relative;z-index:1;width:236px;flex-shrink:0;background:{{ c.panel }};border-right:1px solid {{ c.border }};display:flex;flex-direction:column;padding:22px 14px">
+    <div style="display:flex;align-items:center;gap:9px;padding:4px 8px 22px">
+      <div style="width:22px;height:22px;border-radius:7px;background:{{ c.accentGrad }};flex-shrink:0;box-shadow:0 2px 8px {{ c.accentBlueBg }}"></div>
+      <span style="font-size:13.5px;font-weight:500;letter-spacing:-0.01em">CraftMyFunnel</span>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;border:1px solid {{ c.border }};border-radius:9px;padding:8px 11px;margin-bottom:22px;background:{{ c.card }};cursor:pointer" style-hover="border-color:{{ c.borderStrong }}">
+      <span style="font-size:12px;color:{{ c.textMuted }}">My workspace</span>
+      <span style="font-size:10px;color:{{ c.textFaint }}">▾</span>
+    </div>
+
+    <nav style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:22px">
+      <sc-for list="{{ groups }}" as="group" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <sc-if value="{{ group.hasLabel }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:6px;padding:0 11px 7px">
+              <span style="width:7px;height:7px;border-radius:99px;background:{{ group.accent }};flex-shrink:0;box-shadow:0 0 6px {{ group.accent }}"></span>
+              <span style="font-size:10px;font-weight:500;letter-spacing:0.07em;text-transform:uppercase;color:{{ c.textFaint }}">{{ group.label }}</span>
+            </div>
+          </sc-if>
+          <sc-for list="{{ group.items }}" as="item" hint-placeholder-count="4">
+            <button onClick="{{ item.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;font-weight:{{ item.weight }};color:{{ item.color }};background:{{ item.bg }};border-left:2px solid {{ item.bar }};transition:background 0.15s" style-hover="background:{{ c.hoverBg }}">
+              {{ item.label }}
+            </button>
+          </sc-for>
+        </div>
+      </sc-for>
+
+      <div style="border-top:1px solid {{ c.border }};padding-top:14px">
+        <button onClick="{{ toolsNavItem.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;padding:8px 11px;border-radius:8px;font-size:13px;font-weight:{{ toolsNavItem.weight }};color:{{ toolsNavItem.color }};background:{{ toolsNavItem.bg }};border-left:2px solid {{ toolsNavItem.bar }};width:100%;transition:background 0.15s" style-hover="background:{{ c.hoverBg }}">
+          <span style="flex:1;text-align:left">{{ toolsNavItem.label }}</span>
+          <span style="font-size:9.5px;color:{{ c.textFaint }}">19</span>
+        </button>
+      </div>
+    </nav>
+
+    <div style="margin-top:16px;padding:12px;border:1px dashed {{ c.borderStrong }};border-radius:10px;background:{{ c.adminBg }};cursor:pointer" style-hover="border-color:{{ c.accentAmber }}">
+      <button onClick="{{ goAdmin }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;justify-content:space-between;width:100%">
+        <span style="font-size:12px;font-weight:500;color:{{ c.textMuted }}">Admin console</span>
+        <span style="font-size:9px;padding:3px 7px;border-radius:6px;background:{{ c.accentAmberBg }};color:{{ c.accentAmber }};font-weight:500">Restricted</span>
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:9px;border-top:1px solid {{ c.border }};margin-top:16px;padding-top:16px">
+      <div style="width:26px;height:26px;border-radius:99px;background:{{ c.accentGrad }};color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500">JD</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:500;color:{{ c.textMuted }}">Jordan Diaz</div>
+        <div style="font-size:10px;color:{{ c.textFaint }}">Pro plan</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column;min-width:0">
+    <header style="height:60px;flex-shrink:0;display:flex;align-items:center;gap:16px;padding:0 32px;border-bottom:1px solid {{ c.rowDivider }};backdrop-filter:blur(8px)">
+      <button onClick="{{ openPalette }}" style="all:unset;box-sizing:border-box;cursor:pointer;flex:1;max-width:360px;height:34px;border-radius:9px;border:1px solid {{ c.border }};background:{{ c.card }};display:flex;align-items:center;padding:0 13px;font-size:12.5px;color:{{ c.textFaint }};transition:border-color 0.15s" style-hover="border-color:{{ c.borderStrong }}">
+        <span style="flex:1;text-align:left">Search or jump to…</span>
+        <span style="font-size:10px;background:{{ c.border }};border-radius:5px;padding:2px 6px;color:{{ c.textFaint }}">⌘K</span>
+      </button>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:{{ c.success }};background:{{ c.successBg }};padding:6px 12px;border-radius:99px">
+          <span style="width:6px;height:6px;border-radius:99px;background:{{ c.success }};box-shadow:0 0 6px {{ c.success }}"></span>
+          Manual mode
+        </div>
+        <div style="display:flex;border:1px solid {{ c.border }};border-radius:9px;overflow:hidden">
+          <button onClick="{{ setDark }}" style="all:unset;box-sizing:border-box;cursor:pointer;padding:7px 13px;font-size:12px;color:{{ darkBtnColor }};background:{{ darkBtnBg }};transition:background 0.15s">Dark</button>
+          <button onClick="{{ setLight }}" style="all:unset;box-sizing:border-box;cursor:pointer;padding:7px 13px;font-size:12px;color:{{ lightBtnColor }};background:{{ lightBtnBg }};transition:background 0.15s">Light</button>
+        </div>
+      </div>
+    </header>
+
+    <main style="flex:1;overflow-y:auto;padding:44px 44px 70px;animation:fadeIn 0.25s ease-out">
+      <div style="max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:32px">
+
+        <!-- ===== OVERVIEW ===== -->
+        <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+          <div style="position:relative;display:flex;flex-direction:column;gap:32px">
+          <div style="position:absolute;top:-20px;left:-10%;right:-10%;bottom:-20px;clip-path:polygon(0% 8%, 100% 30%, 100% 70%, 0% 92%);background:linear-gradient(90deg, rgba(59,130,246,0.12), rgba(139,92,246,0.05));pointer-events:none;z-index:-1"></div>
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentBlue }};margin-bottom:10px">Home</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Overview</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:540px;line-height:1.6">Your outreach at a glance — meetings booked, active leads, and what needs your attention.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div style="{{ c.cardStyle }}">
+                <div style="font-size:11px;color:{{ c.textFaint }};margin-bottom:10px">{{ k.label }}</div>
+                <div style="font-size:32px;font-weight:500;margin-bottom:6px;letter-spacing:-0.02em;font-variant-numeric:tabular-nums">{{ k.value }}</div>
+                <div style="font-size:11.5px;color:{{ c.success }};font-weight:500">{{ k.delta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <!-- Status rail — where we are, what's next -->
+          <div style="{{ c.cardStyle }}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <sc-for list="{{ workflowSteps }}" as="ws" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="width:20px;height:20px;border-radius:99px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:500;background:{{ ws.dotBg }};color:{{ ws.dotColor }};border:1px solid {{ ws.dotBorder }}">{{ ws.mark }}</span>
+                  <div>
+                    <div style="font-size:12px;font-weight:500;color:{{ ws.labelColor }}">{{ ws.label }}</div>
+                    <div style="font-size:10.5px;color:{{ c.textFaint }}">{{ ws.status }}</div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid {{ c.rowDivider }};display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+              <div>
+                <div style="font-size:13.5px;font-weight:500">{{ activeStep.title }}</div>
+                <div style="font-size:12px;color:{{ c.textMuted }};margin-top:3px;max-width:460px;line-height:1.5">{{ activeStep.desc }}</div>
+              </div>
+              <button style="{{ c.btnPrimary }};flex-shrink:0" style-hover="filter:brightness(1.08)">{{ activeStep.cta }}</button>
+            </div>
+          </div>
+
+          <!-- Input → output, at a glance -->
+          <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:16px">
+            <div style="{{ c.cardStyle }}">
+              <div style="font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:{{ c.accentBlue }};margin-bottom:14px">Outreach input</div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <sc-for list="{{ inputStats }}" as="ist" hint-placeholder-count="4">
+                  <div style="display:flex;justify-content:space-between;align-items:baseline">
+                    <span style="font-size:12.5px;color:{{ c.textMuted }}">{{ ist.label }}</span>
+                    <span style="font-size:15px;font-weight:500;font-variant-numeric:tabular-nums">{{ ist.value }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="{{ c.cardStyle }}">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px">
+                <span style="font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:{{ c.accentViolet }}">Pipeline output</span>
+                <span style="font-size:11.5px;color:{{ c.textFaint }}">{{ pipelineValue }} value · {{ winRate }} win rate</span>
+              </div>
+              <div style="display:flex;width:100%;height:8px;border-radius:99px;overflow:hidden;background:{{ c.border }}">
+                <sc-for list="{{ stages }}" as="st" hint-placeholder-count="6">
+                  <div style="height:100%;background:{{ st.color }};width:{{ st.pct }}%"></div>
+                </sc-for>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px">
+                <sc-for list="{{ stages }}" as="st" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="width:6px;height:6px;border-radius:99px;background:{{ st.color }};flex-shrink:0"></span>
+                    <span style="font-size:11px;color:{{ c.textMuted }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ st.label }}</span>
+                    <span style="font-size:11px;color:{{ c.textFaint }};margin-left:auto">{{ st.count }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:{{ c.textFaint }};margin-bottom:14px;position:relative;z-index:1">Recent activity</div>
+            <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+              <sc-for list="{{ activity }}" as="a" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+                  <span style="font-size:13.5px;flex:1">{{ a.text }}</span>
+                  <span style="font-size:11.5px;color:{{ c.textFaint }}">{{ a.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== FIND LEADS ===== -->
+        <sc-if value="{{ isLeads }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentBlue }};margin-bottom:10px">Outreach</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+              <div>
+                <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Find leads</h1>
+                <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:480px;line-height:1.6">Search, filter and review every contact captured for outreach.</p>
+              </div>
+              <div style="display:flex;gap:8px;flex-shrink:0">
+                <button style="{{ c.btnGhost }}" style-hover="background:{{ c.hoverBg }}">Import CSV</button>
+                <button style="{{ c.btnPrimary }}" style-hover="filter:brightness(1.08)">Add lead</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;height:38px;border:1px solid {{ c.border }};border-radius:9px;background:{{ c.card }};display:flex;align-items:center;padding:0 13px;font-size:12.5px;color:{{ c.textFaint }}">Search by name, email or company…</div>
+            <div style="height:38px;padding:0 15px;border:1px solid {{ c.border }};border-radius:9px;background:{{ c.card }};display:flex;align-items:center;font-size:12.5px;color:{{ c.textMuted }}">All statuses ▾</div>
+          </div>
+          <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1.6fr 1.2fr 1.6fr 1.3fr 1fr;gap:0;padding:12px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Lead</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Company</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Email</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Netjana signal</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Status</span>
+            </div>
+            <sc-for list="{{ leads }}" as="lead" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:1.6fr 1.2fr 1.6fr 1.3fr 1fr;gap:0;align-items:center;padding:14px 20px;border-bottom:1px solid {{ c.rowDivider }};cursor:pointer" style-hover="background:{{ c.hoverBg }}">
+                <span style="display:flex;align-items:center;gap:10px">
+                  <span style="width:26px;height:26px;border-radius:99px;background:{{ c.accentBlueBg }};color:{{ c.accentBlue }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">{{ lead.initial }}</span>
+                  <span style="font-size:13px;font-weight:500">{{ lead.name }}</span>
+                </span>
+                <span style="font-size:12.5px;color:{{ c.textMuted }}">{{ lead.company }}</span>
+                <span style="font-size:12.5px;color:{{ c.textMuted }};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ lead.email }}</span>
+                <span style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:10px;font-weight:500;padding:3px 9px;border-radius:99px;background:{{ lead.tempBg }};color:{{ lead.tempColor }};white-space:nowrap">{{ lead.temp }} · {{ lead.intent }}%</span>
+                </span>
+                <span>
+                  <span style="font-size:10px;font-weight:500;padding:3px 9px;border-radius:99px;background:{{ lead.statusBg }};color:{{ lead.statusColor }};white-space:nowrap">{{ lead.status }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== TRACK REPLIES (Inbox) ===== -->
+        <sc-if value="{{ isInbox }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentBlue }};margin-bottom:10px">Outreach</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Track replies</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Every reply landing across your campaigns, newest first.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+            <sc-for list="{{ threads }}" as="th" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid {{ c.rowDivider }};cursor:pointer" style-hover="background:{{ c.hoverBg }}">
+                <span style="width:34px;height:34px;border-radius:99px;background:{{ c.accentBlueBg }};color:{{ c.accentBlue }};display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:500;flex-shrink:0">{{ th.initial }}</span>
+                <span style="flex:1;min-width:0">
+                  <span style="display:flex;align-items:baseline;gap:8px">
+                    <span style="font-size:13.5px;font-weight:{{ th.nameWeight }}">{{ th.name }}</span>
+                    <span style="font-size:11.5px;color:{{ c.textFaint }}">{{ th.company }}</span>
+                  </span>
+                  <div style="font-size:12.5px;color:{{ c.textMuted }};margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:520px">{{ th.preview }}</div>
+                </span>
+                <span style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+                  <span style="font-size:11px;color:{{ c.textFaint }}">{{ th.time }}</span>
+                  <sc-if value="{{ th.unread }}" hint-placeholder-val="{{ false }}">
+                    <span style="width:7px;height:7px;border-radius:99px;background:{{ c.accentBlue }}"></span>
+                  </sc-if>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== SEND OUTREACH ===== -->
+        <sc-if value="{{ isCampaigns }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentBlue }};margin-bottom:10px">Outreach</div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px">
+              <div>
+                <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Send outreach</h1>
+                <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:480px;line-height:1.6">Deploy sequences and watch how each one is landing.</p>
+              </div>
+              <button style="{{ c.btnPrimary }};flex-shrink:0" style-hover="filter:brightness(1.08)">Create campaign</button>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr 100px;gap:0;padding:12px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Campaign</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Channel</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Variants</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Status</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Contacted</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }};text-align:right">Progress</span>
+            </div>
+            <sc-for list="{{ campaigns }}" as="camp" hint-placeholder-count="3">
+              <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1.4fr 100px;gap:0;align-items:center;padding:14px 20px;border-bottom:1px solid {{ c.rowDivider }}" style-hover="background:{{ c.hoverBg }}">
+                <span style="font-size:13px;font-weight:500">{{ camp.name }}</span>
+                <span style="font-size:12px;color:{{ c.textMuted }}">{{ camp.channel }}</span>
+                <span style="font-size:12px;color:{{ c.textMuted }}">{{ camp.variants }} (A/B)</span>
+                <span>
+                  <span style="font-size:10px;font-weight:500;padding:3px 9px;border-radius:99px;background:{{ camp.statusBg }};color:{{ camp.statusColor }};white-space:nowrap">{{ camp.status }}</span>
+                </span>
+                <span style="font-size:12px;color:{{ c.textMuted }};font-variant-numeric:tabular-nums">{{ camp.processed }} / {{ camp.total }}</span>
+                <span style="display:flex;align-items:center;gap:8px;justify-self:end">
+                  <span style="width:52px;height:5px;border-radius:99px;background:{{ c.border }};overflow:hidden;flex-shrink:0">
+                    <span style="display:block;height:100%;border-radius:99px;background:{{ c.accentGrad }};width:{{ camp.pct }}%"></span>
+                  </span>
+                  <span style="font-size:12px;font-weight:500;color:{{ c.accentBlue }};font-variant-numeric:tabular-nums">{{ camp.pct }}%</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== BUYER SIGNALS (Intel) ===== -->
+        <sc-if value="{{ isIntel }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentViolet }};margin-bottom:10px">Analyze</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Buyer signals</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">External intent data — which companies are showing buying signals right now.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ intelStats }}" as="s" hint-placeholder-count="3">
+              <div style="{{ c.cardStyle }}">
+                <div style="font-size:11px;color:{{ c.textFaint }};margin-bottom:10px">{{ s.label }}</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.01em">{{ s.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:{{ c.textFaint }};margin-bottom:14px;position:relative;z-index:1">Top companies</div>
+            <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+              <div style="display:grid;grid-template-columns:1.6fr 1.6fr 1fr;gap:0;padding:12px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Company</span>
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Last signal</span>
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }};text-align:right">Strength</span>
+              </div>
+              <sc-for list="{{ companies }}" as="co" hint-placeholder-count="3">
+                <div style="display:grid;grid-template-columns:1.6fr 1.6fr 1fr;gap:0;align-items:center;padding:14px 20px;border-bottom:1px solid {{ c.rowDivider }}" style-hover="background:{{ c.hoverBg }}">
+                  <span style="font-size:13px;font-weight:500">{{ co.name }}</span>
+                  <span style="font-size:12px;color:{{ c.textFaint }}">{{ co.detail }}</span>
+                  <span style="text-align:right">
+                    <span style="font-size:11px;font-weight:500;color:{{ c.accentViolet }};background:{{ c.accentVioletBg }};padding:3px 10px;border-radius:99px;white-space:nowrap">{{ co.strength }}</span>
+                  </span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== GOVERNANCE ===== -->
+        <sc-if value="{{ isGovernance }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentViolet }};margin-bottom:10px">Analyze</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Governance &amp; trust</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Guardrails, audit trail and security posture for this workspace.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ govStats }}" as="g" hint-placeholder-count="3">
+              <div style="{{ c.cardStyle }}">
+                <div style="font-size:11px;color:{{ c.textFaint }};margin-bottom:10px">{{ g.label }}</div>
+                <div style="font-size:26px;font-weight:500;letter-spacing:-0.01em">{{ g.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+            <div style="display:grid;grid-template-columns:1fr 140px;gap:0;padding:12px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Policy</span>
+              <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }};text-align:right">Status</span>
+            </div>
+            <sc-for list="{{ policies }}" as="p" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1fr 140px;gap:0;align-items:center;padding:14px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+                <span style="font-size:13px">{{ p.label }}</span>
+                <span style="text-align:right">
+                  <span style="font-size:11px;font-weight:500;padding:3px 9px;border-radius:99px;background:{{ p.bg }};color:{{ p.color }};white-space:nowrap">{{ p.status }}</span>
+                </span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="border:1px dashed {{ c.borderStrong }};border-radius:10px;padding:36px;text-align:center;color:{{ c.textFaint }};font-size:13.5px">
+            No policy violations in the last 24 hours
+          </div>
+        </sc-if>
+
+        <!-- ===== BILLING ===== -->
+        <sc-if value="{{ isBilling }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentTeal }};margin-bottom:10px">Account</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Billing &amp; credits</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Your plan, usage and payment history.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div style="{{ c.cardStyle }};padding:24px">
+              <div style="font-size:11px;color:{{ c.textFaint }};margin-bottom:8px">Current plan</div>
+              <div style="font-size:24px;font-weight:500;margin-bottom:16px;letter-spacing:-0.01em">Pro</div>
+              <div style="font-size:12.5px;color:{{ c.textMuted }};display:flex;justify-content:space-between;margin-bottom:8px"><span>Renews</span><span>Sep 8, 2026</span></div>
+              <div style="font-size:12.5px;color:{{ c.textMuted }};display:flex;justify-content:space-between"><span>Monthly credits</span><span>5,000</span></div>
+            </div>
+            <div style="{{ c.cardStyle }};padding:24px">
+              <div style="font-size:11px;color:{{ c.textFaint }};margin-bottom:8px">Credit usage</div>
+              <div style="font-size:24px;font-weight:500;margin-bottom:16px;letter-spacing:-0.01em">3,120 / 5,000</div>
+              <div style="width:100%;height:7px;border-radius:99px;background:{{ c.border }};overflow:hidden"><div style="height:100%;width:62%;background:{{ c.accentTeal }};border-radius:99px"></div></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;color:{{ c.textFaint }};margin-bottom:14px;position:relative;z-index:1">Recent activity</div>
+            <div style="{{ c.cardStyle }};padding:0;overflow:hidden">
+              <div style="display:flex;justify-content:space-between;padding:12px 20px;border-bottom:1px solid {{ c.rowDivider }}">
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Transaction</span>
+                <span style="font-size:10.5px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">Amount</span>
+              </div>
+              <sc-for list="{{ billingHistory }}" as="h" hint-placeholder-count="3">
+                <div style="display:flex;justify-content:space-between;padding:14px 20px;border-bottom:1px solid {{ c.rowDivider }};font-size:13px">
+                  <span>{{ h.label }}</span>
+                  <span style="color:{{ h.color }};font-weight:500;font-variant-numeric:tabular-nums">{{ h.amount }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- ===== CRM SYNC ===== -->
+        <sc-if value="{{ isCrm }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ c.accentTeal }};margin-bottom:10px">Account</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">CRM sync</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Keep leads and deals in sync with your system of record.</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:8px;background:{{ tip.bg }};border:1px solid {{ tip.border }}">
+            <span style="font-size:10px;font-weight:500;letter-spacing:0.05em;color:{{ tip.color }};flex-shrink:0">TIP</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }};flex:1">{{ tip.text }}</span>
+            <button onClick="{{ tip.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;font-weight:500;color:{{ tip.color }};white-space:nowrap;flex-shrink:0">{{ tip.ctaLabel }} →</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <sc-for list="{{ connectors }}" as="conn" hint-placeholder-count="3">
+              <div style="{{ c.cardStyle }};display:flex;flex-direction:column;gap:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="font-size:14.5px;font-weight:500">{{ conn.name }}</span>
+                  <span style="font-size:10px;font-weight:500;padding:4px 9px;border-radius:99px;background:{{ conn.bg }};color:{{ conn.color }}">{{ conn.status }}</span>
+                </div>
+                <p style="font-size:12.5px;color:{{ c.textMuted }};margin:0;line-height:1.5">{{ conn.desc }}</p>
+                <button style="{{ c.btnGhost }};margin-top:4px" style-hover="background:{{ c.hoverBg }}">{{ conn.action }}</button>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <!-- ===== TOOLS HUB ===== -->
+        <sc-if value="{{ isTools }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Tools</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Every extra tool in one place, grouped by what it's for.</p>
+          </div>
+          <input value="{{ toolQuery }}" onChange="{{ onToolQueryChange }}" placeholder="Search tools…" style="width:100%;max-width:360px;height:38px;border-radius:9px;border:1px solid {{ c.border }};background:{{ c.card }};padding:0 14px;font-size:13px;color:{{ c.text }};outline:none" />
+          <sc-if value="{{ toolsEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px dashed {{ c.borderStrong }};border-radius:10px;padding:32px;text-align:center;color:{{ c.textFaint }};font-size:13px">
+              No tools match “{{ toolQuery }}”.
+            </div>
+          </sc-if>
+          <sc-for list="{{ toolCategories }}" as="cat" hint-placeholder-count="3">
+            <div>
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px">
+                <span style="width:7px;height:7px;border-radius:99px;background:{{ cat.color }};flex-shrink:0"></span>
+                <span style="font-size:11px;font-weight:500;letter-spacing:0.05em;text-transform:uppercase;color:{{ c.textFaint }}">{{ cat.label }}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+                <sc-for list="{{ cat.items }}" as="t" hint-placeholder-count="3">
+                  <button onClick="{{ t.onClick }}" style="all:unset;box-sizing:border-box;cursor:pointer;{{ c.cardStyle }};text-align:left;display:block;width:100%" style-hover="{{ c.cardHoverStyle }}">
+                    <div style="font-size:13.5px;font-weight:500;margin-bottom:5px">{{ t.name }}</div>
+                    <div style="font-size:12px;color:{{ c.textFaint }};line-height:1.5">{{ t.desc }}</div>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <!-- ===== FEATURE DETAIL ===== -->
+        <sc-if value="{{ isFeatureDetail }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-size:11px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;color:{{ activeFeature.groupColor }};margin-bottom:10px">{{ activeFeature.groupLabel }}</div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">{{ activeFeature.name }}</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">{{ activeFeature.desc }}</p>
+          </div>
+          <div style="border:1px dashed {{ c.borderStrong }};border-radius:10px;padding:32px;text-align:center;color:{{ c.textFaint }};font-size:13px">
+            Full workspace UI for this tool ships when the team wires it into the app.
+          </div>
+        </sc-if>
+
+        <!-- ===== ADMIN ===== -->
+        <sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px dashed {{ c.borderStrong }};border-radius:10px;padding:16px 20px;background:{{ c.adminBg }};display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;font-weight:500;padding:4px 9px;border-radius:99px;background:{{ c.accentAmberBg }};color:{{ c.accentAmber }}">Restricted</span>
+            <span style="font-size:12.5px;color:{{ c.textMuted }}">Visible to workspace admins only</span>
+          </div>
+          <div>
+            <h1 style="font-size:28px;font-weight:500;margin:0 0 8px;letter-spacing:-0.015em">Admin console</h1>
+            <p style="font-size:14px;color:{{ c.textMuted }};margin:0;max-width:520px;line-height:1.6">Users, audit trail, rate limits and system health.</p>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
+            <sc-for list="{{ adminTools }}" as="t" hint-placeholder-count="4">
+              <div style="border:1px solid {{ c.borderStrong }};border-radius:10px;padding:20px;background:{{ c.adminCard }};box-shadow:0 1px 3px rgba(0,0,0,0.15)">
+                <div style="font-size:13.5px;font-weight:500;margin-bottom:5px">{{ t.name }}</div>
+                <div style="font-size:12px;color:{{ c.textFaint }}">{{ t.desc }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+      </div>
+    </main>
+  </div>
+
+  <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePalette }}" style="position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding-top:14vh">
+      <div onClick="{{ stopProp }}" style="width:520px;max-width:90vw;{{ c.cardStyle }};padding:0;overflow:hidden">
+        <input value="{{ paletteQuery }}" onChange="{{ onPaletteQueryChange }}" autoFocus="{{ true }}" placeholder="Jump to a page or tool…" style="width:100%;height:48px;border:none;border-bottom:1px solid {{ c.rowDivider }};background:transparent;padding:0 18px;font-size:14px;color:{{ c.text }};outline:none;box-sizing:border-box" />
+        <div>
+          <sc-for list="{{ paletteResults }}" as="r" hint-placeholder-count="6">
+            <button onClick="{{ r.onSelect }}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;justify-content:space-between;align-items:center;width:100%;padding:12px 18px;border-bottom:1px solid {{ c.rowDivider }}" style-hover="background:{{ c.hoverBg }}">
+              <span style="font-size:13px;font-weight:500">{{ r.name }}</span>
+              <span style="font-size:11px;color:{{ c.textFaint }}">{{ r.desc }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme: 'dark', activeScreen: 'overview', toolQuery: '', paletteOpen: false, paletteQuery: '' };
+
+  palette(theme) {
+    if (theme === 'dark') {
+      const border = 'rgba(255,255,255,0.09)';
+      const card = 'oklch(24% 0.016 260 / 0.55)';
+      return {
+        bg: 'oklch(13.5% 0.012 260)', panel: 'oklch(16% 0.013 260)', card,
+        border, borderStrong: 'rgba(255,255,255,0.2)', hoverBg: 'rgba(255,255,255,0.05)',
+        rowDivider: 'rgba(255,255,255,0.055)',
+        funnelTint: 'linear-gradient(100deg, rgba(96,110,255,0.16), rgba(167,139,250,0.1))',
+        glow: 'radial-gradient(ellipse 60% 40% at 20% -5%, rgba(99,102,241,0.10), transparent 60%), radial-gradient(ellipse 50% 35% at 100% 10%, rgba(139,92,246,0.07), transparent 55%)',
+        text: 'oklch(95% 0.002 260)', textMuted: 'oklch(72% 0.012 260)', textFaint: 'oklch(52% 0.012 260)',
+        accentBlue: 'oklch(66% 0.17 260)', accentBlueBg: 'oklch(66% 0.17 260 / 0.16)',
+        accentGrad: 'linear-gradient(135deg, oklch(68% 0.18 250), oklch(64% 0.18 285))',
+        accentViolet: 'oklch(66% 0.17 305)', accentVioletBg: 'oklch(66% 0.17 305 / 0.16)',
+        accentTeal: 'oklch(66% 0.13 175)', accentTealBg: 'oklch(66% 0.13 175 / 0.16)',
+        accentAmber: 'oklch(73% 0.14 70)', accentAmberBg: 'oklch(73% 0.14 70 / 0.16)',
+        success: 'oklch(70% 0.15 150)', successBg: 'oklch(70% 0.15 150 / 0.15)',
+        danger: 'oklch(65% 0.19 25)', dangerBg: 'oklch(65% 0.19 25 / 0.15)',
+        adminBg: 'oklch(20% 0.02 70 / 0.5)', adminCard: 'oklch(21% 0.016 70)',
+        cardStyle: `border:1px solid ${border};border-radius:12px;padding:20px;background:linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0) 40%), ${card};backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 rgba(255,255,255,0.07),0 1px 2px rgba(0,0,0,0.25),0 3px 8px -4px rgba(0,0,0,0.3),3px 5px 10px -3px rgba(0,0,0,0.35);transition:border-color 0.15s,transform 0.15s`,
+        cardHoverStyle: `border-color:rgba(255,255,255,0.22);transform:translateY(-1px)`,
+      };
+    }
+    const border = 'rgba(0,0,0,0.08)';
+    const card = 'rgba(255,255,255,0.7)';
+    return {
+      bg: 'oklch(97.5% 0.004 260)', panel: 'rgba(255,255,255,0.8)', card,
+      border, borderStrong: 'rgba(0,0,0,0.18)', hoverBg: 'rgba(0,0,0,0.035)',
+      rowDivider: 'rgba(0,0,0,0.055)',
+      funnelTint: 'linear-gradient(100deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06))',
+      glow: 'radial-gradient(ellipse 55% 35% at 15% -5%, rgba(99,102,241,0.06), transparent 60%)',
+      text: 'oklch(22% 0.01 260)', textMuted: 'oklch(42% 0.012 260)', textFaint: 'oklch(58% 0.012 260)',
+      accentBlue: 'oklch(52% 0.18 260)', accentBlueBg: 'oklch(52% 0.18 260 / 0.1)',
+      accentGrad: 'linear-gradient(135deg, oklch(54% 0.19 250), oklch(50% 0.19 285))',
+      accentViolet: 'oklch(52% 0.18 305)', accentVioletBg: 'oklch(52% 0.18 305 / 0.1)',
+      accentTeal: 'oklch(48% 0.13 175)', accentTealBg: 'oklch(48% 0.13 175 / 0.1)',
+      accentAmber: 'oklch(58% 0.14 70)', accentAmberBg: 'oklch(58% 0.14 70 / 0.13)',
+      success: 'oklch(46% 0.14 150)', successBg: 'oklch(46% 0.14 150 / 0.1)',
+      danger: 'oklch(52% 0.19 25)', dangerBg: 'oklch(52% 0.19 25 / 0.1)',
+      adminBg: 'oklch(96% 0.02 70)', adminCard: 'oklch(97% 0.012 70)',
+      cardStyle: `border:1px solid ${border};border-radius:12px;padding:20px;background:linear-gradient(160deg, rgba(255,255,255,0.5), rgba(255,255,255,0) 45%), ${card};backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 rgba(255,255,255,0.5),0 1px 2px rgba(0,0,0,0.04),0 2px 6px -4px rgba(0,0,0,0.06),2px 4px 8px -3px rgba(0,0,0,0.08);transition:border-color 0.15s,transform 0.15s`,
+      cardHoverStyle: `border-color:rgba(0,0,0,0.18);transform:translateY(-1px)`,
+    };
+  }
+
+  navBtn(c, key, label) {
+    const active = this.state.activeScreen === key;
+    return {
+      label, weight: active ? 500 : 400,
+      color: active ? c.accentBlue : c.textMuted,
+      bg: active ? c.accentBlueBg : 'transparent',
+      bar: active ? c.accentBlue : 'transparent',
+      onClick: () => this.setState({ activeScreen: key })
+    };
+  }
+
+  renderVals() {
+    const c = this.palette(this.state.theme);
+    c.btnPrimary = `all:unset;box-sizing:border-box;cursor:pointer;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:500;background:${c.accentGrad};color:white;box-shadow:0 2px 8px ${c.accentBlueBg}`;
+    c.btnGhost = `all:unset;box-sizing:border-box;cursor:pointer;padding:9px 16px;border-radius:8px;font-size:12.5px;font-weight:500;border:1px solid ${c.border};color:${c.textMuted}`;
+    const s = this.state.activeScreen;
+
+    const toolRegistry = {
+      outreach: [
+        { name: 'Playbooks', desc: 'Reusable campaign and outreach playbooks', src: 'modules/playbooks/playbookService.ts' },
+        { name: 'Templates', desc: 'Reusable email and sequence templates', src: 'components/templates/TemplateEditor.tsx' },
+        { name: 'ICP builder', desc: 'Define and refine your ideal customer profile', src: 'app/(dashboard)/icp-builder/page.tsx' },
+        { name: 'CSV ingestion', desc: 'Bulk lead import and normalization workflows', src: 'modules/csv-ingestion/index.ts' },
+        { name: 'Hunter email finder', desc: 'Email discovery and verification, powered by Hunter', src: 'integrations/hunter.ts' },
+        { name: 'LinkedIn runner', desc: 'Execution controls for LinkedIn automation and browser flows', src: 'linkedin/puppeteerRunner.ts' },
+        { name: 'Caller workspace', desc: 'Dedicated caller workflows and queue handling', src: 'modules/caller/CallerService.ts' },
+        { name: 'Studio', desc: 'Prompting, copy and workflow composition workspace', src: 'app/(dashboard)/studio/StudioClient.tsx' },
+      ],
+      analyze: [
+        { name: 'Workflows', desc: 'Visual workflow builder and run management', src: 'modules/workflow/workflowEngine.ts, components/builder/WorkflowBuilder.tsx' },
+        { name: 'Agent swarm', desc: 'Autonomous and semi-autonomous agent workspaces', src: 'lib/ai/agents, app/(dashboard)/agents/swarm' },
+        { name: 'Command center', desc: 'Operations overview for orchestrated runs', src: 'lib/productFlags.ts (command-center)' },
+        { name: 'Jobs', desc: 'Queued job visibility and debugging tools', src: 'app/(dashboard)/jobs/page.tsx' },
+        { name: 'Runtime', desc: 'Runtime control, diagnostics and execution surfaces', src: 'lib/edgeRuntime.ts' },
+        { name: 'Knowledge base', desc: 'Ingestion, retrieval and grounding surfaces', src: 'modules/knowledge/knowledgeService.ts' },
+      ],
+      account: [
+        { name: 'Team governance', desc: 'Members, roles and workspace-wide policies', src: 'app/(dashboard)/team/page.tsx' },
+        { name: 'Marketplace', desc: 'Template and capability installation surface', src: 'app/(dashboard)/marketplace/page.tsx' },
+      ],
+      admin: [
+        { name: 'Scraper bridge', desc: 'Ingress and orchestration for scrape-driven workflows', src: 'linkedin/scraper-bridge.ts' },
+        { name: 'Edge runtime', desc: 'Edge setup, diagnostics and hardware-aware operations', src: 'apps/edge-fastapi/' },
+        { name: 'Sovereign controls', desc: 'Residency, compliance and sovereign execution surfaces', src: 'modules/compliance/ResidencyLockService.ts' },
+      ],
+    };
+    const groupMeta = {
+      outreach: { label: 'Outreach tools', color: c.accentBlue },
+      analyze: { label: 'Automation', color: c.accentViolet },
+      account: { label: 'Account tools', color: c.accentTeal },
+      admin: { label: 'Admin tool', color: c.accentAmber },
+    };
+    const navItem = (key, label, groupKey) => {
+      const active = s === key;
+      return {
+        label, weight: active ? 500 : 400,
+        color: active ? c.accentBlue : c.textMuted,
+        bg: active ? c.accentBlueBg : 'transparent',
+        bar: active ? c.accentBlue : 'transparent',
+        onClick: () => this.setState({ activeScreen: key }),
+      };
+    };
+    const subNavItem = (tool, groupKey) => navItem('feat:' + tool.name, tool.name, groupKey);
+    const allTools = Object.entries(toolRegistry).flatMap(([g, arr]) => arr.map(t => ({ ...t, group: g })));
+    const activeFeature = allTools.find(t => ('feat:' + t.name) === s);
+    if (activeFeature) {
+      activeFeature.groupLabel = groupMeta[activeFeature.group].label.replace(/s$/, '') + ' feature';
+      activeFeature.groupColor = groupMeta[activeFeature.group].color;
+    }
+
+    const primaryItems = [
+      this.navBtn(c, 'overview', 'Overview'),
+      this.navBtn(c, 'leads', 'Find leads'),
+      this.navBtn(c, 'campaigns', 'Send outreach'),
+      this.navBtn(c, 'inbox', 'Track replies'),
+    ];
+
+    const groups = [
+      { hasLabel: false, items: primaryItems, hasSub: false },
+      {
+        hasLabel: true, label: 'Analyze', accent: c.accentViolet,
+        items: [this.navBtn(c, 'intel', 'Buyer signals'), this.navBtn(c, 'governance', 'Governance & trust')],
+        hasSub: false,
+      },
+      {
+        hasLabel: true, label: 'Account', accent: c.accentTeal,
+        items: [this.navBtn(c, 'billing', 'Billing & credits'), this.navBtn(c, 'crm', 'CRM sync')],
+        hasSub: false,
+      },
+    ];
+    const toolsNavItem = this.navBtn(c, 'tools', 'Tools');
+
+    const makeTip = (groupKey, toolName, text) => ({
+      text, ctaLabel: 'Open ' + toolName,
+      color: groupMeta[groupKey].color,
+      bg: groupKey === 'outreach' ? c.accentBlueBg : groupKey === 'analyze' ? c.accentVioletBg : groupKey === 'account' ? c.accentTealBg : c.accentAmberBg,
+      border: groupMeta[groupKey].color,
+      onClick: () => this.setState({ activeScreen: 'feat:' + toolName }),
+    });
+    const tipByScreen = {
+      overview: makeTip('outreach', 'ICP builder', "Sharper targeting starts with your ICP — define it once and every score, draft and signal gets more relevant."),
+      leads: makeTip('outreach', 'Hunter email finder', "Can't find a decision-maker's email? Hunter finds and verifies it in one click."),
+      campaigns: makeTip('outreach', 'Templates', "Reuse a proven sequence instead of writing from scratch — browse your saved templates."),
+      intel: makeTip('analyze', 'Knowledge base', "Save strong signals to your knowledge base so future AI drafts reference them automatically."),
+      governance: makeTip('admin', 'Sovereign controls', "Operating in a regulated market? Sovereign controls lock data residency and execution region."),
+      billing: makeTip('account', 'Marketplace', "Stretch your credits further with prebuilt templates and playbooks from the marketplace."),
+      crm: makeTip('analyze', 'Workflows', "Automate what happens after a sync — build a visual workflow instead of checking manually."),
+      inbox: makeTip('outreach', 'Caller workspace', "A reply this warm is worth a call — move it straight into the caller queue."),
+    };
+    const tip = tipByScreen[s] || tipByScreen.overview;
+
+    // ── Tools hub: every tool, grouped, searchable — replaces sidebar accordions ──
+    const q = this.state.toolQuery.trim().toLowerCase();
+    const matches = (t) => !q || t.name.toLowerCase().includes(q) || t.desc.toLowerCase().includes(q);
+    const toolCategories = Object.entries(toolRegistry).map(([g, arr]) => ({
+      key: g, label: groupMeta[g].label, color: groupMeta[g].color,
+      items: arr.filter(matches).map(t => ({
+        ...t,
+        active: s === ('feat:' + t.name),
+        onClick: () => this.setState({ activeScreen: 'feat:' + t.name }),
+      })),
+    })).filter(cat => cat.items.length > 0);
+    const toolsEmpty = toolCategories.length === 0;
+
+    // ── Command palette (⌘K) ── pages + tools, one searchable list ──
+    const pq = this.state.paletteQuery.trim().toLowerCase();
+    const pageEntries = [
+      { name: 'Overview', desc: 'Home', key: 'overview' },
+      { name: 'Find leads', desc: 'Outreach', key: 'leads' },
+      { name: 'Send outreach', desc: 'Outreach', key: 'campaigns' },
+      { name: 'Track replies', desc: 'Outreach', key: 'inbox' },
+      { name: 'Buyer signals', desc: 'Analyze', key: 'intel' },
+      { name: 'Governance & trust', desc: 'Analyze', key: 'governance' },
+      { name: 'Billing & credits', desc: 'Account', key: 'billing' },
+      { name: 'CRM sync', desc: 'Account', key: 'crm' },
+      { name: 'Tools', desc: 'All tools', key: 'tools' },
+    ];
+    const paletteResults = [
+      ...pageEntries.filter(p => !pq || p.name.toLowerCase().includes(pq)).map(p => ({ name: p.name, desc: p.desc, onSelect: () => this.setState({ activeScreen: p.key, paletteOpen: false, paletteQuery: '' }) })),
+      ...allTools.filter(t => !pq || t.name.toLowerCase().includes(pq) || t.desc.toLowerCase().includes(pq)).map(t => ({ name: t.name, desc: groupMeta[t.group].label, onSelect: () => this.setState({ activeScreen: 'feat:' + t.name, paletteOpen: false, paletteQuery: '' }) })),
+    ].slice(0, 8);
+    const openPalette = () => this.setState({ paletteOpen: true });
+    const closePalette = () => this.setState({ paletteOpen: false, paletteQuery: '' });
+    const onPaletteQueryChange = (e) => this.setState({ paletteQuery: e.target.value });
+    const onToolQueryChange = (e) => this.setState({ toolQuery: e.target.value });
+
+    const advActive = false;
+
+    return {
+      c,
+      state: this.state,
+      groups,
+      goAdmin: () => this.setState({ activeScreen: 'admin' }),
+
+      setDark: () => this.setState({ theme: 'dark' }),
+      setLight: () => this.setState({ theme: 'light' }),
+      darkBtnColor: this.state.theme === 'dark' ? 'white' : c.textFaint,
+      darkBtnBg: this.state.theme === 'dark' ? c.accentGrad : 'transparent',
+      lightBtnColor: this.state.theme === 'light' ? 'white' : c.textFaint,
+      lightBtnBg: this.state.theme === 'light' ? c.accentGrad : 'transparent',
+
+      isOverview: s === 'overview', isLeads: s === 'leads', isCampaigns: s === 'campaigns',
+      isIntel: s === 'intel', isGovernance: s === 'governance', isBilling: s === 'billing',
+      isCrm: s === 'crm', isInbox: s === 'inbox', isAdmin: s === 'admin', isTools: s === 'tools',
+      toolsNavItem, toolCategories, toolsEmpty, toolQuery: this.state.toolQuery, onToolQueryChange,
+      paletteOpen: this.state.paletteOpen, paletteQuery: this.state.paletteQuery, paletteResults,
+      openPalette, closePalette, onPaletteQueryChange,
+      stopProp: (e) => e.stopPropagation(),
+
+      kpis: [
+        { label: 'Meetings booked', value: '18', delta: '+4 this week' },
+        { label: 'Active leads', value: '342', delta: '+26 this week' },
+        { label: 'Drafts ready', value: '12', delta: '3 pending send' },
+        { label: 'Open rate', value: '48%', delta: '+3.2%' },
+      ],
+      activity: [
+        { text: 'Meeting booked with Sarah Chen (TechCorp)', time: '12m ago' },
+        { text: '9 drafts generated for "Q3 Outbound"', time: '1h ago' },
+        { text: 'Follow-up flagged for Marcus Webb', time: '3h ago' },
+      ],
+
+      leads: [
+        { initial: 'S', name: 'Sarah Chen', company: 'TechCorp', email: 'sarah@techcorp.com', status: 'ENGAGED', statusColor: c.accentBlue, statusBg: c.accentBlueBg, intent: 82, temp: 'HOT', tempColor: c.danger, tempBg: c.dangerBg, whyNow: 'Posted 3 open eng. roles this week' },
+        { initial: 'M', name: 'Marcus Webb', company: 'Northwind', email: 'marcus@northwind.io', status: 'NEW', statusColor: c.textFaint, statusBg: c.border, intent: 41, temp: 'WARM', tempColor: c.accentAmber, tempBg: c.accentAmberBg, whyNow: 'Visited pricing page twice' },
+        { initial: 'A', name: 'Aisha Rahman', company: 'Loopline', email: 'aisha@loopline.co', status: 'REPLIED', statusColor: c.success, statusBg: c.successBg, intent: 24, temp: 'COLD', tempColor: c.textFaint, tempBg: c.border, whyNow: 'No recent signal activity' },
+      ],
+
+      workflowSteps: [
+        { n: 1, label: 'Import leads', status: '342 imported', state: 'done' },
+        { n: 2, label: 'Generate drafts', status: '48 drafts', state: 'done' },
+        { n: 3, label: 'Review follow-ups', status: '5 pending', state: 'current' },
+        { n: 4, label: 'Send drafts', status: '12 queued', state: 'todo' },
+      ].map(ws => ({
+        ...ws,
+        mark: ws.state === 'done' ? '✓' : String(ws.n),
+        dotBg: ws.state === 'done' ? c.successBg : ws.state === 'current' ? c.accentBlueBg : c.border,
+        dotColor: ws.state === 'done' ? c.success : ws.state === 'current' ? c.accentBlue : c.textFaint,
+        dotBorder: ws.state === 'done' ? c.success : ws.state === 'current' ? c.accentBlue : c.border,
+        labelColor: ws.state === 'todo' ? c.textFaint : c.text,
+      })),
+      activeStep: { title: 'Review 5 pending draft approvals', desc: 'AI-suggested emails are waiting on your sign-off before they go out.', cta: 'Review approvals →' },
+
+      inputStats: [
+        { label: 'Leads imported', value: '342' },
+        { label: 'Drafts generated', value: '48' },
+        { label: 'Active campaigns', value: '3' },
+        { label: 'Pending approvals', value: '5' },
+      ],
+      stages: (() => {
+        const raw = [
+          { label: 'Cold', count: 96, color: 'oklch(58% 0.03 260)' },
+          { label: 'Warm', count: 54, color: c.accentAmber },
+          { label: 'Hot', count: 22, color: c.danger },
+          { label: 'Coordinating', count: 15, color: c.accentViolet },
+          { label: 'Meeting booked', count: 9, color: c.accentTeal },
+          { label: 'Completed', count: 31, color: c.success },
+        ];
+        const total = raw.reduce((a, s) => a + s.count, 0);
+        return raw.map(s => ({ ...s, pct: Math.round((s.count / total) * 1000) / 10 }));
+      })(),
+      pipelineValue: '$482,000',
+      winRate: '13.6%',
+
+      campaigns: [
+        { name: 'Q3 Outbound', status: 'Active', statusColor: c.success, statusBg: c.successBg, processed: 210, total: 400, pct: 52, channel: 'LinkedIn', variants: 2 },
+        { name: 'Enterprise ABM', status: 'Draft', statusColor: c.textFaint, statusBg: c.border, processed: 0, total: 120, pct: 0, channel: 'Email', variants: 1 },
+        { name: 'Re-engagement', status: 'Paused', statusColor: c.accentAmber, statusBg: c.accentAmberBg, processed: 88, total: 150, pct: 59, channel: 'LinkedIn', variants: 3 },
+      ],
+
+      intelStats: [
+        { label: 'Signals received', value: '1,204' },
+        { label: 'Buy-ready signals', value: '87' },
+        { label: 'Automation ready', value: '52' },
+      ],
+      companies: [
+        { name: 'Nimbus Health', detail: 'Last signal 2h ago', strength: '92% strength' },
+        { name: 'Fieldstone Logistics', detail: 'Last signal 5h ago', strength: '78% strength' },
+        { name: 'Verdant Analytics', detail: 'Last signal 1d ago', strength: '64% strength' },
+      ],
+
+      govStats: [
+        { label: 'Trust score', value: '94' },
+        { label: 'Active policies', value: '8' },
+        { label: 'Events / hr', value: '132' },
+      ],
+      policies: [
+        { label: 'Data encryption at rest', status: 'Healthy', color: c.success, bg: c.successBg },
+        { label: 'AI output sanitization', status: 'Active', color: c.accentBlue, bg: c.accentBlueBg },
+        { label: 'SSO enforced (domain-wide)', status: 'Disabled', color: c.accentAmber, bg: c.accentAmberBg },
+        { label: 'Two-factor auth', status: 'Enabled', color: c.success, bg: c.successBg },
+        { label: 'Netjana webhook signature (HMAC)', status: 'Verified', color: c.success, bg: c.successBg },
+      ],
+
+      billingHistory: [
+        { label: 'Monthly credit refresh', amount: '+5,000', color: c.success },
+        { label: 'Campaign send — Q3 Outbound', amount: '−820', color: c.textMuted },
+        { label: 'Top-up purchase', amount: '+2,000', color: c.success },
+      ],
+
+      threads: [
+        { initial: 'S', name: 'Sarah Chen', company: 'TechCorp', preview: "That sounds great — can we do Thursday at 2pm instead?", time: '12m ago', unread: true, nameWeight: 500 },
+        { initial: 'A', name: 'Aisha Rahman', company: 'Loopline', preview: "Thanks for reaching out, let me loop in our head of ops.", time: '1h ago', unread: true, nameWeight: 500 },
+        { initial: 'M', name: 'Marcus Webb', company: 'Northwind', preview: "Not the right time for us, please check back next quarter.", time: '3h ago', unread: false, nameWeight: 400 },
+        { initial: 'D', name: 'Dana Kim', company: 'Northwind', preview: "Sent over the deck you asked for — let me know your thoughts.", time: '1d ago', unread: false, nameWeight: 400 },
+      ],
+      connectors: [
+        { name: 'Salesforce', status: 'Not connected', color: c.textFaint, bg: c.border, desc: 'Sync leads, contacts and opportunities.', action: 'Connect' },
+        { name: 'HubSpot', status: 'Connected', color: c.success, bg: c.successBg, desc: 'Two-way sync for contacts and deals.', action: 'Sync now' },
+        { name: 'Pipedrive', status: 'Not connected', color: c.textFaint, bg: c.border, desc: 'Sync persons and organizations.', action: 'Connect' },
+      ],
+
+      tip,
+      isFeatureDetail: !!activeFeature,
+      activeFeature: activeFeature || { name: '', desc: '', src: '', groupLabel: '', groupColor: c.textFaint },
+
+      adminTools: [
+        { name: 'User management', desc: 'Invite, remove and assign workspace roles' },
+        { name: 'Audit log', desc: 'Full history of workspace actions and changes' },
+        { name: 'Rate limits', desc: 'Per-endpoint and per-team throttling controls' },
+        { name: 'System health', desc: 'Service status and infrastructure diagnostics' },
+        ...toolRegistry.admin,
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>

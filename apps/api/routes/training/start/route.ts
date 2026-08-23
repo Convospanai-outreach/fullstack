@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getAdminUser } from "@/lib/admin";
 import { trainingManager } from "@/modules/ml-training/training/TrainingManager";
-import { UserRole } from "@prisma/client";
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
-    const allowedRoles: string[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN];
-    if (!session || !allowedRoles.includes((session.user as any).enterpriseRole)) {
+    const admin = await getAdminUser();
+    if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

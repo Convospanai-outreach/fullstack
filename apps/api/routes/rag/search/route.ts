@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RAGService } from "@/lib/ragService";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { getCurrentContext } from "@/lib/auth";
 
 /**
@@ -10,11 +8,10 @@ import { getCurrentContext } from "@/lib/auth";
  */
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const ctx = await getCurrentContext();
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
@@ -61,11 +58,10 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
+        const ctx = await getCurrentContext();
+        if (!ctx.userId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        const ctx = await getCurrentContext();
         if (!ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

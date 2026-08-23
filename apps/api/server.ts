@@ -182,6 +182,10 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // Plan pricing for the public /pricing marketing page - visitors see
       // real prices before signing up, no team-specific data returned.
       "/billing/plans",
+      // Chrome extension routes enforce their own x-extension-key + Bearer
+      // session-token check (validateExtensionAuth) - the extension has no
+      // NextAuth cookie or Clerk-signed internal header to pass this gate.
+      "/extension",
     ];
     const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
     const isV1Route = registeredPath.startsWith('/v1');

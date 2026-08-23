@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { headers } from "next/headers";
 import { ClientErrorAlertService } from "@/lib/errors/ClientErrorAlertService";
 import { logger } from "@/lib/logger";
 
@@ -12,8 +11,7 @@ const RATE_LIMIT_WINDOW = 60000; // 1 minute
 export async function POST(req: NextRequest) {
     try {
         // Get client IP for rate limiting
-        const headersList = await headers();
-        const forwarded = headersList.get("x-forwarded-for");
+        const forwarded = req.headers.get("x-forwarded-for");
         const ip = (forwarded?.split(",")[0]?.trim()) || "unknown";
 
         // Rate limiting

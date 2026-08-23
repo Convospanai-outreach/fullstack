@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, canManageUsers, isSuperAdminRole } from "@/lib/auth";
+import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
 
@@ -21,6 +22,9 @@ async function loadPrisma() {
 }
 
 async function getActor(): Promise<AdminActor | null> {
+    const clerkActor = await findOrCreateClerkAppUser();
+    if (clerkActor) return clerkActor as AdminActor;
+
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
