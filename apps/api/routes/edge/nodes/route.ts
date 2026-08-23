@@ -156,6 +156,13 @@ export async function PUT(req: Request) {
     const rawBody = await req.text();
     const body = rawBody ? JSON.parse(rawBody) : {};
     const nodeId = req.headers.get("x-edge-node-id") || body.nodeId;
+    // A node paired via the admin dashboard (POST above) is never told its own
+    // DB-assigned id, since pairing is driven by the admin's browser, not the
+    // node itself - so the node authenticates its heartbeats by the hardware
+    // fingerprint it already knows (the same one it submitted at pairing time,
+    // hashed the same way) instead. x-edge-node-id is kept for callers that do
+    // have the id (e.g. re-pairing tooling).
+    const hardwareFingerprint = req.headers.get("x-edge-hardware-fingerprint") || body.hardwareFingerprint;
     const timestamp = req.headers.get("x-edge-timestamp") || "";
     const nonce = req.headers.get("x-edge-nonce") || "";
     const signature = req.headers.get("x-edge-signature") || "";
@@ -165,11 +172,13 @@ export async function PUT(req: Request) {
         : "";
     const sessionToken = req.headers.get("x-edge-session-token") || bearerToken || body.sessionToken || "";
 
-    if (!nodeId) {
-        return NextResponse.json({ error: "Missing edge node id" }, { status: 400 });
+    if (!nodeId && !hardwareFingerprint) {
+        return NextResponse.json({ error: "Missing edge node id or hardware fingerprint" }, { status: 400 });
     }
 
-    const node = await prisma.edgeNode.findUnique({ where: { id: nodeId } });
+    const node = nodeId
+        ? await prisma.edgeNode.findUnique({ where: { id: nodeId } })
+        : await prisma.edgeNode.findUnique({ where: { hardwareFingerprintHash: hashHardwareFingerprint(hardwareFingerprint) } });
     if (!node || !node.publicKey) {
         return NextResponse.json({ error: "Unknown or unpaired edge node" }, { status: 404 });
     }
