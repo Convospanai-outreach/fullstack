@@ -10,71 +10,44 @@ interface PillarNodeProps {
   progressRef: React.MutableRefObject<number>;
 }
 
-/**
- * Returns the radius of the funnel at a given world-space Y coordinate.
- * Mirrors the geometry in FunnelGeometry.tsx exactly so spokes land on
- * the visible spiral rail.
- *
- *   Funnel top:    y = +9   (t = 0)  → r ≈ 5.2
- *   Funnel bottom: y = -9   (t = 1)  → r ≈ 1.4
- */
 function funnelRadiusAtY(y: number): number {
-  const t = Math.max(0, Math.min(1, (9 - y) / 18));
-  return 5.2 - t * 3.8 + Math.sin(t * Math.PI) * 0.6;
+  const t = Math.max(0, Math.min(1, (12.5 - y) / 23.0));
+  return 5.8 - t * 4.4 + Math.sin(t * Math.PI) * 0.8;
 }
 
 export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
-  const groupRef = useRef<THREE.Group>(null);
-  const coreRef  = useRef<THREE.Mesh>(null);
-  const ring1Ref = useRef<THREE.Mesh>(null);
-  const ring2Ref = useRef<THREE.Mesh>(null);
-
-  // Spoke refs: main spoke + a short connector from spiral surface to core
-  const spokeLineRef    = useRef<THREE.Line>(null);
-  const connectorRef    = useRef<THREE.Line>(null);
-  const spiralDotRef    = useRef<THREE.Mesh>(null);
+  const groupRef       = useRef<THREE.Group>(null);
+  const coreRef        = useRef<THREE.Mesh>(null);
+  const motifGroupRef  = useRef<THREE.Group>(null);
+  const ring1Ref       = useRef<THREE.Mesh>(null);
+  const ring2Ref       = useRef<THREE.Mesh>(null);
+  const ring3Ref       = useRef<THREE.Mesh>(null);
+  const spokeLineRef   = useRef<THREE.Line>(null);
+  const spiralDotRef   = useRef<THREE.Mesh>(null);
+  const dataPacketRef  = useRef<THREE.Mesh>(null);
 
   const [px, py, pz] = pillar.position;
 
-  // ── Spoke geometry ────────────────────────────────────────────────────────
-  // Attachment point: the funnel spiral surface at the pillar's y-level,
-  // at the same radial angle as the pillar so the spoke is perpendicular
-  // to the funnel axis and clearly connects to the ring.
-  const { spokeGeo, connectorGeo, spokeObj, connectorObj, attachPt } = useMemo(() => {
+  // ── 1. Spoke Geometry & Data Laser ─────────────────────────────────────────
+  const { spokeObj, attachLocal } = useMemo(() => {
     const funnelR = funnelRadiusAtY(py);
-    const angle   = Math.atan2(pz, px);   // radial angle of pillar
+    const angle   = Math.atan2(pz, px);
 
-    // Point on the funnel surface at same height & angle
     const ax = Math.cos(angle) * funnelR;
     const az = Math.sin(angle) * funnelR;
-    const attach = new THREE.Vector3(ax, py, az);
 
-    // Pillar node is at local (0,0,0) because the group is translated to [px,py,pz]
-    const localPillar  = new THREE.Vector3(0, 0, 0);
-    const localAttach  = new THREE.Vector3(ax - px, 0, az - pz);
+    const localPillar = new THREE.Vector3(0, 0, 0);
+    const localAttach = new THREE.Vector3(ax - px, 0, az - pz);
 
     const sg = new THREE.BufferGeometry().setFromPoints([localPillar, localAttach]);
-
-    // Short connector dot-line on the spiral side: spiral surface → slightly inward
-    const innerPt = new THREE.Vector3(
-      ax - px + Math.cos(angle) * 0.4,
-      0,
-      az - pz + Math.sin(angle) * 0.4,
-    );
-    const cg = new THREE.BufferGeometry().setFromPoints([localAttach, innerPt]);
-
-    // Create the Line objects once here — NOT inline in JSX (breaks R3F scene tracking)
     const pillarColor = new THREE.Color(pillar.color);
+
     const sObj = new THREE.Line(
       sg,
-      new THREE.LineBasicMaterial({ color: pillarColor, transparent: true, opacity: 0, linewidth: 1 }),
-    );
-    const cObj = new THREE.Line(
-      cg,
-      new THREE.LineBasicMaterial({ color: pillarColor, transparent: true, opacity: 0 }),
+      new THREE.LineBasicMaterial({ color: pillarColor, transparent: true, opacity: 0, linewidth: 2 }),
     );
 
-    return { spokeGeo: sg, connectorGeo: cg, spokeObj: sObj, connectorObj: cObj, attachPt: attach };
+    return { spokeObj: sObj, attachLocal: localAttach };
   }, [px, py, pz, pillar.color]);
 
   useFrame(({ clock }) => {
@@ -82,121 +55,190 @@ export default function PillarNode({ pillar, progressRef }: PillarNodeProps) {
     const progress = progressRef.current;
     const isActive = progress >= pillar.activeAt;
     const intensity = isActive
-      ? Math.min(1, (progress - pillar.activeAt) / 0.14)
+      ? Math.min(1, (progress - pillar.activeAt) / 0.12)
       : 0;
 
-    // ── Group position (appear from slightly above) ──────────────────────
+    // ── Floating Node Position ───────────────────────────────────────────────
     if (groupRef.current) {
-      const scale = 0.35 + intensity * 0.65;
+      const scale = 0.45 + intensity * 0.55;
       groupRef.current.scale.setScalar(scale);
-      groupRef.current.position.y = py + (1 - intensity) * 1.8;
+      groupRef.current.position.y = py + (1 - intensity) * 1.5 + Math.sin(t * 1.5 + pillar.index) * 0.15;
     }
 
-    // ── Core pulse + motif rotation ──────────────────────────────────────
+    // ── Core Pulsing ─────────────────────────────────────────────────────────
     if (coreRef.current) {
-      const mat  = coreRef.current.material as THREE.MeshBasicMaterial;
-      const pulse = 0.55 + 0.45 * Math.sin(t * 2.2 + pillar.index);
-      mat.opacity = intensity * pulse;
+      const mat = coreRef.current.material as THREE.MeshBasicMaterial;
+      const pulse = 0.65 + 0.35 * Math.sin(t * 3.0 + pillar.index);
+      mat.opacity = (0.2 + intensity * 0.8) * pulse;
+      coreRef.current.scale.setScalar(1 + (isActive ? Math.sin(t * 4) * 0.15 : 0));
+    }
 
+    // ── Motif-Specific Rotations & Animations ────────────────────────────────
+    if (motifGroupRef.current) {
       if (pillar.motif === "radar") {
-        coreRef.current.rotation.z = t * 1.2;
+        motifGroupRef.current.rotation.z = t * 1.6;
+      } else if (pillar.motif === "outreach") {
+        motifGroupRef.current.rotation.x = t * 1.2;
+        motifGroupRef.current.rotation.y = t * 0.8;
       } else if (pillar.motif === "human-loop") {
-        coreRef.current.rotation.z = -t * 0.8;
+        motifGroupRef.current.rotation.y = -t * 1.4;
+        motifGroupRef.current.rotation.z = Math.sin(t * 2) * 0.4;
       } else if (pillar.motif === "edge-shield") {
-        coreRef.current.rotation.x = t * 0.6;
-        coreRef.current.rotation.y = t * 0.6;
+        motifGroupRef.current.rotation.x = t * 0.9;
+        motifGroupRef.current.rotation.y = t * 0.9;
       }
     }
 
-    // ── Spoke brightness (travelling-pulse effect) ───────────────────────
+    // ── Radar Expanding Scan Rings ───────────────────────────────────────────
+    if (ring1Ref.current && ring2Ref.current && ring3Ref.current) {
+      if (pillar.motif === "radar") {
+        const p1 = (t * 0.6) % 1;
+        const p2 = ((t * 0.6) + 0.33) % 1;
+        const p3 = ((t * 0.6) + 0.66) % 1;
+
+        ring1Ref.current.scale.setScalar(1 + p1 * 1.6);
+        (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = intensity * (1 - p1) * 0.7;
+
+        ring2Ref.current.scale.setScalar(1 + p2 * 1.6);
+        (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = intensity * (1 - p2) * 0.7;
+
+        ring3Ref.current.scale.setScalar(1 + p3 * 1.6);
+        (ring3Ref.current.material as THREE.MeshBasicMaterial).opacity = intensity * (1 - p3) * 0.7;
+      }
+    }
+
+    // ── Spoke Brightness & Laser Pulse ───────────────────────────────────────
     if (spokeLineRef.current) {
       const mat = spokeLineRef.current.material as THREE.LineBasicMaterial;
-      const pulse = 0.3 + 0.7 * Math.abs(Math.sin(t * 1.8 + pillar.index * 0.9));
+      const pulse = 0.35 + 0.65 * Math.abs(Math.sin(t * 2.5 + pillar.index));
       mat.opacity = intensity * pulse;
     }
 
-    if (connectorRef.current) {
-      const mat = connectorRef.current.material as THREE.LineBasicMaterial;
-      mat.opacity = intensity * 0.55;
+    // Traveling Data Packet along Spoke
+    if (dataPacketRef.current) {
+      const mat = dataPacketRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = intensity > 0.1 ? 0.9 : 0;
+      const lerpVal = (t * 1.5 + pillar.index * 0.25) % 1;
+      dataPacketRef.current.position.set(
+        attachLocal.x * lerpVal,
+        0,
+        attachLocal.z * lerpVal
+      );
     }
 
     // Spiral-attachment dot
     if (spiralDotRef.current) {
       const mat = spiralDotRef.current.material as THREE.MeshBasicMaterial;
-      const glow = 0.5 + 0.5 * Math.sin(t * 2.6 + pillar.index);
+      const glow = 0.5 + 0.5 * Math.sin(t * 3.2 + pillar.index);
       mat.opacity = intensity * glow;
-      spiralDotRef.current.rotation.y = t * 0.4;
-    }
-
-    // ── Expanding scan rings (radar only) ────────────────────────────────
-    if (ring1Ref.current && ring2Ref.current) {
-      if (pillar.motif === "radar") {
-        const p1 = (t * 0.5) % 1;
-        ring1Ref.current.scale.setScalar(1 + p1 * 1.4);
-        (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity =
-          intensity * (1 - p1) * 0.55;
-
-        const p2 = ((t * 0.5) + 0.5) % 1;
-        ring2Ref.current.scale.setScalar(1 + p2 * 1.4);
-        (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity =
-          intensity * (1 - p2) * 0.55;
-      } else {
-        (ring1Ref.current.material as THREE.MeshBasicMaterial).opacity = 0;
-        (ring2Ref.current.material as THREE.MeshBasicMaterial).opacity = 0;
-      }
+      spiralDotRef.current.scale.setScalar(1 + glow * 0.4);
     }
   });
 
-  const color     = new THREE.Color(pillar.color);
-  const attachLocal = new THREE.Vector3(
-    attachPt.x - px,
-    0,
-    attachPt.z - pz,
-  );
+  const color = new THREE.Color(pillar.color);
 
   return (
     <group ref={groupRef} position={[px, py, pz]}>
-
-      {/* ── Core node sphere ─────────────────────────────────────────── */}
+      {/* 1. Core Energy Sphere */}
       <mesh ref={coreRef}>
-        <sphereGeometry args={[0.38, 20, 20]} />
-        <meshBasicMaterial color={color} transparent opacity={0} />
-      </mesh>
-
-      {/* ── Outer glow ring ──────────────────────────────────────────── */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.62, 0.045, 8, 40]} />
+        <sphereGeometry args={[0.38, 24, 24]} />
         <meshBasicMaterial color={color} transparent opacity={0.3} />
       </mesh>
 
-      {/* ── Radar scan rings ─────────────────────────────────────────── */}
+      {/* 2. Motif Specific 3D Mesh Geometry */}
+      <group ref={motifGroupRef}>
+        {pillar.motif === "radar" && (
+          <>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.2, 0.75, 24]} />
+              <meshBasicMaterial color={color} transparent opacity={0.25} side={THREE.DoubleSide} />
+            </mesh>
+            <mesh position={[0, 0, 0.2]} rotation={[0, 0, 0]}>
+              <coneGeometry args={[0.25, 0.6, 12, 1, true]} />
+              <meshBasicMaterial color={color} transparent opacity={0.4} wireframe={true} />
+            </mesh>
+          </>
+        )}
+
+        {pillar.motif === "outreach" && (
+          <>
+            {/* Dual interlocking approval gimbals */}
+            <mesh rotation={[0, 0, 0]}>
+              <torusGeometry args={[0.65, 0.035, 8, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.5} />
+            </mesh>
+            <mesh rotation={[Math.PI / 2, 0, 0]}>
+              <torusGeometry args={[0.65, 0.035, 8, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.5} />
+            </mesh>
+            <mesh position={[0, 0, 0]}>
+              <octahedronGeometry args={[0.28, 0]} />
+              <meshBasicMaterial color={0xffffff} transparent opacity={0.8} />
+            </mesh>
+          </>
+        )}
+
+        {pillar.motif === "human-loop" && (
+          <>
+            {/* Double infinity loop helix */}
+            <mesh rotation={[Math.PI / 4, 0, 0]}>
+              <torusGeometry args={[0.68, 0.04, 8, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.6} />
+            </mesh>
+            <mesh rotation={[-Math.PI / 4, 0, 0]}>
+              <torusGeometry args={[0.68, 0.04, 8, 36]} />
+              <meshBasicMaterial color={color} transparent opacity={0.6} />
+            </mesh>
+          </>
+        )}
+
+        {pillar.motif === "edge-shield" && (
+          <>
+            {/* Cryptographic icosahedron containment */}
+            <mesh>
+              <icosahedronGeometry args={[0.72, 0]} />
+              <meshBasicMaterial color={color} transparent opacity={0.35} wireframe={true} />
+            </mesh>
+            <mesh>
+              <dodecahedronGeometry args={[0.42, 0]} />
+              <meshBasicMaterial color={0xffffff} transparent opacity={0.7} />
+            </mesh>
+          </>
+        )}
+      </group>
+
+      {/* 3. Outer Aura Halo */}
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.9, 0.02, 6, 48]} />
+        <meshBasicMaterial color={color} transparent opacity={0.2} />
+      </mesh>
+
+      {/* 4. Radar Expanding Rings */}
       <mesh ref={ring1Ref} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.7, 0.025, 6, 32]} />
+        <torusGeometry args={[0.85, 0.025, 6, 36]} />
         <meshBasicMaterial color={color} transparent opacity={0} />
       </mesh>
       <mesh ref={ring2Ref} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[0.7, 0.025, 6, 32]} />
+        <torusGeometry args={[0.85, 0.025, 6, 36]} />
+        <meshBasicMaterial color={color} transparent opacity={0} />
+      </mesh>
+      <mesh ref={ring3Ref} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.85, 0.025, 6, 36]} />
         <meshBasicMaterial color={color} transparent opacity={0} />
       </mesh>
 
-      {/* ── Spoke: pillar → funnel spiral surface ────────────────────── */}
-      <primitive
-        object={spokeObj}
-        ref={spokeLineRef}
-      />
+      {/* 5. Laser Spoke Conduit */}
+      <primitive object={spokeObj} ref={spokeLineRef} />
 
-      {/* ── Short connector tick at the spiral attachment point ───────── */}
-      <primitive
-        object={connectorObj}
-        ref={connectorRef}
-      />
+      {/* 6. High-Velocity Data Packet (traveling photon) */}
+      <mesh ref={dataPacketRef}>
+        <sphereGeometry args={[0.09, 12, 12]} />
+        <meshBasicMaterial color={0xffffff} transparent opacity={0} />
+      </mesh>
 
-      {/* ── Glowing dot at the spiral surface attachment point ────────── */}
-      <mesh
-        ref={spiralDotRef}
-        position={[attachLocal.x, 0, attachLocal.z]}
-      >
-        <sphereGeometry args={[0.1, 10, 10]} />
+      {/* 7. Funnel Spiral Surface Landing Node */}
+      <mesh ref={spiralDotRef} position={[attachLocal.x, 0, attachLocal.z]}>
+        <sphereGeometry args={[0.15, 14, 14]} />
         <meshBasicMaterial color={color} transparent opacity={0} />
       </mesh>
     </group>

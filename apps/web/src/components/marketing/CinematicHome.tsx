@@ -50,30 +50,37 @@ const HUD_STAGES = SCROLL_ACTS.map((a) => ({ id: a.id, label: a.label, shortLabe
 const ACTS = [
   {
     id: "intake",
-    eyebrow: "Act 0",
+    eyebrow: "Act 0 — Market Intake",
+    categoryBadge: "Governed Outbound & Buyer Intel Engine",
     headline: "Somewhere out there, a company needs exactly what you sell.",
     sub: "Most teams spend their week guessing who to contact. The market is moving. Your pipeline is not.",
     tag: null,
+    color: "cyan",
   },
   {
     id: "leak",
-    eyebrow: "The problem",
+    eyebrow: "The Core Problem",
+    categoryBadge: null,
     headline: "Signals disappear. Follow-ups stall. Deals die between messages.",
-    sub: "Manual prospecting, ungoverned outreach, and no rescue layer turn warm intent into lost revenue every day.",
-    tag: null,
+    sub: "Manual prospecting, ungoverned mass outreach, and no rescue layer turn warm intent into lost revenue every day.",
+    tag: "Outbound Crisis",
+    color: "violet",
   },
   {
     id: "shift",
-    eyebrow: "The system",
+    eyebrow: "The Paradigm Shift",
+    categoryBadge: null,
     headline: "Market intent goes in. Governed pipeline comes out. Revenue keeps feeding the loop.",
     sub: "CraftMyFunnel connects four purpose-built layers so nothing leaks between signal and signed contract.",
-    tag: null,
+    tag: "Governed Engine",
+    color: "cyan",
   },
   {
     id: "signal",
     eyebrow: "Layer 01 — NetJana",
+    categoryBadge: null,
     headline: "Be the first call. Never the second.",
-    sub: "Monitors hiring, expansion, tenders, and decision-maker movement so your team works active-market accounts — not cold lists.",
+    sub: "Monitors hiring surges, expansion, tenders, and executive movement so your team works active-market accounts — not cold lists.",
     tag: "Buyer Signals",
     solves: "Who should I reach out to this week?",
     color: "cyan",
@@ -81,8 +88,9 @@ const ACTS = [
   {
     id: "outreach",
     eyebrow: "Layer 02 — CMF Core",
+    categoryBadge: null,
     headline: "AI drafts. Managers approve. Nothing goes out unchecked.",
-    sub: "Drafts outreach, prepares channel context, tracks every action, and keeps manager approval in the loop before anything goes out.",
+    sub: "Drafts hyper-personalized outreach, prepares channel context, and keeps manager approval in the loop before anything sends.",
     tag: "AI Outreach SaaS",
     solves: "How do I reach them, and how do I know it went well?",
     color: "violet",
@@ -90,6 +98,7 @@ const ACTS = [
   {
     id: "human",
     eyebrow: "Layer 03 — Human Layer",
+    categoryBadge: null,
     headline: "The deals email cannot close, your people can.",
     sub: "Caller tasks, manual stage updates, and follow-up suggestions keep high-value leads moving between message and contract.",
     tag: "Conversion Moat",
@@ -99,6 +108,7 @@ const ACTS = [
   {
     id: "edge",
     eyebrow: "Layer 04 — Covospan EDGE",
+    categoryBadge: null,
     headline: "Their trust is the contract. Keep it with you.",
     sub: "Runs sensitive AI checks, memory logs, and outreach processing close to your own data — with encrypted local storage and on-device audit trails.",
     tag: "Sovereign Edge Node",
@@ -107,7 +117,8 @@ const ACTS = [
   },
   {
     id: "revenue",
-    eyebrow: "The output",
+    eyebrow: "The Output Node",
+    categoryBadge: null,
     headline: "From scattered follow-ups to qualified meetings.",
     sub: "Every signal captured, every outreach governed, every conversation rescued — compresses into pipeline your team can actually close.",
     tag: "Qualified Revenue",
@@ -115,27 +126,37 @@ const ACTS = [
   },
   {
     id: "launch",
-    eyebrow: "Ready to start",
+    eyebrow: "Ready to Pilot",
+    categoryBadge: null,
     headline: "Stop losing the deals you have already earned.",
     sub: "Request early access to the CraftMyFunnel pilot programme and see the full funnel working on your own accounts.",
     tag: null,
+    color: "amber",
   },
 ] as const;
 
 const TAG_COLORS: Record<string, string> = {
-  cyan:    "border-cyan-400/40 text-cyan-300 bg-cyan-400/10",
-  violet:  "border-violet-400/40 text-violet-300 bg-violet-400/10",
-  mint:    "border-emerald-400/40 text-emerald-300 bg-emerald-400/10",
-  crystal: "border-blue-400/40 text-blue-300 bg-blue-400/10",
-  amber:   "border-amber-400/40 text-amber-300 bg-amber-400/10",
+  cyan:    "border-cyan-400/40 text-cyan-300 bg-cyan-400/10 shadow-[0_0_15px_rgba(56,189,248,0.2)]",
+  violet:  "border-violet-400/40 text-violet-300 bg-violet-400/10 shadow-[0_0_15px_rgba(139,92,246,0.2)]",
+  mint:    "border-emerald-400/40 text-emerald-300 bg-emerald-400/10 shadow-[0_0_15px_rgba(16,185,129,0.2)]",
+  crystal: "border-sky-400/40 text-sky-300 bg-sky-400/10 shadow-[0_0_15px_rgba(56,189,248,0.2)]",
+  amber:   "border-amber-400/40 text-amber-300 bg-amber-400/10 shadow-[0_0_15px_rgba(251,191,36,0.2)]",
+};
+
+const CARD_GLOW: Record<string, string> = {
+  cyan:    "border-cyan-400/30 shadow-[0_0_40px_rgba(56,189,248,0.15)] bg-slate-950/80",
+  violet:  "border-violet-400/30 shadow-[0_0_40px_rgba(139,92,246,0.15)] bg-slate-950/80",
+  mint:    "border-emerald-400/30 shadow-[0_0_40px_rgba(16,185,129,0.15)] bg-slate-950/80",
+  crystal: "border-sky-400/30 shadow-[0_0_40px_rgba(56,189,248,0.15)] bg-slate-950/80",
+  amber:   "border-amber-400/30 shadow-[0_0_40px_rgba(251,191,36,0.18)] bg-slate-950/80",
 };
 
 const HEADLINE_COLORS: Record<string, string> = {
-  cyan:    "from-cyan-300 to-sky-400",
-  violet:  "from-violet-300 to-indigo-400",
-  mint:    "from-emerald-300 to-teal-400",
-  crystal: "from-blue-300 to-cyan-400",
-  amber:   "from-amber-300 to-yellow-400",
+  cyan:    "from-cyan-200 via-sky-300 to-indigo-300",
+  violet:  "from-violet-200 via-purple-300 to-indigo-400",
+  mint:    "from-emerald-200 via-teal-300 to-cyan-400",
+  crystal: "from-sky-200 via-blue-300 to-indigo-300",
+  amber:   "from-amber-200 via-yellow-300 to-orange-400",
 };
 
 function getPrefersReducedMotion() {
@@ -380,22 +401,31 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
   const isLeft = idx % 2 === 0;
   const colorKey = "color" in act ? (act.color as string) : null;
   const tagCls = colorKey ? TAG_COLORS[colorKey] : "border-slate-500/30 text-slate-400 bg-slate-400/5";
+  const glowCls = colorKey && CARD_GLOW[colorKey] ? CARD_GLOW[colorKey] : "border-white/10 bg-slate-950/75 shadow-2xl";
   const gradientClass = colorKey && HEADLINE_COLORS[colorKey] ? `bg-gradient-to-r ${HEADLINE_COLORS[colorKey]}` : "";
 
   return (
     <div
       className={`pointer-events-auto max-w-xl w-full ${isLeft ? "ml-0 mr-auto lg:ml-16" : "mr-0 ml-auto lg:mr-16"}`}
     >
-      <div className="glass-premium rounded-3xl p-8 shadow-glow">
+      <div className={`rounded-[28px] border p-8 backdrop-blur-2xl transition-all duration-500 ${glowCls}`}>
+        {/* Category Pill (Act 0 only) */}
+        {"categoryBadge" in act && act.categoryBadge && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-cyan-300 shadow-[0_0_15px_rgba(56,189,248,0.25)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            {act.categoryBadge}
+          </div>
+        )}
+
         {/* Eyebrow */}
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400">
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400 font-semibold">
           {act.eyebrow}
         </p>
 
         {/* Tag pill */}
         {"tag" in act && act.tag && (
           <span
-            className={`mb-4 inline-block rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${tagCls}`}
+            className={`mb-4 inline-block rounded-full border px-3 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider ${tagCls}`}
           >
             {act.tag}
           </span>
@@ -403,7 +433,7 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
 
         {/* Headline */}
         <h2
-          className={`mb-4 text-2xl font-bold leading-tight sm:text-3xl ${
+          className={`mb-4 text-2xl font-black leading-tight tracking-tight sm:text-3xl ${
             gradientClass
               ? `text-transparent bg-clip-text ${gradientClass}`
               : "text-white"
@@ -414,18 +444,31 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
 
         {/* Solves line */}
         {"solves" in act && act.solves && (
-          <p className="mb-3 text-sm font-medium text-slate-400">
-            <span className="text-slate-500">Solves: </span>
-            <span className="italic text-slate-300">&ldquo;{act.solves}&rdquo;</span>
+          <p className="mb-3 text-sm font-medium text-slate-300/90">
+            <span className="text-slate-500 font-mono text-xs uppercase tracking-wider">Solves: </span>
+            <span className="italic text-cyan-200/90">&ldquo;{act.solves}&rdquo;</span>
           </p>
         )}
 
         {/* Body */}
-        <p className="text-base leading-relaxed text-slate-400">{act.sub}</p>
+        <p className="text-base leading-relaxed text-slate-300 font-normal">{act.sub}</p>
 
         {/* Pillar data pills */}
         {getPillarForAct(act.id) && (
           <PillarPill pillar={getPillarForAct(act.id)!} colorKey={colorKey} />
+        )}
+
+        {/* Interactive Fast Scroll Link for Act 0 */}
+        {act.id === "intake" && (
+          <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-slate-400 font-mono text-[10px] tracking-wider">Scroll down to explore 3D funnel</span>
+            <a
+              href="#workflow"
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-cyan-300 hover:text-white transition-colors underline underline-offset-4"
+            >
+              Skip to Overview ↓
+            </a>
+          </div>
         )}
       </div>
     </div>
@@ -444,7 +487,7 @@ function PillarPill({
       {["Governed", "Traceable", pillar.tag].map((label) => (
         <span
           key={label}
-          className="rounded-full bg-slate-800/60 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-400 border border-slate-700/50"
+          className="rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-300 border border-slate-700/60 shadow-sm"
         >
           {label}
         </span>
@@ -462,3 +505,4 @@ function getPillarForAct(id: string) {
   };
   return map[id] ?? null;
 }
+

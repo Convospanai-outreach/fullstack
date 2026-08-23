@@ -8,174 +8,240 @@ interface FlywheelCoreProps {
   progressRef: React.MutableRefObject<number>;
 }
 
-// Colour constants matching sceneConfig.ts
-const CYAN    = 0x22d3ee;
-const VIOLET  = 0x8b5cf6;
-const MINT    = 0x10b981;
-const CRYSTAL = 0x60a5fa;
-const AMBER   = 0xfbbf24;
-const SLATE   = 0x334155;
+// Cybernetic Palette
+const CYAN_BRIGHT   = 0x38bdf8;
+const CYAN_CORE     = 0x06b6d4;
+const INDIGO_VIOLET = 0x818cf8;
+const EMERALD_MINT  = 0x34d399;
+const CRYSTAL_BLUE  = 0x60a5fa;
+const AMBER_GOLD    = 0xfbbf24;
+const SLATE_DARK    = 0x334155;
 
 export default function FlywheelCore({ progressRef }: FlywheelCoreProps) {
-  const groupRef   = useRef<THREE.Group>(null);
-  const innerRef   = useRef<THREE.Mesh>(null);   // radius 1.75
-  const midRef     = useRef<THREE.Mesh>(null);   // radius 2.55
-  const outerRef   = useRef<THREE.Mesh>(null);   // radius 3.45
-  const hubRef     = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const plasmaCoreRef = useRef<THREE.Mesh>(null);
+  const plasmaAuraRef = useRef<THREE.Mesh>(null);
+  const innerRingRef  = useRef<THREE.Mesh>(null); // r = 1.6
+  const midRingRef    = useRef<THREE.Mesh>(null); // r = 2.6
+  const outerRingRef  = useRef<THREE.Mesh>(null); // r = 3.6
+  const gimbalXRef    = useRef<THREE.Mesh>(null);
+  const gimbalYRef    = useRef<THREE.Mesh>(null);
 
-  // ── Spoke lines created ONCE via useMemo ───────────────────────────────────
-  const spokeObjects = useMemo(() => {
+  // ── 1. Laser Spokes & Notches ──────────────────────────────────────────────
+  const { spokeObjects, notchObjects } = useMemo(() => {
     const spokes: THREE.Line[] = [];
-    const count = 10;
-    const mat = new THREE.LineBasicMaterial({
-      color: SLATE,
+    const count = 12;
+    const baseMat = new THREE.LineBasicMaterial({
+      color: SLATE_DARK,
       transparent: true,
-      opacity: 0.18,
+      opacity: 0.3,
     });
+
     for (let i = 0; i < count; i++) {
       const angle = (i / count) * Math.PI * 2;
       const geo = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(Math.cos(angle) * 3.45, 0, Math.sin(angle) * 3.45),
+        new THREE.Vector3(Math.cos(angle) * 3.6, 0, Math.sin(angle) * 3.6),
       ]);
-      // Each spoke gets its OWN material instance so opacity can be mutated
-      spokes.push(new THREE.Line(geo, mat.clone()));
+      spokes.push(new THREE.Line(geo, baseMat.clone()));
     }
-    return spokes;
+
+    // Outer telemetry notches (small tick marks)
+    const notches: THREE.Line[] = [];
+    const notchCount = 36;
+    for (let i = 0; i < notchCount; i++) {
+      const angle = (i / notchCount) * Math.PI * 2;
+      const rInner = 3.55;
+      const rOuter = i % 3 === 0 ? 3.75 : 3.65;
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(Math.cos(angle) * rInner, 0, Math.sin(angle) * rInner),
+        new THREE.Vector3(Math.cos(angle) * rOuter, 0, Math.sin(angle) * rOuter),
+      ]);
+      notches.push(new THREE.Line(geo, baseMat.clone()));
+    }
+
+    return { spokeObjects: spokes, notchObjects: notches };
   }, []);
 
   const spokeRefs = useRef<THREE.Line[]>(spokeObjects);
+  const notchRefs = useRef<THREE.Line[]>(notchObjects);
 
   useFrame(({ clock }) => {
     const t        = clock.getElapsedTime();
     const progress = progressRef.current;
 
-    // ── Dynamic Position & Scale (Ride down and stay visually readable) ──────
+    // ── Dynamic Ride Position & Pacing ───────────────────────────────────────
     if (groupRef.current) {
-      // Y now starts higher so the flywheel participates in the opening hero.
       const targetY = 12.2 - progress * 22.7;
       groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetY, 0.1);
 
-      // Keep the flywheel significantly larger through the journey.
-      const targetScale = Math.max(0.42, 1.45 - progress * 1.03);
+      const targetScale = Math.max(0.5, 1.5 - progress * 0.95);
       groupRef.current.scale.setScalar(THREE.MathUtils.lerp(groupRef.current.scale.x, targetScale, 0.1));
 
-      // Turn/point the flywheel towards the active text card (left or right)
-      // NetJana (0.40) -> right (0 rad), CMF Core (0.54) -> left (PI rad),
-      // Human (0.68) -> right (0 rad), EDGE (0.82) -> left (PI rad).
-      let targetRotY = t * 0.15; // base spin
+      // Directional Gyro Orientation facing active narrative card
+      let targetRotY = t * 0.2;
       if (progress >= 0.82 && progress < 0.92) {
-        targetRotY = Math.PI; // EDGE (left)
+        targetRotY = Math.PI * 0.95; // EDGE (left)
       } else if (progress >= 0.68 && progress < 0.82) {
-        targetRotY = 0; // Human Layer (right)
+        targetRotY = 0.05; // Human Layer (right)
       } else if (progress >= 0.54 && progress < 0.68) {
-        targetRotY = Math.PI; // CMF Core (left)
+        targetRotY = Math.PI * 0.95; // CMF Core (left)
       } else if (progress >= 0.40 && progress < 0.54) {
-        targetRotY = 0; // NetJana (right)
+        targetRotY = 0.05; // NetJana (right)
       }
       groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotY, 0.08);
+      groupRef.current.rotation.x = Math.sin(t * 0.8) * 0.1;
+      groupRef.current.rotation.z = Math.cos(t * 0.7) * 0.08;
     }
 
-    // ── Compute active colour & target opacities per ring ─────────────────
-    let innerColor  = SLATE,  innerOp  = 0.28;
-    let midColor    = SLATE,  midOp    = 0.22;
-    let outerColor  = SLATE,  outerOp  = 0.18;
-    let hubColor    = SLATE,  hubOp    = 0.38;
-    let spokeOp = 0.18 + progress * 0.34;
+    // ── Active Chromatic Theme ───────────────────────────────────────────────
+    let coreColor   = CYAN_CORE;
+    let auraColor   = CYAN_BRIGHT;
+    let coreGlow    = 0.75 + 0.25 * Math.sin(t * 3.5);
+    let spokeColor  = SLATE_DARK;
+    let spokeOp     = 0.25 + progress * 0.4;
 
     if (progress >= 0.92) {
-      innerColor = AMBER;  innerOp  = 0.88 + 0.12 * Math.sin(t * 3.0);
-      midColor   = AMBER;  midOp    = 0.78 + 0.18 * Math.sin(t * 2.4 + 1);
-      outerColor = AMBER;  outerOp  = 0.68 + 0.18 * Math.sin(t * 1.8 + 2);
-      hubColor   = AMBER;  hubOp    = 0.95;
-      spokeOp = 0.65 + 0.25 * Math.sin(t * 2.0);
+      coreColor  = AMBER_GOLD;
+      auraColor  = AMBER_GOLD;
+      coreGlow   = 0.95 + 0.05 * Math.sin(t * 4);
+      spokeColor = AMBER_GOLD;
+      spokeOp    = 0.85;
     } else if (progress >= 0.82) {
-      innerColor = CRYSTAL; innerOp  = 0.78 + 0.18 * Math.sin(t * 2.8);
-      midColor   = CRYSTAL; midOp    = 0.68 + 0.18 * Math.sin(t * 2.1);
-      outerColor = CRYSTAL; outerOp  = 0.58 + 0.18 * Math.sin(t * 1.6);
-      hubColor   = CRYSTAL; hubOp    = 0.82;
+      coreColor  = CRYSTAL_BLUE;
+      auraColor  = CYAN_BRIGHT;
+      spokeColor = CRYSTAL_BLUE;
     } else if (progress >= 0.68) {
-      outerColor = MINT;   outerOp  = 0.66 + 0.18 * Math.sin(t * 1.8);
-      midColor   = VIOLET; midOp    = 0.44;
-      innerColor = CYAN;   innerOp  = 0.44;
-      hubColor   = MINT;   hubOp    = 0.70;
+      coreColor  = EMERALD_MINT;
+      auraColor  = EMERALD_MINT;
+      spokeColor = EMERALD_MINT;
     } else if (progress >= 0.54) {
-      midColor   = VIOLET; midOp    = 0.62 + 0.18 * Math.sin(t * 2.2);
-      innerColor = CYAN;   innerOp  = 0.44;
-      outerColor = SLATE;  outerOp  = 0.20;
-      hubColor   = VIOLET; hubOp    = 0.66;
+      coreColor  = INDIGO_VIOLET;
+      auraColor  = INDIGO_VIOLET;
+      spokeColor = INDIGO_VIOLET;
     } else if (progress >= 0.40) {
-      innerColor = CYAN;   innerOp  = 0.58 + 0.20 * Math.sin(t * 2.6);
-      midColor   = SLATE;  midOp    = 0.24;
-      outerColor = SLATE;  outerOp  = 0.18;
-      hubColor   = CYAN;   hubOp    = 0.62;
+      coreColor  = CYAN_BRIGHT;
+      auraColor  = CYAN_CORE;
+      spokeColor = CYAN_BRIGHT;
     }
 
-    // ── Apply rotation ─────────────────────────────────────────────────────
-    if (innerRef.current) {
-      innerRef.current.rotation.z = t * 0.9;
-      const mat = innerRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(innerColor);
-      mat.opacity = innerOp;
-    }
-    if (midRef.current) {
-      midRef.current.rotation.z = -t * 0.55;
-      const mat = midRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(midColor);
-      mat.opacity = midOp;
-    }
-    if (outerRef.current) {
-      outerRef.current.rotation.z = t * 0.3;
-      const mat = outerRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(outerColor);
-      mat.opacity = outerOp;
-    }
-    if (hubRef.current) {
-      hubRef.current.rotation.y = t * 1.2;
-      const mat = hubRef.current.material as THREE.MeshBasicMaterial;
-      mat.color.setHex(hubColor);
-      mat.opacity = hubOp;
+    // ── Plasma Core Orb ──────────────────────────────────────────────────────
+    if (plasmaCoreRef.current) {
+      const mat = plasmaCoreRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(coreColor);
+      mat.opacity = coreGlow;
+      plasmaCoreRef.current.scale.setScalar(1 + Math.sin(t * 4) * 0.12);
     }
 
-    // ── Spoke opacity ───────────────────────────────────────────────────────
-    spokeRefs.current.forEach((spoke) => {
+    if (plasmaAuraRef.current) {
+      const mat = plasmaAuraRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(auraColor);
+      mat.opacity = 0.35 + 0.15 * Math.sin(t * 2.5);
+      plasmaAuraRef.current.scale.setScalar(1.4 + Math.cos(t * 3) * 0.15);
+    }
+
+    // ── Concentric Gyroscopic Rings ──────────────────────────────────────────
+    if (innerRingRef.current) {
+      innerRingRef.current.rotation.z = t * 1.4;
+      const mat = innerRingRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(coreColor);
+      mat.opacity = 0.65 + 0.25 * Math.sin(t * 2.8);
+    }
+
+    if (midRingRef.current) {
+      midRingRef.current.rotation.z = -t * 0.9;
+      const mat = midRingRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(auraColor);
+      mat.opacity = 0.55 + 0.25 * Math.sin(t * 2.2 + 1);
+    }
+
+    if (outerRingRef.current) {
+      outerRingRef.current.rotation.z = t * 0.5;
+      const mat = outerRingRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(coreColor);
+      mat.opacity = 0.45 + 0.2 * Math.sin(t * 1.8 + 2);
+    }
+
+    // ── Spherical Gimbal Cages ───────────────────────────────────────────────
+    if (gimbalXRef.current) {
+      gimbalXRef.current.rotation.x = t * 0.8;
+      const mat = gimbalXRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(auraColor);
+      mat.opacity = 0.25 + 0.1 * Math.sin(t * 2);
+    }
+
+    if (gimbalYRef.current) {
+      gimbalYRef.current.rotation.y = -t * 0.7;
+      const mat = gimbalYRef.current.material as THREE.MeshBasicMaterial;
+      mat.color.setHex(coreColor);
+      mat.opacity = 0.22 + 0.1 * Math.cos(t * 2);
+    }
+
+    // ── Spoke Conduits & Telemetry Notches ────────────────────────────────────
+    spokeRefs.current.forEach((spoke, idx) => {
       const mat = spoke.material as THREE.LineBasicMaterial;
       mat.opacity = spokeOp;
-      if (progress >= 0.92) mat.color.setHex(AMBER);
-      else if (progress >= 0.82) mat.color.setHex(CRYSTAL);
-      else mat.color.setHex(SLATE);
+      mat.color.setHex(spokeColor);
+      spoke.rotation.y = t * 0.15;
+    });
+
+    notchRefs.current.forEach((notch) => {
+      const mat = notch.material as THREE.LineBasicMaterial;
+      mat.opacity = spokeOp * 0.8;
+      mat.color.setHex(spokeColor);
+      notch.rotation.y = -t * 0.1;
     });
   });
 
   return (
     <group ref={groupRef} position={[0, 0, 0]}>
-      {/* Hub */}
-      <mesh ref={hubRef}>
-        <sphereGeometry args={[0.32, 20, 20]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.38} />
+      {/* 1. Plasma Core Energy Orb */}
+      <mesh ref={plasmaCoreRef}>
+        <sphereGeometry args={[0.42, 24, 24]} />
+        <meshBasicMaterial color={CYAN_CORE} transparent opacity={0.8} />
       </mesh>
 
-      {/* Inner ring — radius 1.75, fastest CW */}
-      <mesh ref={innerRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.75, 0.055, 10, 80]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.28} />
+      {/* 2. Plasma Corona Aura */}
+      <mesh ref={plasmaAuraRef}>
+        <sphereGeometry args={[0.62, 18, 18]} />
+        <meshBasicMaterial color={CYAN_BRIGHT} transparent opacity={0.3} wireframe={true} />
       </mesh>
 
-      {/* Middle ring — radius 2.55, CCW */}
-      <mesh ref={midRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[2.55, 0.055, 10, 88]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.22} />
+      {/* 3. High-Velocity Inner Ring */}
+      <mesh ref={innerRingRef} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.6, 0.05, 10, 80]} />
+        <meshBasicMaterial color={CYAN_BRIGHT} transparent opacity={0.5} />
       </mesh>
 
-      {/* Outer ring — radius 3.45, slowest CW */}
-      <mesh ref={outerRef} rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[3.45, 0.06, 10, 96]} />
-        <meshBasicMaterial color={SLATE} transparent opacity={0.18} />
+      {/* 4. Interlocking Mid Ring */}
+      <mesh ref={midRingRef} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[2.6, 0.055, 10, 90]} />
+        <meshBasicMaterial color={INDIGO_VIOLET} transparent opacity={0.4} />
       </mesh>
 
-      {/* 10 Radial spokes — created in useMemo, never inline */}
+      {/* 5. Outer Beveled Stator Ring */}
+      <mesh ref={outerRingRef} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[3.6, 0.065, 10, 100]} />
+        <meshBasicMaterial color={CYAN_CORE} transparent opacity={0.35} />
+      </mesh>
+
+      {/* 6. Vertical 3D Gimbal Cages */}
+      <mesh ref={gimbalXRef}>
+        <torusGeometry args={[2.2, 0.025, 8, 70]} />
+        <meshBasicMaterial color={CYAN_BRIGHT} transparent opacity={0.2} />
+      </mesh>
+
+      <mesh ref={gimbalYRef} rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[3.1, 0.025, 8, 70]} />
+        <meshBasicMaterial color={INDIGO_VIOLET} transparent opacity={0.18} />
+      </mesh>
+
+      {/* 7. Laser Spokes & Telemetry Ticks */}
       {spokeObjects.map((obj, i) => (
-        <primitive key={i} object={obj} />
+        <primitive key={`spoke-${i}`} object={obj} />
+      ))}
+      {notchObjects.map((obj, i) => (
+        <primitive key={`notch-${i}`} object={obj} />
       ))}
     </group>
   );
