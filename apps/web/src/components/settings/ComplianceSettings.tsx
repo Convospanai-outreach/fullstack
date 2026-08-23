@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { setComplianceMode } from '@/app/actions/hardware';
 import ComplianceLog from './ComplianceLog';
+import EdgeNodeStatus from './EdgeNodeStatus';
 
 export default function ComplianceSettings() {
     const [region, setRegion] = useState<'INDIA' | 'EU'>('INDIA');
@@ -51,6 +52,9 @@ export default function ComplianceSettings() {
                     <strong>Disclaimer:</strong> This tool acts as a data processor. The user retains full responsibility as the Data Fiduciary/Controller. This device does not replace a legal DPO.
                 </div>
             </div>
+
+            {/* EDGE NODE STATUS */}
+            <EdgeNodeStatus />
 
             {/* REGION SETTINGS */}
             <div className="flex items-center justify-between p-4 bg-gray-800 rounded">

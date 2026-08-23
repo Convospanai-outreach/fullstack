@@ -35,6 +35,23 @@ export interface IdentityResponse {
     [key: string]: any;
 }
 
+export interface EdgeNodeStatus {
+    connected: boolean;
+    hardwareId?: string;
+    signatureMatch?: boolean;
+    latencyMs?: number;
+    error?: string;
+}
+
+export interface ActivityEntry {
+    id: string;
+    function: string;
+    entityTypes: string[] | null;
+    entityCount: number;
+    sessionId: string | null;
+    createdAt: string;
+}
+
 export class HardwareService {
     private static async callAPI(action: string, payload: any) {
         const response = await fetch(`${API_BASE}/hardware`, {
@@ -87,5 +104,22 @@ export class HardwareService {
 
     static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
         return await this.callAPI("RE_IDENTIFY", { maskedId, purpose });
+    }
+
+    static async getStatus(): Promise<EdgeNodeStatus> {
+        try {
+            return await this.callAPI("STATUS", {});
+        } catch (error: any) {
+            return { connected: false, error: error.message };
+        }
+    }
+
+    static async getActivity(limit = 50): Promise<ActivityEntry[]> {
+        try {
+            const data = await this.callAPI("ACTIVITY", { limit });
+            return data.activity;
+        } catch {
+            return [];
+        }
     }
 }

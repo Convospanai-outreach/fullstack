@@ -56,6 +56,19 @@ class EdgeSetting(Base):
     value = Column(String, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
+class EdgeActivityLog(Base):
+    """Records that a PII/critique/generation function ran, and what kind
+    of entities it touched - never the plaintext content itself. This is
+    the source for the node's status/activity feed."""
+    __tablename__ = "edge_activity_log"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    function = Column(String, index=True) # sanitize, reidentify, critique, generate_offline, execute
+    entity_types = Column(JSON, nullable=True) # e.g. ["PERSON", "EMAIL_ADDRESS"]
+    entity_count = Column(Integer, default=0)
+    session_id = Column(String, index=True, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
 def init_db():
     if engine.dialect.name == "postgresql":
         with engine.begin() as connection:

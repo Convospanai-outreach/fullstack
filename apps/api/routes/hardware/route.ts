@@ -44,6 +44,12 @@ export async function POST(req: Request) {
             case "RE_IDENTIFY":
                 result = await HardwareService.reIdentify(maskedId, purpose);
                 break;
+            case "STATUS":
+                result = await HardwareService.getStatus();
+                break;
+            case "ACTIVITY":
+                result = { activity: await HardwareService.getActivity(body.limit) };
+                break;
             default:
                 return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: { 'Content-Type': 'application/json' } });
         }
