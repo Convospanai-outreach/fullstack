@@ -6,9 +6,9 @@ import ReactMarkdown from 'react-markdown';
 import { ArrowLeft } from 'lucide-react';
 
 interface BlogPostPageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 // Generate static params for SEO/performance
@@ -20,7 +20,8 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
-  const post = getBlogPostBySlug(params.slug);
+  const resolvedParams = await params;
+  const post = getBlogPostBySlug(resolvedParams.slug);
 
   if (!post) {
     return {
@@ -45,8 +46,9 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
   };
 }
 
-export default function BlogPostPage({ params }: BlogPostPageProps) {
-  const post = getBlogPostBySlug(params.slug);
+export default async function BlogPostPage({ params }: BlogPostPageProps) {
+  const resolvedParams = await params;
+  const post = getBlogPostBySlug(resolvedParams.slug);
 
   if (!post) {
     notFound();
