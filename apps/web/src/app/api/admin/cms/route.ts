@@ -25,68 +25,6 @@ function getSafePath(file: string): string {
     return resolved;
 }
 
-// Helper to get GitHub token dynamically from Windows Credential Manager
-function getGitToken(): string | null {
-    try {
-        const tmpDir = path.join(process.cwd(), "tmp");
-        if (!fs.existsSync(tmpDir)) {
-            fs.mkdirSync(tmpDir, { recursive: true });
-        }
-        
-        // Inline PowerShell command to query Credential Manager using customized TEMP/TMP
-        const psCommand = `
-            $env:TEMP = "${tmpDir.replace(/\\/g, '\\\\')}"
-            $env:TMP = "${tmpDir.replace(/\\/g, '\\\\')}"
-            $code = @"
-            using System;
-            using System.Runtime.InteropServices;
-            public class CredReader {
-                [DllImport("advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
-                public static extern bool CredRead(string target, uint type, int reserved, out IntPtr credentialPtr);
-                [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-                public struct CREDENTIAL {
-                    public uint Flags;
-                    public uint Type;
-                    public string TargetName;
-                    public string Comment;
-                    public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
-                    public uint CredentialBlobSize;
-                    public IntPtr CredentialBlob;
-                    public uint Persist;
-                    public uint AttributeCount;
-                    public IntPtr Attributes;
-                    public string TargetAlias;
-                    public string UserName;
-                }
-                public static string GetPassword(string target) {
-                    IntPtr credPtr = IntPtr.Zero;
-                    if (CredRead(target, 1, 0, out credPtr)) {
-                        CREDENTIAL cred = (CREDENTIAL)Marshal.PtrToStructure(credPtr, typeof(CREDENTIAL));
-                        byte[] blob = new byte[cred.CredentialBlobSize];
-                        Marshal.Copy(cred.CredentialBlob, blob, 0, (int)cred.CredentialBlobSize);
-                        return System.Text.Encoding.Unicode.GetString(blob);
-                    }
-                    return null;
-                }
-            }
-"@
-            Add-Type -TypeDefinition $code
-            [CredReader]::GetPassword("git:https://github.com")
-        `;
-
-        const output = execSync(`powershell -NoProfile -Command "${psCommand.replace(/\n/g, ' ')}"`, {
-            encoding: "utf8",
-            windowsHide: true,
-        });
-
-        const token = output.trim();
-        return token && token.startsWith("github_pat_") ? token : null;
-    } catch (err) {
-        console.error("[CMS Git Helper] Failed to resolve token:", err);
-        return null;
-    }
-}
-
 export async function GET(req: NextRequest) {
     const enterpriseRole = await getActorEnterpriseRole();
     if (!canAccessCMS(enterpriseRole)) {
@@ -161,22 +99,9 @@ export async function PUT(req: NextRequest) {
         // 2. Commit the file
         execSync(`git commit -m "cms: auto-update content file: ${file}"`, { cwd: process.cwd() });
 
-        // 3. Retrieve token and push
-        const token = getGitToken();
-        if (token) {
-            // Push with temporary authenticated URL
-            const authedUrl = `https://x-access-token:${token}@github.com/Convospanai-outreach/fullstack.git`;
-            execSync(`git remote set-url origin "${authedUrl}"`, { cwd: process.cwd() });
-            try {
-                execSync("git push origin HEAD", { cwd: process.cwd() });
-            } finally {
-                // Restore origin URL
-                execSync("git remote set-url origin \"https://github.com/Convospanai-outreach/fullstack.git\"", { cwd: process.cwd() });
-            }
-        } else {
-            // Fallback push (rely on pre-stored SSH / system helpers)
-            execSync("git push origin HEAD", { cwd: process.cwd() });
-        }
+        // 3. Push using the system's own git credential helper - never read
+        // or embed a token in the remote URL from application code.
+        execSync("git push origin HEAD", { cwd: process.cwd() });
 
         return NextResponse.json({ success: true, message: "Sync complete" });
     } catch (err: any) {
