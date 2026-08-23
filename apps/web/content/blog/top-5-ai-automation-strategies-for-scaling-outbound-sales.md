@@ -1,7 +1,7 @@
 ---
 title: "Top 5 AI Automation Strategies for Scaling Outbound Sales"
 description: "Learn the top 5 AI automation strategies to scale your outbound sales, boost reply rates, and build a massive B2B pipeline using autonomous agents and LLMs."
-date: "2026-08-23T02:00:00.000Z"
+date: "2026-08-23T05:30:00.000Z"
 ---
 
 Scaling outbound sales has traditionally been a brute-force exercise: hire more SDRs, buy larger lead lists, and send more emails. However, as buyers become increasingly immune to generic outreach, this "spray and pray" approach is resulting in diminishing returns and burned domains.

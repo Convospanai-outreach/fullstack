@@ -14,9 +14,32 @@ export const metadata: Metadata = {
 
 export default function BlogIndex() {
   const posts = getBlogPosts();
+  const siteUrl = (process.env["NEXT_PUBLIC_SITE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
+
+  const collectionSchema = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "The AI Agent & LLM Automation Blog",
+    "description": "Deep dives into AI automation, LLM workflows, and building autonomous systems for revenue growth.",
+    "url": `${siteUrl}/blog`,
+    "mainEntity": {
+      "@type": "ItemList",
+      "itemListElement": posts.map((post, idx) => ({
+        "@type": "ListItem",
+        "position": idx + 1,
+        "url": `${siteUrl}/blog/${post.slug}`,
+        "name": post.title,
+        "description": post.description,
+      })),
+    },
+  };
 
   return (
     <div className="container mx-auto px-4 py-16 max-w-5xl">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+      />
       <div className="mb-12">
         <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-foreground">
           The AI Agent & LLM Blog
