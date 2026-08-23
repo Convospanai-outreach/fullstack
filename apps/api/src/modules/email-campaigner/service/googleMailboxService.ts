@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import crypto from "crypto";
+import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
 
 const db = prisma;
 
@@ -1403,10 +1404,7 @@ async function createInboundCampaignEvent(input: {
                 where: { id: matchedEmail.id },
                 data: { repliedAt: new Date(), status: "replied" },
             });
-            await tx.lead.update({
-                where: { id: matchedEmail.leadId },
-                data: { status: "REPLIED", updatedAt: new Date() },
-            });
+            await advanceLeadAfterReply(tx, { leadId: matchedEmail.leadId, teamId });
             await tx.connectedMailbox.update({
                 where: { id: mailbox.id },
                 data: { replyCount: { increment: 1 } },

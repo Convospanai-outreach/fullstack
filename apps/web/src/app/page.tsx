@@ -15,7 +15,7 @@ export default function Home() {
       <div className="flex-1 w-full relative z-10">
         <CinematicHome />
       </div>
-      <Footer />
+      <Footer hideCTA={true} />
     </div>
   );
 }

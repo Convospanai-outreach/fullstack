@@ -3,6 +3,7 @@ import { emailService } from "@/modules/email-campaigner";
 import { aiService } from "@/lib/aiService";
 import { logger, logWorker } from "@/lib/logger";
 import { JobPayload } from "@/lib/queue";
+import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 
 /**
  * Email sending worker
@@ -57,11 +58,9 @@ export async function handleEmailSend(payload: JobPayload) {
         metadata
     );
 
-        // Update lead status
-        await prisma.lead.update({
-            where: { id: leadId },
-            data: { status: "contacted" },
-        });
+        // Advance lead status/pipelineState (CONTACTED / COLD->WARM), matching
+        // the uppercase status values the dashboard funnel query counts on.
+        await advanceLeadAfterEmailSent(prisma, { leadId, teamId: resolvedTeamId, campaignId });
 
         // Update campaign completed count
         await prisma.campaign.update({

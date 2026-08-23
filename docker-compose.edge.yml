@@ -4,7 +4,7 @@ services:
   craftmyfunnel-web:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/web/Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -17,11 +17,14 @@ services:
 
   edge-node-sim:
     build:
-      context: ./services/edge-node
+      context: ./apps/edge-fastapi
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
+      - EDGE_MODE=true
+      - EDGE_API_KEY=local-sim-key-change-me
+      - EDGE_VAULT_KEY=${EDGE_VAULT_KEY:-} # generate with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
       - HARDWARE_SIGNATURE=uuid-550e8400-e29b-41d4-a716-446655440000
       - DATABASE_URL=postgresql://postgres:postgres@postgres-edge:5432/edge_db
     depends_on:

@@ -12,3 +12,11 @@ export async function setComplianceMode(region: 'INDIA' | 'EU'): Promise<void> {
         throw new Error("Failed to update compliance mode on Edge Node.");
     }
 }
+
+export async function getEdgeNodeStatus() {
+    return HardwareService.getStatus();
+}
+
+export async function getEdgeNodeActivity(limit = 50) {
+    return HardwareService.getActivity(limit);
+}

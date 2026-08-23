@@ -12,6 +12,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ file
     const { filename } = await params;
     // Basic sanitization
     const safeFilename = path.basename(filename);
+
+    // Authorization check: ensure the file belongs to the user's team
+    if (!safeFilename.startsWith(`${teamId}_`)) {
+        return new NextResponse("Forbidden", { status: 403 });
+    }
+
     const filePath = path.join(process.cwd(), "storage", "exports", safeFilename);
 
     if (!fs.existsSync(filePath)) {

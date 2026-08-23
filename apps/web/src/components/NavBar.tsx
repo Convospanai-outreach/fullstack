@@ -33,7 +33,7 @@ const NAV_GROUPS = [
     items: [
       { label: "How it works", href: "/#dashboard-preview" },
       { label: "Pilot programme", href: "/#pilot" },
-      { label: "Pricing", href: "/pricing" },
+      { label: "Pricing", href: "/pricing", badge: "Popular" },
       { label: "About", href: "/about" },
     ],
   },
@@ -136,9 +136,10 @@ export function NavBar() {
           </Link>
           <Link
             href="/signup"
-            className="rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
+            className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:brightness-110"
           >
-            Get Started
+            <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
+            <span className="relative z-10">Get Started</span>
           </Link>
         </div>
 
@@ -198,10 +199,11 @@ export function NavBar() {
               </Link>
               <Link
                 href="/signup"
-                className="rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
+                className="group relative rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
                 onClick={() => setMobileOpen(false)}
               >
-                Get Started
+                <span className="absolute inset-0 rounded-full bg-cyan-400 blur-md opacity-40 animate-pulse group-hover:opacity-75 transition-opacity" />
+                <span className="relative z-10">Get Started</span>
               </Link>
             </div>
           </div>

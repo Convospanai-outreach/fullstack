@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Depends, Header
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from pydantic import BaseModel, Field
-from database import init_db, get_db, SessionLocal, WorkflowRecord, EdgeSetting
+from database import init_db, get_db, SessionLocal, WorkflowRecord, EdgeSetting, EdgeActivityLog
 
 # Logging
 import contextvars
@@ -361,6 +361,25 @@ def list_workflows(db: Session = Depends(get_db)):
         for record in records
     ]
 
+@app.get("/activity", dependencies=[Depends(require_edge_api_key)])
+def list_activity(limit: int = 50, db: Session = Depends(get_db)):
+    """Recent node activity: what function ran, entity types/counts touched,
+    when. Never returns plaintext PII - only metadata about what was done.
+    Backs the dashboard's edge-node status feed."""
+    limit = min(max(limit, 1), 200)
+    records = db.query(EdgeActivityLog).order_by(EdgeActivityLog.created_at.desc()).limit(limit).all()
+    return [
+        {
+            "id": record.id,
+            "function": record.function,
+            "entityTypes": record.entity_types,
+            "entityCount": record.entity_count,
+            "sessionId": record.session_id,
+            "createdAt": record.created_at.isoformat(),
+        }
+        for record in records
+    ]
+
 @app.post("/compliance/mode", dependencies=[Depends(require_edge_api_key)])
 def set_compliance_mode(request: ComplianceModeRequest, db: Session = Depends(get_db)):
     """Region Compliance: Persist the active data-residency mode"""
@@ -379,15 +398,17 @@ def set_compliance_mode(request: ComplianceModeRequest, db: Session = Depends(ge
 
 @app.post("/execute", dependencies=[Depends(require_edge_api_key)])
 def execute_browser_action(request: ExecuteRequest):
-    """Secured Proxy for Browser Node (Puppeteer)"""
+    """STUB: does not yet drive the Browser Node (Puppeteer). Logs and
+    acknowledges the request only - no browser action is actually performed.
+    See OPEN_ITEMS.md for tracking."""
     if not EDGE_EXECUTE_ENABLED:
         raise HTTPException(status_code=403, detail="Edge execution is disabled")
-    
-    logger.info(f"PHYSICAL ACTUATOR: Executing {request.action} with {request.payload}")
-    
+
+    logger.info(f"PHYSICAL ACTUATOR (STUB, NOT WIRED): Would execute {request.action} with {request.payload}")
+
     return {
-        "status": "SUCCESS", 
-        "message": f"Executed {request.action}",
+        "status": "SUCCESS",
+        "message": f"Stub-executed {request.action} (no real browser action performed)",
         "hardware_ack": str(uuid.uuid4())
     }
 

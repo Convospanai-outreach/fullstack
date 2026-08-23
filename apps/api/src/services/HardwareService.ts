@@ -43,6 +43,23 @@ export interface IdentityResponse {
     [key: string]: any;
 }
 
+export interface EdgeNodeStatus {
+    connected: boolean;
+    hardwareId?: string;
+    signatureMatch?: boolean;
+    latencyMs?: number;
+    error?: string;
+}
+
+export interface ActivityEntry {
+    id: string;
+    function: string;
+    entityTypes: string[] | null;
+    entityCount: number;
+    sessionId: string | null;
+    createdAt: string;
+}
+
 export class HardwareService {
     /**
      * Verifies that the physical hardware is present and matches the signature.
@@ -89,6 +106,69 @@ export class HardwareService {
         } catch (error: any) {
             logger.error('[HardwareService] CRITICAL: Hardware verification failed.', error);
             throw new Error(`Hardware Verification Failed: ${error.message}. Ensure the PHYSICAL DEVICE is connected.`);
+        }
+    }
+
+    /**
+     * Non-throwing connection check for dashboard display. Unlike
+     * verifyHardwareIdentity(), this never throws - it reports the
+     * connection state so the UI can show "disconnected" instead of erroring.
+     */
+    static async getStatus(): Promise<EdgeNodeStatus> {
+        const startedAt = Date.now();
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            const response = await fetch(`${EDGE_NODE_URI}/health`, {
+                headers: edgeHeaders(),
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            const latencyMs = Date.now() - startedAt;
+
+            if (!response.ok) {
+                return { connected: false, latencyMs, error: `HTTP ${response.status}` };
+            }
+
+            const data = await response.json();
+            const expectedSig = process.env['HARDWARE_SIGNATURE'];
+            return {
+                connected: data.status === 'ONLINE',
+                hardwareId: data.hardware_id,
+                signatureMatch: expectedSig ? data.hardware_id === expectedSig : undefined,
+                latencyMs,
+            };
+        } catch (error: any) {
+            return { connected: false, latencyMs: Date.now() - startedAt, error: error.message };
+        }
+    }
+
+    /**
+     * Recent node activity feed - function name, entity types/counts touched,
+     * timestamps. The edge node never includes plaintext PII in this response.
+     */
+    static async getActivity(limit = 50): Promise<ActivityEntry[]> {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const response = await fetch(`${EDGE_NODE_URI}/activity?limit=${limit}`, {
+                headers: edgeHeaders(),
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+            const data = await response.json();
+            return data.map((entry: any) => ({
+                id: entry.id,
+                function: entry.function,
+                entityTypes: entry.entityTypes,
+                entityCount: entry.entityCount,
+                sessionId: entry.sessionId,
+                createdAt: entry.createdAt,
+            }));
+        } catch (error: any) {
+            logger.error("Hardware Activity Fetch Error:", error);
+            return [];
         }
     }
 
