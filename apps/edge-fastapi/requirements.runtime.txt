@@ -4,6 +4,8 @@
 fastapi
 uvicorn
 pydantic
+cryptography
+httpx
 sqlalchemy
 psycopg2-binary
 pgvector
