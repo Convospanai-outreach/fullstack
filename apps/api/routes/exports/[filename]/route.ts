@@ -4,8 +4,8 @@ import fs from "fs";
 import path from "path";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ filename: string }> }) {
-    const { userId } = await getCurrentContextFromRequest(req);
-    if (!userId) {
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
+    if (!userId || !teamId) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 

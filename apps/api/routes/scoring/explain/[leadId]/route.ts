@@ -22,8 +22,6 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { leadId } = await params;
-
         if (!leadId) {
             return NextResponse.json(
                 { error: "leadId is required" },
