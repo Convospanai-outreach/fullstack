@@ -57,6 +57,25 @@ function normalize(value: number, max: number) {
     return clamp01(value / max);
 }
 
+function tierForScore(score: number, config: ScoringConfig): "HOT" | "WARM" | "COLD" {
+    return score >= config.thresholds.hot ? "HOT" : score >= config.thresholds.warm ? "WARM" : "COLD";
+}
+
+function deriveEmailEngagement(emails: Array<{ openedAt: Date | null; clickedAt: Date | null }>) {
+    const realEmailClicks = emails.filter(e => e.clickedAt).length;
+    let optimalSendHour = 10;
+    const openedEmails = emails.filter(e => e.openedAt);
+    if (openedEmails.length > 0) {
+        const hours = openedEmails.map(e => new Date(e.openedAt!).getHours());
+        const counts = hours.reduce((acc, h) => {
+            acc[h] = (acc[h] || 0) + 1;
+            return acc;
+        }, {} as Record<number, number>);
+        optimalSendHour = Number(Object.keys(counts).reduce((a, b) => counts[Number(a)] > counts[Number(b)] ? a : b));
+    }
+    return { realEmailClicks, optimalSendHour, hasOpenData: openedEmails.length > 0 };
+}
+
 function sanitizeScoringInput(input: ScoringInput) {
     return {
         dwellTimeMinutes: Math.max(0, Number.isFinite(input.dwellTimeMinutes) ? input.dwellTimeMinutes : 0),
@@ -195,6 +214,7 @@ export class LeadScoringService {
                 dwellTimeMinutes: true,
                 emailClicks: true,
                 socialMentions: true,
+                intentScore: true,
                 pipelineState: true,
                 hotAt: true,
                 pipelineStateChangedAt: true,
@@ -211,22 +231,37 @@ export class LeadScoringService {
             // Soft fail: score with available data, don't block
             console.warn(`[LeadScoring] Lead ${leadId} has no consent — scoring with defaults.`);
         }
+
+        // Real engagement source of truth: the tracking pixel/click-redirect writes Email.openedAt/clickedAt.
+        // Lead.emailClicks has no real writer in production, so take whichever is higher.
+        const emails = await prisma.email.findMany({
+            where: { leadId },
+            select: { openedAt: true, clickedAt: true }
+        });
+        const { realEmailClicks, optimalSendHour: openBasedSendHour, hasOpenData } = deriveEmailEngagement(emails);
+
         const input = {
             dwellTimeMinutes: lead.dwellTimeMinutes ?? 0,
-            emailClicks: lead.emailClicks ?? 0,
+            emailClicks: Math.max(lead.emailClicks ?? 0, realEmailClicks),
             socialMentions: lead.socialMentions ?? 0,
             initialProfileFit: calculateInitialProfileFit(lead)
         };
         const score = computeScore(input, this.config);
         const explanation = buildExplanation(leadId, input, this.config);
 
-        // Derive new pipeline state from score tier
+        // intentScore is also written by netjanaIntelService via monotonic-max — mirror that here so an
+        // ordinary re-score (e.g. on campaign enrollment) can never silently downgrade a signal-qualified lead.
+        const priorIntentScore = lead.intentScore ?? 0;
+        const finalIntentScore = Math.max(score.score, priorIntentScore);
+        const finalTier = tierForScore(finalIntentScore, this.config);
+
+        // Derive new pipeline state from the persisted (monotonic-max) score, not just this run's raw engagement score
         let newPipelineState: string | null = null;
         const currentState = lead.pipelineState ?? "COLD";
         // Only advance state, never go backwards automatically
-        if (score.tier === "HOT" && currentState !== "HOT" && currentState !== "COORDINATING" && currentState !== "MEETING_CONFIRMED" && currentState !== "COMPLETED") {
+        if (finalTier === "HOT" && currentState !== "HOT" && currentState !== "COORDINATING" && currentState !== "MEETING_CONFIRMED" && currentState !== "COMPLETED") {
             newPipelineState = "HOT";
-        } else if (score.tier === "WARM" && currentState === "COLD") {
+        } else if (finalTier === "WARM" && currentState === "COLD") {
             newPipelineState = "WARM";
         }
 
@@ -237,9 +272,9 @@ export class LeadScoringService {
         const daysSinceStateChange = staleRef ? (Date.now() - new Date(staleRef).getTime()) / (1000 * 60 * 60 * 24) : 0;
         if ((newPipelineState || currentState) === "WARM" && daysSinceStateChange > 14) {
             churnRisk = 0.65 + Math.min(0.3, (daysSinceStateChange - 14) * 0.02);
-        } else if (score.score < 0.2) {
+        } else if (finalIntentScore < 0.2) {
             churnRisk = 0.85;
-        } else if (score.score >= 0.7) {
+        } else if (finalIntentScore >= 0.7) {
             churnRisk = 0.08;
         } else {
             churnRisk = Math.min(0.95, 0.12 + (daysSinceStateChange * 0.03));
@@ -248,36 +283,22 @@ export class LeadScoringService {
         // 2. K-means Clustering Cohort Label
         let clusterLabel = "NEW";
         const dealValue = lead.value ?? 0;
-        if (score.score >= 0.7 && dealValue >= 5000) {
+        if (finalIntentScore >= 0.7 && dealValue >= 5000) {
             clusterLabel = "HIGH_VALUE";
-        } else if (score.score < 0.3 && daysSinceStateChange > 30) {
+        } else if (finalIntentScore < 0.3 && daysSinceStateChange > 30) {
             clusterLabel = "DORMANT";
-        } else if (score.score >= 0.3 && score.score < 0.7 && churnRisk > 0.5) {
+        } else if (finalIntentScore >= 0.3 && finalIntentScore < 0.7 && churnRisk > 0.5) {
             clusterLabel = "AT_RISK";
-        } else if (score.score >= 0.7) {
+        } else if (finalIntentScore >= 0.7) {
             clusterLabel = "HIGH_VALUE"; // Default high-intent to high value
         }
 
         // 3. Optimal Reach Hour (based on real email opens mode)
-        let optimalSendHour = 10;
-        const openedEmails = await prisma.email.findMany({
-            where: { leadId, openedAt: { not: null } },
-            select: { openedAt: true }
-        });
-        if (openedEmails.length > 0) {
-            const hours = openedEmails.map(e => new Date(e.openedAt!).getHours());
-            const counts = hours.reduce((acc, h) => {
-                acc[h] = (acc[h] || 0) + 1;
-                return acc;
-            }, {} as Record<number, number>);
-            optimalSendHour = Number(Object.keys(counts).reduce((a, b) => counts[Number(a)] > counts[Number(b)] ? a : b));
-        } else {
-            optimalSendHour = leadId.charCodeAt(0) % 2 === 0 ? 10 : 14;
-        }
+        const optimalSendHour = hasOpenData ? openBasedSendHour : (leadId.charCodeAt(0) % 2 === 0 ? 10 : 14);
 
         const updateData: any = {
-            intentScore: score.score,
-            leadScore: Math.round(score.score * 100),
+            intentScore: finalIntentScore,
+            leadScore: Math.round(finalIntentScore * 100),
             lastScoredAt: new Date(),
             churnRisk,
             clusterLabel,
@@ -317,6 +338,7 @@ export class LeadScoringService {
                 dwellTimeMinutes: true,
                 emailClicks: true,
                 socialMentions: true,
+                intentScore: true,
                 pipelineState: true,
                 hotAt: true,
                 pipelineStateChangedAt: true,
@@ -342,27 +364,39 @@ export class LeadScoringService {
                 if (!lead.consentObtained) {
                     console.warn(`[BatchScoring] Lead ${lead.id} has no consent — scoring with defaults.`);
                 }
+
+                const emails = await prisma.email.findMany({
+                    where: { leadId: lead.id },
+                    select: { openedAt: true, clickedAt: true }
+                });
+                const { realEmailClicks, optimalSendHour: openBasedSendHour, hasOpenData } = deriveEmailEngagement(emails);
+
                 const input = {
                     dwellTimeMinutes: lead.dwellTimeMinutes ?? 0,
-                    emailClicks: lead.emailClicks ?? 0,
+                    emailClicks: Math.max(lead.emailClicks ?? 0, realEmailClicks),
                     socialMentions: lead.socialMentions ?? 0,
                     initialProfileFit: calculateInitialProfileFit(lead)
                 };
                 const score = computeScore(input, this.config);
-                totalScore += score.score;
+
+                const priorIntentScore = lead.intentScore ?? 0;
+                const finalIntentScore = Math.max(score.score, priorIntentScore);
+                const finalTier = tierForScore(finalIntentScore, this.config);
+
+                totalScore += finalIntentScore;
                 successful++;
-                if (score.tier === "HOT") hot++;
-                else if (score.tier === "WARM") warm++;
+                if (finalTier === "HOT") hot++;
+                else if (finalTier === "WARM") warm++;
                 else cold++;
 
                 // Determine pipeline state advancement
                 const currentState = lead.pipelineState ?? "COLD";
                 let newPipelineState: string | null = null;
                 let advancedToHot = false;
-                if (score.tier === "HOT" && currentState !== "HOT" && currentState !== "COORDINATING" && currentState !== "MEETING_CONFIRMED" && currentState !== "COMPLETED") {
+                if (finalTier === "HOT" && currentState !== "HOT" && currentState !== "COORDINATING" && currentState !== "MEETING_CONFIRMED" && currentState !== "COMPLETED") {
                     newPipelineState = "HOT";
                     advancedToHot = true;
-                } else if (score.tier === "WARM" && currentState === "COLD") {
+                } else if (finalTier === "WARM" && currentState === "COLD") {
                     newPipelineState = "WARM";
                 }
 
@@ -372,9 +406,9 @@ export class LeadScoringService {
                 const daysSinceStateChange = staleRef ? (Date.now() - new Date(staleRef).getTime()) / (1000 * 60 * 60 * 24) : 0;
                 if ((newPipelineState || currentState) === "WARM" && daysSinceStateChange > 14) {
                     churnRisk = 0.65 + Math.min(0.3, (daysSinceStateChange - 14) * 0.02);
-                } else if (score.score < 0.2) {
+                } else if (finalIntentScore < 0.2) {
                     churnRisk = 0.85;
-                } else if (score.score >= 0.7) {
+                } else if (finalIntentScore >= 0.7) {
                     churnRisk = 0.08;
                 } else {
                     churnRisk = Math.min(0.95, 0.12 + (daysSinceStateChange * 0.03));
@@ -383,36 +417,22 @@ export class LeadScoringService {
                 // 2. K-means Clustering Cohort Label
                 let clusterLabel = "NEW";
                 const dealValue = lead.value ?? 0;
-                if (score.score >= 0.7 && dealValue >= 5000) {
+                if (finalIntentScore >= 0.7 && dealValue >= 5000) {
                     clusterLabel = "HIGH_VALUE";
-                } else if (score.score < 0.3 && daysSinceStateChange > 30) {
+                } else if (finalIntentScore < 0.3 && daysSinceStateChange > 30) {
                     clusterLabel = "DORMANT";
-                } else if (score.score >= 0.3 && score.score < 0.7 && churnRisk > 0.5) {
+                } else if (finalIntentScore >= 0.3 && finalIntentScore < 0.7 && churnRisk > 0.5) {
                     clusterLabel = "AT_RISK";
-                } else if (score.score >= 0.7) {
+                } else if (finalIntentScore >= 0.7) {
                     clusterLabel = "HIGH_VALUE";
                 }
 
                 // 3. Optimal Reach Hour (based on real email opens mode)
-                let optimalSendHour = 10;
-                const openedEmails = await prisma.email.findMany({
-                    where: { leadId: lead.id, openedAt: { not: null } },
-                    select: { openedAt: true }
-                });
-                if (openedEmails.length > 0) {
-                    const hours = openedEmails.map(e => new Date(e.openedAt!).getHours());
-                    const counts = hours.reduce((acc, h) => {
-                        acc[h] = (acc[h] || 0) + 1;
-                        return acc;
-                    }, {} as Record<number, number>);
-                    optimalSendHour = Number(Object.keys(counts).reduce((a, b) => counts[Number(a)] > counts[Number(b)] ? a : b));
-                } else {
-                    optimalSendHour = lead.id.charCodeAt(0) % 2 === 0 ? 10 : 14;
-                }
+                const optimalSendHour = hasOpenData ? openBasedSendHour : (lead.id.charCodeAt(0) % 2 === 0 ? 10 : 14);
 
                 const updateData: any = {
-                    intentScore: score.score,
-                    leadScore: Math.round(score.score * 100),
+                    intentScore: finalIntentScore,
+                    leadScore: Math.round(finalIntentScore * 100),
                     lastScoredAt: new Date(),
                     churnRisk,
                     clusterLabel,

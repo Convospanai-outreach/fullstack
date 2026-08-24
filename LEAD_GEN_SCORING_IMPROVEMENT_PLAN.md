@@ -1,11 +1,12 @@
 # Lead-Gen & Scoring: Improvement Plan
 
-Derived from `LEAD_GEN_SCORING_TRACE.md` (2026-08-24). This is a **plan, not a fix** — nothing in
-this document has been implemented. Findings tracked as OPEN-68 through OPEN-74.
+Derived from `LEAD_GEN_SCORING_TRACE.md` (2026-08-24). Findings tracked as OPEN-68 through OPEN-74.
+
+**Status (2026-08-24): Tier 1 (OPEN-68, OPEN-69) implemented and merged.** Tiers 2-4 remain plan-only.
 
 ## Priority order and reasoning
 
-**Tier 1 — fix first, they compound each other:**
+**Tier 1 — fix first, they compound each other: DONE**
 
 1. **OPEN-68 — connect real tracking to the scorer.** `scoreAndPersist` should read
    `Email.openedAt`/`clickedAt` (already being written correctly) instead of the disconnected
