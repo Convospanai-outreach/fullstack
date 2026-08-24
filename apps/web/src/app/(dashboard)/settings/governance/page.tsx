@@ -20,6 +20,7 @@ import {
     Shield
 } from 'lucide-react';
 import Link from 'next/link';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function GovernancePage() {
     const [policy, setPolicy] = useState<any>(null);
@@ -32,7 +33,7 @@ export default function GovernancePage() {
 
     const fetchPolicy = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/governance");
+            const res = await fetch(getBrowserApiBase() + "/settings/governance");
             const data = await res.json();
             setPolicy(data);
         } catch (err) {
@@ -50,7 +51,7 @@ export default function GovernancePage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/governance", {
+            const res = await fetch(getBrowserApiBase() + "/settings/governance", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(policy)

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import ScheduleCampaignModal from "./ScheduleCampaignModal";
 import { Calendar, BrainCircuit, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function CampaignList({ campaigns }: any) {
     const [running, setRunning] = useState<string | null>(null);
@@ -12,7 +13,7 @@ export default function CampaignList({ campaigns }: any) {
     const handleRun = async (id: string) => {
         setRunning(id);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/orchestrator/run", {
+            const res = await fetch(getBrowserApiBase() + "/orchestrator/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ campaignId: id }),

@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function VerifyEmailPage() {
     const router = useRouter();
@@ -27,7 +28,7 @@ export default function VerifyEmailPage() {
 
     const verifyEmail = async (token: string) => {
         try {
-            const response = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/auth/verify-email?token=${token}`);
+            const response = await fetch(`${getBrowserApiBase()}/auth/verify-email?token=${token}`);
             const data = await response.json();
 
             if (response.ok && data.success) {
@@ -50,7 +51,7 @@ export default function VerifyEmailPage() {
 
     const handleResend = async () => {
         try {
-            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/auth/resend-verification", {
+            const response = await fetch(getBrowserApiBase() + "/auth/resend-verification", {
                 method: "POST"
             });
 

@@ -2,11 +2,12 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function TeamSettings() {
-    const { data: team, mutate } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team", fetcher);
+    const { data: team, mutate } = useSWR(getBrowserApiBase() + "/team", fetcher);
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState("member");
     const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export default function TeamSettings() {
         setLoading(true);
         setInviteLink(null);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team/invite", {
+            const res = await fetch(getBrowserApiBase() + "/team/invite", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
@@ -39,7 +40,7 @@ export default function TeamSettings() {
     const handleRemove = async (id: string) => {
         if (!confirm("Are you sure you want to remove this member?")) return;
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, { method: "DELETE" });
+            const res = await fetch(`${getBrowserApiBase()}/team/members/${id}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Failed to remove");
             toast.success("Member removed");
             mutate();
@@ -50,7 +51,7 @@ export default function TeamSettings() {
 
     const handleRoleUpdate = async (id: string, newRole: string) => {
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, {
+            const res = await fetch(`${getBrowserApiBase()}/team/members/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ role: newRole }),

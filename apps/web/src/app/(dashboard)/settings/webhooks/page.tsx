@@ -6,6 +6,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { Globe, Shield, Activity, Plus, Trash2, Eye, ShieldCheck, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const AVAILABLE_EVENTS = [
     { id: "lead.created", label: "Lead Created" },
@@ -32,7 +33,7 @@ export default function WebhooksPage() {
 
     const loadWebhooks = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/webhooks");
+            const res = await fetch(getBrowserApiBase() + "/settings/webhooks");
             const data = await res.json();
             setWebhooks(data);
         } catch (e) {
@@ -45,7 +46,7 @@ export default function WebhooksPage() {
     const handleCreate = async () => {
         if (!newUrl) return;
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/webhooks", {
+            const res = await fetch(getBrowserApiBase() + "/settings/webhooks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ url: newUrl, events: selectedEvents })
@@ -65,7 +66,7 @@ export default function WebhooksPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Delete this webhook and all logs?")) return;
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/settings/webhooks?id=${id}`, { method: "DELETE" });
+            const res = await fetch(`${getBrowserApiBase()}/settings/webhooks?id=${id}`, { method: "DELETE" });
             if (!res.ok) {
                 toast.error("Failed to delete webhook");
                 return;
@@ -80,7 +81,7 @@ export default function WebhooksPage() {
     const loadLogs = async (webhookId: string) => {
         setActiveWebhookId(webhookId);
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/settings/webhooks/logs?webhookId=${webhookId}`);
+            const res = await fetch(`${getBrowserApiBase()}/settings/webhooks/logs?webhookId=${webhookId}`);
             const data = await res.json();
             setSelectedWebhookLogs(data);
         } catch (e) {
@@ -96,7 +97,7 @@ export default function WebhooksPage() {
 
     const sendTest = async (webhookId: string) => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/webhooks/test", {
+            const res = await fetch(getBrowserApiBase() + "/settings/webhooks/test", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ webhookId })
@@ -113,7 +114,7 @@ export default function WebhooksPage() {
     const rotateSecret = async (webhookId: string) => {
         if (!confirm("Rotating the secret will immediately invalidate the previous one. Continue?")) return;
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/webhooks/secret", {
+            const res = await fetch(getBrowserApiBase() + "/settings/webhooks/secret", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ webhookId })

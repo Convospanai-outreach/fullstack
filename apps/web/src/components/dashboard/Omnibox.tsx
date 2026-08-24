@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { HIDDEN_FEATURES } from "@/lib/productFlags";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface SearchResults {
     leads: any[];
@@ -77,7 +78,7 @@ export function Omnibox() {
     const performSearch = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/search/global?q=${encodeURIComponent(query)}`);
+            const res = await fetch(`${getBrowserApiBase()}/search/global?q=${encodeURIComponent(query)}`);
             const data = await res.json();
             if (data.success) {
                 setResults(data.data);

@@ -13,6 +13,7 @@ import {
     Box,
     LayoutDashboard
 } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface AuditLogRow {
     id: string;
@@ -35,7 +36,7 @@ export default function AuditLogsPage() {
     useEffect(() => {
         const fetchLogs = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/audit");
+                const res = await fetch(getBrowserApiBase() + "/governance/audit");
                 const data = await res.json();
                 if (data.success) {
                     setLogs(data.logs);

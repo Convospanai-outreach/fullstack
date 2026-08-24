@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { ApprovalQueue } from "@/components/dashboard/widgets/ApprovalQueue";
 import { motion } from "framer-motion";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 function ActionButton({ endpoint, label, icon }: { endpoint: string, label: string, icon: React.ReactNode }) {
     const [loading, setLoading] = useState(false);
@@ -121,17 +122,17 @@ export default function OperatorView() {
                         </CardHeader>
                         <CardContent className="space-y-4 p-8">
                             <ActionButton
-                                endpoint={(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/actions/start-scrapers"}
+                                endpoint={getBrowserApiBase() + "/admin/actions/start-scrapers"}
                                 label="Trigger Data Ingestion"
                                 icon={<Play className="w-5 h-5 text-emerald-400" />}
                             />
                             <ActionButton
-                                endpoint={(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/actions/pause-outreach"}
+                                endpoint={getBrowserApiBase() + "/admin/actions/pause-outreach"}
                                 label="Halt Active Campaigns"
                                 icon={<Pause className="w-5 h-5 text-orange-400" />}
                             />
                             <ActionButton
-                                endpoint={(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/actions/sync-crm"}
+                                endpoint={getBrowserApiBase() + "/admin/actions/sync-crm"}
                                 label="Sync External Records"
                                 icon={<RefreshCw className="w-5 h-5 text-indigo-400" />}
                             />

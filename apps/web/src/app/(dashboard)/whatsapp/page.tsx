@@ -5,8 +5,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MessageCircle, Users, Phone } from "lucide-react";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy";
+const API_BASE = getBrowserApiBase();
 
 interface WhatsAppMessage {
     id: string;

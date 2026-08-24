@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface TimelineEvent {
     id: string;
@@ -31,7 +32,7 @@ export default function ExecutionTimeline({ campaignId }: { campaignId: string }
     const fetchTimeline = async () => {
         if (!campaignId || campaignId === "undefined") return;
         try {
-            const baseUrl = process.env['NEXT_PUBLIC_API_URL'] || '/api/proxy';
+            const baseUrl = getBrowserApiBase();
             const res = await fetch(`${baseUrl}/orchestrator/timeline?campaignId=${campaignId}`);
             if (!res.ok) return;
             const data = await res.json();

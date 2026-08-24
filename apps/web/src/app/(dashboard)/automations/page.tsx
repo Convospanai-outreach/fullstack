@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Automation {
     id: string;
@@ -26,7 +27,7 @@ export default function AutomationsPage() {
 
     const fetchAutomations = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/workflows");
+            const res = await fetch(getBrowserApiBase() + "/workflows");
             if (!res.ok) throw new Error("Failed to fetch automations");
             const data = await res.json();
             setAutomations(data);
@@ -40,7 +41,7 @@ export default function AutomationsPage() {
 
     const toggleAutomation = async (id: string, currentStatus: boolean) => {
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${id}`, {
+            const res = await fetch(`${getBrowserApiBase()}/workflows/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isActive: !currentStatus })

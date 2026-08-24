@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import BulkActions from "@/components/leads/BulkActions";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Lead {
     id: string;
@@ -55,7 +56,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
     const handleBulkDelete = async () => {
         if (!confirm(`Delete ${selectedIds.length} leads?`)) return;
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads/bulk", {
+            await fetch(getBrowserApiBase() + "/leads/bulk", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ids: selectedIds })
@@ -68,7 +69,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
 
     const handleBulkExport = () => {
         // In a real app, we'd POST ids to export endpoint
-        window.location.href = `${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/leads/export?ids=${selectedIds.join(",")}`;
+        window.location.href = `${getBrowserApiBase()}/leads/export?ids=${selectedIds.join(",")}`;
     };
 
     return (

@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface AuditLog {
     id: string;
@@ -45,7 +46,7 @@ export default function AuditLogPage() {
                 )
             });
 
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/admin/audit?${params}`);
+            const res = await fetch(`${getBrowserApiBase()}/admin/audit?${params}`);
             if (res.ok) {
                 const data = await res.json();
                 setLogs(data.logs);

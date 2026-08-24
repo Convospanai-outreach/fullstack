@@ -4,6 +4,7 @@ import React, { Component, ReactNode } from 'react';
 import { Button } from './ui/button';
 import { GlassCard } from './ui/GlassCard';
 import { AlertTriangle } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Props {
     children: ReactNode;
@@ -35,7 +36,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
     private logErrorToServer = async (error: Error, errorInfo: React.ErrorInfo) => {
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/errors/client', {
+            await fetch(getBrowserApiBase() + '/errors/client', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

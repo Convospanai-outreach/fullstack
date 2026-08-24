@@ -1,11 +1,12 @@
 "use client";
 import useSWR, { mutate } from "swr";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function NotificationSettings() {
-    const { data: prefs, error } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/notifications", fetcher);
+    const { data: prefs, error } = useSWR(getBrowserApiBase() + "/settings/notifications", fetcher);
 
     const handleToggle = async (key: string, value: boolean) => {
         // Optimistic update would be nice, but simple setState is okay for now
@@ -16,10 +17,10 @@ export default function NotificationSettings() {
         const newPrefs = { ...prefs, [key]: value };
 
         // Mutate local cache immediately
-        mutate((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/notifications", newPrefs, false);
+        mutate(getBrowserApiBase() + "/settings/notifications", newPrefs, false);
 
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/notifications", {
+            await fetch(getBrowserApiBase() + "/settings/notifications", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(newPrefs),
@@ -27,7 +28,7 @@ export default function NotificationSettings() {
             toast.success("Settings saved");
         } catch (e) {
             toast.error("Failed to save settings");
-            mutate((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/notifications"); // Revert
+            mutate(getBrowserApiBase() + "/settings/notifications"); // Revert
         } finally {
             // No saving state needed
         }
