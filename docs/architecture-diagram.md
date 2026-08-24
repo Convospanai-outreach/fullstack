@@ -435,6 +435,19 @@ flowchart TB
 
 This is the current buyer-signal path. Netjana is connected through the Intel webhook/service layer, then the signal fans out to dashboarding, lead/campaign enrichment, knowledge/RAG, and channel execution. Direct Landing Agent buyer-intel injection is represented separately as an adapter and is not configured by default.
 
+**Known gaps as of 2026-08-24 (see `LEAD_GEN_SCORING_TRACE.md` for full citations, OPEN-69..OPEN-73):**
+- `normalizer --> leadContext` only fires when the signal matches an **existing** Lead
+  (`netjanaIntelService.ts:702`, `if (lead)` gate). An unmatched signal is dropped — it can never
+  create a new Lead. Shown dashed below.
+- `leadContext`'s `intentScore` write is monotonic-max, but `LeadScoringService.scoreAndPersist`
+  (triggered by ordinary campaign-enrollment/re-enrich actions, not shown in this diagram — see the
+  engagement-scoring gap below) writes `intentScore` **flat**, with no floor. A Netjana-qualified HOT
+  lead can be silently downgraded by a later, unrelated enrichment run.
+- `LeadScoringService`'s engagement inputs (`dwellTime`/`emailClicks`/`socialMentions`, which feed
+  the score `normalizer` never touches) are read from the `Lead` record, but the real, working email
+  open/click tracking pixel writes to the separate `Email.openedAt`/`clickedAt` fields instead — the
+  two systems never connect, so engagement-based scoring runs on empty inputs for nearly every lead.
+
 ```mermaid
 flowchart TB
     subgraph source["External Signal Source"]
@@ -454,6 +467,12 @@ flowchart TB
         leadContext[(Lead intentScore, marketContext, enrichedData.netjana)]
         intelKb[(Knowledge Base: Netjana Intelligence)]
         jobQueue[(Job: INTEL_FOLLOWUP_REFRESH)]
+    end
+
+    subgraph engagement["Engagement Scoring — Disconnected From Real Tracking"]
+        emailFields[(Email.openedAt, Email.clickedAt<br/>written by real tracking pixel/redirect)]
+        leadEngagementFields[(Lead.dwellTimeMinutes, emailClicks, socialMentions<br/>read by LeadScoringService)]
+        scoringService["LeadScoringService.scoreAndPersist<br/>flat overwrite, no floor"]
     end
 
     subgraph surfaces["User-Facing Surfaces"]
@@ -480,7 +499,7 @@ flowchart TB
 
     normalizer --> scrapingJob
     normalizer --> shadowSignal
-    normalizer --> leadContext
+    normalizer -. "only if lead already exists<br/>(GAP: no new-lead creation)" .-> leadContext
     normalizer --> intelKb
     normalizer --> jobQueue
 
@@ -499,9 +518,19 @@ flowchart TB
     composer --> emailService
     emailService --> smtp
     linkedinRunner --> linkedin
+
+    emailService -. "real pixel/click-redirect fires" .-> emailFields
+    emailFields -. "GAP: never read by scorer" .-x leadEngagementFields
+    leadEngagementFields --> scoringService
+    scoringService -. "GAP: flat overwrite, can downgrade<br/>a Netjana-qualified score" .-> leadContext
 ```
 
 ## Landing, Email, And LinkedIn Lead/Event Loop
+
+**Known gap as of 2026-08-24 (OPEN-70):** `landingLead --> campaignRecord` does not exist in code.
+`LandingLead` rows are written on publish-page submission (`landing-agent/service.ts:579`) but never
+read anywhere in `apps/api` or `apps/web/src` — confirmed by repo-wide grep. Public funnel-page
+captures are currently a dead end with no path into the Lead/Campaign system. Shown dashed below.
 
 ```mermaid
 flowchart LR
@@ -540,10 +569,10 @@ flowchart LR
     user --> intake --> brief --> wireframes --> editor --> publish --> publicPage
     publicPage --> landingLead
     publicPage --> landingEvent
-    landingLead --> campaignRecord
+    landingLead -. "GAP: never read — dead end" .-x campaignRecord
     landingEvent --> activity
 
-    netjanaSignals --> lead
+    netjanaSignals -. "only if lead already exists" .-> lead
     netjanaSignals --> context
     netjanaKnowledge --> context
     buyerAdapter -. optional direct landing context .-> brief
