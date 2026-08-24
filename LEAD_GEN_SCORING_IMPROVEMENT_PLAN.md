@@ -1,16 +1,11 @@
 # Lead-Gen & Scoring: Improvement Plan
 
-Derived from `LEAD_GEN_SCORING_TRACE.md` (2026-08-24). Findings tracked as OPEN-68 through OPEN-75
-(OPEN-75 added mid-Tier-2, an incidental bug found while fixing OPEN-71 — see its ledger row).
-
-**Status (2026-08-24): Tier 1 (OPEN-68, OPEN-69), Tier 2 (OPEN-70, OPEN-71), Tier 3 (OPEN-72, OPEN-74),
-and OPEN-75 all implemented.** Only Tier 4 (OPEN-73) remains — it needs the user to check a production
-environment variable, not more code. OPEN-70 shipped as the human-in-the-loop option (one-click
-"Create Lead"), not auto-create — that was the user's explicit choice between the two options below.
+Derived from `LEAD_GEN_SCORING_TRACE.md` (2026-08-24). This is a **plan, not a fix** — nothing in
+this document has been implemented. Findings tracked as OPEN-68 through OPEN-74.
 
 ## Priority order and reasoning
 
-**Tier 1 — fix first, they compound each other: DONE**
+**Tier 1 — fix first, they compound each other:**
 
 1. **OPEN-68 — connect real tracking to the scorer.** `scoreAndPersist` should read
    `Email.openedAt`/`clickedAt` (already being written correctly) instead of the disconnected
@@ -25,7 +20,7 @@ environment variable, not more code. OPEN-70 shipped as the human-in-the-loop op
    re-score for N days" rule with a visible flag on the Lead record. Do this in the same PR as OPEN-68
    if possible — shipping one without the other leaves a half-fixed system.
 
-**Tier 2 — close the intake dead ends (product decision, not just a bug fix): DONE**
+**Tier 2 — close the intake dead ends (product decision, not just a bug fix):**
 
 3. **OPEN-70 — let Netjana create leads, gated.** Two options, pick one with the user:
    (a) auto-create a Lead when an unmatched signal clears a confidence/tier threshold (needs a policy

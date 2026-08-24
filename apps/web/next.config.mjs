@@ -40,11 +40,34 @@ const nextConfig = {
             : ['lucide-react', 'recharts', 'date-fns', 'three', '@react-three/fiber', '@react-three/drei'],
     },
     images: {
+        formats: ['image/avif', 'image/webp'],
         remotePatterns: [
             { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
             { protocol: 'https', hostname: '*.google.com' },
             { protocol: 'https', hostname: 'media.licdn.com' },
         ],
+    },
+    async headers() {
+        return [
+            {
+                source: '/:path*',
+                headers: [
+                    {
+                        key: 'X-DNS-Prefetch-Control',
+                        value: 'on',
+                    },
+                ],
+            },
+            {
+                source: '/craftmyfunnel-logo.png',
+                headers: [
+                    {
+                        key: 'Cache-Control',
+                        value: 'public, max-age=31536000, immutable',
+                    },
+                ],
+            },
+        ];
     },
     webpack(config) {
         // Ensure three.js ESM builds resolve correctly in the webpack graph

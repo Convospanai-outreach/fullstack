@@ -27,7 +27,6 @@ const DEFAULT_ITEMS: HudRailItem[] = [
   { id: "human",    label: "Human Conversion Moat",   shortLabel: "HUMAN"    },
   { id: "edge",     label: "Covospan EDGE",           shortLabel: "EDGE"     },
   { id: "revenue",  label: "Qualified Revenue",       shortLabel: "REVENUE"  },
-  { id: "launch",   label: "Pilot Intake",            shortLabel: "LAUNCH"   },
 ];
 
 function clampPercent(value: number) {

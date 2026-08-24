@@ -114,7 +114,7 @@ export function NavBar() {
         <Link href="/" className="group flex items-center gap-2">
           <LogoMark priority className="h-8 w-8" />
           <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-bold text-transparent">
-            CraftMyFunnel
+            CraftMyFunnel AI
           </span>
         </Link>
 

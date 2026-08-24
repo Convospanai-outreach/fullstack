@@ -132,16 +132,6 @@ const ACTS = [
     isSolution: true,
     color: "amber",
   },
-  {
-    id: "launch",
-    eyebrow: "Ready to Pilot",
-    categoryBadge: "CraftMyFunnel AI Pilot",
-    headline: "Stop losing the deals you have already earned.",
-    sub: "Request early access to the CraftMyFunnel AI pilot programme and see the full funnel working on your own accounts.",
-    tag: null,
-    isSolution: true,
-    color: "amber",
-  },
 ] as const;
 
 const TAG_COLORS: Record<string, string> = {
@@ -200,16 +190,24 @@ export default function CinematicHome() {
 
   const updateHud = useCallback((progress: number) => {
     const pct = Math.round(progress * 100);
-    setDepthPercent(pct);
 
     // Find active act index
+    let newRailIndex = 0;
     for (let i = SCROLL_ACTS.length - 1; i >= 0; i--) {
       if (progress >= SCROLL_ACTS[i]!.progress) {
-        setStage(SCROLL_ACTS[i]!.shortLabel);
-        setActiveRail(i);
+        newRailIndex = i;
         break;
       }
     }
+
+    setDepthPercent((prev) => (Math.abs(prev - pct) >= 2 ? pct : prev));
+    setActiveRail((prev) => {
+      if (prev !== newRailIndex) {
+        setStage(SCROLL_ACTS[newRailIndex]!.shortLabel);
+        return newRailIndex;
+      }
+      return prev;
+    });
   }, []);
 
   useEffect(() => {
@@ -283,27 +281,6 @@ export default function CinematicHome() {
           </section>
         ))}
       </div>
-
-      {/* ── CTA / invite section ─────────────────────────────────────────── */}
-      <section
-        id="act-cta"
-        className="relative z-20 flex min-h-screen flex-col items-center justify-center px-6 py-24"
-      >
-        <div className="mx-auto max-w-4xl text-center">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.28em] text-cyan-300/70">
-            Early Access
-          </p>
-          <h2 className="mb-6 text-4xl font-bold leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
-            Ready to govern your pipeline?
-          </h2>
-          <p className="mx-auto mb-4 max-w-2xl text-lg text-slate-400">
-            CraftMyFunnel is in private pilot. Request access and we will review your outreach context before onboarding your team.
-          </p>
-          <div className="pointer-events-auto">
-            <InviteRequestForm />
-          </div>
-        </div>
-      </section>
 
       {/* Gradient overlay at top */}
       <div
@@ -493,6 +470,19 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
               className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-cyan-300 hover:text-white transition-colors underline underline-offset-4"
             >
               Skip to Overview ↓
+            </a>
+          </div>
+        )}
+
+        {/* Interactive Link for Revenue Output */}
+        {act.id === "revenue" && (
+          <div className="mt-6 pt-5 border-t border-amber-400/20 flex items-center justify-between text-xs">
+            <span className="text-amber-200/80 font-mono text-[10px] tracking-wider">Ready to pilot with your team?</span>
+            <a
+              href="#pilot"
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-amber-300 hover:text-white transition-colors underline underline-offset-4 font-bold"
+            >
+              Join Pilot Programme ↓
             </a>
           </div>
         )}
