@@ -10,6 +10,7 @@ import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
+import { handleLandingLeadIntake } from "./handlers/landing-lead-intake-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
@@ -59,6 +60,9 @@ async function runHandler(jobType: string, payload: JobPayload) {
             const { LeadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
             return LeadScoringService.batchScoreLeads(teamId);
         }
+
+        case "landing_lead_intake":
+            return handleLandingLeadIntake(payload);
 
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);
