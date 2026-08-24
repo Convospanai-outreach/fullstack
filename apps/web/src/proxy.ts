@@ -196,6 +196,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/favicon.svg",
         "/craftmyfunnel-logo.png",
         "/about",
+        "/blog",
+        "/use-cases",
+        "/vs",
+        "/docs",
         "/contact",
         "/pricing",
         "/p",
@@ -208,6 +212,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/data-deletion",
         "/google-api-disclosure",
         "/funnel",
+        "/sitemap.xml",
+        "/robots.txt",
+        "/llms.txt",
+        "/llms-full.txt",
     ];
 
     if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {

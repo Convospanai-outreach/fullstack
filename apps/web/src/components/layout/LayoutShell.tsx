@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Header from "@/components/Header";
+import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
 
 // Kept in sync with apps/web/src/app/(dashboard)/* by
@@ -60,8 +60,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-            {showHeader && <Header />}
-            <main id="main-content" className="flex-1 focus:outline-none">{children}</main>
+            {showHeader && <NavBar />}
+            <main id="main-content" className={`flex-1 focus:outline-none ${showHeader ? "pt-20" : ""}`}>{children}</main>
             {showFooter && <Footer />}
         </>
     );
