@@ -2,11 +2,12 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import useSWR from "swr";
 import { format } from "date-fns";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export function PaymentHistory() {
-    const { data: payments, isLoading } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/history", fetcher);
+    const { data: payments, isLoading } = useSWR(getBrowserApiBase() + "/billing/history", fetcher);
 
     return (
         <GlassCard>

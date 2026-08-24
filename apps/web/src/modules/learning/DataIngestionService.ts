@@ -1,5 +1,6 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 
 export class DataIngestionService {
     async processFileUpload(teamId: string, filePath: string, region: string = 'GLOBAL', campaignId?: string) {

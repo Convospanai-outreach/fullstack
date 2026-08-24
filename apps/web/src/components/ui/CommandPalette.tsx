@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Command, LayoutDashboard, Shield, Users, Mail, Settings, Zap } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export const CommandPalette: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -19,8 +20,8 @@ export const CommandPalette: React.FC = () => {
         { id: 'settings', name: 'Organization Settings', icon: Settings, shortcut: 'G O', url: '/settings' },
         // Operator Commands
         { id: 'approvals', name: 'View Approval Queue', icon: Shield, shortcut: 'G A', url: '/dashboard?tab=approvals' },
-        { id: 'operator-scrapers', name: 'Run: Start All Scrapers', icon: Zap, shortcut: 'R S', url: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/admin/actions/start-scrapers', action: true },
-        { id: 'operator-pause', name: 'Run: Pause Outreach', icon: Zap, shortcut: 'R P', url: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/admin/actions/pause-outreach', action: true },
+        { id: 'operator-scrapers', name: 'Run: Start All Scrapers', icon: Zap, shortcut: 'R S', url: getBrowserApiBase() + '/admin/actions/start-scrapers', action: true },
+        { id: 'operator-pause', name: 'Run: Pause Outreach', icon: Zap, shortcut: 'R P', url: getBrowserApiBase() + '/admin/actions/pause-outreach', action: true },
     ];
 
     const filteredActions = actions.filter(action =>
