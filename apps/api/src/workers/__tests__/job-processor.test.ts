@@ -7,6 +7,7 @@ import { executeCampaign } from "../handlers/campaign-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
+import { leadScoringService } from "@/modules/scoring/service/LeadScoringService";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
@@ -43,6 +44,12 @@ vi.mock("@/lib/workflowService", () => ({
 vi.mock("@/modules/audit/auditService", () => ({
     AuditService: {
         log: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
+    leadScoringService: {
+        batchScoreLeads: vi.fn(),
     },
 }));
 
@@ -274,6 +281,32 @@ describe("job-processor", () => {
             mockJob.payload
         );
         expect(result).toEqual({ acknowledged: true });
+    });
+
+    it("dispatches lead_scoring jobs to the leadScoringService instance, not the class (OPEN-75 regression)", async () => {
+        const mockJob = {
+            id: "job-scoring-1",
+            status: "running",
+            version: 1,
+            type: "lead_scoring",
+            payload: { teamId: "t1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (leadScoringService.batchScoreLeads as Mock).mockResolvedValueOnce({
+            totalProcessed: 3,
+            successful: 3,
+            failed: 0,
+            averageScore: 0.5,
+            tierDistribution: { hot: 1, warm: 1, cold: 1 },
+            errors: [],
+        });
+
+        const result = await worker.performJob({ jobId: "job-scoring-1", version: 1 });
+
+        expect(leadScoringService.batchScoreLeads).toHaveBeenCalledWith("t1");
+        expect(result).toEqual(
+            expect.objectContaining({ totalProcessed: 3, successful: 3 })
+        );
     });
 
     it("propagates a completion claim-loss outcome without calling fail", async () => {

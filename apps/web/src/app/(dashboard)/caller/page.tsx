@@ -257,7 +257,7 @@ export default function CallerPage() {
                                             <p className="font-semibold text-foreground">
                                                 {activeLead.lead.optimalSendHour !== undefined && activeLead.lead.optimalSendHour !== null
                                                     ? `${activeLead.lead.optimalSendHour > 12 ? activeLead.lead.optimalSendHour - 12 : activeLead.lead.optimalSendHour}:00 ${activeLead.lead.optimalSendHour >= 12 ? 'PM' : 'AM'}`
-                                                    : '10:00 AM'
+                                                    : 'Not enough data yet'
                                                 }
                                             </p>
                                         </div>

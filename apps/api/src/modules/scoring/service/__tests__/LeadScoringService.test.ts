@@ -106,6 +106,34 @@ describe("LeadScoringService", () => {
             expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1");
         });
 
+        it("never fabricates optimalSendHour when there's no real email-open data (OPEN-72)", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-1",
+                consentObtained: true,
+                dwellTimeMinutes: 5,
+                emailClicks: 1,
+                socialMentions: 0,
+                intentScore: 0,
+                pipelineState: "COLD",
+                hotAt: null,
+                pipelineStateChangedAt: null,
+                fullName: null,
+                email: null,
+                company: null,
+                jobTitle: null,
+                isEnriched: false,
+                value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect("optimalSendHour" in data).toBe(false);
+        });
+
         it("derives optimal send hour from the most common email-open hour", async () => {
             (prisma.lead.findUnique as any).mockResolvedValue({
                 id: "lead-1",
