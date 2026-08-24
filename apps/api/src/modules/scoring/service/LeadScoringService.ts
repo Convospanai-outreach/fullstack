@@ -265,8 +265,8 @@ export class LeadScoringService {
             newPipelineState = "WARM";
         }
 
-        // 1. Churn Risk Index — uses pipelineStateChangedAt (not updatedAt)
-        // updatedAt resets on every prisma write, making it useless for staleness
+        // 1. Churn risk — a rule-based heuristic on score + staleness, not a trained model.
+        // Uses pipelineStateChangedAt (not updatedAt), which resets on every prisma write.
         let churnRisk = 0.12;
         const staleRef = lead.pipelineStateChangedAt || lead.hotAt;
         const daysSinceStateChange = staleRef ? (Date.now() - new Date(staleRef).getTime()) / (1000 * 60 * 60 * 24) : 0;
@@ -280,7 +280,7 @@ export class LeadScoringService {
             churnRisk = Math.min(0.95, 0.12 + (daysSinceStateChange * 0.03));
         }
 
-        // 2. K-means Clustering Cohort Label
+        // 2. Cohort label — a rule-based bucket on score/value/staleness, not literal K-means clustering.
         let clusterLabel = "NEW";
         const dealValue = lead.value ?? 0;
         if (finalIntentScore >= 0.7 && dealValue >= 5000) {
@@ -293,17 +293,21 @@ export class LeadScoringService {
             clusterLabel = "HIGH_VALUE"; // Default high-intent to high value
         }
 
-        // 3. Optimal Reach Hour (based on real email opens mode)
-        const optimalSendHour = hasOpenData ? openBasedSendHour : (leadId.charCodeAt(0) % 2 === 0 ? 10 : 14);
-
         const updateData: any = {
             intentScore: finalIntentScore,
             leadScore: Math.round(finalIntentScore * 100),
             lastScoredAt: new Date(),
             churnRisk,
             clusterLabel,
-            optimalSendHour,
         };
+
+        // Optimal Reach Hour: only set when there's real email-open data to derive it from.
+        // A fabricated fallback here would be shown to reps as a confident recommendation (see
+        // LeadDetail.tsx/caller/page.tsx), so leaving it unset until real data exists is safer
+        // than guessing — OPEN-72.
+        if (hasOpenData) {
+            updateData.optimalSendHour = openBasedSendHour;
+        }
 
         if (newPipelineState) {
             updateData.pipelineState = newPipelineState;
@@ -400,7 +404,8 @@ export class LeadScoringService {
                     newPipelineState = "WARM";
                 }
 
-                // 1. Churn Risk Index — uses pipelineStateChangedAt (not updatedAt)
+                // 1. Churn risk — a rule-based heuristic on score + staleness, not a trained model.
+                // Uses pipelineStateChangedAt (not updatedAt), which resets on every prisma write.
                 let churnRisk = 0.12;
                 const staleRef = lead.pipelineStateChangedAt || lead.hotAt;
                 const daysSinceStateChange = staleRef ? (Date.now() - new Date(staleRef).getTime()) / (1000 * 60 * 60 * 24) : 0;
@@ -414,7 +419,7 @@ export class LeadScoringService {
                     churnRisk = Math.min(0.95, 0.12 + (daysSinceStateChange * 0.03));
                 }
 
-                // 2. K-means Clustering Cohort Label
+                // 2. Cohort label — a rule-based bucket on score/value/staleness, not literal K-means clustering.
                 let clusterLabel = "NEW";
                 const dealValue = lead.value ?? 0;
                 if (finalIntentScore >= 0.7 && dealValue >= 5000) {
@@ -427,17 +432,18 @@ export class LeadScoringService {
                     clusterLabel = "HIGH_VALUE";
                 }
 
-                // 3. Optimal Reach Hour (based on real email opens mode)
-                const optimalSendHour = hasOpenData ? openBasedSendHour : (lead.id.charCodeAt(0) % 2 === 0 ? 10 : 14);
-
                 const updateData: any = {
                     intentScore: finalIntentScore,
                     leadScore: Math.round(finalIntentScore * 100),
                     lastScoredAt: new Date(),
                     churnRisk,
                     clusterLabel,
-                    optimalSendHour,
                 };
+
+                // Optimal Reach Hour: only set when there's real email-open data to derive it from — see OPEN-72.
+                if (hasOpenData) {
+                    updateData.optimalSendHour = openBasedSendHour;
+                }
 
                 if (newPipelineState) {
                     updateData.pipelineState = newPipelineState;

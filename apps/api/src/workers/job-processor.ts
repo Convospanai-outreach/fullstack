@@ -57,8 +57,8 @@ async function runHandler(jobType: string, payload: JobPayload) {
             if (!teamId) {
                 throw new Error("lead_scoring payload is missing teamId");
             }
-            const { LeadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
-            return LeadScoringService.batchScoreLeads(teamId);
+            const { leadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
+            return leadScoringService.batchScoreLeads(teamId);
         }
 
         case "landing_lead_intake":
