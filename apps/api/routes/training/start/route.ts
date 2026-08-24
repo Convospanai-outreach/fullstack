@@ -26,11 +26,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "datasetId required" }, { status: 400 });
     }
 
-    const modelVersionId = await trainingManager.startTraining(resolvedDatasetId, baseModel);
-    return NextResponse.json({
-        success: true,
-        pipelineId: modelVersionId,
-        simulated: true,
-        note: "No real fine-tuning API call is made - progress, evaluation, and DEPLOYED status are all simulated."
-    });
+    try {
+        const modelVersionId = await trainingManager.startTraining(resolvedDatasetId, baseModel);
+        return NextResponse.json({ success: true, pipelineId: modelVersionId });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 501 });
+    }
 }
