@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getJobs } from "@/lib/api/jobs";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 export default function JobsPage() {
     const [jobs, setJobs] = useState<any[]>([]);
@@ -47,10 +48,7 @@ export default function JobsPage() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Background Jobs</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Monitor background orchestration tasks and execution history.</p>
-                </div>
+                <SectionHeader title="Background Jobs" subtitle="Monitor background orchestration tasks and execution history." />
                 <button
                     onClick={loadJobs}
                     className="self-start sm:self-auto bg-blue-700 hover:bg-blue-800 text-white font-semibold px-4 py-2 rounded-md shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-700"

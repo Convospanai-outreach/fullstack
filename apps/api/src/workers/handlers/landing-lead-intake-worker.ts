@@ -1,0 +1,81 @@
+import { prisma } from "@/lib/db";
+import { JobPayload } from "@/lib/queue";
+import { logger } from "@/lib/logger";
+
+/**
+ * Promotes a public /p/:slug funnel-page form submission (LandingLead) into the
+ * real Lead/Campaign pipeline. Dedupes by email within the team, mirroring the
+ * same findFirst-then-update-or-create pattern csvIngestionService already uses.
+ */
+export async function handleLandingLeadIntake(payload: JobPayload) {
+    const { landingLeadId, teamId } = payload;
+
+    if (!landingLeadId) {
+        throw new Error("Landing lead identifier (landingLeadId) is missing in payload");
+    }
+    if (!teamId) {
+        throw new Error("teamId is missing in payload");
+    }
+
+    const landingLead = await prisma.landingLead.findFirst({
+        where: { id: landingLeadId, teamId },
+        include: { campaign: { select: { linkedCampaignId: true } } },
+    });
+
+    if (!landingLead) {
+        logger.warn(`[LandingLeadIntake] LandingLead ${landingLeadId} not found for team ${teamId} — skipping`);
+        return { created: false, reason: "landing_lead_not_found" };
+    }
+
+    const email = landingLead.email?.trim().toLowerCase() || undefined;
+    const campaignId = landingLead.campaign.linkedCampaignId || undefined;
+
+    if (email) {
+        const existing = await prisma.lead.findFirst({
+            where: { email, teamId },
+        });
+
+        if (existing) {
+            const updated = await prisma.lead.update({
+                where: { id: existing.id },
+                data: {
+                    campaignId: campaignId || existing.campaignId,
+                    fullName: landingLead.name?.trim() || existing.fullName || undefined,
+                    phone: landingLead.phone?.trim() || existing.phone || undefined,
+                    company: landingLead.company?.trim() || existing.company || undefined,
+                    jobTitle: landingLead.title?.trim() || existing.jobTitle || undefined,
+                    source: existing.source || "landing_page",
+                },
+            });
+
+            await scoreNewLead(updated.id);
+            return { created: false, leadId: updated.id };
+        }
+    }
+
+    const createdLead = await prisma.lead.create({
+        data: {
+            teamId,
+            campaignId,
+            email,
+            fullName: landingLead.name?.trim() || undefined,
+            phone: landingLead.phone?.trim() || undefined,
+            company: landingLead.company?.trim() || undefined,
+            jobTitle: landingLead.title?.trim() || undefined,
+            source: "landing_page",
+            status: "NEW",
+        },
+    });
+
+    await scoreNewLead(createdLead.id);
+    return { created: true, leadId: createdLead.id };
+}
+
+async function scoreNewLead(leadId: string) {
+    try {
+        const { leadScoringService } = await import("@/modules/scoring");
+        await leadScoringService.scoreAndPersist(leadId);
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Post-intake scoring failed for lead ${leadId}:`, error as any);
+    }
+}

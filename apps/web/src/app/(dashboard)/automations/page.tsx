@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
 interface Automation {
     id: string;
@@ -74,10 +75,7 @@ export default function AutomationsPage() {
     return (
         <div className="space-y-6 p-6 max-w-7xl mx-auto">
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-white">Automations</h1>
-                    <p className="text-gray-400">Manage your event-based workflows</p>
-                </div>
+                <SectionHeader title="Automations" subtitle="Manage your event-based workflows" />
                 <div className="flex space-x-3">
                     <Link href="/automations/approvals" className="px-4 py-2 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 rounded-lg hover:bg-yellow-500/20 transition-colors">
                         Approvals Queue
