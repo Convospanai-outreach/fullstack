@@ -3,9 +3,10 @@
 Derived from `LEAD_GEN_SCORING_TRACE.md` (2026-08-24). Findings tracked as OPEN-68 through OPEN-75
 (OPEN-75 added mid-Tier-2, an incidental bug found while fixing OPEN-71 — see its ledger row).
 
-**Status (2026-08-24): Tier 1 (OPEN-68, OPEN-69) and Tier 2 (OPEN-70, OPEN-71) implemented.**
-Tiers 3-4 remain plan-only. OPEN-70 shipped as the human-in-the-loop option (one-click "Create Lead"),
-not auto-create — that was the user's explicit choice between the two options offered below.
+**Status (2026-08-24): Tier 1 (OPEN-68, OPEN-69), Tier 2 (OPEN-70, OPEN-71), Tier 3 (OPEN-72, OPEN-74),
+and OPEN-75 all implemented.** Only Tier 4 (OPEN-73) remains — it needs the user to check a production
+environment variable, not more code. OPEN-70 shipped as the human-in-the-loop option (one-click
+"Create Lead"), not auto-create — that was the user's explicit choice between the two options below.
 
 ## Priority order and reasoning
 
@@ -38,14 +39,19 @@ not auto-create — that was the user's explicit choice between the two options 
    (stop writing rows nobody reads, note it in the architecture docs). Either answer is fine; the
    current silent-dead-end state is not.
 
-**Tier 3 — honesty/cleanup, low effort:**
+**Tier 3 — honesty/cleanup, low effort: DONE**
 
-5. **OPEN-72 — stop fabricating `optimalSendHour`.** Either omit the field from the API response until
-   real open data exists (UI already has a null-check pattern for this), or label it "estimated
-   default" in `LeadDetail.tsx`/`caller/page.tsx`. Trivial change, ships independently of everything
-   else.
+5. **OPEN-72 — stop fabricating `optimalSendHour`.** Shipped as "omit the field until real data
+   exists." Also found and fixed a second fabrication point discovered while implementing this: both
+   UI call sites (`LeadDetail.tsx`, `caller/page.tsx`) had their own hardcoded `'10:00 AM'` fallback
+   for a null field, which would have fired far more often now that the backend correctly omits the
+   value — changed to "Not enough data yet."
 6. **OPEN-74 — rename `clusterLabel`/`churnRisk` comments** to describe what the heuristic actually
-   does, not what algorithm it evokes. Pure comment/doc change, no behavior risk.
+   does, not what algorithm it evokes. Shipped as a comment-only change (code + schema comments in
+   both apps), field names themselves left unchanged to avoid a migration.
+7. **OPEN-75 (found mid-Tier-2, fixed alongside Tier 3)** — the scheduler's `lead_scoring` job path
+   called `batchScoreLeads` on the class instead of the exported singleton instance, throwing at
+   runtime on every scheduled scoring run. One-line fix, new regression test added.
 
 **Tier 4 — needs the user, not more tracing:**
 
