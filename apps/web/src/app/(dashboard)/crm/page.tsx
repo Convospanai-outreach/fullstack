@@ -14,6 +14,7 @@ import {
     Database,
     AlertTriangle
 } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -26,7 +27,7 @@ interface CrmIntegration {
 }
 
 export default function CRMIntegrationPage() {
-    const { data: integrations } = useSWR<CrmIntegration[]>((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm", fetcher);
+    const { data: integrations } = useSWR<CrmIntegration[]>(getBrowserApiBase() + "/settings/crm", fetcher);
     const [connecting, setConnecting] = useState<string | null>(null);
 
     const handleConnect = async (provider: string) => {

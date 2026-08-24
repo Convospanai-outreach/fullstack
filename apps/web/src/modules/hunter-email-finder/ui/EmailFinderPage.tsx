@@ -3,6 +3,7 @@
 import { useState } from "react";
 import EmailSearchForm from "./components/EmailSearchForm";
 import EmailResult from "./components/EmailResult";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function EmailFinderPage() {
     const [result, setResult] = useState<any>(null);
@@ -15,7 +16,7 @@ export default function EmailFinderPage() {
         setResult(null);
 
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/hunter-email-finder/find-email", {
+            const res = await fetch(getBrowserApiBase() + "/hunter-email-finder/find-email", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),

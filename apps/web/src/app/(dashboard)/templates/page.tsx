@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import TemplateList from "@/components/templates/TemplateList";
 import TemplateEditor from "@/components/templates/TemplateEditor";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function TemplatesPage() {
     const [templates, setTemplates] = useState<any[]>([]);
@@ -17,7 +18,7 @@ export default function TemplatesPage() {
 
     const fetchTemplates = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/templates");
+            const res = await fetch(getBrowserApiBase() + "/templates");
             const data = await res.json();
             setTemplates(Array.isArray(data) ? data : []);
         } catch (error) {
@@ -30,7 +31,7 @@ export default function TemplatesPage() {
     const handleSave = async (template: any) => {
         try {
             const method = template.id ? "PUT" : "POST";
-            const url = template.id ? `${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/templates/${template.id}` : (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/templates";
+            const url = template.id ? `${getBrowserApiBase()}/templates/${template.id}` : getBrowserApiBase() + "/templates";
 
             const res = await fetch(url, {
                 method,
@@ -51,7 +52,7 @@ export default function TemplatesPage() {
     const handleDelete = async (id: string) => {
         if (!confirm("Delete this template?")) return;
         try {
-            await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/templates/${id}`, { method: "DELETE" });
+            await fetch(`${getBrowserApiBase()}/templates/${id}`, { method: "DELETE" });
             fetchTemplates();
         } catch (error) {
             console.error("Failed to delete template", error);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function PricingPage() {
     const [loading, setLoading] = useState(false);
@@ -28,7 +29,7 @@ export default function PricingPage() {
                 return;
             }
 
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/checkout", {
+            const res = await fetch(getBrowserApiBase() + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ planId }),

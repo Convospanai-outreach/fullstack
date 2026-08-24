@@ -1,15 +1,16 @@
 "use client";
 import { fetcher } from "@/lib/fetcher";
 import useSWR from "swr";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function AgentControl({ agents }: any) {
-    const { mutate } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/orchestrator/agents");
+    const { mutate } = useSWR(getBrowserApiBase() + "/orchestrator/agents");
     async function run(id: string) {
-        await fetcher(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/orchestrator/agents/${id}/run`, { method: "POST" });
+        await fetcher(`${getBrowserApiBase()}/orchestrator/agents/${id}/run`, { method: "POST" });
         mutate();
     }
     async function stop(id: string) {
-        await fetcher(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/orchestrator/agents/${id}/stop`, { method: "POST" });
+        await fetcher(`${getBrowserApiBase()}/orchestrator/agents/${id}/stop`, { method: "POST" });
         mutate();
     }
 

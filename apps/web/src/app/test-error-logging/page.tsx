@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function TestErrorLoggingPage() {
     const [result, setResult] = useState<string>("");
@@ -14,7 +15,7 @@ export default function TestErrorLoggingPage() {
 
         try {
             // Send a test error to the API
-            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/errors/client', {
+            const response = await fetch(getBrowserApiBase() + '/errors/client', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

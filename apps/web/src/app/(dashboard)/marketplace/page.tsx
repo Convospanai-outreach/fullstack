@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
 import { Download, Star, Bot, Zap, BookOpen } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function MarketplacePage() {
     const [templates, setTemplates] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export default function MarketplacePage() {
     const fetchTemplates = () => {
         setLoading(true);
         setLoadError(false);
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/marketplace")
+        fetch(getBrowserApiBase() + "/marketplace")
             .then(res => {
                 if (!res.ok) throw new Error("Failed to load marketplace");
                 return res.json();
@@ -39,7 +40,7 @@ export default function MarketplacePage() {
     const handleInstall = async (templateId: string, type: string) => {
         const toastId = toast.loading("Installing...");
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/marketplace/install", {
+            const res = await fetch(getBrowserApiBase() + "/marketplace/install", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ templateId })

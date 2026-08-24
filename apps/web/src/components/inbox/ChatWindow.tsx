@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Message } from "@/lib/inboxService";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface ChatWindowProps {
     threadId: string;
@@ -21,7 +22,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
     useEffect(() => {
         setLoading(true);
         setSuggestions([]); // Clear previous suggestions
-        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/inbox/${threadId}`)
+        fetch(`${getBrowserApiBase()}/inbox/${threadId}`)
             .then(res => res.json())
             .then(data => {
                 setMessages(data);
@@ -36,7 +37,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
     const fetchSuggestions = async () => {
         setSuggestionsLoading(true);
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/inbox/${threadId}/suggest`);
+            const res = await fetch(`${getBrowserApiBase()}/inbox/${threadId}/suggest`);
             const data = await res.json();
             if (data.suggestions) {
                 setSuggestions(data.suggestions);
@@ -71,7 +72,7 @@ export function ChatWindow({ threadId }: ChatWindowProps) {
         scrollToBottom();
 
         try {
-            await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/inbox/${threadId}`, {
+            await fetch(`${getBrowserApiBase()}/inbox/${threadId}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ content: tempMsg.content })

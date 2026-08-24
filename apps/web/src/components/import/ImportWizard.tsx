@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import { AlertCircle, ArrowLeft, ArrowRight, CheckCircle2, FileSpreadsheet, Sparkles, Upload } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const DB_FIELDS = [
     { key: "fullName", label: "Full name" },
@@ -47,7 +48,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
     const analyzeHeaders = async (extractedHeaders: string[]) => {
         setIsAnalyzing(true);
         try {
-            const response = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/import/suggest-mapping", {
+            const response = await fetch(getBrowserApiBase() + "/import/suggest-mapping", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ headers: extractedHeaders })
@@ -97,7 +98,7 @@ export default function ImportWizard({ onClose }: { onClose: () => void }) {
 
         setIsImporting(true);
         try {
-            const response = await fetch((process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy") + "/leads/import", {
+            const response = await fetch(getBrowserApiBase() + "/leads/import", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Template {
     id?: string | undefined;
@@ -85,7 +86,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: TemplateE
                     // For now, let's assume we have a client-side helper or new API route.
                     // Let's use a quick fetch to a new endpoint /api/ai/improve
                     try {
-                        const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/ai/improve", {
+                        const res = await fetch(getBrowserApiBase() + "/ai/improve", {
                             method: "POST",
                             body: JSON.stringify({ text: body })
                         });

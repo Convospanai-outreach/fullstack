@@ -7,6 +7,7 @@ import { Loader2, User } from 'lucide-react';
 
 import { TraceVisualizer } from '@/components/governance/TraceVisualizer';
 import { ChevronDown, Brain } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function AuditLogPage() {
     const [logs, setLogs] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export default function AuditLogPage() {
     const [loadingTraces, setLoadingTraces] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/audit")
+        fetch(getBrowserApiBase() + "/settings/audit")
             .then(res => res.json())
             .then(data => {
                 setLogs(data);
@@ -37,7 +38,7 @@ export default function AuditLogPage() {
         if (!isExpanded && entityType === 'WorkflowRun' && !traces[logId]) {
             setLoadingTraces(prev => ({ ...prev, [logId]: true }));
             try {
-                const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/traces/${entityId}`);
+                const res = await fetch(`${getBrowserApiBase()}/traces/${entityId}`);
                 if (res.ok) {
                     const data = await res.json();
                     setTraces(prev => ({ ...prev, [logId]: data }));

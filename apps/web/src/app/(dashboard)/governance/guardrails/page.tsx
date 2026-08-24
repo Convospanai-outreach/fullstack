@@ -25,6 +25,7 @@ import {
     Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function GuardrailsPage() {
     const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function GuardrailsPage() {
     const [newItem, setNewItem] = useState({ block: "", competitor: "" });
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/guardrails")
+        fetch(getBrowserApiBase() + "/governance/guardrails")
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
@@ -53,7 +54,7 @@ export default function GuardrailsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/guardrails", {
+            const res = await fetch(getBrowserApiBase() + "/governance/guardrails", {
                 method: "POST",
                 body: JSON.stringify(policy),
             });

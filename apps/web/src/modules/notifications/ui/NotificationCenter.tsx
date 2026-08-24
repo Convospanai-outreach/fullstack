@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Bell } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 
 type NotificationItem = {
     id: string;

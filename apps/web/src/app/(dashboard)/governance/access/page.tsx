@@ -13,6 +13,7 @@ import {
     MoreHorizontal,
     Lock
 } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Member {
     id: string;
@@ -30,7 +31,7 @@ export default function AccessControlPage() {
     const [members, setMembers] = useState<Member[]>([]);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/governance/members")
+        fetch(getBrowserApiBase() + "/governance/members")
             .then(res => res.json())
             .then(data => {
                 if (data.success) setMembers(data.members);

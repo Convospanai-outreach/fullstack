@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function RateLimitPage() {
     const [stats, setStats] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export default function RateLimitPage() {
 
     const fetchStats = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/rate-limits");
+            const res = await fetch(getBrowserApiBase() + "/admin/rate-limits");
             const data = await res.json();
             if (data.stats) setStats(data.stats);
         } catch (error) {
@@ -27,7 +28,7 @@ export default function RateLimitPage() {
     const handleUpdate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/rate-limits", {
+            await fetch(getBrowserApiBase() + "/admin/rate-limits", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

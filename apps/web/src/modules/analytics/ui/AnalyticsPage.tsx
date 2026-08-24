@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import StatCard from "@/modules/dashboard/ui/components/StatCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 
 export default function AnalyticsPage() {
@@ -11,7 +12,7 @@ export default function AnalyticsPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/analytics/stats");
+                const res = await fetch(getBrowserApiBase() + "/analytics/stats");
                 const json = await res.json();
                 if (json.ok) setData(json.stats);
             } finally {

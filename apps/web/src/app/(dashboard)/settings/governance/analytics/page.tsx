@@ -13,13 +13,14 @@ import {
     ChevronLeft
 } from 'lucide-react';
 import Link from 'next/link';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function GovernanceAnalyticsPage() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/governance/analytics")
+        fetch(getBrowserApiBase() + "/settings/governance/analytics")
             .then(res => res.json())
             .then(data => {
                 setStats(data);
