@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
     Plus,
-    MoreVertical,
     Sparkles,
     ArrowRight,
     Clock,
@@ -30,6 +30,8 @@ export default function PipelinePage() {
     const [stats, setStats] = useState<any>({ totalValue: 0 });
     const [loading, setLoading] = useState(true);
     const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+    const [aiSuggestionsLeadId, setAiSuggestionsLeadId] = useState<string | null>(null);
+    const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
 
     useEffect(() => {
         loadData();
@@ -63,6 +65,7 @@ export default function PipelinePage() {
             }).then(async r => {
                 const data = await r.json();
                 setAiSuggestions(data.data || []);
+                setAiSuggestionsLeadId(leadId);
                 return data.data;
             }),
             {
@@ -71,6 +74,30 @@ export default function PipelinePage() {
                 error: 'AI analysis failed',
             }
         );
+    };
+
+    const acceptSuggestion = async (suggestion: any, index: number) => {
+        if (!aiSuggestionsLeadId) return;
+        setAcceptingIndex(index);
+        try {
+            const res = await fetch(getBrowserApiUrl("/pipeline/tasks"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    leadId: aiSuggestionsLeadId,
+                    title: suggestion.title,
+                    description: suggestion.description,
+                    priority: String(suggestion.priority || "medium").toUpperCase(),
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to create task");
+            toast.success("Task created");
+            setAiSuggestions(prev => prev.filter((_, i) => i !== index));
+        } catch (error) {
+            toast.error("Failed to accept suggestion");
+        } finally {
+            setAcceptingIndex(null);
+        }
     };
 
     if (loading) return <div className="flex p-20 justify-center"><Sparkles className="animate-spin text-blue-500" /></div>;
@@ -113,7 +140,6 @@ export default function PipelinePage() {
                                     {stageLeads.length}
                                 </span>
                             </div>
-                            <button className="text-muted-foreground hover:text-foreground" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
                         </div>
 
                         <div className="flex-1 flex flex-col gap-3 rounded-lg bg-card/50 p-2 border border-border/50">
@@ -175,9 +201,13 @@ export default function PipelinePage() {
                                 </div>
                                 );
                             })}
-                            <button className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all" title="Add lead to stage">
+                            <Link
+                                href={`/leads/new?stage=${stage}`}
+                                className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all"
+                                title="Add lead to stage"
+                            >
                                 <Plus className="w-3 h-3" /> Add Lead
-                            </button>
+                            </Link>
                         </div>
                     </div>
                     );
@@ -200,7 +230,11 @@ export default function PipelinePage() {
                                 <div className="text-[10px] text-gray-400">{s.description}</div>
                                 <div className="mt-2 flex items-center justify-between">
                                     <span className="text-[8px] uppercase font-bold text-purple-500 px-1.5 py-0.5 bg-purple-500/10 rounded">{s.priority}</span>
-                                    <button className="text-[10px] font-bold text-blue-400 flex items-center gap-1 hover:underline">
+                                    <button
+                                        onClick={() => acceptSuggestion(s, i)}
+                                        disabled={acceptingIndex === i}
+                                        className="text-[10px] font-bold text-blue-400 flex items-center gap-1 hover:underline disabled:opacity-50"
+                                    >
                                         Accept <ArrowRight className="w-3 h-3" />
                                     </button>
                                 </div>
