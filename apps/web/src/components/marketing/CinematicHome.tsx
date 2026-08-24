@@ -190,16 +190,24 @@ export default function CinematicHome() {
 
   const updateHud = useCallback((progress: number) => {
     const pct = Math.round(progress * 100);
-    setDepthPercent(pct);
 
     // Find active act index
+    let newRailIndex = 0;
     for (let i = SCROLL_ACTS.length - 1; i >= 0; i--) {
       if (progress >= SCROLL_ACTS[i]!.progress) {
-        setStage(SCROLL_ACTS[i]!.shortLabel);
-        setActiveRail(i);
+        newRailIndex = i;
         break;
       }
     }
+
+    setDepthPercent((prev) => (Math.abs(prev - pct) >= 2 ? pct : prev));
+    setActiveRail((prev) => {
+      if (prev !== newRailIndex) {
+        setStage(SCROLL_ACTS[newRailIndex]!.shortLabel);
+        return newRailIndex;
+      }
+      return prev;
+    });
   }, []);
 
   useEffect(() => {

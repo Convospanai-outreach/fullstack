@@ -68,7 +68,7 @@ describe("MailProvider Architecture & Provider Implementations", () => {
         metadata: { host: "invalid.smtp.host", port: 587 },
       });
       expect(result.ok).toBe(false);
-    });
+    }, 15000);
 
     it("handles SmtpProvider send failure gracefully", async () => {
       const mailbox = {
@@ -85,7 +85,7 @@ describe("MailProvider Architecture & Provider Implementations", () => {
           text: "Test",
         })
       ).rejects.toThrow(MailProviderError);
-    });
+    }, 15000);
   });
 
   describe("MicrosoftGraphProvider Verification", () => {
