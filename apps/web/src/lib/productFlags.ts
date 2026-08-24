@@ -250,6 +250,30 @@ export function isHiddenFeatureEnabled(
     return enabled.has(featureKey);
 }
 
+export type HiddenFeatureCategory = "Outreach" | "Automation" | "Account" | "Admin";
+
+export const HIDDEN_FEATURE_CATEGORY_BY_KEY: Record<HiddenFeatureKey, HiddenFeatureCategory> = {
+    "playbooks": "Outreach",
+    "hunter-email-finder": "Outreach",
+    "csv-ingestion": "Outreach",
+    "linkedin-runner": "Outreach",
+    "caller": "Outreach",
+    "whatsapp": "Outreach",
+    "studio": "Outreach",
+    "workflows": "Automation",
+    "agents": "Automation",
+    "jobs": "Automation",
+    "knowledge": "Automation",
+    "command-center": "Automation",
+    "runtime": "Automation",
+    "marketplace": "Account",
+    "scraper-bridge": "Admin",
+    "edge": "Admin",
+    "sovereign": "Admin",
+};
+
+export const HIDDEN_FEATURE_CATEGORY_ORDER: HiddenFeatureCategory[] = ["Outreach", "Automation", "Account", "Admin"];
+
 export function isPathEnabled(pathname: string, enabledKeys?: Iterable<HiddenFeatureKey>) {
     if (!PRODUCT_FLAGS.betaMode) {
         return true;
