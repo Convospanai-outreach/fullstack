@@ -77,7 +77,7 @@ export default async function CampaignsPage({
                 </div>
             </div>
 
-            <form className="glass-card p-4 flex flex-col md:flex-row gap-3">
+            <form className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 flex flex-col md:flex-row gap-3">
                 <div className="flex-1 relative">
                     <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <input
@@ -132,7 +132,7 @@ export default async function CampaignsPage({
                         return (
                             <div
                                 key={campaign.id}
-                                className="relative flex flex-col justify-between p-6 glass-card hover:border-primary/50 transition-all duration-200 group min-h-56"
+                                className="relative flex flex-col justify-between p-6 rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-all duration-200 group min-h-56"
                             >
                                 <div>
                                     <div className="flex justify-between items-center gap-2 mb-4">
