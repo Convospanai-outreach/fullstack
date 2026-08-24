@@ -59,22 +59,49 @@ const FEATURE_ROWS = [
 export default function ApolloComparisonPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "CraftMyFunnel vs Apollo.io: In-Depth Comparison for B2B Outbound Teams",
-        "description": "A comprehensive comparison between CraftMyFunnel and Apollo.io focusing on AI governance, approval workflows, and deliverability safeguards.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Product Comparisons",
+                        "item": "https://craftmyfunnel.live/vs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "CraftMyFunnel vs Apollo.io",
+                        "item": "https://craftmyfunnel.live/vs/apollo"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "CraftMyFunnel vs Apollo.io: In-Depth Comparison for B2B Outbound Teams",
+                "description": "A comprehensive comparison between CraftMyFunnel and Apollo.io focusing on AI governance, approval workflows, and deliverability safeguards.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/vs/apollo"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/vs/apollo"
+        ]
     };
 
     return (

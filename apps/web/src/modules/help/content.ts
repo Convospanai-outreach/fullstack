@@ -16,13 +16,13 @@ export interface HelpArticle {
 export const HELP_ARTICLES: HelpArticle[] = [
     {
         slug: "getting-started",
-        title: "Getting Started with CraftMyFunnel",
+        title: "Getting Started with CraftMyFunnel AI",
         category: "General",
         summary: "Launch your workspace in four steps, from setup through first campaign.",
         content: `
-# Welcome to CraftMyFunnel
+# Welcome to CraftMyFunnel AI
 
-CraftMyFunnel turns prospect data, messaging, and workflow automation into one operating surface for growth teams.
+CraftMyFunnel AI turns prospect data, messaging, and workflow automation into one operating surface for growth teams.
 
 ## First 30 minutes
 1. Complete the workspace setup flow.
@@ -48,7 +48,7 @@ CraftMyFunnel turns prospect data, messaging, and workflow automation into one o
         content: `
 # Completing Workspace Setup
 
-The setup flow shows the exact prerequisites CraftMyFunnel needs before you can safely launch outreach.
+The setup flow shows the exact prerequisites CraftMyFunnel AI needs before you can safely launch outreach.
 
 ## Required checks
 - Account and team role verified
@@ -58,26 +58,25 @@ The setup flow shows the exact prerequisites CraftMyFunnel needs before you can 
 - Leads imported
 - Billing and credits confirmed
 
-## If setup progress stalls
-1. Open **Setup** and identify the first incomplete step.
-2. Fill only the required fields for that step.
-3. Save the step and confirm the completion badge updates.
-4. Use the help assistant if a validation message is unclear.
+## Recommended next steps
+- Review missing prerequisites on the setup page
+- Test your provider credentials before scheduling sends
+- Keep one operator assigned to verify DNS and mailbox health
         `.trim(),
         actions: [
-            { label: "Resume setup", href: "/setup", kind: "page" },
-            { label: "Read help center", href: "/help", kind: "page" },
+            { label: "Review setup checklist", href: "/setup", kind: "page" },
+            { label: "Check mailbox status", href: "/settings/mailboxes", kind: "page" },
         ],
     },
     {
-        slug: "api-keys",
+        slug: "managing-keys",
         title: "Managing AI and API Keys",
         category: "Settings",
         summary: "Add provider keys, keep them scoped, and validate them before launch.",
         content: `
 # Managing AI and API Keys
 
-CraftMyFunnel supports bring-your-own-provider keys for generation, analysis, and enrichment workflows.
+CraftMyFunnel AI supports bring-your-own-provider keys for generation, analysis, and enrichment workflows.
 
 ## Best practice
 1. Add only the keys required for your current workflow.

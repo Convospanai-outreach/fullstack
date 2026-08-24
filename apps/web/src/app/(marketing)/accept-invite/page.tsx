@@ -49,7 +49,7 @@ export default function AcceptInvitePage() {
             <div className="w-full max-w-md">
                 <Link href="/" className="mb-8 flex items-center justify-center gap-2 text-xl font-black text-white">
                     <LogoMark priority className="h-9 w-9" />
-                    CraftMyFunnel
+                    CraftMyFunnel AI
                 </Link>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center">

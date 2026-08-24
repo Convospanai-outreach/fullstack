@@ -40,7 +40,7 @@ export default function PricingPage() {
                 key: json.key,
                 amount: json.amount,
                 currency: json.currency,
-                name: "CraftMyFunnel",
+                name: "CraftMyFunnel AI",
                 description: `${planId} Plan Subscription`,
                 order_id: json.orderId,
                 handler: function (_response: any) {

@@ -14,22 +14,49 @@ export const metadata: Metadata = {
 export default function StaffingUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Staffing & Executive Recruiting Outbound Sales Playbook",
-        "description": "How staffing and recruitment agencies scale client acquisition with hiring intent signals and governed candidate pitches.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Staffing & Recruiting",
+                        "item": "https://craftmyfunnel.live/use-cases/staffing"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Staffing & Executive Recruiting Outbound Sales Playbook",
+                "description": "How staffing and recruitment agencies scale client acquisition with hiring intent signals and governed candidate pitches.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/staffing"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/staffing"
+        ]
     };
 
     return (

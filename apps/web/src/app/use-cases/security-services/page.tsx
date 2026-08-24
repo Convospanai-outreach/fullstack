@@ -14,22 +14,49 @@ export const metadata: Metadata = {
 export default function SecurityServicesUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Security & Guarding Services Outbound Sales Playbook",
-        "description": "How physical security and risk management firms automate compliant enterprise outreach using CraftMyFunnel.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Security Services",
+                        "item": "https://craftmyfunnel.live/use-cases/security-services"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Security & Guarding Services Outbound Sales Playbook",
+                "description": "How physical security and risk management firms automate compliant enterprise outreach using CraftMyFunnel.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/security-services"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/security-services"
+        ]
     };
 
     return (
