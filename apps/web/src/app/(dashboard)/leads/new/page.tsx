@@ -61,7 +61,7 @@ export default function NewLeadPage() {
                 <SectionHeader title="Add New Lead" subtitle="Manually enter a contact into your leads." />
             </div>
 
-            <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 space-y-4">
                 <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Full Name
