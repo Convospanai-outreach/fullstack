@@ -12,7 +12,7 @@ export default function Footer({ hideCTA = false }: { hideCTA?: boolean }) {
                         <div className="col-span-2 md:col-span-1 space-y-4">
                             <Link href="/" className="flex items-center gap-2 group">
                                 <LogoMark className="h-7 w-7" />
-                                <span className="text-lg font-black font-outfit text-white">CraftMyFunnel</span>
+                                <span className="text-lg font-black font-outfit text-white">CraftMyFunnel AI</span>
                             </Link>
                             <p className="text-sm text-gray-500 leading-relaxed">
                                 Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.

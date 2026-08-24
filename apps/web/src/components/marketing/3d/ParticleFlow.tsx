@@ -4,16 +4,11 @@ import { useRef, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-const PARTICLE_COUNT_DESKTOP = 420;
-const PARTICLE_COUNT_MOBILE = 140;
+const PARTICLE_COUNT_DESKTOP = 600;
+const PARTICLE_COUNT_MOBILE  = 200;
 
 function isMobile() {
   return typeof window !== "undefined" && window.innerWidth < 768;
-}
-
-function getPrefersReducedMotion() {
-  if (typeof window === "undefined") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 interface ParticleFlowProps {
@@ -23,38 +18,38 @@ interface ParticleFlowProps {
 
 export default function ParticleFlow({ progressRef, reduceMotion = false }: ParticleFlowProps) {
   const pointsRef = useRef<THREE.Points>(null);
-  const trailRef = useRef<THREE.Points>(null);
+  const sparkPointsRef = useRef<THREE.Points>(null);
 
   const count = useMemo(
-    () => (reduceMotion ? 60 : isMobile() ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP),
+    () => (reduceMotion ? 80 : isMobile() ? PARTICLE_COUNT_MOBILE : PARTICLE_COUNT_DESKTOP),
     [reduceMotion],
   );
 
-  // Base attributes
+  // ── 1. Base Stream Attributes ──────────────────────────────────────────────
   const [positions, phases, speeds, radii, states] = useMemo(() => {
     const pos = new Float32Array(count * 3);
     const pha = new Float32Array(count);
     const spd = new Float32Array(count);
     const rad = new Float32Array(count);
-    const sta = new Float32Array(count); // 0=external, 1=captured, 2=packet, 3=stalled, 4=edge, 5=revenue, 6=feedback
+    const sta = new Float32Array(count);
 
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const r = 4.5 + Math.random() * 3.5;
-      const y = 4 + Math.random() * 8;
+      const r = 4.8 + Math.random() * 4.0;
+      const y = 4 + Math.random() * 9;
       pos[i * 3]     = Math.cos(angle) * r;
       pos[i * 3 + 1] = y;
       pos[i * 3 + 2] = Math.sin(angle) * r;
       pha[i] = Math.random() * Math.PI * 2;
-      spd[i] = 0.4 + Math.random() * 0.6;
-      rad[i] = 4.5 + Math.random() * 3.5;
+      spd[i] = 0.5 + Math.random() * 0.7;
+      rad[i] = 4.8 + Math.random() * 4.0;
       sta[i] = 0;
     }
     return [pos, pha, spd, rad, sta];
   }, [count]);
 
   const colors = useMemo(() => new Float32Array(count * 3), [count]);
-  const sizes  = useMemo(() => new Float32Array(count).fill(2.0), [count]);
+  const sizes  = useMemo(() => new Float32Array(count).fill(2.5), [count]);
 
   const geo = useMemo(() => {
     const g = new THREE.BufferGeometry();
@@ -64,22 +59,27 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
     return g;
   }, [positions, colors, sizes]);
 
-  // Feedback trail (amber reverse loop)
-  const trailGeo = useMemo(() => {
-    const n = 40;
-    const pos2 = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) {
-      const t = i / n;
-      const angle = t * Math.PI * 2;
-      const r = 6.5;
-      pos2[i * 3]     = Math.cos(angle) * r;
-      pos2[i * 3 + 1] = -9 + t * 18;
-      pos2[i * 3 + 2] = Math.sin(angle) * r;
+  // ── 2. Gold Revenue Fountain Sparks ────────────────────────────────────────
+  const sparkCount = 80;
+  const [sparkPos, sparkVelo] = useMemo(() => {
+    const sp = new Float32Array(sparkCount * 3);
+    const sv = new Float32Array(sparkCount * 3);
+    for (let i = 0; i < sparkCount; i++) {
+      sp[i * 3]     = (Math.random() - 0.5) * 1.5;
+      sp[i * 3 + 1] = -10.5 + Math.random() * 2;
+      sp[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
+      sv[i * 3]     = (Math.random() - 0.5) * 0.08;
+      sv[i * 3 + 1] = 0.08 + Math.random() * 0.12; // burst upward
+      sv[i * 3 + 2] = (Math.random() - 0.5) * 0.08;
     }
+    return [sp, sv];
+  }, [sparkCount]);
+
+  const sparkGeo = useMemo(() => {
     const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.BufferAttribute(pos2, 3));
+    g.setAttribute("position", new THREE.BufferAttribute(sparkPos, 3));
     return g;
-  }, []);
+  }, [sparkPos]);
 
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
@@ -97,96 +97,84 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
       let z = posAttr.getZ(i);
       const r2 = Math.sqrt(x * x + z * z);
 
-      // Determine state from progress
+      // State Assignment based on scroll progression
       let stateTarget = 0;
-      if (progress > 0.92) stateTarget = 5;
-      else if (progress > 0.82) stateTarget = 4;
-      else if (progress > 0.68) stateTarget = 3;
-      else if (progress > 0.54) stateTarget = 2;
-      else if (progress > 0.4)  stateTarget = 1;
+      if (progress > 0.90) stateTarget = 5;
+      else if (progress > 0.80) stateTarget = 4;
+      else if (progress > 0.65) stateTarget = 3;
+      else if (progress > 0.50) stateTarget = 2;
+      else if (progress > 0.35) stateTarget = 1;
 
-      // Gradually transition random subset of particles to new state
-      if (Math.random() < 0.002) states[i] = stateTarget;
+      if (Math.random() < 0.003) states[i] = stateTarget;
       const state = states[i]!;
 
       const dt = 0.016;
-
-      // ── Flywheel churning integration ────────────────────────────────────
-      const flywheelY = 9 - progress * 18;
+      const flywheelY = 12.2 - progress * 22.7;
       const distY = Math.abs(y - flywheelY);
-      // Boost angular speed dynamically as particles approach the flywheel's Y
-      const speedBoost = distY < 2.5 ? 1.5 + (2.5 - distY) * 1.8 : 1.0;
+      const speedBoost = distY < 3.0 ? 1.6 + (3.0 - distY) * 1.5 : 1.0;
 
       if (state === 0) {
-        // Market noise — drift outside
-        const angle = Math.atan2(z, x) + dt * 0.08 * speed;
-        const newR = r2 + Math.sin(t * speed + phase) * 0.012;
+        // Market Ambient Cloud
+        const angle = Math.atan2(z, x) + dt * 0.12 * speed;
+        const newR = r2 + Math.sin(t * speed + phase) * 0.015;
         x = Math.cos(angle) * newR;
         z = Math.sin(angle) * newR;
-        y += (Math.sin(t * speed * 0.5 + phase) * 0.01 - 0.005);
-        if (y < -10) y = 9 + Math.random() * 3;
-        if (r2 > 10) {
-          x *= 0.97;
-          z *= 0.97;
-        }
-        setParticleColor(colAttr, sizeAttr, i, 0.18, 0.38, 0.52, 1.8);
+        y += (Math.sin(t * speed * 0.5 + phase) * 0.01 - 0.006);
+        if (y < -11) y = 10 + Math.random() * 4;
+        setParticleColor(colAttr, sizeAttr, i, 0.22, 0.45, 0.65, 2.2);
       } else if (state === 1) {
-        // Captured — spiral into funnel (churned by flywheel)
-        const angle = Math.atan2(z, x) + dt * 0.35 * speed * speedBoost;
-        const targetR = Math.max(0.4, r2 * 0.992 - 0.02);
+        // Signal Ingestion (Cyan Vortex)
+        const angle = Math.atan2(z, x) + dt * 0.45 * speed * speedBoost;
+        const targetR = Math.max(0.4, r2 * 0.991 - 0.025);
         x = Math.cos(angle) * targetR;
         z = Math.sin(angle) * targetR;
-        y -= dt * 1.2 * speed;
-        if (y < -9.5) { y = 8.5; x = (Math.random() - 0.5) * 10; z = (Math.random() - 0.5) * 10; states[i] = 0; }
-        setParticleColor(colAttr, sizeAttr, i, 0.13, 0.83, 0.93, 2.6);
+        y -= dt * 1.4 * speed;
+        if (y < -10.5) { y = 9.5; x = (Math.random() - 0.5) * 11; z = (Math.random() - 0.5) * 11; states[i] = 0; }
+        setParticleColor(colAttr, sizeAttr, i, 0.22, 0.85, 0.97, 3.2);
       } else if (state === 2) {
-        // Outreach packet — violet spiral (churned by flywheel)
-        const angle = Math.atan2(z, x) + dt * 0.5 * speed * speedBoost;
-        const targetR = Math.max(0.3, r2 * 0.994 - 0.015);
-        x = Math.cos(angle) * targetR;
-        z = Math.sin(angle) * targetR;
-        // Approval checkpoint pause
-        if (y > 2.5 && y < 3.5) { y -= dt * 0.3 * speed; }
-        else { y -= dt * 1.5 * speed; }
-        if (y < -9.5) { y = 8.0; x = (Math.random() - 0.5) * 8; z = (Math.random() - 0.5) * 8; states[i] = 1; }
-        setParticleColor(colAttr, sizeAttr, i, 0.55, 0.36, 0.96, 2.8);
-      } else if (state === 3) {
-        // Human rescue — mint loop (churned by flywheel)
-        const angle = Math.atan2(z, x) + dt * 0.3 * speed * speedBoost;
-        const wobble = Math.sin(t * 1.2 + phase) * 0.06;
-        const targetR = Math.max(0.3, r2 * 0.995 + wobble);
-        x = Math.cos(angle) * targetR;
-        z = Math.sin(angle) * targetR;
-        y -= dt * 0.9 * speed;
-        if (y < -9.5) { y = 7.5; states[i] = 2; }
-        setParticleColor(colAttr, sizeAttr, i, 0.2, 0.83, 0.6, 3.0);
-      } else if (state === 4) {
-        // Edge secured — crystal tight spiral (churned by flywheel)
-        const angle = Math.atan2(z, x) + dt * 0.6 * speed * speedBoost;
-        const targetR = Math.max(0.2, r2 * 0.996 - 0.01);
+        // AI Outreach Packet (Indigo/Violet Acceleration)
+        const angle = Math.atan2(z, x) + dt * 0.65 * speed * speedBoost;
+        const targetR = Math.max(0.3, r2 * 0.993 - 0.02);
         x = Math.cos(angle) * targetR;
         z = Math.sin(angle) * targetR;
         y -= dt * 1.8 * speed;
-        if (y < -9.5) { y = 7.0; states[i] = 3; }
-        setParticleColor(colAttr, sizeAttr, i, 0.38, 0.65, 0.98, 2.4);
-      } else {
-        // Revenue output — amber convergence toward the chest at [0, -10.5, 0]
-        const angle = Math.atan2(z, x) + dt * 0.9 * speed;
-        x = Math.cos(angle) * Math.min(r2 + 0.04, 2.5);
-        z = Math.sin(angle) * Math.min(r2 + 0.04, 2.5);
+        if (y < -10.5) { y = 9.0; x = (Math.random() - 0.5) * 9; z = (Math.random() - 0.5) * 9; states[i] = 1; }
+        setParticleColor(colAttr, sizeAttr, i, 0.58, 0.42, 0.98, 3.5);
+      } else if (state === 3) {
+        // Human Loop Rescue (Emerald Mint)
+        const angle = Math.atan2(z, x) + dt * 0.45 * speed * speedBoost;
+        const wobble = Math.sin(t * 1.6 + phase) * 0.08;
+        const targetR = Math.max(0.3, r2 * 0.994 + wobble);
+        x = Math.cos(angle) * targetR;
+        z = Math.sin(angle) * targetR;
+        y -= dt * 1.2 * speed;
+        if (y < -10.5) { y = 8.5; states[i] = 2; }
+        setParticleColor(colAttr, sizeAttr, i, 0.25, 0.92, 0.65, 3.4);
+      } else if (state === 4) {
+        // EDGE Sovereign Stream (Sapphire Blue)
+        const angle = Math.atan2(z, x) + dt * 0.85 * speed * speedBoost;
+        const targetR = Math.max(0.2, r2 * 0.995 - 0.015);
+        x = Math.cos(angle) * targetR;
+        z = Math.sin(angle) * targetR;
         y -= dt * 2.2 * speed;
-        // Once past the funnel throat, spiral inward toward the chest centre
-        if (y < -9.0) {
-          x *= 0.93;
-          z *= 0.93;
+        if (y < -10.5) { y = 8.0; states[i] = 3; }
+        setParticleColor(colAttr, sizeAttr, i, 0.38, 0.75, 1.0, 3.2);
+      } else {
+        // Revenue Output (Amber Gold Vortex into Chest)
+        const angle = Math.atan2(z, x) + dt * 1.1 * speed;
+        x = Math.cos(angle) * Math.min(r2 + 0.05, 2.8);
+        z = Math.sin(angle) * Math.min(r2 + 0.05, 2.8);
+        y -= dt * 2.6 * speed;
+        if (y < -9.5) {
+          x *= 0.92;
+          z *= 0.92;
         }
-        if (y < -11.5) {
-          // Respawn above the funnel to keep the loop going
-          y = -7 + Math.random() * 2;
+        if (y < -11.8) {
+          y = -6 + Math.random() * 2;
           x = (Math.random() - 0.5) * 2;
           z = (Math.random() - 0.5) * 2;
         }
-        setParticleColor(colAttr, sizeAttr, i, 0.98, 0.75, 0.14, 4.0);
+        setParticleColor(colAttr, sizeAttr, i, 0.98, 0.80, 0.18, 4.8);
       }
 
       posAttr.setXYZ(i, x, y, z);
@@ -196,34 +184,59 @@ export default function ParticleFlow({ progressRef, reduceMotion = false }: Part
     colAttr.needsUpdate  = true;
     sizeAttr.needsUpdate = true;
 
-    // Feedback trail visibility
-    if (trailRef.current) {
-      const mat = trailRef.current.material as THREE.PointsMaterial;
-      mat.opacity = progress > 0.92 ? 0.55 + 0.2 * Math.sin(t * 1.5) : 0;
+    // ── Animate Gold Revenue Sparks Fountain ─────────────────────────────────
+    if (sparkPointsRef.current) {
+      const spAttr = sparkGeo.getAttribute("position") as THREE.BufferAttribute;
+      const activeSparks = progress > 0.88;
+      const mat = sparkPointsRef.current.material as THREE.PointsMaterial;
+      mat.opacity = activeSparks ? 0.9 : 0;
+
+      if (activeSparks) {
+        for (let i = 0; i < sparkCount; i++) {
+          let sx = spAttr.getX(i);
+          let sy = spAttr.getY(i);
+          let sz = spAttr.getZ(i);
+
+          sx += sparkVelo[i * 3]!;
+          sy += sparkVelo[i * 3 + 1]!;
+          sz += sparkVelo[i * 3 + 2]!;
+
+          // Decay & Loop
+          if (sy > -4.0) {
+            sx = (Math.random() - 0.5) * 1.2;
+            sy = -10.5;
+            sz = (Math.random() - 0.5) * 1.2;
+          }
+          spAttr.setXYZ(i, sx, sy, sz);
+        }
+        spAttr.needsUpdate = true;
+      }
     }
   });
 
   return (
     <>
+      {/* Primary Vortex Particle Nebula */}
       <points ref={pointsRef} geometry={geo}>
         <pointsMaterial
           vertexColors
           sizeAttenuation
           transparent
-          opacity={0.85}
-          size={0.14}
+          opacity={0.92}
+          size={0.16}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />
       </points>
-      {/* Feedback loop trail */}
-      <points ref={trailRef} geometry={trailGeo}>
+
+      {/* Upward Amber Revenue Sparks Fountain */}
+      <points ref={sparkPointsRef} geometry={sparkGeo}>
         <pointsMaterial
           color={0xfbbf24}
           sizeAttenuation
           transparent
           opacity={0}
-          size={0.1}
+          size={0.18}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
         />

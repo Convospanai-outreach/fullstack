@@ -50,92 +50,131 @@ const HUD_STAGES = SCROLL_ACTS.map((a) => ({ id: a.id, label: a.label, shortLabe
 const ACTS = [
   {
     id: "intake",
-    eyebrow: "Act 0",
+    eyebrow: "Act 0 — Market Intake",
+    categoryBadge: "CraftMyFunnel AI Engine",
     headline: "Somewhere out there, a company needs exactly what you sell.",
     sub: "Most teams spend their week guessing who to contact. The market is moving. Your pipeline is not.",
     tag: null,
+    isSolution: false,
+    color: "slate",
   },
   {
     id: "leak",
-    eyebrow: "The problem",
+    eyebrow: "The Core Problem",
+    categoryBadge: null,
     headline: "Signals disappear. Follow-ups stall. Deals die between messages.",
-    sub: "Manual prospecting, ungoverned outreach, and no rescue layer turn warm intent into lost revenue every day.",
-    tag: null,
+    sub: "Manual prospecting, ungoverned mass outreach, and no rescue layer turn warm intent into lost revenue every day.",
+    tag: "Outbound Crisis",
+    isSolution: false,
+    color: "rose",
   },
   {
     id: "shift",
-    eyebrow: "The system",
+    eyebrow: "The Paradigm Shift",
+    categoryBadge: null,
     headline: "Market intent goes in. Governed pipeline comes out. Revenue keeps feeding the loop.",
-    sub: "CraftMyFunnel connects four purpose-built layers so nothing leaks between signal and signed contract.",
-    tag: null,
+    sub: "CraftMyFunnel AI connects four purpose-built layers so nothing leaks between signal and signed contract.",
+    tag: "Governed Engine",
+    isSolution: false,
+    color: "indigo",
   },
   {
     id: "signal",
     eyebrow: "Layer 01 — NetJana",
+    solutionBadge: "CraftMyFunnel AI — Layer 01 Solution",
     headline: "Be the first call. Never the second.",
-    sub: "Monitors hiring, expansion, tenders, and decision-maker movement so your team works active-market accounts — not cold lists.",
+    sub: "Monitors hiring surges, expansion, tenders, and executive movement so your team works active-market accounts — not cold lists.",
     tag: "Buyer Signals",
     solves: "Who should I reach out to this week?",
+    isSolution: true,
     color: "cyan",
   },
   {
     id: "outreach",
     eyebrow: "Layer 02 — CMF Core",
+    solutionBadge: "CraftMyFunnel AI — Layer 02 Solution",
     headline: "AI drafts. Managers approve. Nothing goes out unchecked.",
-    sub: "Drafts outreach, prepares channel context, tracks every action, and keeps manager approval in the loop before anything goes out.",
+    sub: "Drafts hyper-personalized outreach, prepares channel context, and keeps manager approval in the loop before anything sends.",
     tag: "AI Outreach SaaS",
     solves: "How do I reach them, and how do I know it went well?",
+    isSolution: true,
     color: "violet",
   },
   {
     id: "human",
     eyebrow: "Layer 03 — Human Layer",
+    solutionBadge: "CraftMyFunnel AI — Layer 03 Solution",
     headline: "The deals email cannot close, your people can.",
     sub: "Caller tasks, manual stage updates, and follow-up suggestions keep high-value leads moving between message and contract.",
     tag: "Conversion Moat",
     solves: "What happens when the digital channel is not enough?",
+    isSolution: true,
     color: "mint",
   },
   {
     id: "edge",
     eyebrow: "Layer 04 — Covospan EDGE",
+    solutionBadge: "CraftMyFunnel AI — Layer 04 Solution",
     headline: "Their trust is the contract. Keep it with you.",
     sub: "Runs sensitive AI checks, memory logs, and outreach processing close to your own data — with encrypted local storage and on-device audit trails.",
     tag: "Sovereign Edge Node",
     solves: "How do I run this without putting sensitive client data in someone else's cloud?",
+    isSolution: true,
     color: "crystal",
   },
   {
     id: "revenue",
-    eyebrow: "The output",
+    eyebrow: "The Output Node",
+    solutionBadge: "CraftMyFunnel AI — Verified Result",
     headline: "From scattered follow-ups to qualified meetings.",
     sub: "Every signal captured, every outreach governed, every conversation rescued — compresses into pipeline your team can actually close.",
     tag: "Qualified Revenue",
+    isSolution: true,
     color: "amber",
   },
   {
     id: "launch",
-    eyebrow: "Ready to start",
+    eyebrow: "Ready to Pilot",
+    categoryBadge: "CraftMyFunnel AI Pilot",
     headline: "Stop losing the deals you have already earned.",
-    sub: "Request early access to the CraftMyFunnel pilot programme and see the full funnel working on your own accounts.",
+    sub: "Request early access to the CraftMyFunnel AI pilot programme and see the full funnel working on your own accounts.",
     tag: null,
+    isSolution: true,
+    color: "amber",
   },
 ] as const;
 
 const TAG_COLORS: Record<string, string> = {
-  cyan:    "border-cyan-400/40 text-cyan-300 bg-cyan-400/10",
-  violet:  "border-violet-400/40 text-violet-300 bg-violet-400/10",
-  mint:    "border-emerald-400/40 text-emerald-300 bg-emerald-400/10",
-  crystal: "border-blue-400/40 text-blue-300 bg-blue-400/10",
-  amber:   "border-amber-400/40 text-amber-300 bg-amber-400/10",
+  slate:   "border-slate-600/40 text-slate-300 bg-slate-800/40",
+  rose:    "border-rose-500/40 text-rose-300 bg-rose-500/10 shadow-[0_0_15px_rgba(244,63,94,0.2)]",
+  indigo:  "border-indigo-500/40 text-indigo-300 bg-indigo-500/10 shadow-[0_0_15px_rgba(99,102,241,0.2)]",
+  cyan:    "border-cyan-400/50 text-cyan-200 bg-cyan-400/15 shadow-[0_0_20px_rgba(56,189,248,0.3)]",
+  violet:  "border-violet-400/50 text-violet-200 bg-violet-400/15 shadow-[0_0_20px_rgba(139,92,246,0.3)]",
+  mint:    "border-emerald-400/50 text-emerald-200 bg-emerald-400/15 shadow-[0_0_20px_rgba(16,185,129,0.3)]",
+  crystal: "border-sky-400/50 text-sky-200 bg-sky-400/15 shadow-[0_0_20px_rgba(56,189,248,0.3)]",
+  amber:   "border-amber-400/60 text-amber-200 bg-amber-400/20 shadow-[0_0_25px_rgba(251,191,36,0.35)]",
+};
+
+const CARD_GLOW: Record<string, string> = {
+  slate:   "border-slate-800 bg-slate-950/80 shadow-[0_0_30px_rgba(0,0,0,0.8)]",
+  rose:    "border-rose-900/50 bg-gradient-to-b from-slate-950 via-slate-950 to-rose-950/20 shadow-[0_0_35px_rgba(244,63,94,0.12)]",
+  indigo:  "border-indigo-900/50 bg-gradient-to-b from-slate-950 via-slate-950 to-indigo-950/20 shadow-[0_0_35px_rgba(99,102,241,0.12)]",
+  cyan:    "border-cyan-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-cyan-950/40 shadow-[0_0_50px_rgba(6,182,212,0.25)] ring-1 ring-cyan-400/30",
+  violet:  "border-violet-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-violet-950/40 shadow-[0_0_50px_rgba(139,92,246,0.25)] ring-1 ring-violet-400/30",
+  mint:    "border-emerald-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-emerald-950/40 shadow-[0_0_50px_rgba(16,185,129,0.25)] ring-1 ring-emerald-400/30",
+  crystal: "border-sky-400/60 bg-gradient-to-br from-slate-950 via-slate-900/95 to-sky-950/40 shadow-[0_0_50px_rgba(56,189,248,0.25)] ring-1 ring-sky-400/30",
+  amber:   "border-amber-400/70 bg-gradient-to-br from-slate-950 via-slate-900/95 to-amber-950/40 shadow-[0_0_60px_rgba(251,191,36,0.35)] ring-1 ring-amber-400/40",
 };
 
 const HEADLINE_COLORS: Record<string, string> = {
-  cyan:    "from-cyan-300 to-sky-400",
-  violet:  "from-violet-300 to-indigo-400",
-  mint:    "from-emerald-300 to-teal-400",
-  crystal: "from-blue-300 to-cyan-400",
-  amber:   "from-amber-300 to-yellow-400",
+  slate:   "from-white to-slate-300",
+  rose:    "from-rose-200 via-pink-300 to-rose-400",
+  indigo:  "from-indigo-200 via-sky-300 to-indigo-400",
+  cyan:    "from-cyan-100 via-sky-200 to-teal-300",
+  violet:  "from-violet-100 via-fuchsia-200 to-indigo-300",
+  mint:    "from-emerald-100 via-teal-200 to-emerald-300",
+  crystal: "from-sky-100 via-cyan-200 to-blue-300",
+  amber:   "from-amber-100 via-yellow-200 to-amber-400",
 };
 
 function getPrefersReducedMotion() {
@@ -380,22 +419,39 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
   const isLeft = idx % 2 === 0;
   const colorKey = "color" in act ? (act.color as string) : null;
   const tagCls = colorKey ? TAG_COLORS[colorKey] : "border-slate-500/30 text-slate-400 bg-slate-400/5";
+  const glowCls = colorKey && CARD_GLOW[colorKey] ? CARD_GLOW[colorKey] : "border-white/10 bg-slate-950/75 shadow-2xl";
   const gradientClass = colorKey && HEADLINE_COLORS[colorKey] ? `bg-gradient-to-r ${HEADLINE_COLORS[colorKey]}` : "";
 
   return (
     <div
       className={`pointer-events-auto max-w-xl w-full ${isLeft ? "ml-0 mr-auto lg:ml-16" : "mr-0 ml-auto lg:mr-16"}`}
     >
-      <div className="glass-premium rounded-3xl p-8 shadow-glow">
+      <div className={`rounded-[28px] border p-8 backdrop-blur-2xl transition-all duration-500 ${glowCls}`}>
+        {/* Solution Badge (Layer 01 onwards) */}
+        {"solutionBadge" in act && act.solutionBadge && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-white shadow-lg backdrop-blur-md">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+            {act.solutionBadge}
+          </div>
+        )}
+
+        {/* Category Pill (Act 0 & Pilot) */}
+        {"categoryBadge" in act && act.categoryBadge && (
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3.5 py-1 text-[10px] font-mono font-bold uppercase tracking-[0.22em] text-cyan-300 shadow-[0_0_15px_rgba(56,189,248,0.25)]">
+            <span className="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-pulse" />
+            {act.categoryBadge}
+          </div>
+        )}
+
         {/* Eyebrow */}
-        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400">
+        <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.3em] text-slate-400 font-semibold">
           {act.eyebrow}
         </p>
 
         {/* Tag pill */}
         {"tag" in act && act.tag && (
           <span
-            className={`mb-4 inline-block rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${tagCls}`}
+            className={`mb-4 inline-block rounded-full border px-3 py-1 text-[10px] font-mono font-semibold uppercase tracking-wider ${tagCls}`}
           >
             {act.tag}
           </span>
@@ -403,7 +459,7 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
 
         {/* Headline */}
         <h2
-          className={`mb-4 text-2xl font-bold leading-tight sm:text-3xl ${
+          className={`mb-4 text-2xl font-black leading-tight tracking-tight sm:text-3xl ${
             gradientClass
               ? `text-transparent bg-clip-text ${gradientClass}`
               : "text-white"
@@ -414,18 +470,31 @@ function ActCard({ act, idx }: { act: typeof ACTS[number]; idx: number }) {
 
         {/* Solves line */}
         {"solves" in act && act.solves && (
-          <p className="mb-3 text-sm font-medium text-slate-400">
-            <span className="text-slate-500">Solves: </span>
-            <span className="italic text-slate-300">&ldquo;{act.solves}&rdquo;</span>
+          <p className="mb-3 text-sm font-medium text-slate-300/90">
+            <span className="text-slate-500 font-mono text-xs uppercase tracking-wider">Solves: </span>
+            <span className="italic text-cyan-200/90">&ldquo;{act.solves}&rdquo;</span>
           </p>
         )}
 
         {/* Body */}
-        <p className="text-base leading-relaxed text-slate-400">{act.sub}</p>
+        <p className="text-base leading-relaxed text-slate-300 font-normal">{act.sub}</p>
 
         {/* Pillar data pills */}
         {getPillarForAct(act.id) && (
           <PillarPill pillar={getPillarForAct(act.id)!} colorKey={colorKey} />
+        )}
+
+        {/* Interactive Fast Scroll Link for Act 0 */}
+        {act.id === "intake" && (
+          <div className="mt-6 pt-5 border-t border-white/10 flex items-center justify-between text-xs">
+            <span className="text-slate-400 font-mono text-[10px] tracking-wider">Scroll down to explore 3D funnel</span>
+            <a
+              href="#workflow"
+              className="inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-cyan-300 hover:text-white transition-colors underline underline-offset-4"
+            >
+              Skip to Overview ↓
+            </a>
+          </div>
         )}
       </div>
     </div>
@@ -444,7 +513,7 @@ function PillarPill({
       {["Governed", "Traceable", pillar.tag].map((label) => (
         <span
           key={label}
-          className="rounded-full bg-slate-800/60 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-400 border border-slate-700/50"
+          className="rounded-full bg-slate-900/80 px-3 py-1 text-[10px] font-mono uppercase tracking-widest text-slate-300 border border-slate-700/60 shadow-sm"
         >
           {label}
         </span>
@@ -462,3 +531,4 @@ function getPillarForAct(id: string) {
   };
   return map[id] ?? null;
 }
+

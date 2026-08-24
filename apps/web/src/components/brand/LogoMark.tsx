@@ -10,7 +10,7 @@ export function LogoMark({ className = "h-8 w-8", priority = false, sizes = "32p
     return (
         <Image
             src="/craftmyfunnel-logo.png"
-            alt="CraftMyFunnel logo"
+            alt="CraftMyFunnel AI logo"
             width={96}
             height={96}
             priority={priority}

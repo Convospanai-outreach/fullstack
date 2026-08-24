@@ -59,22 +59,49 @@ const FEATURE_ROWS = [
 export default function InstantlyComparisonPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "CraftMyFunnel vs Instantly: Why Governed Outbound Beats Mass Blasting",
-        "description": "Comparing CraftMyFunnel and Instantly.ai on AI personalization quality, human approval workflows, and deliverability protection.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Product Comparisons",
+                        "item": "https://craftmyfunnel.live/vs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "CraftMyFunnel vs Instantly",
+                        "item": "https://craftmyfunnel.live/vs/instantly"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "CraftMyFunnel vs Instantly: Why Governed Outbound Beats Mass Blasting",
+                "description": "Comparing CraftMyFunnel and Instantly.ai on AI personalization quality, human approval workflows, and deliverability protection.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/vs/instantly"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/vs/instantly"
+        ]
     };
 
     return (

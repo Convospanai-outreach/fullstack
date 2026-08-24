@@ -14,22 +14,49 @@ export const metadata: Metadata = {
 export default function ManagedServicesUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Managed IT Services & MSP Outbound Sales Playbook",
-        "description": "How Managed Service Providers (MSPs) scale MRR and win recurring IT contracts with intent signals and governed review workflows.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Managed IT Services",
+                        "item": "https://craftmyfunnel.live/use-cases/managed-services"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Managed IT Services & MSP Outbound Sales Playbook",
+                "description": "How Managed Service Providers (MSPs) scale MRR and win recurring IT contracts with intent signals and governed review workflows.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/managed-services"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/managed-services"
+        ]
     };
 
     return (

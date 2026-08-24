@@ -45,19 +45,40 @@ const DOC_TOPICS = [
 export default function DocsHubPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "CraftMyFunnel Documentation Hub",
-        "description": "Comprehensive technical guides and architecture specifications for CraftMyFunnel.",
-        "url": "https://craftmyfunnel.live/docs",
-        "mainEntity": {
-            "@type": "ItemList",
-            "itemListElement": DOC_TOPICS.map((t, idx) => ({
-                "@type": "ListItem",
-                "position": idx + 1,
-                "name": t.title,
-                "url": `https://craftmyfunnel.live/docs/${t.slug}`
-            }))
-        }
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    }
+                ]
+            },
+            {
+                "@type": "CollectionPage",
+                "name": "CraftMyFunnel Documentation Hub",
+                "description": "Comprehensive technical guides and architecture specifications for CraftMyFunnel.",
+                "url": "https://craftmyfunnel.live/docs",
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "itemListElement": DOC_TOPICS.map((t, idx) => ({
+                        "@type": "ListItem",
+                        "position": idx + 1,
+                        "name": t.title,
+                        "url": `https://craftmyfunnel.live/docs/${t.slug}`
+                    }))
+                }
+            }
+        ]
     };
 
     return (

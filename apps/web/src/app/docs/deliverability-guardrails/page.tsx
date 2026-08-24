@@ -14,14 +14,41 @@ export const metadata: Metadata = {
 export default function DeliverabilityDocPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "TechArticle",
-        "headline": "Email Deliverability & Compliance Architecture in CraftMyFunnel",
-        "description": "Technical specification of RFC 5322 Message-ID threading, RFC 8058 unsubscribe headers, and mailbox warmup guardrails.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "url": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Deliverability Guardrails",
+                        "item": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+                    }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "headline": "Email Deliverability & Compliance Architecture in CraftMyFunnel",
+                "description": "Technical specification of RFC 5322 Message-ID threading, RFC 8058 unsubscribe headers, and mailbox warmup guardrails.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "url": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+            }
+        ]
     };
 
     return (

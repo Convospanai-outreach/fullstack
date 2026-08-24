@@ -14,22 +14,49 @@ export const metadata: Metadata = {
 export default function TrainingUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "L&D & Corporate Training Outbound Sales Playbook",
-        "description": "How corporate training providers and L&D consultants acquire enterprise learning contracts with intent signals.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "L&D & Corporate Training",
+                        "item": "https://craftmyfunnel.live/use-cases/training"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "L&D & Corporate Training Outbound Sales Playbook",
+                "description": "How corporate training providers and L&D consultants acquire enterprise learning contracts with intent signals.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/training"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/training"
+        ]
     };
 
     return (

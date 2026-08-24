@@ -14,14 +14,41 @@ export const metadata: Metadata = {
 export default function GovernedOutreachDocPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "TechArticle",
-        "headline": "Governed Outreach Workflow & Human Approval Queue Mechanics",
-        "description": "Comprehensive technical guide on implementing human-in-the-loop AI review queues for B2B sales outreach.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "url": "https://craftmyfunnel.live/docs/governed-outreach"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Governed Outreach",
+                        "item": "https://craftmyfunnel.live/docs/governed-outreach"
+                    }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "headline": "Governed Outreach Workflow & Human Approval Queue Mechanics",
+                "description": "Comprehensive technical guide on implementing human-in-the-loop AI review queues for B2B sales outreach.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "url": "https://craftmyfunnel.live/docs/governed-outreach"
+            }
+        ]
     };
 
     return (

@@ -24,7 +24,7 @@ export default function Header() {
                 <Link href="/" className="relative z-10 flex items-center gap-3 group/logo">
                     <LogoMark priority className="h-8 w-8 transition-transform group-hover/logo:scale-110" />
                     <span className="text-2xl font-black font-outfit bg-gradient-to-r from-white via-white to-indigo-300 bg-clip-text text-transparent tracking-tight">
-                        CraftMyFunnel
+                        CraftMyFunnel AI
                     </span>
                     <div className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
                         <span className="text-[10px] font-black uppercase tracking-widest text-indigo-400">Pro</span>
