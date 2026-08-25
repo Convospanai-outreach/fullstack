@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Security & Guarding Services Outbound Playbook | CraftMyFunnel",
     description: "Learn how commercial physical security, executive guarding, and surveillance providers use CraftMyFunnel to run governed, compliance-safe outbound sales campaigns.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/security-services",
+    },
     openGraph: {
         title: "Security Services Outbound Sales Playbook | CraftMyFunnel",
         description: "Win enterprise guarding and commercial surveillance contracts with manager-approved AI drafts and risk-signal monitoring.",

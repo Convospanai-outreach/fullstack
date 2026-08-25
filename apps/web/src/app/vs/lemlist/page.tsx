@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "CraftMyFunnel vs Lemlist | Governed AI Outbound vs Generic Sequencer",
     description: "Compare CraftMyFunnel and Lemlist. Discover why B2B agencies and revenue teams choose CraftMyFunnel for vertical playbooks, human approval review, and multi-tenant security.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs/lemlist",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Lemlist: Governed Outbound & Vertical Playbooks",
         description: "Compare CraftMyFunnel with Lemlist. Designed for teams requiring industry-specific sequence playbooks, approval queues, and enterprise data governance.",

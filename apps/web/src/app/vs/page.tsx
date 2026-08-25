@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Product Comparisons & Alternatives | CraftMyFunnel",
     description: "Compare CraftMyFunnel with leading outreach and sales engagement platforms like Apollo.io, Instantly, and Lemlist. Discover how governed outbound workflows protect your deliverability.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Leading Sales Engagement Platforms",
         description: "Compare CraftMyFunnel with Apollo.io, Instantly, and Lemlist. Built for teams that require governed outbound workflows and human-in-the-loop AI review.",

@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Facility Management & Commercial Property Outreach | CraftMyFunnel",
     description: "Learn how commercial facility management and cleaning firms use CraftMyFunnel to track office expansions, construction permits, and engage property managers before RFPs go live.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/facility-management",
+    },
     openGraph: {
         title: "Facility Management Outbound Sales Playbook | CraftMyFunnel",
         description: "Win high-margin commercial cleaning and facility maintenance contracts with governed outreach and intent signals.",

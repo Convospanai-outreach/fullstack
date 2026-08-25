@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Documentation & Knowledge Hub | CraftMyFunnel",
     description: "Technical guides, system architecture, deliverability guardrails, and API specifications for CraftMyFunnel's governed B2B outreach platform.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/docs",
+    },
     openGraph: {
         title: "CraftMyFunnel Documentation & Technical Knowledge Hub",
         description: "Explore in-depth technical guides on governed outreach workflows, human review queues, deliverability safeguards, and API integrations.",

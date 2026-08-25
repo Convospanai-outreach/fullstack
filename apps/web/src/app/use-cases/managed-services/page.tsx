@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Managed IT Services & MSPs Outbound Playbook | CraftMyFunnel",
     description: "Learn how Managed Service Providers (MSPs) and IT outsourcing firms use CraftMyFunnel to target growing companies, replace incumbent vendors, and win recurring retainer contracts.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/managed-services",
+    },
     openGraph: {
         title: "Managed IT Services & MSP Outbound Playbook | CraftMyFunnel",
         description: "Win high-ACV recurring IT support and cybersecurity retainers with governed outreach and intent signals.",
