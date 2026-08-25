@@ -62,6 +62,7 @@ export function ToolsMenu() {
         <div className="relative" ref={containerRef}>
             <button
                 onClick={() => setOpen((prev) => !prev)}
+                data-tour="tools-menu"
                 className={`p-1.5 rounded-md transition-colors ${
                     open ? "bg-white/8 text-white/80" : "text-white/40 hover:text-white/70 hover:bg-white/5"
                 }`}
