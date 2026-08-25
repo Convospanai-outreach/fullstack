@@ -710,6 +710,90 @@ Return JSON array of strings.
         return json.slice(0, 3).map((item) => clampGeneratedText(String(item || ""), 500));
     }
 
+    async suggestPipelineTasks(lead: {
+        fullName?: string | null;
+        company?: string | null;
+        jobTitle?: string | null;
+        pipelineState?: string | null;
+        intentScore?: number | null;
+        status?: string | null;
+    }, teamId?: string): Promise<Array<{ title: string; description: string; priority: "low" | "medium" | "high" }>> {
+        const prompt = `
+A sales rep is working this lead in a pipeline board:
+Name: ${lead.fullName || "Unknown"}
+Company: ${lead.company || "Unknown"}
+Title: ${lead.jobTitle || "Unknown"}
+Pipeline stage: ${lead.pipelineState || "COLD"}
+Intent score (0-1): ${lead.intentScore ?? "unknown"}
+Status: ${lead.status || "NEW"}
+
+Suggest up to 3 concrete next actions the rep should take with this lead right now.
+Return a JSON array of objects, each with fields: title (max 60 chars), description (max 200 chars), priority (one of "low", "medium", "high").
+        `.trim();
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Pipeline task suggestion prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "PIPELINE_TASK_SUGGESTION",
+            creditDescription: "AI pipeline task suggestions"
+        });
+        const json = JSON.parse(extractJsonBlock(result.text));
+        if (!Array.isArray(json)) throw new Error("AI response was not a JSON array");
+        return json.slice(0, 3).map((item) => ({
+            title: clampGeneratedText(String(item?.title || "Follow up"), 60),
+            description: clampGeneratedText(String(item?.description || ""), 200),
+            priority: ["low", "medium", "high"].includes(item?.priority) ? item.priority : "medium",
+        }));
+    }
+
+    async recommendPipelineStage(lead: {
+        fullName?: string | null;
+        pipelineState?: string | null;
+        intentScore?: number | null;
+        status?: string | null;
+    }, teamId?: string): Promise<string | null> {
+        const stages = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
+        const prompt = `
+A lead is currently in pipeline stage "${lead.pipelineState || "COLD"}" with intent score ${lead.intentScore ?? "unknown"} (0-1) and status "${lead.status || "NEW"}".
+Which of these stages should it move to next: ${stages.join(", ")}?
+Return JSON with a single field "stage" set to exactly one of those values, or the current stage if no change is warranted.
+        `.trim();
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Pipeline stage recommendation prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "PIPELINE_STAGE_RECOMMENDATION",
+            creditDescription: "AI pipeline stage recommendation"
+        });
+        const json = JSON.parse(extractJsonBlock(result.text));
+        return stages.includes(json?.stage) ? json.stage : null;
+    }
+
+    async summarizePipelineLead(lead: {
+        fullName?: string | null;
+        company?: string | null;
+        pipelineState?: string | null;
+        intentScore?: number | null;
+        status?: string | null;
+    }, teamId?: string): Promise<string> {
+        const prompt = `
+Summarize this lead's status in 1-2 sentences for a sales rep glancing at a pipeline board.
+Name: ${lead.fullName || "Unknown"}
+Company: ${lead.company || "Unknown"}
+Pipeline stage: ${lead.pipelineState || "COLD"}
+Intent score (0-1): ${lead.intentScore ?? "unknown"}
+Status: ${lead.status || "NEW"}
+        `.trim();
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Pipeline lead summary prompt" });
+        const result = await callLLM(safePrompt, {
+            teamId,
+            complexity: TaskComplexity.ROUTINE,
+            taskTypeLabel: "PIPELINE_LEAD_SUMMARY",
+            creditDescription: "AI pipeline lead summary"
+        });
+        return clampGeneratedText(result.text, 400);
+    }
+
     async researchCompany(companyName: string, teamId?: string) {
         const prompt = `
 Research the company "${companyName}". Return JSON with fields: summary, industry, employees, revenue.

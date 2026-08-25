@@ -6,6 +6,7 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { Input } from '@/components/ui/Input';
 import { Loader2, UserPlus, Shield } from 'lucide-react';
 import { toast } from 'sonner';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function TeamPage() {
     const [activeTab, setActiveTab] = useState('members');
@@ -20,8 +21,8 @@ export default function TeamPage() {
     const fetchData = async () => {
         try {
             const [membersRes, policyRes] = await Promise.all([
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/members'),
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/policy')
+                fetch(getBrowserApiBase() + '/team/members'),
+                fetch(getBrowserApiBase() + '/team/policy')
             ]);
             const membersPayload = await membersRes.json();
             setMembers(Array.isArray(membersPayload) ? membersPayload : membersPayload.data || []);
@@ -36,7 +37,7 @@ export default function TeamPage() {
     const handleInvite = async (email: string, role: string) => {
         const toastId = toast.loading("Inviting...");
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/members', {
+            const res = await fetch(getBrowserApiBase() + '/team/members', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, role })
@@ -54,7 +55,7 @@ export default function TeamPage() {
     const handlePolicyUpdate = async () => {
         const toastId = toast.loading("Saving policy...");
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/team/policy', {
+            const res = await fetch(getBrowserApiBase() + '/team/policy', {
                 method: 'PATCH',
                 body: JSON.stringify(policy)
             });

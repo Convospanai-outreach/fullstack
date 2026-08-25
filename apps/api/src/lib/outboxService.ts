@@ -80,10 +80,10 @@ export class OutboxService {
             case "LANDING_LEAD_CREATED":
             case "FUNNEL_LEAD_SUBMITTED":
                 return {
-                    type: "lead_scoring",
+                    type: "landing_lead_intake",
                     payload: {
                         teamId: event.teamId,
-                        leadId: event.aggregateId,
+                        landingLeadId: event.aggregateId,
                     },
                 };
 

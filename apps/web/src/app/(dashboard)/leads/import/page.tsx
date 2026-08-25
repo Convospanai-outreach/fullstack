@@ -105,7 +105,7 @@ export default function ImportLeadsPage() {
                 <SectionHeader title="Import Leads from CSV" subtitle="Upload a CSV file with lead information" />
 
                 {/* File Upload */}
-                <div className="glass-card p-6 mb-6">
+                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 mb-6">
                     <h2 className="text-lg font-semibold text-foreground mb-4">1. Upload CSV File</h2>
                     <input
                         type="file"
@@ -117,7 +117,7 @@ export default function ImportLeadsPage() {
 
                 {/* CSV Preview */}
                 {preview.length > 0 && (
-                    <div className="glass-card p-6 mb-6">
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 mb-6">
                         <h2 className="text-lg font-semibold text-foreground mb-4">2. Preview (First 5 Rows)</h2>
                         <div className="overflow-x-auto border border-white/5 rounded-lg">
                             <table className="min-w-full divide-y divide-white/5">
@@ -154,7 +154,7 @@ export default function ImportLeadsPage() {
 
                 {/* Field Mapping */}
                 {headers.length > 0 && (
-                    <div className="glass-card p-6 mb-6">
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 mb-6">
                         <h2 className="text-lg font-semibold text-foreground mb-4">3. Map Fields</h2>
                         <div className="grid grid-cols-2 gap-4">
                             {headers.map((header) => (
@@ -185,7 +185,7 @@ export default function ImportLeadsPage() {
 
                 {/* Import Button */}
                 {csvText && (
-                    <div className="glass-card p-6 mb-6">
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 mb-6">
                         <label className="flex items-start gap-3 mb-4 text-sm text-slate-300 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -216,7 +216,7 @@ export default function ImportLeadsPage() {
 
                 {/* Results */}
                 {result && (
-                    <div className="glass-card p-6">
+                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                         <h2 className="text-lg font-semibold text-foreground mb-4">Import Results</h2>
                         <div className="grid grid-cols-3 gap-4 mb-4">
                             <div className="text-center p-4 bg-green-950/20 border border-green-900/30 rounded">

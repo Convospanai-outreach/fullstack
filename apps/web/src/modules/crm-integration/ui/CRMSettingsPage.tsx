@@ -14,6 +14,7 @@ import {
     Save,
     Link as LinkIcon
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Integration {
     id: string;
@@ -44,7 +45,7 @@ export default function CRMSettingsPage() {
 
     const fetchIntegrations = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm");
+            const res = await fetch(getBrowserApiBase() + "/settings/crm");
             const data = await res.json();
             setIntegrations(data);
 
@@ -62,7 +63,7 @@ export default function CRMSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm", {
+            const res = await fetch(getBrowserApiBase() + "/settings/crm", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export enum TeamRole {
     OWNER = "owner",
@@ -25,7 +26,7 @@ export function useTeamRole() {
             try {
                 // We fetch the current user's membership from the team list 
                 // Alternatively, we could have a dedicated /api/team/role endpoint
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team/members");
+                const res = await fetch(getBrowserApiBase() + "/team/members");
                 if (!res.ok) return;
 
                 const payload = await res.json();
@@ -34,7 +35,7 @@ export function useTeamRole() {
 
                 if (success && Array.isArray(data)) {
                     // Identify self by fetching the current session and matching email
-                    const sessionRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/auth/session");
+                    const sessionRes = await fetch(getBrowserApiBase() + "/auth/session");
                     const session = await sessionRes.json();
                     const currentEmail = session?.user?.email;
 

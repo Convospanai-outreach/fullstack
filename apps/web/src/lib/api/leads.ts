@@ -1,3 +1,4 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 // Client-side API wrapper for lead operations
 
 const API_BASE = "/api/leads";
@@ -95,7 +96,7 @@ export async function importCSV(
     campaignId?: string,
     hasConsent?: boolean
 ) {
-    const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+    const apiBase = getBrowserApiBase();
     const res = await fetch(apiBase + "/upload/csv", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -5,6 +5,7 @@ import { Sparkles, Target, Loader2, Save } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ICPBuilderPage() {
     const [_step, setStep] = useState(1);
@@ -24,7 +25,7 @@ export default function ICPBuilderPage() {
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/agents/icp", {
+            const res = await fetch(getBrowserApiBase() + "/agents/icp", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(formData)
@@ -54,7 +55,7 @@ export default function ICPBuilderPage() {
         setSaving(true);
         try {
             const name = [formData.industry, formData.role].filter(Boolean).join(" – ") || "ICP Profile";
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/icp-builder/create", {
+            const res = await fetch(getBrowserApiBase() + "/icp-builder/create", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

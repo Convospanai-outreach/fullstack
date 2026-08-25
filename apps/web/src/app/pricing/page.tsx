@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type Plan = {
     name: "Starter" | "Growth" | "Enterprise";
@@ -118,7 +119,7 @@ export default function PricingPage() {
     // so the displayed price always matches what checkout would actually charge.
     useEffect(() => {
         const resolvedCountry = billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry;
-        const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+        const apiBase = getBrowserApiBase();
         const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
 
         fetch(`${base}/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
@@ -182,7 +183,7 @@ export default function PricingPage() {
         const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
 
         try {
-            const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+            const apiBase = getBrowserApiBase();
             const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
             const res = await fetch(`${base}/billing/checkout`, {
                 method: "POST",

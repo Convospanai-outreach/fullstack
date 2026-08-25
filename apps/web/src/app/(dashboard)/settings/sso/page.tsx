@@ -13,6 +13,7 @@ import {
     Trash2,
     CheckCircle2
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function SsoSettingsPage() {
     const [config, setConfig] = useState<any>({
@@ -30,7 +31,7 @@ export default function SsoSettingsPage() {
 
     const fetchConfig = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/sso");
+            const res = await fetch(getBrowserApiBase() + "/settings/sso");
             const data = await res.json();
             if (data && data.teamId) {
                 setConfig(data);
@@ -50,7 +51,7 @@ export default function SsoSettingsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/sso", {
+            const res = await fetch(getBrowserApiBase() + "/settings/sso", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

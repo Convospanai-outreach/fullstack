@@ -16,6 +16,8 @@
 import { Menu, Search, HelpCircle } from "lucide-react";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
+import { ToolsMenu } from "@/components/dashboard/ToolsMenu";
+import { WorkspaceHelpPanel } from "@/components/dashboard/WorkspaceHelpPanel";
 import Link from "next/link";
 
 interface DashboardHeaderProps {
@@ -53,6 +55,12 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
       <div className="ml-auto flex items-center gap-2">
         {/* Docked Connection Status */}
         <ConnectionStatusBar inline />
+
+        {/* Tools discovery menu — grouped/gated feature surfaces */}
+        <ToolsMenu />
+
+        {/* Contextual "what is this page" guide */}
+        <WorkspaceHelpPanel />
 
         {/* Mode badge */}
         <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium

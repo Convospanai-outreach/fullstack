@@ -1,9 +1,10 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 /**
  * Training Manager Service
  * Delegates training pipeline start to the API service.
  */
 
-const API_URL = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 
 export class TrainingManager {
     async startTraining(datasetId: string, baseModel: string = "gemini-1.5-flash"): Promise<string> {

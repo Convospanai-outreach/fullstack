@@ -1,7 +1,8 @@
 
 import type { ChurnPrediction, ClusterAssignment, CustomerCluster, OptimalSendTime } from "../types";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 const isServer = typeof window === "undefined";
 
 function clamp01(value: number) {

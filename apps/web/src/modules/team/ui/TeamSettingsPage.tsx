@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function TeamSettingsPage() {
     const [members, setMembers] = useState<any[]>([]);
@@ -16,7 +17,7 @@ export default function TeamSettingsPage() {
 
     const fetchMembers = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team");
+            const res = await fetch(getBrowserApiBase() + "/team");
             const data = await res.json();
             if (Array.isArray(data)) {
                 setMembers(data);
@@ -32,7 +33,7 @@ export default function TeamSettingsPage() {
         e.preventDefault();
         setInviting(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team", {
+            const res = await fetch(getBrowserApiBase() + "/team", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
@@ -53,7 +54,7 @@ export default function TeamSettingsPage() {
     const handleRemove = async (id: string) => {
         if (!confirm("Are you sure you want to remove this member?")) return;
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/${id}`, { method: "DELETE" });
+            const res = await fetch(`${getBrowserApiBase()}/team/${id}`, { method: "DELETE" });
             if (res.ok) {
                 fetchMembers();
             } else {

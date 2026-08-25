@@ -269,7 +269,7 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="glass-card p-6">
+                                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-white">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
                                         {!isEditing && (
@@ -340,7 +340,7 @@ export default function CampaignDetailPage({
                             </div>
 
                             <div className="space-y-6">
-                                <div className="glass-card p-6">
+                                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                     <h2 className="text-xl font-semibold mb-4 text-white">Stats</h2>
                                     <div className="space-y-3">
                                         <div>
@@ -369,7 +369,7 @@ export default function CampaignDetailPage({
                                 </div>
 
                                 {analytics?.leadsByStatus && (
-                                    <div className="glass-card p-6">
+                                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                                         <h2 className="text-xl font-semibold mb-4 text-white">Leads by Status</h2>
                                         <div className="space-y-2">
                                             {Object.entries(analytics.leadsByStatus).map(
@@ -389,7 +389,7 @@ export default function CampaignDetailPage({
 
                     {/* LEADS TAB */}
                     {activeTab === "leads" && (
-                        <div className="lg:col-span-3 glass-card p-6">
+                        <div className="lg:col-span-3 rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                             <h2 className="text-xl font-semibold mb-4 text-white">Leads</h2>
                             {campaign.leads && campaign.leads.length > 0 ? (
                                 <div className="overflow-x-auto">
@@ -460,7 +460,7 @@ export default function CampaignDetailPage({
 
                     {/* TIMELINE TAB */}
                     {activeTab === "timeline" && (
-                        <div className="lg:col-span-3 glass-card p-6">
+                        <div className="lg:col-span-3 rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                             <h2 className="text-xl font-semibold mb-6 text-white">Execution Timeline</h2>
                             <ExecutionTimeline campaignId={campaignId} />
                         </div>

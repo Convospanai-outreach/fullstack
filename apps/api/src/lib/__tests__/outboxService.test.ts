@@ -115,7 +115,7 @@ describe("OutboxService", () => {
             });
         });
 
-        it("maps LANDING_LEAD_CREATED to lead_scoring", async () => {
+        it("maps LANDING_LEAD_CREATED to landing_lead_intake", async () => {
             const { OutboxService } = await import("@/lib/outboxService");
             const mapped = OutboxService.mapEventToJob({
                 eventType: "LANDING_LEAD_CREATED",
@@ -125,10 +125,10 @@ describe("OutboxService", () => {
                 payload: {},
             });
 
-            expect(mapped.type).toBe("lead_scoring");
+            expect(mapped.type).toBe("landing_lead_intake");
             expect(mapped.payload).toEqual({
                 teamId: "team-1",
-                leadId: "lead-1",
+                landingLeadId: "lead-1",
             });
         });
     });
@@ -187,8 +187,8 @@ describe("OutboxService", () => {
 
             expect(relayedCount).toBe(1);
             expect(mockJobQueue.enqueue).toHaveBeenCalledWith(
-                "lead_scoring",
-                expect.objectContaining({ leadId: "lead-99", teamId: "team-1" }),
+                "landing_lead_intake",
+                expect.objectContaining({ landingLeadId: "lead-99", teamId: "team-1" }),
                 { teamId: "team-1", idempotencyKey: "outbox_relay_key-failed" }
             );
         });

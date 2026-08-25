@@ -4,11 +4,12 @@ import { useState } from "react";
 import { Chrome, Loader2, PlayCircle, ShieldCheck } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function RunnerPage() {
     const [response, setResponse] = useState<any>(null);
     const [running, setRunning] = useState(false);
-    const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
+    const apiBase = getBrowserApiBase();
     const extensionBase =
         typeof window !== "undefined"
             ? `${window.location.origin}/api/proxy/extension`

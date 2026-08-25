@@ -5,6 +5,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Coins, Users, Cpu, BarChart3 } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type UsageUser = {
   id: string;
@@ -50,7 +51,7 @@ export default function AdminUsagePage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `${(process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy")}/admin/usage?range=${range}`
+        `${getBrowserApiBase()}/admin/usage?range=${range}`
       );
       if (!res.ok) throw new Error("Failed to load usage");
       const json = await res.json();

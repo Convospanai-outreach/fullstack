@@ -54,7 +54,7 @@ export default function NewCampaignPage() {
                 <ArrowLeft className="w-4 h-4" /> Back to Campaigns
             </Link>
 
-            <div className="glass-card p-6">
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-accent-blue/10 rounded-lg text-accent-blue">
                         <Megaphone className="w-5 h-5" />

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react"
 import { PlaybookCard } from "@/components/playbooks/PlaybookCard"
 import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { Loader2, Plus } from "lucide-react"
+import { SectionHeader } from "@/components/ui/SectionHeader"
+import { getBrowserApiUrl } from "@/lib/api/browserBase"
 
 import { toast } from "sonner"
 
@@ -18,7 +20,7 @@ export default function PlaybooksPage() {
 
     const fetchPlaybooks = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/playbooks")
+            const res = await fetch(getBrowserApiUrl("/playbooks"))
             if (!res.ok) {
                 const errJson = await res.json().catch(() => ({}))
                 throw new Error(errJson?.error || `Failed to fetch playbooks (HTTP ${res.status})`)
@@ -38,7 +40,7 @@ export default function PlaybooksPage() {
     const handleCreate = async () => {
         setCreating(true)
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/playbooks", {
+            const res = await fetch(getBrowserApiUrl("/playbooks"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -68,10 +70,7 @@ export default function PlaybooksPage() {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Playbooks</h1>
-                    <p className="text-muted-foreground mt-1 text-sm">Standardized templates for your team.</p>
-                </div>
+                <SectionHeader title="Playbooks" subtitle="Standardized templates for your team." />
                 <PrimaryButton onClick={handleCreate} disabled={creating}>
                     {creating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
                     {creating ? "Creating..." : "New Playbook"}

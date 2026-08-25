@@ -6,6 +6,7 @@ import { UploadModal } from "@/components/knowledge/UploadModal"
 import { Search, Database } from "lucide-react"
 import { Input } from "@/components/ui/Input"
 import { toast } from "sonner"
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function KnowledgePage() {
     const [kbId, setKbId] = useState<string | null>(null)
@@ -21,7 +22,7 @@ export default function KnowledgePage() {
             setLoading(true)
             setInitError(false)
             try {
-                const listRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge")
+                const listRes = await fetch(getBrowserApiBase() + "/knowledge")
                 if (!listRes.ok) throw new Error("Failed to load knowledge bases")
                 const listData = await listRes.json()
 
@@ -32,7 +33,7 @@ export default function KnowledgePage() {
                     // For now, we'll just wait for user action.
                 } else {
                     // Auto-create default KB
-                    const createRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/knowledge", {
+                    const createRes = await fetch(getBrowserApiBase() + "/knowledge", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ name: "General Knowledge", description: "Default team context" })
@@ -56,7 +57,7 @@ export default function KnowledgePage() {
         if (!kbId || !query) return
         setSearching(true)
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
+            const res = await fetch(`${getBrowserApiBase()}/knowledge/${kbId}/upload?q=${encodeURIComponent(query)}`) // Re-using the GET handler in upload route
             if (!res.ok) throw new Error("Search failed")
             const data = await res.json()
             setDocs(Array.isArray(data.data) ? data.data : [])

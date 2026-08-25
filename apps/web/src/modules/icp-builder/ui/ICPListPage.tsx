@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import ICPCard from "./components/ICPCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ICPListPage() {
     const [icps, setIcps] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/icp-builder/list")
+        fetch(getBrowserApiBase() + "/icp-builder/list")
             .then((r) => r.json())
             .then((data) => {
                 if (data.ok) setIcps(data.icps);

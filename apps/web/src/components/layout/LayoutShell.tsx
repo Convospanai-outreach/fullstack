@@ -23,9 +23,9 @@ export const DASHBOARD_PREFIXES = [
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
     // "/setup", "/scraper-bridge", "/onboarding" excluded for the same reason —
-    // none of them are inside the (dashboard) route group. ("/scraper-bridge" and
-    // "/hunter-email-finder" and "/csv-ingestion" are registered in productFlags.ts's
-    // HIDDEN_FEATURES but have no page directory yet - built: false.)
+    // none of them are inside the (dashboard) route group. ("/scraper-bridge",
+    // "/hunter-email-finder", and "/csv-ingestion" are registered in productFlags.ts's
+    // HIDDEN_FEATURES and do have real page directories today.)
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —

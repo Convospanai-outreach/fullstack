@@ -23,6 +23,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Lead {
     id: string;
@@ -88,7 +89,7 @@ type JourneySuggestion = {
     };
 };
 
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+const API_BASE = getBrowserApiBase();
 
 const CHANNEL_OPTIONS = [
     { value: "EMAIL", label: "Email", icon: Mail },
@@ -689,7 +690,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                 <span className="font-semibold text-white font-mono">
                                     {lead.optimalSendHour !== undefined && lead.optimalSendHour !== null
                                         ? `${lead.optimalSendHour > 12 ? lead.optimalSendHour - 12 : lead.optimalSendHour}:00 ${lead.optimalSendHour >= 12 ? 'PM' : 'AM'}`
-                                        : '10:00 AM'
+                                        : 'Not enough data yet'
                                     }
                                 </span>
                             </div>

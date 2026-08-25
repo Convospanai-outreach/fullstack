@@ -8,6 +8,7 @@ import { Coins, ArrowUpRight, History, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import { BILLING_COUNTRIES, INDIAN_STATES } from '@/lib/billingAddress';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const BUNDLES = [
     { id: "starter", label: "Starter Pack", credits: 500, price: 500, desc: "Perfect for testing" },
@@ -38,7 +39,7 @@ export default function CreditsPage() {
 
     const loadData = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage");
+            const res = await fetch(getBrowserApiBase() + "/billing/usage");
             if (!res.ok) throw new Error("Failed to load data");
             const data = await res.json();
             setBalance(data.balance);
@@ -59,7 +60,7 @@ export default function CreditsPage() {
     const handleTopUp = async (bundle: typeof BUNDLES[0], country: string, state: string) => {
         setPurchasing(bundle.id);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/topup", {
+            const res = await fetch(getBrowserApiBase() + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tierId: bundle.id, country, state: country === "IN" ? state : undefined })
