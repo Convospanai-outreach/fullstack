@@ -145,12 +145,29 @@ class AnalyticsService {
     }
 
     async getGovernanceStats(teamId: string) {
-        const [totalLogs, blockedActions] = await Promise.all([
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+        const [totalLogs, blockedActions, recentLogs] = await Promise.all([
             prisma.guardrailLog.count({ where: { teamId } }),
-            prisma.guardrailLog.count({ where: { teamId, action: "blocked" } })
+            prisma.guardrailLog.count({ where: { teamId, action: "blocked" } }),
+            prisma.guardrailLog.findMany({
+                where: { teamId, createdAt: { gte: since } },
+                select: { createdAt: true }
+            })
         ]);
 
-        return { totalLogs, blockedActions };
+        const blockRatio = totalLogs > 0 ? blockedActions / totalLogs : 0;
+        const policyRiskLevel = blockRatio > 0.15 ? "HIGH" : blockRatio > 0.05 ? "MEDIUM" : "LOW";
+
+        // 24 real hourly buckets (oldest to newest) of guardrail activity in the last 24h
+        const hourlyActivity = new Array(24).fill(0);
+        for (const log of recentLogs) {
+            const hoursAgo = Math.floor((Date.now() - log.createdAt.getTime()) / (60 * 60 * 1000));
+            const bucket = 23 - Math.min(hoursAgo, 23);
+            hourlyActivity[bucket]++;
+        }
+
+        return { totalLogs, blockedActions, policyRiskLevel, hourlyActivity };
     }
 }
 

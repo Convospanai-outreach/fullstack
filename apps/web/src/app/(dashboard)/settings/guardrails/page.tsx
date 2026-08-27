@@ -13,6 +13,7 @@ import {
     X,
     Plus
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function GuardrailsPage() {
     const [config, setConfig] = useState<any>({
@@ -32,7 +33,7 @@ export default function GuardrailsPage() {
     const [newRegex, setNewRegex] = useState("");
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/guardrails")
+        fetch(getBrowserApiBase() + "/settings/guardrails")
             .then(res => res.json())
             .then(data => {
                 // Ensure arrays initialized
@@ -53,7 +54,7 @@ export default function GuardrailsPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/guardrails", {
+            const res = await fetch(getBrowserApiBase() + "/settings/guardrails", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(config)

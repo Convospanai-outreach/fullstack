@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ContentGenerator({ lead, onDraftGenerated }: { lead: any, onDraftGenerated?: (draft: any) => void }) {
     const [loading, setLoading] = useState(false);
@@ -9,7 +10,7 @@ export default function ContentGenerator({ lead, onDraftGenerated }: { lead: any
     const handleGenerate = async () => {
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/ai/compose", {
+            const res = await fetch(getBrowserApiBase() + "/ai/compose", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ lead }),

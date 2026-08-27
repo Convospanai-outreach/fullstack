@@ -55,7 +55,7 @@ model Lead {
   lastScoredAt     DateTime? // When intent was last calculated
 
   // Predictive Analytics
-  clusterLabel    String? // HIGH_VALUE, AT_RISK, NEW, DORMANT (from K-means)
+  clusterLabel    String? // HIGH_VALUE, AT_RISK, NEW, DORMANT (rule-based heuristic, not K-means)
   churnRisk       Float? // 0.0 - 1.0 churn probability
   optimalSendHour Int? // 0-23 optimal email send hour
 

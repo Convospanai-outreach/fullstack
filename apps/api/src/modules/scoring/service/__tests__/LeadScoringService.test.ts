@@ -106,6 +106,34 @@ describe("LeadScoringService", () => {
             expect(CallerService.ensureQueueEntry).toHaveBeenCalledWith("lead-1");
         });
 
+        it("never fabricates optimalSendHour when there's no real email-open data (OPEN-72)", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-1",
+                consentObtained: true,
+                dwellTimeMinutes: 5,
+                emailClicks: 1,
+                socialMentions: 0,
+                intentScore: 0,
+                pipelineState: "COLD",
+                hotAt: null,
+                pipelineStateChangedAt: null,
+                fullName: null,
+                email: null,
+                company: null,
+                jobTitle: null,
+                isEnriched: false,
+                value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect("optimalSendHour" in data).toBe(false);
+        });
+
         it("derives optimal send hour from the most common email-open hour", async () => {
             (prisma.lead.findUnique as any).mockResolvedValue({
                 id: "lead-1",
@@ -125,9 +153,9 @@ describe("LeadScoringService", () => {
                 value: 0,
             });
             (prisma.email.findMany as any).mockResolvedValue([
-                { openedAt: new Date(2026, 0, 1, 9, 0, 0) },
-                { openedAt: new Date(2026, 0, 2, 9, 30, 0) },
-                { openedAt: new Date(2026, 0, 3, 14, 0, 0) },
+                { openedAt: new Date(2026, 0, 1, 9, 0, 0), clickedAt: null },
+                { openedAt: new Date(2026, 0, 2, 9, 30, 0), clickedAt: null },
+                { openedAt: new Date(2026, 0, 3, 14, 0, 0), clickedAt: null },
             ]);
             (prisma.lead.update as any).mockResolvedValue({});
 
@@ -135,6 +163,66 @@ describe("LeadScoringService", () => {
 
             const data = (prisma.lead.update as any).mock.calls[0][0].data;
             expect(data.optimalSendHour).toBe(9);
+        });
+
+        it("counts real Email.clickedAt rows as engagement even when Lead.emailClicks was never written (OPEN-68)", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-1",
+                consentObtained: true,
+                dwellTimeMinutes: 0,
+                emailClicks: 0,
+                socialMentions: 0,
+                intentScore: 0,
+                pipelineState: "COLD",
+                hotAt: null,
+                pipelineStateChangedAt: null,
+                fullName: null,
+                email: null,
+                company: null,
+                jobTitle: null,
+                isEnriched: false,
+                value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([
+                { openedAt: new Date(2026, 0, 1, 9, 0, 0), clickedAt: new Date(2026, 0, 1, 9, 5, 0) },
+            ]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect(data.intentScore).toBeGreaterThan(0);
+        });
+
+        it("never lowers intentScore below a prior externally-set value (OPEN-69)", async () => {
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-1",
+                consentObtained: true,
+                dwellTimeMinutes: 0,
+                emailClicks: 0,
+                socialMentions: 0,
+                intentScore: 0.8,
+                pipelineState: "COLD",
+                hotAt: null,
+                pipelineStateChangedAt: null,
+                fullName: null,
+                email: null,
+                company: null,
+                jobTitle: null,
+                isEnriched: false,
+                value: 0,
+            });
+            (prisma.email.findMany as any).mockResolvedValue([]);
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await service.scoreAndPersist("lead-1");
+
+            const data = (prisma.lead.update as any).mock.calls[0][0].data;
+            expect(data.intentScore).toBe(0.8);
+            expect(data.leadScore).toBe(80);
+            expect(data.pipelineState).toBe("HOT");
         });
     });
 

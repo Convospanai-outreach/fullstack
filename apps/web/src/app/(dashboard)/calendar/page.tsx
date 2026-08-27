@@ -8,6 +8,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type CalendarMeeting = {
     id: string;
@@ -42,7 +43,7 @@ export default function CalendarPage() {
         setLoading(true);
         setLoadError(false);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/meetings", {
+            const res = await fetch(getBrowserApiBase() + "/meetings", {
                 credentials: "include",
             });
             if (!res.ok) throw new Error("Failed to fetch meetings");
@@ -70,7 +71,7 @@ export default function CalendarPage() {
         }
         setSaving(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/meetings", {
+            const res = await fetch(getBrowserApiBase() + "/meetings", {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },

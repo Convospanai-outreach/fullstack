@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { toast } from "sonner";
 import { Shield, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function SsoLoginPage() {
     const [email, setEmail] = useState("");
@@ -23,7 +24,7 @@ export default function SsoLoginPage() {
                 return;
             }
 
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/auth/sso/check?email=${encodeURIComponent(email)}`);
+            const res = await fetch(`${getBrowserApiBase()}/auth/sso/check?email=${encodeURIComponent(email)}`);
             const data = await res.json();
 
             if (data.redirectUrl) {

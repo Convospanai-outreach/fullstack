@@ -6,6 +6,7 @@ import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/Progress";
 import Link from "next/link";
 import { Zap, Database, TrendingUp, PlusCircle } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface UsageData {
     credits: number;
@@ -35,7 +36,7 @@ export function UsageStats() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/usage")
+        fetch(getBrowserApiBase() + "/usage")
             .then((res) => res.json())
             .then((json) => {
                 setData(normalizeUsage(json?.usage));

@@ -1,3 +1,11 @@
+> **SUPERSEDED (2026-08-24, OPEN-82):** This audit is from 2026-08-18 and is stale — most findings
+> below are long since fixed and re-verified through many PRs since, tracked in `OPEN_ITEMS.md` at the
+> repo root, which is this project's single source of truth for open work going forward. The two items
+> this file lists as "still open" (`DashboardSidebar.tsx`'s org-switcher TODO, and the dead
+> `/command-center` `DASHBOARD_PREFIXES` entry) were re-checked during the 2026-08-24 re-audit: the org
+> switcher is fully wired, and `/command-center` has a real route — both are non-issues. Nothing in this
+> file is still actionable; kept only for historical reference.
+
 # Frontend Audit — craftmyfunnel.live
 
 Live production site audited end-to-end via Playwright browser automation, logged in as

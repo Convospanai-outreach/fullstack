@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, Download, AlertCircle } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface ClientError {
     id: string;
@@ -37,7 +38,7 @@ export default function ClientErrorsPage() {
             if (filter.url) params.append("url", filter.url);
             if (filter.userId) params.append("userId", filter.userId);
 
-            const response = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/admin/client-errors?${params}`);
+            const response = await fetch(`${getBrowserApiBase()}/admin/client-errors?${params}`);
             const data = await response.json();
 
             if (response.ok) {
@@ -54,7 +55,7 @@ export default function ClientErrorsPage() {
 
     const exportErrors = async () => {
         try {
-            const response = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/admin/client-errors/export", {
+            const response = await fetch(getBrowserApiBase() + "/admin/client-errors/export", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ format: "csv" })

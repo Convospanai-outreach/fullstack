@@ -1,5 +1,6 @@
 
 import { logger } from "@/lib/logger";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 /**
  * Frontend Proxy for Model Gateway.
@@ -8,7 +9,7 @@ import { logger } from "@/lib/logger";
  */
 export const modelGateway = {
     async generate(request: any): Promise<string> {
-        const apiUrl = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+        const apiUrl = getBrowserApiBase();
         try {
             const response = await fetch(`${apiUrl}/ai/execute`, {
                 method: "POST",

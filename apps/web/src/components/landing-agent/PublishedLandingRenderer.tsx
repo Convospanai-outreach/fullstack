@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getLandingRenderPayload } from "@/modules/landing-agent/rendering";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Props {
     slug: string;
@@ -10,7 +11,7 @@ interface Props {
     renderedJson: unknown;
 }
 
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+const API_BASE = getBrowserApiBase();
 
 function createSessionId() {
     return globalThis.crypto?.randomUUID?.() || `sess-${Date.now()}-${Math.random().toString(36).slice(2)}`;

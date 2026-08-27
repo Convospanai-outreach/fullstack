@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 
 type ApprovalRequest = {
     id: string;

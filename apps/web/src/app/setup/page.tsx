@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
 import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -115,7 +116,7 @@ export default function SetupWizardPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [domainCheck, setDomainCheck] = useState<DomainCheckResult | null>(null);
   const [formData, setFormData] = useState<any>({});
-  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
 
   const completion = Math.max(0, Math.min(100, status?.completionPercent ?? 0));
   const connectedMailboxes = mailboxes.filter((mailbox) => mailbox.status === "CONNECTED").length;
@@ -720,7 +721,7 @@ function OptionalChannels({ status }: { status: SetupStatus }) {
 }
 
 function WabaSetupSection() {
-  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
   const [settings, setSettings] = useState<WabaSettings | null>(null);
 
   useEffect(() => {
@@ -899,7 +900,7 @@ function Handoffs({ status }: { status: SetupStatus }) {
 }
 
 function EdgeNodePairingSection({ paired, pairingStatus }: { paired: boolean; pairingStatus: string }) {
-  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
   const [fingerprint, setFingerprint] = useState("");
   const [publicKey, setPublicKey] = useState("");
   const [endpoint, setEndpoint] = useState("");

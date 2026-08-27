@@ -10,6 +10,7 @@ import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
+import { handleLandingLeadIntake } from "./handlers/landing-lead-intake-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
@@ -56,9 +57,12 @@ async function runHandler(jobType: string, payload: JobPayload) {
             if (!teamId) {
                 throw new Error("lead_scoring payload is missing teamId");
             }
-            const { LeadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
-            return LeadScoringService.batchScoreLeads(teamId);
+            const { leadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
+            return leadScoringService.batchScoreLeads(teamId);
         }
+
+        case "landing_lead_intake":
+            return handleLandingLeadIntake(payload);
 
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);
@@ -137,6 +141,93 @@ async function runHandler(jobType: string, payload: JobPayload) {
         case "warmup_seed_reply": {
             const { sendWarmupSeedReply } = await import("@/modules/email-campaigner/service/warmupSeedService");
             return sendWarmupSeedReply(payload);
+        }
+
+        case "agent_stop": {
+            // The real stop action (Agent.status -> "idle", an Activity row, and
+            // an audit() call) already happens synchronously in
+            // routes/orchestrator/agents/[id]/stop before this job is enqueued —
+            // this job is an async completion signal only, no further state
+            // change needed. Kept as its own case (rather than falling into
+            // default) so it doesn't throw.
+            return { acknowledged: true, agentId: asString(payload.agentId) };
+        }
+
+        case "data_export": {
+            const teamId = asString(payload.teamId);
+            const entity = asString(payload.entity);
+            if (!teamId || !entity) {
+                throw new Error("data_export payload is missing teamId/entity");
+            }
+            if (entity !== "leads" && entity !== "campaigns") {
+                throw new Error(`data_export does not support entity type "${entity}"`);
+            }
+            const { exportService } = await import("@/modules/data-export/service/exportService");
+            const csv = await exportService.generateCsv(entity, teamId);
+            return { entity, format: "csv", csv };
+        }
+
+        case "CRM_SYNC": {
+            const teamId = asString(payload.teamId);
+            if (!teamId) {
+                throw new Error("CRM_SYNC payload is missing teamId");
+            }
+            const config = await prisma.crmIntegration.findUnique({
+                where: { teamId_provider: { teamId, provider: "HUBSPOT" } },
+            });
+            if (!config || !config.isActive) {
+                return { syncedCount: 0, skipped: "HubSpot not configured or inactive" };
+            }
+            const { crmService } = await import("@/modules/crm-integration/service/crmService");
+            const leads = await prisma.lead.findMany({
+                where: { teamId, email: { not: null } },
+                select: { id: true },
+                take: 500,
+            });
+            const summary: Record<string, number> = {};
+            for (const lead of leads) {
+                const result = await crmService.syncLead(lead.id, teamId);
+                summary[result.status] = (summary[result.status] || 0) + 1;
+            }
+            return { syncedCount: leads.length, summary };
+        }
+
+        case "WEBHOOK_DISPATCH": {
+            const webhookId = asString(payload.webhookId);
+            const event = asString(payload.event);
+            if (!webhookId || !event) {
+                throw new Error("WEBHOOK_DISPATCH payload is missing webhookId/event");
+            }
+            const { webhookService } = await import("@/modules/webhooks/service/webhookService");
+            return webhookService.processDelivery(webhookId, event, (payload as any).payload || {});
+        }
+
+        case "event_processing": {
+            const eventId = asString((payload as any).eventId);
+            if (eventId) {
+                const { EventStore } = await import("@/modules/learning/EventStore");
+                await EventStore.processEventJob(eventId);
+                return { acknowledged: true, eventId };
+            }
+
+            // Generic fallback for outbox events without a specific job-type
+            // mapping yet (OutboxService.mapEventToJob's default branch) — same
+            // audit-trail pattern as the order_captured case above.
+            const teamId = asString(payload.teamId);
+            const eventType = asString((payload as any).eventType);
+            if (teamId && eventType) {
+                await AuditService.log(
+                    teamId,
+                    null,
+                    eventType,
+                    asString((payload as any).aggregateType) || "OutboxEvent",
+                    asString((payload as any).aggregateId) || null,
+                    payload
+                );
+                return { acknowledged: true, eventType };
+            }
+
+            throw new Error("event_processing payload is missing eventId or teamId/eventType");
         }
 
         default:

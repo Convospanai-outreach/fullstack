@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface BulkActionBarProps {
     type: "lead" | "campaign";
@@ -21,7 +22,7 @@ export default function BulkActionBar({ type, selectedIds, onClearSelection, onR
     const performAction = async (action: string, payload?: any) => {
         setIsProcessing(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/bulk/action", {
+            const res = await fetch(getBrowserApiBase() + "/bulk/action", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

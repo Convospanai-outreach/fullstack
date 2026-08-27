@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import WorkflowEditor from '@/modules/workflow/components/WorkflowEditor';
 import { ReactFlowProvider } from 'reactflow';
+import { getBrowserApiUrl } from '@/lib/api/browserBase';
 
 export default function WorkflowEditorPage() {
     const { id } = useParams();
@@ -15,7 +16,7 @@ export default function WorkflowEditorPage() {
         setLoading(true);
         setWorkflow(null);
         const ctrl = new AbortController();
-        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${id}`, { signal: ctrl.signal })
+        fetch(getBrowserApiUrl(`/workflows/${id}`), { signal: ctrl.signal })
             .then(res => res.json())
             .then(data => {
                 setWorkflow(data);

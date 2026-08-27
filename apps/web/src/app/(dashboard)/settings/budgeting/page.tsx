@@ -16,6 +16,7 @@ import {
     Save,
     CreditCard
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Member {
     id: string;
@@ -69,7 +70,7 @@ export default function BudgetingPage() {
 
     const fetchData = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/budgeting");
+            const res = await fetch(getBrowserApiBase() + "/settings/budgeting");
             const d = await res.json();
             const normalized = normalizeBudgetingData(d);
             setData(normalized);
@@ -97,7 +98,7 @@ export default function BudgetingPage() {
                 monthlyLimit
             }));
 
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/budgeting", {
+            const res = await fetch(getBrowserApiBase() + "/settings/budgeting", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

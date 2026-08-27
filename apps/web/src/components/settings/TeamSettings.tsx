@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface TeamMember {
     id: string;
@@ -17,7 +18,7 @@ export function TeamSettings() {
     const [loading, setLoading] = useState(false);
 
     const fetchMembers = () => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team")
+        fetch(getBrowserApiBase() + "/team")
             .then((res) => res.json())
             .then((data) => setMembers(data))
             .catch((err) => console.error(err));
@@ -31,7 +32,7 @@ export function TeamSettings() {
         e.preventDefault();
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team", {
+            const res = await fetch(getBrowserApiBase() + "/team", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email })
@@ -51,7 +52,7 @@ export function TeamSettings() {
     const handleRemove = async (id: string) => {
         if (!confirm("Are you sure you want to remove this member?")) return;
         try {
-            await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/${id}`, { method: "DELETE" });
+            await fetch(`${getBrowserApiBase()}/team/${id}`, { method: "DELETE" });
             fetchMembers();
         } catch (error) {
             console.error(error);

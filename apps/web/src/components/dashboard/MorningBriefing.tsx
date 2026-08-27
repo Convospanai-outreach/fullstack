@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Sun, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export function MorningBriefing() {
     const [greeting, setGreeting] = useState("");
@@ -18,7 +19,7 @@ export function MorningBriefing() {
 
         const fetchBriefing = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/dashboard/briefing');
+                const res = await fetch(getBrowserApiBase() + '/dashboard/briefing');
                 const data = await res.json();
                 
                 const fullText = data.narrative || `Your AI agents have been busy. ${data.activeCampaigns} campaigns are currently active with a ${data.improvement}% higher engagement rate than yesterday. Suggested focus: Review the '${data.campaignName}' outreach - ${data.pendingApprovals} replies need your approval.`;

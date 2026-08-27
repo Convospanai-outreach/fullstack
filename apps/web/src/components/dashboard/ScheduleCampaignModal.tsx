@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { ActionButton } from '../auth/ActionButton';
 import { Calendar } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Props {
     isOpen: boolean;
@@ -25,7 +26,7 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
 
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/orchestrator/run", {
+            const res = await fetch(getBrowserApiBase() + "/orchestrator/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

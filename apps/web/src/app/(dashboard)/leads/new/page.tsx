@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 
+const VALID_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
+
 export default function NewLeadPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const requestedStage = searchParams.get("stage");
+    const initialStage = requestedStage && VALID_STAGES.includes(requestedStage) ? requestedStage : null;
+
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         fullName: "",
@@ -32,7 +38,7 @@ export default function NewLeadPage() {
             const res = await fetch(getBrowserApiUrl("/leads"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(initialStage ? { ...formData, pipelineState: initialStage } : formData),
             });
 
             const data = await res.json();
@@ -61,7 +67,7 @@ export default function NewLeadPage() {
                 <SectionHeader title="Add New Lead" subtitle="Manually enter a contact into your leads." />
             </div>
 
-            <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
+            <form onSubmit={handleSubmit} className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 space-y-4">
                 <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Full Name
