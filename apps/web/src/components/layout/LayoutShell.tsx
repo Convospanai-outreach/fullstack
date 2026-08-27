@@ -13,19 +13,18 @@ import Footer from "@/components/Footer";
 export const DASHBOARD_PREFIXES = [
     "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
     "/automations", "/billing", "/calendar", "/caller", "/campaigns",
-    "/command-center", "/crm", "/dashboard", "/edge", "/governance",
-    "/icp-builder", "/inbox", "/intel", "/jobs", "/knowledge",
-    "/landing-agent", "/leads", "/marketplace", "/monitoring",
-    "/notifications", "/pipeline", "/playbooks", "/profile", "/runtime",
-    "/settings", "/sovereign", "/studio", "/team", "/templates", "/tools",
+    "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
+    "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",
+    "/jobs", "/knowledge", "/landing-agent", "/leads", "/linkedin-runner",
+    "/marketplace", "/monitoring", "/notifications", "/pipeline",
+    "/playbooks", "/profile", "/runtime", "/scraper-bridge", "/settings",
+    "/sovereign", "/studio", "/team", "/templates", "/tools",
     "/whatsapp", "/workflows"
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
-    // "/setup", "/scraper-bridge", "/onboarding" excluded for the same reason —
-    // none of them are inside the (dashboard) route group. ("/scraper-bridge",
-    // "/hunter-email-finder", and "/csv-ingestion" are registered in productFlags.ts's
-    // HIDDEN_FEATURES and do have real page directories today.)
+    // "/setup", "/onboarding" excluded for the same reason — neither is inside
+    // the (dashboard) route group.
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
