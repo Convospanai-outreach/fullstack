@@ -134,6 +134,11 @@ async function runHandler(jobType: string, payload: JobPayload) {
             return { acknowledged: true };
         }
 
+        case "warmup_seed_reply": {
+            const { sendWarmupSeedReply } = await import("@/modules/email-campaigner/service/warmupSeedService");
+            return sendWarmupSeedReply(payload);
+        }
+
         default:
             throw new Error(`No worker handler registered for job type ${jobType}`);
     }

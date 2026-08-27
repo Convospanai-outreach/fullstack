@@ -50,7 +50,8 @@ export type JobType =
     | "sequence_execution"
     | "INTEL_FOLLOWUP_REFRESH"
     | "lead_scoring"
-    | "order_captured";
+    | "order_captured"
+    | "warmup_seed_reply";
 
 export interface JobPayload {
     leadId?: string | undefined;

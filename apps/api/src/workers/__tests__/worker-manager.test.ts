@@ -26,6 +26,10 @@ vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
     advanceMailboxWarmup: vi.fn().mockResolvedValue({ count: 0 }),
 }));
 
+vi.mock("@/modules/email-campaigner/service/warmupSeedService", () => ({
+    sendWarmupSeedTraffic: vi.fn().mockResolvedValue({ sent: 0 }),
+}));
+
 vi.mock("../job-processor", () => ({
     worker: { performJob: vi.fn().mockResolvedValue(undefined) },
 }));

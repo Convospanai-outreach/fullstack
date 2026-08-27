@@ -1,7 +1,12 @@
+import crypto from "crypto";
 import { logger } from "@/lib/logger";
 import type { JobPayload } from "@/lib/queue";
 import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
 import { sendViaGmailMailbox } from "@/modules/email-campaigner/service/googleMailboxService";
+import { renderMergeTags } from "@/lib/email/mergeTags";
+import { pickWeightedVariant } from "@/lib/email/campaignVariants";
+import { buildUnsubscribeHeaders, appendUnsubscribeFooter } from "@/lib/email/unsubscribeHeaders";
+import { buildOpenPixelHtml, rewriteLinksForTracking } from "@/lib/email/linkTracking";
 
 function stripHtmlTags(input: string): string {
   let previous: string;
@@ -26,7 +31,10 @@ export async function handleEmailSending(payload: JobPayload) {
   const lead = await prisma.lead.findUnique({ where: { id: leadId } });
   if (!lead?.email) throw new Error(`Lead ${leadId} has no email address`);
 
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { variants: true },
+  });
   if (!campaign) throw new Error(`Campaign ${campaignId} not found`);
 
   // 2. Check suppression list
@@ -51,21 +59,36 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No connected mailbox available for team ${teamId || campaign.teamId}`);
   }
 
-  // 3. Atomic conditional SQL UPDATE guaranteeing 100% race-free concurrency enforcement
+  // 3. Atomic conditional SQL UPDATE guaranteeing 100% race-free concurrency enforcement.
+  // Mirrors googleMailboxService.ts's assertMailboxCanSend/bumpMailboxCounters on apps/api:
+  // sentToday resets on day rollover, the per-send delay honors the mailbox's own
+  // minDelaySeconds, and a mailbox still warming up is capped at a ramped limit instead of
+  // its full dailyLimit.
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const effectiveLimit = mailbox.isWarmingUp
+    ? Math.max(5, Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5))
+    : mailbox.dailyLimit;
+  const minDelaySeconds = mailbox.minDelaySeconds ?? 180;
+
   const updatedCount = await prisma.$executeRaw`
     UPDATE "ConnectedMailbox"
-    SET "sentToday" = "sentToday" + 1, "lastSentAt" = NOW()
+    SET "sentToday" = CASE WHEN "sentTodayDate" IS NULL OR "sentTodayDate" < ${todayStart} THEN 1 ELSE "sentToday" + 1 END,
+        "sentTodayDate" = ${todayStart},
+        "lastSentAt" = NOW()
     WHERE id = ${mailbox.id}
-      AND "sentToday" < "dailyLimit"
-      AND ("lastSentAt" IS NULL OR "lastSentAt" <= NOW() - INTERVAL '180 seconds')
+      AND (CASE WHEN "sentTodayDate" IS NULL OR "sentTodayDate" < ${todayStart} THEN 0 ELSE "sentToday" END) < ${effectiveLimit}
+      AND ("lastSentAt" IS NULL OR "lastSentAt" <= NOW() - make_interval(secs => ${minDelaySeconds}))
   `;
 
   if (Number(updatedCount) === 0) {
     const fresh = await prisma.connectedMailbox.findUnique({ where: { id: mailbox.id } });
-    if (fresh && fresh.sentToday >= fresh.dailyLimit) {
-      throw new Error(`Mailbox daily sending limit reached (${fresh.sentToday}/${fresh.dailyLimit}). Try again tomorrow.`);
+    const freshSentToday = fresh?.sentTodayDate && fresh.sentTodayDate >= todayStart ? fresh.sentToday : 0;
+    if (fresh && freshSentToday >= effectiveLimit) {
+      const limitLabel = mailbox.isWarmingUp ? `${freshSentToday}/${effectiveLimit} warmup limit` : `${freshSentToday}/${effectiveLimit}`;
+      throw new Error(`Mailbox daily sending limit reached (${limitLabel}). Try again tomorrow.`);
     }
-    throw new Error(`Mailbox sending delay throttle active (minimum 180s interval required).`);
+    throw new Error(`Mailbox sending delay throttle active (minimum ${minDelaySeconds}s interval required).`);
   }
 
   const payloadSubject = payload["subject"];
@@ -81,18 +104,33 @@ export async function handleEmailSending(payload: JobPayload) {
     orderBy: { createdAt: "desc" },
   });
 
-  const subject = typeof payloadSubject === "string" && payloadSubject.trim()
+  const hasExplicitContent = (typeof payloadSubject === "string" && payloadSubject.trim())
+    || (typeof payloadBody === "string" && payloadBody.trim())
+    || existingDraft?.body;
+
+  // A/B: pick a weighted variant only when nothing else already supplied content for this send
+  const selectedVariant = !hasExplicitContent && campaign.variants.length > 0
+    ? pickWeightedVariant(campaign.variants)
+    : null;
+
+  const rawSubject = typeof payloadSubject === "string" && payloadSubject.trim()
     ? payloadSubject.trim()
-    : existingDraft?.subject || `Follow-up from ${campaign.name}`;
-  const body = typeof payloadBody === "string" && payloadBody.trim()
+    : existingDraft?.subject || selectedVariant?.subject || `Follow-up from ${campaign.name}`;
+  const rawBody = typeof payloadBody === "string" && payloadBody.trim()
     ? payloadBody.trim()
-    : existingDraft?.body || "";
+    : existingDraft?.body || selectedVariant?.body || "";
+
+  const subject = renderMergeTags(rawSubject, lead);
+  const body = renderMergeTags(rawBody, lead);
+
+  const trackingId = existingDraft?.trackingId || crypto.randomUUID();
+  const variantId = selectedVariant?.id;
 
   // Reuse existing draft row or create a new queued Email record
   const email = existingDraft
     ? await prisma.email.update({
         where: { id: existingDraft.id },
-        data: { mailboxId: mailbox.id, subject, body, status: "queued" },
+        data: { mailboxId: mailbox.id, subject, body, status: "queued", trackingId, ...(variantId ? { variantId } : {}) },
       })
     : await prisma.email.create({
         data: {
@@ -102,6 +140,8 @@ export async function handleEmailSending(payload: JobPayload) {
           subject,
           body,
           status: "queued",
+          trackingId,
+          ...(variantId ? { variantId } : {}),
         },
       });
 
@@ -115,17 +155,31 @@ export async function handleEmailSending(payload: JobPayload) {
   const providerKey = mailbox.provider || "GOOGLE_WORKSPACE";
   const provider = MailProviderFactory.getProvider(providerKey);
 
+  // Rewrite outbound links for click tracking, then append an open-tracking pixel and unsubscribe footer
+  const linkTrackedBody = await rewriteLinksForTracking(body, {
+    teamId: resolvedTeamId,
+    emailId: email.id,
+    mailboxId: mailbox.id,
+    campaignId,
+    leadId,
+  });
+  const finalHtml = appendUnsubscribeFooter(
+    `${linkTrackedBody}${buildOpenPixelHtml(trackingId)}`,
+    trackingId
+  );
+
   let sendResult: any = null;
   try {
     sendResult = await provider.send(mailbox, {
       to: lead.email,
       from: mailbox.email,
       subject,
-      html: body,
+      html: finalHtml,
       text: stripHtmlTags(body),
       headers: {
         "Reply-To": mailbox.email,
         "X-Tracking-ID": email.trackingId || email.id,
+        ...buildUnsubscribeHeaders(trackingId),
       },
     });
   } catch (err: any) {
@@ -183,7 +237,7 @@ export async function handleEmailSending(payload: JobPayload) {
       leadId,
       campaignId,
       type: "SENT",
-      provider: "GOOGLE_WORKSPACE",
+      provider: providerKey,
       providerMessageId: sent.providerId || sent.id,
       payload: {
         threadId: sent.threadId,
@@ -201,6 +255,13 @@ export async function handleEmailSending(payload: JobPayload) {
     },
   });
 
+  if (variantId) {
+    await prisma.campaignVariant.update({
+      where: { id: variantId },
+      data: { sentCount: { increment: 1 } },
+    }).catch(() => undefined);
+  }
+
   const leadStage = await advanceLeadAfterEmailSent(prisma, {
     leadId,
     teamId: resolvedTeamId,
@@ -208,7 +269,7 @@ export async function handleEmailSending(payload: JobPayload) {
     emailId: sent.id,
   });
 
-  logger.info("[email_sending] Email sent successfully via Gmail API", {
+  logger.info(`[email_sending] Email sent successfully via ${providerKey}`, {
     emailId: sent.id,
     leadId,
     mailboxId: mailbox.id,

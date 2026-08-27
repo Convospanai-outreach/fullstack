@@ -64,16 +64,30 @@ export default function MailboxesSettingsPage() {
     const [smtpTestResult, setSmtpTestResult] = useState("");
     const [smtpSaving, setSmtpSaving] = useState(false);
 
+    // Resend Modal State
+    const [showResendModal, setShowResendModal] = useState(false);
+    const [resendApiKey, setResendApiKey] = useState("");
+    const [resendFromName, setResendFromName] = useState("");
+    const [resendEmail, setResendEmail] = useState("");
+    const [resendInboundDomain, setResendInboundDomain] = useState("");
+    const [resendWebhookSecret, setResendWebhookSecret] = useState("");
+    const [resendShowReplyCapture, setResendShowReplyCapture] = useState(false);
+    const [resendTestRecipient, setResendTestRecipient] = useState("");
+    const [resendTesting, setResendTesting] = useState(false);
+    const [resendTestResult, setResendTestResult] = useState("");
+    const [resendSaving, setResendSaving] = useState(false);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 if (showSmtpModal) setShowSmtpModal(false);
+                if (showResendModal) setShowResendModal(false);
                 if (editingMailbox) setEditingMailbox(null);
             }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showSmtpModal, editingMailbox]);
+    }, [showSmtpModal, showResendModal, editingMailbox]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -195,6 +209,68 @@ export default function MailboxesSettingsPage() {
         }
     };
 
+    const handleTestResend = async () => {
+        if (!resendApiKey || !resendEmail || !resendTestRecipient) {
+            setResendTestResult("Please fill in the API key, sender email, and test recipient email.");
+            return;
+        }
+        setResendTesting(true);
+        setResendTestResult("");
+        try {
+            const res = await fetch("/api/integrations/resend/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKey: resendApiKey,
+                    fromName: resendFromName,
+                    email: resendEmail,
+                    recipientEmail: resendTestRecipient,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setResendTestResult("✓ Test email sent successfully! Message-ID: " + data.messageId);
+            } else {
+                setResendTestResult("❌ Verification failed: " + (data.error || "Unknown Resend error"));
+            }
+        } catch (err: any) {
+            setResendTestResult("❌ Network error: " + (err?.message || "Failed to contact server"));
+        } finally {
+            setResendTesting(false);
+        }
+    };
+
+    const handleSaveResend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setResendSaving(true);
+        setError("");
+        try {
+            const res = await fetch("/api/integrations/resend/connect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKey: resendApiKey,
+                    fromName: resendFromName,
+                    email: resendEmail,
+                    inboundDomain: resendInboundDomain || undefined,
+                    webhookSecret: resendWebhookSecret || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSuccess(`Resend Mailbox (${data.email}) connected successfully!`);
+                setShowResendModal(false);
+                loadMailboxes();
+            } else {
+                setError(data.error || "Failed to connect Resend mailbox.");
+            }
+        } catch {
+            setError("Failed to connect Resend mailbox.");
+        } finally {
+            setResendSaving(false);
+        }
+    };
+
     const openEditModal = (mb: ConnectedMailbox) => {
         setEditingMailbox(mb);
         setEditDailyLimit(mb.dailyLimit || 50);
@@ -297,7 +373,7 @@ export default function MailboxesSettingsPage() {
                     </div>
                 )}
 
-                <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="mb-8 grid grid-cols-1 sm:grid-cols-4 gap-3">
                     {/* Connect Google */}
                     <button
                         onClick={connectGmail}
@@ -330,6 +406,14 @@ export default function MailboxesSettingsPage() {
                         className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl font-semibold text-sm border border-white/10 transition"
                     >
                         ⚡ Custom SMTP
+                    </button>
+
+                    {/* Connect Resend */}
+                    <button
+                        onClick={() => setShowResendModal(true)}
+                        className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl font-semibold text-sm border border-white/10 transition"
+                    >
+                        ✉️ Resend
                     </button>
                 </div>
 
@@ -630,6 +714,80 @@ export default function MailboxesSettingsPage() {
                                 <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">Cancel</button>
                                 <button type="submit" disabled={smtpSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
                                     {smtpSaving ? "Connecting…" : "Verify & Connect Mailbox"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Resend Modal Dialog */}
+            {showResendModal && (
+                <div role="dialog" aria-modal="true" aria-labelledby="resend-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <h2 id="resend-modal-title" className="text-xl font-bold text-white">Connect Resend Mailbox</h2>
+                            <button onClick={() => setShowResendModal(false)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
+                        </div>
+                        <form onSubmit={handleSaveResend} className="space-y-3 text-sm">
+                            <div>
+                                <label className="block text-zinc-400 text-xs mb-1">Resend API Key</label>
+                                <input type="password" placeholder="re_xxxxxxxxxxxx" value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-zinc-400 text-xs mb-1">From Display Name</label>
+                                    <input type="text" placeholder="John Doe" value={resendFromName} onChange={(e) => setResendFromName(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                </div>
+                                <div>
+                                    <label className="block text-zinc-400 text-xs mb-1">From Sender Email (verified domain)</label>
+                                    <input type="email" placeholder="john@domain.com" value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-white/10">
+                                <button
+                                    type="button"
+                                    onClick={() => setResendShowReplyCapture((v) => !v)}
+                                    className="flex items-center justify-between w-full text-left text-xs font-semibold text-indigo-400 hover:text-indigo-300"
+                                >
+                                    <span>⚙️ Reply Capture (optional, advanced)</span>
+                                    <span>{resendShowReplyCapture ? "▲" : "▼"}</span>
+                                </button>
+                                {resendShowReplyCapture && (
+                                    <div className="mt-2 space-y-3 bg-zinc-950/60 border border-white/5 rounded-lg p-3">
+                                        <p className="text-[11px] text-zinc-500 leading-relaxed">
+                                            Resend doesn't have an inbox, so detecting a prospect's reply requires your own dedicated receiving domain. In <strong>your own</strong> Resend dashboard: (1) verify a subdomain you control for receiving (e.g. <code>reply.yourdomain.com</code>) and add the MX record Resend gives you — never reuse a domain you also send real mail from; (2) create a webhook for the <code>email.received</code> event pointed at <code>{typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/resend</code>; (3) paste that webhook's signing secret below. Until both fields are filled in, replies to this mailbox won't be detected.
+                                        </p>
+                                        <div>
+                                            <label className="block text-zinc-400 text-xs mb-1">Your Verified Inbound Domain</label>
+                                            <input type="text" placeholder="reply.yourdomain.com" value={resendInboundDomain} onChange={(e) => setResendInboundDomain(e.target.value)} className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white text-xs" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-zinc-400 text-xs mb-1">Your Webhook Signing Secret</label>
+                                            <input type="password" placeholder="whsec_xxxxxxxxxxxx" value={resendWebhookSecret} onChange={(e) => setResendWebhookSecret(e.target.value)} className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white text-xs" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-2 border-t border-white/10">
+                                <label className="block text-zinc-400 text-xs mb-1">Send Verification Test Email To:</label>
+                                <div className="flex gap-2">
+                                    <input type="email" placeholder="mytest@domain.com" value={resendTestRecipient} onChange={(e) => setResendTestRecipient(e.target.value)} className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white text-xs" />
+                                    <button type="button" onClick={handleTestResend} disabled={resendTesting} className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-semibold text-xs shrink-0">
+                                        {resendTesting ? "Testing…" : "Send Test"}
+                                    </button>
+                                </div>
+                                {resendTestResult && (
+                                    <p className={`mt-1 text-xs ${resendTestResult.startsWith("✓") ? "text-emerald-400" : "text-rose-400"}`}>{resendTestResult}</p>
+                                )}
+                            </div>
+
+                            <div className="pt-3 flex justify-end gap-2">
+                                <button type="button" onClick={() => setShowResendModal(false)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">Cancel</button>
+                                <button type="submit" disabled={resendSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
+                                    {resendSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
                             </div>
                         </form>
