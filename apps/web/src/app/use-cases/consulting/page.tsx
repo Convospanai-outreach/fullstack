@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Management Consulting & Advisory Outbound Playbook | CraftMyFunnel",
     description: "Learn how management consultants and boutique advisory firms use CraftMyFunnel to conduct executive-level outreach with zero hallucinated claims or awkward email errors.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/consulting",
+    },
     openGraph: {
         title: "Management Consulting & Advisory Outbound Playbook | CraftMyFunnel",
         description: "Engage C-suite buyers with high-trust advisory proposals, partner approval workflows, and intent signals.",

@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { MailProviderFactory, GoogleWorkspaceProvider, SmtpProvider, MicrosoftGraphProvider, MailProviderError } from "@/modules/email-campaigner/providers";
+import { MailProviderFactory, GoogleWorkspaceProvider, SmtpProvider, MicrosoftGraphProvider, ResendProvider, MailProviderError } from "@/modules/email-campaigner/providers";
+
+const resendSendMock = vi.fn();
+const resendApiKeysListMock = vi.fn();
+vi.mock("resend", () => ({
+  Resend: class {
+    emails = { send: resendSendMock };
+    apiKeys = { list: resendApiKeysListMock };
+  },
+}));
 
 describe("MailProvider Architecture & Provider Implementations", () => {
   beforeEach(() => {
@@ -25,6 +34,12 @@ describe("MailProvider Architecture & Provider Implementations", () => {
       const provider = MailProviderFactory.getProvider("MICROSOFT_365");
       expect(provider).toBeInstanceOf(MicrosoftGraphProvider);
       expect(provider.providerKey).toBe("MICROSOFT_365");
+    });
+
+    it("registers and retrieves RESEND provider", () => {
+      const provider = MailProviderFactory.getProvider("RESEND");
+      expect(provider).toBeInstanceOf(ResendProvider);
+      expect(provider.providerKey).toBe("RESEND");
     });
 
     it("throws clear error on unregistered provider key", () => {
@@ -97,6 +112,61 @@ describe("MailProvider Architecture & Provider Implementations", () => {
         encryptedRefreshToken: null,
       });
       expect(result.ok).toBe(false);
+    });
+  });
+
+  describe("ResendProvider Verification & Send", () => {
+    const provider = new ResendProvider();
+
+    beforeEach(() => {
+      resendSendMock.mockReset();
+      resendApiKeysListMock.mockReset();
+    });
+
+    it("fails verifyConnection if API key missing", async () => {
+      const result = await provider.verifyConnection({
+        encryptedAccessToken: null,
+        encryptedRefreshToken: null,
+      });
+      expect(result.ok).toBe(false);
+    });
+
+    it("fails verifyConnection when Resend rejects the key", async () => {
+      resendApiKeysListMock.mockResolvedValue({ data: null, error: { message: "Invalid API key" } });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { encryptedAccessToken: await encryptCredential("re_bad_key") };
+      const result = await provider.verifyConnection(mailbox);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain("Invalid API key");
+    });
+
+    it("succeeds verifyConnection when Resend accepts the key", async () => {
+      resendApiKeysListMock.mockResolvedValue({ data: [], error: null });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { encryptedAccessToken: await encryptCredential("re_good_key") };
+      const result = await provider.verifyConnection(mailbox);
+      expect(result.ok).toBe(true);
+    });
+
+    it("classifies invalid_api_key send errors as AUTH_EXPIRED", async () => {
+      resendSendMock.mockResolvedValue({ data: null, error: { name: "invalid_api_key", message: "API key is invalid" } });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { email: "sender@example.com", displayName: "Sender", encryptedAccessToken: await encryptCredential("re_bad_key") };
+      try {
+        await provider.send(mailbox, { to: "prospect@example.com", from: "sender@example.com", subject: "Test", html: "<p>Test</p>", text: "Test" });
+        expect.unreachable("send should have thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(MailProviderError);
+        expect((err as MailProviderError).kind).toBe("AUTH_EXPIRED");
+      }
+    });
+
+    it("returns providerMessageId on successful send", async () => {
+      resendSendMock.mockResolvedValue({ data: { id: "resend-msg-123" }, error: null });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { email: "sender@example.com", displayName: "Sender", encryptedAccessToken: await encryptCredential("re_good_key") };
+      const result = await provider.send(mailbox, { to: "prospect@example.com", from: "sender@example.com", subject: "Test", html: "<p>Test</p>", text: "Test" });
+      expect(result.providerMessageId).toBe("resend-msg-123");
     });
   });
 });

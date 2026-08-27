@@ -6,6 +6,9 @@ export const metadata = {
   title: "CraftMyFunnel AI — Fluid Funnel Engine",
   description:
     "CraftMyFunnel AI turns live buyer signals into governed outreach, structured human follow-up, sovereign processing, and qualified revenue.",
+  alternates: {
+    canonical: "https://craftmyfunnel.live",
+  },
 };
 
 export default function Home() {

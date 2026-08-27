@@ -138,6 +138,11 @@ async function runHandler(jobType: string, payload: JobPayload) {
             return { acknowledged: true };
         }
 
+        case "warmup_seed_reply": {
+            const { sendWarmupSeedReply } = await import("@/modules/email-campaigner/service/warmupSeedService");
+            return sendWarmupSeedReply(payload);
+        }
+
         case "agent_stop": {
             // The real stop action (Agent.status -> "idle", an Activity row, and
             // an audit() call) already happens synchronously in

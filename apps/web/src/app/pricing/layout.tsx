@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Pricing & Plans | CraftMyFunnel",
     description: "Transparent pricing for managed growth execution, campaign operations, and pipeline tracking. Pilot ($49), Growth Autopilot ($99), and Enterprise ($499) tiers.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/pricing",
+    },
     openGraph: {
         title: "CraftMyFunnel Pricing & Plans",
         description: "Transparent pricing for governed B2B outreach: Pilot ($49), Growth ($99), Enterprise ($499).",

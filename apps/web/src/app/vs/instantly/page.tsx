@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "CraftMyFunnel vs Instantly | Governed Outreach vs Cold Email Blaster",
     description: "Compare CraftMyFunnel and Instantly.ai. Learn why revenue teams and B2B service firms switch from volume mass-sending to CraftMyFunnel's governed AI workflows with human approval gates.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs/instantly",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Instantly: Governed AI Outreach vs High-Volume Blaster",
         description: "Compare CraftMyFunnel with Instantly. Prioritize domain reputation, human review queues, and enterprise data security over mass spam.",

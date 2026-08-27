@@ -105,6 +105,22 @@ export class MicrosoftGraphProvider implements MailProvider {
                 },
               ]
             : []),
+          ...(input.headers?.["List-Unsubscribe"]
+            ? [
+                {
+                  name: "List-Unsubscribe",
+                  value: input.headers["List-Unsubscribe"],
+                },
+              ]
+            : []),
+          ...(input.headers?.["List-Unsubscribe-Post"]
+            ? [
+                {
+                  name: "List-Unsubscribe-Post",
+                  value: input.headers["List-Unsubscribe-Post"],
+                },
+              ]
+            : []),
         ],
       },
       saveToSentItems: "true",

@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "L&D & Corporate Training Outbound Playbook | CraftMyFunnel",
     description: "Learn how enterprise training providers and executive coaches use CraftMyFunnel to identify technology migrations, reorgs, and engage Chief People Officers.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/training",
+    },
     openGraph: {
         title: "Corporate Training & L&D Outbound Playbook | CraftMyFunnel",
         description: "Engage enterprise HR and L&D leaders during technology rollouts and organizational transitions with governed outbound sales.",

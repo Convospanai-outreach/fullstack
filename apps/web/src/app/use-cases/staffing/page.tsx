@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Staffing & Executive Recruiting Outbound Playbook | CraftMyFunnel",
     description: "Learn how staffing agencies and executive search firms use CraftMyFunnel to monitor hiring surges, auto-draft candidate capability pitches, and review outreach in batch.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/staffing",
+    },
     openGraph: {
         title: "Staffing & Recruiting Outbound Sales Playbook | CraftMyFunnel",
         description: "Win enterprise hiring retainers and direct-placement contracts with intent-driven recruiting sequences.",

@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "B2B Outbound Use Cases & Vertical Playbooks | CraftMyFunnel",
     description: "Discover how revenue teams in facility management, security services, staffing, L&D, consulting, and IT MSPs use CraftMyFunnel's governed outbound workflows.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases",
+    },
     openGraph: {
         title: "CraftMyFunnel Use Cases & Industry Outbound Playbooks",
         description: "Vertical-specific outbound sequences, buyer signal tracking, and human-in-the-loop approval workflows for B2B service firms.",

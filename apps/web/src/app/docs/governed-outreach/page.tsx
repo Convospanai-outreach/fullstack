@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Governed Outreach & Human Approval Queue | CraftMyFunnel Docs",
     description: "Technical guide on how CraftMyFunnel's human-in-the-loop review queue eliminates AI hallucinations and keeps outbound messaging compliant.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/docs/governed-outreach",
+    },
     openGraph: {
         title: "Governed Outreach & Human Approval Queue Guide",
         description: "Explore the core workflow that pairs AI draft generation with human review checkpoints before mailbox dispatch.",

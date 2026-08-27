@@ -3,6 +3,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const mockDb: any = vi.hoisted(() => ({
     campaignSequence: {},
     sequenceStep: { findFirst: vi.fn(), findUnique: vi.fn() },
+    sequenceEdge: { count: vi.fn().mockResolvedValue(0), findFirst: vi.fn() },
     sequenceStepRun: { findUnique: vi.fn(), update: vi.fn() },
     sequenceEnrollment: { findUnique: vi.fn(), update: vi.fn() },
     lead: { findUnique: vi.fn() },

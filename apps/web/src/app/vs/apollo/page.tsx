@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "CraftMyFunnel vs Apollo.io | Governed AI Outreach Alternative",
     description: "Compare CraftMyFunnel and Apollo.io. Discover why B2B revenue teams requiring human approval workflows, AI personalization guardrails, and deliverability protection choose CraftMyFunnel.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs/apollo",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Apollo.io: Governed AI Outreach vs Data Sequencer",
         description: "Compare CraftMyFunnel with Apollo.io. Built for teams that prioritize message quality, human-in-the-loop review, and domain sender reputation.",

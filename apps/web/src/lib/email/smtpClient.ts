@@ -15,6 +15,7 @@ export interface SendMailOptions {
     subject: string;
     html: string;
     replyTo?: string;
+    headers?: Record<string, string>;
 }
 
 export interface SendMailResult {
@@ -53,6 +54,7 @@ export async function sendViaSMTP(
             subject: options.subject,
             html: options.html,
             replyTo: options.replyTo,
+            headers: options.headers,
         });
         return { success: true, messageId: info.messageId };
     } catch (err: any) {
