@@ -78,7 +78,7 @@ export default function TemplatesPage() {
 
             {isEditing ? (
                 <div className="max-w-2xl">
-                    <h3 className="text-lg font-semibold text-white mb-4">
+                    <h3 className="text-lg font-semibold text-foreground mb-4">
                         {currentTemplate ? "Edit Template" : "New Template"}
                     </h3>
                     <TemplateEditor
