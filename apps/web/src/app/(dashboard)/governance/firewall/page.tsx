@@ -54,20 +54,20 @@ export default function FirewallPage() {
                         {events.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-[200px] text-center">
                                 <CheckCircle2 className="w-8 h-8 text-emerald-400 mb-2" />
-                                <p className="text-white font-semibold text-sm">All Traffic Clean</p>
-                                <p className="text-text-secondary text-xs mt-1">No prompt injection or PII leakage detected in active sessions.</p>
+                                <p className="text-foreground font-semibold text-sm">All Traffic Clean</p>
+                                <p className="text-muted-foreground text-xs mt-1">No prompt injection or PII leakage detected in active sessions.</p>
                             </div>
                         ) : (
                             <div className="space-y-4">
                                 {events.map((event, i) => (
-                                    <div key={i} className="flex justify-between items-center p-4 bg-white/[0.02] border border-white/5 rounded-xl">
+                                    <div key={i} className="flex justify-between items-center p-4 bg-muted border border-border rounded-xl">
                                         <div className="flex items-center gap-4">
                                             <div className="bg-red-500/10 p-2 rounded-lg text-red-400">
                                                 <EyeOff className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <h4 className="font-semibold text-white">{event.type} Detected</h4>
-                                                <p className="text-xs text-text-secondary">{event.source} • {event.time}</p>
+                                                <h4 className="font-semibold text-foreground">{event.type} Detected</h4>
+                                                <p className="text-xs text-muted-foreground">{event.source} • {event.time}</p>
                                             </div>
                                         </div>
                                         <Badge variant="danger">{event.status}</Badge>
@@ -85,9 +85,9 @@ export default function FirewallPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-center justify-center h-[200px] text-center">
-                            <ShieldAlert className="w-8 h-8 text-blue-400 mb-2" />
-                            <p className="text-white font-semibold text-sm">Sanitization Active</p>
-                            <p className="text-text-secondary text-xs mt-1">Prompt guardrails automatically mask sensitive tokens prior to provider dispatch.</p>
+                            <ShieldAlert className="w-8 h-8 text-primary mb-2" />
+                            <p className="text-foreground font-semibold text-sm">Sanitization Active</p>
+                            <p className="text-muted-foreground text-xs mt-1">Prompt guardrails automatically mask sensitive tokens prior to provider dispatch.</p>
                         </div>
                     </CardContent>
                 </Card>
