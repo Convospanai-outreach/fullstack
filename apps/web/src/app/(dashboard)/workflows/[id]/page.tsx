@@ -30,22 +30,22 @@ export default function WorkflowEditorPage() {
         return () => ctrl.abort();
     }, [id]);
 
-    if (loading) return <div className="p-8 text-white/60">Loading workflow...</div>;
-    if (!workflow || workflow.error) return <div className="p-8 text-red-400">Workflow not found</div>;
+    if (loading) return <div className="p-8 text-muted-foreground">Loading workflow...</div>;
+    if (!workflow || workflow.error) return <div className="p-8 text-destructive">Workflow not found</div>;
 
     return (
         <div className="h-[calc(100vh-64px)] flex flex-col">
-            <div className="px-8 py-4 border-b border-white/10 bg-slate-900/50 backdrop-blur-md flex justify-between items-center z-10">
+            <div className="px-8 py-4 border-b border-border bg-card backdrop-blur-md flex justify-between items-center z-10">
                 <div>
-                    <h1 className="text-xl font-bold text-white">{workflow.name}</h1>
-                    <p className="text-xs text-brand-gray-400">{workflow.description || "Draft Workflow"}</p>
+                    <h1 className="text-xl font-bold text-foreground">{workflow.name}</h1>
+                    <p className="text-xs text-muted-foreground">{workflow.description || "Draft Workflow"}</p>
                 </div>
                 <div className="flex gap-2">
                     {/* Actions handled inside Editor currently */}
                 </div>
             </div>
 
-            <div className="flex-1 bg-slate-950 p-4">
+            <div className="flex-1 bg-background p-4">
                 <ReactFlowProvider>
                     <WorkflowEditor
                         workflowId={id as string}
