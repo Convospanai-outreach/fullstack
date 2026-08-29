@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Providers } from "./providers";
+import { ThemeProvider } from "./theme-provider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { LayoutShell } from "@/components/layout/LayoutShell";
 import { ClientOverlays } from "@/components/layout/ClientOverlays";
@@ -58,15 +59,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
   const app = (
     <ErrorBoundary>
-      <Providers>
-        <ClientOverlays />
-        <Toaster position="top-center" richColors />
-        <LayoutShell>
-          <StrictQualityBoundary moduleName="RootApplicationShell" strictMode>
-            {children}
-          </StrictQualityBoundary>
-        </LayoutShell>
-      </Providers>
+      <ThemeProvider>
+        <Providers>
+          <ClientOverlays />
+          <Toaster position="top-center" richColors />
+          <LayoutShell>
+            <StrictQualityBoundary moduleName="RootApplicationShell" strictMode>
+              {children}
+            </StrictQualityBoundary>
+          </LayoutShell>
+        </Providers>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 
@@ -74,8 +77,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider>
       <html
         lang="en"
-        className={`dark ${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}
+        className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}
         data-scroll-behavior="smooth"
+        suppressHydrationWarning
       >
         <head>
           <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
@@ -186,7 +190,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Script>
           )}
         </head>
-        <body className="min-h-screen flex flex-col font-sans antialiased bg-[#020617] text-slate-200 selection:bg-indigo-500/30 selection:text-indigo-200">
+        <body className="min-h-screen flex flex-col font-sans antialiased bg-background text-foreground selection:bg-primary/30 selection:text-primary">
           <GoogleAnalytics />
           <a
             href="#main-content"

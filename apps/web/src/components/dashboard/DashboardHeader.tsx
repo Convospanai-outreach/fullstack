@@ -18,6 +18,7 @@ import { NotificationBell } from "@/components/ui/NotificationBell";
 import { ConnectionStatusBar } from "@/components/system/ConnectionStatusBar";
 import { ToolsMenu } from "@/components/dashboard/ToolsMenu";
 import { WorkspaceHelpPanel } from "@/components/dashboard/WorkspaceHelpPanel";
+import { ThemeToggle } from "@/components/dashboard/ThemeToggle";
 import Link from "next/link";
 
 interface DashboardHeaderProps {
@@ -68,6 +69,9 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           Manual mode
         </div>
+
+        {/* Theme toggle */}
+        <ThemeToggle />
 
         {/* Notification bell */}
         <NotificationBell />
