@@ -78,7 +78,7 @@ export default function ApprovalsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading approvals...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading approvals...</div>;
 
     return (
         <div className="space-y-8 max-w-5xl">
@@ -89,48 +89,48 @@ export default function ApprovalsPage() {
 
             {requests.length === 0 ? (
                 <GlassCard className="p-12 text-center flex flex-col items-center justify-center opacity-70">
-                    <Check className="w-12 h-12 text-emerald-500 mb-4" />
-                    <h3 className="text-xl font-bold text-white">All Caught Up!</h3>
-                    <p className="text-gray-400">No pending approval requests found.</p>
+                    <Check className="w-12 h-12 text-success mb-4" />
+                    <h3 className="text-xl font-bold text-foreground">All Caught Up!</h3>
+                    <p className="text-muted-foreground">No pending approval requests found.</p>
                 </GlassCard>
             ) : (
                 <div className="grid gap-4">
                     {requests.map((req) => (
-                        <GlassCard key={req.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group hover:border-blue-500/30 transition-all">
+                        <GlassCard key={req.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between group hover:border-primary/30 transition-all">
                             <div className="flex gap-4 items-start">
-                                <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center text-blue-400 font-bold border border-blue-500/30">
+                                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/30">
                                     {req.requester?.name?.charAt(0) || "U"}
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2 mb-1">
-                                        <h4 className="font-bold text-white text-lg">{formatAction(req.actionType)}</h4>
-                                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 text-xs border border-amber-500/20 flex items-center gap-1">
+                                        <h4 className="font-bold text-foreground text-lg">{formatAction(req.actionType)}</h4>
+                                        <span className="px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs border border-warning/20 flex items-center gap-1">
                                             <Clock className="w-3 h-3" /> Pending
                                         </span>
                                     </div>
-                                    <p className="text-gray-400 text-sm mb-2">
-                                        Requested by <span className="text-white">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}
+                                    <p className="text-muted-foreground text-sm mb-2">
+                                        Requested by <span className="text-foreground">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}
                                     </p>
                                     {req.payload?.subject && (
-                                        <div className="bg-slate-950/60 p-3.5 rounded-lg border border-white/10 text-sm space-y-1.5 mt-2">
-                                            <div className="text-xs font-bold uppercase tracking-wider text-blue-400">
-                                                Subject: <span className="text-white font-semibold normal-case">{req.payload.subject}</span>
+                                        <div className="bg-muted p-3.5 rounded-lg border border-border text-sm space-y-1.5 mt-2">
+                                            <div className="text-xs font-bold uppercase tracking-wider text-primary">
+                                                Subject: <span className="text-foreground font-semibold normal-case">{req.payload.subject}</span>
                                             </div>
                                             {req.payload.recipient && (
-                                                <div className="text-xs text-gray-400">
-                                                    To: <span className="text-gray-200">{req.payload.recipient}</span>
+                                                <div className="text-xs text-muted-foreground">
+                                                    To: <span className="text-foreground">{req.payload.recipient}</span>
                                                 </div>
                                             )}
                                             {req.payload.body && (
-                                                <div className="text-gray-300 text-xs leading-relaxed line-clamp-3 bg-black/40 p-2.5 rounded border border-white/5 font-mono whitespace-pre-wrap">
+                                                <div className="text-foreground text-xs leading-relaxed line-clamp-3 bg-background p-2.5 rounded border border-border font-mono whitespace-pre-wrap">
                                                     {req.payload.body}
                                                 </div>
                                             )}
                                         </div>
                                     )}
                                     {req.reason && !req.payload?.subject && (
-                                        <div className="bg-slate-950/50 p-3 rounded-lg border border-white/5 text-sm text-gray-300 flex gap-2 mt-2">
-                                            <AlertCircle className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
+                                        <div className="bg-muted p-3 rounded-lg border border-border text-sm text-foreground flex gap-2 mt-2">
+                                            <AlertCircle className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
                                             "{req.reason}"
                                         </div>
                                     )}
@@ -141,14 +141,14 @@ export default function ApprovalsPage() {
                                 <button
                                     disabled={!!processing}
                                     onClick={() => handleAction(req.id, "REJECT")}
-                                    className="flex-1 md:flex-none px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50 text-sm font-medium"
+                                    className="flex-1 md:flex-none px-4 py-2 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 text-sm font-medium"
                                 >
                                     Reject
                                 </button>
                                 <button
                                     disabled={!!processing}
                                     onClick={() => handleAction(req.id, "APPROVE")}
-                                    className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:shadow-none text-sm font-medium flex items-center justify-center gap-2"
+                                    className="flex-1 md:flex-none px-6 py-2 rounded-lg bg-success text-white hover:bg-success/90 transition-all disabled:opacity-50 disabled:shadow-none text-sm font-medium flex items-center justify-center gap-2"
                                 >
                                     {processing === req.id ? "Processing..." : (
                                         <>
