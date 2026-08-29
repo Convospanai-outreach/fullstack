@@ -56,26 +56,26 @@ export default function ToolsHubPage() {
             />
 
             <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search tools…"
-                    className="w-full pl-9 pr-3 h-9 rounded-md text-sm bg-white/4 border border-white/7 text-white/80 placeholder:text-white/25 focus:outline-none focus:border-blue-500/40"
+                    className="w-full pl-9 pr-3 h-9 rounded-md text-sm bg-muted border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40"
                 />
             </div>
 
             {isLoading ? (
-                <GlassCard className="p-8 text-center text-sm text-white/40">Loading tools…</GlassCard>
+                <GlassCard className="p-8 text-center text-sm text-muted-foreground">Loading tools…</GlassCard>
             ) : isEmpty ? (
-                <GlassCard className="p-8 text-center text-sm text-white/40">
+                <GlassCard className="p-8 text-center text-sm text-muted-foreground">
                     No tools match "{query}".
                 </GlassCard>
             ) : (
                 categories.map(({ category, items }) => (
                     <div key={category} className="space-y-3">
-                        <span className="text-[11px] uppercase tracking-wide font-medium text-white/30">
+                        <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">
                             {category}
                         </span>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -90,22 +90,22 @@ export default function ToolsHubPage() {
 
                                 return (
                                     <Link key={feature.key} href={href}>
-                                        <GlassCard className="p-4 h-full transition-colors hover:border-white/20">
+                                        <GlassCard className="p-4 h-full transition-colors hover:border-primary/30">
                                             <div className="flex items-start justify-between gap-2">
-                                                <span className="text-[13.5px] font-medium text-white/90">
+                                                <span className="text-[13.5px] font-medium text-foreground">
                                                     {feature.label}
                                                 </span>
                                                 {isLive ? (
-                                                    <ExternalLink className="w-3.5 h-3.5 text-white/25 flex-shrink-0 mt-0.5" />
+                                                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 mt-0.5" />
                                                 ) : (
-                                                    <EyeOff className="w-3.5 h-3.5 text-amber-400/60 flex-shrink-0 mt-0.5" />
+                                                    <EyeOff className="w-3.5 h-3.5 text-warning/60 flex-shrink-0 mt-0.5" />
                                                 )}
                                             </div>
-                                            <p className="mt-1 text-xs text-white/40 leading-relaxed">
+                                            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                                                 {feature.description}
                                             </p>
                                             {!isLive && (
-                                                <p className="mt-2 text-[10px] uppercase tracking-wide font-medium text-amber-400/70">
+                                                <p className="mt-2 text-[10px] uppercase tracking-wide font-medium text-warning/70">
                                                     Hidden — tap to turn on
                                                 </p>
                                             )}
