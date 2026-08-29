@@ -232,7 +232,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
       <aside
         className={`
-          w-48 fixed left-0 top-0 bottom-0 bg-surface-panel border-r border-white/6 z-50 flex flex-col
+          w-48 fixed left-0 top-0 bottom-0 bg-card border-r border-border z-50 flex flex-col
           transition-transform duration-300 ease-in-out
           lg:translate-x-0
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -244,12 +244,12 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
         <div className="flex items-center justify-between px-3 pt-4 pb-3">
           <Link href="/dashboard" className="flex items-center gap-2">
             <LogoMark className="h-[26px] w-[26px]" />
-            <span className="text-[13px] font-medium text-white/80 font-outfit">CraftMyFunnel</span>
+            <span className="text-[13px] font-medium text-foreground font-outfit">CraftMyFunnel</span>
           </Link>
           {/* Mobile close */}
           <button
             onClick={onClose}
-            className="lg:hidden p-1 rounded hover:bg-white/5 text-white/40 hover:text-white/70 transition-colors"
+            className="lg:hidden p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -267,7 +267,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
             <div key={gi} className={gi > 0 ? 'mt-1' : ''}>
               {group.label && (
                 <div className="pt-4 pb-1 px-2">
-                  <span className="text-[10px] uppercase font-medium tracking-wide text-white/20">
+                  <span className="text-[10px] uppercase font-medium tracking-wide text-muted-foreground">
                     {group.label}
                   </span>
                 </div>
@@ -287,15 +287,15 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                         flex items-center gap-2 px-2 py-[5px] rounded-md text-[12.5px] font-normal
                         transition-colors duration-150
                         ${isActive
-                          ? 'bg-blue-500/12 text-blue-400'
-                          : 'text-white/45 hover:bg-white/4 hover:text-white/70'
+                          ? 'bg-primary/10 text-primary'
+                          : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                         }
                       `}
                     >
                       <Icon className="w-[14px] h-[14px] flex-shrink-0" />
                       <span className="flex-1">{item.label}</span>
                       {!!item.badge && item.badge > 0 && (
-                        <span className="text-[9.5px] border border-white/15 rounded px-1 text-white/50">
+                        <span className="text-[9.5px] border border-border rounded px-1 text-muted-foreground">
                           {item.badge}
                         </span>
                       )}
@@ -307,7 +307,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
           ))}
 
           {/* Tools — discovery surface for the remaining feature areas with no funnel-stage home */}
-          <div className="mt-1 pt-4 border-t border-white/6">
+          <div className="mt-1 pt-4 border-t border-border">
             <Link
               href="/tools"
               onClick={onClose}
@@ -322,23 +322,23 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
             >
               <Wrench className="w-[14px] h-[14px] flex-shrink-0" />
               <span className="flex-1">Tools</span>
-              <span className="text-[9.5px] text-white/25">{TOOLS_LINK_COUNT}</span>
+              <span className="text-[9.5px] text-muted-foreground">{TOOLS_LINK_COUNT}</span>
             </Link>
           </div>
         </nav>
 
         {/* User identity row — single source of truth. Links to /profile, which
             previously had no way to be reached from the dashboard chrome at all. */}
-        <div className="border-t border-white/5 px-2 py-3">
+        <div className="border-t border-border px-2 py-3">
           <Link href="/profile" onClick={onClose} className="flex items-center gap-2 group">
-            <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-medium flex-shrink-0">
+            <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-medium flex-shrink-0">
               {userInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-medium text-slate-300 truncate leading-none group-hover:text-white transition-colors">{userName}</p>
-              <p className="text-[10px] text-white/30 mt-0.5 leading-none">{planLabel}</p>
+              <p className="text-[12px] font-medium text-foreground truncate leading-none group-hover:text-primary transition-colors">{userName}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-none">{planLabel}</p>
             </div>
-            <MoreHorizontal className="w-3.5 h-3.5 text-white/20 group-hover:text-white/50 transition-colors flex-shrink-0" />
+            <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
           </Link>
         </div>
       </aside>
