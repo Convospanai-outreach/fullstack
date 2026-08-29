@@ -49,26 +49,26 @@ export function LeadDrilldown({ lead, onClose }: LeadDrilldownProps) {
   return (
     <>
       <div className="fixed inset-0 bg-black/60 z-40" onClick={onClose} aria-hidden="true" />
-      <aside className="fixed top-0 right-0 bottom-0 w-[320px] bg-[#0b0f17] border-l border-white/10 z-50 flex flex-col p-5">
+      <aside className="fixed top-0 right-0 bottom-0 w-[320px] bg-card border-l border-border z-50 flex flex-col p-5">
         <div className="flex items-start justify-between">
           <div>
-            <p className="text-[15px] font-medium text-white/90">{lead.name}</p>
-            <p className="text-[12px] text-white/40 mt-0.5">{lead.company}</p>
+            <p className="text-[15px] font-medium text-foreground">{lead.name}</p>
+            <p className="text-[12px] text-muted-foreground mt-0.5">{lead.company}</p>
           </div>
-          <button onClick={onClose} className="p-1 text-white/30 hover:text-white/70 transition-colors" aria-label="Close">
+          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors" aria-label="Close">
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="mt-4 border border-dashed border-white/10 rounded-md p-3 text-[12px] text-white/50">
-          <p>Status: <span className="text-white/70">{lead.status}</span></p>
+        <div className="mt-4 border border-dashed border-border rounded-md p-3 text-[12px] text-muted-foreground">
+          <p>Status: <span className="text-foreground">{lead.status}</span></p>
           <p className="mt-1">Last activity: {new Date(lead.lastActivityAt).toLocaleString()}</p>
         </div>
 
         <div className="mt-auto flex flex-col gap-2">
-          {error && <p className="text-[11px] text-red-400">{error}</p>}
+          {error && <p className="text-[11px] text-destructive">{error}</p>}
           {sent ? (
-            <div className="text-[12px] text-emerald-400 border border-emerald-500/25 bg-emerald-500/5 rounded-md px-3 py-2 flex items-center justify-between">
+            <div className="text-[12px] text-success border border-success/25 bg-success/5 rounded-md px-3 py-2 flex items-center justify-between">
               Queued in Approvals
               <Link href="/approvals" className="underline">View →</Link>
             </div>
@@ -76,14 +76,14 @@ export function LeadDrilldown({ lead, onClose }: LeadDrilldownProps) {
             <button
               onClick={handleSendFollowUp}
               disabled={sending}
-              className="w-full bg-white text-black text-[13px] font-medium rounded-md py-2 disabled:opacity-50 transition-opacity"
+              className="w-full bg-primary text-primary-foreground text-[13px] font-medium rounded-md py-2 disabled:opacity-50 transition-opacity"
             >
               {sending ? "Sending…" : "Send follow-up"}
             </button>
           )}
           <Link
             href={`/leads?search=${encodeURIComponent(lead.name)}`}
-            className="text-center text-[11px] text-white/30 hover:text-white/60 transition-colors"
+            className="text-center text-[11px] text-muted-foreground hover:text-foreground transition-colors"
           >
             View in Leads →
           </Link>

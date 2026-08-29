@@ -11,9 +11,9 @@ interface PipelineTrendCardProps {
 export function PipelineTrendCard({ trend, loading }: PipelineTrendCardProps) {
   if (loading || trend.length === 0) {
     return (
-      <div className="bg-[#101624] border border-white/7 rounded-lg p-3.5 h-full animate-pulse">
-        <div className="h-2.5 w-32 bg-white/8 rounded mb-4" />
-        <div className="h-[110px] bg-white/5 rounded" />
+      <div className="bg-card border border-border rounded-lg p-3.5 h-full animate-pulse">
+        <div className="h-2.5 w-32 bg-muted rounded mb-4" />
+        <div className="h-[110px] bg-muted rounded" />
       </div>
     );
   }
@@ -37,23 +37,23 @@ export function PipelineTrendCard({ trend, loading }: PipelineTrendCardProps) {
   const delta = latest - first;
 
   return (
-    <div className="bg-[#101624] border border-white/7 rounded-lg p-3.5 h-full flex flex-col">
+    <div className="bg-card border border-border rounded-lg p-3.5 h-full flex flex-col">
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-white/25">
+        <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground">
           Pipeline trend — 30 days
         </p>
-        <span className={`text-[10px] font-mono ${delta >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+        <span className={`text-[10px] font-mono ${delta >= 0 ? "text-success" : "text-destructive"}`}>
           {delta >= 0 ? "+" : ""}{delta}
         </span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full flex-1" preserveAspectRatio="none">
-        <line x1="0" y1={height - 5} x2={width} y2={height - 5} stroke="rgba(255,255,255,0.08)" strokeWidth="1" />
-        <polyline points={polyline} fill="none" stroke="#3b82f6" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
+        <line x1="0" y1={height - 5} x2={width} y2={height - 5} stroke="hsl(var(--border))" strokeWidth="1" />
+        <polyline points={polyline} fill="none" stroke="hsl(var(--primary))" strokeWidth="1.75" strokeLinejoin="round" strokeLinecap="round" />
         {points.length > 0 && (
-          <circle cx={points[points.length - 1]!.x} cy={points[points.length - 1]!.y} r="2.5" fill="#3b82f6" />
+          <circle cx={points[points.length - 1]!.x} cy={points[points.length - 1]!.y} r="2.5" fill="hsl(var(--primary))" />
         )}
       </svg>
-      <p className="text-[18px] font-mono text-slate-200 mt-1">{latest}<span className="text-[10px] text-white/30 ml-1.5">active pipeline</span></p>
+      <p className="text-[18px] font-mono text-foreground mt-1">{latest}<span className="text-[10px] text-muted-foreground ml-1.5">active pipeline</span></p>
     </div>
   );
 }

@@ -35,17 +35,17 @@ function StepNode({ step, current, done }: { step: number; current: boolean; don
   const baseSize = 'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium relative z-10';
 
   if (done) return (
-    <div className={`${baseSize} bg-emerald-500/15 border border-emerald-500 text-emerald-400`}>
+    <div className={`${baseSize} bg-success/15 border border-success text-success`}>
       <Check className="w-4 h-4" />
     </div>
   );
   if (current) return (
-    <div className={`${baseSize} bg-blue-500/20 border border-blue-500 text-blue-400`}>
+    <div className={`${baseSize} bg-primary/20 border border-primary text-primary`}>
       {step}
     </div>
   );
   return (
-    <div className={`${baseSize} bg-white/4 border border-white/8 text-white/20`}>
+    <div className={`${baseSize} bg-muted border border-border text-muted-foreground`}>
       {step}
     </div>
   );
@@ -65,11 +65,11 @@ function StepDetailCard({ workflow, currentStep }: StepDetailCardProps) {
 
   if (allComplete) {
     return (
-      <div className="flex items-center gap-3 p-4 bg-emerald-500/6 border border-emerald-500/18 rounded-xl">
-        <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+      <div className="flex items-center gap-3 p-4 bg-success/6 border border-success/18 rounded-xl">
+        <CheckCircle className="w-5 h-5 text-success flex-shrink-0" />
         <div>
-          <p className="text-sm font-medium text-emerald-300">Workflow complete</p>
-          <p className="text-xs text-white/35 mt-0.5">All drafts sent for this cycle. Import new leads to start the next one.</p>
+          <p className="text-sm font-medium text-success">Workflow complete</p>
+          <p className="text-xs text-muted-foreground mt-0.5">All drafts sent for this cycle. Import new leads to start the next one.</p>
         </div>
       </div>
     );
@@ -119,17 +119,17 @@ function StepDetailCard({ workflow, currentStep }: StepDetailCardProps) {
   const step = steps[currentStep];
 
   return (
-    <div className="bg-[#101e33] border border-blue-500/25 rounded-xl p-4 flex gap-3 items-start">
-      <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center text-lg flex-shrink-0">
+    <div className="bg-primary/5 border border-primary/25 rounded-xl p-4 flex gap-3 items-start">
+      <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center text-lg flex-shrink-0">
         {iconEmoji[currentStep]}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-200">{step.title}</p>
-        <p className="text-xs text-white/40 mt-0.5 leading-relaxed">{step.desc}</p>
+        <p className="text-sm font-medium text-foreground">{step.title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{step.desc}</p>
         <div className="flex items-center flex-wrap gap-2 mt-3">
           <Link
             href={step.primaryHref}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
           >
             {step.primaryLabel}
           </Link>
@@ -137,18 +137,18 @@ function StepDetailCard({ workflow, currentStep }: StepDetailCardProps) {
             step.secondaryHref ? (
               <Link
                 href={step.secondaryHref}
-                className="text-white/40 text-xs border border-white/9 rounded-md px-3 py-1.5 hover:text-white/65 transition-colors"
+                className="text-muted-foreground text-xs border border-border rounded-md px-3 py-1.5 hover:text-foreground transition-colors"
               >
                 {step.secondaryLabel}
               </Link>
             ) : (
-              <button className="text-white/40 text-xs border border-white/9 rounded-md px-3 py-1.5 hover:text-white/65 transition-colors">
+              <button className="text-muted-foreground text-xs border border-border rounded-md px-3 py-1.5 hover:text-foreground transition-colors">
                 {step.secondaryLabel}
               </button>
             )
           )}
           {step.badge && (
-            <span className="text-[10px] text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded px-2 py-0.5 ml-auto">
+            <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 rounded px-2 py-0.5 ml-auto">
               {step.badge}
             </span>
           )}
@@ -169,12 +169,12 @@ function WorkflowSkeleton() {
       <div className="flex justify-between items-center mb-5">
         {[...Array(4)].map((_, i) => (
           <div key={i} className="flex flex-col items-center gap-2 flex-1">
-            <div className="w-8 h-8 rounded-full bg-white/6" />
-            <div className="h-2 w-16 bg-white/6 rounded" />
+            <div className="w-8 h-8 rounded-full bg-muted" />
+            <div className="h-2 w-16 bg-muted rounded" />
           </div>
         ))}
       </div>
-      <div className="h-28 bg-white/4 rounded-xl" />
+      <div className="h-28 bg-muted rounded-xl" />
     </div>
   );
 }
@@ -189,7 +189,7 @@ export function WorkflowSection({ data, loading }: WorkflowSectionProps) {
       {/* Progress rail */}
       <div className="relative flex justify-between items-start mb-5 px-1">
         {/* Connector line */}
-        <div className="absolute top-4 left-6 right-6 h-px bg-white/6 z-0" />
+        <div className="absolute top-4 left-6 right-6 h-px bg-border z-0" />
         {STEPS.map((step) => {
           const done = step.number < currentStep;
           const current = step.number === currentStep;
@@ -198,10 +198,10 @@ export function WorkflowSection({ data, loading }: WorkflowSectionProps) {
           return (
             <div key={step.number} className="flex flex-col items-center gap-1.5 flex-1">
               <StepNode step={step.number} current={current} done={done} />
-              <p className={`text-[11px] font-medium text-center ${done ? 'text-emerald-400' : current ? 'text-blue-300' : 'text-white/25'}`}>
+              <p className={`text-[11px] font-medium text-center ${done ? 'text-success' : current ? 'text-primary' : 'text-muted-foreground'}`}>
                 {step.title}
               </p>
-              <p className="text-[10px] text-white/25 text-center">{stepStatus}</p>
+              <p className="text-[10px] text-muted-foreground text-center">{stepStatus}</p>
             </div>
           );
         })}
