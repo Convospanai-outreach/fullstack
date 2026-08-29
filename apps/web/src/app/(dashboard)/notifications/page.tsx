@@ -54,9 +54,9 @@ export default function NotificationsPage() {
 
             <div className="space-y-4 max-w-3xl">
                 {loading ? (
-                    <div className="text-white/60">Loading notifications...</div>
+                    <div className="text-muted-foreground">Loading notifications...</div>
                 ) : notifications.length === 0 ? (
-                    <div className="text-white/60">No new notifications.</div>
+                    <div className="text-muted-foreground">No new notifications.</div>
                 ) : (
                     notifications.map(n => (
                         <GlassCard key={n.id} className="flex justify-between items-center p-4">
@@ -65,8 +65,8 @@ export default function NotificationsPage() {
                                     {n.type}
                                 </Badge>
                                 <div>
-                                    <p className="text-white">{n.message}</p>
-                                    <p className="text-xs text-white/40">{new Date(n.createdAt).toLocaleString()}</p>
+                                    <p className="text-foreground">{n.message}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleString()}</p>
                                 </div>
                             </div>
                             <Button variant="ghost" onClick={() => markRead(n.id)} className="text-sm">
