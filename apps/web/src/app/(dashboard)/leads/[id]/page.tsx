@@ -27,8 +27,8 @@ export default function LeadPage({ params }: { params: Promise<{ id: string }> }
         return () => ctrl.abort();
     }, [id]);
 
-    if (loading) return <div className="p-8 text-white/60">Loading lead details...</div>;
-    if (!lead || lead.error) return <div className="p-8 text-white/60">Lead not found</div>;
+    if (loading) return <div className="p-8 text-muted-foreground">Loading lead details...</div>;
+    if (!lead || lead.error) return <div className="p-8 text-muted-foreground">Lead not found</div>;
 
     return (
         <div className="p-8 max-w-6xl mx-auto">
