@@ -48,8 +48,8 @@ export default function LeadJourneyAnalyticsPage() {
             <AnalyticsTabs />
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-white tracking-tight mb-2">Lead Journey Funnel</h1>
-                    <p className="text-text-secondary max-w-xl">
+                    <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">Lead Journey Funnel</h1>
+                    <p className="text-muted-foreground max-w-xl">
                         Measure conversion velocity, transition funnels, and caller performance metrics across pipeline stages.
                     </p>
                 </div>
@@ -96,13 +96,13 @@ export default function LeadJourneyAnalyticsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Horizontal Progress Funnel Steps */}
                 <div className="lg:col-span-2 space-y-8">
-                    <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-xl">
+                    <Card className="bg-card border-border backdrop-blur-xl">
                         <CardHeader>
-                            <CardTitle className="text-white flex items-center gap-2">
+                            <CardTitle className="text-foreground flex items-center gap-2">
                                 <Compass className="w-5 h-5 text-violet-400" />
                                 Pipeline Stage Volume & Conversion Rates
                             </CardTitle>
-                            <CardDescription className="text-text-secondary">
+                            <CardDescription className="text-muted-foreground">
                                 Cumulative lead flow and progression drop-offs across pipeline states.
                             </CardDescription>
                         </CardHeader>
@@ -163,13 +163,13 @@ export default function LeadJourneyAnalyticsPage() {
                 {/* Stage Duration Velocity & Handover Efficiency */}
                 <div className="space-y-6">
                     {/* Stage Velocity Card */}
-                    <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-xl">
+                    <Card className="bg-card border-border backdrop-blur-xl">
                         <CardHeader>
-                            <CardTitle className="text-white flex items-center gap-2">
-                                <Clock className="w-5 h-5 text-amber-400" />
+                            <CardTitle className="text-foreground flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-warning" />
                                 Funnel Velocity (Avg Days)
                             </CardTitle>
-                            <CardDescription className="text-text-secondary">
+                            <CardDescription className="text-muted-foreground">
                                 Average calendar days spent in each stage before progressing.
                             </CardDescription>
                         </CardHeader>
@@ -195,7 +195,7 @@ export default function LeadJourneyAnalyticsPage() {
                                     <VelocityCard
                                         stage="HOT"
                                         duration={`${data?.durations?.avgDaysHot || 0} days`}
-                                        color="border-amber-500/20 bg-amber-500/5 text-amber-400"
+                                        color="border-amber-500/20 bg-amber-500/5 text-warning"
                                         description="AI Handoff to human caller claim"
                                     />
                                 </div>
@@ -204,13 +204,13 @@ export default function LeadJourneyAnalyticsPage() {
                     </Card>
 
                     {/* Caller Efficiency Card */}
-                    <Card className="bg-zinc-900/40 border-white/5 backdrop-blur-xl">
+                    <Card className="bg-card border-border backdrop-blur-xl">
                         <CardHeader>
-                            <CardTitle className="text-white flex items-center gap-2">
-                                <BrainCircuit className="w-5 h-5 text-emerald-400" />
+                            <CardTitle className="text-foreground flex items-center gap-2">
+                                <BrainCircuit className="w-5 h-5 text-success" />
                                 Handover SLA & Speed
                             </CardTitle>
-                            <CardDescription className="text-text-secondary">
+                            <CardDescription className="text-muted-foreground">
                                 Human outreach response speed and claim metrics.
                             </CardDescription>
                         </CardHeader>
@@ -221,34 +221,34 @@ export default function LeadJourneyAnalyticsPage() {
                                 <div className="space-y-6 py-2">
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <div className="text-xs text-text-secondary mb-1">Average Response SLA</div>
-                                            <div className="text-3xl font-black text-white tracking-tight flex items-baseline gap-1">
+                                            <div className="text-xs text-muted-foreground mb-1">Average Response SLA</div>
+                                            <div className="text-3xl font-black text-foreground tracking-tight flex items-baseline gap-1">
                                                 {data?.callerPerformance?.avgClaimTimeMinutes || 0}
-                                                <span className="text-sm font-semibold text-text-secondary">mins</span>
+                                                <span className="text-sm font-semibold text-muted-foreground">mins</span>
                                             </div>
                                         </div>
-                                        <div className="px-3 py-1 bg-white/10 border border-white/10 rounded-full text-xs font-bold text-white/80">
+                                        <div className="px-3 py-1 bg-muted border border-border rounded-full text-xs font-bold text-foreground">
                                             {data?.callerPerformance?.avgClaimTimeMinutes ? `${data.callerPerformance.avgClaimTimeMinutes}m SLA` : "Pending Data"}
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-text-secondary">Total Coordination Tasks</span>
-                                            <span className="text-white font-mono">{data?.callerPerformance?.totalAssignedQueue || 0}</span>
+                                            <span className="text-muted-foreground">Total Coordination Tasks</span>
+                                            <span className="text-foreground font-mono">{data?.callerPerformance?.totalAssignedQueue || 0}</span>
                                         </div>
                                         <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-text-secondary">Claimed by Callers</span>
-                                            <span className="text-white font-mono">{data?.callerPerformance?.claimedTasksCount || 0}</span>
+                                            <span className="text-muted-foreground">Claimed by Callers</span>
+                                            <span className="text-foreground font-mono">{data?.callerPerformance?.claimedTasksCount || 0}</span>
                                         </div>
                                         <div className="flex justify-between text-xs font-medium">
-                                            <span className="text-text-secondary">Completed Deals</span>
-                                            <span className="text-white font-mono">{data?.callerPerformance?.completedTasksCount || 0}</span>
+                                            <span className="text-muted-foreground">Completed Deals</span>
+                                            <span className="text-foreground font-mono">{data?.callerPerformance?.completedTasksCount || 0}</span>
                                         </div>
                                     </div>
 
-                                    <div className="pt-4 border-t border-white/5 text-[11px] text-text-secondary leading-relaxed">
-                                        AI to human handover completes in less than <strong className="text-white">15 minutes</strong> on average, driving highly responsive lead conversions.
+                                    <div className="pt-4 border-t border-border text-[11px] text-muted-foreground leading-relaxed">
+                                        AI to human handover completes in less than <strong className="text-foreground">15 minutes</strong> on average, driving highly responsive lead conversions.
                                     </div>
                                 </div>
                             )}
@@ -272,22 +272,22 @@ function FunnelHorizontalStep({ label, count, color, percent, badgeText }: any) 
     return (
         <div className="relative pl-8 py-2 group">
             {/* Stage Indicator Dot */}
-            <div className="absolute left-[9px] top-4 w-2 h-2 rounded-full bg-white/30 border border-white/10 group-hover:scale-125 transition-transform" />
+            <div className="absolute left-[9px] top-4 w-2 h-2 rounded-full bg-muted-foreground border border-border group-hover:scale-125 transition-transform" />
 
             <div className="flex justify-between items-end mb-2">
                 <div>
-                    <span className="text-sm font-bold text-white group-hover:text-violet-400 transition-colors mr-2">
+                    <span className="text-sm font-bold text-foreground group-hover:text-violet-400 transition-colors mr-2">
                         {label}
                     </span>
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-text-muted px-2 py-0.5 bg-white/5 rounded border border-white/5">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground px-2 py-0.5 bg-muted rounded border border-border">
                         {badgeText}
                     </span>
                 </div>
-                <span className="text-xs font-mono font-bold text-text-secondary">
+                <span className="text-xs font-mono font-bold text-muted-foreground">
                     {count.toLocaleString()} leads
                 </span>
             </div>
-            <div className="h-3 w-full bg-white/5 rounded-full overflow-hidden p-0.5 border border-white/5">
+            <div className="h-3 w-full bg-muted rounded-full overflow-hidden p-0.5 border border-border">
                 <div
                     ref={barRef}
                     className={`h-full rounded-full bg-gradient-to-r ${color} transition-all duration-1000 ease-out`}
