@@ -94,12 +94,12 @@ export default function AgentSettingsPage() {
                         <MessageSquare className="w-5 h-5" />
                         <h3>Tone of Voice</h3>
                     </div>
-                    <p className="text-sm text-gray-500">Describe the personality of your agent (e.g., Professional, friendly, persistent).</p>
+                    <p className="text-sm text-muted-foreground">Describe the personality of your agent (e.g., Professional, friendly, persistent).</p>
                     <div className="flex gap-4">
                         <textarea
                             value={settings.tone_preference}
                             onChange={(e) => setSettings({ ...settings, tone_preference: e.target.value })}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-purple-500 h-24"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-purple-500 h-24"
                             placeholder="Example: Keep it professional but witty. Use clear, concise language."
                         />
                         <button
@@ -118,12 +118,12 @@ export default function AgentSettingsPage() {
                         <Sparkles className="w-5 h-5" />
                         <h3>Core Value Propositions</h3>
                     </div>
-                    <p className="text-sm text-gray-500">What are the key points the AI should emphasize in its outreach?</p>
+                    <p className="text-sm text-muted-foreground">What are the key points the AI should emphasize in its outreach?</p>
                     <div className="flex gap-4">
                         <textarea
                             value={settings.value_propositions}
                             onChange={(e) => setSettings({ ...settings, value_propositions: e.target.value })}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-blue-500 h-32"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-blue-500 h-32"
                             placeholder="Example: We reduce outreach time by 70%. We provide 99% accurate lead data."
                         />
                         <button
@@ -142,12 +142,12 @@ export default function AgentSettingsPage() {
                         <AlertCircle className="w-5 h-5" />
                         <h3>Guardrails (Negative Constraints)</h3>
                     </div>
-                    <p className="text-sm text-gray-500">Words, topics, or phrases the agent should never mention.</p>
+                    <p className="text-sm text-muted-foreground">Words, topics, or phrases the agent should never mention.</p>
                     <div className="flex gap-4">
                         <textarea
                             value={settings.forbidden_words}
                             onChange={(e) => setSettings({ ...settings, forbidden_words: e.target.value })}
-                            className="flex-1 bg-white/5 border border-white/10 rounded-xl p-3 text-white focus:outline-none focus:border-red-500 h-24"
+                            className="flex-1 bg-muted border border-border rounded-xl p-3 text-foreground focus:outline-none focus:border-red-500 h-24"
                             placeholder="Example: Never mention pricing in the first email. Avoid using the word 'partnership'."
                         />
                         <button

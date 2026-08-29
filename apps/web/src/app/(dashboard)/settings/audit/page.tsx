@@ -61,8 +61,8 @@ export default function AuditLogPage() {
             />
 
             <GlassCard className="overflow-hidden">
-                <table className="w-full text-left bg-slate-900/50">
-                    <thead className="text-xs uppercase bg-white/5 text-gray-400 border-b border-white/10">
+                <table className="w-full text-left bg-muted">
+                    <thead className="text-xs uppercase bg-muted text-muted-foreground border-b border-border">
                         <tr>
                             <th className="px-6 py-4">User</th>
                             <th className="px-6 py-4">Action</th>
@@ -72,16 +72,16 @@ export default function AuditLogPage() {
                             <th className="px-6 py-4"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-border">
                         {logs.map((log) => (
                             <>
-                                <tr key={log.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => log.entity === 'WorkflowRun' && toggleRow(log.id, log.entityId, log.entity)}>
+                                <tr key={log.id} className="hover:bg-muted transition-colors cursor-pointer" onClick={() => log.entity === 'WorkflowRun' && toggleRow(log.id, log.entityId, log.entity)}>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
                                                 <User className="w-4 h-4" />
                                             </div>
-                                            <div className="text-sm font-medium text-white">
+                                            <div className="text-sm font-medium text-foreground">
                                                 {log.user?.name || "System"}
                                             </div>
                                         </div>
@@ -91,39 +91,39 @@ export default function AuditLogPage() {
                                             {log.action}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-300">
-                                        {log.entity} <span className="text-gray-600">#{log.entityId?.substring(0, 6) || "-"}</span>
+                                    <td className="px-6 py-4 text-sm text-foreground">
+                                        {log.entity} <span className="text-muted-foreground">#{log.entityId?.substring(0, 6) || "-"}</span>
                                         {log.metadata && (
-                                            <div className="text-[10px] text-gray-500 mt-1 truncate max-w-xs italic">
+                                            <div className="text-[10px] text-muted-foreground mt-1 truncate max-w-xs italic">
                                                 {JSON.stringify(log.metadata).substring(0, 50)}...
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-400">
+                                    <td className="px-6 py-4 text-sm text-muted-foreground">
                                         {new Date(log.createdAt).toLocaleString()}
                                     </td>
-                                    <td className="px-6 py-4 text-xs text-mono text-gray-500">
+                                    <td className="px-6 py-4 text-xs text-mono text-muted-foreground">
                                         {log.ipAddress || "-"}
                                     </td>
                                     <td className="px-6 py-4">
                                         {log.entity === 'WorkflowRun' && (
-                                            <button className="p-1 hover:bg-white/10 rounded">
-                                                {expandedRows[log.id] ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <Brain className="w-4 h-4 text-purple-400" />}
+                                            <button className="p-1 hover:bg-muted rounded">
+                                                {expandedRows[log.id] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <Brain className="w-4 h-4 text-purple-400" />}
                                             </button>
                                         )}
                                     </td>
                                 </tr>
                                 {expandedRows[log.id] && (
-                                    <tr className="bg-black/20">
+                                    <tr className="bg-muted">
                                         <td colSpan={6} className="p-4 pl-12">
                                             {loadingTraces[log.id] ? (
-                                                <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <Loader2 className="w-3 h-3 animate-spin" /> Fetching reasoning traces...
                                                 </div>
                                             ) : traces[log.id] && (traces[log.id]?.length ?? 0) > 0 ? (
                                                 <TraceVisualizer traces={traces[log.id] as any[]} />
                                             ) : (
-                                                <div className="text-xs text-gray-500 italic">No AI traces found for this activity.</div>
+                                                <div className="text-xs text-muted-foreground italic">No AI traces found for this activity.</div>
                                             )}
                                         </td>
                                     </tr>
@@ -132,7 +132,7 @@ export default function AuditLogPage() {
                         ))}
                         {logs.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                                     No audit logs found.
                                 </td>
                             </tr>
