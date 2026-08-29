@@ -43,8 +43,8 @@ export default function AccessControlPage() {
         <GovernanceLayout>
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-xl font-bold text-white">Identity & Access</h2>
-                    <p className="text-text-secondary text-sm">Manage who has access to this workspace and their permission levels.</p>
+                    <h2 className="text-xl font-bold text-foreground">Identity & Access</h2>
+                    <p className="text-muted-foreground text-sm">Manage who has access to this workspace and their permission levels.</p>
                 </div>
                 <Button className="gap-2">
                     <UserPlus className="w-4 h-4" />
@@ -57,7 +57,7 @@ export default function AccessControlPage() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
                             <thead>
-                                <tr className="border-b border-white/5 text-[10px] uppercase font-bold tracking-widest text-text-muted">
+                                <tr className="border-b border-border text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
                                     <th className="px-6 py-4">Identity</th>
                                     <th className="px-6 py-4">Role</th>
                                     <th className="px-6 py-4">Status</th>
@@ -65,7 +65,7 @@ export default function AccessControlPage() {
                                     <th className="px-6 py-4 text-right">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-white/[0.03]">
+                            <tbody className="divide-y divide-border">
                                 {loading ? (
                                     Array.from({ length: 4 }).map((_, i) => (
                                         <tr key={i}>
@@ -76,10 +76,10 @@ export default function AccessControlPage() {
                                     ))
                                 ) : (
                                     members.map((member) => (
-                                        <tr key={member.id} className="hover:bg-white/[0.01] transition-colors group">
+                                        <tr key={member.id} className="hover:bg-accent transition-colors group">
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-accent-blue/20 to-accent-violet/20 flex items-center justify-center text-white font-bold border border-white/5 shadow-sm">
+                                                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary/20 to-accent-violet/20 flex items-center justify-center text-foreground font-bold border border-border shadow-sm">
                                                         {member.user?.image ? (
                                                             <img src={member.user.image} alt="" className="w-full h-full rounded-xl object-cover" />
                                                         ) : (
@@ -87,8 +87,8 @@ export default function AccessControlPage() {
                                                         )}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-bold text-white tracking-tight">{member.user?.name || "Pending Invite"}</p>
-                                                        <div className="flex items-center gap-1.5 text-text-muted text-xs">
+                                                        <p className="text-sm font-bold text-foreground tracking-tight">{member.user?.name || "Pending Invite"}</p>
+                                                        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
                                                             <Mail className="w-3 h-3" />
                                                             {member.email}
                                                         </div>
@@ -96,8 +96,8 @@ export default function AccessControlPage() {
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5">
-                                                <div className="flex items-center gap-2 text-sm text-white font-medium">
-                                                    <Shield className="w-3.5 h-3.5 text-accent-blue" />
+                                                <div className="flex items-center gap-2 text-sm text-foreground font-medium">
+                                                    <Shield className="w-3.5 h-3.5 text-primary" />
                                                     {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                                                 </div>
                                             </td>
@@ -109,11 +109,11 @@ export default function AccessControlPage() {
                                             <td className="px-6 py-5">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                    <span className="text-xs text-text-secondary">Enforced</span>
+                                                    <span className="text-xs text-muted-foreground">Enforced</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-5 text-right">
-                                                <button className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition">
+                                                <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition">
                                                     <MoreHorizontal className="w-4 h-4" />
                                                 </button>
                                             </td>
@@ -126,26 +126,26 @@ export default function AccessControlPage() {
                 </Card>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="glass p-6 rounded-2xl border border-accent-blue/20 bg-accent-blue/5">
+                    <div className="glass p-6 rounded-2xl border border-primary/20 bg-primary/5">
                         <div className="flex items-start justify-between mb-4">
-                            <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue">
+                            <div className="p-3 bg-primary/10 rounded-xl text-primary">
                                 <Shield className="w-6 h-6" />
                             </div>
                             <Badge variant="info">Enabled</Badge>
                         </div>
-                        <h4 className="text-lg font-bold text-white">SSO Configuration</h4>
-                        <p className="text-sm text-text-secondary mt-1">SAML/OIDC is currently enforced for all users in the <b>craftmyfunnel.ai</b> domain.</p>
+                        <h4 className="text-lg font-bold text-foreground">SSO Configuration</h4>
+                        <p className="text-sm text-muted-foreground mt-1">SAML/OIDC is currently enforced for all users in the <b>craftmyfunnel.ai</b> domain.</p>
                         <Button variant="outline" className="mt-6 w-full text-xs">Manage Authentication</Button>
                     </div>
 
-                    <div className="glass p-6 rounded-2xl border border-white/5 hover:bg-white/5 transition-colors">
+                    <div className="glass p-6 rounded-2xl border border-border hover:bg-muted transition-colors">
                         <div className="flex items-start justify-between mb-4">
-                            <div className="p-3 bg-white/5 rounded-xl text-text-muted">
+                            <div className="p-3 bg-muted rounded-xl text-muted-foreground">
                                 <Lock className="w-6 h-6" />
                             </div>
                         </div>
-                        <h4 className="text-lg font-bold text-white">RBAC Groups</h4>
-                        <p className="text-sm text-text-secondary mt-1">Assign users to custom roles with granular permission sets (Editor, Reviewer, Ops).</p>
+                        <h4 className="text-lg font-bold text-foreground">RBAC Groups</h4>
+                        <p className="text-sm text-muted-foreground mt-1">Assign users to custom roles with granular permission sets (Editor, Reviewer, Ops).</p>
                         <Button variant="outline" className="mt-6 w-full text-xs" disabled>Available in Enterprise+</Button>
                     </div>
                 </div>

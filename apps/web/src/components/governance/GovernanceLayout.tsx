@@ -23,13 +23,13 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
     return (
         <div className="space-y-8 animate-reveal">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white tracking-tight">Enterprise Governance</h1>
-                <p className="text-text-secondary mt-1">Manage workspace security, auditability, and AI safety protocols.</p>
+                <h1 className="text-3xl font-bold text-foreground tracking-tight">Enterprise Governance</h1>
+                <p className="text-muted-foreground mt-1">Manage workspace security, auditability, and AI safety protocols.</p>
             </div>
 
             <div className="flex flex-col gap-8">
                 {/* Horizontal Navigation */}
-                <div className="flex items-center gap-1 bg-white/5 p-1.5 rounded-2xl w-fit border border-white/5">
+                <div className="flex items-center gap-1 bg-muted p-1.5 rounded-2xl w-fit border border-border">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = pathname === tab.href;
@@ -39,8 +39,8 @@ export default function GovernanceLayout({ children }: GovernanceLayoutProps) {
                                 href={tab.href}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     isActive
-                                        ? "bg-accent-blue text-white shadow-lg shadow-blue-500/20"
-                                        : "text-text-secondary hover:text-white hover:bg-white/5"
+                                        ? "bg-primary text-white shadow-lg shadow-blue-500/20"
+                                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
                                 }`}
                             >
                                 <Icon className="w-4 h-4" />
