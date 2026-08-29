@@ -80,7 +80,7 @@ export default function SsoSettingsPage() {
         handleUpdate("allowedDomains", config.allowedDomains.filter((d: string) => d !== domain));
     };
 
-    if (loading) return <div className="p-8 text-white">Loading SSO settings...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading SSO settings...</div>;
 
     const isConfigured = config.providerType === 'SAML'
         ? (config.entryPoint && config.issuer)
@@ -97,22 +97,22 @@ export default function SsoSettingsPage() {
                 <div className="lg:col-span-2 space-y-6">
                     {/* Provider Selection */}
                     <GlassCard className="p-6 space-y-4">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                            <LinkIcon className="w-5 h-5 text-blue-400" />
-                            <h3 className="text-lg font-bold text-white">Identity Provider</h3>
+                        <div className="flex items-center gap-3 border-b border-border pb-4">
+                            <LinkIcon className="w-5 h-5 text-primary" />
+                            <h3 className="text-lg font-bold text-foreground">Identity Provider</h3>
                         </div>
 
                         <div className="flex gap-4">
                             <button
                                 onClick={() => handleUpdate("providerType", "SAML")}
-                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'SAML' ? 'bg-blue-600/20 border-blue-500 text-white' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'SAML' ? 'bg-blue-600/20 border-blue-500 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
                             >
                                 <span className="font-bold">SAML 2.0</span>
                                 <span className="text-[10px] opacity-60">Okta, JumpCloud, OneLogin</span>
                             </button>
                             <button
                                 onClick={() => handleUpdate("providerType", "OIDC")}
-                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'OIDC' ? 'bg-purple-600/20 border-purple-500 text-white' : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'}`}
+                                className={`flex-1 py-4 rounded-xl border transition-all flex flex-col items-center gap-2 ${config.providerType === 'OIDC' ? 'bg-purple-600/20 border-purple-500 text-foreground' : 'bg-muted border-border text-muted-foreground hover:bg-muted'}`}
                             >
                                 <span className="font-bold">OIDC</span>
                                 <span className="text-[10px] opacity-60">Azure AD, Google, Auth0</span>
@@ -122,9 +122,9 @@ export default function SsoSettingsPage() {
 
                     {/* Configuration Form */}
                     <GlassCard className="p-6 space-y-6">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-                            <h3 className="text-lg font-bold text-white">Configuration Details</h3>
+                        <div className="flex items-center gap-3 border-b border-border pb-4">
+                            <ShieldCheck className="w-5 h-5 text-success" />
+                            <h3 className="text-lg font-bold text-foreground">Configuration Details</h3>
                         </div>
 
                         {config.providerType === 'SAML' ? (
@@ -135,12 +135,12 @@ export default function SsoSettingsPage() {
                                     <Input label="Issuer / Entity ID" value={config.issuer} onChange={(v: string) => handleUpdate("issuer", v)} placeholder="urn:enterprise:sso" />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-sm text-gray-400">Public Certificate (X.509)</label>
+                                    <label className="text-sm text-muted-foreground">Public Certificate (X.509)</label>
                                     <textarea
                                         value={config.certificate}
                                         onChange={(e) => handleUpdate("certificate", e.target.value)}
                                         placeholder="-----BEGIN CERTIFICATE----- ... ----END CERTIFICATE-----"
-                                        className="w-full bg-slate-900 border border-white/10 rounded-lg px-4 py-2 text-white text-xs font-mono focus:outline-none focus:border-blue-500 min-h-[100px]"
+                                        className="w-full bg-background border border-input rounded-lg px-4 py-2 text-foreground text-xs font-mono focus:outline-none focus:border-primary min-h-[100px]"
                                     />
                                 </div>
                             </div>
@@ -157,23 +157,23 @@ export default function SsoSettingsPage() {
                 <div className="space-y-6">
                     {/* Status & Enforcement */}
                     <GlassCard className="p-6 space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                            <h3 className="font-bold text-white">Status</h3>
+                        <div className="flex items-center justify-between border-b border-border pb-4">
+                            <h3 className="font-bold text-foreground">Status</h3>
                             {isConfigured ? (
-                                <div className="flex items-center gap-1 text-emerald-400 text-xs font-bold">
+                                <div className="flex items-center gap-1 text-success text-xs font-bold">
                                     <CheckCircle2 className="w-3 h-3" /> ACTIVE
                                 </div>
                             ) : (
-                                <div className="text-gray-500 text-xs font-bold">INCOMPLETE</div>
+                                <div className="text-muted-foreground text-xs font-bold">INCOMPLETE</div>
                             )}
                         </div>
 
                         <div className="flex items-center justify-between p-3 bg-red-500/10 rounded-xl border border-red-500/20">
                             <div className="flex items-center gap-3">
-                                <Lock className="w-4 h-4 text-red-400" />
+                                <Lock className="w-4 h-4 text-destructive" />
                                 <div>
-                                    <div className="text-white text-xs font-bold">Enforce SSO</div>
-                                    <div className="text-[10px] text-gray-500">Disable password login.</div>
+                                    <div className="text-foreground text-xs font-bold">Enforce SSO</div>
+                                    <div className="text-[10px] text-muted-foreground">Disable password login.</div>
                                 </div>
                             </div>
                             <Toggle checked={config.enforced} onChange={(v: boolean) => handleUpdate("enforced", v)} />
@@ -182,9 +182,9 @@ export default function SsoSettingsPage() {
 
                     {/* Domains */}
                     <GlassCard className="p-6 space-y-4">
-                        <div className="flex items-center gap-3 border-b border-white/10 pb-4">
-                            <Globe className="w-4 h-4 text-blue-400" />
-                            <h3 className="font-bold text-white">Allowed Domains</h3>
+                        <div className="flex items-center gap-3 border-b border-border pb-4">
+                            <Globe className="w-4 h-4 text-primary" />
+                            <h3 className="font-bold text-foreground">Allowed Domains</h3>
                         </div>
 
                         <div className="flex gap-2">
@@ -193,22 +193,22 @@ export default function SsoSettingsPage() {
                                 value={newDomain}
                                 onChange={(e) => setNewDomain(e.target.value)}
                                 placeholder="acme.com"
-                                className="flex-1 bg-slate-900 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                                className="flex-1 bg-background border border-input rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                             />
                             <button onClick={addDomain} className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-500 transition-all">Add</button>
                         </div>
 
                         <div className="space-y-2 h-32 overflow-y-auto pr-2 custom-scrollbar">
                             {config.allowedDomains.map((domain: string) => (
-                                <div key={domain} className="flex justify-between items-center p-2 bg-white/5 rounded-lg border border-white/5">
-                                    <span className="text-xs text-white">{domain}</span>
-                                    <button onClick={() => removeDomain(domain)} className="text-gray-500 hover:text-red-400">
+                                <div key={domain} className="flex justify-between items-center p-2 bg-muted rounded-lg border border-border">
+                                    <span className="text-xs text-foreground">{domain}</span>
+                                    <button onClick={() => removeDomain(domain)} className="text-muted-foreground hover:text-destructive">
                                         <Trash2 className="w-3 h-3" />
                                     </button>
                                 </div>
                             ))}
                             {config.allowedDomains.length === 0 && (
-                                <div className="text-center text-[10px] text-gray-500 py-4 italic">No domains configured. Users from any domain can log in if SSO is not enforced.</div>
+                                <div className="text-center text-[10px] text-muted-foreground py-4 italic">No domains configured. Users from any domain can log in if SSO is not enforced.</div>
                             )}
                         </div>
                     </GlassCard>
@@ -230,13 +230,13 @@ export default function SsoSettingsPage() {
 function Input({ label, value, onChange, placeholder, type = "text" }: any) {
     return (
         <div className="space-y-1.5">
-            <label className="text-xs text-gray-400 font-medium px-1 uppercase tracking-wider">{label}</label>
+            <label className="text-xs text-muted-foreground font-medium px-1 uppercase tracking-wider">{label}</label>
             <input
                 type={type}
                 value={value || ""}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500 focus:bg-slate-800/50 transition-all"
+                className="w-full bg-background border border-input rounded-xl px-4 py-2 text-sm text-foreground focus:outline-none focus:border-primary transition-all"
             />
         </div>
     );
