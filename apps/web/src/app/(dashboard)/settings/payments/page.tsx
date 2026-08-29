@@ -91,12 +91,12 @@ export default function PaymentsSettingsPage() {
 
                         <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-[#635bff] flex items-center justify-center text-white text-xs font-bold">S</div>
+                                <div className="w-8 h-8 rounded bg-[#635bff] flex items-center justify-center text-foreground text-xs font-bold">S</div>
                                 <div>
                                     <div className="font-medium text-foreground">Stripe</div>
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                                         {stripeAccount?.connected ? (
-                                            <><CheckCircle2 className="w-3 h-3 text-emerald-500" /> Connected</>
+                                            <><CheckCircle2 className="w-3 h-3 text-success" /> Connected</>
                                         ) : (
                                             <><XCircle className="w-3 h-3" /> Not connected</>
                                         )}
@@ -112,12 +112,12 @@ export default function PaymentsSettingsPage() {
 
                         <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-muted/20">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded bg-[#0f6fff] flex items-center justify-center text-white text-xs font-bold">R</div>
+                                <div className="w-8 h-8 rounded bg-[#0f6fff] flex items-center justify-center text-foreground text-xs font-bold">R</div>
                                 <div>
                                     <div className="font-medium text-foreground">Razorpay</div>
                                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                                         {razorpayAccount?.connected ? (
-                                            <><CheckCircle2 className="w-3 h-3 text-emerald-500" /> {razorpayAccount.status === "ACTIVE" ? "Connected" : "Pending activation with Razorpay"}</>
+                                            <><CheckCircle2 className="w-3 h-3 text-success" /> {razorpayAccount.status === "ACTIVE" ? "Connected" : "Pending activation with Razorpay"}</>
                                         ) : (
                                             <><XCircle className="w-3 h-3" /> Not connected</>
                                         )}
@@ -260,23 +260,23 @@ function ProductModal({ open, onClose, onSaved }: { open: boolean; onClose: () =
                 <div className="space-y-1">
                     <label htmlFor="product-name" className="text-sm text-text-secondary">Name</label>
                     <input id="product-name" value={name} onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="space-y-1">
                     <label htmlFor="product-description" className="text-sm text-text-secondary">Description (optional)</label>
                     <textarea id="product-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
-                        className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label htmlFor="product-price" className="text-sm text-text-secondary">Price</label>
                         <input id="product-price" type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                     <div className="space-y-1">
                         <label htmlFor="product-currency" className="text-sm text-text-secondary">Currency</label>
                         <select id="product-currency" value={currency} onChange={(e) => setCurrency(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="USD">USD</option>
                             <option value="INR">INR</option>
                             <option value="EUR">EUR</option>
@@ -356,24 +356,24 @@ function RazorpayConnectModal({ open, onClose, onConnected }: { open: boolean; o
                     <div className="space-y-1">
                         <label htmlFor="rzp-email" className="text-sm text-text-secondary">Email</label>
                         <input id="rzp-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                     <div className="space-y-1">
                         <label htmlFor="rzp-phone" className="text-sm text-text-secondary">Phone</label>
                         <input id="rzp-phone" value={phone} onChange={(e) => setPhone(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                 </div>
                 <div className="space-y-1">
                     <label htmlFor="rzp-business-name" className="text-sm text-text-secondary">Legal Business Name</label>
                     <input id="rzp-business-name" value={legalBusinessName} onChange={(e) => setLegalBusinessName(e.target.value)}
-                        className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                         <label htmlFor="rzp-business-type" className="text-sm text-text-secondary">Business Type</label>
                         <select id="rzp-business-type" value={businessType} onChange={(e) => setBusinessType(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="individual">Individual</option>
                             <option value="proprietorship">Proprietorship</option>
                             <option value="partnership">Partnership</option>
@@ -384,7 +384,7 @@ function RazorpayConnectModal({ open, onClose, onConnected }: { open: boolean; o
                     <div className="space-y-1">
                         <label htmlFor="rzp-category" className="text-sm text-text-secondary">Category (optional)</label>
                         <input id="rzp-category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="ecommerce"
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            className="w-full bg-muted border border-border-subtle rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     </div>
                 </div>
             </div>
