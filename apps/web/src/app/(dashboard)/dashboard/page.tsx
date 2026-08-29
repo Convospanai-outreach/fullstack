@@ -127,7 +127,7 @@ export default function DashboardPage() {
 
       {/* Workflow section — progressive disclosure */}
       <div className="mb-4">
-        <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-white/25 mb-3">
+        <p className="text-[10px] uppercase tracking-[0.07em] font-medium text-muted-foreground mb-3">
           Workflow
         </p>
         <WorkflowSection data={data?.workflow ?? null} loading={loading} />
