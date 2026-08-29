@@ -43,7 +43,7 @@ export function WorkspaceHelpPanel() {
                 onClick={() => setOpen((prev) => !prev)}
                 data-tour="help-panel"
                 className={`p-1.5 rounded-md transition-colors ${
-                    open ? "bg-white/8 text-white/80" : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                    open ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}
                 aria-haspopup="dialog"
                 aria-expanded={open}
@@ -56,32 +56,32 @@ export function WorkspaceHelpPanel() {
                 <div
                     role="dialog"
                     aria-label="Page guide"
-                    className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-white/10 bg-surface-panel shadow-xl z-[60] p-4"
+                    className="absolute right-0 top-full mt-2 w-80 rounded-lg border border-border bg-card shadow-xl z-[60] p-4"
                 >
                     {help ? (
                         <div className="space-y-3">
                             <div className="flex items-center gap-2">
-                                <Info className="w-4 h-4 text-blue-400 flex-shrink-0" />
-                                <span className="text-sm font-semibold text-white">{help.label}</span>
+                                <Info className="w-4 h-4 text-primary flex-shrink-0" />
+                                <span className="text-sm font-semibold text-foreground">{help.label}</span>
                             </div>
-                            <p className="text-[12.5px] leading-relaxed text-white/70">{help.blurb}</p>
-                            <div className="rounded-md bg-white/4 border border-white/6 p-2.5">
-                                <span className="block text-[10px] uppercase tracking-wide font-medium text-white/30 mb-1">
+                            <p className="text-[12.5px] leading-relaxed text-foreground/80">{help.blurb}</p>
+                            <div className="rounded-md bg-muted border border-border p-2.5">
+                                <span className="block text-[10px] uppercase tracking-wide font-medium text-muted-foreground mb-1">
                                     When to use it
                                 </span>
-                                <p className="text-[12px] text-white/60">{help.whenToUse}</p>
+                                <p className="text-[12px] text-muted-foreground">{help.whenToUse}</p>
                             </div>
                             {help.overlapNote && (
-                                <div className="rounded-md bg-amber-500/8 border border-amber-500/15 p-2.5">
-                                    <span className="block text-[10px] uppercase tracking-wide font-medium text-amber-400/70 mb-1">
+                                <div className="rounded-md bg-warning/8 border border-warning/15 p-2.5">
+                                    <span className="block text-[10px] uppercase tracking-wide font-medium text-warning mb-1">
                                         Don't confuse this with…
                                     </span>
-                                    <p className="text-[12px] text-amber-100/80">{help.overlapNote}</p>
+                                    <p className="text-[12px] text-warning/80">{help.overlapNote}</p>
                                 </div>
                             )}
                         </div>
                     ) : (
-                        <p className="text-[12.5px] text-white/50">
+                        <p className="text-[12.5px] text-muted-foreground">
                             No guide written for this page yet.
                         </p>
                     )}
@@ -89,7 +89,7 @@ export function WorkspaceHelpPanel() {
                     <Link
                         href="/tools"
                         onClick={() => setOpen(false)}
-                        className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-white/6 text-[12px] font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                        className="flex items-center justify-center gap-1.5 mt-3 pt-3 border-t border-border text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
                     >
                         See everything the workspace can do
                         <ArrowRight className="w-3 h-3" />

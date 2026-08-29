@@ -71,42 +71,42 @@ export function WorkspaceSwitcher() {
     };
 
     if (loading) {
-        return <div className="h-12 w-full bg-white/5 animate-pulse rounded-xl" />;
+        return <div className="h-12 w-full bg-muted animate-pulse rounded-xl" />;
     }
 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button className="w-full flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10">
+                <button className="w-full flex items-center justify-between p-2 rounded-lg bg-muted hover:bg-accent transition-colors border border-border">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-md bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">
+                        <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground font-bold text-sm shadow-inner">
                             {activeTeam?.name?.charAt(0) || "T"}
                         </div>
                         <div className="text-left">
-                            <p className="text-sm font-medium text-white line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
-                            <p className="text-xs text-gray-400">Free Plan</p>
+                            <p className="text-sm font-medium text-foreground line-clamp-1">{formatTeamName(activeTeam?.name)}</p>
+                            <p className="text-xs text-muted-foreground">Free Plan</p>
                         </div>
                     </div>
-                    <ChevronsUpDown className="w-4 h-4 text-gray-500" />
+                    <ChevronsUpDown className="w-4 h-4 text-muted-foreground" />
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56 bg-slate-900 border-slate-800 text-white" align="start">
-                <DropdownMenuLabel className="text-xs text-gray-500 uppercase tracking-widest">My Workspaces</DropdownMenuLabel>
+            <DropdownMenuContent className="w-56 bg-card border-border text-foreground" align="start">
+                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-widest">My Workspaces</DropdownMenuLabel>
                 {teams.map((team) => (
                     <DropdownMenuItem
                         key={team.id}
                         onClick={() => switchTeam(team.id)}
-                        className="flex items-center justify-between cursor-pointer focus:bg-white/10 focus:text-white"
+                        className="flex items-center justify-between cursor-pointer focus:bg-accent focus:text-foreground"
                     >
                         <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-400" />
+                            <Building2 className="w-4 h-4 text-muted-foreground" />
                             <span>{formatTeamName(team.name)}</span>
                         </div>
-                        {activeTeam?.id === team.id && <Check className="w-4 h-4 text-blue-500" />}
+                        {activeTeam?.id === team.id && <Check className="w-4 h-4 text-primary" />}
                     </DropdownMenuItem>
                 ))}
-                <DropdownMenuSeparator className="bg-white/10" />
-                <DropdownMenuItem className="cursor-pointer focus:bg-white/10 focus:text-white text-gray-400">
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuItem className="cursor-pointer focus:bg-accent focus:text-foreground text-muted-foreground">
                     <div className="flex items-center gap-2">
                         <PlusCircle className="w-4 h-4" />
                         <span>Create Workspace</span>
