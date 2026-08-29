@@ -142,11 +142,11 @@
   }
 
   .glass {
-    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+    @apply bg-muted/60 backdrop-blur-xl border border-border;
   }
 
   .glass-panel {
-    @apply bg-[#0c0c0f]/60 backdrop-blur-[32px] border border-white/10 shadow-2xl rounded-lg;
+    @apply bg-card backdrop-blur-[32px] border border-border shadow-2xl rounded-lg;
   }
 
   .glass-card {
