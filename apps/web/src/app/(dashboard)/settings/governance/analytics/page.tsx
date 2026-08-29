@@ -29,12 +29,12 @@ export default function GovernanceAnalyticsPage() {
             });
     }, []);
 
-    if (loading) return <div className="p-8 text-white">Loading governance analytics...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading governance analytics...</div>;
 
     return (
         <div className="space-y-8 max-w-6xl">
             <div className="flex items-center gap-4">
-                <Link href="/settings/governance" className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
+                <Link href="/settings/governance" className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-all">
                     <ChevronLeft className="w-6 h-6" />
                 </Link>
                 <SectionHeader
@@ -62,10 +62,10 @@ export default function GovernanceAnalyticsPage() {
             <GlassCard className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                     <Activity className="w-5 h-5 text-blue-400" />
-                    <h3 className="text-lg font-bold text-white">Governance Activity (24h)</h3>
+                    <h3 className="text-lg font-bold text-foreground">Governance Activity (24h)</h3>
                 </div>
                 {stats.hourlyActivity.every((count: number) => count === 0) ? (
-                    <div className="h-32 flex items-center justify-center text-sm text-gray-500">
+                    <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
                         No guardrail activity in the last 24 hours.
                     </div>
                 ) : (
@@ -89,15 +89,15 @@ export default function GovernanceAnalyticsPage() {
     );
 }
 
-function MetricCard({ title, value, icon, subtitle, color = "text-white" }: any) {
+function MetricCard({ title, value, icon, subtitle, color = "text-foreground" }: any) {
     return (
         <GlassCard className="p-6 space-y-2">
-            <div className="flex justify-between items-center text-gray-500">
+            <div className="flex justify-between items-center text-muted-foreground">
                 <span className="text-xs font-bold uppercase tracking-wider">{title}</span>
                 {icon}
             </div>
             <div className={`text-3xl font-black ${color}`}>{value}</div>
-            <div className="text-[10px] text-gray-500">{subtitle}</div>
+            <div className="text-[10px] text-muted-foreground">{subtitle}</div>
         </GlassCard>
     );
 }
