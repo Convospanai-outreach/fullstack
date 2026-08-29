@@ -251,7 +251,7 @@ export default function SuperAdminDashboardClient() {
         value: compactNumber(data.totals.tokensIn + data.totals.tokensOut),
         sub: `${data.totals.teams.toLocaleString()} teams`,
         icon: Activity,
-        color: "text-amber-300",
+        color: "text-warning",
       },
       {
         label: "Active API Keys",
@@ -265,7 +265,7 @@ export default function SuperAdminDashboardClient() {
         value: `${data.totals.completedJobsCount || 0} ok`,
         sub: data.totals.failedJobsCount ? `${data.totals.failedJobsCount} failed` : "0 failures",
         icon: data.totals.failedJobsCount ? AlertTriangle : CheckCircle2,
-        color: data.totals.failedJobsCount ? "text-rose-400" : "text-emerald-400",
+        color: data.totals.failedJobsCount ? "text-destructive" : "text-emerald-400",
       },
     ];
   }, [data, range]);
@@ -283,17 +283,17 @@ export default function SuperAdminDashboardClient() {
   }, [data?.users, searchFilter]);
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 text-slate-100">
+    <div className="min-h-screen bg-background p-6 text-foreground">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Security & Access Banner */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
                 <Lock className="h-3 w-3" />
                 INTERNAL ONLY · APP OWNER
               </span>
-              <span className="text-xs text-slate-400">Restricted System Administration</span>
+              <span className="text-xs text-muted-foreground">Restricted System Administration</span>
             </div>
             <SectionHeader
               title="Platform Administration Command Center"
@@ -320,7 +320,7 @@ export default function SuperAdminDashboardClient() {
 
         {/* Global Executive Metric Cards */}
         {loading && !data && (
-          <GlassCard className="p-8 text-center text-slate-400">Loading platform telemetry...</GlassCard>
+          <GlassCard className="p-8 text-center text-muted-foreground">Loading platform telemetry...</GlassCard>
         )}
         {!loading && error && (
           <GlassCard className="border-red-500/30 bg-red-500/10 p-6 text-red-200">
@@ -335,11 +335,11 @@ export default function SuperAdminDashboardClient() {
                 <GlassCard key={item.label} className="p-4">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                         {item.label}
                       </p>
-                      <p className="mt-1 text-2xl font-bold text-white">{item.value}</p>
-                      <p className="mt-1 text-xs text-slate-400">{item.sub}</p>
+                      <p className="mt-1 text-2xl font-bold text-foreground">{item.value}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{item.sub}</p>
                     </div>
                     <item.icon className={`h-5 w-5 ${item.color}`} />
                   </div>
@@ -348,7 +348,7 @@ export default function SuperAdminDashboardClient() {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex flex-wrap items-center gap-1 border-b border-slate-800 pb-2">
+            <div className="flex flex-wrap items-center gap-1 border-b border-border pb-2">
               <TabButton
                 active={activeTab === "activity"}
                 onClick={() => setActiveTab("activity")}
@@ -382,7 +382,7 @@ export default function SuperAdminDashboardClient() {
                 icon={Server}
                 label="Outages & Job Health"
                 badge={data.totals.failedJobsCount ? `${data.totals.failedJobsCount} err` : undefined}
-                badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-rose-300" : undefined}
+                badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-destructive" : undefined}
               />
             </div>
 
@@ -396,9 +396,9 @@ export default function SuperAdminDashboardClient() {
                       placeholder="Search users by email, name, role..."
                       value={searchFilter}
                       onChange={(e) => setSearchFilter(e.target.value)}
-                      className="w-72 rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
+                      className="w-72 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
                     />
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-muted-foreground">
                       Showing {filteredUsers.length} of {data.users.length} users
                     </span>
                   </div>
@@ -407,7 +407,7 @@ export default function SuperAdminDashboardClient() {
                 <GlassCard className="overflow-hidden p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 bg-slate-900/60 text-slate-400">
+                      <thead className="border-b border-border bg-muted text-muted-foreground">
                         <tr>
                           <th className="py-3 px-4">User</th>
                           <th className="py-3 px-4">Role</th>
@@ -419,16 +419,16 @@ export default function SuperAdminDashboardClient() {
                           <th className="py-3 px-4 text-center">Attribution</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                      <tbody className="divide-y divide-border text-foreground">
                         {filteredUsers.slice(0, 50).map((user) => (
-                          <tr key={user.id} className="hover:bg-slate-900/40">
+                          <tr key={user.id} className="hover:bg-muted">
                             <td className="py-3 px-4">
-                              <div className="font-semibold text-white">{user.name || "Unnamed User"}</div>
-                              <div className="text-slate-400">{user.email}</div>
-                              <div className="text-[10px] text-slate-500 font-mono">{user.id}</div>
+                              <div className="font-semibold text-foreground">{user.name || "Unnamed User"}</div>
+                              <div className="text-muted-foreground">{user.email}</div>
+                              <div className="text-[10px] text-muted-foreground font-mono">{user.id}</div>
                             </td>
                             <td className="py-3 px-4">
-                              <span className="rounded bg-slate-800 px-2 py-0.5 font-medium text-slate-300">
+                              <span className="rounded bg-muted px-2 py-0.5 font-medium text-foreground">
                                 {user.enterpriseRole || user.role}
                               </span>
                             </td>
@@ -437,10 +437,10 @@ export default function SuperAdminDashboardClient() {
                                 {user.teamCount}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-right font-mono font-medium text-white">
+                            <td className="py-3 px-4 text-right font-mono font-medium text-foreground">
                               {user.credits.toLocaleString()}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-amber-300">
+                            <td className="py-3 px-4 text-right font-mono text-warning">
                               {user.creditsSpent.toLocaleString()}
                             </td>
                             <td className="py-3 px-4 text-right font-mono">{user.llmRequests.toLocaleString()}</td>
@@ -451,8 +451,8 @@ export default function SuperAdminDashboardClient() {
                               <span
                                 className={`rounded px-1.5 py-0.5 text-[10px] ${
                                   user.usageAttribution === "user"
-                                    ? "bg-emerald-500/10 text-emerald-300"
-                                    : "bg-slate-800 text-slate-400"
+                                    ? "bg-emerald-500/10 text-success"
+                                    : "bg-muted text-muted-foreground"
                                 }`}
                               >
                                 {user.usageAttribution}
@@ -472,7 +472,7 @@ export default function SuperAdminDashboardClient() {
               <div className="grid gap-6 lg:grid-cols-2">
                 <GlassCard className="p-5">
                   <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Cpu className="h-4 w-4 text-cyan-300" />
                       LLM Usage by Provider
                     </h3>
@@ -481,18 +481,18 @@ export default function SuperAdminDashboardClient() {
                     {data.providers.map((p) => (
                       <div
                         key={p.provider}
-                        className="flex items-center justify-between rounded-lg border border-slate-800/80 bg-slate-900/50 p-3"
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted p-3"
                       >
                         <div>
-                          <p className="font-semibold text-white capitalize">{p.provider}</p>
-                          <p className="text-xs text-slate-400">
+                          <p className="font-semibold text-foreground capitalize">{p.provider}</p>
+                          <p className="text-xs text-muted-foreground">
                             {compactNumber(p.tokensIn + p.tokensOut)} tokens ({compactNumber(p.tokensIn)} in /{" "}
                             {compactNumber(p.tokensOut)} out)
                           </p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-emerald-400">{money(p.cost)}</p>
-                          <p className="text-xs text-slate-400">{p.requests.toLocaleString()} requests</p>
+                          <p className="text-xs text-muted-foreground">{p.requests.toLocaleString()} requests</p>
                         </div>
                       </div>
                     ))}
@@ -501,7 +501,7 @@ export default function SuperAdminDashboardClient() {
 
                 <GlassCard className="p-5">
                   <div className="mb-4 flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Zap className="h-4 w-4 text-indigo-400" />
                       Top Models Consumed
                     </h3>
@@ -510,15 +510,15 @@ export default function SuperAdminDashboardClient() {
                     {data.models.map((m) => (
                       <div
                         key={m.model}
-                        className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/30 p-2.5 text-xs"
+                        className="flex items-center justify-between rounded-lg border border-border bg-muted p-2.5 text-xs"
                       >
                         <div>
-                          <p className="font-mono text-slate-200">{m.model}</p>
-                          <p className="text-slate-500">{m.requests.toLocaleString()} calls</p>
+                          <p className="font-mono text-foreground">{m.model}</p>
+                          <p className="text-muted-foreground">{m.requests.toLocaleString()} calls</p>
                         </div>
                         <div className="text-right">
-                          <p className="font-mono text-emerald-300">{money(m.cost)}</p>
-                          <p className="text-slate-500">{compactNumber(m.tokensIn + m.tokensOut)} tok</p>
+                          <p className="font-mono text-success">{money(m.cost)}</p>
+                          <p className="text-muted-foreground">{compactNumber(m.tokensIn + m.tokensOut)} tok</p>
                         </div>
                       </div>
                     ))}
@@ -532,50 +532,50 @@ export default function SuperAdminDashboardClient() {
               <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-3">
                   <GlassCard className="p-4">
-                    <p className="text-xs uppercase text-slate-400">Total Billed In Window</p>
+                    <p className="text-xs uppercase text-muted-foreground">Total Billed In Window</p>
                     <p className="mt-1 text-2xl font-bold text-emerald-400">
                       {money((data.billing?.totalRevenueCents || 0) / 100)}
                     </p>
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {data.billing?.invoices.length || 0} recorded invoices
                     </p>
                   </GlassCard>
                   <GlassCard className="p-4">
-                    <p className="text-xs uppercase text-slate-400">Active Subscriptions</p>
-                    <p className="mt-1 text-2xl font-bold text-white">
+                    <p className="text-xs uppercase text-muted-foreground">Active Subscriptions</p>
+                    <p className="mt-1 text-2xl font-bold text-foreground">
                       {data.billing?.subscriptions.filter((s) => s.status === "active").length || 0}
                     </p>
-                    <p className="mt-1 text-xs text-slate-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {data.billing?.subscriptions.length || 0} total subscriber accounts
                     </p>
                   </GlassCard>
                   <GlassCard className="p-4">
-                    <p className="text-xs uppercase text-slate-400">Platform Credits Spent</p>
-                    <p className="mt-1 text-2xl font-bold text-amber-300">
+                    <p className="text-xs uppercase text-muted-foreground">Platform Credits Spent</p>
+                    <p className="mt-1 text-2xl font-bold text-warning">
                       {data.totals.creditsSpent.toLocaleString()}
                     </p>
-                    <p className="mt-1 text-xs text-slate-400">consumed across all teams</p>
+                    <p className="mt-1 text-xs text-muted-foreground">consumed across all teams</p>
                   </GlassCard>
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                   <GlassCard className="p-5">
-                    <h3 className="mb-3 text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
                       <CreditCard className="h-4 w-4 text-cyan-300" />
                       Active Subscriptions
                     </h3>
                     <div className="space-y-2 text-xs">
                       {(!data.billing?.subscriptions || data.billing.subscriptions.length === 0) && (
-                        <p className="text-slate-500">No active subscriptions found.</p>
+                        <p className="text-muted-foreground">No active subscriptions found.</p>
                       )}
                       {data.billing?.subscriptions.map((sub) => (
                         <div
                           key={sub.id}
-                          className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-3"
+                          className="flex items-center justify-between rounded-lg border border-border bg-muted p-3"
                         >
                           <div>
-                            <p className="font-semibold text-white">{sub.userEmail}</p>
-                            <p className="text-slate-400">
+                            <p className="font-semibold text-foreground">{sub.userEmail}</p>
+                            <p className="text-muted-foreground">
                               Plan: <span className="text-cyan-300">{sub.planName}</span> ({sub.gateway})
                             </p>
                           </div>
@@ -583,13 +583,13 @@ export default function SuperAdminDashboardClient() {
                             <span
                               className={`rounded px-2 py-0.5 text-[10px] font-semibold uppercase ${
                                 sub.status === "active"
-                                  ? "bg-emerald-500/10 text-emerald-300"
-                                  : "bg-amber-500/10 text-amber-300"
+                                  ? "bg-emerald-500/10 text-success"
+                                  : "bg-amber-500/10 text-warning"
                               }`}
                             >
                               {sub.status}
                             </span>
-                            <p className="mt-1 text-[11px] text-slate-400">
+                            <p className="mt-1 text-[11px] text-muted-foreground">
                               Renews: {new Date(sub.currentPeriodEnd).toLocaleDateString()}
                             </p>
                           </div>
@@ -599,28 +599,28 @@ export default function SuperAdminDashboardClient() {
                   </GlassCard>
 
                   <GlassCard className="p-5">
-                    <h3 className="mb-3 text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
                       <Wallet className="h-4 w-4 text-emerald-400" />
                       Recent Invoices
                     </h3>
                     <div className="space-y-2 text-xs">
                       {(!data.billing?.invoices || data.billing.invoices.length === 0) && (
-                        <p className="text-slate-500">No invoices in this time range.</p>
+                        <p className="text-muted-foreground">No invoices in this time range.</p>
                       )}
                       {data.billing?.invoices.slice(0, 10).map((inv) => (
                         <div
                           key={inv.id}
-                          className="flex items-center justify-between rounded-lg border border-slate-800/80 bg-slate-900/40 p-2.5"
+                          className="flex items-center justify-between rounded-lg border border-border bg-muted p-2.5"
                         >
                           <div>
-                            <p className="font-semibold text-white">{inv.invoiceNumber}</p>
-                            <p className="text-slate-400">{inv.description || inv.type}</p>
+                            <p className="font-semibold text-foreground">{inv.invoiceNumber}</p>
+                            <p className="text-muted-foreground">{inv.description || inv.type}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-bold text-emerald-400">
                               {inv.currency.toUpperCase()} {(inv.amount / 100).toFixed(2)}
                             </p>
-                            <p className="text-[10px] text-slate-500">{dateLabel(inv.createdAt)}</p>
+                            <p className="text-[10px] text-muted-foreground">{dateLabel(inv.createdAt)}</p>
                           </div>
                         </div>
                       ))}
@@ -634,13 +634,13 @@ export default function SuperAdminDashboardClient() {
             {activeTab === "api" && (
               <div className="space-y-6">
                 <GlassCard className="p-5">
-                  <h3 className="mb-3 text-sm font-bold text-white flex items-center gap-2">
+                  <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
                     <Database className="h-4 w-4 text-cyan-300" />
                     Workspaces & API Consumption
                   </h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-xs">
-                      <thead className="border-b border-slate-800 text-slate-400">
+                      <thead className="border-b border-border text-muted-foreground">
                         <tr>
                           <th className="py-2.5 px-3">Workspace</th>
                           <th className="py-2.5 px-3 text-center">Members</th>
@@ -652,12 +652,12 @@ export default function SuperAdminDashboardClient() {
                           <th className="py-2.5 px-3 text-right">Credits Spent</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                      <tbody className="divide-y divide-border text-foreground">
                         {data.teams.map((t) => (
-                          <tr key={t.id} className="hover:bg-slate-900/40">
+                          <tr key={t.id} className="hover:bg-muted">
                             <td className="py-2.5 px-3">
-                              <div className="font-semibold text-white">{t.name}</div>
-                              <div className="font-mono text-[10px] text-slate-500">{t.id}</div>
+                              <div className="font-semibold text-foreground">{t.name}</div>
+                              <div className="font-mono text-[10px] text-muted-foreground">{t.id}</div>
                             </td>
                             <td className="py-2.5 px-3 text-center">{t.memberCount}</td>
                             <td className="py-2.5 px-3 text-center">{t.leadCount}</td>
@@ -667,7 +667,7 @@ export default function SuperAdminDashboardClient() {
                             </td>
                             <td className="py-2.5 px-3 text-right font-mono">{t.llmRequests.toLocaleString()}</td>
                             <td className="py-2.5 px-3 text-right font-mono text-emerald-400">{money(t.tokenCost)}</td>
-                            <td className="py-2.5 px-3 text-right font-mono text-amber-300">{t.creditsSpent.toLocaleString()}</td>
+                            <td className="py-2.5 px-3 text-right font-mono text-warning">{t.creditsSpent.toLocaleString()}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -682,26 +682,26 @@ export default function SuperAdminDashboardClient() {
               <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-4">
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-slate-400">PostgreSQL (Neon)</p>
+                    <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Neon)</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" /> Operational
                     </p>
                   </GlassCard>
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-slate-400">API Gateway (Oracle VM)</p>
+                    <p className="text-xs uppercase text-muted-foreground">API Gateway (Oracle VM)</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" /> Healthy
                     </p>
                   </GlassCard>
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-slate-400">Background Worker</p>
+                    <p className="text-xs uppercase text-muted-foreground">Background Worker</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" /> Active
                     </p>
                   </GlassCard>
-                  <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-rose-500/30 bg-rose-500/10" : "border-slate-800"}`}>
-                    <p className="text-xs uppercase text-slate-400">Job Failures</p>
-                    <p className={`mt-1 text-lg font-bold ${data.totals.failedJobsCount ? "text-rose-400" : "text-slate-200"}`}>
+                  <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-rose-500/30 bg-rose-500/10" : "border-border"}`}>
+                    <p className="text-xs uppercase text-muted-foreground">Job Failures</p>
+                    <p className={`mt-1 text-lg font-bold ${data.totals.failedJobsCount ? "text-destructive" : "text-foreground"}`}>
                       {data.totals.failedJobsCount || 0} in {range}
                     </p>
                   </GlassCard>
@@ -709,13 +709,13 @@ export default function SuperAdminDashboardClient() {
 
                 <div className="grid gap-6 lg:grid-cols-2">
                   <GlassCard className="p-5">
-                    <h3 className="mb-3 text-sm font-bold text-white flex items-center gap-2">
-                      <AlertTriangle className="h-4 w-4 text-rose-400" />
+                    <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
                       Recent Failed Worker Jobs
                     </h3>
                     <div className="space-y-2 text-xs">
                       {(!data.jobHealth?.recentFailed || data.jobHealth.recentFailed.length === 0) && (
-                        <p className="text-slate-500">No failed worker jobs recorded in this window.</p>
+                        <p className="text-muted-foreground">No failed worker jobs recorded in this window.</p>
                       )}
                       {data.jobHealth?.recentFailed.map((job) => (
                         <div
@@ -723,11 +723,11 @@ export default function SuperAdminDashboardClient() {
                           className="rounded-lg border border-rose-500/20 bg-rose-500/5 p-3"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-semibold text-rose-300">{job.type}</span>
-                            <span className="text-[10px] text-slate-400">{dateLabel(job.createdAt)}</span>
+                            <span className="font-semibold text-destructive">{job.type}</span>
+                            <span className="text-[10px] text-muted-foreground">{dateLabel(job.createdAt)}</span>
                           </div>
-                          <p className="mt-1 font-mono text-[11px] text-rose-200">{job.error || "Unknown error"}</p>
-                          <p className="mt-1 text-[10px] text-slate-500">
+                          <p className="mt-1 font-mono text-[11px] text-destructive">{job.error || "Unknown error"}</p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
                             Attempts: {job.attempts} · Team: {job.teamId || "None"}
                           </p>
                         </div>
@@ -736,26 +736,26 @@ export default function SuperAdminDashboardClient() {
                   </GlassCard>
 
                   <GlassCard className="p-5">
-                    <h3 className="mb-3 text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="mb-3 text-sm font-bold text-foreground flex items-center gap-2">
                       <Shield className="h-4 w-4 text-amber-400" />
                       Recent System Events & Outage Logs
                     </h3>
                     <div className="space-y-2 text-xs">
                       {(!data.outages?.recentEvents || data.outages.recentEvents.length === 0) && (
-                        <p className="text-slate-500">No critical outage events logged in this window.</p>
+                        <p className="text-muted-foreground">No critical outage events logged in this window.</p>
                       )}
                       {data.outages?.recentEvents.map((evt) => (
                         <div
                           key={evt.id}
-                          className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-900/50 p-2.5"
+                          className="flex items-center justify-between rounded-lg border border-border bg-muted p-2.5"
                         >
                           <div>
-                            <span className="font-semibold text-white">{evt.name}</span>
-                            <span className="ml-2 rounded bg-slate-800 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            <span className="font-semibold text-foreground">{evt.name}</span>
+                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               {evt.type}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-500">{dateLabel(evt.timestamp)}</span>
+                          <span className="text-[10px] text-muted-foreground">{dateLabel(evt.timestamp)}</span>
                         </div>
                       ))}
                     </div>
@@ -776,7 +776,7 @@ function TabButton({
   icon: Icon,
   label,
   badge,
-  badgeColor = "bg-slate-800 text-slate-300",
+  badgeColor = "bg-muted text-foreground",
 }: {
   active: boolean;
   onClick: () => void;
@@ -792,7 +792,7 @@ function TabButton({
       className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-semibold transition ${
         active
           ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30"
-          : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+          : "text-muted-foreground hover:bg-background border border-input hover:text-foreground"
       }`}
     >
       <Icon className="h-4 w-4" />
