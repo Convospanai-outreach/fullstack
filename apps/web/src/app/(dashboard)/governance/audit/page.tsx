@@ -60,22 +60,22 @@ export default function AuditLogsPage() {
         <GovernanceLayout>
             <div className="flex justify-between items-center mb-6">
                 <div className="relative w-96 group">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent-blue transition-colors" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <input
                         type="text"
                         placeholder="Search by action, resource, or actor..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="w-full bg-white/5 border border-white/5 rounded-xl pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-accent-blue focus:bg-white/10 transition-all font-medium"
+                        className="w-full bg-muted border border-border rounded-xl pl-12 pr-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:bg-muted transition-all font-medium"
                     />
                 </div>
 
                 <div className="flex gap-3">
-                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl glass border border-white/10 text-white text-sm font-semibold hover:bg-white/5 transition">
-                        <Filter className="w-4 h-4 text-text-muted" />
+                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl glass border border-border text-foreground text-sm font-semibold hover:bg-muted transition">
+                        <Filter className="w-4 h-4 text-muted-foreground" />
                         Filters
                     </button>
-                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-blue text-white text-sm font-semibold hover:bg-accent-blue/90 transition shadow-glow">
+                    <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition shadow-glow">
                         <Download className="w-4 h-4" />
                         Export CSV
                     </button>
@@ -86,7 +86,7 @@ export default function AuditLogsPage() {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="border-b border-white/5 text-[10px] uppercase font-bold tracking-widest text-text-muted">
+                            <tr className="border-b border-border text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
                                 <th className="px-6 py-4">Event</th>
                                 <th className="px-6 py-4">Resource</th>
                                 <th className="px-6 py-4">Actor</th>
@@ -94,7 +94,7 @@ export default function AuditLogsPage() {
                                 <th className="px-6 py-4">Source</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/[0.03]">
+                        <tbody className="divide-y divide-border">
                             {loading ? (
                                 Array.from({ length: 8 }).map((_, i) => (
                                     <tr key={i}>
@@ -105,45 +105,45 @@ export default function AuditLogsPage() {
                                 ))
                             ) : filteredLogs.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-20 text-center text-text-secondary">
+                                    <td colSpan={5} className="px-6 py-20 text-center text-muted-foreground">
                                         No matching audit logs found.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredLogs.map((log) => (
-                                    <tr key={log.id} className="hover:bg-white/[0.02] transition-colors group">
+                                    <tr key={log.id} className="hover:bg-muted transition-colors group">
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-3">
-                                                <div className="bg-accent-blue/10 p-2 rounded-lg text-accent-blue group-hover:scale-110 transition-transform">
+                                                <div className="bg-primary/10 p-2 rounded-lg text-primary group-hover:scale-110 transition-transform">
                                                     <LayoutDashboard className="w-4 h-4" />
                                                 </div>
-                                                <span className="text-sm font-bold text-white tracking-tight">{log.action.replace(/_/g, " ")}</span>
+                                                <span className="text-sm font-bold text-foreground tracking-tight">{log.action.replace(/_/g, " ")}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-2">
-                                                <Box className="w-3.5 h-3.5 text-text-muted" />
-                                                <span className="text-sm text-text-secondary">{log.entity}</span>
+                                                <Box className="w-3.5 h-3.5 text-muted-foreground" />
+                                                <span className="text-sm text-muted-foreground">{log.entity}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-2">
-                                                <LucideUser className="w-3.5 h-3.5 text-text-muted" />
+                                                <LucideUser className="w-3.5 h-3.5 text-muted-foreground" />
                                                 <div className="text-xs">
-                                                    <p className="text-white font-medium">{log.user?.name || "System"}</p>
-                                                    <p className="text-text-muted">{log.user?.email || "contact.us@craftmyfunnel.live"}</p>
+                                                    <p className="text-foreground font-medium">{log.user?.name || "System"}</p>
+                                                    <p className="text-muted-foreground">{log.user?.email || "contact.us@craftmyfunnel.live"}</p>
                                                 </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-5">
-                                            <span className="text-xs text-text-secondary font-mono">
+                                            <span className="text-xs text-muted-foreground font-mono">
                                                 {new Date(log.createdAt).toLocaleString()}
                                             </span>
                                         </td>
                                         <td className="px-6 py-5">
                                             <div className="flex items-center gap-2">
-                                                <Globe className="w-3.5 h-3.5 text-text-muted" />
-                                                <span className="text-xs font-mono text-text-secondary">{log.ipAddress || "127.0.0.1"}</span>
+                                                <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                                                <span className="text-xs font-mono text-muted-foreground">{log.ipAddress || "127.0.0.1"}</span>
                                             </div>
                                         </td>
                                     </tr>

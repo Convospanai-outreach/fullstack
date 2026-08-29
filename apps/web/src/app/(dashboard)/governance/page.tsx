@@ -46,8 +46,8 @@ export default function GovernancePage() {
                                 { label: "SSO Enforced (Domain Wide)", status: "Disabled", variant: "warning" },
                                 { label: "Two-Factor Auth", status: "Enabled", variant: "success" },
                             ].map((item, i) => (
-                                <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                                    <span className="text-sm font-medium text-white">{item.label}</span>
+                                <div key={i} className="flex justify-between items-center p-3 rounded-xl bg-muted border border-border">
+                                    <span className="text-sm font-medium text-foreground">{item.label}</span>
                                     <Badge variant={item.variant as any}>{item.status}</Badge>
                                 </div>
                             ))}
@@ -65,27 +65,27 @@ export default function GovernancePage() {
                             <div className="bg-emerald-500/10 p-4 rounded-full mb-4">
                                 <ShieldCheck className="w-10 h-10 text-emerald-400" />
                             </div>
-                            <h4 className="text-white font-bold">Zero Violations Detected</h4>
-                            <p className="text-text-secondary text-sm max-w-xs mt-2">Your AI guardrails are effectively blocking restricted content and PII breaches.</p>
+                            <h4 className="text-foreground font-bold">Zero Violations Detected</h4>
+                            <p className="text-muted-foreground text-sm max-w-xs mt-2">Your AI guardrails are effectively blocking restricted content and PII breaches.</p>
                         </div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="mt-8">
-                <div className="bg-white/[0.03] border border-white/10 p-6 rounded-2xl flex items-center justify-between">
+                <div className="bg-muted border border-border p-6 rounded-2xl flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="bg-white/10 p-3 rounded-xl text-white">
+                        <div className="bg-muted p-3 rounded-xl text-foreground">
                             <AlertTriangle className="w-6 h-6" />
                         </div>
                         <div>
-                            <h4 className="text-lg font-bold text-white leading-tight">Compliance & Governance Logging Active</h4>
-                            <p className="text-text-secondary text-sm">Audit logs and prompt guardrail policies are recorded for workspace activity.</p>
+                            <h4 className="text-lg font-bold text-foreground leading-tight">Compliance & Governance Logging Active</h4>
+                            <p className="text-muted-foreground text-sm">Audit logs and prompt guardrail policies are recorded for workspace activity.</p>
                         </div>
                     </div>
                     <Link
                         href="/governance/audit"
-                        className="bg-white/10 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-white/15 transition border border-white/10"
+                        className="bg-muted text-foreground px-6 py-2.5 rounded-xl font-bold hover:bg-accent transition border border-border"
                     >
                         View Audit Log
                     </Link>

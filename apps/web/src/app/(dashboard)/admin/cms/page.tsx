@@ -22,7 +22,7 @@ export default async function CMSDashboard() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white pt-24 px-6 md:px-12 pb-12">
+        <div className="min-h-screen bg-background text-foreground pt-24 px-6 md:px-12 pb-12">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-10">
@@ -34,7 +34,7 @@ export default async function CMSDashboard() {
                         <h1 className="text-4xl font-extrabold bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent">
                             Git-Based CMS
                         </h1>
-                        <p className="text-slate-400 mt-2">
+                        <p className="text-muted-foreground mt-2">
                             Manage and publish static front-end pages directly inside your Git repository.
                         </p>
                     </div>
@@ -55,7 +55,7 @@ export default async function CMSDashboard() {
                     {files.length > 0 ? (
                         files.map((file) => (
                             <Link key={file} href={`/admin/cms/edit?file=${encodeURIComponent(file)}`} className="group">
-                                <div className="glass p-6 rounded-2xl border border-slate-800 hover:border-purple-500/50 hover:bg-slate-900/60 transition duration-300 flex flex-col justify-between h-44 cursor-pointer relative overflow-hidden group neo-shadow">
+                                <div className="glass p-6 rounded-2xl border border-border hover:border-purple-500/50 hover:bg-muted transition duration-300 flex flex-col justify-between h-44 cursor-pointer relative overflow-hidden group neo-shadow">
                                     <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl group-hover:bg-purple-500/20 transition-all duration-300" />
                                     
                                     <div>
@@ -65,16 +65,16 @@ export default async function CMSDashboard() {
                                                 {file.split("/")[0] || "root"}
                                             </span>
                                         </div>
-                                        <h3 className="font-bold text-lg text-white group-hover:text-purple-300 transition duration-200 truncate">
+                                        <h3 className="font-bold text-lg text-foreground group-hover:text-purple-300 transition duration-200 truncate">
                                             {file.split("/").slice(1).join("/") || file}
                                         </h3>
-                                        <p className="text-xs text-slate-500 mt-1 truncate">
+                                        <p className="text-xs text-muted-foreground mt-1 truncate">
                                             path: content/{file}
                                         </p>
                                     </div>
 
-                                    <div className="flex items-center justify-between text-xs text-slate-400 mt-4 border-t border-slate-900 pt-3">
-                                        <span className="font-mono text-[10px] text-slate-500">
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-4 border-t border-border pt-3">
+                                        <span className="font-mono text-[10px] text-muted-foreground">
                                             markdown
                                         </span>
                                         <span className="flex items-center gap-1 group-hover:text-purple-400 transition duration-200">
@@ -89,14 +89,14 @@ export default async function CMSDashboard() {
                         <div className="col-span-full">
                             <GlassCard>
                                 <div className="text-center py-10">
-                                    <FileText size={48} className="mx-auto text-slate-600 mb-4" />
-                                    <h3 className="text-xl font-bold text-slate-300 mb-1">No Files Found</h3>
-                                    <p className="text-slate-500 max-w-md mx-auto mb-6">
+                                    <FileText size={48} className="mx-auto text-muted-foreground mb-4" />
+                                    <h3 className="text-xl font-bold text-foreground mb-1">No Files Found</h3>
+                                    <p className="text-muted-foreground max-w-md mx-auto mb-6">
                                         Create your first markdown file in the content directory to begin managing frontend copy.
                                     </p>
                                     <Link
                                         href="/admin/cms/edit"
-                                        className="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl transition duration-200"
+                                        className="inline-flex items-center gap-2 bg-muted hover:bg-accent text-foreground px-5 py-2.5 rounded-xl transition duration-200"
                                     >
                                         <Plus size={16} />
                                         <span>Create a File</span>
