@@ -112,60 +112,60 @@ function CMSEditorContent() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+            <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
                     <RefreshCw className="animate-spin text-purple-400" size={36} />
-                    <p className="text-slate-400 text-sm">Loading content file...</p>
+                    <p className="text-muted-foreground text-sm">Loading content file...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-white pt-20 flex flex-col h-screen">
+        <div className="min-h-screen bg-background text-foreground pt-20 flex flex-col h-screen">
             {/* Editor Top Bar */}
-            <div className="bg-slate-900/60 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="bg-muted backdrop-blur-md border-b border-border px-6 py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
                 <div className="flex items-center gap-4 flex-1">
                     <Link
                         href="/admin/cms"
-                        className="text-slate-400 hover:text-white p-2 hover:bg-slate-800 rounded-xl transition duration-200"
+                        className="text-muted-foreground hover:text-foreground p-2 hover:bg-muted rounded-xl transition duration-200"
                     >
                         <ArrowLeft size={20} />
                     </Link>
                     
                     <div className="flex-1 flex flex-col md:flex-row items-stretch md:items-center gap-3">
-                        <span className="text-slate-500 font-mono text-sm self-center">content/</span>
+                        <span className="text-muted-foreground font-mono text-sm self-center">content/</span>
                         <input
                             type="text"
                             placeholder="e.g. faq/general.md"
                             value={file}
                             onChange={(e) => setFile(e.target.value)}
                             disabled={!!fileParam}
-                            className="bg-slate-950 border border-slate-800 focus:border-purple-500/50 outline-none text-white font-mono text-sm px-3.5 py-2 rounded-xl flex-1 max-w-md disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-background border border-border focus:border-purple-500/50 outline-none text-foreground font-mono text-sm px-3.5 py-2 rounded-xl flex-1 max-w-md disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3 justify-end">
                     {/* View Switcher (Desktop Only) */}
-                    <div className="hidden lg:flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 mr-2">
+                    <div className="hidden lg:flex items-center bg-background p-1 rounded-xl border border-border mr-2">
                         <button
                             onClick={() => setViewMode("edit")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "edit" ? "bg-purple-600 text-white" : "text-slate-400 hover:text-white"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "edit" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
                             title="Editor Only"
                         >
                             <Edit size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode("split")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "split" ? "bg-purple-600 text-white" : "text-slate-400 hover:text-white"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "split" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
                             title="Split Screen"
                         >
                             <Columns size={16} />
                         </button>
                         <button
                             onClick={() => setViewMode("preview")}
-                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "preview" ? "bg-purple-600 text-white" : "text-slate-400 hover:text-white"}`}
+                            className={`p-2 rounded-lg transition duration-200 ${viewMode === "preview" ? "bg-purple-600 text-white" : "text-muted-foreground hover:text-foreground"}`}
                             title="Preview Only"
                         >
                             <Eye size={16} />
@@ -175,7 +175,7 @@ function CMSEditorContent() {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl font-medium transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-2.5 rounded-xl font-medium transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {saving ? <RefreshCw className="animate-spin" size={16} /> : <Save size={16} />}
                         <span>Save Local</span>
@@ -196,15 +196,15 @@ function CMSEditorContent() {
             <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {/* Editor Section */}
                 {(viewMode === "edit" || viewMode === "split") && (
-                    <div className="flex-1 h-full flex flex-col border-r border-slate-900 bg-slate-950 p-4">
-                        <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold mb-2">
+                    <div className="flex-1 h-full flex flex-col border-r border-border bg-background p-4">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
                             <FileCode size={14} />
                             <span>MARKDOWN SOURCE</span>
                         </div>
                         <textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            className="flex-1 w-full bg-slate-900/40 border border-slate-800/80 focus:border-purple-500/30 outline-none p-4 rounded-xl text-slate-100 font-mono text-sm resize-none focus:ring-0 leading-relaxed overflow-y-auto"
+                            className="flex-1 w-full bg-muted border border-border focus:border-purple-500/30 outline-none p-4 rounded-xl text-foreground font-mono text-sm resize-none focus:ring-0 leading-relaxed overflow-y-auto"
                             placeholder="Write your markdown here... Use --- for frontmatter"
                         />
                     </div>
@@ -212,13 +212,13 @@ function CMSEditorContent() {
 
                 {/* Preview Section */}
                 {(viewMode === "preview" || viewMode === "split") && (
-                    <div className="flex-1 h-full flex flex-col bg-slate-900/10 p-4 overflow-y-auto">
-                        <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold mb-2">
+                    <div className="flex-1 h-full flex flex-col bg-muted p-4 overflow-y-auto">
+                        <div className="flex items-center gap-2 text-muted-foreground text-xs font-semibold mb-2">
                             <Eye size={14} />
                             <span>LIVE PREVIEW</span>
                         </div>
-                        <div className="flex-1 bg-slate-900/40 border border-slate-800/60 rounded-xl p-6 overflow-y-auto">
-                            <div className="prose prose-invert max-w-none text-slate-300">
+                        <div className="flex-1 bg-muted border border-border rounded-xl p-6 overflow-y-auto">
+                            <div className="prose prose-invert max-w-none text-foreground">
                                 <ReactMarkdown>{content}</ReactMarkdown>
                             </div>
                         </div>
@@ -233,10 +233,10 @@ export default function CMSEditorPage() {
     return (
         <Suspense
             fallback={
-                <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+                <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                         <RefreshCw className="animate-spin text-purple-400" size={36} />
-                        <p className="text-slate-400 text-sm">Preparing CMS Editor...</p>
+                        <p className="text-muted-foreground text-sm">Preparing CMS Editor...</p>
                     </div>
                 </div>
             }
