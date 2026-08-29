@@ -122,45 +122,45 @@ export default function CalendarPage() {
             >
                 <div className="space-y-4">
                     <div className="space-y-1">
-                        <label htmlFor="meeting-title" className="text-sm text-text-secondary">Title</label>
+                        <label htmlFor="meeting-title" className="text-sm text-muted-foreground">Title</label>
                         <input
                             id="meeting-title"
                             type="text"
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             placeholder="Intro call with Acme Corp"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1">
-                            <label htmlFor="meeting-start" className="text-sm text-text-secondary">Start</label>
+                            <label htmlFor="meeting-start" className="text-sm text-muted-foreground">Start</label>
                             <input
                                 id="meeting-start"
                                 type="datetime-local"
                                 value={startTime}
                                 onChange={(e) => setStartTime(e.target.value)}
-                                className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                         <div className="space-y-1">
-                            <label htmlFor="meeting-end" className="text-sm text-text-secondary">End</label>
+                            <label htmlFor="meeting-end" className="text-sm text-muted-foreground">End</label>
                             <input
                                 id="meeting-end"
                                 type="datetime-local"
                                 value={endTime}
                                 onChange={(e) => setEndTime(e.target.value)}
-                                className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                     </div>
                     <div className="space-y-1">
-                        <label htmlFor="meeting-notes" className="text-sm text-text-secondary">Notes (optional)</label>
+                        <label htmlFor="meeting-notes" className="text-sm text-muted-foreground">Notes (optional)</label>
                         <textarea
                             id="meeting-notes"
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-white/5 border border-border-subtle rounded-md px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             rows={3}
                         />
                     </div>
@@ -170,10 +170,10 @@ export default function CalendarPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2">
                     {loading ? (
-                        <GlassCard className="p-8 text-center text-text-secondary text-sm">Loading meetings...</GlassCard>
+                        <GlassCard className="p-8 text-center text-muted-foreground text-sm">Loading meetings...</GlassCard>
                     ) : loadError ? (
-                        <GlassCard className="p-8 text-center text-sm text-red-400">
-                            Couldn't load meetings. <button onClick={fetchMeetings} className="underline hover:text-red-300">Retry</button>
+                        <GlassCard className="p-8 text-center text-sm text-destructive">
+                            Couldn't load meetings. <button onClick={fetchMeetings} className="underline hover:text-destructive/80">Retry</button>
                         </GlassCard>
                     ) : (
                         <MeetingList meetings={meetings} />
@@ -181,15 +181,15 @@ export default function CalendarPage() {
                 </div>
                 <div>
                     <GlassCard>
-                        <h3 className="text-lg font-semibold text-white mb-4">Quick Stats</h3>
+                        <h3 className="text-lg font-semibold text-foreground mb-4">Quick Stats</h3>
                         <div className="space-y-4">
                             <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">Upcoming</span>
-                                <span className="text-white font-medium">{meetings.length}</span>
+                                <span className="text-muted-foreground">Upcoming</span>
+                                <span className="text-foreground font-medium">{meetings.length}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-gray-400">This Week</span>
-                                <span className="text-white font-medium">
+                                <span className="text-muted-foreground">This Week</span>
+                                <span className="text-foreground font-medium">
                                     {meetings.filter((m: any) => {
                                         const date = new Date(m.startTime);
                                         const now = new Date();

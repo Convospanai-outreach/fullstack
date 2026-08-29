@@ -131,23 +131,23 @@ export default function ReadyReckonerPanel({ meetings }: ReadyReckonerPanelProps
         <GlassCard className="space-y-5">
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <div className="flex items-center gap-2 text-white">
-                        <FileText className="h-4 w-4 text-cyan-300" />
+                    <div className="flex items-center gap-2 text-foreground">
+                        <FileText className="h-4 w-4 text-primary" />
                         <h3 className="text-lg font-semibold">Meeting ready reckoner</h3>
                     </div>
-                    <p className="mt-1 text-sm text-gray-400">
+                    <p className="mt-1 text-sm text-muted-foreground">
                         Build the pre-meeting email from caller notes, prior touchpoints, and client contact details.
                     </p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-gray-200">
+                <label className="space-y-2 text-sm font-medium text-foreground">
                     Fixed meeting
                     <select
                         value={form.meetingId}
                         onChange={(event) => selectMeeting(event.target.value)}
-                        className="h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-3 text-sm text-white outline-none focus:ring-1 focus:ring-brand-500"
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground outline-none focus:ring-1 focus:ring-primary"
                     >
                         <option value="">Select meeting</option>
                         {meetings.map((meeting) => (
@@ -203,46 +203,46 @@ export default function ReadyReckonerPanel({ meetings }: ReadyReckonerPanelProps
             </div>
 
             {selectedMeeting && (
-                <div className="rounded-md border border-slate-800 bg-slate-950/70 px-3 py-2 text-sm text-gray-300">
+                <div className="rounded-md border border-border bg-muted px-3 py-2 text-sm text-foreground">
                     Selected: {selectedMeeting.title} at {new Date(selectedMeeting.startTime).toLocaleString()}
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <label className="space-y-2 text-sm font-medium text-gray-200 lg:col-span-2">
+                <label className="space-y-2 text-sm font-medium text-foreground lg:col-span-2">
                     Meeting remarks
                     <Textarea
                         value={form.meetingRemarks}
                         onChange={(event) => updateField("meetingRemarks", event.target.value)}
                         placeholder="Human caller notes, objections, buying signals, expectations, next step promised."
-                        className="min-h-28 border-slate-700 bg-slate-950 text-white"
+                        className="min-h-28 border-input bg-background text-foreground"
                     />
                 </label>
-                <label className="space-y-2 text-sm font-medium text-gray-200">
+                <label className="space-y-2 text-sm font-medium text-foreground">
                     Email background
                     <Textarea
                         value={form.emailBackground}
                         onChange={(event) => updateField("emailBackground", event.target.value)}
                         placeholder="Summarize email discussion and replies."
-                        className="min-h-28 border-slate-700 bg-slate-950 text-white"
+                        className="min-h-28 border-input bg-background text-foreground"
                     />
                 </label>
-                <label className="space-y-2 text-sm font-medium text-gray-200">
+                <label className="space-y-2 text-sm font-medium text-foreground">
                     LinkedIn background
                     <Textarea
                         value={form.linkedinBackground}
                         onChange={(event) => updateField("linkedinBackground", event.target.value)}
                         placeholder="Summarize LinkedIn messages, profile context, posts, or connection notes."
-                        className="min-h-28 border-slate-700 bg-slate-950 text-white"
+                        className="min-h-28 border-input bg-background text-foreground"
                     />
                 </label>
-                <label className="space-y-2 text-sm font-medium text-gray-200 lg:col-span-2">
+                <label className="space-y-2 text-sm font-medium text-foreground lg:col-span-2">
                     Call background
                     <Textarea
                         value={form.callBackground}
                         onChange={(event) => updateField("callBackground", event.target.value)}
                         placeholder="Summarize prior calls, commitments, blockers, and caller judgement."
-                        className="min-h-28 border-slate-700 bg-slate-950 text-white"
+                        className="min-h-28 border-input bg-background text-foreground"
                     />
                 </label>
             </div>
@@ -268,16 +268,16 @@ export default function ReadyReckonerPanel({ meetings }: ReadyReckonerPanelProps
                 </Button>
             </div>
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            {message && <p className="text-sm text-emerald-400">{message}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            {message && <p className="text-sm text-success">{message}</p>}
 
             {draft && (
-                <div className="space-y-3 rounded-md border border-slate-800 bg-slate-950/80 p-4">
+                <div className="space-y-3 rounded-md border border-border bg-muted p-4">
                     <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-500">Subject</p>
-                        <p className="text-sm font-medium text-white">{draft.subject}</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Subject</p>
+                        <p className="text-sm font-medium text-foreground">{draft.subject}</p>
                     </div>
-                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-slate-900 p-4 text-sm leading-6 text-gray-200">
+                    <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-md bg-background p-4 text-sm leading-6 text-foreground">
                         {draft.text}
                     </pre>
                 </div>
