@@ -2,9 +2,9 @@ import Link from "next/link";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
     return (
-        <div className="flex h-screen bg-surface-app text-foreground">
+        <div className="flex h-screen bg-background text-foreground">
             {/* Sidebar */}
-            <aside className="w-64 border-r border-border p-6 space-y-2 bg-surface-panel">
+            <aside className="w-64 border-r border-border p-6 space-y-2 bg-card">
                 <h2 className="text-xl font-bold mb-6 px-2">Settings</h2>
 
                 <NavLink href="/settings/general">General</NavLink>
