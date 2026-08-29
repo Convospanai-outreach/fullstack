@@ -10,7 +10,7 @@
  * - Added: Mode badge ("Manual mode") with pulse indicator
  * - Added: Single search trigger (⌘K → Omnibox) — replaces dual search surfaces
  * - Kept: Mobile hamburger, notification bell, help icon
- * - Height: h-12 (48px), border-b border-white/6
+ * - Height: h-12 (48px), border-b border-border
  */
 
 import { Menu, Search, HelpCircle } from "lucide-react";
@@ -27,11 +27,11 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
   return (
-    <header className="fixed top-0 left-0 lg:left-48 right-0 h-12 border-b border-white/6 z-40 flex items-center gap-3 px-5 bg-surface-app/90 backdrop-blur-md">
+    <header className="fixed top-0 left-0 lg:left-48 right-0 h-12 border-b border-border z-40 flex items-center gap-3 px-5 bg-background/90 backdrop-blur-md">
       {/* Left: mobile hamburger */}
       <button
         onClick={onToggleSidebar}
-        className="lg:hidden p-1.5 rounded-md hover:bg-white/5 text-white/40 hover:text-white/70 transition-colors"
+        className="lg:hidden p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
         aria-label="Toggle sidebar"
       >
         <Menu className="w-4 h-4" />
@@ -39,8 +39,8 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
 
       {/* Center: single search trigger */}
       <button
-        className="flex items-center gap-2 px-3 h-8 rounded-md text-xs text-white/25
-                   bg-white/4 border border-white/7 hover:bg-white/6 transition-colors flex-1 max-w-64"
+        className="flex items-center gap-2 px-3 h-8 rounded-md text-xs text-muted-foreground
+                   bg-muted border border-border hover:bg-accent transition-colors flex-1 max-w-64"
         onClick={() => {
           // Open the Omnibox — uses the same ⌘K shortcut mechanism
           window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }));
@@ -49,7 +49,7 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
       >
         <Search className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="flex-1 text-left truncate">Search leads, campaigns…</span>
-        <kbd className="ml-auto text-[10px] bg-white/6 rounded px-1.5 hidden sm:inline">⌘K</kbd>
+        <kbd className="ml-auto text-[10px] bg-muted rounded px-1.5 hidden sm:inline">⌘K</kbd>
       </button>
 
       {/* Right zone: status pill + mode badge + bell + help */}
@@ -65,8 +65,8 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
 
         {/* Mode badge */}
         <div className="hidden md:flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium
-                        text-emerald-400 bg-emerald-500/8 border border-emerald-500/18">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        text-success bg-success/8 border border-success/18">
+          <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Manual mode
         </div>
 
@@ -79,7 +79,7 @@ export function DashboardHeader({ onToggleSidebar }: DashboardHeaderProps) {
         {/* Help */}
         <Link
           href="/help"
-          className="p-1.5 rounded-md text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           aria-label="Help"
         >
           <HelpCircle className="w-4 h-4" />

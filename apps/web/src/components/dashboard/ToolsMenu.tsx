@@ -64,7 +64,7 @@ export function ToolsMenu() {
                 onClick={() => setOpen((prev) => !prev)}
                 data-tour="tools-menu"
                 className={`p-1.5 rounded-md transition-colors ${
-                    open ? "bg-white/8 text-white/80" : "text-white/40 hover:text-white/70 hover:bg-white/5"
+                    open ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-accent"
                 }`}
                 aria-haspopup="menu"
                 aria-expanded={open}
@@ -76,14 +76,14 @@ export function ToolsMenu() {
             {open && (
                 <div
                     role="menu"
-                    className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-white/10 bg-surface-panel shadow-xl z-[60] p-3"
+                    className="absolute right-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-lg border border-border bg-card shadow-xl z-[60] p-3"
                 >
                     {!data ? (
-                        <div className="p-4 text-center text-xs text-white/40">Loading tools…</div>
+                        <div className="p-4 text-center text-xs text-muted-foreground">Loading tools…</div>
                     ) : (
                         categories.map(({ category, items }) => (
                             <div key={category} className="mb-3 last:mb-0">
-                                <span className="block px-1 pb-1 text-[10px] uppercase tracking-wide font-medium text-white/30">
+                                <span className="block px-1 pb-1 text-[10px] uppercase tracking-wide font-medium text-muted-foreground">
                                     {category}
                                 </span>
                                 <div className="space-y-0.5">
@@ -98,16 +98,16 @@ export function ToolsMenu() {
                                                 key={feature.key}
                                                 href={href}
                                                 onClick={() => setOpen(false)}
-                                                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12.5px] text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+                                                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-[12.5px] text-foreground hover:bg-accent transition-colors"
                                             >
                                                 {isLive ? (
-                                                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-white/25" />
+                                                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
                                                 ) : (
-                                                    <EyeOff className="w-3.5 h-3.5 flex-shrink-0 text-amber-400/60" />
+                                                    <EyeOff className="w-3.5 h-3.5 flex-shrink-0 text-warning" />
                                                 )}
                                                 <span className="flex-1 truncate">{feature.label}</span>
                                                 {!isLive && (
-                                                    <span className="text-[9.5px] uppercase tracking-wide text-amber-400/60">
+                                                    <span className="text-[9.5px] uppercase tracking-wide text-warning">
                                                         Off
                                                     </span>
                                                 )}
@@ -122,7 +122,7 @@ export function ToolsMenu() {
                     <Link
                         href="/tools"
                         onClick={() => setOpen(false)}
-                        className="block mt-2 pt-2 border-t border-white/6 px-2 py-1.5 text-center text-[12px] font-medium text-blue-400 hover:text-blue-300 transition-colors"
+                        className="block mt-2 pt-2 border-t border-border px-2 py-1.5 text-center text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
                     >
                         View all tools →
                     </Link>
