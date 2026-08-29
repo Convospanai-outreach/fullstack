@@ -73,18 +73,18 @@ export default function KnowledgePage() {
         <div className="space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-text-primary">Knowledge Vault</h1>
-                    <p className="text-text-secondary mt-1">Manage context sources for your AI agents.</p>
+                    <h1 className="text-3xl font-bold text-foreground">Knowledge Vault</h1>
+                    <p className="text-muted-foreground mt-1">Manage context sources for your AI agents.</p>
                 </div>
                 {kbId && <UploadModal knowledgeBaseId={kbId} onUploadComplete={() => { }} />}
             </div>
 
             {loading ? (
-                <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
+                <div className="text-center py-10 text-muted-foreground bg-muted rounded-xl border border-dashed border-border">
                     Loading knowledge vault...
                 </div>
             ) : initError ? (
-                <div className="text-center py-10 text-red-400 bg-white/5 rounded-xl border border-dashed border-white/10">
+                <div className="text-center py-10 text-destructive bg-muted rounded-xl border border-dashed border-border">
                     Couldn't load the knowledge vault. Refresh to try again.
                 </div>
             ) : (
@@ -106,7 +106,7 @@ export default function KnowledgePage() {
                             <button
                                 onClick={handleTestSearch}
                                 disabled={searching}
-                                className="bg-white/10 p-2 rounded-md hover:bg-white/20 disabled:opacity-50"
+                                className="bg-muted p-2 rounded-md hover:bg-accent disabled:opacity-50"
                             >
                                 <Search className="w-5 h-5" />
                             </button>
@@ -114,24 +114,24 @@ export default function KnowledgePage() {
                     </GlassCard>
 
                     <div className="space-y-4">
-                        <h3 className="text-sm font-medium text-text-secondary uppercase tracking-wider">Retrieval Results</h3>
+                        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Retrieval Results</h3>
                         {searching && (
-                            <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
+                            <div className="text-center py-10 text-muted-foreground bg-muted rounded-xl border border-dashed border-border">
                                 Searching...
                             </div>
                         )}
                         {!searching && docs.length === 0 && (
-                            <div className="text-center py-10 text-text-muted bg-white/5 rounded-xl border border-dashed border-white/10">
+                            <div className="text-center py-10 text-muted-foreground bg-muted rounded-xl border border-dashed border-border">
                                 No results found or no search performed.
                             </div>
                         )}
                         {docs.map((doc: any, _i) => (
                             <GlassCard key={doc.id} className="border-l-4 border-l-accent-mint">
                                 <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-semibold text-accent-mint">{doc.metadata?.title || "Untitled"}</h4>
-                                    <span className="text-xs bg-white/10 px-2 py-1 rounded-full">Score: {(doc.score * 100).toFixed(1)}%</span>
+                                    <h4 className="font-semibold text-success">{doc.metadata?.title || "Untitled"}</h4>
+                                    <span className="text-xs bg-muted px-2 py-1 rounded-full">Score: {(doc.score * 100).toFixed(1)}%</span>
                                 </div>
-                                <p className="text-sm text-text-secondary line-clamp-3">{doc.content}</p>
+                                <p className="text-sm text-muted-foreground line-clamp-3">{doc.content}</p>
                             </GlassCard>
                         ))}
                     </div>
@@ -143,15 +143,15 @@ export default function KnowledgePage() {
                         <h3 className="text-lg font-semibold mb-2">Vault Status</h3>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-text-muted">Active Collection</span>
+                                <span className="text-muted-foreground">Active Collection</span>
                                 <span>Default</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-text-muted">Total Documents</span>
+                                <span className="text-muted-foreground">Total Documents</span>
                                 <span>{docs.length > 0 ? "..." : "Unknown"}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-text-muted">Embedding Model</span>
+                                <span className="text-muted-foreground">Embedding Model</span>
                                 <span className="font-mono text-xs">gemini-1.5-flash</span>
                             </div>
                         </div>
