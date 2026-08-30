@@ -70,6 +70,42 @@ describe("syncClerkUserToApp - invitation claim atomicity & privilege escalation
         expect(result).toEqual({ id: "user-1", memberships: [] });
     });
 
+    it("grants \"owner\" for a founder invite (inviteRequestId set), ignoring the normal role mapping", async () => {
+        (findValidInvitation as Mock).mockResolvedValue({
+            invitation: { ...invitation, role: "SALES_USER", inviteRequestId: "req-1" },
+            error: null,
+        });
+        mockTx.userInvitation.updateMany.mockResolvedValue({ count: 1 });
+
+        await syncClerkUserToApp({
+            clerkUserId: "clerk-founder",
+            email: invitation.email,
+            inviteToken: "valid-token",
+        });
+
+        expect(mockTx.teamMember.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ role: "owner" }) })
+        );
+    });
+
+    it("still grants the normal mapped role for an ordinary teammate invite (no inviteRequestId)", async () => {
+        (findValidInvitation as Mock).mockResolvedValue({
+            invitation: { ...invitation, role: "SALES_USER", inviteRequestId: null },
+            error: null,
+        });
+        mockTx.userInvitation.updateMany.mockResolvedValue({ count: 1 });
+
+        await syncClerkUserToApp({
+            clerkUserId: "clerk-teammate",
+            email: invitation.email,
+            inviteToken: "valid-token",
+        });
+
+        expect(mockTx.teamMember.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ role: "member" }) })
+        );
+    });
+
     it("does not elevate user to SUPER_ADMIN if invitation contained unassignable global role", async () => {
         (findValidInvitation as Mock).mockResolvedValue({
             invitation: { ...invitation, role: "SUPER_ADMIN" },
