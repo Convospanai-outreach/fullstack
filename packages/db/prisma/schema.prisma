@@ -998,6 +998,24 @@ model OverseerNudge {
   @@index([createdAt])
 }
 
+// Overseer circuit breaker (see OVERSEER_ARCHITECTURE_PLAN.md §04). One row per team,
+// evaluated on every Overseer tick. Never auto-approves or auto-unblocks anything - it
+// only extends QUEUED-tier timeouts and throttles new nudge emission while OPEN/HALF_OPEN.
+// HARD_BLOCK requests are never affected by this table.
+model BreakerState {
+  id                    String    @id @default(uuid())
+  teamId                String    @unique
+  state                 String    @default("CLOSED") // CLOSED, OPEN, HALF_OPEN
+  trippedAt             DateTime?
+  resetConditionsMetSince DateTime?
+  lastEvaluatedAt       DateTime  @default(now())
+  metrics               Json? // last computed {depth, tatP90Hours, denyRate} for observability
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([state])
+}
+
 model Team {
   id               String              @id @default(uuid())
   name             String
@@ -1021,6 +1039,7 @@ model Team {
   auditLogs        AuditLog[]
   memories         AgentMemory[]
   overseerNudges   OverseerNudge[]
+  breakerState     BreakerState?
   apiKeys          ApiKey[]
   tasks            Task[]
   landingCampaigns LandingCampaign[]

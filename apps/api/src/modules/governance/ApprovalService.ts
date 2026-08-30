@@ -1,6 +1,7 @@
 
 import { prisma } from "@/lib/db";
 import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
+import { getBreakerState } from "@/modules/overseer/breakerService";
 
 export enum ApprovalStatus {
     PENDING = "PENDING",
@@ -38,6 +39,8 @@ export class ApprovalService {
         }
 
         const tier = resolveApprovalTier(actionType, { forceHardBlock: options.forceHardBlock });
+        const breakerState = await getBreakerState(teamId);
+        const extendedTimeout = breakerState !== "CLOSED";
 
         const request = await prisma.approvalRequest.create({
             data: {
@@ -51,7 +54,7 @@ export class ApprovalService {
                 reason: options.reason,
                 status: ApprovalStatus.PENDING,
                 tier,
-                autoDenyAt: computeAutoDenyAt(tier)
+                autoDenyAt: computeAutoDenyAt(tier, new Date(), extendedTimeout)
             }
         });
 
