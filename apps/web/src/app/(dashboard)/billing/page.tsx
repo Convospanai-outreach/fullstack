@@ -121,14 +121,14 @@ export default function BillingPage() {
     return (
         <div className="space-y-8 animate-reveal">
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white tracking-tight">Billing & Credits</h1>
-                <p className="text-text-secondary mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
+                <h1 className="text-3xl font-bold text-foreground tracking-tight">Billing & Credits</h1>
+                <p className="text-muted-foreground mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Current Plan Overview */}
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="border-accent-blue/20 bg-accent-blue/[0.02]">
+                    <Card className="border-primary/20 bg-primary/[0.02]">
                         <CardHeader>
                             <CardTitle>Subscription Tier</CardTitle>
                             <CardDescription>Your current active workspace plan</CardDescription>
@@ -139,7 +139,7 @@ export default function BillingPage() {
                             ) : error ? (
                                 <div className="text-red-400 p-4">Failed to load subscription</div>
                             ) : (
-                                <div className="mt-4 p-6 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
+                                <div className="mt-4 p-6 rounded-2xl bg-muted border border-border relative overflow-hidden group">
                                     <div className="absolute top-0 right-0 p-3">
                                         <Badge variant={subscription?.active ? "success" : "default"}>
                                             {subscription?.active ? "Active" : "Inactive"}
@@ -147,14 +147,14 @@ export default function BillingPage() {
                                     </div>
 
                                     <div className="flex items-center gap-4 mb-6">
-                                        <div className="p-3 bg-accent-blue/10 rounded-xl text-accent-blue">
+                                        <div className="p-3 bg-primary/10 rounded-xl text-primary">
                                             <Zap className="w-8 h-8" />
                                         </div>
                                         <div>
-                                            <h4 className="text-2xl font-black text-white capitalize">
+                                            <h4 className="text-2xl font-black text-foreground capitalize">
                                                 {subscription?.plan || "Free"}
                                             </h4>
-                                            <p className="text-text-muted text-xs font-bold uppercase tracking-widest">
+                                            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest">
                                                 {subscription?.plan === "ENTERPRISE" ? "Enterprise Access" : "Standard Access"}
                                             </p>
                                         </div>
@@ -162,16 +162,16 @@ export default function BillingPage() {
 
                                     <div className="space-y-4">
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-text-secondary">Renews on</span>
-                                            <span className="text-white font-mono">
+                                            <span className="text-muted-foreground">Renews on</span>
+                                            <span className="text-foreground font-mono">
                                                 {subscription?.currentPeriodEnd
                                                     ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
                                                     : 'N/A'}
                                             </span>
                                         </div>
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-text-secondary">Monthly Credits</span>
-                                            <span className="text-white font-mono">
+                                            <span className="text-muted-foreground">Monthly Credits</span>
+                                            <span className="text-foreground font-mono">
                                                 {subscription?.credits || 0}
                                             </span>
                                         </div>
@@ -179,7 +179,7 @@ export default function BillingPage() {
 
                                     <Button
                                         variant="outline"
-                                        className="w-full mt-8 border-white/10"
+                                        className="w-full mt-8 border-border"
                                         onClick={() => router.push("/pricing")}
                                     >
                                         Manage Subscription
@@ -197,22 +197,22 @@ export default function BillingPage() {
                         <CardContent>
                             <div className="space-y-2 mt-4">
                                 <button
-                                    className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5 disabled:opacity-50"
+                                    className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-accent transition group text-left border border-border disabled:opacity-50"
                                     disabled={invoices.length === 0}
                                     onClick={() => invoices[0] && downloadInvoice(invoices[0].id)}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <History className="w-5 h-5 text-text-muted group-hover:text-accent-blue" />
-                                        <span className="text-sm font-semibold text-white">Download Last Invoice</span>
+                                        <History className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                                        <span className="text-sm font-semibold text-foreground">Download Last Invoice</span>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-text-muted" />
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
                                 </button>
-                                <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition group text-left border border-white/5">
+                                <button className="w-full flex items-center justify-between p-4 rounded-xl hover:bg-accent transition group text-left border border-border">
                                     <div className="flex items-center gap-3">
-                                        <CreditCard className="w-5 h-5 text-text-muted group-hover:text-accent-blue" />
-                                        <span className="text-sm font-semibold text-white">Update Payment Method</span>
+                                        <CreditCard className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
+                                        <span className="text-sm font-semibold text-foreground">Update Payment Method</span>
                                     </div>
-                                    <ChevronRight className="w-4 h-4 text-text-muted" />
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
                                 </button>
                             </div>
                         </CardContent>
@@ -226,16 +226,16 @@ export default function BillingPage() {
                         <CardContent>
                             <div className="space-y-2 mt-2">
                                 {invoices.length === 0 && (
-                                    <div className="text-xs text-text-muted">No invoices yet.</div>
+                                    <div className="text-xs text-muted-foreground">No invoices yet.</div>
                                 )}
                                 {invoices.map((inv: any) => (
-                                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-white/5">
+                                    <div key={inv.id} className="flex items-center justify-between p-3 rounded-xl border border-border">
                                         <div>
-                                            <p className="text-xs font-mono text-white">{inv.invoiceNumber}</p>
-                                            <p className="text-[10px] text-text-muted">{new Date(inv.createdAt).toLocaleDateString()}</p>
+                                            <p className="text-xs font-mono text-foreground">{inv.invoiceNumber}</p>
+                                            <p className="text-[10px] text-muted-foreground">{new Date(inv.createdAt).toLocaleDateString()}</p>
                                         </div>
                                         <button
-                                            className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-accent-blue disabled:opacity-50"
+                                            className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-primary disabled:opacity-50"
                                             disabled={downloadingInvoiceId === inv.id}
                                             onClick={() => downloadInvoice(inv.id)}
                                             aria-label={`Download ${inv.invoiceNumber}`}
@@ -265,17 +265,17 @@ export default function BillingPage() {
                                         total={subscription?.credits || 0}
                                     />
                                     <div className="space-y-1">
-                                        <div className="flex justify-between text-[10px] font-bold text-text-muted uppercase">
+                                        <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase">
                                             <span>Current Balance</span>
                                             <span className="text-accent-mint">{usage?.balance ?? 0} remaining</span>
                                         </div>
-                                        <p className="text-xs text-text-secondary leading-relaxed">
+                                        <p className="text-xs text-muted-foreground leading-relaxed">
                                             Credits refresh automatically on your billing anniversary. Unused base credits do not roll over.
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="bg-white/5 p-6 rounded-2xl border border-white/5 flex flex-col justify-between">
+                                <div className="bg-muted p-6 rounded-2xl border border-border flex flex-col justify-between">
                                     <div className="flex justify-between items-start">
                                         <div className="p-3 bg-accent-gold/10 rounded-xl text-accent-gold">
                                             <Coins className="w-6 h-6" />
@@ -283,8 +283,8 @@ export default function BillingPage() {
                                         <Badge className="bg-accent-gold/10 text-accent-gold border-none">Reserve Pool</Badge>
                                     </div>
                                     <div className="mt-6">
-                                        <h5 className="text-3xl font-black text-white">{usage?.balance ?? 0}</h5>
-                                        <p className="text-xs text-text-muted font-bold uppercase tracking-widest mt-1">Non-Expiring Top-Up Credits</p>
+                                        <h5 className="text-3xl font-black text-foreground">{usage?.balance ?? 0}</h5>
+                                        <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Non-Expiring Top-Up Credits</p>
                                     </div>
                                     <Button
                                         variant="default"
@@ -299,49 +299,49 @@ export default function BillingPage() {
                             </div>
 
                             <div className="mt-12">
-                                <h5 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                                    <History className="w-4 h-4 text-accent-blue" />
+                                <h5 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                                    <History className="w-4 h-4 text-primary" />
                                     Recent Credit Activity
                                 </h5>
                                 <div className="space-y-3">
                                     {(usage?.history || []).map((row: any, i: number) => (
-                                        <div key={i} className="flex items-center justify-between p-4 rounded-xl glass-strong border border-white/5">
+                                        <div key={i} className="flex items-center justify-between p-4 rounded-xl glass-strong border border-border">
                                             <div className="flex items-center gap-4">
-                                                <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-white/5 text-text-muted'}`}>
+                                                <div className={`p-2 rounded-lg ${row.amount > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                                     <ArrowUpCircle className={`w-4 h-4 ${row.amount < 0 ? 'rotate-180' : ''}`} />
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-semibold text-white">{row.type}</p>
-                                                    <p className="text-xs text-text-muted">{row.description}</p>
+                                                    <p className="text-sm font-semibold text-foreground">{row.type}</p>
+                                                    <p className="text-xs text-muted-foreground">{row.description}</p>
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                                                <p className={`text-sm font-mono font-bold ${row.amount > 0 ? 'text-emerald-400' : 'text-foreground'}`}>
                                                     {row.amount > 0 ? '+' : ''}{row.amount.toLocaleString()}
                                                 </p>
-                                                <p className="text-[10px] text-text-muted font-medium">
+                                                <p className="text-[10px] text-muted-foreground font-medium">
                                                     {new Date(row.createdAt).toLocaleString()}
                                                 </p>
                                             </div>
                                         </div>
                                     ))}
                                     {(usage?.history || []).length === 0 && (
-                                        <div className="text-xs text-text-muted">No credit activity yet.</div>
+                                        <div className="text-xs text-muted-foreground">No credit activity yet.</div>
                                     )}
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    <div className="bg-gradient-to-r from-accent-violet/20 to-accent-blue/20 border border-white/10 p-8 rounded-3xl relative overflow-hidden animate-slide-up">
+                    <div className="bg-gradient-to-r from-accent-violet/20 to-primary/20 border border-border p-8 rounded-3xl relative overflow-hidden animate-slide-up">
                         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2 text-accent-crystal">
                                     <Crown className="w-5 h-5" />
                                     <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Enterprise Growth</span>
                                 </div>
-                                <h4 className="text-2xl font-bold text-white">Need custom quotas?</h4>
-                                <p className="text-sm text-text-secondary max-w-md">Scale to millions of monthly leads with custom RAG persistence and dedicated infrastructure.</p>
+                                <h4 className="text-2xl font-bold text-foreground">Need custom quotas?</h4>
+                                <p className="text-sm text-muted-foreground max-w-md">Scale to millions of monthly leads with custom RAG persistence and dedicated infrastructure.</p>
                             </div>
                             <Button className="bg-white text-slate-950 hover:bg-white/90 font-bold px-8">Talk to Sales</Button>
                         </div>
@@ -374,38 +374,38 @@ export default function BillingPage() {
                 }
             >
                 <div className="space-y-4">
-                    <p className="text-xs text-text-muted">Used to determine GST treatment on your invoice.</p>
+                    <p className="text-xs text-muted-foreground">Used to determine GST treatment on your invoice.</p>
                     <div>
-                        <label className="text-xs font-semibold text-white block mb-1">Country</label>
+                        <label className="text-xs font-semibold text-foreground block mb-1">Country</label>
                         <select
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                            className="w-full bg-muted border border-border rounded-lg p-2 text-sm text-foreground"
                             value={billingCountry}
                             onChange={(e) => setBillingCountry(e.target.value)}
                         >
                             {BILLING_COUNTRIES.map((c) => (
-                                <option key={c.code} value={c.code} className="bg-slate-900">{c.label}</option>
+                                <option key={c.code} value={c.code} className="bg-popover">{c.label}</option>
                             ))}
                         </select>
                     </div>
                     {billingCountry === "IN" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">State</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">State</label>
                             <select
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-muted border border-border rounded-lg p-2 text-sm text-foreground"
                                 value={billingState}
                                 onChange={(e) => setBillingState(e.target.value)}
                             >
                                 {INDIAN_STATES.map((s) => (
-                                    <option key={s} value={s} className="bg-slate-900">{s}</option>
+                                    <option key={s} value={s} className="bg-popover">{s}</option>
                                 ))}
                             </select>
                         </div>
                     )}
                     {billingCountry === "OTHER" && (
                         <div>
-                            <label className="text-xs font-semibold text-white block mb-1">Country name</label>
+                            <label className="text-xs font-semibold text-foreground block mb-1">Country name</label>
                             <input
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white"
+                                className="w-full bg-muted border border-border rounded-lg p-2 text-sm text-foreground"
                                 value={billingCustomCountry}
                                 onChange={(e) => setBillingCustomCountry(e.target.value)}
                                 placeholder="Enter your country"
