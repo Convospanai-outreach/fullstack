@@ -44,14 +44,14 @@ export default function CampaignList({ campaigns }: any) {
 
             {campaigns.map((c: any) => (
                 <div key={c.id} className="flex flex-col gap-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.05] transition-all group">
+                    <div className="flex items-center justify-between p-4 rounded-xl bg-muted/60 border border-border hover:bg-muted transition-all group">
                         <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400 font-bold">
                                 {c.name[0]}
                             </div>
                             <div>
-                                <div className="font-bold text-white group-hover:text-blue-400 transition-colors uppercase tracking-tight">{c.name}</div>
-                                <div className="text-xs text-gray-500 font-medium">
+                                <div className="font-bold text-foreground group-hover:text-blue-400 transition-colors uppercase tracking-tight">{c.name}</div>
+                                <div className="text-xs text-muted-foreground font-medium">
                                     {c.audience} • {c.leads} Leads • {c.status}
                                 </div>
                             </div>
@@ -62,7 +62,7 @@ export default function CampaignList({ campaigns }: any) {
                                 onClick={() => setExpandedInsights(expandedInsights === c.id ? null : c.id)}
                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${expandedInsights === c.id
                                         ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-                                        : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                                        : 'bg-muted text-muted-foreground hover:bg-accent'
                                     }`}
                             >
                                 <BrainCircuit className="w-3.5 h-3.5" />
@@ -70,10 +70,10 @@ export default function CampaignList({ campaigns }: any) {
                                 {expandedInsights === c.id ? <ChevronUp className="w-3 h-3 ml-1" /> : <ChevronDown className="w-3 h-3 ml-1" />}
                             </button>
 
-                            <div className="flex items-center gap-1.5 ml-2 border-l border-white/10 pl-3">
+                            <div className="flex items-center gap-1.5 ml-2 border-l border-border pl-3">
                                 <button
                                     onClick={() => setScheduleModal({ id: c.id, name: c.name })}
-                                    className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all shadow-xl"
+                                    className="p-2 rounded-lg bg-muted hover:bg-accent text-muted-foreground hover:text-foreground transition-all shadow-xl"
                                     title="Schedule"
                                 >
                                     <Calendar className="w-4 h-4" />
@@ -98,18 +98,18 @@ export default function CampaignList({ campaigns }: any) {
                                 </div>
                                 <div className="flex-1 space-y-3">
                                     <div>
-                                        <h4 className="text-sm font-bold text-white uppercase tracking-wider">Grounding Analysis</h4>
-                                        <p className="text-xs text-gray-400 mt-1 leading-relaxed">
+                                        <h4 className="text-sm font-bold text-foreground uppercase tracking-wider">Grounding Analysis</h4>
+                                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                                             This campaign's copy was generated using verified data from your <span className="text-blue-400 font-bold">"Q4 Sales Playbook"</span> and <span className="text-blue-400 font-bold">"Pricing FAQ"</span> knowledge bases.
                                         </p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-                                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Confidence Score</div>
+                                        <div className="p-3 rounded-lg bg-muted border border-border">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Confidence Score</div>
                                             <div className="text-lg font-bold text-emerald-400">98.4%</div>
                                         </div>
-                                        <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-                                            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Hallucination Risk</div>
+                                        <div className="p-3 rounded-lg bg-muted border border-border">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Hallucination Risk</div>
                                             <div className="text-lg font-bold text-blue-400">Low</div>
                                         </div>
                                     </div>
