@@ -271,6 +271,31 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     ]);
 }
 
+// Smart routing: a provider that has failed repeatedly is deprioritized (not eliminated)
+// for a cooldown window, so retries don't keep burning timeouts on a known-down provider.
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_COOLDOWN_MS = 60000;
+const providerCircuits = new Map<LLMProvider, { failures: number; openUntil: number }>();
+
+function isCircuitOpen(provider: LLMProvider): boolean {
+    const circuit = providerCircuits.get(provider);
+    return !!circuit && circuit.openUntil > Date.now();
+}
+
+function recordProviderFailure(provider: LLMProvider): void {
+    const circuit = providerCircuits.get(provider) || { failures: 0, openUntil: 0 };
+    circuit.failures += 1;
+    if (circuit.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+        circuit.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+        circuit.failures = 0;
+    }
+    providerCircuits.set(provider, circuit);
+}
+
+function recordProviderSuccess(provider: LLMProvider): void {
+    providerCircuits.set(provider, { failures: 0, openUntil: 0 });
+}
+
 type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string };
 
 function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexity = TaskComplexity.ROUTINE): ProviderCandidate[] {
@@ -288,7 +313,36 @@ function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexit
     if (chain.length === 0) {
         throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
     }
-    return chain;
+    // Smart routing: try providers with a healthy circuit before ones currently in cooldown,
+    // without dropping a provider entirely (a fully-failed chain still gets one real attempt).
+    return [...chain].sort((a, b) => Number(isCircuitOpen(a.provider)) - Number(isCircuitOpen(b.provider)));
+}
+
+async function escalateGenerationFailureToHuman(params: {
+    teamId?: string;
+    taskType: string;
+    prompt: string;
+    error: any;
+}): Promise<void> {
+    try {
+        await prisma.manualReview.create({
+            data: {
+                source: "aiService",
+                severity: "CRITICAL",
+                reason: `AI generation failed after exhausting all configured providers (${params.taskType})`,
+                payload: {
+                    teamId: params.teamId,
+                    taskType: params.taskType,
+                    promptPreview: params.prompt.slice(0, 300),
+                    error: params.error?.message || String(params.error)
+                }
+            }
+        });
+    } catch (err) {
+        logger.error("[AI Usage] Failed to escalate generation failure for human review", {
+            error: (err as Error).message
+        });
+    }
 }
 
 async function callProvider(candidate: ProviderCandidate, prompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
@@ -365,6 +419,7 @@ async function callLLM(
             lastCandidate = candidate;
             try {
                 const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt), LLM_TIMEOUT_MS);
+                recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
                     actorId,
@@ -393,6 +448,7 @@ async function callLLM(
                 return { text, model: candidate.model };
             } catch (error: any) {
                 lastError = error;
+                recordProviderFailure(candidate.provider);
                 logger.warn("[AI Usage] Provider attempt failed", {
                     provider: candidate.provider,
                     model: candidate.model,
@@ -442,6 +498,12 @@ async function callLLM(
         latencyMs: Date.now() - start,
         success: false,
         error: lastError?.message
+    });
+    await escalateGenerationFailureToHuman({
+        teamId: options.teamId,
+        taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+        prompt,
+        error: lastError
     });
     throw lastError;
 }

@@ -32,40 +32,51 @@ sequenceDiagram
     participant Route as API Route
     participant Guard as aiInputGuardrails
     participant AI as aiService.callLLM
+    participant Router as Provider Router (circuit breaker)
     participant Credits as credits.ts
     participant P1 as Primary Provider
     participant P2 as Fallback Provider(s)
     participant Usage as LLMUsageLog
     participant Ledger as CreditTransaction
+    participant Review as ManualReview (human-in-the-loop)
 
     Client->>Route: AI-assisted preparation or review request
     Route->>Route: Validate auth + team context + route size limits
     Route->>AI: askAI/generate*
     AI->>Guard: enforceAIPromptPolicy(surface, maxChars)
     Guard-->>AI: prompt accepted or error
+    AI->>Router: order configured providers, deprioritizing open circuits
+    Router-->>AI: provider chain for this call
     AI->>Credits: reserveCredits(estimated)
     Credits-->>AI: allow or insufficient
     AI->>P1: generation request (30s timeout)
     alt success
         P1-->>AI: text + token usage
+        AI->>Router: record success (circuit closes)
     else timeout / 429 / 5xx (retried once)
         P1-->>AI: transient error
+        AI->>Router: record failure (3 strikes opens circuit for 60s)
         AI->>P1: retry with backoff
         alt retry succeeds
             P1-->>AI: text + token usage
         else retry also fails
             AI->>P2: fail over to next configured provider
-            P2-->>AI: text + token usage (or exhausted -> error)
+            alt any provider succeeds
+                P2-->>AI: text + token usage
+            else all providers exhausted
+                AI->>Review: create ManualReview (source=aiService, severity=CRITICAL)
+                Note over Review: surfaces in Sentinel Events / Governance Gate for human follow-up
+            end
         end
     end
     AI->>Usage: write tokensIn/tokensOut/cost/provider used
     AI->>Credits: settleCredits(actual) or refund on total failure
     Credits->>Ledger: usage transaction
-    AI-->>Route: bounded output
+    AI-->>Route: bounded output (or error, if all providers + review escalation exhausted)
     Route-->>Client: bounded draft, review, or tracking response
 ```
 
-Provider resolution is a priority chain (Gemini > OpenAI > Anthropic) built from whichever keys are configured for the team; `callLLM` walks the chain in order, retrying each candidate once on a transient error (timeout, HTTP 429, HTTP 5xx, or a connection reset) before failing over to the next configured provider. If every configured provider is exhausted, reserved credits are rolled back and the original error is thrown to the route. This replaces the previous single-shot behavior, where a hung or erroring primary provider failed the request outright even when other provider keys were configured.
+Provider resolution is a priority chain (Gemini > OpenAI > Anthropic) built from whichever keys are configured for the team. Before each call, the chain is reordered — not filtered — so a provider with an open circuit (3 consecutive failures within the last 60s) is tried last rather than first; this is in-process, per-instance smart routing, not a distributed rate limiter. `callLLM` then walks the chain, retrying each candidate once on a transient error (timeout, HTTP 429, HTTP 5xx, or a connection reset) before failing over to the next configured provider. If every configured provider is exhausted, reserved credits are rolled back, a `ManualReview` record is created (visible in the dashboard's Sentinel Events / Governance Gate panel) so a human can follow up, and the original error is thrown to the route. This replaces the previous single-shot behavior, where a hung or erroring primary provider failed the request outright even when other provider keys were configured.
 
 ## Surface Prompt Limits
 
