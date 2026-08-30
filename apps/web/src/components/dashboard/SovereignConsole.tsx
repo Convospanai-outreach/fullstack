@@ -97,11 +97,11 @@ export function SovereignConsole() {
         <div className="space-y-8">
             <div className="flex items-center justify-between mb-2">
                 <div>
-                    <h2 className="text-4xl font-black tracking-tight text-white mb-2 font-outfit">Sovereign Console</h2>
-                    <p className="text-slate-500 font-medium">Real-time local intelligence and privacy orchestration</p>
+                    <h2 className="text-4xl font-black tracking-tight text-foreground mb-2 font-outfit">Sovereign Console</h2>
+                    <p className="text-muted-foreground font-medium">Real-time local intelligence and privacy orchestration</p>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === "ONLINE" ? "bg-emerald-500/10 border-emerald-500/10 text-emerald-400" : "bg-red-500/10 border-red-500/10 text-red-400"} shadow-lg backdrop-blur-md`}>
+                    <div className={`flex items-center gap-4 px-6 py-3 rounded-2xl border ${piStatus === "ONLINE" ? "bg-emerald-100 border-emerald-200 text-emerald-700" : "bg-red-100 border-red-200 text-red-700"}`}>
                         <Cpu className={`w-5 h-5 ${piStatus === "ONLINE" ? "animate-pulse" : ""}`} />
                         <span className="font-mono font-black text-xs tracking-widest">NODE_PHI3: {piStatus}</span>
                     </div>
@@ -109,93 +109,93 @@ export function SovereignConsole() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-emerald-400 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-emerald-500/10">
+                        <CardTitle className="flex items-center gap-3 text-emerald-700 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-emerald-100">
                                 <ShieldCheck className="w-5 h-5" />
                             </div>
                             Sovereign Firewall
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">PII masking and fail-closed logic</CardDescription>
+                        <CardDescription className="text-muted-foreground font-medium pt-1">PII masking and fail-closed logic</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-4">
-                            <div className="flex justify-between items-center py-3 border-b border-white/5">
-                                <span className="text-sm font-bold text-slate-400">Status</span>
-                                <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 px-3">Active</Badge>
+                            <div className="flex justify-between items-center py-3 border-b border-border">
+                                <span className="text-sm font-bold text-muted-foreground">Status</span>
+                                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 px-3">Active</Badge>
                             </div>
-                            <div className="flex justify-between items-center py-3 border-b border-white/5">
-                                <span className="text-sm font-bold text-slate-400">Strictness</span>
-                                <span className="text-xs font-black bg-white/5 px-3 py-1.5 rounded-lg text-slate-300">MAXIMUM</span>
+                            <div className="flex justify-between items-center py-3 border-b border-border">
+                                <span className="text-sm font-bold text-muted-foreground">Strictness</span>
+                                <span className="text-xs font-black bg-muted px-3 py-1.5 rounded-lg text-foreground">MAXIMUM</span>
                             </div>
                             <div className="flex justify-between items-center py-3">
-                                <span className="text-sm font-bold text-slate-400">Last PII Blocked</span>
-                                <span className="text-xs font-mono text-indigo-400">Recent</span>
+                                <span className="text-sm font-bold text-muted-foreground">Last PII Blocked</span>
+                                <span className="text-xs font-mono text-indigo-600">Recent</span>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-orange-400 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-orange-500/10">
+                        <CardTitle className="flex items-center gap-3 text-orange-700 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-orange-100">
                                 <Radio className="w-5 h-5" />
                             </div>
                             Sentinel Events
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">Recent security and policy events</CardDescription>
+                        <CardDescription className="text-muted-foreground font-medium pt-1">Recent security and policy events</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-3">
                             {audits.length === 0 && (
                                 <div className="text-center py-6">
-                                    <p className="text-xs text-slate-500 italic font-medium">No sentinel events recorded.</p>
+                                    <p className="text-xs text-muted-foreground italic font-medium">No sentinel events recorded.</p>
                                 </div>
                             )}
                             {audits.map((event) => (
-                                <div key={event.id} className="group relative p-3 rounded-xl bg-white/[0.03] border border-white/5 hover:bg-white/[0.06] transition-all">
+                                <div key={event.id} className="group relative p-3 rounded-xl bg-muted border border-border hover:bg-accent transition-all">
                                     <div className="flex justify-between items-start mb-1">
-                                        <span className="text-[10px] font-black text-orange-500 uppercase tracking-tighter">
+                                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-tighter">
                                             {event.status}
                                         </span>
-                                        <Badge variant="outline" className="text-[8px] h-4 border-white/10 text-slate-500 uppercase">{event.score}</Badge>
+                                        <Badge variant="outline" className="text-[8px] h-4 border-border text-muted-foreground uppercase">{event.score}</Badge>
                                     </div>
-                                    <h4 className="text-xs font-bold text-white truncate mb-1">{event.text}</h4>
+                                    <h4 className="text-xs font-bold text-foreground truncate mb-1">{event.text}</h4>
                                 </div>
                             ))}
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="glass-premium border-white/5 rounded-[2rem] overflow-hidden shadow-2xl">
+                <Card className="border-border rounded-[2rem] overflow-hidden shadow-sm">
                     <CardHeader className="pb-4 pt-8 px-8">
-                        <CardTitle className="flex items-center gap-3 text-purple-400 font-bold font-outfit text-lg">
-                            <div className="p-2 rounded-xl bg-purple-500/10">
+                        <CardTitle className="flex items-center gap-3 text-purple-700 font-bold font-outfit text-lg">
+                            <div className="p-2 rounded-xl bg-purple-100">
                                 <Activity className="w-5 h-5" />
                             </div>
                             Signal Feed
                         </CardTitle>
-                        <CardDescription className="text-slate-500 font-medium pt-1">Live friction signals (external)</CardDescription>
+                        <CardDescription className="text-muted-foreground font-medium pt-1">Live friction signals (external)</CardDescription>
                     </CardHeader>
                     <CardContent className="px-8 pb-8">
                         <div className="space-y-4">
                             {signals.length === 0 && (
                                 <div className="text-center py-6">
-                                    <p className="text-xs text-slate-500 italic font-medium">No signals yet.</p>
+                                    <p className="text-xs text-muted-foreground italic font-medium">No signals yet.</p>
                                 </div>
                             )}
                             {signals.map((signal) => (
-                                <div key={signal.id} className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-white/10 transition-all">
+                                <div key={signal.id} className="p-4 rounded-2xl bg-muted border border-border hover:border-primary/30 transition-all">
                                     <div className="flex justify-between mb-2">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{signal.source}</span>
-                                        <span className="text-[10px] font-bold text-indigo-400/60">{signal.time}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{signal.source}</span>
+                                        <span className="text-[10px] font-bold text-indigo-600/70">{signal.time}</span>
                                     </div>
-                                    <p className="text-xs font-bold text-slate-200 mb-3 line-clamp-2 leading-relaxed">"{signal.context}"</p>
+                                    <p className="text-xs font-bold text-foreground mb-3 line-clamp-2 leading-relaxed">"{signal.context}"</p>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-500">Friction</span>
-                                        <div className="h-1.5 w-24 bg-white/5 rounded-full overflow-hidden">
+                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground">Friction</span>
+                                        <div className="h-1.5 w-24 bg-border rounded-full overflow-hidden">
                                             <FrictionBar percent={signal.friction} />
                                         </div>
                                     </div>
@@ -245,21 +245,21 @@ export function SovereignConsole() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-sm uppercase tracking-widest text-gray-500">Revenue vs Spend (last 6 months)</CardTitle>
+                    <CardTitle className="text-sm uppercase tracking-widest text-muted-foreground">Revenue vs Spend (last 6 months)</CardTitle>
                 </CardHeader>
                 <CardContent className="h-[200px] w-full">
                     {mounted && (
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <LineChart data={roiHistory}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                                <XAxis dataKey="time" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} unit="$" />
+                                <CartesianGrid strokeDasharray="3 3" stroke="#E7E5E4" vertical={false} />
+                                <XAxis dataKey="time" stroke="#78716C" fontSize={12} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#78716C" fontSize={12} tickLine={false} axisLine={false} unit="$" />
                                 <Tooltip
-                                    contentStyle={{ backgroundColor: "#111", border: "1px solid #333" }}
+                                    contentStyle={{ backgroundColor: "#FFFFFF", border: "1px solid #E7E5E4" }}
                                     itemStyle={{ fontSize: "12px" }}
                                 />
-                                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={false} name="Revenue" />
-                                <Line type="monotone" dataKey="spend" stroke="#ef4444" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Spend" />
+                                <Line type="monotone" dataKey="revenue" stroke="#059669" strokeWidth={2} dot={false} name="Revenue" />
+                                <Line type="monotone" dataKey="spend" stroke="#DC2626" strokeWidth={2} dot={false} strokeDasharray="5 5" name="Spend" />
                             </LineChart>
                         </ResponsiveContainer>
                     )}
