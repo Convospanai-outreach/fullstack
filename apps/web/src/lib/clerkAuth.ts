@@ -137,11 +137,18 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                     data: { userId: user.id, status: "active" }
                 });
             } else {
-                const teamRole = pendingInvitation.role === UserRole.ORG_ADMIN
-                    ? "admin"
-                    : pendingInvitation.role === UserRole.VIEWER
-                        ? "viewer"
-                        : "member";
+                // inviteRequestId is only ever set on a founder invite created by the
+                // admin/invites "approve-request" action (a brand-new team made just for
+                // this requester) - never on an ordinary teammate invite into an existing
+                // team, so it's a safe signal to grant "owner" here instead of falling
+                // through to the normal role mapping below.
+                const teamRole = pendingInvitation.inviteRequestId
+                    ? "owner"
+                    : pendingInvitation.role === UserRole.ORG_ADMIN
+                        ? "admin"
+                        : pendingInvitation.role === UserRole.VIEWER
+                            ? "viewer"
+                            : "member";
                 await tx.teamMember.create({
                     data: { teamId: pendingInvitation.teamId, userId: user.id, email, role: teamRole, status: "active" }
                 });
