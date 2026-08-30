@@ -215,31 +215,32 @@ export async function PATCH(req: NextRequest) {
             return NextResponse.json({ error: `Invite request is already ${inviteRequest.status}.` }, { status: 400 });
         }
 
-        const allowedTeamIds = getAllowedTeamIds(actor);
-        let teamId = actor.memberships.find((member) => member.status === "active")?.teamId;
-        if (!teamId && !allowedTeamIds) {
-            teamId = (await prisma.team.findFirst({ select: { id: true }, orderBy: { createdAt: "asc" } }))?.id;
-        }
-
-        if (!teamId) {
-            return NextResponse.json({ error: "A team is required before approving invite requests." }, { status: 400 });
-        }
-
-        if (allowedTeamIds && !allowedTeamIds.includes(teamId)) {
-            return NextResponse.json({ error: "Cannot approve invite requests outside your team." }, { status: 403 });
-        }
-
         const token = createInviteToken();
         const inviteLink = getInviteLink(token);
         const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
         const now = new Date();
 
+        // This app is multi-tenant: approving a public "request access" signup founds
+        // that requester their own new company workspace - it must NOT drop them into
+        // the approving admin's existing team as a plain member. (That reuse-existing-team
+        // behavior previously here was the actual bug: every approved requester silently
+        // became a "member" of whichever team happened to approve them, and the codebase's
+        // real "new team" path in clerkAuth.ts's syncClerkUserToApp was unreachable because
+        // this route always created a matching UserInvitation, which that function checks
+        // first.) See clerkAuth.ts's pendingInvitation branch for the accept-side half of
+        // this: it grants "owner" specifically when inviteRequestId is set, since that only
+        // happens for a founder invite created here, never for an ordinary teammate invite.
+        const companyName = (inviteRequest.company || "My Team").trim();
+        const teamName = companyName.toLowerCase().endsWith("workspace") ? companyName : `${companyName} Workspace`;
+
         const invitation = await prisma.$transaction(async (tx: any) => {
+            const team = await tx.team.create({ data: { name: teamName } });
+
             const createdInvite = await tx.userInvitation.create({
                 data: {
                     email: inviteRequest.email,
                     role: UserRole.SALES_USER,
-                    teamId,
+                    teamId: team.id,
                     invitedById: actor.id,
                     tokenHash: hashInviteToken(token),
                     expiresAt,
@@ -258,20 +259,12 @@ export async function PATCH(req: NextRequest) {
                 }
             });
 
-            const existingMember = await tx.teamMember.findFirst({
-                where: { teamId, email: inviteRequest.email }
+            // Placeholder membership for the founding member, pending acceptance - the
+            // real role grant on accept happens in clerkAuth.ts, this just reserves the
+            // row (same pattern the regular teammate-invite POST above already uses).
+            await tx.teamMember.create({
+                data: { teamId: team.id, email: inviteRequest.email, role: "owner", status: "invited" }
             });
-
-            if (existingMember) {
-                await tx.teamMember.update({
-                    where: { id: existingMember.id },
-                    data: { role: "member", status: "invited" }
-                });
-            } else {
-                await tx.teamMember.create({
-                    data: { teamId, email: inviteRequest.email, role: "member", status: "invited" }
-                });
-            }
 
             return createdInvite;
         });
@@ -287,7 +280,7 @@ export async function PATCH(req: NextRequest) {
             console.error("[Invitations] Failed to email approved invite request:", error);
         }
 
-        await AuditService.log(teamId, actor.id, "invite_request_approved", "InviteRequest", inviteRequest.id, {
+        await AuditService.log(invitation.team.id, actor.id, "invite_request_approved", "InviteRequest", inviteRequest.id, {
             email: inviteRequest.email,
             invitationId: invitation.id,
             emailed,
