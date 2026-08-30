@@ -33,7 +33,8 @@ sequenceDiagram
     participant Guard as aiInputGuardrails
     participant AI as aiService.callLLM
     participant Credits as credits.ts
-    participant Provider as LLM Provider
+    participant P1 as Primary Provider
+    participant P2 as Fallback Provider(s)
     participant Usage as LLMUsageLog
     participant Ledger as CreditTransaction
 
@@ -44,14 +45,27 @@ sequenceDiagram
     Guard-->>AI: prompt accepted or error
     AI->>Credits: reserveCredits(estimated)
     Credits-->>AI: allow or insufficient
-    AI->>Provider: generation request
-    Provider-->>AI: text + token usage
-    AI->>Usage: write tokensIn/tokensOut/cost
-    AI->>Credits: settleCredits(actual) or refund difference
+    AI->>P1: generation request (30s timeout)
+    alt success
+        P1-->>AI: text + token usage
+    else timeout / 429 / 5xx (retried once)
+        P1-->>AI: transient error
+        AI->>P1: retry with backoff
+        alt retry succeeds
+            P1-->>AI: text + token usage
+        else retry also fails
+            AI->>P2: fail over to next configured provider
+            P2-->>AI: text + token usage (or exhausted -> error)
+        end
+    end
+    AI->>Usage: write tokensIn/tokensOut/cost/provider used
+    AI->>Credits: settleCredits(actual) or refund on total failure
     Credits->>Ledger: usage transaction
     AI-->>Route: bounded output
     Route-->>Client: bounded draft, review, or tracking response
 ```
+
+Provider resolution is a priority chain (Gemini > OpenAI > Anthropic) built from whichever keys are configured for the team; `callLLM` walks the chain in order, retrying each candidate once on a transient error (timeout, HTTP 429, HTTP 5xx, or a connection reset) before failing over to the next configured provider. If every configured provider is exhausted, reserved credits are rolled back and the original error is thrown to the route. This replaces the previous single-shot behavior, where a hung or erroring primary provider failed the request outright even when other provider keys were configured.
 
 ## Surface Prompt Limits
 
