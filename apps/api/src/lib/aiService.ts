@@ -249,6 +249,143 @@ async function settleCreditsForGeneration(
     });
 }
 
+const LLM_TIMEOUT_MS = 30000;
+const MAX_RETRIES_PER_PROVIDER = 1;
+const RETRY_BACKOFF_MS = 400;
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientLLMError(error: any): boolean {
+    if (error?.message === "LLM_TIMEOUT") return true;
+    const status = error?.status ?? error?.response?.status;
+    if (status === 429 || (typeof status === "number" && status >= 500)) return true;
+    return ["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED"].includes(error?.code);
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error("LLM_TIMEOUT")), ms))
+    ]);
+}
+
+// Smart routing: a provider that has failed repeatedly is deprioritized (not eliminated)
+// for a cooldown window, so retries don't keep burning timeouts on a known-down provider.
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_COOLDOWN_MS = 60000;
+const providerCircuits = new Map<LLMProvider, { failures: number; openUntil: number }>();
+
+function isCircuitOpen(provider: LLMProvider): boolean {
+    const circuit = providerCircuits.get(provider);
+    return !!circuit && circuit.openUntil > Date.now();
+}
+
+function recordProviderFailure(provider: LLMProvider): void {
+    const circuit = providerCircuits.get(provider) || { failures: 0, openUntil: 0 };
+    circuit.failures += 1;
+    if (circuit.failures >= CIRCUIT_FAILURE_THRESHOLD) {
+        circuit.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS;
+        circuit.failures = 0;
+    }
+    providerCircuits.set(provider, circuit);
+}
+
+function recordProviderSuccess(provider: LLMProvider): void {
+    providerCircuits.set(provider, { failures: 0, openUntil: 0 });
+}
+
+type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string };
+
+function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexity = TaskComplexity.ROUTINE): ProviderCandidate[] {
+    const tier = complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine";
+    const chain: ProviderCandidate[] = [];
+    if (providers.gemini?.apiKey) {
+        chain.push({ provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model: providers.gemini.model || DEFAULT_MODELS.gemini[tier] });
+    }
+    if (providers.openai?.apiKey) {
+        chain.push({ provider: LLMProvider.OPENAI, apiKey: providers.openai.apiKey, model: providers.openai.model || DEFAULT_MODELS.openai[tier] });
+    }
+    if (providers.anthropic?.apiKey) {
+        chain.push({ provider: LLMProvider.ANTHROPIC, apiKey: providers.anthropic.apiKey, model: providers.anthropic.model || DEFAULT_MODELS.anthropic[tier] });
+    }
+    if (chain.length === 0) {
+        throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
+    }
+    // Smart routing: try providers with a healthy circuit before ones currently in cooldown,
+    // without dropping a provider entirely (a fully-failed chain still gets one real attempt).
+    return [...chain].sort((a, b) => Number(isCircuitOpen(a.provider)) - Number(isCircuitOpen(b.provider)));
+}
+
+async function escalateGenerationFailureToHuman(params: {
+    teamId?: string;
+    taskType: string;
+    prompt: string;
+    error: any;
+}): Promise<void> {
+    try {
+        await prisma.manualReview.create({
+            data: {
+                source: "aiService",
+                severity: "CRITICAL",
+                reason: `AI generation failed after exhausting all configured providers (${params.taskType})`,
+                payload: {
+                    teamId: params.teamId,
+                    taskType: params.taskType,
+                    promptPreview: params.prompt.slice(0, 300),
+                    error: params.error?.message || String(params.error)
+                }
+            }
+        });
+    } catch (err) {
+        logger.error("[AI Usage] Failed to escalate generation failure for human review", {
+            error: (err as Error).message
+        });
+    }
+}
+
+async function callProvider(candidate: ProviderCandidate, prompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
+    if (candidate.provider === LLMProvider.GEMINI) {
+        const genAI = new GoogleGenerativeAI(candidate.apiKey);
+        const model = genAI.getGenerativeModel({ model: candidate.model });
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const usage = (response as any).usageMetadata || {};
+        return {
+            text: response.text(),
+            tokensIn: usage.promptTokenCount || 0,
+            tokensOut: usage.candidatesTokenCount || 0
+        };
+    }
+
+    if (candidate.provider === LLMProvider.OPENAI) {
+        const client = new OpenAI({ apiKey: candidate.apiKey });
+        const response = await client.chat.completions.create({
+            model: candidate.model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.4
+        });
+        return {
+            text: response.choices?.[0]?.message?.content || "",
+            tokensIn: response.usage?.prompt_tokens || 0,
+            tokensOut: response.usage?.completion_tokens || 0
+        };
+    }
+
+    const client = new Anthropic({ apiKey: candidate.apiKey });
+    const message = await client.messages.create({
+        model: candidate.model,
+        max_tokens: 800,
+        messages: [{ role: "user", content: prompt }]
+    });
+    return {
+        text: message.content?.[0]?.type === "text" ? message.content[0].text : "",
+        tokensIn: (message.usage as any)?.input_tokens || 0,
+        tokensOut: (message.usage as any)?.output_tokens || 0
+    };
+}
+
 async function callLLM(
     prompt: string,
     options: {
@@ -261,168 +398,114 @@ async function callLLM(
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
     const providers = await loadTeamProviders(options.teamId);
-    const resolved = resolveProvider(providers, options.complexity);
+    const chain = buildProviderChain(providers, options.complexity);
+    const primary = chain[0];
     const start = Date.now();
     const billedTeamId = isChargeableTeamId(options.teamId) ? options.teamId : undefined;
     const estimatedCredits = estimateCreditsForPrompt(prompt, options.complexity);
     const billingDescription = options.creditDescription || "AI generation usage";
     const reservedCredits = await reserveCreditsForGeneration(billedTeamId, estimatedCredits, billingDescription, {
-        provider: resolved.provider,
-        model: resolved.model,
+        provider: primary.provider,
+        model: primary.model,
         taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
         estimatedCredits,
     });
     let settledCredits = false;
+    let lastError: any = new Error("No LLM provider configured.");
+    let lastCandidate: ProviderCandidate = primary;
 
-    try {
-        if (resolved.provider === LLMProvider.GEMINI) {
-            const genAI = new GoogleGenerativeAI(resolved.apiKey);
-            const model = genAI.getGenerativeModel({ model: resolved.model });
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const text = response.text();
-            const usage = (response as any).usageMetadata || {};
-            const tokensIn = usage.promptTokenCount || 0;
-            const tokensOut = usage.candidatesTokenCount || 0;
-            await logUsage({
-                teamId: options.teamId,
-                actorId,
-                provider: resolved.provider,
-                model: resolved.model,
-                taskType: options.complexity || TaskComplexity.ROUTINE,
-                tokensIn,
-                tokensOut,
-                latencyMs: Date.now() - start,
-                success: true
-            });
-            await settleCreditsForGeneration(
-                billedTeamId,
-                reservedCredits,
-                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
-                billingDescription,
-                {
-                    model: resolved.model,
-                    provider: resolved.provider,
-                    taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
-                    tokensIn,
-                    tokensOut
-                }
-            );
-            settledCredits = true;
-            return { text, model: resolved.model };
-        }
-
-        if (resolved.provider === LLMProvider.OPENAI) {
-            const client = new OpenAI({ apiKey: resolved.apiKey });
-            const response = await client.chat.completions.create({
-                model: resolved.model,
-                messages: [{ role: "user", content: prompt }],
-                temperature: 0.4
-            });
-            const text = response.choices?.[0]?.message?.content || "";
-            const tokensIn = response.usage?.prompt_tokens || 0;
-            const tokensOut = response.usage?.completion_tokens || 0;
-            await logUsage({
-                teamId: options.teamId,
-                actorId,
-                provider: resolved.provider,
-                model: resolved.model,
-                taskType: options.complexity || TaskComplexity.ROUTINE,
-                tokensIn,
-                tokensOut,
-                latencyMs: Date.now() - start,
-                success: true
-            });
-            await settleCreditsForGeneration(
-                billedTeamId,
-                reservedCredits,
-                calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
-                billingDescription,
-                {
-                    model: resolved.model,
-                    provider: resolved.provider,
-                    taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
-                    tokensIn,
-                    tokensOut
-                }
-            );
-            settledCredits = true;
-            return { text, model: resolved.model };
-        }
-
-        const client = new Anthropic({ apiKey: resolved.apiKey });
-        const message = await client.messages.create({
-            model: resolved.model,
-            max_tokens: 800,
-            messages: [{ role: "user", content: prompt }]
-        });
-        const text = message.content?.[0]?.type === "text" ? message.content[0].text : "";
-        const tokensIn = (message.usage as any)?.input_tokens || 0;
-        const tokensOut = (message.usage as any)?.output_tokens || 0;
-        await logUsage({
-            teamId: options.teamId,
-            actorId,
-            provider: resolved.provider,
-            model: resolved.model,
-            taskType: options.complexity || TaskComplexity.ROUTINE,
-            tokensIn,
-            tokensOut,
-            latencyMs: Date.now() - start,
-            success: true
-        });
-        await settleCreditsForGeneration(
-            billedTeamId,
-            reservedCredits,
-            calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
-            billingDescription,
-            {
-                model: resolved.model,
-                provider: resolved.provider,
-                taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
-                tokensIn,
-                tokensOut
-            }
-        );
-        settledCredits = true;
-        return { text, model: resolved.model };
-    } catch (error: any) {
-        if (billedTeamId && reservedCredits > 0 && !settledCredits) {
+    for (const candidate of chain) {
+        for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
+            lastCandidate = candidate;
             try {
-                await refundCredits(
+                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt), LLM_TIMEOUT_MS);
+                recordProviderSuccess(candidate.provider);
+                await logUsage({
+                    teamId: options.teamId,
+                    actorId,
+                    provider: candidate.provider,
+                    model: candidate.model,
+                    taskType: options.complexity || TaskComplexity.ROUTINE,
+                    tokensIn,
+                    tokensOut,
+                    latencyMs: Date.now() - start,
+                    success: true
+                });
+                await settleCreditsForGeneration(
                     billedTeamId,
                     reservedCredits,
-                    `${billingDescription} (failure rollback)`,
+                    calculateCreditsFromUsage(tokensIn, tokensOut) || estimatedCredits,
+                    billingDescription,
                     {
-                        provider: resolved.provider,
-                        model: resolved.model,
+                        model: candidate.model,
+                        provider: candidate.provider,
                         taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
-                        billingStage: "rollback",
-                        reservedCredits,
+                        tokensIn,
+                        tokensOut
                     }
                 );
-            } catch (refundError: any) {
-                logger.error("[AI Usage] Failed to rollback reserved credits", {
-                    error: refundError?.message || String(refundError),
-                    teamId: billedTeamId,
-                    reservedCredits,
+                settledCredits = true;
+                return { text, model: candidate.model };
+            } catch (error: any) {
+                lastError = error;
+                recordProviderFailure(candidate.provider);
+                logger.warn("[AI Usage] Provider attempt failed", {
+                    provider: candidate.provider,
+                    model: candidate.model,
+                    attempt,
+                    error: error?.message || String(error)
                 });
+                if (attempt < MAX_RETRIES_PER_PROVIDER && isTransientLLMError(error)) {
+                    await sleep(RETRY_BACKOFF_MS * (attempt + 1));
+                    continue;
+                }
+                break;
             }
         }
-
-        await logUsage({
-            teamId: options.teamId,
-            actorId,
-            provider: resolved.provider,
-            model: resolved.model,
-            taskType: options.complexity || TaskComplexity.ROUTINE,
-            tokensIn: 0,
-            tokensOut: 0,
-            latencyMs: Date.now() - start,
-            success: false,
-            error: error.message
-        });
-        throw error;
     }
+
+    if (billedTeamId && reservedCredits > 0 && !settledCredits) {
+        try {
+            await refundCredits(
+                billedTeamId,
+                reservedCredits,
+                `${billingDescription} (failure rollback)`,
+                {
+                    provider: lastCandidate.provider,
+                    model: lastCandidate.model,
+                    taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+                    billingStage: "rollback",
+                    reservedCredits,
+                }
+            );
+        } catch (refundError: any) {
+            logger.error("[AI Usage] Failed to rollback reserved credits", {
+                error: refundError?.message || String(refundError),
+                teamId: billedTeamId,
+                reservedCredits,
+            });
+        }
+    }
+
+    await logUsage({
+        teamId: options.teamId,
+        actorId,
+        provider: lastCandidate.provider,
+        model: lastCandidate.model,
+        taskType: options.complexity || TaskComplexity.ROUTINE,
+        tokensIn: 0,
+        tokensOut: 0,
+        latencyMs: Date.now() - start,
+        success: false,
+        error: lastError?.message
+    });
+    await escalateGenerationFailureToHuman({
+        teamId: options.teamId,
+        taskType: options.taskTypeLabel || options.complexity || TaskComplexity.ROUTINE,
+        prompt,
+        error: lastError
+    });
+    throw lastError;
 }
 
 export class AIService {
