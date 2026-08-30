@@ -192,7 +192,14 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                     create: {
                         userId: user.id,
                         email,
-                        role: "admin",
+                        // This branch creates a brand-new team for its founding member -
+                        // that member must be "owner" (permissions.ts), not "admin", or
+                        // the team permanently has no owner: MANAGE_BILLING is owner-only,
+                        // getSubscriptionStatus() looks up role:"owner" to find who to bill,
+                        // and PATCH /team/members/[id] requires the actor to already be
+                        // OWNER before granting ADMIN/OWNER to anyone - so an "admin"
+                        // founder could never even self-promote to fix this after the fact.
+                        role: "owner",
                         status: "active"
                     }
                 }
