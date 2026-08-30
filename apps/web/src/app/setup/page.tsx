@@ -211,7 +211,22 @@ export default function SetupWizardPage() {
     if (requestedStep >= 1 && requestedStep <= STEPS.length) setActiveStep(requestedStep);
     if (params.get("googleMailbox") === "connected") setActiveStep(3);
 
-    Promise.all([loadStatus(), loadMailboxes()]).finally(() => setLoading(false));
+    // /setup sits outside the (dashboard) route group, so it doesn't get the
+    // clerk-sync bootstrap DashboardLayout runs on mount. Right after signup,
+    // Clerk redirects here immediately while the user/team row is still only
+    // guaranteed by an async webhook - without this call, /setup/status can
+    // 401 on ctx.teamId before that webhook lands, showing a permanent
+    // "Setup is unavailable" error for a brand-new user.
+    fetch("/api/auth/clerk-sync", { cache: "no-store" })
+      .then((res) => {
+        if (res.status === 403) {
+          window.location.href = "/login?invite=required";
+          return;
+        }
+        return Promise.all([loadStatus(), loadMailboxes()]);
+      })
+      .catch(() => Promise.all([loadStatus(), loadMailboxes()]))
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSaveStep(stepId: number) {

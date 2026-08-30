@@ -9,7 +9,12 @@ export async function POST(req: NextRequest) {
         if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.ADMIN)) {
+        // MEMBER, not ADMIN: /setup/status (read) only requires MEMBER, and any invited
+        // teammate who isn't explicitly ORG_ADMIN lands on team role "member" (see
+        // clerkAuth.ts's syncClerkUserToApp) - requiring ADMIN here silently 403'd their
+        // Save button on steps 2/5/6/9 while still letting them reach every other step
+        // via the sidebar, so the gate blocked saving without actually blocking access.
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.MEMBER)) {
             return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
