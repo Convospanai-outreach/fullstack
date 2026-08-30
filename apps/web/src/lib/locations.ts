@@ -1,0 +1,161 @@
+export interface LocationData {
+  slug: string;
+  name: string;
+  state: string;
+  stateCode: string;
+  placename: string;
+  position: string;
+  icbm: string;
+  latitude: string;
+  longitude: string;
+  corridors: string[];
+  industryFocus: string[];
+  summary: string;
+}
+
+export const CITIES_MATRIX: LocationData[] = [
+  {
+    slug: 'gurugram',
+    name: 'Gurugram',
+    state: 'Haryana',
+    stateCode: 'IN-HR',
+    placename: 'Gurugram, Haryana, India',
+    position: '28.4595;77.0266',
+    icbm: '28.4595, 77.0266',
+    latitude: '28.4595',
+    longitude: '77.0266',
+    corridors: ['Cyber City', 'Udyog Vihar', 'Golf Course Road', 'Sohna Road', 'Manesar'],
+    industryFocus: ['Enterprise SaaS', 'Consulting & BFSI', 'Managed IT & GCCs', 'Commercial Real Estate'],
+    summary: 'Fueling B2B outreach and qualified sales pipelines across Cyber City, Golf Course Road, and NCR enterprise corridors.',
+  },
+  {
+    slug: 'delhi',
+    name: 'New Delhi',
+    state: 'Delhi',
+    stateCode: 'IN-DL',
+    placename: 'New Delhi, Delhi, India',
+    position: '28.6139;77.2090',
+    icbm: '28.6139, 77.2090',
+    latitude: '28.6139',
+    longitude: '77.2090',
+    corridors: ['Connaught Place', 'Okhla Industrial Area', 'Nehru Place', 'Aerocity', 'Bhikaji Cama Place'],
+    industryFocus: ['Government & Public Sector Advisory', 'Corporate Law & Professional Services', 'Logistics & Supply Chain', 'Hospitality & Commercial Services'],
+    summary: 'Governed outbound sales workflows for enterprise service providers, corporate advisory, and trade operations in the National Capital.',
+  },
+  {
+    slug: 'noida',
+    name: 'Noida',
+    state: 'Uttar Pradesh',
+    stateCode: 'IN-UP',
+    placename: 'Noida, Uttar Pradesh, India',
+    position: '28.5355;77.3910',
+    icbm: '28.5355, 77.3910',
+    latitude: '28.5355',
+    longitude: '77.3910',
+    corridors: ['Sector 62 IT Hub', 'Sector 132 Tech Corridor', 'Noida Expressway', 'Sector 18', 'Greater Noida Knowledge Park'],
+    industryFocus: ['IT & Software Services', 'EdTech & Digital Media', 'Electronics Manufacturing', 'Commercial Facilities & Security'],
+    summary: 'High-velocity intent signal capture and approved meeting workflows across Noida Expressway and Sector 62 tech hubs.',
+  },
+  {
+    slug: 'mumbai',
+    name: 'Mumbai',
+    state: 'Maharashtra',
+    stateCode: 'IN-MH',
+    placename: 'Mumbai, Maharashtra, India',
+    position: '19.0760;72.8777',
+    icbm: '19.0760, 72.8777',
+    latitude: '19.0760',
+    longitude: '72.8777',
+    corridors: ['Bandra Kurla Complex (BKC)', 'Lower Parel', 'Andheri East', 'Powai', 'Navi Mumbai Mindspace'],
+    industryFocus: ['Banking, Financial Services & Insurance (BFSI)', 'FinTech & Capital Markets', 'Media & Entertainment', 'Enterprise Staffing & Facility Services'],
+    summary: 'High-precision meeting pipeline generation for financial institutions, conglomerates, and service firms across BKC and Lower Parel.',
+  },
+  {
+    slug: 'bengaluru',
+    name: 'Bengaluru',
+    state: 'Karnataka',
+    stateCode: 'IN-KA',
+    placename: 'Bengaluru, Karnataka, India',
+    position: '12.9716;77.5946',
+    icbm: '12.9716, 77.5946',
+    latitude: '12.9716',
+    longitude: '77.5946',
+    corridors: ['Outer Ring Road (ORR)', 'Whitefield', 'Electronic City', 'Koramangala', 'Indiranagar'],
+    industryFocus: ['DeepTech & AI Startups', 'Global Capability Centers (GCCs)', 'IT Consulting & Cloud Infrastructure', 'Recruitment & Technical Staffing'],
+    summary: 'AI-driven outbound automation and deliverability guardrails tailored for Bangalore’s vibrant tech ecosystem and GCCs.',
+  },
+  {
+    slug: 'hyderabad',
+    name: 'Hyderabad',
+    state: 'Telangana',
+    stateCode: 'IN-TG',
+    placename: 'Hyderabad, Telangana, India',
+    position: '17.3850;78.4867',
+    icbm: '17.3850, 78.4867',
+    latitude: '17.3850',
+    longitude: '78.4867',
+    corridors: ['HITEC City', 'Gachibowli', 'Madhapur', 'Financial District', 'Genome Valley'],
+    industryFocus: ['Pharma & Life Sciences', 'Enterprise Cloud & SaaS', 'IT Managed Services', 'Commercial Facility Management'],
+    summary: 'Enterprise pipeline acceleration for HITEC City software leaders and Genome Valley life science pioneers.',
+  },
+  {
+    slug: 'pune',
+    name: 'Pune',
+    state: 'Maharashtra',
+    stateCode: 'IN-MH',
+    placename: 'Pune, Maharashtra, India',
+    position: '18.5204;73.8567',
+    icbm: '18.5204, 73.8567',
+    latitude: '18.5204',
+    longitude: '73.8567',
+    corridors: ['Hinjawadi Rajiv Gandhi Infotech Park', 'Magarpatta City', 'Kharadi EON Free Zone', 'Viman Nagar', 'Bhosari Industrial Area'],
+    industryFocus: ['Automotive & Industrial Manufacturing', 'Product Engineering & IT Services', 'Healthcare & BFSI Back-Office', 'Corporate Training & Staffing'],
+    summary: 'Accelerating B2B contract acquisition for Pune’s engineering powerhouses, IT campuses, and automotive OEMs.',
+  },
+  {
+    slug: 'chennai',
+    name: 'Chennai',
+    state: 'Tamil Nadu',
+    stateCode: 'IN-TN',
+    placename: 'Chennai, Tamil Nadu, India',
+    position: '13.0827;80.2707',
+    icbm: '13.0827, 80.2707',
+    latitude: '13.0827',
+    longitude: '80.2707',
+    corridors: ['OMR IT Expressway', 'Guindy Industrial Estate', 'Sriperumbudur Auto Cluster', 'Ambattur', 'T. Nagar Commercial Hub'],
+    industryFocus: ['Automotive & EV Manufacturing', 'SaaS & Enterprise Applications', 'Hardware & Electronic Assembly', 'Shipping & Port Logistics'],
+    summary: 'Governed outbound sales and meeting workflows across the OMR IT Expressway and Chennai manufacturing corridors.',
+  },
+  {
+    slug: 'kolkata',
+    name: 'Kolkata',
+    state: 'West Bengal',
+    stateCode: 'IN-WB',
+    placename: 'Kolkata, West Bengal, India',
+    position: '22.5726;88.3639',
+    icbm: '22.5726, 88.3639',
+    latitude: '22.5726',
+    longitude: '88.3639',
+    corridors: ['Salt Lake Sector V', 'New Town Rajarhat', 'Park Street Corporate Hub', 'Bantala IT SEZ', 'Howrah Industrial Belt'],
+    industryFocus: ['IT & BPO Exports', 'Heavy Engineering & Mining Services', 'Tea & FMCG Trading', 'Commercial Security & Staffing'],
+    summary: 'Connecting Eastern India’s tech hubs and industrial service firms with enterprise buyers through governed outreach.',
+  },
+  {
+    slug: 'ahmedabad',
+    name: 'Ahmedabad',
+    state: 'Gujarat',
+    stateCode: 'IN-GJ',
+    placename: 'Ahmedabad, Gujarat, India',
+    position: '23.0225;72.5714',
+    icbm: '23.0225, 72.5714',
+    latitude: '23.0225',
+    longitude: '72.5714',
+    corridors: ['SG Highway', 'GIFT City (Gandhinagar)', 'Prahlad Nagar', 'Sanand Industrial Cluster', 'Changodar Industrial Area'],
+    industryFocus: ['FinTech & International Finance (GIFT City)', 'Pharmaceuticals & Chemicals', 'Textiles & Industrial Goods', 'Solar & Renewable Energy Equipment'],
+    summary: 'Powering international buyer outreach and pipeline creation across GIFT City, SG Highway, and Gujarat industrial corridors.',
+  },
+];
+
+export function getLocationBySlug(slug: string): LocationData | undefined {
+  return CITIES_MATRIX.find(c => c.slug.toLowerCase() === slug.toLowerCase());
+}

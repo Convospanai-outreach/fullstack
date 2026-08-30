@@ -28,28 +28,55 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata = {
-  metadataBase: new URL(process.env["NEXTAUTH_URL"] || "http://localhost:3000"),
-  title: "CraftMyFunnel AI — Governed Funnel Workflows for B2B Service Teams",
+  metadataBase: new URL(process.env["NEXT_PUBLIC_SITE_URL"] || process.env["NEXTAUTH_URL"] || "https://craftmyfunnel.live"),
+  title: "B2B Funnel Workflows & AI Outreach | CraftMyFunnel",
   description: "CraftMyFunnel AI helps B2B service teams manage buyer signals, approved outreach, follow-ups, and qualified meeting tracking.",
   keywords: "governed funnel workflows, qualified meetings, buyer intent, approved outreach, B2B service companies, vertical playbooks, AI outreach",
+  authors: [{ name: "CraftMyFunnel", url: "https://craftmyfunnel.live" }],
+  creator: "CraftMyFunnel",
+  publisher: "CraftMyFunnel",
+  alternates: {
+    canonical: "https://craftmyfunnel.live",
+  },
   icons: {
-    icon: "/craftmyfunnel-logo.png",
-    apple: "/craftmyfunnel-logo.png",
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "CraftMyFunnel AI — Governed Funnel Workflows",
-    description: "Manage buyer signals, approved outreach, follow-ups, and qualified meetings in one governed workflow.",
     type: "website",
+    url: "https://craftmyfunnel.live",
+    title: "B2B Funnel Workflows & AI Outreach | CraftMyFunnel",
+    description: "Manage buyer signals, approved outreach, follow-ups, and qualified meetings in one governed workflow.",
+    siteName: "CraftMyFunnel AI",
+    locale: "en_US",
+    images: [
+      {
+        url: "/images/og-branded.png",
+        width: 1200,
+        height: 630,
+        alt: "CraftMyFunnel AI — Governed B2B Funnel Workflows & AI Outreach",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "CraftMyFunnel AI — Governed Funnel Workflows",
+    title: "B2B Funnel Workflows & AI Outreach | CraftMyFunnel",
     description: "Manage buyer signals, approved outreach, follow-ups, and qualified meetings in one governed workflow.",
+    images: ["/images/og-branded.png"],
   },
   verification: {
     google: process.env["NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION"] || undefined,
   },
 };
+
 
 import { Toaster } from "sonner";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";

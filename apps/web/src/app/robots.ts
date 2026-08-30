@@ -54,6 +54,7 @@ export default function robots(): MetadataRoute.Robots {
                     "/data-deletion",
                     "/help",
                     "/support",
+                    "/locations",
                     "/llms.txt",
                     "/llms-full.txt",
                 ],
