@@ -25,7 +25,7 @@ export function AnalyticsTabs() {
                             variant={isActive ? "default" : "outline"}
                             className={isActive
                                 ? "bg-violet-600 hover:bg-violet-700 text-white shadow-lg shadow-violet-500/25"
-                                : "border-white/10 hover:bg-white/5"}
+                                : "border-border hover:bg-accent"}
                         >
                             <Icon className={`w-4 h-4 mr-2 ${isActive ? "" : "text-violet-400"}`} />
                             {tab.label}
