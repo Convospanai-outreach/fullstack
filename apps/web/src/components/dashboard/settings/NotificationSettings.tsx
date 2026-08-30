@@ -35,43 +35,43 @@ export default function NotificationSettings() {
     };
 
     if (error) return <div className="text-red-400">Failed to load settings</div>;
-    if (!prefs) return <div className="text-gray-400">Loading...</div>;
+    if (!prefs) return <div className="text-muted-foreground">Loading...</div>;
 
     return (
-        <div className="space-y-6 text-gray-300">
-            <h5 className="text-white font-medium border-b border-white/10 pb-2">Email Notifications</h5>
+        <div className="space-y-6 text-muted-foreground">
+            <h5 className="text-foreground font-medium border-b border-border pb-2">Email Notifications</h5>
 
             <div className="flex items-center justify-between">
                 <div>
-                    <div className="text-white">Global Email</div>
-                    <div className="text-xs text-gray-500">Enable/Disable all email notifications</div>
+                    <div className="text-foreground">Global Email</div>
+                    <div className="text-xs text-muted-foreground">Enable/Disable all email notifications</div>
                 </div>
                 <Toggle checked={prefs.emailGlobal} onChange={(v) => handleToggle("emailGlobal", v)} />
             </div>
 
-            <div className={`space-y-4 pl-4 border-l border-white/10 ml-2 transition-opacity ${!prefs.emailGlobal ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`space-y-4 pl-4 border-l border-border ml-2 transition-opacity ${!prefs.emailGlobal ? 'opacity-50 pointer-events-none' : ''}`}>
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-white">Campaign Updates</div>
-                        <div className="text-xs text-gray-500">When a campaign starts or finishes</div>
+                        <div className="text-foreground">Campaign Updates</div>
+                        <div className="text-xs text-muted-foreground">When a campaign starts or finishes</div>
                     </div>
                     <Toggle checked={prefs.emailCampaign} onChange={(v) => handleToggle("emailCampaign", v)} />
                 </div>
 
                 <div className="flex items-center justify-between">
                     <div>
-                        <div className="text-white">New Leads</div>
-                        <div className="text-xs text-gray-500">When a lead replies or is enriched</div>
+                        <div className="text-foreground">New Leads</div>
+                        <div className="text-xs text-muted-foreground">When a lead replies or is enriched</div>
                     </div>
                     <Toggle checked={prefs.emailLeads} onChange={(v) => handleToggle("emailLeads", v)} />
                 </div>
             </div>
 
-            <h5 className="text-white font-medium border-b border-white/10 pb-2 mt-8">In-App Notifications</h5>
+            <h5 className="text-foreground font-medium border-b border-border pb-2 mt-8">In-App Notifications</h5>
             <div className="flex items-center justify-between">
                 <div>
-                    <div className="text-white">Global In-App</div>
-                    <div className="text-xs text-gray-500">Show notifications in the dashboard bell</div>
+                    <div className="text-foreground">Global In-App</div>
+                    <div className="text-xs text-muted-foreground">Show notifications in the dashboard bell</div>
                 </div>
                 <Toggle checked={prefs.inAppGlobal} onChange={(v) => handleToggle("inAppGlobal", v)} />
             </div>
@@ -83,7 +83,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
     return (
         <button
             onClick={() => onChange(!checked)}
-            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-purple-600" : "bg-white/10"
+            className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${checked ? "bg-purple-600" : "bg-muted"
                 }`}
         >
             <div

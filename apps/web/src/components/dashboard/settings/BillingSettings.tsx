@@ -77,20 +77,20 @@ export default function BillingSettings() {
         }
     };
 
-    if (!team) return <div className="text-gray-400">Loading...</div>;
+    if (!team) return <div className="text-muted-foreground">Loading...</div>;
 
     const sub = team.subscription;
     const isPro = sub && sub.status === "active";
 
     return (
         <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">Plan & Billing</h3>
+            <h3 className="text-xl font-bold text-foreground">Plan & Billing</h3>
 
-            <div className="glass p-6 rounded-xl border border-white/10 flex justify-between items-center">
+            <div className="glass p-6 rounded-xl border border-border flex justify-between items-center">
                 <div>
-                    <div className="text-sm text-gray-400 uppercase tracking-wider mb-1">Current Plan</div>
-                    <div className="text-3xl font-bold text-white mb-2">{isPro ? "Pro Plan" : "Free Plan"}</div>
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-muted-foreground uppercase tracking-wider mb-1">Current Plan</div>
+                    <div className="text-3xl font-bold text-foreground mb-2">{isPro ? "Pro Plan" : "Free Plan"}</div>
+                    <div className="text-sm text-muted-foreground">
                         {isPro
                             ? `Renews on ${new Date(sub.currentPeriodEnd).toLocaleDateString()}`
                             : "Upgrade to unlock more agents and credits."}
@@ -100,7 +100,7 @@ export default function BillingSettings() {
                 {isPro ? (
                     <button
                         onClick={handlePortal}
-                        className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition"
+                        className="px-6 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition"
                     >
                         Manage Subscription
                     </button>
@@ -114,47 +114,47 @@ export default function BillingSettings() {
                 )}
             </div>
 
-            <div className="glass p-6 rounded-xl border border-white/10">
-                <h4 className="text-lg font-semibold text-white mb-4">Usage & Credits</h4>
+            <div className="glass p-6 rounded-xl border border-border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">Usage & Credits</h4>
                 <div className="flex gap-4">
-                    <div className="p-4 bg-white/5 rounded-lg flex-1">
+                    <div className="p-4 bg-muted rounded-lg flex-1">
                         <div className="text-2xl font-mono text-purple-400">{team.credits || 0}</div>
-                        <div className="text-xs text-gray-400">Available Credits</div>
+                        <div className="text-xs text-muted-foreground">Available Credits</div>
                     </div>
-                    <div className="p-4 bg-white/5 rounded-lg flex-1">
+                    <div className="p-4 bg-muted rounded-lg flex-1">
                         <div className="text-2xl font-mono text-blue-400">{team.members?.length || 1}</div>
-                        <div className="text-xs text-gray-400">Team Members</div>
+                        <div className="text-xs text-muted-foreground">Team Members</div>
                     </div>
                 </div>
             </div>
 
             {/* Top Up Section */}
-            <div className="glass p-6 rounded-xl border border-white/10">
-                <h4 className="text-lg font-semibold text-white mb-4">Add Credits</h4>
+            <div className="glass p-6 rounded-xl border border-border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">Add Credits</h4>
                                 <div className="grid grid-cols-2 gap-4">
                     <button
                         onClick={() => handleTopUp("starter", 500)}
-                        className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-left transition"
+                        className="p-4 bg-muted hover:bg-accent border border-border rounded-lg text-left transition"
                     >
                         <div className="text-purple-400 font-bold text-xl">500 Credits</div>
-                        <div className="text-white">INR 500</div>
+                        <div className="text-foreground">INR 500</div>
                     </button>
                     <button
                         onClick={() => handleTopUp("pro", 2000)}
-                        className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-left transition"
+                        className="p-4 bg-muted hover:bg-accent border border-border rounded-lg text-left transition"
                     >
                         <div className="text-purple-400 font-bold text-xl">2,000 Credits</div>
-                        <div className="text-white">INR 1800 (Save 10%)</div>
+                        <div className="text-foreground">INR 1800 (Save 10%)</div>
                     </button>
                 </div>
             </div>
 
             {/* Transaction History */}
-            <div className="glass p-6 rounded-xl border border-white/10">
-                <h4 className="text-lg font-semibold text-white mb-4">Transaction History</h4>
+            <div className="glass p-6 rounded-xl border border-border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">Transaction History</h4>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-gray-400">
-                        <thead className="text-xs uppercase bg-white/5 text-gray-300">
+                    <table className="w-full text-sm text-left text-muted-foreground">
+                        <thead className="text-xs uppercase bg-muted text-muted-foreground">
                             <tr>
                                 <th className="px-4 py-3 rounded-l-lg">Date</th>
                                 <th className="px-4 py-3">Description</th>
@@ -163,17 +163,17 @@ export default function BillingSettings() {
                         </thead>
                         <tbody>
                             {team.transactions?.map((tx: any) => (
-                                <tr key={tx.id} className="border-b border-white/5 hover:bg-white/5">
+                                <tr key={tx.id} className="border-b border-border hover:bg-muted">
                                     <td className="px-4 py-3">{new Date(tx.createdAt).toLocaleDateString()}</td>
                                     <td className="px-4 py-3">{tx.description}</td>
-                                    <td className={`px-4 py-3 text-right font-mono ${tx.amount > 0 ? "text-green-400" : "text-gray-400"}`}>
+                                    <td className={`px-4 py-3 text-right font-mono ${tx.amount > 0 ? "text-green-400" : "text-muted-foreground"}`}>
                                         {tx.amount > 0 ? "+" : ""}{tx.amount}
                                     </td>
                                 </tr>
                             ))}
                             {!team.transactions?.length && (
                                 <tr>
-                                    <td colSpan={3} className="px-4 py-8 text-center italic text-gray-500">No transactions yet.</td>
+                                    <td colSpan={3} className="px-4 py-8 text-center italic text-muted-foreground">No transactions yet.</td>
                                 </tr>
                             )}
                         </tbody>
