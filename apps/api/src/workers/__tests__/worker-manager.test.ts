@@ -50,6 +50,10 @@ vi.mock("@/modules/overseer/breakerService", () => ({
     evaluateBreakers: vi.fn().mockResolvedValue({ teamsEvaluated: 0, tripped: 0 }),
 }));
 
+vi.mock("@/modules/overseer/overseerSignalService", () => ({
+    detectProviderDegradation: vi.fn().mockResolvedValue({ providersChecked: 0, signalsOpened: 0, signalsResolved: 0 }),
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();

@@ -159,6 +159,13 @@ export class WorkerManager {
             if (result.nudgesCreated > 0) {
                 console.log(`[Worker] Overseer flagged ${result.nudgesCreated} stalled enrollment(s) out of ${result.candidates} candidate(s).`);
             }
+
+            const { detectProviderDegradation } = await import("@/modules/overseer/overseerSignalService");
+            const shadowResult = await detectProviderDegradation();
+            if (shadowResult.signalsOpened > 0) {
+                console.log(`[Worker] OverseerSignal opened ${shadowResult.signalsOpened} provider-degradation signal(s).`);
+            }
+
             this.lastOverseerTick = now;
         }
     }
