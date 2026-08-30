@@ -47,6 +47,11 @@ const CRMTool: Tool<z.infer<typeof CRMUpdateSchema>> = {
 
         if (!context?.teamId) return { error: "No team context" };
 
+        // leadId is an LLM-chosen tool-call argument, not otherwise guaranteed to belong
+        // to this team - verify before attaching a note or syncing to this team's CRM.
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId: context.teamId } });
+        if (!lead) return { error: "Lead not found" };
+
         // 1. Add Note as Internal Message
         await prisma.message.create({
             data: {
