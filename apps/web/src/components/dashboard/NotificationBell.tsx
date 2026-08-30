@@ -25,12 +25,12 @@ export default function NotificationBell() {
     return (
         <div className="relative">
             <button
-                className="p-3 rounded-full bg-white/5 hover:bg-white/10 transition relative text-xl"
+                className="p-3 rounded-full bg-muted hover:bg-accent transition relative text-xl"
                 onClick={() => setOpen(!open)}
             >
                 🔔
                 {unreadCount > 0 && (
-                    <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white border border-black">
+                    <span className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full text-xs flex items-center justify-center text-white border border-background">
                         {unreadCount}
                     </span>
                 )}
@@ -42,23 +42,23 @@ export default function NotificationBell() {
                         className="fixed inset-0 z-10"
                         onClick={() => setOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 w-80 bg-[#161b22] border border-white/10 rounded-xl shadow-2xl z-20 overflow-hidden">
-                        <div className="p-3 border-b border-white/10 font-semibold text-sm">Notifications</div>
+                    <div className="absolute right-0 mt-2 w-80 bg-popover border border-border rounded-xl shadow-2xl z-20 overflow-hidden">
+                        <div className="p-3 border-b border-border font-semibold text-sm">Notifications</div>
                         <div className="max-h-80 overflow-y-auto">
                             {!notifications || notifications.length === 0 ? (
-                                <div className="p-4 text-center text-sm text-gray-400">No notifications</div>
+                                <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
                             ) : (
                                 notifications.map((n: any) => (
                                     <div
                                         key={n.id}
-                                        className={`p-3 border-b border-white/5 hover:bg-white/5 transition flex gap-3 ${n.read ? "opacity-50" : "bg-purple-500/5"}`}
+                                        className={`p-3 border-b border-border hover:bg-muted transition flex gap-3 ${n.read ? "opacity-50" : "bg-purple-500/5"}`}
                                     >
                                         <div className="text-xl">
                                             {n.type === "alert" ? "⚠️" : n.type === "success" ? "✅" : "ℹ️"}
                                         </div>
                                         <div className="flex-1">
-                                            <div className="text-sm text-white">{n.message}</div>
-                                            <div className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleTimeString()}</div>
+                                            <div className="text-sm text-foreground">{n.message}</div>
+                                            <div className="text-xs text-muted-foreground mt-1">{new Date(n.createdAt).toLocaleTimeString()}</div>
                                         </div>
                                         {!n.read && (
                                             <button
