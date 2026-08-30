@@ -20,12 +20,14 @@ export class WorkerManager {
     private lastWarmupTick: number = 0;
     private lastWarmupSeedTick: number = 0;
     private lastOutboxTick: number = 0;
+    private lastApprovalSweepTick: number = 0;
     private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
     private warmupInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WARMUP_INTERVAL_MS'] || '3600000'); // 1 hour
     private warmupSeedInterval: number = parseInt(process.env['WARMUP_SEED_INTERVAL_MS'] || '3600000'); // 1 hour
     private outboxInterval: number = parseInt(process.env['OUTBOX_RELAY_INTERVAL_MS'] || '2000'); // 2 seconds
+    private approvalSweepInterval: number = parseInt(process.env['APPROVAL_SWEEP_INTERVAL_MS'] || '900000'); // 15 minutes
 
     async start() {
         if (this.isRunning) return;
@@ -132,6 +134,15 @@ export class WorkerManager {
                 console.log(`[Worker] Relayed ${relayedCount} outbox event(s).`);
             }
             this.lastOutboxTick = now;
+        }
+
+        if (now - this.lastApprovalSweepTick >= this.approvalSweepInterval) {
+            const { ApprovalService } = await import("@/modules/governance/ApprovalService");
+            const deniedCount = await ApprovalService.autoDenyExpiredApprovals();
+            if (deniedCount > 0) {
+                console.log(`[Worker] Auto-denied ${deniedCount} expired QUEUED-tier approval request(s).`);
+            }
+            this.lastApprovalSweepTick = now;
         }
     }
 

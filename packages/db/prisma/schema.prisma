@@ -1761,6 +1761,7 @@ model ApprovalRequest {
   entityType  String // "Campaign"
   entityId    String
   status      String @default("PENDING") // PENDING, APPROVED, REJECTED
+  tier        String @default("QUEUED") // AUTO, QUEUED, HARD_BLOCK - HITL risk tier, see approvalPolicy.ts
 
   reason  String? // Why is this requested?
   payload Json? // Data needed to execute the action
@@ -1768,6 +1769,7 @@ model ApprovalRequest {
   reviewerId String?
   reviewNote String?
   reviewedAt DateTime?
+  autoDenyAt DateTime? // QUEUED tier only - swept and auto-rejected once past this time; null for AUTO/HARD_BLOCK
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1778,6 +1780,7 @@ model ApprovalRequest {
 
   @@index([teamId])
   @@index([status])
+  @@index([tier, autoDenyAt])
 }
 
 model Playbook {

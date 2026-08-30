@@ -153,6 +153,11 @@ export function ApprovalQueue({ teamId, userId }: ApprovalQueueProps) {
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
+                                        {req.tier === "HARD_BLOCK" ? (
+                                            <Badge variant="secondary" className="text-[10px] h-5 bg-red-100 text-red-700 border-red-200 px-2 font-black uppercase tracking-tighter">Hard Block</Badge>
+                                        ) : (
+                                            <Badge variant="secondary" className="text-[10px] h-5 bg-amber-100 text-amber-700 border-amber-200 px-2 font-black uppercase tracking-tighter">Queued · 24h</Badge>
+                                        )}
                                         <Badge variant="secondary" className="text-[10px] h-5 bg-red-100 text-red-700 border-red-200 px-2 font-black uppercase tracking-tighter">{req.risk}</Badge>
                                         <button
                                             onClick={() => startEditing(req)}

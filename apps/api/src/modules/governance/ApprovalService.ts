@@ -1,5 +1,6 @@
 
 import { prisma } from "@/lib/db";
+import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
 
 export enum ApprovalStatus {
     PENDING = "PENDING",
@@ -20,7 +21,7 @@ export class ApprovalService {
         actionType: string,
         payload: any,
         requesterId: string,
-        options: { reason?: string; requestId?: string } = {}
+        options: { reason?: string; requestId?: string; forceHardBlock?: boolean } = {}
     ): Promise<{ id: string; created: boolean }> {
         const existing = await prisma.approvalRequest.findFirst({
             where: {
@@ -36,6 +37,8 @@ export class ApprovalService {
             return { id: existing.id, created: false };
         }
 
+        const tier = resolveApprovalTier(actionType, { forceHardBlock: options.forceHardBlock });
+
         const request = await prisma.approvalRequest.create({
             data: {
                 id: options.requestId,
@@ -46,12 +49,40 @@ export class ApprovalService {
                 actionType,
                 payload: payload || {},
                 reason: options.reason,
-                status: ApprovalStatus.PENDING
+                status: ApprovalStatus.PENDING,
+                tier,
+                autoDenyAt: computeAutoDenyAt(tier)
             }
         });
 
-        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType}`);
+        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType} (tier=${tier})`);
+
+        if (tier === ApprovalTier.AUTO) {
+            await this.approve(request.id, "system-auto");
+        }
+
         return { id: request.id, created: true };
+    }
+
+    /**
+     * Rejects every PENDING, QUEUED-tier request whose autoDenyAt has passed.
+     * HARD_BLOCK requests are never touched here - they have no timeout by design.
+     */
+    static async autoDenyExpiredApprovals(): Promise<number> {
+        const expired = await prisma.approvalRequest.findMany({
+            where: {
+                status: ApprovalStatus.PENDING,
+                tier: ApprovalTier.QUEUED,
+                autoDenyAt: { lte: new Date() }
+            },
+            select: { id: true }
+        });
+
+        for (const { id } of expired) {
+            await this.reject(id, "system-timeout", "Auto-denied: no reviewer action within the approval window");
+        }
+
+        return expired.length;
     }
 
     /**

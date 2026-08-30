@@ -1,5 +1,6 @@
 
 import { prisma } from "@/lib/db";
+import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
 
 export enum ApprovalStatus {
     PENDING = "PENDING",
@@ -13,6 +14,8 @@ export class ApprovalService {
      * Creates an approval request for a specific task and action.
      */
     static async requestApproval(taskId: string, teamId: string, actionType: string, payload: any, requesterId: string = "system-agent"): Promise<string> {
+        const tier = resolveApprovalTier(actionType);
+
         const request = await prisma.approvalRequest.create({
             data: {
                 entityId: taskId,
@@ -21,12 +24,40 @@ export class ApprovalService {
                 teamId,
                 actionType,
                 payload: payload || {},
-                status: ApprovalStatus.PENDING
+                status: ApprovalStatus.PENDING,
+                tier,
+                autoDenyAt: computeAutoDenyAt(tier)
             }
         });
 
-        console.log(`[ApprovalService] Request ${request.id} created for Task ${taskId}: ${actionType}`);
+        console.log(`[ApprovalService] Request ${request.id} created for Task ${taskId}: ${actionType} (tier=${tier})`);
+
+        if (tier === ApprovalTier.AUTO) {
+            await this.approve(request.id, "system-auto");
+        }
+
         return request.id;
+    }
+
+    /**
+     * Rejects every PENDING, QUEUED-tier request whose autoDenyAt has passed.
+     * HARD_BLOCK requests are never touched here - they have no timeout by design.
+     */
+    static async autoDenyExpiredApprovals(): Promise<number> {
+        const expired = await prisma.approvalRequest.findMany({
+            where: {
+                status: ApprovalStatus.PENDING,
+                tier: ApprovalTier.QUEUED,
+                autoDenyAt: { lte: new Date() }
+            },
+            select: { id: true }
+        });
+
+        for (const { id } of expired) {
+            await this.reject(id, "system-timeout", "Auto-denied: no reviewer action within the approval window");
+        }
+
+        return expired.length;
     }
 
     /**
