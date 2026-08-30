@@ -42,6 +42,10 @@ vi.mock("@/modules/governance/ApprovalService", () => ({
     ApprovalService: { autoDenyExpiredApprovals: vi.fn().mockResolvedValue(0) },
 }));
 
+vi.mock("../handlers/overseerHandler", () => ({
+    processOverseerTick: vi.fn().mockResolvedValue({ candidates: 0, nudgesCreated: 0 }),
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();
