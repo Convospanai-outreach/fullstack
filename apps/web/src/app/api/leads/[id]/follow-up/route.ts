@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 export const dynamic = "force-dynamic";
 
@@ -26,25 +27,22 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json().catch(() => ({}));
     const note = typeof body?.note === "string" ? body.note.slice(0, 500) : undefined;
 
-    const approval = await prisma.approvalRequest.create({
-        data: {
-            teamId,
-            requesterId: context.userId,
-            actionType: "manual_followup",
-            entityType: "lead",
-            entityId: lead.id,
-            status: "PENDING",
-            reason: note || `Follow-up requested for ${lead.fullName || lead.email || "lead"}`,
-            payload: {
-                leadId: lead.id,
-                leadName: lead.fullName,
-                company: lead.company,
-                recipient: lead.email,
-                note,
-                source: "dashboard_kpi_drilldown",
-            },
+    const approval = await ApprovalService.requestEntityApproval(
+        "lead",
+        lead.id,
+        teamId,
+        "manual_followup",
+        {
+            leadId: lead.id,
+            leadName: lead.fullName,
+            company: lead.company,
+            recipient: lead.email,
+            note,
+            source: "dashboard_kpi_drilldown",
         },
-    });
+        context.userId,
+        { reason: note || `Follow-up requested for ${lead.fullName || lead.email || "lead"}` }
+    );
 
     await prisma.leadActivity.create({
         data: {
