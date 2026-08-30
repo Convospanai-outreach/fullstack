@@ -9,8 +9,8 @@ export default function AgentFeed({ activities }: any) {
                         {a.agent.charAt(0)}
                     </div>
                     <div className="flex-1 text-sm">
-                        <div className="text-gray-100"><strong>{a.agent}</strong> {a.action}</div>
-                        <div className="text-xs text-gray-400">{a.time}</div>
+                        <div className="text-foreground"><strong>{a.agent}</strong> {a.action}</div>
+                        <div className="text-xs text-muted-foreground">{a.time}</div>
                     </div>
                 </div>
             ))}
