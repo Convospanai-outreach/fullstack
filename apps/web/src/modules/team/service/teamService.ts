@@ -36,11 +36,9 @@ class TeamService {
     }
 
     async removeMember(teamId: string, memberId: string) {
-        // Prevent removing the last owner? 
-        // Logic: fetch member, check role. If owner, check if other owners exist.
-        // For now, allow simple removal for non-owners, strict for owners.
-
-        const member = await prisma.teamMember.findUnique({ where: { id: memberId } });
+        // Scoped to teamId - without this, an admin on one team could remove a member
+        // row belonging to a completely different team by id (cross-tenant IDOR).
+        const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
         if (!member) throw new Error("Member not found");
 
         if (member.role === TeamRole.OWNER) {
@@ -57,7 +55,20 @@ class TeamService {
         });
     }
 
-    async updateRole(_teamId: string, memberId: string, newRole: string) {
+    async updateRole(teamId: string, memberId: string, newRole: string) {
+        // Scoped to teamId - same cross-tenant IDOR concern as removeMember above.
+        const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
+        if (!member) throw new Error("Member not found");
+
+        if (member.role === TeamRole.OWNER && newRole !== TeamRole.OWNER) {
+            const ownerCount = await prisma.teamMember.count({
+                where: { teamId, role: TeamRole.OWNER }
+            });
+            if (ownerCount <= 1) {
+                throw new Error("Cannot demote the last owner of the team.");
+            }
+        }
+
         return await prisma.teamMember.update({
             where: { id: memberId },
             data: { role: newRole }
