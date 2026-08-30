@@ -31,13 +31,13 @@ export default function LandingAgentEditorPage() {
             .finally(() => setLoading(false));
     }, [campaignId, loadCampaign]);
 
-    if (loading) return <div className="p-8 text-slate-300">Loading editor...</div>;
-    if (!campaign || error) return <div className="p-8 text-rose-300">{error || "Campaign not found"}</div>;
+    if (loading) return <div className="p-8 text-muted-foreground">Loading editor...</div>;
+    if (!campaign || error) return <div className="p-8 text-destructive">{error || "Campaign not found"}</div>;
 
     const page = campaign.pages[0];
     if (!page) {
         return (
-            <div className="p-8 text-slate-200">
+            <div className="p-8 text-foreground">
                 <GlassCard className="p-6">
                     Landing page not initialized. Select a wireframe first.
                 </GlassCard>
@@ -48,12 +48,12 @@ export default function LandingAgentEditorPage() {
     return (
         <div className="p-6 lg:p-8 space-y-4">
             <GlassCard className="p-6 space-y-2">
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Step 3</p>
-                <h1 className="text-2xl font-bold text-white">Constrained GrapesJS Editor</h1>
-                <p className="text-sm text-slate-300">
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Step 3</p>
+                <h1 className="text-2xl font-bold text-foreground">Constrained GrapesJS Editor</h1>
+                <p className="text-sm text-muted-foreground">
                     Edit sections, save draft state, and publish to a public slug under `/p/[slug]`.
                 </p>
-                {status ? <p className="text-sm text-emerald-300">{status}</p> : null}
+                {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
             </GlassCard>
 
             <GrapesEditor
