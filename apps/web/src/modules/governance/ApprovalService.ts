@@ -40,6 +40,60 @@ export class ApprovalService {
     }
 
     /**
+     * Creates or reuses an approval request for any entity/action pair.
+     * This is idempotent for the same entity/action combination.
+     */
+    static async requestEntityApproval(
+        entityType: string,
+        entityId: string,
+        teamId: string,
+        actionType: string,
+        payload: any,
+        requesterId: string,
+        options: { reason?: string; requestId?: string; forceHardBlock?: boolean } = {}
+    ): Promise<{ id: string; created: boolean }> {
+        const existing = await prisma.approvalRequest.findFirst({
+            where: {
+                teamId,
+                entityType,
+                entityId,
+                actionType
+            },
+            orderBy: { createdAt: "desc" }
+        });
+
+        if (existing) {
+            return { id: existing.id, created: false };
+        }
+
+        const tier = resolveApprovalTier(actionType, options.forceHardBlock !== undefined ? { forceHardBlock: options.forceHardBlock } : {});
+
+        const request = await prisma.approvalRequest.create({
+            data: {
+                ...(options.requestId ? { id: options.requestId } : {}),
+                entityId,
+                entityType,
+                requesterId,
+                teamId,
+                actionType,
+                payload: payload || {},
+                ...(options.reason ? { reason: options.reason } : {}),
+                status: ApprovalStatus.PENDING,
+                tier,
+                autoDenyAt: computeAutoDenyAt(tier)
+            }
+        });
+
+        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType} (tier=${tier})`);
+
+        if (tier === ApprovalTier.AUTO) {
+            await this.approve(request.id, "system-auto");
+        }
+
+        return { id: request.id, created: true };
+    }
+
+    /**
      * Rejects every PENDING, QUEUED-tier request whose autoDenyAt has passed.
      * HARD_BLOCK requests are never touched here - they have no timeout by design.
      */

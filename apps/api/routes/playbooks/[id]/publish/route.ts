@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { enforcePolicy } from "@/lib/governance/guard";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
@@ -23,16 +24,14 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         });
     } catch (error: any) {
         if (error.message === "APPROVAL_REQUIRED") {
-            const request = await prisma.approvalRequest.create({
-                data: {
-                    teamId,
-                    actionType: "PLAYBOOK_PUBLISH",
-                    entityType: "Playbook",
-                    entityId: id,
-                    requesterId: userId,
-                    payload: { playbookId: id, targetVisibility: "PUBLIC" }
-                }
-            });
+            const request = await ApprovalService.requestEntityApproval(
+                "Playbook",
+                id,
+                teamId,
+                "PLAYBOOK_PUBLISH",
+                { playbookId: id, targetVisibility: "PUBLIC" },
+                userId
+            );
             return NextResponse.json({ status: "PENDING_APPROVAL", requestId: request.id });
         }
         return NextResponse.json({ error: error.message }, { status: 403 });

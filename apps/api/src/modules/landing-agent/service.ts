@@ -9,6 +9,7 @@ import type { LandingBrief, LandingPageSection, WireframeOption } from "./types"
 import { landingEventNameEnum } from "./schemas";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
@@ -477,19 +478,14 @@ export const landingAgentService = {
                 });
             } catch (error: any) {
                 if (error?.message === "APPROVAL_REQUIRED") {
-                    const request = await prisma.approvalRequest.create({
-                        data: {
-                            teamId: input.teamId,
-                            requesterId: input.userId,
-                            actionType: "LANDING_PAGE_PUBLISH",
-                            entityType: "LandingPage",
-                            entityId: page.id,
-                            payload: {
-                                landingCampaignId: campaign.id,
-                                landingPageId: page.id,
-                            },
-                        },
-                    });
+                    const request = await ApprovalService.requestEntityApproval(
+                        "LandingPage",
+                        page.id,
+                        input.teamId,
+                        "LANDING_PAGE_PUBLISH",
+                        { landingCampaignId: campaign.id, landingPageId: page.id },
+                        input.userId
+                    );
                     return {
                         status: "PENDING_APPROVAL" as const,
                         requestId: request.id,
