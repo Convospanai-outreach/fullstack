@@ -1,8 +1,10 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Building, ArrowRight, ShieldCheck, CheckCircle2, Users, Target, Phone, Mail } from 'lucide-react';
 import { CITIES_MATRIX, getLocationBySlug } from '@/lib/locations';
+
 
 interface LocationPageProps {
   params: Promise<{
@@ -212,6 +214,18 @@ export default async function LocationCityPage({ params }: LocationPageProps) {
             </div>
           </section>
 
+          {/* Regional Corridors Architecture Visual */}
+          <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+            <Image
+              src="/images/platform/regional-corridors.webp"
+              alt={`${location.name} Commercial Corridors and Governed B2B Outbound Map`}
+              width={820}
+              height={460}
+              priority
+              className="w-full h-auto rounded-2xl"
+            />
+          </div>
+
           {/* Key Business Corridors */}
           <section className="space-y-8">
             <div className="border-b border-slate-800 pb-4">
@@ -219,6 +233,7 @@ export default async function LocationCityPage({ params }: LocationPageProps) {
                 <Building className="w-5 h-5 text-blue-400" />
                 <span>Active Commercial &amp; Industrial Corridors in {location.name}</span>
               </h2>
+
               <p className="text-slate-400 text-sm mt-1">
                 Hyper-local signal coverage and account tracking across major commercial clusters.
               </p>

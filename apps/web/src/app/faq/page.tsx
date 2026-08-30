@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { getContent } from "@/lib/cms";
 import ReactMarkdown from "react-markdown";
 import { HelpCircle, ArrowRight } from "lucide-react";
@@ -7,7 +8,24 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "FAQ & Governed Pipeline Architecture | CraftMyFunnel",
     description: "Frequently asked questions for B2B operators running governed outbound workflows, buyer intent signals, and human-in-the-loop approval queues.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/faq",
+    },
+    openGraph: {
+        title: "CraftMyFunnel FAQ & Governed Pipeline Architecture",
+        description: "Answers on governed outreach, buyer signals, human review queues, and deliverability guardrails.",
+        url: "https://craftmyfunnel.live/faq",
+        images: [
+            {
+                url: "/images/platform/governed-workflow.webp",
+                width: 820,
+                height: 460,
+                alt: "Governed Outbound Architecture FAQ",
+            }
+        ],
+    },
 };
+
 
 export default function FAQPage() {
     let title = "Frequently Asked Questions";
@@ -69,8 +87,21 @@ export default function FAQPage() {
                     </p>
                 </div>
 
+                {/* Architecture Visual Preview */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/platform/governed-workflow.webp"
+                        alt="Governed B2B Outbound Sales Workflow and Deliverability Guardrails FAQ"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* FAQ Accordions / Cards */}
                 <div className="space-y-4">
+
                     {sections.length > 0 ? (
                         sections.map((section, idx) => (
                             <div

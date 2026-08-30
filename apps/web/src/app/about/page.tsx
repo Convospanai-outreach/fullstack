@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Shield, Users, HeartHandshake, Rocket, Globe, Zap, Target, Brain } from "lucide-react";
 import Link from "next/link";
 
@@ -12,8 +13,17 @@ export const metadata = {
         description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
         type: "website",
         url: "https://craftmyfunnel.live/about",
+        images: [
+            {
+                url: "/images/platform/governed-workflow.webp",
+                width: 820,
+                height: 460,
+                alt: "CraftMyFunnel Governed AI Outreach Architecture",
+            }
+        ],
     },
 };
+
 
 export default function AboutPage() {
     const siteUrl = "https://craftmyfunnel.live";
@@ -71,10 +81,23 @@ export default function AboutPage() {
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
                         CraftMyFunnel was born from a simple frustration: B2B service companies see buying signals every week, but too few turn into approved outreach, timely follow-ups, and qualified meetings.
                     </p>
+
+                    {/* Architecture Visual Preview */}
+                    <div className="pt-6 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                        <Image
+                            src="/images/platform/governed-workflow.webp"
+                            alt="CraftMyFunnel Governed AI Outreach and Human-in-the-Loop Architecture"
+                            width={820}
+                            height={460}
+                            priority
+                            className="w-full h-auto rounded-2xl"
+                        />
+                    </div>
                 </section>
 
                 {/* Mission */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+
                     <div className="space-y-6">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium">
                             <Target className="w-4 h-4" />

@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
@@ -458,7 +460,20 @@ export default function PricingPage() {
                     </div>
                 </div>
 
+                {/* Pilot & Guarantee Architecture Visual */}
+                <div className="mt-16 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/platform/pricing-guarantee.webp"
+                        alt="CraftMyFunnel 30-Day Governed Pilot and Credit Allotment Guarantee"
+                        width={820}
+                        height={460}
+                        loading="lazy"
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                         <div className="w-fit rounded-xl bg-cyan-500/10 p-3 text-cyan-300">
                             <Shield className="h-5 w-5" />
