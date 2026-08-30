@@ -67,7 +67,7 @@ export default function DashboardLayout({
                     {/* Subtle background gradients */}
                     <div className="fixed inset-0 z-0 pointer-events-none opacity-20">
                         <div className="absolute top-[10%] right-[10%] w-[400px] h-[400px] bg-brand-900/10 rounded-full blur-[100px]" />
-                        <div className="absolute bottom-[10%] left-[20%] w-[300px] h-[300px] bg-slate-800/10 rounded-full blur-[100px]" />
+                        <div className="absolute bottom-[10%] left-[20%] w-[300px] h-[300px] bg-foreground/10 rounded-full blur-[100px]" />
                     </div>
 
                     <div className="relative z-10">

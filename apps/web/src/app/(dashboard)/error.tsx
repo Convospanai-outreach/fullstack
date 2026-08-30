@@ -16,13 +16,13 @@ export default function DashboardError({
     }, [error]);
 
     return (
-        <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-black/20 backdrop-blur-sm rounded-xl border border-white/5">
+        <div className="h-full min-h-[400px] flex flex-col items-center justify-center p-8 text-center bg-muted backdrop-blur-sm rounded-xl border border-border">
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mb-6 border border-red-500/20">
                 <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
 
-            <h2 className="text-2xl font-bold text-white mb-2">Something went wrong</h2>
-            <p className="text-gray-400 mb-8 max-w-md">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h2>
+            <p className="text-muted-foreground mb-8 max-w-md">
                 An error occurred while loading this part of the dashboard. Your navigation is still active, and you can try refreshing just this section.
             </p>
 
@@ -37,7 +37,7 @@ export default function DashboardError({
             </div>
 
             {error.digest && (
-                <p className="mt-8 text-xs text-gray-600 font-mono">Error ID: {error.digest}</p>
+                <p className="mt-8 text-xs text-muted-foreground font-mono">Error ID: {error.digest}</p>
             )}
         </div>
     );
