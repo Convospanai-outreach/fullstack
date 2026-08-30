@@ -1,6 +1,9 @@
 import type { MetadataRoute } from "next";
 import fs from "fs";
-import path from "path";function getBaseUrl() {
+import path from "path";
+import { CITIES_MATRIX } from "@/lib/locations";
+
+function getBaseUrl() {
     return (process.env["NEXT_PUBLIC_SITE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000").replace(/\/$/, "");
 }
 
@@ -32,6 +35,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
         priority: 0.8,
     }));
 
+    const locationEntries: MetadataRoute.Sitemap = CITIES_MATRIX.map(city => ({
+        url: `${baseUrl}/locations/${city.slug}`,
+        lastModified,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+    }));
+
     return [
         {
             url: `${baseUrl}/blog`,
@@ -41,11 +51,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
         ...blogEntries,
         {
+            url: `${baseUrl}/locations`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        ...locationEntries,
+        {
             url: baseUrl,
             lastModified,
             changeFrequency: "daily",
             priority: 1.0,
         },
+
         {
             url: `${baseUrl}/pricing`,
             lastModified,

@@ -94,5 +94,7 @@ Yes. Workspaces feature strict multi-tenant isolation, role-based access control
 - Pricing & Plans: https://craftmyfunnel.live/pricing
 - Competitor Comparisons: https://craftmyfunnel.live/vs (Apollo: /vs/apollo, Instantly: /vs/instantly, Lemlist: /vs/lemlist)
 - Vertical Use Cases: https://craftmyfunnel.live/use-cases (/use-cases/facility-management, /use-cases/security-services, /use-cases/staffing, /use-cases/training, /use-cases/consulting, /use-cases/managed-services)
+- Regional Outbound Hubs: https://craftmyfunnel.live/locations (/locations/gurugram, /locations/delhi, /locations/noida, /locations/mumbai, /locations/bengaluru, /locations/hyderabad, /locations/pune, /locations/chennai, /locations/kolkata, /locations/ahmedabad)
 - Trust & Compliance: https://craftmyfunnel.live/security, https://craftmyfunnel.live/google-api-disclosure, https://craftmyfunnel.live/data-deletion, https://craftmyfunnel.live/terms, https://craftmyfunnel.live/privacy
 - Engineering & AI Blog: https://craftmyfunnel.live/blog (27 in-depth technical guides on AI sales agents, RAG architectures, deliverability, and AGO optimization)
+

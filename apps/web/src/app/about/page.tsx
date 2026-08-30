@@ -2,13 +2,59 @@ import { Shield, Users, HeartHandshake, Rocket, Globe, Zap, Target, Brain } from
 import Link from "next/link";
 
 export const metadata = {
-    title: "About CraftMyFunnel - AI-Managed Growth Operations",
-    description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval."
+    title: "About CraftMyFunnel | Governed B2B Outreach",
+    description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/about",
+    },
+    openGraph: {
+        title: "About CraftMyFunnel | Governed B2B Outreach",
+        description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
+        type: "website",
+        url: "https://craftmyfunnel.live/about",
+    },
 };
 
 export default function AboutPage() {
+    const siteUrl = "https://craftmyfunnel.live";
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "AboutPage",
+                "@id": `${siteUrl}/about#webpage`,
+                "url": `${siteUrl}/about`,
+                "name": "About CraftMyFunnel AI",
+                "description": "CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with governed AI workflows and human approval."
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": `${siteUrl}/about#breadcrumb`,
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": siteUrl
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "About",
+                        "item": `${siteUrl}/about`
+                    }
+                ]
+            }
+        ]
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+
             {/* Background */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />

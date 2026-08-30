@@ -35,6 +35,7 @@ const NAV_GROUPS = [
       { label: "Pilot programme", href: "/#pilot" },
       { label: "Pricing", href: "/pricing", badge: "Popular" },
       { label: "About", href: "/about" },
+      { label: "Regional Hubs", href: "/locations" },
     ],
   },
   {

@@ -69,6 +69,21 @@ CraftMyFunnel uses HMAC-SHA256 deterministic blind indexing for encrypted PII se
 - [Consulting & Advisory](https://craftmyfunnel.live/use-cases/consulting): Executive-level partner-approved outreach for strategic advisory firms.
 - [Managed IT Services](https://craftmyfunnel.live/use-cases/managed-services): Recurring IT retainer and MSP client acquisition workflows.
 
+## Regional Outbound Hubs & Local Geo-Targeting
+
+- [National Regional Hubs Directory](https://craftmyfunnel.live/locations): Overview of 10 commercial and tech corridors served by CraftMyFunnel.
+- [Gurugram (IN-HR)](https://craftmyfunnel.live/locations/gurugram): Cyber City, Golf Course Road, and Udyog Vihar enterprise corridor.
+- [New Delhi (IN-DL)](https://craftmyfunnel.live/locations/delhi): Connaught Place, Okhla Industrial Area, and Aerocity commercial centers.
+- [Noida (IN-UP)](https://craftmyfunnel.live/locations/noida): Sector 62 IT Hub and Sector 132 Expressway tech corridor.
+- [Mumbai (IN-MH)](https://craftmyfunnel.live/locations/mumbai): Bandra Kurla Complex (BKC), Lower Parel, and Andheri financial district.
+- [Bengaluru (IN-KA)](https://craftmyfunnel.live/locations/bengaluru): Outer Ring Road, Whitefield, Electronic City, and GCC corridors.
+- [Hyderabad (IN-TG)](https://craftmyfunnel.live/locations/hyderabad): HITEC City, Gachibowli, and Genome Valley life science hubs.
+- [Pune (IN-MH)](https://craftmyfunnel.live/locations/pune): Hinjawadi Rajiv Gandhi Infotech Park and Magarpatta engineering clusters.
+- [Chennai (IN-TN)](https://craftmyfunnel.live/locations/chennai): OMR IT Expressway and Sriperumbudur auto/manufacturing corridors.
+- [Kolkata (IN-WB)](https://craftmyfunnel.live/locations/kolkata): Salt Lake Sector V and New Town Rajarhat technology zone.
+- [Ahmedabad (IN-GJ)](https://craftmyfunnel.live/locations/ahmedabad): GIFT City (Gandhinagar) and SG Highway financial corridors.
+
+
 ## AI Engineering & Technical Blog Library
 
 - [AI Search Optimization (AGO)](https://craftmyfunnel.live/blog/ai-search-optimization-ago-how-to-ensure-ai-agents-recommend-your-saas): How to ensure AI agents and LLMs recommend your B2B SaaS platform.
