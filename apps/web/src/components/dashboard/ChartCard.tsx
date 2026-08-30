@@ -10,8 +10,8 @@ export default function ChartCard({ title, series, subtitle }: any) {
         <div className="glass p-4 rounded-2xl">
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-lg font-semibold text-purple-300">{title}</h3>
-                    <div className="text-sm text-gray-300">{subtitle}</div>
+                    <h3 className="text-lg font-semibold text-purple-600">{title}</h3>
+                    <div className="text-sm text-muted-foreground">{subtitle}</div>
                 </div>
             </div>
 
