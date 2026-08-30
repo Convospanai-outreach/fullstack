@@ -148,6 +148,12 @@ export class WorkerManager {
         }
 
         if (now - this.lastOverseerTick >= this.overseerInterval) {
+            const { evaluateBreakers } = await import("@/modules/overseer/breakerService");
+            const breakerResult = await evaluateBreakers();
+            if (breakerResult.tripped > 0) {
+                console.log(`[Worker] Circuit breaker tripped OPEN for ${breakerResult.tripped} team(s) out of ${breakerResult.teamsEvaluated} evaluated.`);
+            }
+
             const { processOverseerTick } = await import("./handlers/overseerHandler");
             const result = await processOverseerTick();
             if (result.nudgesCreated > 0) {

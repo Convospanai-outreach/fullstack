@@ -39,6 +39,22 @@ interface OverseerNudge {
     createdAt: string;
 }
 
+function BreakerPill({ state }: { state: string | null }) {
+    if (!state || state === "CLOSED") {
+        return (
+            <span className="px-3 py-1 rounded-full bg-success/10 text-success text-xs border border-success/20 font-medium uppercase tracking-wide">
+                Queue Healthy
+            </span>
+        );
+    }
+    const label = state === "HALF_OPEN" ? "Recovering" : "Backed Up";
+    return (
+        <span className="px-3 py-1 rounded-full bg-destructive/10 text-destructive text-xs border border-destructive/20 font-medium uppercase tracking-wide" title="Queued-approval timeouts extended to 72h and new stall nudges paused until this recovers.">
+            {label}
+        </span>
+    );
+}
+
 function TierBadge({ tier }: { tier: string }) {
     if (tier === "HARD_BLOCK") {
         return (
@@ -57,13 +73,27 @@ function TierBadge({ tier }: { tier: string }) {
 export default function ApprovalsPage() {
     const [requests, setRequests] = useState<ApprovalRequest[]>([]);
     const [nudges, setNudges] = useState<OverseerNudge[]>([]);
+    const [breakerState, setBreakerState] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
 
     useEffect(() => {
         fetchRequests();
         fetchNudges();
+        fetchBreakerState();
     }, []);
+
+    const fetchBreakerState = async () => {
+        try {
+            const res = await fetch("/api/overseer/breaker");
+            const data = await res.json();
+            if (data.state) {
+                setBreakerState(data.state);
+            }
+        } catch (err) {
+            console.error("Failed to load breaker state", err);
+        }
+    };
 
     const fetchRequests = async () => {
         try {
@@ -138,10 +168,13 @@ export default function ApprovalsPage() {
 
     return (
         <div className="space-y-8 max-w-5xl">
-            <SectionHeader
-                title="Approval Inbox"
-                subtitle="Review and authorize sensitive actions requested by your team."
-            />
+            <div className="flex items-start justify-between gap-4">
+                <SectionHeader
+                    title="Approval Inbox"
+                    subtitle="Review and authorize sensitive actions requested by your team."
+                />
+                <BreakerPill state={breakerState} />
+            </div>
 
             {requests.length === 0 ? (
                 <GlassCard className="p-12 text-center flex flex-col items-center justify-center opacity-70">

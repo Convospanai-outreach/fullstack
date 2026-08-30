@@ -24,6 +24,14 @@ vi.mock("./approvalPolicy", async () => {
     return { ...actual, resolveApprovalTier: vi.fn(actual.resolveApprovalTier) };
 });
 
+const { mockGetBreakerState } = vi.hoisted(() => ({
+    mockGetBreakerState: vi.fn().mockResolvedValue("CLOSED"),
+}));
+
+vi.mock("@/modules/overseer/breakerService", () => ({
+    getBreakerState: mockGetBreakerState,
+}));
+
 import { ApprovalService } from "./ApprovalService";
 import { ApprovalTier, resolveApprovalTier } from "./approvalPolicy";
 
@@ -32,6 +40,7 @@ const mockedResolveApprovalTier = vi.mocked(resolveApprovalTier);
 describe("ApprovalService.requestEntityApproval", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetBreakerState.mockResolvedValue("CLOSED");
     });
 
     it("creates a QUEUED request with a 24h autoDenyAt for a normal action type", async () => {
@@ -80,6 +89,22 @@ describe("ApprovalService.requestEntityApproval", () => {
         expect(createArgs.tier).toBe(ApprovalTier.HARD_BLOCK);
         expect(createArgs.autoDenyAt).toBeNull();
         expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+
+    it("extends the QUEUED timeout to 72h when the team's circuit breaker is OPEN", async () => {
+        mockGetBreakerState.mockResolvedValue("OPEN");
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
+        mockPrisma.approvalRequest.create.mockResolvedValue({ id: "req-4" });
+
+        const before = Date.now();
+        await ApprovalService.requestEntityApproval(
+            "Campaign", "camp-1", "team-1", "CAMPAIGN_START", {}, "user-1"
+        );
+
+        const createArgs = mockPrisma.approvalRequest.create.mock.calls[0][0].data;
+        const hoursOut = (createArgs.autoDenyAt.getTime() - before) / (60 * 60 * 1000);
+        expect(hoursOut).toBeGreaterThan(70);
+        expect(hoursOut).toBeLessThan(73);
     });
 });
 

@@ -9,6 +9,9 @@ const { mockPrisma, mockJudge } = vi.hoisted(() => ({
         sequenceEnrollment: {
             findMany: vi.fn(),
         },
+        breakerState: {
+            findMany: vi.fn(),
+        },
     },
     mockJudge: vi.fn(),
 }));
@@ -27,6 +30,7 @@ describe("runOverseerTick", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockPrisma.overseerNudge.findMany.mockResolvedValue([]);
+        mockPrisma.breakerState.findMany.mockResolvedValue([]);
     });
 
     it("does nothing and never calls the judge when no enrollments are stalled", async () => {
@@ -47,6 +51,16 @@ describe("runOverseerTick", () => {
 
         const whereClause = mockPrisma.sequenceEnrollment.findMany.mock.calls[0][0].where;
         expect(whereClause.id.notIn).toEqual(["enr-already-nudged"]);
+    });
+
+    it("excludes teams whose circuit breaker is OPEN or HALF_OPEN (throttle)", async () => {
+        mockPrisma.breakerState.findMany.mockResolvedValue([{ teamId: "team-backed-up" }]);
+        mockPrisma.sequenceEnrollment.findMany.mockResolvedValue([]);
+
+        await runOverseerTick();
+
+        const whereClause = mockPrisma.sequenceEnrollment.findMany.mock.calls[0][0].where;
+        expect(whereClause.teamId.notIn).toEqual(["team-backed-up"]);
     });
 
     it("writes one OverseerNudge per judged candidate, scoped to the enrollment's team/lead/sequence", async () => {

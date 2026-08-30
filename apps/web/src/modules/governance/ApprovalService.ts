@@ -1,6 +1,7 @@
 
 import { prisma } from "@/lib/db";
 import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
+import { getBreakerState } from "./breakerState";
 
 export enum ApprovalStatus {
     PENDING = "PENDING",
@@ -15,6 +16,7 @@ export class ApprovalService {
      */
     static async requestApproval(taskId: string, teamId: string, actionType: string, payload: any, requesterId: string = "system-agent"): Promise<string> {
         const tier = resolveApprovalTier(actionType);
+        const breakerState = await getBreakerState(teamId);
 
         const request = await prisma.approvalRequest.create({
             data: {
@@ -26,7 +28,7 @@ export class ApprovalService {
                 payload: payload || {},
                 status: ApprovalStatus.PENDING,
                 tier,
-                autoDenyAt: computeAutoDenyAt(tier)
+                autoDenyAt: computeAutoDenyAt(tier, new Date(), breakerState !== "CLOSED")
             }
         });
 
@@ -67,6 +69,7 @@ export class ApprovalService {
         }
 
         const tier = resolveApprovalTier(actionType, options.forceHardBlock !== undefined ? { forceHardBlock: options.forceHardBlock } : {});
+        const breakerState = await getBreakerState(teamId);
 
         const request = await prisma.approvalRequest.create({
             data: {
@@ -80,7 +83,7 @@ export class ApprovalService {
                 ...(options.reason ? { reason: options.reason } : {}),
                 status: ApprovalStatus.PENDING,
                 tier,
-                autoDenyAt: computeAutoDenyAt(tier)
+                autoDenyAt: computeAutoDenyAt(tier, new Date(), breakerState !== "CLOSED")
             }
         });
 

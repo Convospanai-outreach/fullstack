@@ -25,11 +25,21 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
     });
     const alreadyNudgedIds = alreadyNudged.map((n) => n.enrollmentId as string);
 
+    // Circuit breaker throttle (plan §04): a team whose approval queue is backed up
+    // (breaker OPEN/HALF_OPEN) gets zero new nudges this tick, so the Overseer stops
+    // adding to a queue that's already failing to keep up.
+    const throttledTeams = await prisma.breakerState.findMany({
+        where: { state: { in: ["OPEN", "HALF_OPEN"] } },
+        select: { teamId: true }
+    });
+    const throttledTeamIds = throttledTeams.map((t) => t.teamId);
+
     const stalled = await prisma.sequenceEnrollment.findMany({
         where: {
             status: "ACTIVE",
             nextRunAt: null,
             id: { notIn: alreadyNudgedIds },
+            teamId: { notIn: throttledTeamIds },
             OR: [
                 { lastRunAt: { lt: cutoff } },
                 { lastRunAt: null, startedAt: { lt: cutoff } }

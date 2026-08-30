@@ -14,6 +14,7 @@ const AUTO_ACTION_TYPES = new Set<string>([]);
 const HARD_BLOCK_ACTION_TYPES = new Set<string>([]);
 
 const DEFAULT_QUEUED_TIMEOUT_MS = 24 * 60 * 60 * 1000;
+const EXTENDED_QUEUED_TIMEOUT_MS = 72 * 60 * 60 * 1000; // while the team's circuit breaker is OPEN/HALF_OPEN, see breakerService.ts
 
 /**
  * Decides the HITL risk tier for an approval request.
@@ -32,7 +33,7 @@ export function resolveApprovalTier(actionType: string, options: { forceHardBloc
     return ApprovalTier.QUEUED;
 }
 
-export function computeAutoDenyAt(tier: ApprovalTier, now: Date = new Date()): Date | null {
+export function computeAutoDenyAt(tier: ApprovalTier, now: Date = new Date(), extended: boolean = false): Date | null {
     if (tier !== ApprovalTier.QUEUED) return null;
-    return new Date(now.getTime() + DEFAULT_QUEUED_TIMEOUT_MS);
+    return new Date(now.getTime() + (extended ? EXTENDED_QUEUED_TIMEOUT_MS : DEFAULT_QUEUED_TIMEOUT_MS));
 }
