@@ -316,7 +316,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                 transition-colors duration-150
                 ${pathname?.startsWith('/tools')
                   ? 'bg-blue-500/12 text-blue-400'
-                  : 'text-white/45 hover:bg-white/4 hover:text-white/70'
+                  : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 }
               `}
             >
