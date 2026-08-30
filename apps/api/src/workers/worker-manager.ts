@@ -28,6 +28,8 @@ export class WorkerManager {
     private warmupSeedInterval: number = parseInt(process.env['WARMUP_SEED_INTERVAL_MS'] || '3600000'); // 1 hour
     private outboxInterval: number = parseInt(process.env['OUTBOX_RELAY_INTERVAL_MS'] || '2000'); // 2 seconds
     private approvalSweepInterval: number = parseInt(process.env['APPROVAL_SWEEP_INTERVAL_MS'] || '900000'); // 15 minutes
+    private lastOverseerTick: number = 0;
+    private overseerInterval: number = parseInt(process.env['OVERSEER_TICK_INTERVAL_MS'] || '1800000'); // 30 minutes
 
     async start() {
         if (this.isRunning) return;
@@ -143,6 +145,15 @@ export class WorkerManager {
                 console.log(`[Worker] Auto-denied ${deniedCount} expired QUEUED-tier approval request(s).`);
             }
             this.lastApprovalSweepTick = now;
+        }
+
+        if (now - this.lastOverseerTick >= this.overseerInterval) {
+            const { processOverseerTick } = await import("./handlers/overseerHandler");
+            const result = await processOverseerTick();
+            if (result.nudgesCreated > 0) {
+                console.log(`[Worker] Overseer flagged ${result.nudgesCreated} stalled enrollment(s) out of ${result.candidates} candidate(s).`);
+            }
+            this.lastOverseerTick = now;
         }
     }
 

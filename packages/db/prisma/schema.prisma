@@ -972,6 +972,32 @@ model ManualReview {
   @@index([severity])
 }
 
+// Overseer v0 (see OVERSEER_ARCHITECTURE_PLAN.md §02): an advisory suggestion for a
+// funnel/sequence enrollment that has stalled past its threshold. Never mutates the
+// enrollment itself - purely a human-facing nudge, no timeout (accumulates TAT instead
+// of expiring, per the plan's failure-mode-5 note).
+model OverseerNudge {
+  id           String    @id @default(uuid())
+  teamId       String
+  leadId       String?
+  sequenceId   String?
+  enrollmentId String?
+  stage        String // e.g. "step 3 of 6"
+  stallDays    Float
+  nudgeType    String // RESEND_STEP, ROUTE_MANUAL, LIKELY_DEAD
+  suggestion   String    @db.Text
+  status       String    @default("OPEN") // OPEN, ACTED, DISMISSED
+  actedAt      DateTime?
+  resumedAt    DateTime? // set once the enrollment produces a new step run after this nudge, for efficacy tracking
+  createdAt    DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([enrollmentId])
+  @@index([createdAt])
+}
+
 model Team {
   id               String              @id @default(uuid())
   name             String
@@ -994,6 +1020,7 @@ model Team {
   transactions     CreditTransaction[]
   auditLogs        AuditLog[]
   memories         AgentMemory[]
+  overseerNudges   OverseerNudge[]
   apiKeys          ApiKey[]
   tasks            Task[]
   landingCampaigns LandingCampaign[]
