@@ -31,7 +31,7 @@ export default function LandingAgentBriefPage() {
     }, [campaignId, loadCampaign]);
 
     if (loading) {
-        return <div className="p-8 text-slate-300">Loading campaign...</div>;
+        return <div className="p-8 text-muted-foreground">Loading campaign...</div>;
     }
 
     if (!campaign || error) {
