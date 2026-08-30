@@ -56,6 +56,7 @@ export async function getPendingApprovals(teamId: string) {
             id: r.id,
             type: r.actionType,
             risk: "HIGH",
+            tier: r.tier,
             detail: detail,
             status: r.status,
             payload: r.payload // Include the raw payload for editing

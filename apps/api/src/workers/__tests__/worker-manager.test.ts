@@ -38,6 +38,10 @@ vi.mock("@/lib/outboxService", () => ({
     OutboxService: { relayPendingEvents: vi.fn().mockResolvedValue(0) },
 }));
 
+vi.mock("@/modules/governance/ApprovalService", () => ({
+    ApprovalService: { autoDenyExpiredApprovals: vi.fn().mockResolvedValue(0) },
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();
