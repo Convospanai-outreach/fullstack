@@ -1078,6 +1078,27 @@ model BreakerState {
   @@index([state])
 }
 
+// Overseer OverseerSignal (see OVERSEER_ARCHITECTURE_PLAN.md §01's secondary function):
+// cross-run anomaly flags, scoped to platform-wide provider health today - not team data,
+// so no teamId. Deliberately does NOT escalate into ApprovalRequest: "provider X is
+// degraded" has no human approve/reject decision behind it (aiService.ts's own
+// retry/fallback chain already reacts automatically) - this is pure observability,
+// surfaced in the existing Sentinel Events panel rather than a fabricated approval gate.
+model OverseerSignal {
+  id         String    @id @default(uuid())
+  category   String // PROVIDER_DEGRADATION
+  subject    String // e.g. a provider name - what this signal is about, for dedup
+  severity   String // WARN, CRITICAL
+  summary    String    @db.Text
+  evidence   Json?
+  status     String    @default("OPEN") // OPEN, RESOLVED
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([status])
+  @@index([category, subject])
+}
+
 model Team {
   id               String              @id @default(uuid())
   name             String
