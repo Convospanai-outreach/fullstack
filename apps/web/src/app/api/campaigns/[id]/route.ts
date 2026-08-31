@@ -53,7 +53,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { prisma } = await getCampaignContext(id, TeamRole.MEMBER);
+        const { prisma, teamId } = await getCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
 
         const { CampaignService } = await import("@/lib/campaignService");
@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);
         } else if (body.leadIds) {
-            await CampaignService.addLeadsToCampaign(id, body.leadIds);
+            await CampaignService.addLeadsToCampaign(id, body.leadIds, teamId);
         } else {
             const allowedUpdates: Record<string, unknown> = {};
             if (typeof body.name === "string") allowedUpdates["name"] = body.name;
