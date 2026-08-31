@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentContext } from "@/lib/auth";
+import { handleAPIError } from "@/lib/apiResponse";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     const { teamId, userId } = await getCurrentContext();
     if (!teamId || !userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
+    } catch (error) {
+        return handleAPIError(error);
     }
 
     const { id } = await params;
@@ -29,6 +36,11 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     const { teamId, userId } = await getCurrentContext();
     if (!teamId || !userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    try {
+        await authorizeRole(userId, teamId, TeamRole.ADMIN);
+    } catch (error) {
+        return handleAPIError(error);
     }
 
     const { id } = await params;
