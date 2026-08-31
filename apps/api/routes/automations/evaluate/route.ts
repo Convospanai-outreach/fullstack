@@ -34,15 +34,20 @@ export async function POST(req: NextRequest) {
         let status = "success";
         try {
             if (automation.action === "campaign.stop" && context?.campaignId) {
-                await prisma.campaign.update({
-                    where: { id: context.campaignId },
+                // Scoped to ctx.teamId - context is attacker-controlled request input, so
+                // without this an automation could be used to pause/tag another team's
+                // campaign/lead by passing its id.
+                const result = await prisma.campaign.updateMany({
+                    where: { id: context.campaignId, teamId: ctx.teamId },
                     data: { status: "paused" }
                 });
+                if (result.count === 0) status = "failed";
             } else if (automation.action === "lead.tag" && context?.leadId && context?.tag) {
-                await prisma.lead.update({
-                    where: { id: context.leadId },
+                const result = await prisma.lead.updateMany({
+                    where: { id: context.leadId, teamId: ctx.teamId },
                     data: { tags: { push: context.tag } }
                 });
+                if (result.count === 0) status = "failed";
             }
         } catch (e) {
             status = "failed";
