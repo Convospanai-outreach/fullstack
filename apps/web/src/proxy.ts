@@ -11,6 +11,7 @@ import {
     parseEnabledHiddenFeatureKeys,
     PRODUCT_FLAGS,
 } from './lib/productFlags';
+import { getApiCatalogJson } from './lib/apiCatalog';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -43,6 +44,18 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         return response;
     }
 
+    if (path === "/.well-known/api-catalog") {
+        const origin = req.nextUrl.origin;
+        return new NextResponse(getApiCatalogJson(origin), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/linkset+json; profile=\"https://www.rfc-editor.org/info/rfc9727\"",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
+    }
+
     const hiddenFeature = getHiddenFeatureForPath(path);
     const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
         getDefaultEnabledHiddenFeatureKeys(),
@@ -68,6 +81,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/api/proxy/checkout", "/api/checkout",
         // Public pricing shown on /pricing before signup.
         "/api/proxy/billing/plans", "/api/billing/plans",
+        "/api/openapi.json",
     ];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
@@ -216,6 +230,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/robots.txt",
         "/llms.txt",
         "/llms-full.txt",
+        "/.well-known",
     ];
 
     if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {
