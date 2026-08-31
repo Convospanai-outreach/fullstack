@@ -12,21 +12,23 @@ function formatISODate(d: Date) {
     return d.toISOString().slice(0, 10);
 }
 
-export async function getDashboardStats(): Promise<Stats> {
+export async function getDashboardStats(teamId: string): Promise<Stats> {
     // Counts
     const [leadsCount, campaignsCount] = await Promise.all([
-        prisma.lead.count().catch(() => 0),
-        prisma.campaign.count().catch(() => 0),
+        prisma.lead.count({ where: { teamId } }).catch(() => 0),
+        prisma.campaign.count({ where: { teamId } }).catch(() => 0),
     ]);
 
     // Recent items
     const [recentLeads, recentCampaigns] = await Promise.all([
         prisma.lead.findMany({
+            where: { teamId },
             orderBy: { createdAt: "desc" },
             take: 10,
             select: { id: true, fullName: true, email: true, createdAt: true },
         }).catch(() => []),
         prisma.campaign.findMany({
+            where: { teamId },
             orderBy: { createdAt: "desc" },
             take: 10,
             select: { id: true, name: true, status: true, createdAt: true },
@@ -49,10 +51,10 @@ export async function getDashboardStats(): Promise<Stats> {
 
             const [leads, campaigns] = await Promise.all([
                 prisma.lead.count({
-                    where: { createdAt: { gte: start, lte: end } },
+                    where: { teamId, createdAt: { gte: start, lte: end } },
                 }).catch(() => 0),
                 prisma.campaign.count({
-                    where: { createdAt: { gte: start, lte: end } },
+                    where: { teamId, createdAt: { gte: start, lte: end } },
                 }).catch(() => 0),
             ]);
 
