@@ -13,9 +13,9 @@ export async function POST(req: NextRequest) {
         if (action === "suggestTasks") {
             result = await PipelineAIService.suggestTasks(ctx.teamId, leadId);
         } else if (action === "recommendStage") {
-            result = await PipelineAIService.recommendStage(leadId);
+            result = await PipelineAIService.recommendStage(leadId, ctx.teamId);
         } else if (action === "summarize") {
-            result = await PipelineAIService.summarizeLead(leadId);
+            result = await PipelineAIService.summarizeLead(leadId, ctx.teamId);
         }
 
         return NextResponse.json({ success: true, data: result });
