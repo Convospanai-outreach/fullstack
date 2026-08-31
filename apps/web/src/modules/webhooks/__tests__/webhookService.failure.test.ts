@@ -1,5 +1,6 @@
 import { vi, Mock } from 'vitest';
-import { webhookService } from "../service/webhookService";
+import { lookup } from "node:dns/promises";
+import { webhookService, assertSafeWebhookUrl } from "../service/webhookService";
 import { prisma } from "@/lib/db";
 
 // Mock prisma and fetch
@@ -14,6 +15,11 @@ vi.mock("@/lib/db", () => ({
     },
 }));
 
+// Keep the SSRF guard's DNS resolution hermetic in tests.
+vi.mock("node:dns/promises", () => ({
+    lookup: vi.fn(),
+}));
+
 global.fetch = vi.fn() as Mock;
 
 describe("WebhookService Failure scenarios", () => {
@@ -23,6 +29,7 @@ describe("WebhookService Failure scenarios", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        (lookup as Mock).mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     });
 
     test("should log failure and throw when target returns 500", async () => {
@@ -83,5 +90,72 @@ describe("WebhookService Failure scenarios", () => {
 
         expect(global.fetch).not.toHaveBeenCalled();
         expect(prisma.webhookLog.create).not.toHaveBeenCalled();
+    });
+
+    test("should not dispatch to a URL that resolves to a private address", async () => {
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
+            id: webhookId,
+            url: "https://internal.example.com/webhook",
+            isActive: true,
+        });
+        (lookup as Mock).mockResolvedValue([{ address: "169.254.169.254", family: 4 }]);
+
+        await expect(webhookService.processDelivery(webhookId, event, payload))
+            .rejects.toThrow("Webhook URL resolves to a non-public address");
+
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test("should abort delivery once the timeout elapses", async () => {
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
+            id: webhookId,
+            url: "https://example.com/webhook",
+            isActive: true,
+        });
+
+        let passedSignal: AbortSignal | undefined;
+        (global.fetch as Mock).mockImplementation((_url: string, init: RequestInit) => {
+            passedSignal = init.signal as AbortSignal;
+            return Promise.reject(new Error("aborted"));
+        });
+
+        await expect(webhookService.processDelivery(webhookId, event, payload))
+            .rejects.toThrow("aborted");
+
+        expect(passedSignal).toBeInstanceOf(AbortSignal);
+    });
+});
+
+describe("assertSafeWebhookUrl", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (lookup as Mock).mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    });
+
+    test("allows a public https URL", async () => {
+        await expect(assertSafeWebhookUrl("https://example.com/hook")).resolves.toBeUndefined();
+    });
+
+    test.each([
+        ["loopback", "127.0.0.1", 4],
+        ["private class A", "10.1.2.3", 4],
+        ["private class C", "192.168.1.10", 4],
+        ["link-local metadata", "169.254.169.254", 4],
+        ["IPv6 loopback", "::1", 6],
+        ["IPv6 unique-local", "fd00::1", 6],
+    ])("rejects %s", async (_label, address, family) => {
+        (lookup as Mock).mockResolvedValue([{ address, family }]);
+        await expect(assertSafeWebhookUrl("https://anything.example/hook"))
+            .rejects.toThrow("non-public address");
+    });
+
+    test("rejects non-http protocols", async () => {
+        await expect(assertSafeWebhookUrl("file:///etc/passwd"))
+            .rejects.toThrow("is not allowed");
+    });
+
+    test("rejects a malformed URL", async () => {
+        await expect(assertSafeWebhookUrl("not-a-url"))
+            .rejects.toThrow("not a valid URL");
     });
 });
