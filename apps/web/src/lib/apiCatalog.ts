@@ -16,6 +16,12 @@ export interface ApiCatalogDocument {
     linkset: LinksetEntry[];
 }
 
+/**
+ * RFC 8288 / RFC 9727 Link Header for Machine Discovery
+ */
+export const DISCOVERY_LINK_HEADER =
+    '</.well-known/api-catalog>; rel="api-catalog", </api/openapi.json>; rel="service-desc"; type="application/json", </docs>; rel="service-doc"; type="text/html", </llms.txt>; rel="describedby"; type="text/plain"';
+
 export function getBaseSiteUrl(): string {
     return (process.env['NEXT_PUBLIC_SITE_URL'] || process.env['NEXTAUTH_URL'] || 'https://craftmyfunnel.live').replace(/\/$/, '');
 }

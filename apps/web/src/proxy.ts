@@ -11,7 +11,7 @@ import {
     parseEnabledHiddenFeatureKeys,
     PRODUCT_FLAGS,
 } from './lib/productFlags';
-import { getApiCatalogJson } from './lib/apiCatalog';
+import { getApiCatalogJson, DISCOVERY_LINK_HEADER } from './lib/apiCatalog';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -419,6 +419,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
             response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
             response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-correlation-id");
         }
+    }
+
+    if (path === "/" || path === "") {
+        response.headers.set("Link", DISCOVERY_LINK_HEADER);
     }
 
     return response;
