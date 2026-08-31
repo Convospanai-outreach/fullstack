@@ -60,6 +60,19 @@ class CSVIngestionService {
                 };
             }
 
+            // campaignId is caller-supplied - verify it actually belongs to this team
+            // before linking any imported lead to it, or a caller could attach their
+            // leads to (and pollute the stats of) another tenant's campaign.
+            if (campaignId) {
+                const campaign = await prisma.campaign.findFirst({
+                    where: { id: campaignId, teamId: teamId || undefined },
+                    select: { id: true },
+                });
+                if (!campaign) {
+                    campaignId = undefined;
+                }
+            }
+
             const headers = parsed.meta.fields || [];
             const activeMapping = mapping || this.autoDetectFieldMapping(headers);
 
