@@ -10,11 +10,16 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { action, payload, text, query, workflow, region, maskedId, purpose } = body;
 
+        // Every action requires a real session - only PII_EDGE_ACTIONS additionally need
+        // a paired, online edge node for that team. This used to only gate the PII
+        // actions, leaving SET_COMPLIANCE/STATUS/ACTIVITY/VERIFY/SAVE_WORKFLOW reachable
+        // with no authentication at all.
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
+
         if (PII_EDGE_ACTIONS.has(action)) {
-            const ctx = await getCurrentContext();
-            if (!ctx.teamId) {
-                return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-            }
             await requireEdgePiiAvailable(ctx.teamId, prisma);
         }
 
@@ -64,6 +69,11 @@ export async function POST(req: Request) {
 
 export async function GET() {
     try {
+        const ctx = await getCurrentContext();
+        if (!ctx.teamId) {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+        }
+
         const workflows = await HardwareService.getWorkflows();
         return new Response(JSON.stringify(workflows), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {

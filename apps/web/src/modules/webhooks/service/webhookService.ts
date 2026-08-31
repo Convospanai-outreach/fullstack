@@ -1,7 +1,48 @@
 import { prisma } from "@/lib/db";
 import crypto from "crypto";
+import net from "node:net";
+import { lookup } from "node:dns/promises";
 import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
+
+const WEBHOOK_TIMEOUT_MS = 10000;
+
+// Outbound webhook URLs are user-supplied, so a delivery attempt must not be
+// usable as a probe against internal infrastructure (SSRF).
+const BLOCKED_RANGES = new net.BlockList();
+BLOCKED_RANGES.addSubnet("0.0.0.0", 8, "ipv4");
+BLOCKED_RANGES.addSubnet("10.0.0.0", 8, "ipv4");
+BLOCKED_RANGES.addSubnet("100.64.0.0", 10, "ipv4");
+BLOCKED_RANGES.addSubnet("127.0.0.0", 8, "ipv4");
+BLOCKED_RANGES.addSubnet("169.254.0.0", 16, "ipv4");
+BLOCKED_RANGES.addSubnet("172.16.0.0", 12, "ipv4");
+BLOCKED_RANGES.addSubnet("192.168.0.0", 16, "ipv4");
+BLOCKED_RANGES.addSubnet("::", 128, "ipv6");
+BLOCKED_RANGES.addSubnet("::1", 128, "ipv6");
+BLOCKED_RANGES.addSubnet("fc00::", 7, "ipv6");
+BLOCKED_RANGES.addSubnet("fe80::", 10, "ipv6");
+
+export async function assertSafeWebhookUrl(rawUrl: string) {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        throw new Error("Webhook URL is not a valid URL");
+    }
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error(`Webhook URL protocol ${url.protocol} is not allowed`);
+    }
+
+    // A hostname can resolve to a private address, so check resolved IPs rather
+    // than the literal hostname.
+    const resolved = await lookup(url.hostname, { all: true });
+    for (const { address, family } of resolved) {
+        if (BLOCKED_RANGES.check(address, family === 6 ? "ipv6" : "ipv4")) {
+            throw new Error("Webhook URL resolves to a non-public address");
+        }
+    }
+}
 
 class WebhookService {
     /**
@@ -66,13 +107,14 @@ class WebhookService {
         let errorMessage = null;
 
         try {
+            await assertSafeWebhookUrl(webhook.url);
+
             logger.info(`[WebhookService] Delivering webhook ${webhookId} to ${webhook.url}`, { event });
             const response = await fetch(webhook.url, {
                 method: "POST",
                 headers,
                 body,
-                //@ts-ignore - node-fetch specific
-                timeout: 10000
+                signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS)
             });
 
             status = response.status;
