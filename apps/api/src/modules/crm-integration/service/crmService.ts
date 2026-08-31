@@ -14,8 +14,12 @@ class CRMService {
      */
     async syncLead(leadId: string, teamId: string): Promise<SyncResult> {
         try {
+            // Scoped to teamId - without this, a lead belonging to a different team could
+            // be pushed into and mutated by this team's own HubSpot integration (cross-tenant
+            // PII leak), since callers (including LLM agent tool calls) pass a caller-chosen
+            // leadId that isn't otherwise guaranteed to belong to teamId.
             const [lead, config] = await Promise.all([
-                prisma.lead.findUnique({ where: { id: leadId } }),
+                prisma.lead.findFirst({ where: { id: leadId, teamId } }),
                 prisma.crmIntegration.findUnique({ where: { teamId_provider: { teamId, provider: "HUBSPOT" } } })
             ]);
 
