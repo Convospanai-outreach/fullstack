@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContext, mockPrisma } = vi.hoisted(() => ({
+const { mockGetCurrentContext, mockPrisma, mockAuthorizeRole } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
         campaign: { findMany: vi.fn(), create: vi.fn() },
     },
+    mockAuthorizeRole: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/prisma", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/permissions", () => ({
+    TeamRole: { OWNER: "owner", ADMIN: "admin", MEMBER: "member", VIEWER: "viewer" },
+    authorizeRole: mockAuthorizeRole,
+}));
 
 function postRequest(body: unknown) {
     return new Request("http://localhost/api/dashboard/campaigns", {
@@ -18,7 +23,10 @@ function postRequest(body: unknown) {
 }
 
 describe("/dashboard/campaigns - requires auth and is scoped to the caller's team", () => {
-    beforeEach(() => vi.clearAllMocks());
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockAuthorizeRole.mockResolvedValue(undefined);
+    });
 
     describe("GET", () => {
         it("rejects an unauthenticated caller instead of dumping every team's campaigns (incl. aiConfig secrets)", async () => {
@@ -46,6 +54,18 @@ describe("/dashboard/campaigns - requires auth and is scoped to the caller's tea
     });
 
     describe("POST", () => {
+        it("rejects a caller below MEMBER role (this route had no role check at all before the fix)", async () => {
+            const { APIError } = await import("@/lib/apiResponse");
+            mockGetCurrentContext.mockResolvedValue({ userId: "viewer-user", teamId: "team-1" });
+            mockAuthorizeRole.mockRejectedValueOnce(new APIError("Insufficient permissions", 403));
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ name: "Q1" }));
+
+            expect(response.status).toBe(403);
+            expect(mockPrisma.campaign.create).not.toHaveBeenCalled();
+        });
+
         it("rejects an unauthenticated caller", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
             const { POST } = await import("./route");
