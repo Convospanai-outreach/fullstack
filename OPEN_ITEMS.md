@@ -8,14 +8,17 @@ no more high-confidence findings remain. No fixed stopping point ("100% ok"
 isn't measurable) — this sweep continues until a session ends it or nothing
 new turns up.
 
-- **OPEN-85 (Fixed, PR #334, merge pending CI):** cross-team IDOR in
+(Numbered OPEN-95+ to avoid colliding with the already-used OPEN-85/86/87
+below in the Resolved table.)
+
+- **OPEN-95 (Fixed, merged PR #334):** cross-team IDOR in
   `playbookService.instantiatePlaybook` (apps/api + dormant apps/web
   duplicate) — `teamId` param was accepted but never used to scope the
   `playbook` lookup, letting any team instantiate another team's playbook by
   ID. Fixed via `findFirst({ where: { id, teamId } })` in both copies +
-  regression test. Watching PR #334's checks; merges automatically on green.
+  regression test.
 
-- **OPEN-86 (Fixed, PR pending):** cross-team IDOR in
+- **OPEN-96 (Fixed, merged PR #335):** cross-team IDOR in
   `crmService.syncLead` (apps/api copy) — `teamId` accepted but the
   `prisma.lead.findUnique({ id })` lookup, and the calling route's own
   redundant pre-check, ignored it, letting any team push/mutate another
@@ -23,7 +26,7 @@ new turns up.
   already fixed with a test; the `apps/api` copy and its route were missed.
   Fixed both + added a matching regression test.
 
-- **OPEN-87 (Fixed, PR pending):** cross-team IDOR in
+- **OPEN-97 (Fixed, merged PR #335):** cross-team IDOR in
   `ApprovalService.approve`/`reject` — no team scoping at all (not even a
   `teamId` param), so any authenticated user could approve/reject another
   team's pending approval request by guessing its id, including triggering
@@ -31,6 +34,66 @@ new turns up.
   Added a required `teamId` param, scoped the lookup, updated all three
   callers (route, internal AUTO-tier auto-approve, expiry sweep), added
   regression tests.
+
+- **OPEN-98 (Fixed, merged PR #336):** cross-team IDOR in
+  `PipelineAIService.recommendStage`/`summarizeLead` — `teamId` was accepted
+  but the `prisma.lead.findUnique({ id })` lookup ignored it, letting any
+  team run AI stage-recommendation/summary against another team's lead.
+  Fixed via `findFirst({ where: { id, teamId } })` in both methods + the
+  calling route, plus regression tests.
+
+- **OPEN-99 (Fixed, merged PR #336):** cross-team IDOR in
+  `POST /api/automations/evaluate` — matched campaign/lead updates by bare
+  `id` with no `teamId` filter, letting an automation rule from one team
+  mutate another team's campaign/lead. Fixed via `updateMany` scoped to
+  `{ id, teamId }`, marking the run `failed` when the scoped update matches
+  zero rows (cross-tenant or already-deleted target) instead of silently
+  succeeding.
+
+- **OPEN-100 (Fixed, merged PR #336):** cross-team IDOR in
+  `GET /api/campaigns/[id]/analytics/v2` — ran analytics queries directly
+  against the path `id` with no ownership check, letting any team read
+  another team's campaign analytics. Fixed via an explicit
+  `findFirst({ id, teamId })` ownership pre-check returning 404 when absent.
+
+- **OPEN-101 (Fixed, merged PR #337):** SSRF in `ingestService.ingestUrl`
+  (RAG knowledge-base URL ingestion) — fetched an attacker/user-supplied URL
+  with no validation of the resolved IP, allowing requests into internal
+  infra (cloud metadata endpoints, private-network services) via the
+  knowledge-base ingestion feature. Fixed by reusing the existing
+  `assertSafeWebhookUrl` guard (DNS-resolves the host and blocks
+  private/loopback/link-local ranges via `node:net`'s `BlockList`) before
+  the `fetch`, same pattern already used for outbound webhooks.
+
+- **OPEN-102 (Found, NOT fixed — deferred):** a ReDoS-shaped regex was
+  flagged during the SSRF sweep (catastrophic-backtracking risk on
+  attacker-controlled input). Deferred because it needed a closer look at
+  actual reachability/input length limits before deciding on a fix; not
+  yet re-investigated. Revisit before calling the sweep done.
+
+- **OPEN-103 (Fixed, merged PR #338):** `GET`/`POST /api/dashboard/campaigns`
+  and `PATCH`/`DELETE /api/dashboard/campaigns/[id]` had no role check at
+  all beyond authentication — any team member (including VIEWER) could
+  create, edit, or delete campaigns, which sibling campaign routes gate
+  behind MEMBER/ADMIN. Added `authorizeRole` calls matching the levels the
+  canonical `campaigns/[id]/route.ts` already enforces (VIEWER for read,
+  MEMBER for write, ADMIN for delete), with regression tests covering the
+  403 path. Note: these tests mock `authorizeRole` outright and only assert
+  the rejection path, not that a legitimate MEMBER/ADMIN still passes —
+  worth a real integration check if users report unexpected 403s here.
+
+- **OPEN-104 (Fixed, merged PR #338):** `DELETE /api/webhooks/[id]` had no
+  role check — any authenticated team member could delete a team's webhook,
+  where every other webhook-management route requires ADMIN. Added the same
+  `authorizeRole(..., TeamRole.ADMIN)` check, with a regression test.
+
+**Deploy note:** all of the above (OPEN-95–101, 103–104) fix code that runs
+on the Oracle VMs (`apps/api`), not just Vercel. Merging to `main` triggers a
+new `:latest` image build/push, but the VMs do **not** auto-pull — confirmed
+separately that a stale image silently ran a week-old build for days before.
+These fixes are not live in production until `docker compose pull && up -d
+--force-recreate` is run on both `api-main` and `api-worker` (disk is at
+~15% usage on each after the earlier prune, so the pull should succeed).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
