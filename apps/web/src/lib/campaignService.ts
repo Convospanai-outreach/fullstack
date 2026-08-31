@@ -32,10 +32,11 @@ export class CampaignService {
         });
     }
 
-    static async addLeadsToCampaign(campaignId: string, leadIds: string[]) {
-        // Update leads to belong to this campaign
+    static async addLeadsToCampaign(campaignId: string, leadIds: string[], teamId: string) {
+        // Update leads to belong to this campaign - scoped to teamId so a caller can't
+        // pull another team's leads into their own campaign by guessing/enumerating IDs.
         await prisma.lead.updateMany({
-            where: { id: { in: leadIds } },
+            where: { id: { in: leadIds }, teamId },
             data: { campaignId }
         });
 
