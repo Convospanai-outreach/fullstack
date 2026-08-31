@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Building2, ShieldCheck, Users, GraduationCap, Briefcase, Server, ArrowRight, Sparkles, CheckCircle2 } from "lucide-react";
 import type { Metadata } from "next";
@@ -11,8 +12,17 @@ export const metadata: Metadata = {
     openGraph: {
         title: "CraftMyFunnel Use Cases & Industry Outbound Playbooks",
         description: "Vertical-specific outbound sequences, buyer signal tracking, and human-in-the-loop approval workflows for B2B service firms.",
+        images: [
+            {
+                url: "/images/platform/governed-workflow.webp",
+                width: 820,
+                height: 460,
+                alt: "Governed B2B Outbound Architecture",
+            }
+        ],
     },
 };
+
 
 const USE_CASES = [
     {
@@ -150,59 +160,89 @@ export default function UseCasesHubPage() {
                     </p>
                 </div>
 
-                {/* Grid of Use Cases */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {USE_CASES.map((uc) => {
-                        const Icon = uc.icon;
-                        return (
-                            <Link
-                                key={uc.slug}
-                                href={`/use-cases/${uc.slug}`}
-                                className="bg-slate-900/60 border border-slate-800 rounded-3xl p-7 flex flex-col justify-between hover:border-blue-500/40 transition-all hover:shadow-2xl hover:shadow-blue-500/5 group relative overflow-hidden"
-                            >
-                                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${uc.color} rounded-full blur-3xl opacity-30 group-hover:opacity-60 transition-opacity`} />
-
-                                <div className="space-y-4 relative z-10">
-                                    <div className="flex items-center justify-between">
-                                        <div className={`w-12 h-12 rounded-2xl bg-slate-800 border border-slate-700/80 flex items-center justify-center ${uc.iconColor} group-hover:scale-110 transition-transform`}>
-                                            <Icon className="w-6 h-6" />
-                                        </div>
-                                        <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 border border-slate-700 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                            {uc.badge}
-                                        </span>
-                                    </div>
-
-                                    <div>
-                                        <h2 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
-                                            {uc.title}
-                                        </h2>
-                                        <p className="text-xs font-medium text-blue-400 mt-1">
-                                            {uc.tagline}
-                                        </p>
-                                    </div>
-
-                                    <p className="text-sm text-slate-400 leading-relaxed">
-                                        {uc.description}
-                                    </p>
-
-                                    <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
-                                        {uc.stats.map((s, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 text-xs text-slate-300">
-                                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                                                <span>{s}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center gap-2 text-sm font-semibold text-blue-400 group-hover:text-blue-300 relative z-10">
-                                    <span>Explore Vertical Playbook</span>
-                                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                                </div>
-                            </Link>
-                        );
-                    })}
+                {/* Architecture Visual Preview */}
+                <div className="relative rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 max-w-4xl mx-auto shadow-2xl">
+                    <h2 className="sr-only">Governed B2B Outbound Workflow and Deliverability Architecture</h2>
+                    <Image
+                        src="/images/platform/governed-workflow.webp"
+                        alt="Governed B2B Outbound Sales Workflow, Human Approval Queue, and Deliverability Architecture"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
                 </div>
+
+                {/* Grid of Use Cases */}
+                <div>
+                    <h2 className="text-2xl sm:text-3xl font-bold text-center text-white mb-10">
+                        Tailored Industry Playbooks &amp; Intent Signals
+                    </h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {USE_CASES.map((uc) => {
+                            const Icon = uc.icon;
+                            return (
+                                <Link
+                                    key={uc.slug}
+                                    href={`/use-cases/${uc.slug}`}
+                                    className="bg-slate-900/60 border border-slate-800 rounded-3xl p-6 flex flex-col justify-between hover:border-blue-500/40 transition-all hover:shadow-2xl hover:shadow-blue-500/5 group relative overflow-hidden"
+                                >
+                                    <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${uc.color} rounded-full blur-3xl opacity-30 group-hover:opacity-60 transition-opacity`} />
+
+                                    <div className="space-y-4 relative z-10">
+                                        <div className="rounded-xl overflow-hidden border border-slate-800 group-hover:border-slate-700 transition-colors">
+                                            <Image
+                                                src={`/images/use-cases/${uc.slug}.webp`}
+                                                alt={`${uc.title} - Governed Outbound Workflow and Intent Signal Radar`}
+                                                width={400}
+                                                height={225}
+                                                loading="lazy"
+                                                className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-300"
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-between pt-1">
+                                            <div className={`w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/80 flex items-center justify-center ${uc.iconColor}`}>
+                                                <Icon className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-300 bg-slate-800/80 border border-slate-700 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                                {uc.badge}
+                                            </span>
+                                        </div>
+
+                                        <div>
+                                            <h3 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+                                                {uc.title}
+                                            </h3>
+                                            <p className="text-xs font-medium text-blue-400 mt-1">
+                                                {uc.tagline}
+                                            </p>
+                                        </div>
+
+                                        <p className="text-sm text-slate-400 leading-relaxed">
+                                            {uc.description}
+                                        </p>
+
+                                        <div className="space-y-1.5 pt-2 border-t border-slate-800/60">
+                                            {uc.stats.map((s, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-xs text-slate-300">
+                                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                                    <span>{s}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-5 mt-5 border-t border-slate-800/80 flex items-center gap-2 text-sm font-semibold text-blue-400 group-hover:text-blue-300 relative z-10">
+                                        <span>Explore Vertical Playbook</span>
+                                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                                    </div>
+                                </Link>
+                            );
+                        })}
+                    </div>
+                </div>
+
 
                 {/* Bottom CTA Banner */}
                 <div className="p-8 sm:p-10 rounded-3xl bg-gradient-to-r from-blue-900/40 via-indigo-950/40 to-slate-900 border border-blue-500/30 text-center space-y-6">

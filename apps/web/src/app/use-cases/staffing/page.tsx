@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Users, CheckCircle2, ArrowLeft, ArrowRight, TrendingUp, Sparkles, Activity, Layers } from "lucide-react";
 import type { Metadata } from "next";
@@ -11,8 +12,17 @@ export const metadata: Metadata = {
     openGraph: {
         title: "Staffing & Recruiting Outbound Sales Playbook | CraftMyFunnel",
         description: "Win enterprise hiring retainers and direct-placement contracts with intent-driven recruiting sequences.",
+        images: [
+            {
+                url: "/images/use-cases/staffing.webp",
+                width: 820,
+                height: 460,
+                alt: "Staffing & Executive Recruiting Outbound Playbook",
+            }
+        ],
     },
 };
+
 
 export default function StaffingUseCasePage() {
     const jsonLd = {
@@ -108,11 +118,24 @@ export default function StaffingUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/staffing.webp"
+                        alt="Staffing Agency Candidate Capability Outreach and Hiring Surge Radar"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Key Pillars */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
-                        Built for Fast-Paced Agency & Search Workflows
+                        Built for Fast-Paced Agency &amp; Search Workflows
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 font-bold">

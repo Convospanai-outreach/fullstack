@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Mail, Clock, Send, Headphones, Building2 } from "lucide-react";
 import { trackCustomEvent } from "@/components/analytics/GoogleAnalytics";
+
 
 export default function ContactPage() {
     const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website_url: "" });
@@ -84,6 +86,17 @@ export default function ContactPage() {
 
                     {/* Contact Info */}
                     <div className="lg:col-span-2 space-y-6">
+                        <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2">
+                            <Image
+                                src="/images/platform/contact-support.webp"
+                                alt="CraftMyFunnel Enterprise Engineering and Support Desk Assistance"
+                                width={400}
+                                height={225}
+                                priority
+                                className="w-full h-auto rounded-xl"
+                            />
+                        </div>
+
                         <h2 className="text-2xl font-bold mb-6">Quick channels</h2>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/20 transition-colors space-y-2">
