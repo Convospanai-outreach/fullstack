@@ -61,7 +61,7 @@ export class ApprovalService {
         console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType} (tier=${tier})`);
 
         if (tier === ApprovalTier.AUTO) {
-            await this.approve(request.id, "system-auto");
+            await this.approve(request.id, "system-auto", teamId);
         }
 
         return { id: request.id, created: true };
@@ -78,11 +78,11 @@ export class ApprovalService {
                 tier: ApprovalTier.QUEUED,
                 autoDenyAt: { lte: new Date() }
             },
-            select: { id: true }
+            select: { id: true, teamId: true }
         });
 
-        for (const { id } of expired) {
-            await this.reject(id, "system-timeout", "Auto-denied: no reviewer action within the approval window");
+        for (const { id, teamId } of expired) {
+            await this.reject(id, "system-timeout", teamId, "Auto-denied: no reviewer action within the approval window");
         }
 
         return expired.length;
@@ -150,8 +150,11 @@ export class ApprovalService {
     /**
      * Approves a request (callable via UI/API).
      */
-    static async approve(requestId: string, reviewerId: string, revisedPayload?: any) {
-        const request = await prisma.approvalRequest.findUnique({ where: { id: requestId } });
+    static async approve(requestId: string, reviewerId: string, teamId: string, revisedPayload?: any) {
+        // Scoped to teamId - without this, any authenticated user could approve/reject
+        // another team's pending request by guessing its id, including triggering
+        // approve()'s CAMPAIGN_START side-effect on that team's campaign.
+        const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
 
         const updateData: any = { 
@@ -181,7 +184,10 @@ export class ApprovalService {
     /**
      * Rejects a request.
      */
-    static async reject(requestId: string, reviewerId: string, reason?: string) {
+    static async reject(requestId: string, reviewerId: string, teamId: string, reason?: string) {
+        const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        if (!request) throw new Error("Request not found");
+
         const data: any = { status: ApprovalStatus.REJECTED, reviewerId, reviewedAt: new Date() };
         if (reason) {
             data.reviewNote = reason;
