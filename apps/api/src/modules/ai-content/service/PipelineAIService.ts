@@ -13,9 +13,9 @@ export class PipelineAIService {
         }
     }
 
-    static async recommendStage(leadId: string) {
+    static async recommendStage(leadId: string, teamId: string) {
         try {
-            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
             if (!lead) return null;
             return await aiService.recommendPipelineStage(lead, lead.teamId || undefined);
         } catch (error) {
@@ -24,9 +24,9 @@ export class PipelineAIService {
         }
     }
 
-    static async summarizeLead(leadId: string) {
+    static async summarizeLead(leadId: string, teamId: string) {
         try {
-            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
             if (!lead) return "Lead not found.";
             return await aiService.summarizePipelineLead(lead, lead.teamId || undefined);
         } catch (error) {
