@@ -12,6 +12,11 @@ import {
     PRODUCT_FLAGS,
 } from './lib/productFlags';
 import { getRobotsTxt } from './app/robots';
+import {
+    isMarkdownRequested,
+    getMarkdownForPath,
+    createMarkdownResponse,
+} from './lib/markdownNegotiator';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -52,6 +57,12 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
                 "Cache-Control": "public, max-age=86400, s-maxage=86400",
             },
         });
+    }
+
+    if (isMarkdownRequested(req)) {
+        const baseUrl = req.nextUrl.origin;
+        const markdown = getMarkdownForPath(path, baseUrl);
+        return createMarkdownResponse(markdown);
     }
 
     const hiddenFeature = getHiddenFeatureForPath(path);
