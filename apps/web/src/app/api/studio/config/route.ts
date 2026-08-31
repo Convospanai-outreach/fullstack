@@ -11,10 +11,23 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { prisma } = await import("@/lib/db");
 
+        // aiConfig is a single shared JSON blob that also holds smtpConfig and AI
+        // provider credentials (set during /setup) - merge into it rather than
+        // replacing it wholesale, or saving studio tone preferences here would
+        // silently wipe out the team's mailbox/API key config.
+        const existing = await prisma.team.findUnique({
+            where: { id: ctx.teamId },
+            select: { aiConfig: true }
+        });
+        const currentAiConfig = (existing?.aiConfig as Record<string, unknown> | null) || {};
+
         await prisma.team.update({
             where: { id: ctx.teamId },
             data: {
-                aiConfig: body // { formality, directness, talkingPoints, avoidWords }
+                aiConfig: {
+                    ...currentAiConfig,
+                    ...body // { formality, directness, talkingPoints, avoidWords }
+                }
             }
         });
 
