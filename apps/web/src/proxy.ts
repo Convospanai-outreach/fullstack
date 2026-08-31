@@ -17,6 +17,9 @@ import {
     getMarkdownForPath,
     createMarkdownResponse,
 } from './lib/markdownNegotiator';
+import { getApiCatalogJson, DISCOVERY_LINK_HEADER } from './lib/apiCatalog';
+import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
+import { getA2AAgentCardJson } from './lib/a2aAgentCard';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -65,6 +68,41 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         return createMarkdownResponse(markdown);
     }
 
+    if (path === "/.well-known/api-catalog") {
+        const origin = req.nextUrl.origin;
+        return new NextResponse(getApiCatalogJson(origin), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/linkset+json; profile=\"https://www.rfc-editor.org/info/rfc9727\"",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
+    }
+
+    if (path === "/.well-known/http-message-signatures-directory") {
+        return new NextResponse(getWebBotAuthDirectoryJson(), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/http-message-signatures-directory+json; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
+    }
+
+    if (path === "/.well-known/agent-card.json") {
+        const origin = req.nextUrl.origin;
+        return new NextResponse(getA2AAgentCardJson(origin), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
+    }
+
     const hiddenFeature = getHiddenFeatureForPath(path);
     const enabledHiddenFeatures = mergeEnabledHiddenFeatureKeys(
         getDefaultEnabledHiddenFeatureKeys(),
@@ -90,6 +128,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/api/proxy/checkout", "/api/checkout",
         // Public pricing shown on /pricing before signup.
         "/api/proxy/billing/plans", "/api/billing/plans",
+        "/api/openapi.json",
     ];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
@@ -238,6 +277,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/robots.txt",
         "/llms.txt",
         "/llms-full.txt",
+        "/.well-known",
     ];
 
     if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {
@@ -426,6 +466,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
             response.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
             response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, x-correlation-id");
         }
+    }
+
+    if (path === "/" || path === "") {
+        response.headers.set("Link", DISCOVERY_LINK_HEADER);
     }
 
     return response;
