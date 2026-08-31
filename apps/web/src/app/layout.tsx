@@ -113,6 +113,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <link rel="dns-prefetch" href="https://us-assets.i.posthog.com" />
           <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Summary" />
           <link rel="alternate" type="text/markdown" href="/llms-full.txt" title="LLM Full Architecture Specification" />
+          <link rel="api-catalog" type="application/linkset+json" href="/.well-known/api-catalog" />
+          <link rel="service-desc" type="application/json" href="/api/openapi.json" />
+          <link rel="service-doc" type="text/html" href="/docs/api" />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{

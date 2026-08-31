@@ -20,6 +20,10 @@ import {
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER } from './lib/apiCatalog';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
+import {
+    getAgentSkillsDiscoveryIndexJson,
+    getAgentSkillContent,
+} from './lib/agentSkills';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -70,10 +74,22 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
     if (path === "/.well-known/api-catalog") {
         const origin = req.nextUrl.origin;
+        if (req.method === "HEAD") {
+            return new NextResponse(null, {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/linkset+json; profile=\"https://www.rfc-editor.org/info/rfc9727\"",
+                    "Link": "</.well-known/api-catalog>; rel=\"self\"; type=\"application/linkset+json\"",
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "public, max-age=86400, s-maxage=86400",
+                },
+            });
+        }
         return new NextResponse(getApiCatalogJson(origin), {
             status: 200,
             headers: {
                 "Content-Type": "application/linkset+json; profile=\"https://www.rfc-editor.org/info/rfc9727\"",
+                "Link": "</.well-known/api-catalog>; rel=\"self\"; type=\"application/linkset+json\"",
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "public, max-age=86400, s-maxage=86400",
             },
@@ -101,6 +117,33 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
                 "Cache-Control": "public, max-age=86400, s-maxage=86400",
             },
         });
+    }
+
+    if (path === "/.well-known/agent-skills/index.json") {
+        const origin = req.nextUrl.origin;
+        return new NextResponse(getAgentSkillsDiscoveryIndexJson(origin), {
+            status: 200,
+            headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
+    }
+
+    if (path.startsWith("/.well-known/agent-skills/") && path.endsWith("/SKILL.md")) {
+        const skillName = path.replace("/.well-known/agent-skills/", "").replace("/SKILL.md", "");
+        const content = getAgentSkillContent(skillName);
+        if (content) {
+            return new NextResponse(content, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/markdown; charset=utf-8",
+                    "Access-Control-Allow-Origin": "*",
+                    "Cache-Control": "public, max-age=86400, s-maxage=86400",
+                },
+            });
+        }
     }
 
     const hiddenFeature = getHiddenFeatureForPath(path);
