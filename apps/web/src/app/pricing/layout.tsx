@@ -10,8 +10,17 @@ export const metadata: Metadata = {
         title: "CraftMyFunnel Pricing & Plans",
         description: "Transparent pricing for governed B2B outreach: Pilot ($49), Growth ($99), Enterprise ($499).",
         url: "https://craftmyfunnel.live/pricing",
+        images: [
+            {
+                url: "/images/platform/pricing-guarantee.webp",
+                width: 820,
+                height: 460,
+                alt: "CraftMyFunnel Governed Pilot and Pricing Tiers",
+            }
+        ],
     },
 };
+
 
 const pricingSchema = {
     "@context": "https://schema.org",

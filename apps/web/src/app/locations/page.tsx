@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { MapPin, Building2, ArrowRight, ShieldCheck, Globe } from 'lucide-react';
 import { CITIES_MATRIX } from '@/lib/locations';
@@ -14,8 +15,17 @@ export const metadata: Metadata = {
     description: 'Explore CraftMyFunnel regional B2B outbound hubs across 10 commercial corridors in India.',
     type: 'website',
     url: 'https://craftmyfunnel.live/locations',
+    images: [
+      {
+        url: '/images/platform/regional-corridors.webp',
+        width: 820,
+        height: 460,
+        alt: 'National 10-City Regional B2B Outbound Corridors Map',
+      }
+    ],
   },
 };
+
 
 export default function LocationsIndexPage() {
   const siteUrl = (process.env["NEXT_PUBLIC_SITE_URL"] || "https://craftmyfunnel.live").replace(/\/$/, "");
@@ -60,8 +70,22 @@ export default function LocationsIndexPage() {
             </p>
           </div>
 
+          {/* Regional Corridors Architecture Visual */}
+          <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+            <h2 className="sr-only">10-City B2B Commercial Corridors Regional Outbound Engine</h2>
+            <Image
+              src="/images/platform/regional-corridors.webp"
+              alt="National 10-City Regional B2B Outbound Corridors Map and Local Signal Coverage"
+              width={820}
+              height={460}
+              priority
+              className="w-full h-auto rounded-2xl"
+            />
+          </div>
+
           {/* 10-City Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
             {CITIES_MATRIX.map((loc) => (
               <Link
                 key={loc.slug}

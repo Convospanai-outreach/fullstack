@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Server, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Zap, Activity, Cpu } from "lucide-react";
 import type { Metadata } from "next";
@@ -11,8 +12,17 @@ export const metadata: Metadata = {
     openGraph: {
         title: "Managed IT Services & MSP Outbound Playbook | CraftMyFunnel",
         description: "Win high-ACV recurring IT support and cybersecurity retainers with governed outreach and intent signals.",
+        images: [
+            {
+                url: "/images/use-cases/managed-services.webp",
+                width: 820,
+                height: 460,
+                alt: "Managed IT Services & MSPs Outbound Playbook",
+            }
+        ],
     },
 };
+
 
 export default function ManagedServicesUseCasePage() {
     const jsonLd = {
@@ -108,11 +118,24 @@ export default function ManagedServicesUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/managed-services.webp"
+                        alt="Managed IT Services and MSP Outbound Acquisition Engine"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Key Pillars */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
                         Built for Managed Service Providers
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 font-bold">

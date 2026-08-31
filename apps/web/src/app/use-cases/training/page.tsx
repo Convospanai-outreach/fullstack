@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { GraduationCap, CheckCircle2, ArrowLeft, ArrowRight, BookOpen, Layers, Activity, Sparkles } from "lucide-react";
 import type { Metadata } from "next";
@@ -11,8 +12,17 @@ export const metadata: Metadata = {
     openGraph: {
         title: "Corporate Training & L&D Outbound Playbook | CraftMyFunnel",
         description: "Engage enterprise HR and L&D leaders during technology rollouts and organizational transitions with governed outbound sales.",
+        images: [
+            {
+                url: "/images/use-cases/training.webp",
+                width: 820,
+                height: 460,
+                alt: "Corporate Training & L&D Outbound Playbook",
+            }
+        ],
     },
 };
+
 
 export default function TrainingUseCasePage() {
     const jsonLd = {
@@ -108,11 +118,24 @@ export default function TrainingUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/training.webp"
+                        alt="Corporate Training and L&D Multi-Touch Outbound Pipeline"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Key Pillars */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
                         Precision Targeting for Corporate Training Providers
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 font-bold">
