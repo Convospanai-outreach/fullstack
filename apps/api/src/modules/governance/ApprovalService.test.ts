@@ -60,9 +60,10 @@ describe("ApprovalService.requestEntityApproval", () => {
 
     it("auto-approves immediately when the policy resolves to AUTO", async () => {
         mockedResolveApprovalTier.mockReturnValueOnce(ApprovalTier.AUTO);
-        mockPrisma.approvalRequest.findFirst.mockResolvedValueOnce(null);
+        mockPrisma.approvalRequest.findFirst
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce({ id: "req-2", teamId: "team-1", actionType: "SOME_LOW_RISK_ACTION", entityId: "camp-1" });
         mockPrisma.approvalRequest.create.mockResolvedValue({ id: "req-2" });
-        mockPrisma.approvalRequest.findUnique.mockResolvedValue({ id: "req-2", actionType: "SOME_LOW_RISK_ACTION", entityId: "camp-1" });
         mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-2" });
 
         await ApprovalService.requestEntityApproval(
@@ -114,7 +115,11 @@ describe("ApprovalService.autoDenyExpiredApprovals", () => {
     });
 
     it("only queries PENDING + QUEUED-tier + expired requests, and rejects each one found", async () => {
-        mockPrisma.approvalRequest.findMany.mockResolvedValue([{ id: "req-a" }, { id: "req-b" }]);
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([
+            { id: "req-a", teamId: "team-1" },
+            { id: "req-b", teamId: "team-2" },
+        ]);
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue({ id: "req-a", teamId: "team-1" });
         mockPrisma.approvalRequest.update.mockResolvedValue({});
 
         const count = await ApprovalService.autoDenyExpiredApprovals();
@@ -135,6 +140,31 @@ describe("ApprovalService.autoDenyExpiredApprovals", () => {
         const count = await ApprovalService.autoDenyExpiredApprovals();
 
         expect(count).toBe(0);
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("ApprovalService.approve / reject - cross-tenant scoping", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("refuses to approve a request that doesn't belong to the given team (cross-tenant IDOR)", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
+
+        await expect(ApprovalService.approve("req-1", "user-a", "team-a")).rejects.toThrow("Request not found");
+
+        expect(mockPrisma.approvalRequest.findFirst).toHaveBeenCalledWith({ where: { id: "req-1", teamId: "team-a" } });
+        expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+        expect(mockPrisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses to reject a request that doesn't belong to the given team (cross-tenant IDOR)", async () => {
+        mockPrisma.approvalRequest.findFirst.mockResolvedValue(null);
+
+        await expect(ApprovalService.reject("req-1", "user-a", "team-a")).rejects.toThrow("Request not found");
+
+        expect(mockPrisma.approvalRequest.findFirst).toHaveBeenCalledWith({ where: { id: "req-1", teamId: "team-a" } });
         expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
     });
 });

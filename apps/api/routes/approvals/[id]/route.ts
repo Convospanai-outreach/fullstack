@@ -10,15 +10,15 @@ export async function POST(
 
   try {
     const ctx = await getCurrentContextFromRequest(req);
-    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { action, reason } = await req.json(); // action: "APPROVE" | "REJECT"
 
     if (action === "APPROVE") {
-      const result = await ApprovalService.approve(id, ctx.userId);
+      const result = await ApprovalService.approve(id, ctx.userId, ctx.teamId);
       return NextResponse.json({ success: true, result });
     } else if (action === "REJECT") {
-      const result = await ApprovalService.reject(id, ctx.userId, reason);
+      const result = await ApprovalService.reject(id, ctx.userId, ctx.teamId, reason);
       return NextResponse.json({ success: true, result });
     }
 
