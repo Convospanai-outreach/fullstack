@@ -12,6 +12,12 @@ export async function GET(
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
+        // Ownership check: without this, any authenticated user who knows/guesses a
+        // campaign id from another team could read that team's funnel/timeline/lead
+        // breakdown, since none of the queries below were otherwise scoped to teamId.
+        const campaign = await prisma.campaign.findFirst({ where: { id, teamId: ctx.teamId }, select: { id: true } });
+        if (!campaign) return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+
         const [funnel, timeline, leadsStatus] = await Promise.all([
             analyticsService.getCampaignFunnel(id),
             analyticsService.getActivityTimeline(id),
