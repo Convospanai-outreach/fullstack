@@ -11,6 +11,7 @@ import {
     parseEnabledHiddenFeatureKeys,
     PRODUCT_FLAGS,
 } from './lib/productFlags';
+import { getRobotsTxt } from './app/robots';
 
 async function appProxy(req: NextRequest, clerkAuth?: any) {
     const path = req.nextUrl.pathname;
@@ -41,6 +42,16 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
             response.headers.set(key, value);
         });
         return response;
+    }
+
+    if (path === "/robots.txt") {
+        return new NextResponse(getRobotsTxt(), {
+            status: 200,
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Cache-Control": "public, max-age=86400, s-maxage=86400",
+            },
+        });
     }
 
     const hiddenFeature = getHiddenFeatureForPath(path);
