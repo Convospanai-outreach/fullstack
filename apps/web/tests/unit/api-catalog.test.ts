@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getApiCatalogDocument, getApiCatalogJson } from '../../src/lib/apiCatalog';
-import { GET as getApiCatalogRoute } from '../../src/app/.well-known/api-catalog/route';
+import { GET as getApiCatalogRoute, HEAD as headApiCatalogRoute } from '../../src/app/.well-known/api-catalog/route';
 import { GET as getOpenApiRoute } from '../../src/app/api/openapi.json/route';
 
 function createMockRequest(url: string) {
@@ -56,10 +56,22 @@ describe('RFC 9727 API Catalog Discovery (/.well-known/api-catalog)', () => {
             expect(res.status).toBe(200);
             expect(res.headers.get('content-type')).toContain('application/linkset+json');
             expect(res.headers.get('content-type')).toContain('profile="https://www.rfc-editor.org/info/rfc9727"');
+            expect(res.headers.get('link')).toContain('</.well-known/api-catalog>; rel="self"');
 
             const body = await res.json();
             expect(body.linkset).toBeDefined();
             expect(body.linkset[0]['service-desc']).toBeDefined();
+            expect(body.linkset[0]['service-doc']).toBeDefined();
+            expect(body.linkset[0].status).toBeDefined();
+        });
+
+        it('HEAD /.well-known/api-catalog returns 200 with application/linkset+json and link headers', async () => {
+            const req = createMockRequest('https://craftmyfunnel.live/.well-known/api-catalog');
+            const res = await headApiCatalogRoute(req);
+
+            expect(res.status).toBe(200);
+            expect(res.headers.get('content-type')).toContain('application/linkset+json');
+            expect(res.headers.get('link')).toContain('</.well-known/api-catalog>; rel="self"');
         });
 
         it('GET /api/openapi.json returns 200 with OpenAPI 3.1.0 schema', async () => {
