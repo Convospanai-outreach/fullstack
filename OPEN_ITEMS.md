@@ -1,5 +1,37 @@
 # Persistent Open-Items Ledger
 
+## Active: Continuous bug-fix sweep (started 2026-08-31)
+
+User asked to keep finding+fixing bugs, one at a time, each committed and PR'd
+to `main` (protected, requires 4 green checks), auto-merged once clean, until
+no more high-confidence findings remain. No fixed stopping point ("100% ok"
+isn't measurable) — this sweep continues until a session ends it or nothing
+new turns up.
+
+- **OPEN-85 (Fixed, PR #334, merge pending CI):** cross-team IDOR in
+  `playbookService.instantiatePlaybook` (apps/api + dormant apps/web
+  duplicate) — `teamId` param was accepted but never used to scope the
+  `playbook` lookup, letting any team instantiate another team's playbook by
+  ID. Fixed via `findFirst({ where: { id, teamId } })` in both copies +
+  regression test. Watching PR #334's checks; merges automatically on green.
+
+- **OPEN-86 (Fixed, PR pending):** cross-team IDOR in
+  `crmService.syncLead` (apps/api copy) — `teamId` accepted but the
+  `prisma.lead.findUnique({ id })` lookup, and the calling route's own
+  redundant pre-check, ignored it, letting any team push/mutate another
+  team's lead via HubSpot sync. The `apps/web` copy of this service was
+  already fixed with a test; the `apps/api` copy and its route were missed.
+  Fixed both + added a matching regression test.
+
+- **OPEN-87 (Fixed, PR pending):** cross-team IDOR in
+  `ApprovalService.approve`/`reject` — no team scoping at all (not even a
+  `teamId` param), so any authenticated user could approve/reject another
+  team's pending approval request by guessing its id, including triggering
+  `approve()`'s `CAMPAIGN_START` side-effect on another team's campaign.
+  Added a required `teamId` param, scoped the lookup, updated all three
+  callers (route, internal AUTO-tier auto-approve, expiry sweep), added
+  regression tests.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

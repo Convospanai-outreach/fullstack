@@ -14,7 +14,7 @@ export async function POST(req: Request) {
 
         if (!leadId) throw new APIError("Lead ID is required", 400, "BAD_REQUEST");
 
-        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
         if (!lead) throw new APIError("Lead not found", 404, "NOT_FOUND");
 
         const result = await crmService.syncLead(leadId, teamId);
