@@ -32,7 +32,7 @@ export const playbookService = {
      * Create a Campaign from a Playbook, filling in the parameters.
      */
     async instantiatePlaybook(playbookId: string, teamId: string, values: Record<string, string>) {
-        const playbook = await prisma.playbook.findUnique({ where: { id: playbookId } });
+        const playbook = await prisma.playbook.findFirst({ where: { id: playbookId, teamId } });
         if (!playbook) throw new Error("Playbook not found");
 
         // 1. Deep clone config
