@@ -29,20 +29,18 @@ export async function deductCredits(
     meta?: any
 ): Promise<boolean> {
     return await prisma.$transaction(async (tx: PrismaTransactionClient) => {
-        const team = await tx["team"].findUnique({
-            where: { id: teamId },
-            select: { credits: true }
-        });
-
-        if (!team || team.credits < amount) {
-            return false;
-        }
-
-        // Deduct credits
-        await tx["team"].update({
-            where: { id: teamId },
+        // A read-then-write check here would race under concurrent calls (two requests
+        // can both read the same balance before either decrements, driving credits
+        // negative). updateMany's WHERE clause makes the check-and-decrement atomic at
+        // the database level instead.
+        const result = await tx["team"].updateMany({
+            where: { id: teamId, credits: { gte: amount } },
             data: { credits: { decrement: amount } }
         });
+
+        if (result.count === 0) {
+            return false;
+        }
 
         // Record transaction (negative amount for usage)
         await tx["creditTransaction"].create({
