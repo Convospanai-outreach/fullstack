@@ -22,21 +22,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Enqueue campaign execution job
-  // Enqueue campaign execution job
   const { startDate } = body;
   const processAt = startDate ? new Date(startDate) : null;
-
-  // If scheduled, update campaign status immediately for UI feedback
-  if (startDate) {
-    await prisma.campaign.update({
-      where: { id: campaignId },
-      data: {
-        status: "scheduled",
-        scheduledStart: processAt
-      }
-    });
-  }
 
   const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
   if (!campaign) return new NextResponse("Campaign not found", { status: 404 });
@@ -55,6 +42,20 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 403 });
+  }
+
+  // If scheduled, update campaign status immediately for UI feedback. Scoped by teamId (in
+  // addition to the membership check enforcePolicy just did above) and only runs after that
+  // check passes - it previously ran unconditionally before any team-membership was verified,
+  // letting any authenticated user reschedule any team's campaign by guessing its id.
+  if (startDate) {
+    await prisma.campaign.updateMany({
+      where: { id: campaignId, teamId },
+      data: {
+        status: "scheduled",
+        scheduledStart: processAt
+      }
+    });
   }
 
   const job = await JobQueue.enqueue("campaign_execution", { campaignId, userId }, { processAt });
