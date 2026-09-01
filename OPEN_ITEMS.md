@@ -318,6 +318,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   through the `automation` relation instead: `updateMany({ id, automation:
   { teamId } })`). All converted to `updateMany()` scoped by the team
   filter, checking `.count === 0` for the "not found" case.
+- **OPEN-124 (Fixed, merged PR #367):** `admin/actions/[action]/route.ts`
+  accepted a client-supplied `teamId` in the POST body with no check that
+  the calling admin actually belongs to that team. `getAdminUser()`'s
+  default minimum role is `ORG_ADMIN`, which is a normal, self-service-
+  assignable per-workspace role (any team owner can invite a teammate as
+  `ORG_ADMIN` via `WORKSPACE_ASSIGNABLE_ROLES`), not a platform-level
+  privilege — so any customer who invited a colleague as `ORG_ADMIN` of
+  their own workspace could pass another tenant's `teamId` and pause that
+  tenant's active campaigns (`pause-outreach`) or enqueue scraper/CRM-sync
+  jobs scoped to it (`start-scrapers`, `sync-crm`). Distinct from the
+  OPEN-99-family "scope the mutation, not just a pre-check" pattern: there
+  was no pre-check at all here, and the vulnerable scope came from trusting
+  a client-supplied `teamId` outright. Fixed by verifying `TeamMember`
+  membership before honoring a client-supplied `teamId`, unless the caller
+  is a genuine platform-level operator (`SYSTEM_ADMIN`/`SUPER_ADMIN`, which
+  are not self-service-assignable).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
