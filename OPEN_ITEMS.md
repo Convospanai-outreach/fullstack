@@ -211,6 +211,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   the actual OIDC token exchange. Backward compatible: rows with a
   pre-existing plaintext secret keep working via a legacy-plaintext
   fallback until next saved.
+- **OPEN-115 (Fixed, merged PR #350):** `playbookService.instantiatePlaybook()`
+  (apps/api + apps/web duplicate) built each `{{key}}` pattern into a
+  `RegExp` from the raw, unescaped parameter key, and passed the
+  substitution value straight into the string form of `String.replace()`.
+  A key with regex metacharacters (e.g. `first.name`) could match more
+  broadly than intended or throw; a value containing a literal `$`
+  followed by a special replacement token (`$&`, `$$`, `$1`, ...) — not
+  unusual in pricing/currency data — got silently reinterpreted instead of
+  inserted verbatim, corrupting the generated campaign email. Fixed by
+  escaping the key and using a replacer function (not subject to
+  special-pattern interpretation) for the value.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
