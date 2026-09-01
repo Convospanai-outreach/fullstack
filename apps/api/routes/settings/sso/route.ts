@@ -3,6 +3,10 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { Permission, authorizePermission } from "@/lib/permissions";
+import { encryptClientSecret } from "@/modules/settings/ssoSecrets";
+
+// Sent to the client instead of the real secret; PUT treats it as "unchanged".
+const REDACTED_CLIENT_SECRET = "••••••••";
 
 export async function GET() {
     const { userId, teamId } = await getCurrentContext();
@@ -17,7 +21,12 @@ export async function GET() {
             where: { teamId }
         });
 
-        return NextResponse.json(ssoConfig || {});
+        if (!ssoConfig) return NextResponse.json({});
+
+        return NextResponse.json({
+            ...ssoConfig,
+            clientSecret: ssoConfig.clientSecret ? REDACTED_CLIENT_SECRET : "",
+        });
     } catch (error: any) {
         console.error("[SSO API] GET error:", error);
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
@@ -47,6 +56,13 @@ export async function PUT(req: Request) {
             allowedDomains
         } = body;
 
+        // The client only ever sees a redacted placeholder for the stored secret (GET),
+        // so an empty value or the placeholder itself means "leave it unchanged" - only
+        // a genuinely different, non-empty value should overwrite what's encrypted.
+        const isRealNewSecret =
+            typeof clientSecret === "string" && clientSecret.length > 0 && clientSecret !== REDACTED_CLIENT_SECRET;
+        const secretFields = isRealNewSecret ? { clientSecret: encryptClientSecret(clientSecret) } : {};
+
         const ssoConfig = await prisma.ssoConfiguration.upsert({
             where: { teamId },
             update: {
@@ -56,10 +72,10 @@ export async function PUT(req: Request) {
                 entryPoint,
                 certificate,
                 clientId,
-                clientSecret,
                 wellKnownUrl,
                 enforced,
-                allowedDomains
+                allowedDomains,
+                ...secretFields
             },
             create: {
                 teamId,
@@ -69,10 +85,10 @@ export async function PUT(req: Request) {
                 entryPoint,
                 certificate,
                 clientId,
-                clientSecret,
                 wellKnownUrl,
                 enforced,
-                allowedDomains
+                allowedDomains,
+                ...secretFields
             }
         });
 
@@ -85,7 +101,10 @@ export async function PUT(req: Request) {
             metadata: { providerType, enforced, allowedDomains }
         });
 
-        return NextResponse.json(ssoConfig);
+        return NextResponse.json({
+            ...ssoConfig,
+            clientSecret: ssoConfig.clientSecret ? REDACTED_CLIENT_SECRET : "",
+        });
     } catch (error: any) {
         console.error("[SSO API] PUT error:", error);
         return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
