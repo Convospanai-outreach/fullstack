@@ -167,6 +167,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   sibling AI routes using `aiLimiter`. Added a dedicated per-team
   `swarmLimiter` (1/minute), since a swarm's cost lands on the team's
   shared AI budget regardless of which member triggers it.
+- **OPEN-112 (Fixed, merged PR #346):** SSO login was a facade — the
+  settings UI and `SsoConfiguration` persistence were real, but
+  `/auth/sso/check` redirected to a nonexistent `/api/auth/signin/oidc`
+  registration, since NextAuth's `providers` array was empty (`[]`,
+  Clerk-only comment). Implemented real OIDC login: a per-team dynamic
+  OIDC provider is resolved from `SsoConfiguration` at request time inside
+  `[...nextauth]/route.ts` (NextAuth's `providers` array is normally
+  static, but SSO config is per-team), with a short-lived cookie carrying
+  `teamId` across the signin→callback hop since the IdP's redirect_uri has
+  no room for it. Account linking uses `allowDangerousEmailAccountLinking`,
+  gated by hard preconditions in the signIn guard (`isOidcSignInAllowed`):
+  the IdP must assert `email_verified`, the email's domain must be in that
+  team's `allowedDomains`, and the user must already be an active member
+  of that team — no auto-provisioning of new users or memberships.
+  `providerType === "SAML"` now returns an explicit "not supported"
+  message from `/auth/sso/check` instead of a dead redirect (SAML was
+  explicitly descoped in favor of OIDC-only). **Scope note:** login path
+  only — SSO *enforcement* (blocking password/Clerk login for domains with
+  `enforced: true`) is a separate, still-open gap (see below); building it
+  on top of an unverified login path risks lockout. **Verification
+  ceiling:** unit tests cover config resolution and the signIn guards;
+  end-to-end OIDC against a real IdP is unverified (no test IdP available
+  in this environment).
+- **OPEN-113 (Found, not fixed):** SSO *enforcement* is stubbed out.
+  `SsoConfiguration.enforced` is persisted and shown as a toggle in the
+  settings UI, but nothing actually blocks password/Clerk login for a
+  domain once it's set — `apps/api/src/middleware.ts` has a
+  `[STUB-3 Remediation]` comment admitting as much ("In a full
+  implementation, we'd query SsoConfiguration here"). Needs careful design
+  to avoid lockout (e.g. an org admin enabling enforcement before OIDC is
+  fully configured/working must not lock themselves out) — deliberately
+  deferred until OIDC login (OPEN-112) has real-world usage.
+- **OPEN-114 (Found, not fixed):** `SsoConfiguration.clientSecret` is
+  stored in plaintext in the database (`apps/api/routes/settings/sso/route.ts`
+  PUT handler does a direct field upsert, no encryption). Every other
+  secret-bearing integration in this codebase should be checked against
+  the same standard; scoped separately from the OIDC login fix since
+  touching storage/encryption for an existing settings route was out of
+  scope for that PR.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
