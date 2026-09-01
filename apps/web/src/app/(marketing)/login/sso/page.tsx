@@ -27,10 +27,38 @@ export default function SsoLoginPage() {
             const res = await fetch(`${getBrowserApiBase()}/auth/sso/check?email=${encodeURIComponent(email)}`);
             const data = await res.json();
 
-            if (data.redirectUrl) {
-                window.location.href = data.redirectUrl;
-            } else {
+            if (data.error) {
+                toast.error(data.error);
+                return;
+            }
+
+            if (!data.teamId || data.provider !== "OIDC") {
                 toast.error("SSO is not configured for this domain. Please use password login.");
+                return;
+            }
+
+            // NextAuth's providers array is empty at boot (per-team OIDC config is
+            // resolved dynamically by the [...nextauth] route handler), so the
+            // client-side signIn() helper's provider registry check can't be used -
+            // this replicates its POST/CSRF flow by hand.
+            const csrfRes = await fetch("/api/auth/csrf");
+            const { csrfToken } = await csrfRes.json();
+
+            const body = new URLSearchParams({ csrfToken, callbackUrl: "/dashboard", json: "true" });
+            const signinRes = await fetch(
+                `/api/auth/signin/oidc?teamId=${encodeURIComponent(data.teamId)}&login_hint=${encodeURIComponent(email)}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: body.toString(),
+                }
+            );
+            const signinData = await signinRes.json();
+
+            if (signinData.url) {
+                window.location.href = signinData.url;
+            } else {
+                toast.error("Could not start SSO sign-in. Please try again.");
             }
         } catch (error) {
             toast.error("SSO check failed");
