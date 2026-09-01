@@ -199,13 +199,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   to avoid lockout (e.g. an org admin enabling enforcement before OIDC is
   fully configured/working must not lock themselves out) — deliberately
   deferred until OIDC login (OPEN-112) has real-world usage.
-- **OPEN-114 (Found, not fixed):** `SsoConfiguration.clientSecret` is
-  stored in plaintext in the database (`apps/api/routes/settings/sso/route.ts`
-  PUT handler does a direct field upsert, no encryption). Every other
-  secret-bearing integration in this codebase should be checked against
-  the same standard; scoped separately from the OIDC login fix since
-  touching storage/encryption for an existing settings route was out of
-  scope for that PR.
+- **OPEN-114 (Fixed, merged PR #348):** `SsoConfiguration.clientSecret` was
+  stored and returned in plaintext — the settings PUT handler upserted it
+  verbatim and GET echoed the real secret back into the UI response. Added
+  AES-256-GCM encryption at rest (`apps/api/src/modules/settings/ssoSecrets.ts`,
+  same pattern as `wabaCredentials.ts`/`smtpConfigService.ts`); GET/PUT now
+  redact the secret to a placeholder, and PUT only re-encrypts when a
+  genuinely new, non-placeholder value is submitted (so the settings form
+  round-tripping the placeholder can't clobber the real secret).
+  `apps/web`'s `oidc.ts` decrypts via a mirrored decrypt-only helper for
+  the actual OIDC token exchange. Backward compatible: rows with a
+  pre-existing plaintext secret keep working via a legacy-plaintext
+  fallback until next saved.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
