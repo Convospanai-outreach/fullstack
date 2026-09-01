@@ -648,6 +648,64 @@ export async function markMailboxSend(teamId: string, mailboxId: string) {
     });
 }
 
+// assertMailboxCanSend (read) followed later by markMailboxSend (write after the actual
+// provider send completes) is a check-then-act race: two concurrent sends through the same
+// mailbox can both read a count that's under the limit before either one's write lands,
+// letting both through. reserveMailboxSend/releaseMailboxSend close that gap by claiming the
+// slot atomically, in one conditional UPDATE, *before* the provider call is made.
+export async function reserveMailboxSend(teamId: string, mailboxId: string) {
+    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
+    if (!mailbox || mailbox.status !== "CONNECTED") {
+        return { ok: false as const, reason: "Mailbox is not connected." };
+    }
+    if (mailbox.lastSentAt) {
+        const nextAllowedAt = new Date(mailbox.lastSentAt.getTime() + mailbox.minDelaySeconds * 1000);
+        if (nextAllowedAt > new Date()) {
+            return { ok: false as const, reason: `Mailbox throttle active until ${nextAllowedAt.toISOString()}.` };
+        }
+    }
+
+    const warmupLimit = mailbox.isWarmingUp
+        ? Math.max(5, Math.min(mailbox.dailyLimit, 5 + mailbox.warmupDay * 5))
+        : mailbox.dailyLimit;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const now = new Date();
+
+    const sameDayClaim = await prisma.connectedMailbox.updateMany({
+        where: { id: mailboxId, teamId, sentTodayDate: today, sentToday: { lt: warmupLimit } },
+        data: { sentToday: { increment: 1 }, lastSentAt: now },
+    });
+    if (sameDayClaim.count > 0) return { ok: true as const, mailbox };
+
+    if (warmupLimit > 0) {
+        const rolloverClaim = await prisma.connectedMailbox.updateMany({
+            where: { id: mailboxId, teamId, OR: [{ sentTodayDate: null }, { sentTodayDate: { lt: today } }] },
+            data: { sentToday: 1, sentTodayDate: today, lastSentAt: now },
+        });
+        if (rolloverClaim.count > 0) return { ok: true as const, mailbox };
+
+        // A concurrent caller may have just performed the day rollover above between our two
+        // attempts; retry the same-day claim once more before giving up.
+        const retryClaim = await prisma.connectedMailbox.updateMany({
+            where: { id: mailboxId, teamId, sentTodayDate: today, sentToday: { lt: warmupLimit } },
+            data: { sentToday: { increment: 1 }, lastSentAt: now },
+        });
+        if (retryClaim.count > 0) return { ok: true as const, mailbox };
+    }
+
+    return { ok: false as const, reason: `Daily send limit reached for ${mailbox.email}.` };
+}
+
+export async function releaseMailboxSend(teamId: string, mailboxId: string) {
+    // Best-effort: undo a reservation when the actual send failed, so a transient provider
+    // error doesn't permanently burn a slot in the mailbox's daily quota.
+    await prisma.connectedMailbox.updateMany({
+        where: { id: mailboxId, teamId, sentToday: { gt: 0 } },
+        data: { sentToday: { decrement: 1 } },
+    }).catch(() => undefined);
+}
+
 export async function selectMailboxForSend(teamId: string, assignedUserId?: string) {
     const queryCandidates = (where: any) => prisma.connectedMailbox.findMany({
         where: {
@@ -790,6 +848,12 @@ export async function sendViaGmailMailbox(input: {
         return gmailPreDispatchFailure();
     }
 
+    // Reserve the mailbox's daily send slot atomically, right before the actual provider
+    // call, so two concurrent sends through the same mailbox can't both pass a stale
+    // capacity check (see OPEN-105). Released below on any failure path.
+    const reservation = await reserveMailboxSend(input.teamId, mailbox.id);
+    if (!reservation.ok) return gmailPreDispatchFailure();
+
     let response: Response;
     let data: unknown;
     try {
@@ -802,6 +866,7 @@ export async function sendViaGmailMailbox(input: {
             body: JSON.stringify({ raw }),
         }, "Gmail send"));
     } catch (error) {
+        await releaseMailboxSend(input.teamId, mailbox.id);
         const failureCode = googleRequestFailure(
             error,
             "GMAIL_SEND_TIMEOUT",
@@ -816,11 +881,13 @@ export async function sendViaGmailMailbox(input: {
     }
 
     if (!response.ok) {
+        await releaseMailboxSend(input.teamId, mailbox.id);
         return response.status >= 400 && response.status < 500
             ? gmailExplicitRejection()
             : gmailAmbiguousFailure("GMAIL_SEND_FAILED");
     }
     if (!isGoogleResponseObject(data) || typeof data.id !== "string" || data.id.length === 0) {
+        await releaseMailboxSend(input.teamId, mailbox.id);
         return gmailAmbiguousFailure("GMAIL_SEND_RESPONSE_INVALID");
     }
 
@@ -833,19 +900,14 @@ export async function sendViaGmailMailbox(input: {
         console.error("[Gmail] GMAIL_SEND_MESSAGE_ID_FETCH_FAILED.");
     }
 
-    const result: GmailSendSuccess = {
+    // Quota bookkeeping already happened atomically in the reserveMailboxSend call above.
+    return {
         success: true,
         deliveryProvider: "GMAIL_API",
         messageId,
         threadId: typeof data.threadId === "string" && data.threadId.length > 0 ? data.threadId : undefined,
         mailboxId: mailbox.id,
     };
-    try {
-        await markMailboxSend(input.teamId, mailbox.id);
-    } catch {
-        console.error("[Gmail] GMAIL_SEND_BOOKKEEPING_FAILED.");
-    }
-    return result;
 }
 
 type SuppressionInput = {
