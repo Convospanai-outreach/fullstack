@@ -5,7 +5,7 @@
 // the same provider scope emailService.sendEmail() itself supports; Microsoft 365/Resend
 // mailboxes are skipped, not a regression introduced here.
 import { prisma } from "@/lib/db";
-import { assertMailboxCanSend, markMailboxSend, sendViaGmailMailbox } from "./googleMailboxService";
+import { assertMailboxCanSend, reserveMailboxSend, releaseMailboxSend, sendViaGmailMailbox } from "./googleMailboxService";
 import { getSmtpConfig } from "./smtpConfigService";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { JobQueue } from "@/lib/queue";
@@ -97,6 +97,8 @@ async function bumpSeedMailboxCounter(id: string) {
 
 async function sendFromWarmingMailbox(mailbox: any, to: string, subject: string, html: string): Promise<boolean> {
     if (mailbox.provider === "GOOGLE_WORKSPACE") {
+        // sendViaGmailMailbox reserves/marks this mailbox's daily send quota atomically
+        // itself - the caller must not also mark it, or a warmup send gets double-counted.
         const outcome = await sendViaGmailMailbox({ teamId: mailbox.teamId, mailboxId: mailbox.id, to, subject, html });
         return outcome.success;
     }
@@ -108,8 +110,8 @@ async function sendFromWarmingMailbox(mailbox: any, to: string, subject: string,
 
 // Runs on a tick from worker-manager: gives each warming mailbox one chance to exchange a
 // warmup email with a random seed mailbox, respecting the exact same daily/throttle guard
-// real campaign sends use (assertMailboxCanSend/markMailboxSend), so seed traffic can never
-// push a mailbox past its ramped warmup limit.
+// real campaign sends use, so seed traffic can never push a mailbox past its ramped warmup
+// limit - even under concurrent ticks (see reserveMailboxSend in googleMailboxService.ts).
 export async function sendWarmupSeedTraffic(limit = 25) {
     const warmingMailboxes = await prisma.connectedMailbox.findMany({
         where: { isWarmingUp: true, status: "CONNECTED" },
@@ -118,11 +120,22 @@ export async function sendWarmupSeedTraffic(limit = 25) {
 
     let sent = 0;
     for (const mailbox of warmingMailboxes) {
+        // Cheap pre-filter only - not the enforcement point, so it's fine that this read can
+        // race with another tick. Real enforcement happens per-provider below.
         const check = await assertMailboxCanSend(mailbox.teamId, mailbox.id);
         if (!check.ok) continue;
 
         const seed = await pickEligibleSeedMailbox();
         if (!seed) break; // pool exhausted for today - no point checking further mailboxes
+
+        // Gmail sends reserve/mark this mailbox's quota atomically inside
+        // sendViaGmailMailbox; SMTP has no such built-in accounting, so we have to reserve
+        // the slot here ourselves before attempting the send (see OPEN-105).
+        const isGmail = mailbox.provider === "GOOGLE_WORKSPACE";
+        if (!isGmail) {
+            const reservation = await reserveMailboxSend(mailbox.teamId, mailbox.id);
+            if (!reservation.ok) continue;
+        }
 
         const template = pickRandom(SEED_TEMPLATES);
         let success: boolean;
@@ -131,9 +144,11 @@ export async function sendWarmupSeedTraffic(limit = 25) {
         } catch {
             success = false;
         }
-        if (!success) continue;
+        if (!success) {
+            if (!isGmail) await releaseMailboxSend(mailbox.teamId, mailbox.id);
+            continue;
+        }
 
-        await markMailboxSend(mailbox.teamId, mailbox.id);
         await bumpSeedMailboxCounter(seed.id);
         sent += 1;
 

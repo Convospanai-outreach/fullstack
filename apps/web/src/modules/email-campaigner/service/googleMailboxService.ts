@@ -261,23 +261,6 @@ function base64Url(input: string) {
         .replace(/=+$/g, "");
 }
 
-export async function markMailboxSend(teamId: string, mailboxId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId } });
-    if (!mailbox) return null;
-    const sentTodayDate = mailbox.sentTodayDate ? new Date(mailbox.sentTodayDate) : null;
-    const shouldReset = !sentTodayDate || sentTodayDate < today;
-    return prisma.connectedMailbox.update({
-        where: { id: mailboxId },
-        data: {
-            sentTodayDate: today,
-            sentToday: shouldReset ? 1 : { increment: 1 },
-            lastSentAt: new Date(),
-        },
-    });
-}
-
 export async function sendViaGmailMailbox(input: {
     teamId: string;
     mailboxId: string;
@@ -351,7 +334,12 @@ export async function sendViaGmailMailbox(input: {
         }
     }
 
-    await markMailboxSend(input.teamId, mailbox.id);
+    // Quota bookkeeping is not this function's job: the only real caller
+    // (email-sending-worker.ts's handleEmailSending) already claims the mailbox's daily send
+    // slot atomically via a raw SQL UPDATE before invoking this provider, and no sibling
+    // provider (SMTP/Microsoft/Resend) does its own bookkeeping either - calling
+    // markMailboxSend here double-counted every single Gmail send against the mailbox's
+    // daily/warmup limit.
     return {
         success: true,
         messageId: actualWireMessageId,

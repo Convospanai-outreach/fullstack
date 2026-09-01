@@ -641,6 +641,14 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
             metadata: null,
             encryptedAccessToken: encryptedToken(),
             tokenExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+            status: "CONNECTED",
+            dailyLimit: 100,
+            sentToday: 0,
+            sentTodayDate: null,
+            minDelaySeconds: 0,
+            lastSentAt: null,
+            isWarmingUp: false,
+            warmupDay: 0,
         };
     }
 
@@ -693,6 +701,7 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         (mockDb.$transaction as Mock).mockImplementation(async (callback: (tx: any) => unknown) => callback(mockDb));
         (prisma.mailboxSyncCursor.upsert as Mock).mockResolvedValue({});
         (prisma.mailboxSyncCursor.updateMany as Mock).mockResolvedValue({ count: 1 });
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
         (prisma.mailboxSyncCursor.findUnique as Mock).mockImplementation(async () => {
             const acquisition = [...(prisma.mailboxSyncCursor.updateMany as Mock).mock.calls]
                 .reverse()
@@ -1766,11 +1775,8 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         expect(mockFetch).not.toHaveBeenCalled();
     });
 
-    it("keeps a valid Gmail success authoritative when mailbox send bookkeeping fails", async () => {
-        mockFetch
-            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
-            .mockResolvedValueOnce(response({ payload: { headers: [{ name: "Message-ID", value: "<wire-id@gmail.com>" }] } }));
-        (prisma.connectedMailbox.update as Mock).mockRejectedValueOnce(new Error("database detail must remain private"));
+    it("refuses to send when the mailbox's daily quota can't be reserved (fails closed, no send attempted)", async () => {
+        (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 0 });
 
         await expect(sendViaGmailMailbox({
             teamId: "team-1",
@@ -1779,12 +1785,29 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
             subject: "Hello",
             html: "<p>content</p>",
         })).resolves.toEqual({
-            success: true,
-            deliveryProvider: "GMAIL_API",
-            messageId: "<wire-id@gmail.com>",
-            threadId: "gmail-thread-1",
-            mailboxId: "mailbox-1",
+            success: false,
+            error: "GMAIL_SEND_PRE_DISPATCH_FAILED",
+            outcome: "PRE_DISPATCH_NO_SEND",
+            fallbackAllowed: true,
         });
+        expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("releases the reserved quota slot when the Gmail send itself fails", async () => {
+        mockFetch.mockResolvedValueOnce(response({ error: { message: "provider detail must remain private" } }, false, 500));
+
+        await sendViaGmailMailbox({
+            teamId: "team-1",
+            mailboxId: "mailbox-1",
+            to: "recipient@example.com",
+            subject: "Hello",
+            html: "<p>content</p>",
+        });
+
+        expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+            where: expect.objectContaining({ id: "mailbox-1", teamId: "team-1", sentToday: { gt: 0 } }),
+            data: { sentToday: { decrement: 1 } },
+        }));
     });
 
     it("uses the bounded helper for Gmail watch registration and stores valid watch evidence", async () => {
