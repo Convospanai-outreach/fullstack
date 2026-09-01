@@ -304,6 +304,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   upload's GET, and converting DELETE's pre-check + unscoped `delete()` to
   a `teamId`-scoped `deleteMany()` (same pattern as OPEN-99/109/110/118/
   120/121).
+- **OPEN-123 (Fixed, merged PR #365):** three more instances of the
+  "scope the mutation, not just a pre-check" anti-pattern, all
+  defense-in-depth (not currently exploitable — each pre-check already
+  blocks a foreign id): `templates/[id]/route.ts` (PUT/DELETE) —
+  `emailTemplate.update()`/`delete()` filtered by bare `{ id }` after a
+  scoped pre-check; `ApprovalService.approve()`/`reject()` —
+  `approvalRequest.update()` filtered by bare `{ id: requestId }` (plus
+  `approve()`'s `CAMPAIGN_START` side-effect now also scoped by teamId for
+  defense-in-depth); `automations/approve/route.ts` — `automationLog.update()`
+  filtered by bare `{ id: logId }` after a manual teamId comparison
+  (`AutomationLog` has no direct teamId column, so this one filters
+  through the `automation` relation instead: `updateMany({ id, automation:
+  { teamId } })`). All converted to `updateMany()` scoped by the team
+  filter, checking `.count === 0` for the "not found" case.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
