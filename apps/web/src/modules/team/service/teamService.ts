@@ -50,9 +50,14 @@ class TeamService {
             }
         }
 
-        return await prisma.teamMember.delete({
-            where: { id: memberId }
+        // The mutation itself must also be scoped, not just the pre-check above -
+        // TeamMember has no compound unique on (id, teamId), so delete() can't take
+        // teamId directly; deleteMany() is used instead.
+        const deleted = await prisma.teamMember.deleteMany({
+            where: { id: memberId, teamId }
         });
+        if (deleted.count === 0) throw new Error("Member not found");
+        return member;
     }
 
     async updateRole(teamId: string, memberId: string, newRole: string) {
@@ -69,10 +74,14 @@ class TeamService {
             }
         }
 
-        return await prisma.teamMember.update({
-            where: { id: memberId },
+        // Same reasoning as removeMember() - updateMany() is used since update() can't
+        // take teamId without a compound unique on (id, teamId).
+        const updated = await prisma.teamMember.updateMany({
+            where: { id: memberId, teamId },
             data: { role: newRole }
         });
+        if (updated.count === 0) throw new Error("Member not found");
+        return { ...member, role: newRole };
     }
 }
 
