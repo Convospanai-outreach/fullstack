@@ -8,11 +8,13 @@ const mockDb: any = vi.hoisted(() => ({
 vi.mock("@/lib/db", () => ({ prisma: mockDb }));
 
 const mockAssertMailboxCanSend = vi.hoisted(() => vi.fn());
-const mockMarkMailboxSend = vi.hoisted(() => vi.fn());
+const mockReserveMailboxSend = vi.hoisted(() => vi.fn());
+const mockReleaseMailboxSend = vi.hoisted(() => vi.fn());
 const mockSendViaGmailMailbox = vi.hoisted(() => vi.fn());
 vi.mock("../googleMailboxService", () => ({
     assertMailboxCanSend: mockAssertMailboxCanSend,
-    markMailboxSend: mockMarkMailboxSend,
+    reserveMailboxSend: mockReserveMailboxSend,
+    releaseMailboxSend: mockReleaseMailboxSend,
     sendViaGmailMailbox: mockSendViaGmailMailbox,
 }));
 
@@ -63,7 +65,8 @@ describe("sendWarmupSeedTraffic", () => {
         vi.clearAllMocks();
         mockDb.warmupSeedMailbox.update.mockResolvedValue({});
         mockAssertMailboxCanSend.mockResolvedValue({ ok: true });
-        mockMarkMailboxSend.mockResolvedValue({});
+        mockReserveMailboxSend.mockResolvedValue({ ok: true });
+        mockReleaseMailboxSend.mockResolvedValue(undefined);
     });
 
     it("sends via Gmail for a GOOGLE_WORKSPACE warming mailbox and reserves a random reply", async () => {
@@ -80,7 +83,9 @@ describe("sendWarmupSeedTraffic", () => {
         expect(mockSendViaGmailMailbox).toHaveBeenCalledWith(
             expect.objectContaining({ teamId: "team-1", mailboxId: "mailbox-1", to: "seed1@warmup.craftmyfunnel.live" })
         );
-        expect(mockMarkMailboxSend).toHaveBeenCalledWith("team-1", "mailbox-1");
+        // Gmail sends reserve/mark their own quota internally - warmupSeedService must not
+        // also reserve (that would double-count a single warmup email against the mailbox).
+        expect(mockReserveMailboxSend).not.toHaveBeenCalled();
         expect(mockDb.warmupSeedMailbox.update).toHaveBeenCalled();
     });
 
@@ -97,7 +102,24 @@ describe("sendWarmupSeedTraffic", () => {
 
         expect(result.sent).toBe(1);
         expect(mockSendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(mockReserveMailboxSend).toHaveBeenCalledWith("team-2", "mailbox-2");
         expect(mockSendViaSMTP).toHaveBeenCalled();
+        expect(mockReleaseMailboxSend).not.toHaveBeenCalled();
+    });
+
+    it("releases the reserved slot when an SMTP warmup send fails", async () => {
+        mockDb.connectedMailbox.findMany.mockResolvedValue([
+            { id: "mailbox-5", teamId: "team-5", provider: "SMTP", isWarmingUp: true, status: "CONNECTED" },
+        ]);
+        mockDb.warmupSeedMailbox.findMany.mockResolvedValue([seedMailbox()]);
+        mockDb.warmupSeedMailbox.findUnique.mockResolvedValue(seedMailbox());
+        mockGetSmtpConfig.mockResolvedValue({ host: "smtp.team.com", port: 587, secure: false, user: "u", password: "p", fromName: "Team", fromEmail: "team@example.com" });
+        mockSendViaSMTP.mockResolvedValue({ success: false });
+
+        const result = await sendWarmupSeedTraffic();
+
+        expect(result.sent).toBe(0);
+        expect(mockReleaseMailboxSend).toHaveBeenCalledWith("team-5", "mailbox-5");
     });
 
     it("skips a mailbox that is throttled or at its warmup limit", async () => {
