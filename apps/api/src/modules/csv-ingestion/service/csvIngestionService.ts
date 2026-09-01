@@ -7,6 +7,10 @@ export interface ConsentAttestation {
     hasConsent: boolean;
 }
 
+// Rows are processed sequentially (a findFirst + create/update per row) - an unbounded
+// CSV would tie up the request/worker indefinitely.
+const MAX_ROWS = 5000;
+
 export interface CSVRow {
     email: string;
     fullName?: string;
@@ -71,6 +75,17 @@ class CSVIngestionService {
                 if (!campaign) {
                     campaignId = undefined;
                 }
+            }
+
+            if ((parsed.data as unknown[]).length > MAX_ROWS) {
+                return {
+                    success: false,
+                    created: 0,
+                    skipped: 0,
+                    errors: [{ message: `CSV has too many rows (${(parsed.data as unknown[]).length}). Maximum is ${MAX_ROWS} - split the file and import in batches.` }],
+                    totalParsed: 0,
+                    inserted: 0
+                };
             }
 
             const headers = parsed.meta.fields || [];
