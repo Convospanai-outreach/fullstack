@@ -222,6 +222,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   inserted verbatim, corrupting the generated campaign email. Fixed by
   escaping the key and using a replacer function (not subject to
   special-pattern interpretation) for the value.
+- **OPEN-116 (Fixed, merged PR #352):** `CrmIntegration.accessToken`/
+  `refreshToken` (HubSpot OAuth bearer tokens) were stored and used in
+  plaintext — same bug class as OPEN-114 (SSO clientSecret) but higher
+  impact, since this is a live bearer token granting direct write access
+  to the team's connected HubSpot account. Added AES-256-GCM encryption
+  (`crmSecrets.ts`, same pattern as `ssoSecrets.ts`); `settings/crm`'s PUT
+  route encrypts both tokens before upsert (GET already redacted them via
+  `hasAccessToken`/`hasRefreshToken` booleans, so no placeholder-round-trip
+  concern here), and `crmService.ts` decrypts before use and re-encrypts
+  the refreshed pair before writing them back in the token-refresh path.
+  Backward compatible via the same legacy-plaintext-fallback pattern.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
