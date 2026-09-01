@@ -33,10 +33,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             throw new APIError("Template not found", 404, "NOT_FOUND");
         }
 
-        const template = await prisma.emailTemplate.update({
-            where: { id },
+        // Scoped by teamId here too, not just in the pre-check above - the mutation's
+        // own safety must not depend solely on a separate pre-check holding true (same
+        // anti-pattern already fixed under OPEN-99/109/110/118/120/121/122).
+        await prisma.emailTemplate.updateMany({
+            where: { id, teamId },
             data: validation.data
         });
+        const template = await prisma.emailTemplate.findUnique({ where: { id, teamId } });
 
         return successResponse(template);
     } catch (error) {
@@ -61,8 +65,9 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
             throw new APIError("Template not found", 404, "NOT_FOUND");
         }
 
-        await prisma.emailTemplate.delete({
-            where: { id }
+        // Same reasoning as PUT above - scoped by teamId, not just the pre-check.
+        await prisma.emailTemplate.deleteMany({
+            where: { id, teamId }
         });
 
         return successResponse({ success: true });

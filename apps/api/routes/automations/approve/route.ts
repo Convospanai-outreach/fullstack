@@ -19,13 +19,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const updated = await prisma.automationLog.update({
-        where: { id: logId },
+    // Scoped by the automation's teamId here too, not just the pre-check above - same
+    // anti-pattern already fixed under OPEN-99/109/110/118/120/121/122. AutomationLog
+    // has no direct teamId column (only via the automation relation), so the filter
+    // goes through that relation.
+    const result = await prisma.automationLog.updateMany({
+        where: { id: logId, automation: { teamId: ctx.teamId } },
         data: {
             status: "success",
             executedAt: new Date()
         }
     });
+    if (result.count === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const updated = await prisma.automationLog.findUnique({ where: { id: logId } });
 
     return NextResponse.json({ success: true, log: updated });
 }
