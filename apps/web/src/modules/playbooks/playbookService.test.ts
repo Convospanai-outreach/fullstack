@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db", () => ({
+vi.mock("@/lib/prisma", () => ({
     prisma: {
         playbook: {
             findFirst: vi.fn(),
@@ -14,8 +14,8 @@ vi.mock("@/lib/db", () => ({
     },
 }));
 
-import { prisma } from "@/lib/db";
-import { playbookService } from "../playbookService";
+import { prisma } from "@/lib/prisma";
+import { playbookService } from "./playbookService";
 
 describe("playbookService.instantiatePlaybook", () => {
     beforeEach(() => {
