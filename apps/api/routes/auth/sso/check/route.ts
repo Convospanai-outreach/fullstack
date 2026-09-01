@@ -27,19 +27,15 @@ export async function GET(req: Request) {
             return NextResponse.json({ sso: false });
         }
 
-        // Generate redirect URL based on provider type
-        // For SAML, we'd usually redirect to /api/auth/signin/saml?teamId=...
-        // For OIDC, similar.
-
-        let redirectUrl = "";
         if (ssoConfig.providerType === "SAML") {
-            // This assumes we have a SAML provider configured in Auth.ts that handles teamId
-            redirectUrl = `/api/auth/signin/saml?teamId=${ssoConfig.teamId}&login_hint=${encodeURIComponent(email)}`;
-        } else {
-            redirectUrl = `/api/auth/signin/oidc?teamId=${ssoConfig.teamId}&login_hint=${encodeURIComponent(email)}`;
+            // SAML login is not implemented - only OIDC is wired up end-to-end.
+            return NextResponse.json({
+                sso: true,
+                error: "SAML sign-in is not supported yet. Please use password login or ask your admin to configure OIDC.",
+            });
         }
 
-        return NextResponse.json({ sso: true, redirectUrl });
+        return NextResponse.json({ sso: true, provider: "OIDC", teamId: ssoConfig.teamId });
     } catch (error) {
         console.error("[SSO Check API] error:", error);
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
