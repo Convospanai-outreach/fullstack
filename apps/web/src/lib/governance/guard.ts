@@ -48,8 +48,16 @@ export async function enforcePolicy({
         if (!payload?.approvalId) {
             throw new Error("APPROVAL_REQUIRED");
         }
-        const approval = await prisma.approvalRequest.findUnique({
-            where: { id: payload.approvalId },
+        // Must be scoped to this org AND this specific campaign - an unscoped lookup would let
+        // any approvalId belonging to a DIFFERENT team's (or a different campaign's) approved
+        // request satisfy this org's approval gate.
+        const approval = await prisma.approvalRequest.findFirst({
+            where: {
+                id: payload.approvalId,
+                teamId: orgId,
+                entityType: "Campaign",
+                ...(payload.campaignId ? { entityId: payload.campaignId } : {}),
+            },
         });
         if (!approval || approval.status !== "APPROVED") {
             throw new Error("VALID_APPROVAL_REQUIRED");

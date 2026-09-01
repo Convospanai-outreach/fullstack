@@ -5,6 +5,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { checkLimits } from "@/lib/governance/limits";
 import { audit } from "@/lib/governance/audit";
+import { swarmLimiter } from "@/lib/rate-limit";
 
 const DEFAULT_SWARM_ROLES = [
     "User Simulator",
@@ -98,6 +99,13 @@ export async function POST(req: Request) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // A swarm launches up to 30 concurrent LLM-backed agent jobs per request - a double
+    // submit or client retry with no guard here would silently multiply that cost.
+    const { isRateLimited } = swarmLimiter.check(1, teamId);
+    if (isRateLimited) {
+        return NextResponse.json({ error: "Swarm rate limit exceeded. Please wait a minute before launching another swarm." }, { status: 429 });
     }
 
     const body = await req.json().catch(() => ({}));
