@@ -38,10 +38,12 @@ class ProductService {
     }
 
     async update(teamId: string, id: string, input: Partial<ProductInput>) {
-        const existing = await this.getById(teamId, id);
-        if (!existing) return null;
-        return prisma.product.update({
-            where: { id },
+        // Scoped by teamId here too, not just in getById()'s pre-check - the mutation's
+        // own safety must not depend solely on a separate pre-check holding true (same
+        // anti-pattern already fixed under OPEN-99/109/110/118/120). Product has no
+        // compound unique on (id, teamId), so updateMany() is used instead of update().
+        const updated = await prisma.product.updateMany({
+            where: { id, teamId },
             data: {
                 ...(input.name !== undefined && { name: input.name }),
                 ...(input.description !== undefined && { description: input.description }),
@@ -50,13 +52,15 @@ class ProductService {
                 ...(input.isActive !== undefined && { isActive: input.isActive }),
             },
         });
+        if (updated.count === 0) return null;
+        return this.getById(teamId, id);
     }
 
     async delete(teamId: string, id: string) {
-        const existing = await this.getById(teamId, id);
-        if (!existing) return false;
-        await prisma.product.delete({ where: { id } });
-        return true;
+        // Same reasoning as update() above - deleteMany() scoped by teamId instead of
+        // relying solely on the pre-check.
+        const deleted = await prisma.product.deleteMany({ where: { id, teamId } });
+        return deleted.count > 0;
     }
 }
 
