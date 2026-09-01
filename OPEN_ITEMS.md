@@ -277,6 +277,17 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `(id, teamId)`, so converted both to `deleteMany()`/`updateMany()`
   scoped by `{ id: memberId, teamId }`, checking `.count === 0` for the
   "not found" case.
+- **OPEN-121 (Fixed, merged PR #361):** `productService.update()` and
+  `delete()` both called `getById(teamId, id)` as a scoped pre-check, but
+  the actual mutations dropped `teamId` entirely —
+  `prisma.product.update()`/`delete()` filtered by bare `{ id }`. Same
+  "scope the mutation, not just a pre-check" anti-pattern as
+  OPEN-99/109/110/118/120 (not currently exploitable since the pre-check
+  already blocks a foreign id, but one stray refactor from a real
+  cross-tenant IDOR reachable via `productDetail.ts`'s PATCH/DELETE
+  handlers). `Product` has no compound unique on `(id, teamId)`, so
+  converted both to `updateMany()`/`deleteMany()` scoped by
+  `{ id, teamId }`, checking `.count === 0` for the "not found" case.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
