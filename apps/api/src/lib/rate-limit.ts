@@ -40,3 +40,10 @@ export const swarmLimiter = rateLimit({
     interval: 60 * 1000, // 1 minute
     uniqueTokenPerInterval: 500
 });
+
+// CSV import processes rows sequentially (a findFirst + create/update per row), so a
+// large file can tie up a request for a long time - keyed by team, limit: 3 imports/min.
+export const csvImportLimiter = rateLimit({
+    interval: 60 * 1000, // 1 minute
+    uniqueTokenPerInterval: 500
+});

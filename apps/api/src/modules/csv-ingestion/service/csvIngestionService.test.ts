@@ -51,3 +51,19 @@ describe("csvIngestionService.processCSV - cross-tenant campaign scoping", () =>
         });
     });
 });
+
+describe("csvIngestionService.processCSV - row count cap", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("rejects a CSV with more rows than the cap instead of processing it row by row", async () => {
+        const rows = Array.from({ length: 5001 }, (_, i) => `lead${i}@example.com,Lead ${i}`);
+        const bigCsv = ["email,fullName", ...rows].join("\n");
+
+        const result = await csvIngestionService.processCSV(bigCsv, "team-a");
+
+        expect(result.success).toBe(false);
+        expect(result.errors[0]?.message).toMatch(/too many rows/i);
+        expect(mockPrisma.lead.findFirst).not.toHaveBeenCalled();
+        expect(mockPrisma.lead.create).not.toHaveBeenCalled();
+    });
+});
