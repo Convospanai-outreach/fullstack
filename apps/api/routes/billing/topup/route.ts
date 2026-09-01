@@ -37,14 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        await prisma.team.update({
-            where: { id: ctx.teamId },
-            data: { billingCountry: country, billingState: country === "IN" ? state : null }
-        });
-
         // GST is added on top of the tier's base price for Indian customers.
         const gst = computeGstExclusive(tier.amount, country, country === "IN" ? state : undefined);
 
+        // Order creation (external Razorpay call) runs before persisting the billing
+        // address - if it throws, the team's billing info must stay unchanged rather
+        // than being left mutated with no corresponding order.
         const order = await billingService.createTopUpOrder(
             ctx.teamId,
             ctx.userId,
@@ -54,6 +52,11 @@ export async function POST(req: NextRequest) {
             country === "IN" ? state : undefined,
             gst
         );
+
+        await prisma.team.update({
+            where: { id: ctx.teamId },
+            data: { billingCountry: country, billingState: country === "IN" ? state : null }
+        });
 
         return NextResponse.json({
             id: order.id,
