@@ -1,5 +1,6 @@
 import type { OAuthConfig } from "next-auth/providers/oauth";
 import { prisma } from "@/lib/db";
+import { decryptClientSecret } from "./ssoSecrets";
 
 export type ResolvedOidcSso = {
     teamId: string;
@@ -13,7 +14,10 @@ export type ResolvedOidcSso = {
 export async function resolveOidcSsoForTeam(teamId: string): Promise<ResolvedOidcSso | null> {
     const config = await prisma.ssoConfiguration.findUnique({ where: { teamId } });
     if (!config || config.providerType !== "OIDC") return null;
-    if (!config.clientId || !config.clientSecret || !config.wellKnownUrl) return null;
+    if (!config.clientId || !config.wellKnownUrl) return null;
+
+    const clientSecret = decryptClientSecret(config.clientSecret);
+    if (!clientSecret) return null;
 
     return {
         teamId: config.teamId,
@@ -24,7 +28,7 @@ export async function resolveOidcSsoForTeam(teamId: string): Promise<ResolvedOid
             type: "oauth",
             wellKnown: config.wellKnownUrl,
             clientId: config.clientId,
-            clientSecret: config.clientSecret,
+            clientSecret,
             checks: ["pkce", "state"],
             idToken: true,
             // Enterprise SSO trust model: the team admin proved control of the IdP by
