@@ -265,6 +265,18 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (3 imports/minute), matching the `aiLimiter`/`swarmLimiter` pattern.
   `apps/web`'s CSV service is just a thin proxy client forwarding to this
   same apps/api route, so no duplicate fix was needed there.
+- **OPEN-120 (Fixed, merged PR #359):** `teamService.removeMember()` and
+  `updateRole()` (apps/api + apps/web duplicate) both did a scoped
+  pre-check (`findFirst({ id: memberId, teamId })`) but the actual
+  mutation dropped the `teamId` guard — `prisma.teamMember.delete()`/
+  `.update()` were called with only `{ id: memberId }`. Same "scope the
+  mutation, not just a pre-check" anti-pattern as OPEN-99/OPEN-109/
+  OPEN-110/OPEN-118 (not currently exploitable since the pre-check already
+  blocks a foreign memberId, but one stray refactor from a real
+  cross-tenant IDOR). `TeamMember` has no compound unique on
+  `(id, teamId)`, so converted both to `deleteMany()`/`updateMany()`
+  scoped by `{ id: memberId, teamId }`, checking `.count === 0` for the
+  "not found" case.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
