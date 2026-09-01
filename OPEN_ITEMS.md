@@ -87,13 +87,38 @@ below in the Resolved table.)
   where every other webhook-management route requires ADMIN. Added the same
   `authorizeRole(..., TeamRole.ADMIN)` check, with a regression test.
 
-**Deploy note:** all of the above (OPEN-95–101, 103–104) fix code that runs
-on the Oracle VMs (`apps/api`), not just Vercel. Merging to `main` triggers a
-new `:latest` image build/push, but the VMs do **not** auto-pull — confirmed
-separately that a stale image silently ran a week-old build for days before.
-These fixes are not live in production until `docker compose pull && up -d
---force-recreate` is run on both `api-main` and `api-worker` (disk is at
-~15% usage on each after the earlier prune, so the pull should succeed).
+**Deploy note (corrected 2026-09-01):** OPEN-95–101/103–104 were manually
+redeployed to both Oracle VMs after merging, on the belief the VMs don't
+auto-pull (true historically — a stale image silently ran a week-old build
+for days earlier this session). That's now **stale**: the repo has a
+`.github/workflows/deploy-oracle.yml` that triggers after
+`Register Docker Images to GHCR` completes and runs `docker compose pull &&
+up -d` on both `api-main` and `api-worker` automatically. Confirmed via the
+Actions log — it already fired for the #334-#339 merges before the manual
+redeploy ran, so the manual step was redundant, not required. No manual
+deploy step is needed for OPEN-105's PR (#340) or future merges — just
+verify the `Deploy to Oracle VMs` run succeeds after merge.
+
+- **OPEN-105 (Fixed, PR #340):** mailbox daily-send-quota race condition in
+  `apps/api` (`assertMailboxCanSend` read, `markMailboxSend` write after the
+  Gmail round-trip — two concurrent sends through the same mailbox could
+  both pass the check before either write landed, busting the daily/warmup
+  cap) — fixed with an atomic `reserveMailboxSend`/`releaseMailboxSend` pair
+  claiming the slot in one conditional UPDATE before the send, released on
+  failure. Same race existed in `warmupSeedService`'s SMTP path (fixed) and
+  it additionally **double-counted every Gmail warmup send** against the
+  mailbox's quota (`sendViaGmailMailbox` already marks internally) — fixed
+  by dropping the redundant mark. Checking the `apps/web` duplicate of this
+  service (past sweeps found real desync there twice already) turned up a
+  **worse, always-triggered version of the same double-count bug**:
+  `apps/web`'s production send path (`handleEmailSending`) already claims
+  the daily slot atomically via raw SQL before invoking the mail provider,
+  but `GoogleWorkspaceProvider`'s `sendViaGmailMailbox` called
+  `markMailboxSend` again internally — burning 2 quota units per real Gmail
+  send, on every send, not just under a race. No sibling provider (SMTP/
+  Microsoft/Resend) does this. Removed the redundant call and the now-dead
+  function, added a regression test (no prior test coverage existed for
+  this path). 702 apps/api tests and 291 apps/web tests pass.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
