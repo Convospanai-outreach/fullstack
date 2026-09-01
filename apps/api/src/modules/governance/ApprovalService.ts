@@ -167,18 +167,22 @@ export class ApprovalService {
             updateData.reviewNote = JSON.stringify(revisedPayload);
         }
 
-        // Handle specific action side-effects
+        // Handle specific action side-effects. Scoped by teamId for defense-in-depth,
+        // even though entityId already came from this team-scoped request row above.
         if (request.actionType === "CAMPAIGN_START") {
-            await prisma.campaign.update({
-                where: { id: request.entityId },
+            await prisma.campaign.updateMany({
+                where: { id: request.entityId, teamId },
                 data: { status: "active" }
             });
         }
 
-        return await prisma.approvalRequest.update({
-            where: { id: requestId },
+        // Scoped by teamId here too, not just in the pre-check above - same anti-pattern
+        // already fixed under OPEN-99/109/110/118/120/121/122.
+        await prisma.approvalRequest.updateMany({
+            where: { id: requestId, teamId },
             data: updateData
         });
+        return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 
     /**
@@ -192,9 +196,12 @@ export class ApprovalService {
         if (reason) {
             data.reviewNote = reason;
         }
-        return await prisma.approvalRequest.update({
-            where: { id: requestId },
+        // Scoped by teamId here too, not just in the pre-check above - same anti-pattern
+        // already fixed under OPEN-99/109/110/118/120/121/122.
+        await prisma.approvalRequest.updateMany({
+            where: { id: requestId, teamId },
             data
         });
+        return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 }
