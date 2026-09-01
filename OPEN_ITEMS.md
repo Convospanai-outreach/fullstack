@@ -240,6 +240,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   corresponding order (caller sees a 500, but the team record silently
   changed anyway). Reordered so the address is only persisted after the
   order is successfully created.
+- **OPEN-118 (Fixed, merged PR #356):** `apps/api`'s `DELETE /leads/bulk`
+  verified ownership via a separate `count()` pre-check, but the actual
+  `deleteMany()` dropped the `teamId` filter — its safety depended solely
+  on the pre-check holding, not on the mutation itself being scoped (same
+  anti-pattern as OPEN-99/OPEN-109/OPEN-110; not currently exploitable
+  since the pre-check already blocks foreign ids, but one stray refactor
+  from a real IDOR). `apps/web`'s `BulkService.deleteResources`/
+  `tagResources` had **no** teamId scoping at all — a genuine cross-tenant
+  IDOR, currently unreachable since nothing in apps/web calls this service
+  yet. Fixed both: apps/api's deleteMany now scopes by teamId directly;
+  apps/web's deleteResources does the same, and tagResources verifies
+  ownership via findMany first (Prisma's updateMany doesn't support the
+  array `push` operator used for tagging, so it has to stay a scoped
+  per-id update loop).
+- **OPEN-119 (Fixed, merged PR #357):** `apps/api`'s CSV lead-import route
+  had no row-count cap and no rate limiter — `csvIngestionService.ts`
+  processes rows in a sequential per-row `await` loop (findFirst +
+  create/update per row) with no cap on rows parsed, so an authenticated
+  user could submit an arbitrarily large CSV and tie up a request/worker
+  indefinitely. Same "missing rate limit on an expensive route" class as
+  OPEN-111 (swarm). Added a 5,000-row cap (rejects with a clear error
+  instead of processing) and a new per-team `csvImportLimiter`
+  (3 imports/minute), matching the `aiLimiter`/`swarmLimiter` pattern.
+  `apps/web`'s CSV service is just a thin proxy client forwarding to this
+  same apps/api route, so no duplicate fix was needed there.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
