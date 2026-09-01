@@ -141,6 +141,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `WHERE` clause), only advancing the lead when the claim actually flips a
   row. 706 apps/api tests and 297 apps/web tests pass.
 
+- **OPEN-108 (Fixed, merged PR #344):** cross-tenant approval bypass in
+  `guard.ts`'s `enforcePolicy` (apps/api + apps/web duplicate) — the
+  CAMPAIGN_RUN approval check looked up `payload.approvalId` with no team
+  or entity scoping, so any approved request belonging to a *different*
+  team or a *different* campaign would satisfy the requesting org's own
+  "requires approval" policy gate. Scoped the lookup by `teamId` +
+  `entityType` + `entityId`.
+- **OPEN-109 (Fixed, merged PR #344):** unscoped campaign reschedule in
+  `orchestrator/run/route.ts` (apps/api) — the scheduled-status update ran
+  unconditionally by bare `campaignId`, before the team-membership/
+  governance check later in the same handler, letting any authenticated
+  user reschedule another team's campaign by guessing its id. Reordered so
+  the write only runs after `enforcePolicy`/`checkLimits` pass, and scoped
+  it by `teamId`.
+- **OPEN-110 (Fixed, merged PR #344):** double agent-run in
+  `orchestrator/agents/[id]/run/route.ts` (apps/api + apps/web duplicate)
+  — unconditional status update + enqueue meant a double-click or client
+  retry launched two concurrent LLM-backed runs of the same agent. Fixed
+  with an atomic `updateMany` claim (`status != "running"` in the WHERE),
+  rejecting a second concurrent attempt with 409.
+- **OPEN-111 (Fixed, merged PR #344):** no rate limit on
+  `orchestrator/swarm/run/route.ts` (apps/api) — launches up to 30
+  concurrent LLM-backed `agent_run` jobs per request with no guard, unlike
+  sibling AI routes using `aiLimiter`. Added a dedicated per-team
+  `swarmLimiter` (1/minute), since a swarm's cost lands on the team's
+  shared AI budget regardless of which member triggers it.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
