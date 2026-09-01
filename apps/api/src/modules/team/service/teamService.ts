@@ -52,9 +52,16 @@ class TeamService {
             }
         }
 
-        return await prisma.teamMember.delete({
-            where: { id: memberId }
+        // Scoped by teamId here too, not just in the pre-check above - the mutation's
+        // own safety must not depend solely on a separate pre-check holding true (see
+        // OPEN-99/OPEN-109/OPEN-110/OPEN-118 for the same anti-pattern). TeamMember has
+        // no compound unique on (id, teamId), so delete() can't take teamId directly -
+        // deleteMany() is used instead.
+        const deleted = await prisma.teamMember.deleteMany({
+            where: { id: memberId, teamId }
         });
+        if (deleted.count === 0) throw new Error("Member not found");
+        return member;
     }
 
     async updateRole(teamId: string, memberId: string, newRole: TeamRole) {
@@ -70,10 +77,15 @@ class TeamService {
             }
         }
 
-        return await prisma.teamMember.update({
-            where: { id: memberId },
+        // Scoped by teamId here too, not just in the pre-check above - same reasoning
+        // as removeMember(). updateMany() is used since update() can't take teamId
+        // without a compound unique on (id, teamId).
+        const updated = await prisma.teamMember.updateMany({
+            where: { id: memberId, teamId },
             data: { role: newRole }
         });
+        if (updated.count === 0) throw new Error("Member not found");
+        return { ...member, role: newRole };
     }
 }
 

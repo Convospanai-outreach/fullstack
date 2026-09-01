@@ -20,7 +20,6 @@ describe("teamService - cross-tenant scoping", () => {
 
     describe("removeMember", () => {
         it("refuses to remove a member that doesn't belong to the given team (cross-tenant IDOR)", async () => {
-            // findFirst scoped to {id, teamId} finds nothing when memberId belongs to another team.
             mockPrisma.teamMember.findFirst.mockResolvedValue(null);
 
             await expect(teamService.removeMember("team-a", "member-from-team-b")).rejects.toThrow("Member not found");
@@ -55,7 +54,7 @@ describe("teamService - cross-tenant scoping", () => {
         it("refuses to update a member that doesn't belong to the given team (cross-tenant IDOR)", async () => {
             mockPrisma.teamMember.findFirst.mockResolvedValue(null);
 
-            await expect(teamService.updateRole("team-a", "member-from-team-b", "admin")).rejects.toThrow("Member not found");
+            await expect(teamService.updateRole("team-a", "member-from-team-b", "admin" as any)).rejects.toThrow("Member not found");
 
             expect(mockPrisma.teamMember.findFirst).toHaveBeenCalledWith({
                 where: { id: "member-from-team-b", teamId: "team-a" },
@@ -67,7 +66,7 @@ describe("teamService - cross-tenant scoping", () => {
             mockPrisma.teamMember.findFirst.mockResolvedValue({ id: "member-1", teamId: "team-a", role: "member" });
             mockPrisma.teamMember.updateMany.mockResolvedValue({ count: 1 });
 
-            await teamService.updateRole("team-a", "member-1", "admin");
+            await teamService.updateRole("team-a", "member-1", "admin" as any);
 
             expect(mockPrisma.teamMember.updateMany).toHaveBeenCalledWith({
                 where: { id: "member-1", teamId: "team-a" },
@@ -79,7 +78,7 @@ describe("teamService - cross-tenant scoping", () => {
             mockPrisma.teamMember.findFirst.mockResolvedValue({ id: "owner-1", teamId: "team-a", role: "owner" });
             mockPrisma.teamMember.count.mockResolvedValue(1);
 
-            await expect(teamService.updateRole("team-a", "owner-1", "admin")).rejects.toThrow("last owner");
+            await expect(teamService.updateRole("team-a", "owner-1", "admin" as any)).rejects.toThrow("last owner");
             expect(mockPrisma.teamMember.updateMany).not.toHaveBeenCalled();
         });
     });
