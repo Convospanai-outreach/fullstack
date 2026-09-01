@@ -233,6 +233,13 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   concern here), and `crmService.ts` decrypts before use and re-encrypts
   the refreshed pair before writing them back in the token-refresh path.
   Backward compatible via the same legacy-plaintext-fallback pattern.
+- **OPEN-117 (Fixed, merged PR #354):** `/billing/topup` unconditionally
+  wrote the team's `billingCountry`/`billingState` before calling
+  `billingService.createTopUpOrder` (a Razorpay API call) — if that call
+  threw, the team's billing address was left mutated with no
+  corresponding order (caller sees a 500, but the team record silently
+  changed anyway). Reordered so the address is only persisted after the
+  order is successfully created.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
