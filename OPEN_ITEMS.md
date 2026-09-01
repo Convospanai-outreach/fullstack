@@ -120,6 +120,27 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   function, added a regression test (no prior test coverage existed for
   this path). 702 apps/api tests and 291 apps/web tests pass.
 
+- **OPEN-106 (Fixed, merged PR #342):** ReDoS in
+  `GuardrailService.evaluate`'s custom regex rules — `policy.regexRules`
+  (team-authored, stored in the DB) was run directly against message
+  content with `new RegExp(pattern).test()`. A catastrophically-backtracking
+  pattern (e.g. `(a+)+b`) would hang this synchronous, single-threaded
+  process on every non-matching message (content is capped at 2200 chars,
+  far past where such patterns blow up). Bounded each pattern to a 250ms
+  budget in a throwaway `node:vm` context (no new dependency) — verified a
+  real catastrophic pattern now returns in ~265ms instead of hanging
+  indefinitely. Found and fixed identically in the `apps/web` duplicate of
+  this exact same file.
+- **OPEN-107 (Fixed, merged PR #342):** double-processing race in the
+  Resend webhook handler (`apps/web`) — `email.opened`/`clicked`/`received`
+  cases did a plain read-then-write (check the flag, then update) to guard
+  against reprocessing a redelivered event; Resend's own docs describe
+  at-least-once delivery, so two concurrent deliveries of the same event
+  could both see the flag unset and both fire the lead-stage-transition
+  side effect. Replaced with an atomic `updateMany` claim (guard in the
+  `WHERE` clause), only advancing the lead when the claim actually flips a
+  row. 706 apps/api tests and 297 apps/web tests pass.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
