@@ -112,15 +112,19 @@ export async function POST(req: NextRequest) {
 
   switch (event.type) {
     case "email.opened": {
-      if (!email.openedAt) {
-        await prisma.email.update({ where: { id: email.id }, data: { openedAt: new Date() } });
+      // Webhook providers redeliver at-least-once, so a plain read-then-write here (read
+      // openedAt, decide, write) could let two concurrent deliveries both see it unset and
+      // both fire the lead-stage side effect. updateMany with the guard in the WHERE clause
+      // makes the claim atomic - only the delivery that actually flips the flag proceeds.
+      const claimed = await prisma.email.updateMany({ where: { id: email.id, openedAt: null }, data: { openedAt: new Date() } });
+      if (claimed.count > 0) {
         await advanceLeadAfterEmailOpened(prisma, advanceParams).catch(() => undefined);
       }
       break;
     }
     case "email.clicked": {
-      if (!email.clickedAt) {
-        await prisma.email.update({ where: { id: email.id }, data: { clickedAt: new Date() } });
+      const claimed = await prisma.email.updateMany({ where: { id: email.id, clickedAt: null }, data: { clickedAt: new Date() } });
+      if (claimed.count > 0) {
         await advanceLeadAfterEmailClicked(prisma, advanceParams).catch(() => undefined);
       }
       break;
@@ -142,8 +146,8 @@ export async function POST(req: NextRequest) {
       break;
     }
     case "email.received": {
-      if (!email.repliedAt) {
-        await prisma.email.update({ where: { id: email.id }, data: { repliedAt: new Date() } });
+      const claimed = await prisma.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
+      if (claimed.count > 0) {
         await advanceLeadAfterReply(prisma, advanceParams).catch(() => undefined);
       }
       break;
