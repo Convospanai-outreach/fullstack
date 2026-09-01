@@ -288,6 +288,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   handlers). `Product` has no compound unique on `(id, teamId)`, so
   converted both to `updateMany()`/`deleteMany()` scoped by
   `{ id, teamId }`, checking `.count === 0` for the "not found" case.
+- **OPEN-122 (Fixed, merged PR #363):** cross-tenant IDOR on knowledge
+  base upload/search/list — **currently exploitable**, unlike the recent
+  "one refactor away" scoping fixes above. `/knowledge/[id]/upload`'s
+  POST and GET took the `knowledgeBaseId` path param straight into
+  `knowledgeService.addDocument()`/`search()` with no ownership check
+  against the caller's team — any authenticated user could inject a
+  document into, or search the contents of, any other team's knowledge
+  base by supplying its id. GET additionally had no auth check at all
+  (never called `getCurrentContext()`). `/knowledge/[id]`'s GET had the
+  same ownership gap listing `knowledgeItem`s by bare `id`, even though
+  its own sibling POST/DELETE in the same file already do the correct
+  `findFirst({ id, teamId })` check. Fixed by adding the matching
+  ownership check to all three handlers, adding the missing auth check to
+  upload's GET, and converting DELETE's pre-check + unscoped `delete()` to
+  a `teamId`-scoped `deleteMany()` (same pattern as OPEN-99/109/110/118/
+  120/121).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
