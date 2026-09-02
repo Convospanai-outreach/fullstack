@@ -126,8 +126,23 @@ const FALLBACK_HTML = `
 </section>
 `;
 
+// A <style> element is an HTML "raw text" element: the browser's tokenizer exits
+// style-parsing mode purely on seeing the literal case-insensitive sequence
+// "</style" (whitespace is never allowed between "</" and the tag name, so no
+// other variant terminates it - same rule sanitizeLandingHtml's RAW_TEXT_TAGS
+// scanner relies on). Since `css` is embedded directly into a static
+// <style>...</style> block when Cloudflare serves a published page
+// (cloudflarePagesService.ts's buildFullDocument does raw string interpolation,
+// not a DOM API), a "</style" substring inside untrusted `css` breaks out of the
+// tag and lets arbitrary markup after it execute as real HTML - stored XSS on a
+// public page. Stripping the literal terminator sequence keeps everything after
+// it inert raw text instead.
+function sanitizeCssForStyleTag(css: string): string {
+    return css.replace(/<\/style/gi, "");
+}
+
 export function withLandingBaseCss(css: string): string {
-    const trimmed = css.trim();
+    const trimmed = sanitizeCssForStyleTag(css.trim());
     if (!trimmed) {
         return LANDING_PAGE_BASE_CSS;
     }

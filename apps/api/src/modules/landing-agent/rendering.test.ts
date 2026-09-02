@@ -73,3 +73,29 @@ describe("getLandingRenderPayload image handling", () => {
         expect(html).not.toContain("<img");
     });
 });
+
+describe("getLandingRenderPayload css sanitization", () => {
+    it("strips a </style> breakout in the css field so injected markup can't execute", () => {
+        const { css } = getLandingRenderPayload({
+            html: "<section>hi</section>",
+            css: 'body{color:red}</style><img src=x onerror=alert(document.cookie)>',
+        });
+        expect(css.toLowerCase()).not.toContain("</style");
+    });
+
+    it("strips a case-varied </STYLE> breakout", () => {
+        const { css } = getLandingRenderPayload({
+            html: "<section>hi</section>",
+            css: "body{color:red}</STYLE><script>alert(1)</script>",
+        });
+        expect(css.toLowerCase()).not.toContain("</style");
+    });
+
+    it("leaves ordinary CSS untouched", () => {
+        const { css } = getLandingRenderPayload({
+            html: "<section>hi</section>",
+            css: ".la-section .hero { color: blue; }",
+        });
+        expect(css).toContain(".la-section .hero { color: blue; }");
+    });
+});

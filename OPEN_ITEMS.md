@@ -490,6 +490,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   so no test changes were needed; ran the affected suites to confirm
   (13 apps/api + 19 apps/web tests pass).
 
+- **OPEN-132 (Fixed):** stored XSS on published landing pages via the `css`
+  field. `getLandingRenderPayload()`'s `withLandingBaseCss()`
+  (`apps/api/src/modules/landing-agent/rendering.ts`, and its byte-identical
+  `apps/web` duplicate) passed the caller-supplied `css` string through
+  completely unsanitized — unlike `html`, which goes through the sound
+  `sanitizeLandingHtml()` scanner. `apps/api/src/modules/landing-agent/service/
+  cloudflarePagesService.ts`'s `buildFullDocument()` then interpolates that
+  `css` value directly into a static `<style>${css}</style>` string, which is
+  written to Cloudflare KV and served as real `text/html` to every visitor of
+  a published (public, unauthenticated) landing page. A `<style>` element is
+  an HTML "raw text" element — the browser's tokenizer exits style-parsing
+  mode on the literal sequence `</style` alone, with no regard for CSS
+  syntax — so a `css` value containing `</style><img src=x onerror=...>`
+  breaks out of the style block and executes as real markup. `css` reaches
+  this path via `saveEditorState`'s `renderedJson` input (the GrapesJS
+  editor's exported CSS, sent from the browser), and the only upstream
+  defense (`service.ts`'s regex-based `sanitizeString`) only strips
+  *complete*, *quoted* `<style>...</style>`/`on*="..."` pairs — a bare,
+  unbalanced `</style` with an unquoted `onerror=` attribute passes through
+  untouched, the same class of unsound regex-based filtering the manual
+  `sanitizeLandingHtml` scanner was written to replace (see the rendering.ts
+  sanitizer rewrite in the PR #369 CI-fix work). The React-rendered editor
+  preview path (`PublishedLandingRenderer.tsx`) was never vulnerable — React
+  sets style content via a text-content DOM API, not raw string
+  interpolation — this only affected the static-HTML Cloudflare serving
+  path. Fixed by stripping the literal case-insensitive `</style` sequence
+  from `css` inside `withLandingBaseCss()` (the single choke point every
+  consumer of the `css` field already goes through), which keeps everything
+  after an attempted breakout as inert raw text instead of real markup.
+  Added 3 tests to `rendering.test.ts` (breakout stripped, case-varied
+  breakout stripped, ordinary CSS left untouched); all 817 apps/api and 342
+  apps/web tests pass, `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
