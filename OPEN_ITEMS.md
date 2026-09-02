@@ -524,6 +524,28 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   sites (`facebook-leads-worker.test.ts` x2, `facebookLeadsService.test.ts`)
   and a lost-race test (`landing-lead-intake-worker.test.ts`); all 817
   apps/api and 342 apps/web tests pass, `tsc --noEmit` clean on both apps.
+- **OPEN-131 (Fixed):** `apps/api/src/modules/branding/customDomainPoller.ts`'s
+  `writeHostOwnership()` silently returned (no-op) when
+  `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_KV_NAMESPACE_ID`
+  weren't all configured — but its caller, `pollPendingCustomDomains()`, still
+  proceeded to write `status: "active"` to the `CustomDomain` row regardless.
+  Since the poller only re-checks rows with `status: "pending"`, that row was
+  never revisited: the domain shows "active" permanently while the
+  `host:<domain> -> teamId` mapping in Workers KV (which
+  `workers/landing-pages/src/index.ts` needs to serve the page on that
+  hostname) was never written — durable, silent breakage with no error
+  surfaced anywhere. Reachable in practice, not just hypothetical: hostname
+  *creation* (`cloudflareCustomHostnameService.ts`) only requires
+  `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_API_TOKEN` — a different variable set —
+  so Cloudflare's own verification can genuinely reach "active" while the KV
+  write's three-variable config is still incomplete. A genuine Cloudflare API
+  failure already threw and was correctly caught (leaving the row `pending`
+  for retry); the missing-env-var path just skipped that safety net. Fixed by
+  throwing instead of silently returning, so the existing catch block in
+  `pollPendingCustomDomains` handles it the same way as a real API failure.
+  Added a test asserting the domain stays non-active (and no KV write is
+  attempted) when the config is incomplete; all apps/api tests pass,
+  `tsc --noEmit` clean.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
