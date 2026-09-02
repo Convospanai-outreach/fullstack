@@ -444,6 +444,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   landing-agent fix and extended `facebook-leads-worker.test.ts` with a
   lost-race case; all 813 apps/api tests pass.
 
+- **OPEN-129 (Fixed):** `ENCRYPTION_KEY` length validation checked the raw
+  string length (`< 32`) instead of the decoded byte length, in five places:
+  `apps/api/src/lib/security/credentialVault.ts` and its `apps/web` duplicate
+  (both `getEncryptionKey` and `apps/web`'s `validateCredentialVaultKey`),
+  plus `apps/api`/`apps/web`'s `email-campaigner/service/smtpConfigService.ts`
+  and `apps/api`'s `warmupSeedService.ts`. The key is hex-decoded and fed to
+  `aes-256-gcm`, which requires exactly 32 bytes (64 hex chars) — a 32-*character*
+  hex string (16 bytes) passed the old check but throws `Invalid key length`
+  at `createCipheriv`/`createDecipheriv` time. Not hypothetical:
+  `apps/web/.env.example` shipped exactly such a value
+  (`0123456789abcdef0123456789abcdef`, generated per its own
+  `openssl rand -hex 16` comment), so following the example file into a real
+  `.env` broke Facebook OAuth token encryption and SMTP password encryption
+  with a confusing runtime crash far from the misconfiguration. Sibling
+  modules (`crmSecrets.ts`, `ssoSecrets.ts`, `wabaCredentials.ts`,
+  `googleMailboxService.ts`) already used the correct
+  `length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)` check; brought all five
+  broken call sites in line with that pattern, and fixed
+  `apps/web/.env.example`'s sample key and generation comment
+  (`-hex 16` → `-hex 32`). All existing tests already stubbed a 64-char key,
+  so no test changes were needed; ran the affected suites to confirm
+  (13 apps/api + 19 apps/web tests pass).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
