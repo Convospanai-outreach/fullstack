@@ -31,6 +31,16 @@ const ALLOWLIST = new Map([
         "pre-existing per-workspace overrides in apps/api and apps/web " +
         "package.json. See OPEN_ITEMS.md OPEN-40.",
     ],
+    [
+        "GHSA-3f6p-5ww8-9rcr",
+        "mysql2 (via prisma, <3.22.0): auth-plugin downgrade to " +
+        "mysql_clear_password can leak plaintext credentials to a malicious/" +
+        "MITM'd server. This repo's Prisma schema (apps/api/prisma/schema.prisma) " +
+        "uses provider = \"postgresql\" exclusively - mysql2 is bundled by " +
+        "prisma's multi-driver support but never imported, configured, or " +
+        "connected to anywhere in this codebase, so the vulnerable auth " +
+        "negotiation path is unreachable. See OPEN_ITEMS.md OPEN-125.",
+    ],
 ]);
 
 function runAudit() {

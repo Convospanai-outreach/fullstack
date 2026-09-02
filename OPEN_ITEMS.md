@@ -335,6 +335,16 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   is a genuine platform-level operator (`SYSTEM_ADMIN`/`SUPER_ADMIN`, which
   are not self-service-assignable).
 
+- **OPEN-125 (Accepted risk, not exploitable):** `npm audit` flags
+  `GHSA-3f6p-5ww8-9rcr` (mysql2 <3.22.0: auth-plugin downgrade to
+  `mysql_clear_password` can leak plaintext credentials to a malicious/
+  MITM'd server) as a high-severity transitive dependency, pulled in solely
+  by `prisma`'s bundled multi-driver support. This repo's Prisma schema
+  (`apps/api/prisma/schema.prisma`) uses `provider = "postgresql"`
+  exclusively — `mysql2` is never imported, configured, or connected to
+  anywhere in the codebase, so the vulnerable auth-negotiation code path is
+  unreachable. Allowlisted in `scripts/audit-with-allowlist.mjs`.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

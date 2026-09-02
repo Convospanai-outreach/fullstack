@@ -39,7 +39,7 @@ export function buildWireframePrompt(input: {
 You design conversion-focused landing pages.
 Return strict JSON array with exactly 3 wireframe options.
 Each option keys: title, description, framework, sections.
-Each section keys: id, type, heading, body, bullets, ctaLabel.
+Each section keys: id, type, heading, body, bullets, ctaLabel, imagePrompt.
 
 Campaign Name:
 ${input.campaignName}
@@ -53,5 +53,8 @@ Rules:
 hero, challenge_solution, pain_points, benefits, proof, logos, faq, cta_form, final_cta, footer
 - Exactly 8 to 10 sections per option.
 - Keep copy practical and concise.
+- For "hero" and "proof" sections only, include imagePrompt: a short, concrete
+  visual description (no text/logos) suitable for an image generation model.
+  Omit imagePrompt for every other section type.
 `.trim();
 }

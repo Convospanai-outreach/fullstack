@@ -6,6 +6,7 @@ import { audit } from "@/lib/governance/audit";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
+import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { landingEventNameEnum } from "./schemas";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
@@ -345,6 +346,7 @@ export const landingAgentService = {
                                 ? section.bullets.map((b: unknown) => String(b))
                                 : undefined,
                             ctaLabel: section.ctaLabel ? String(section.ctaLabel) : undefined,
+                            imagePrompt: section.imagePrompt ? String(section.imagePrompt) : undefined,
                         }))
                         : fallbackWireframes(brief)[index]?.sections || [],
                 }));
@@ -353,15 +355,17 @@ export const landingAgentService = {
             // Keep deterministic fallback options.
         }
 
+        const allOptions = [...options, ...LANDING_PAGE_TEMPLATES];
+
         await prisma.$transaction([
             prisma.landingWireframeOption.deleteMany({ where: { campaignId: campaign.id } }),
             prisma.landingWireframeOption.createMany({
-                data: options.map((option, index) => ({
+                data: allOptions.map((option, index) => ({
                     campaignId: campaign.id,
                     title: option.title,
                     description: option.description,
                     framework: option.framework,
-                    score: 100 - index,
+                    score: allOptions.length - index,
                     structure: sanitizeJson(option.sections) as Prisma.InputJsonValue,
                 })),
             }),
@@ -426,6 +430,58 @@ export const landingAgentService = {
         });
 
         return createdPage;
+    },
+
+    async generateImagesForPage(input: {
+        teamId: string;
+        campaignId: string;
+        pageId: string;
+    }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+
+        const renderedJson = page.renderedJson;
+        const isPlainArray = Array.isArray(renderedJson);
+        const data = !isPlainArray && renderedJson && typeof renderedJson === "object" ? (renderedJson as Record<string, unknown>) : null;
+        const sections: LandingPageSection[] | null = isPlainArray
+            ? (renderedJson as unknown as LandingPageSection[])
+            : data && Array.isArray(data["sections"])
+                ? (data["sections"] as unknown as LandingPageSection[])
+                : null;
+        if (!sections) {
+            throw new Error("Landing page does not have generatable sections (already flattened to HTML by an editor save)");
+        }
+
+        const { imageGenerationService } = await import("./service/imageGenerationService");
+
+        let changed = false;
+        for (const section of sections) {
+            if (!section.imagePrompt || section.imageUrl) continue;
+            const key = `${page.id}-${section.id}.png`;
+            const result = await imageGenerationService.generateSectionImage(section.imagePrompt, input.teamId, key);
+            if (result.status === "generated" && result.url) {
+                section.imageUrl = result.url;
+                changed = true;
+            }
+        }
+
+        if (!changed) {
+            return page;
+        }
+
+        const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
+
+        return prisma.landingPage.update({
+            where: { id: page.id },
+            data: {
+                renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+                version: { increment: 1 },
+                status: page.status === "published" ? "draft" : page.status,
+            },
+        });
     },
 
     async saveEditorState(input: {
@@ -525,6 +581,12 @@ export const landingAgentService = {
                 slug: updates.updatedPage.slug,
             },
         });
+
+        const { cloudflarePagesService } = await import("./service/cloudflarePagesService");
+        const cloudflareResult = await cloudflarePagesService.publishPageToCloudflare(updates.updatedPage.id);
+        if (cloudflareResult.status === "error") {
+            console.error(`[landingAgentService] Cloudflare push failed for page ${updates.updatedPage.id}: ${cloudflareResult.details}`);
+        }
 
         return {
             status: "PUBLISHED" as const,

@@ -700,6 +700,99 @@ export class AIService {
         }
     }
 
+    async generateImage(prompt: string, teamId?: string): Promise<Buffer> {
+        const resolvedActorId = RequestContext.get()?.userId;
+        const safePrompt = enforceAIPromptPolicy(prompt, { surface: "HELPER", label: "Image prompt" });
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.openai?.apiKey) {
+            throw new Error("No image provider configured. Set OpenAI API key.");
+        }
+
+        const model = "gpt-image-1";
+        const billedTeamId = isChargeableTeamId(teamId) ? teamId : undefined;
+        const start = Date.now();
+        const estimatedCredits = 5;
+        const billingDescription = "AI image generation";
+        const reservedCredits = await reserveCreditsForGeneration(
+            billedTeamId,
+            estimatedCredits,
+            billingDescription,
+            { provider: LLMProvider.OPENAI, model, taskType: "IMAGE_GENERATION", estimatedCredits }
+        );
+        let settledCredits = false;
+
+        try {
+            const client = new OpenAI({ apiKey: providers.openai.apiKey });
+            const response = await client.images.generate({
+                model,
+                prompt: safePrompt,
+                size: "1536x1024",
+            });
+            const b64 = response.data?.[0]?.b64_json;
+            if (!b64) {
+                throw new Error("Image generation returned no data.");
+            }
+
+            await logUsage({
+                teamId,
+                actorId: resolvedActorId,
+                provider: LLMProvider.OPENAI,
+                model,
+                taskType: "IMAGE_GENERATION",
+                tokensIn: 0,
+                tokensOut: 0,
+                latencyMs: Date.now() - start,
+                success: true,
+            });
+            await settleCreditsForGeneration(
+                billedTeamId,
+                reservedCredits,
+                estimatedCredits,
+                billingDescription,
+                { provider: LLMProvider.OPENAI, model, taskType: "IMAGE_GENERATION" }
+            );
+            settledCredits = true;
+            return Buffer.from(b64, "base64");
+        } catch (error: any) {
+            if (billedTeamId && reservedCredits > 0 && !settledCredits) {
+                try {
+                    await refundCredits(
+                        billedTeamId,
+                        reservedCredits,
+                        `${billingDescription} (failure rollback)`,
+                        {
+                            provider: LLMProvider.OPENAI,
+                            model,
+                            taskType: "IMAGE_GENERATION",
+                            billingStage: "rollback",
+                            reservedCredits,
+                        }
+                    );
+                } catch (refundError: any) {
+                    logger.error("[AI Usage] Failed to rollback image generation credits", {
+                        error: refundError?.message || String(refundError),
+                        teamId: billedTeamId,
+                        reservedCredits,
+                    });
+                }
+            }
+
+            await logUsage({
+                teamId,
+                actorId: resolvedActorId,
+                provider: LLMProvider.OPENAI,
+                model,
+                taskType: "IMAGE_GENERATION",
+                tokensIn: 0,
+                tokensOut: 0,
+                latencyMs: Date.now() - start,
+                success: false,
+                error: error.message,
+            });
+            throw error;
+        }
+    }
+
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
         const prompt = `
 You are a B2B outreach expert. Draft a cold email.

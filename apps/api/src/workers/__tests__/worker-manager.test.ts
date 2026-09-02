@@ -54,6 +54,14 @@ vi.mock("@/modules/overseer/overseerSignalService", () => ({
     detectProviderDegradation: vi.fn().mockResolvedValue({ providersChecked: 0, signalsOpened: 0, signalsResolved: 0 }),
 }));
 
+vi.mock("../handlers/facebook-leads-worker", () => ({
+    syncDueFacebookLeadSources: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/modules/branding/customDomainPoller", () => ({
+    pollPendingCustomDomains: vi.fn().mockResolvedValue([]),
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();

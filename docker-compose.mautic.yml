@@ -1,0 +1,107 @@
+# Mautic top-of-funnel stack - deployed standalone on its own Oracle VM
+# (per OCI_PROVISIONING_MAUTIC_TWENTY.md / TODO_MAUTIC_TWENTY_INTEGRATION.md,
+# with every Twenty-CRM-specific step dropped - not requested here).
+#
+# Scope: Mautic is capture/segmentation/funnel-visualization only. It does NOT
+# send nurture/drip email for leads already in this app's own sequence pipeline
+# (see apps/api/src/modules/mautic-integration/service/mauticService.ts's header
+# for the enforced invariant) and does NOT author landing pages (this app's own
+# landing-agent module owns those). This compose file does not touch apps/api's
+# production Neon Postgres or Redis - Mautic gets its own MariaDB.
+#
+# Usage on the VM:
+#   cp .env.mautic.example .env.mautic && edit it, then:
+#   docker compose -f docker-compose.mautic.yml --env-file .env.mautic up -d
+
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/mautic/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - mautic-web
+    networks:
+      - mautic-network
+
+  mautic-db:
+    image: mariadb:11
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MAUTIC_DB_ROOT_PASSWORD:?MAUTIC_DB_ROOT_PASSWORD_REQUIRED}
+      MYSQL_DATABASE: mautic
+      MYSQL_USER: mautic
+      MYSQL_PASSWORD: ${MAUTIC_DB_PASSWORD:?MAUTIC_DB_PASSWORD_REQUIRED}
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    volumes:
+      - mautic_db_data:/var/lib/mysql
+    networks:
+      - mautic-network
+
+  mautic-web:
+    image: mautic/mautic:7.1.3-apache # re-verify this tag is still current on Docker Hub before deploying
+    restart: always
+    depends_on:
+      mautic-db:
+        condition: service_healthy
+    environment:
+      MAUTIC_DB_HOST: mautic-db
+      MAUTIC_DB_NAME: mautic
+      MAUTIC_DB_USER: mautic
+      MAUTIC_DB_PASSWORD: ${MAUTIC_DB_PASSWORD:?MAUTIC_DB_PASSWORD_REQUIRED}
+      MAUTIC_RUN_CRON_JOBS: "false" # cron runs in the dedicated mautic-cron service below, not here
+      MAUTIC_TRUSTED_PROXIES: "0.0.0.0/0" # behind Caddy + Cloudflare - narrow this to Cloudflare's published IP ranges once confirmed live (see F5 in HANDOVER_CLAUDE_CODE.md)
+    volumes:
+      - mautic_data:/var/www/html
+    networks:
+      - mautic-network
+    # IMPORTANT (Phase 3c, one-time manual step after the install wizard finishes):
+    # Mautic's own installer writes config/local.php itself, so it can't be safely
+    # pre-seeded via a bind mount here without either being ignored or breaking the
+    # wizard (missing required keys). Enable the API through the Admin UI instead:
+    # Settings -> Configuration -> API Settings -> turn on "API enabled" and
+    # "Enable HTTP basic auth". mauticService.ts will get 401s until this is done.
+
+  mautic-cron:
+    image: mautic/mautic:7.1.3-apache
+    restart: always
+    depends_on:
+      mautic-db:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    # Per I7 in HANDOVER_CLAUDE_CODE.md: segments:update and campaigns:trigger are the
+    # two crons most commonly missing that make a Mautic pilot look "up" but do nothing.
+    command:
+      - |
+        while true; do
+          php /var/www/html/bin/console mautic:segments:update
+          php /var/www/html/bin/console mautic:campaigns:update
+          php /var/www/html/bin/console mautic:campaigns:trigger
+          php /var/www/html/bin/console mautic:emails:send
+          sleep 60
+        done
+    volumes:
+      - mautic_data:/var/www/html
+    networks:
+      - mautic-network
+
+networks:
+  mautic-network:
+    driver: bridge
+
+volumes:
+  mautic_db_data:
+  mautic_data:
+  caddy_data:
+  caddy_config:

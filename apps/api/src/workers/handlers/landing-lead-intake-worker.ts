@@ -49,6 +49,7 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
             });
 
             await scoreNewLead(updated.id);
+            await pushToMautic(updated.id, teamId);
             return { created: false, leadId: updated.id };
         }
     }
@@ -68,7 +69,23 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
     });
 
     await scoreNewLead(createdLead.id);
+    await pushToMautic(createdLead.id, teamId);
     return { created: true, leadId: createdLead.id };
+}
+
+// Feeds Mautic's funnel view/segmentation for real landing-page captures. One-way
+// (app -> Mautic) - see mauticService.ts's header for the send-ownership invariant.
+// A no-op (not an error) whenever Mautic isn't configured for this environment.
+async function pushToMautic(leadId: string, teamId: string) {
+    try {
+        const { mauticService } = await import("@/modules/mautic-integration/service/mauticService");
+        const result = await mauticService.pushLead(leadId, teamId);
+        if (result.status === "error") {
+            logger.warn(`[LandingLeadIntake] Mautic push failed for lead ${leadId}: ${result.details}`);
+        }
+    } catch (error) {
+        logger.warn(`[LandingLeadIntake] Mautic push threw for lead ${leadId}:`, error as any);
+    }
 }
 
 async function scoreNewLead(leadId: string) {
