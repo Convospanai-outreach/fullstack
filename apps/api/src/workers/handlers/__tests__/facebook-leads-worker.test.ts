@@ -108,6 +108,31 @@ describe("syncDueFacebookLeadSources", () => {
         expect(results[0]).toMatchObject({ synced: 2 });
     });
 
+    it("follows Graph API pagination for the leadgen_forms list too, not just leads", async () => {
+        mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+            { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+        ]);
+        mockPrisma.facebookLeadSyncCursor.upsert
+            .mockResolvedValueOnce({ id: "cursor-1", lastCreatedTime: null })
+            .mockResolvedValueOnce({ id: "cursor-2", lastCreatedTime: null });
+        mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        const nextFormsPageUrl = "https://graph.facebook.com/v21.0/page-1/leadgen_forms?after=cursor456&access_token=page-access-token";
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }], paging: { next: nextFormsPageUrl } })) // leadgen_forms page 1
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-2" }] })) // leadgen_forms page 2
+            .mockResolvedValueOnce(jsonResponse({ data: [] })) // form-1's leads
+            .mockResolvedValueOnce(jsonResponse({ data: [] })); // form-2's leads
+        global.fetch = fetchMock as any;
+
+        const results = await syncDueFacebookLeadSources();
+
+        expect(fetchMock).toHaveBeenNthCalledWith(2, nextFormsPageUrl);
+        expect(results.map((r: any) => r.formId)).toEqual(["form-1", "form-2"]);
+    });
+
     it("updates an existing Lead (matched by email) instead of creating a duplicate", async () => {
         mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
             { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },

@@ -467,8 +467,9 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   so no test changes were needed; ran the affected suites to confirm
   (13 apps/api + 19 apps/web tests pass).
 
-- **OPEN-130 (Fixed):** two bugs in the Facebook/Instagram Lead Ads worker and
-  its sibling landing-page lead intake worker.
+- **OPEN-130 (Fixed):** three bugs across the Facebook/Instagram Lead Ads
+  integration (worker + OAuth connect flow) and the sibling landing-page lead
+  intake worker.
   (1) `apps/api/src/workers/handlers/facebook-leads-worker.ts`'s `syncForm`
   only read `leadsRes.data` (page 1 of the Graph API's `/leads` edge) and
   never followed `leadsRes.paging.next`. Since the sync cursor
@@ -477,21 +478,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   leads created *after* that cursor, any lead on a page past the first
   (default page size 25) was skipped that poll **and every poll after** —
   permanent, silent lead loss with no error logged, once a form accumulated
-  more than one page of new leads between the ~5h polls. Fixed by adding
-  `fetchAllLeadPages()`, which loops on `paging.next` until exhausted (capped
-  at `MAX_LEAD_PAGES = 200` as a guard against a malformed/looping paging
-  response) before the cursor is computed. (2) The same "scope the mutation,
-  not just the pre-check" anti-pattern as OPEN-99/109/110/118/120/121/122/
-  123/127/128 in `apps/api/src/workers/handlers/landing-lead-intake-worker.ts`'s
+  more than one page of new leads between the ~5h polls. The same file's
+  `leadgen_forms` listing (page's list of lead ad forms) had the identical
+  gap — any form past page 1 was never synced at all. Fixed by adding a
+  generic `fetchAllPages()` that loops on `paging.next` until exhausted
+  (capped at `MAX_PAGES = 200` as a guard against a malformed/looping paging
+  response), used for both the leads and forms listing. (2) The same gap in
+  `apps/web/src/modules/facebook-leads/service/facebookLeadsService.ts`'s
+  OAuth connect flow — `/me/accounts` (listing the Facebook Pages the
+  connecting user manages) only read page 1, so an account managing more
+  than ~25 Pages would silently connect only the first page's worth. Fixed
+  the same way (capped at `MAX_ACCOUNT_PAGES = 200`). (3) The same "scope the
+  mutation, not just the pre-check" anti-pattern as
+  OPEN-99/109/110/118/120/121/122/123/127/128 in
+  `apps/api/src/workers/handlers/landing-lead-intake-worker.ts`'s
   `handleLandingLeadIntake` — a `teamId`-scoped `findFirst` was followed by
   `prisma.lead.update({ where: { id: existing.id } })` with no `teamId`.
   **Not currently exploitable** (same classification as the other instances —
   `existing.id` is same-function, already-team-scoped). Fixed via
   `updateMany({ where: { id, teamId } })` + `count === 0` check, matching the
-  established convention. No `apps/web` duplicate of either worker exists.
-  Added a pagination-following test (`facebook-leads-worker.test.ts`) and a
-  lost-race test (`landing-lead-intake-worker.test.ts`); all 815 apps/api
-  tests pass, `tsc --noEmit` clean.
+  established convention. Added pagination-following tests for all three call
+  sites (`facebook-leads-worker.test.ts` x2, `facebookLeadsService.test.ts`)
+  and a lost-race test (`landing-lead-intake-worker.test.ts`); all 817
+  apps/api and 342 apps/web tests pass, `tsc --noEmit` clean on both apps.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

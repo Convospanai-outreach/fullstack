@@ -11,7 +11,7 @@ import { decryptCredential } from "@/lib/security/credentialVault";
 const GRAPH_API_VERSION = "v21.0"; // keep in sync with apps/web's facebookLeadsService.ts
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 const LOCK_DURATION_MS = 10 * 60 * 1000; // 10 minutes - one form's leads page is fast; generous headroom for API slowness
-const MAX_LEAD_PAGES = 200; // safety cap (5,000 leads at the default page size of 25) against a runaway/malformed paging loop
+const MAX_PAGES = 200; // safety cap against a runaway/malformed paging loop (5,000 items at the default page size of 25)
 
 interface LeadgenForm {
     id: string;
@@ -51,25 +51,27 @@ async function graphFetch(path: string, accessToken: string) {
     return graphFetchUrl(url);
 }
 
-/** Follows Graph API cursor pagination (`paging.next`) until exhausted - a form's
- * leads only come back one page (default 25) at a time, and the sync cursor below
- * advances past everything seen this poll, so any lead left on an unfetched page
- * would be skipped this run AND every run after (the next poll's filter only asks
- * for leads created after the new cursor). Capped at MAX_LEAD_PAGES as a guard
- * against an unbounded loop on a malformed/looping paging response. */
-async function fetchAllLeadPages(formId: string, accessToken: string, filtering: string): Promise<LeadgenLead[]> {
-    const leads: LeadgenLead[] = [];
-    let res = await graphFetch(`/${formId}/leads?fields=created_time,field_data${filtering}`, accessToken);
-    leads.push(...(res?.data || []));
+/** Follows Graph API cursor pagination (`paging.next`) until exhausted - both a
+ * form's leads and a page's leadgen_forms only come back one page (default 25)
+ * at a time. For leads specifically, the sync cursor advances past everything
+ * seen this poll, so any lead left on an unfetched page would be skipped this
+ * run AND every run after (the next poll's filter only asks for leads created
+ * after the new cursor); for forms, any form past page 1 would simply never be
+ * synced. Capped at MAX_PAGES as a guard against an unbounded loop on a
+ * malformed/looping paging response. */
+async function fetchAllPages<T>(initialPath: string, accessToken: string): Promise<T[]> {
+    const items: T[] = [];
+    let res = await graphFetch(initialPath, accessToken);
+    items.push(...(res?.data || []));
 
     let pages = 1;
-    while (res?.paging?.next && pages < MAX_LEAD_PAGES) {
+    while (res?.paging?.next && pages < MAX_PAGES) {
         res = await graphFetchUrl(res.paging.next);
-        leads.push(...(res?.data || []));
+        items.push(...(res?.data || []));
         pages += 1;
     }
 
-    return leads;
+    return items;
 }
 
 /** Create-or-update a Lead by email (falling back to phone), mirroring the same
@@ -134,7 +136,7 @@ async function syncForm(teamId: string, sourceId: string, formId: string, access
         const filtering = since
             ? `&filtering=${encodeURIComponent(JSON.stringify([{ field: "time_created", operator: "GREATER_THAN", value: since }]))}`
             : "";
-        const leads = await fetchAllLeadPages(formId, accessToken, filtering);
+        const leads = await fetchAllPages<LeadgenLead>(`/${formId}/leads?fields=created_time,field_data${filtering}`, accessToken);
 
         let latestCreatedTime = cursor.lastCreatedTime;
         for (const lead of leads) {
@@ -201,8 +203,7 @@ export async function syncDueFacebookLeadSources(limit = 25) {
                 continue;
             }
 
-            const formsRes = await graphFetch(`/${source.pageId}/leadgen_forms?fields=id,name`, accessToken);
-            const forms: LeadgenForm[] = formsRes?.data || [];
+            const forms = await fetchAllPages<LeadgenForm>(`/${source.pageId}/leadgen_forms?fields=id,name`, accessToken);
 
             for (const form of forms) {
                 const result = await syncForm(source.teamId, source.id, form.id, accessToken);

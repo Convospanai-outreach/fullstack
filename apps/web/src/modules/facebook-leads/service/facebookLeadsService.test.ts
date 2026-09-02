@@ -71,6 +71,27 @@ describe("facebookLeadsService", () => {
         expect(mockEncryptCredential).toHaveBeenCalledWith("page-token");
     });
 
+    it("follows /me/accounts pagination instead of only connecting the first page of Pages", async () => {
+        const url = buildFacebookLeadsAuthUrl({ teamId: "team-1", userId: "user-1" });
+        const state = new URL(url).searchParams.get("state")!;
+
+        const nextAccountsUrl = "https://graph.facebook.com/v21.0/me/accounts?after=cursor123";
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ access_token: "short-lived" }))
+            .mockResolvedValueOnce(jsonResponse({ access_token: "long-lived" }))
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "page-1", name: "Page One", access_token: "token-1" }], paging: { next: nextAccountsUrl } }))
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "page-2", name: "Page Two", access_token: "token-2" }] }));
+        global.fetch = fetchMock as any;
+        mockPrisma.facebookLeadSource.upsert
+            .mockResolvedValueOnce({ id: "source-1", pageId: "page-1" })
+            .mockResolvedValueOnce({ id: "source-2", pageId: "page-2" });
+
+        const result = await connectFacebookPages({ code: "auth-code", state });
+
+        expect(fetchMock).toHaveBeenNthCalledWith(4, nextAccountsUrl);
+        expect(result.pages).toHaveLength(2);
+    });
+
     it("throws when the account has no manageable Facebook Pages", async () => {
         const url = buildFacebookLeadsAuthUrl({ teamId: "team-1", userId: "user-1" });
         const state = new URL(url).searchParams.get("state")!;
