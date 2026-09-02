@@ -10,7 +10,15 @@ async function writeHostOwnership(domain: string, teamId: string): Promise<void>
     const accountId = process.env["CLOUDFLARE_ACCOUNT_ID"];
     const apiToken = process.env["CLOUDFLARE_API_TOKEN"];
     const namespaceId = process.env["CLOUDFLARE_KV_NAMESPACE_ID"];
-    if (!accountId || !apiToken || !namespaceId) return;
+    // Throws (rather than silently no-op'ing) so the caller's catch block below
+    // leaves the domain "pending" for retry instead of marking it "active" with
+    // no host:-> teamId mapping ever written to KV - a config gap here is a
+    // different variable set than hostname creation needs (see
+    // cloudflareCustomHostnameService.ts's getConfig), so Cloudflare's own
+    // verification can genuinely succeed while this step is still misconfigured.
+    if (!accountId || !apiToken || !namespaceId) {
+        throw new Error("Cloudflare KV host-ownership write is not configured (CLOUDFLARE_ACCOUNT_ID/API_TOKEN/KV_NAMESPACE_ID)");
+    }
 
     const res = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${accountId}/storage/kv/namespaces/${namespaceId}/values/host:${encodeURIComponent(domain)}`,
