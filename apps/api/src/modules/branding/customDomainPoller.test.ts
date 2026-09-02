@@ -63,6 +63,24 @@ describe("pollPendingCustomDomains", () => {
         expect(results).toEqual([{ domain: "go.example.com", status: "active" }]);
     });
 
+    it("leaves the domain pending (not active) when KV host-ownership isn't configured, instead of silently marking it active with no mapping written", async () => {
+        delete process.env["CLOUDFLARE_KV_NAMESPACE_ID"];
+        mockPrisma.customDomain.findMany.mockResolvedValue([
+            { id: "cd-1", domain: "go.example.com", teamId: "team-1", cloudflareHostnameId: "cf-1" },
+        ]);
+        mockGetCustomHostnameStatus.mockResolvedValue({ status: "active" });
+        const fetchMock = vi.fn();
+        global.fetch = fetchMock as any;
+
+        const results = await pollPendingCustomDomains();
+
+        expect(fetchMock).not.toHaveBeenCalled();
+        expect(mockPrisma.customDomain.update).not.toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "active" }) })
+        );
+        expect(results).toEqual([]);
+    });
+
     it("flips to invalid on a terminal verification failure", async () => {
         mockPrisma.customDomain.findMany.mockResolvedValue([
             { id: "cd-1", domain: "go.example.com", teamId: "team-1", cloudflareHostnameId: "cf-1" },
