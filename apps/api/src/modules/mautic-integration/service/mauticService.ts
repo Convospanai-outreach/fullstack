@@ -113,10 +113,13 @@ class MauticService {
                 status = "created";
             }
 
-            await prisma.lead.update({
-                where: { id: leadId },
+            // Scoped by teamId here too, not just the pre-check above - same anti-pattern
+            // already fixed under OPEN-99/109/110/118/120/121/122/123.
+            const result = await prisma.lead.updateMany({
+                where: { id: leadId, teamId },
                 data: { mauticContactId, mauticSyncedAt: new Date() },
             });
+            if (result.count === 0) return { status: "error", details: "Lead not found" };
 
             return { status, mauticContactId };
         } catch (error) {
