@@ -14,6 +14,17 @@
 		}
 	],
 
+	"r2_buckets": [
+		{
+			"binding": "LANDING_ASSETS",
+			// Fill in after `npx wrangler r2 bucket create landing-page-assets`.
+			"bucket_name": "landing-page-assets"
+		}
+	],
+
+	// Set with `npx wrangler secret put INTERNAL_UPLOAD_SECRET` - guards
+	// POST /internal/assets/:key, never committed here.
+
 	"vars": {
 		// The team's own outreach app - lead/event POSTs are proxied here unchanged.
 		"API_ORIGIN": "https://api.craftmyfunnel.live",

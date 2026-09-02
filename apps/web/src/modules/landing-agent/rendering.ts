@@ -10,6 +10,8 @@ interface LandingPageSectionLike {
     body?: unknown;
     bullets?: unknown;
     ctaLabel?: unknown;
+    imageUrl?: unknown;
+    imageAlt?: unknown;
 }
 
 export const LANDING_PAGE_BASE_CSS = `
@@ -76,6 +78,35 @@ export const LANDING_PAGE_BASE_CSS = `
     font-weight: 700;
     padding: 11px 16px;
     text-decoration: none;
+}
+.la-hero-with-image {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 32px;
+}
+.la-hero-media img {
+    width: 100%;
+    height: auto;
+    border-radius: 12px;
+    box-shadow: 0 20px 44px rgba(15, 23, 42, 0.14);
+}
+@media (max-width: 720px) {
+    .la-hero-with-image {
+        grid-template-columns: 1fr;
+    }
+}
+.la-proof img,
+.la-testimonial img {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    border-radius: 10px;
+    margin: 12px 0;
+}
+.la-testimonial {
+    border-color: #fcd34d;
+    background: #fffbeb;
 }
 .la-footer {
     border-color: #cbd5e1;
@@ -144,6 +175,7 @@ const ALLOWED_HTML_TAGS = new Set([
     "i",
     "small",
     "br",
+    "img",
 ]);
 
 const ALLOWED_HTML_ATTRS = new Set([
@@ -155,6 +187,11 @@ const ALLOWED_HTML_ATTRS = new Set([
     "rel",
     "aria-label",
     "data-section-type",
+    "src",
+    "alt",
+    "loading",
+    "width",
+    "height",
 ]);
 
 function sanitizeClassTokens(value: string): string {
@@ -216,6 +253,9 @@ function sanitizeLandingHtml(rawHtml: string): string {
                 if (attrName === "href" && !isSafeLink(rawValue)) {
                     return "";
                 }
+                if (attrName === "src" && !isSafeLink(rawValue)) {
+                    return "";
+                }
                 if (attrName === "class") {
                     const safeClass = sanitizeClassTokens(rawValue);
                     if (!safeClass) return "";
@@ -267,6 +307,15 @@ function renderBullets(bullets: unknown): string {
     return `<ul>${bullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`;
 }
 
+function renderImage(section: LandingPageSectionLike, altFallback: string): string {
+    const src = text(section.imageUrl);
+    if (!src || !isSafeLink(src)) {
+        return "";
+    }
+    const alt = escapeHtml(section.imageAlt || altFallback);
+    return `<img src="${escapeHtml(src)}" alt="${alt}" loading="lazy" />`;
+}
+
 function renderSection(section: LandingPageSectionLike, index: number): string {
     const type = text(section.type) || "section";
     const id = escapeAttribute(section.id) || `${type}-${index + 1}`;
@@ -276,12 +325,29 @@ function renderSection(section: LandingPageSectionLike, index: number): string {
     const ctaLabel = escapeHtml(section.ctaLabel);
 
     if (type === "hero") {
+        const image = renderImage(section, heading);
         return `
-<section id="${id}" class="la-section la-hero" data-section-type="hero">
-    <p class="la-eyebrow">Campaign Offer</p>
-    <h1>${heading}</h1>
+<section id="${id}" class="la-section la-hero${image ? " la-hero-with-image" : ""}" data-section-type="hero">
+    <div class="la-hero-copy">
+        <p class="la-eyebrow">Campaign Offer</p>
+        <h1>${heading}</h1>
+        ${body ? `<p>${body}</p>` : ""}
+        ${ctaLabel ? `<a class="la-cta" href="#lead-form">${ctaLabel}</a>` : ""}
+    </div>
+    ${image ? `<div class="la-hero-media">${image}</div>` : ""}
+</section>`;
+    }
+
+    if (type === "proof" || type === "logos" || type === "testimonial") {
+        const image = renderImage(section, heading);
+        const sectionClass = type === "testimonial" ? "la-testimonial" : "la-proof";
+        return `
+<section id="${id}" class="la-section ${sectionClass}" data-section-type="${escapeAttribute(type)}">
+    <p class="la-eyebrow">${escapeHtml(type.replace(/_/g, " "))}</p>
+    <h2>${heading}</h2>
+    ${image}
     ${body ? `<p>${body}</p>` : ""}
-    ${ctaLabel ? `<a class="la-cta" href="#lead-form">${ctaLabel}</a>` : ""}
+    ${bullets}
 </section>`;
     }
 

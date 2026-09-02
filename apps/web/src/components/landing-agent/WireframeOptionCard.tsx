@@ -14,12 +14,21 @@ interface Props {
 export default function WireframeOptionCard({ option, selected, onSelect, selecting }: Props) {
     const sections = Array.isArray(option.structure) ? option.structure : [];
 
+    const isTemplate = (option.description || "").startsWith("Template:");
+
     return (
         <GlassCard className={`p-6 space-y-4 border ${selected ? "border-cyan-400/60" : "border-white/10"}`}>
             <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">{option.framework}</p>
+                <div className="flex items-center gap-2">
+                    <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">{option.framework}</p>
+                    {isTemplate ? (
+                        <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                            Template
+                        </span>
+                    ) : null}
+                </div>
                 <h3 className="mt-2 text-xl font-bold text-white">{option.title}</h3>
-                <p className="mt-2 text-sm text-slate-300">{option.description || "Generated wireframe option"}</p>
+                <p className="mt-2 text-sm text-slate-300">{(option.description || "Generated wireframe option").replace(/^Template:\s*/, "")}</p>
             </div>
 
             <div className="rounded-lg border border-white/10 bg-slate-900/50 p-4">

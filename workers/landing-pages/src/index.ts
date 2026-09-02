@@ -1,7 +1,9 @@
 export interface Env {
 	LANDING_PAGES: KVNamespace;
+	LANDING_ASSETS: R2Bucket;
 	API_ORIGIN: string;
 	DEFAULT_HOST: string;
+	INTERNAL_UPLOAD_SECRET: string;
 }
 
 interface StoredPage {
@@ -46,6 +48,32 @@ export default {
 		const url = new URL(request.url);
 		const host = url.hostname;
 		const segments = url.pathname.split("/").filter(Boolean);
+
+		if (segments[0] === "assets" && segments[1] && request.method === "GET") {
+			const key = segments.slice(1).join("/");
+			const object = await env.LANDING_ASSETS.get(key);
+			if (!object) {
+				return new Response("Not found", { status: 404 });
+			}
+			const headers = new Headers();
+			object.writeHttpMetadata(headers);
+			headers.set("Cache-Control", "public, max-age=31536000, immutable");
+			return new Response(object.body, { headers });
+		}
+
+		if (segments[0] === "internal" && segments[1] === "assets" && segments[2] && request.method === "POST") {
+			const secret = request.headers.get("X-Internal-Secret");
+			if (!secret || secret !== env.INTERNAL_UPLOAD_SECRET) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+			const key = segments.slice(2).join("/");
+			const contentType = request.headers.get("Content-Type") || "application/octet-stream";
+			await env.LANDING_ASSETS.put(key, request.body, { httpMetadata: { contentType } });
+			return new Response(JSON.stringify({ ok: true, key }), {
+				headers: { "Content-Type": "application/json" },
+			});
+		}
+
 		const slug = segments[0];
 
 		if (!slug) {

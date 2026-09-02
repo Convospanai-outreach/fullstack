@@ -64,6 +64,12 @@ export default function LandingAgentEditorPage() {
                     setStatus("Draft saved.");
                     await loadCampaign();
                 }}
+                onGenerateImages={async () => {
+                    const updatedPage: any = await landingAgentApi.generateImages(campaignId, page.id);
+                    setStatus("Images generated.");
+                    await loadCampaign();
+                    return updatedPage?.renderedJson;
+                }}
                 onPublish={async () => {
                     const result: any = await landingAgentApi.publish(campaignId, false);
                     if (result?.status === "PENDING_APPROVAL") {

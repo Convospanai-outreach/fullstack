@@ -182,6 +182,26 @@ export async function postSelectWireframe(req: Request, ctx?: ParamContext) {
     }
 }
 
+export async function postGenerateImages(req: Request, ctx?: ParamContext) {
+    try {
+        const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
+        const campaignId = await resolveParam(req, ctx, "id", "campaigns");
+        const pageId = await resolveParam(req, ctx, "pageId", "pages");
+        if (!campaignId || !pageId) {
+            throw new APIError("Campaign ID and page ID are required", 400, "VALIDATION_ERROR");
+        }
+
+        const page = await landingAgentService.generateImagesForPage({
+            teamId,
+            campaignId,
+            pageId,
+        });
+        return successResponse(page);
+    } catch (error) {
+        return handleAPIError(error);
+    }
+}
+
 export async function putEditorState(req: Request, ctx?: ParamContext) {
     try {
         const { teamId } = await requireTeamContext(req, TeamRole.MEMBER);
