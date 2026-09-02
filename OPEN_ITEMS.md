@@ -584,6 +584,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   failure still records and advances past the leads before and after it, and
   hitting the pagination cap surfaces as an error rather than a silent
   truncation; all 818 apps/api tests pass, `tsc --noEmit` clean.
+- **OPEN-134 (Fixed):** `PUT /api/scoring/lead-intent`
+  (`apps/api/routes/scoring/lead-intent/route.ts`) let **any** authenticated
+  user, from any team, overwrite the lead-scoring weights used by
+  `leadScoringService` — with no admin-role check and no input validation.
+  `leadScoringService` is a module-level singleton
+  (`apps/api/src/modules/scoring/service/LeadScoringService.ts`), and
+  `updateWeights()` mutates its `this.config` in place — a single process-wide
+  object, not scoped per team. Any team could silently corrupt or disable
+  lead-intent scoring for *every other team* on the instance (a cross-tenant
+  integrity/DoS issue), and since `weights` was spread into the config with
+  no validation, arbitrary values (negative, `NaN`, `Infinity`, unknown keys)
+  flowed straight into the scoring formula used by every subsequent
+  `scoreAndPersist`/`batchScoreLeads` call, for every team, until the process
+  restarted. Fixed by (1) requiring an admin role
+  (`ORG_ADMIN`/`SYSTEM_ADMIN`/`SUPER_ADMIN`, matching the pattern already
+  used by `admin/audit` and `admin/agent-audit` for other cross-tenant-impact
+  configuration) and (2) validating `weights` — only the three known keys
+  (`dwellTime`/`emailClicks`/`socialMentions`), each a finite number in
+  `[0, 10]`, or the request is rejected outright. No `apps/web` route exposes
+  this; `apps/web`'s duplicate `LeadScoringService.ts` has its own
+  `updateWeights` but nothing calls it. Added `route.test.ts` (new, 4 tests):
+  non-admin rejected, unknown weight key rejected, non-finite/out-of-range
+  value rejected, valid admin update succeeds; all 824 apps/api tests pass,
+  `tsc --noEmit` clean.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
