@@ -584,6 +584,54 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   failure still records and advances past the leads before and after it, and
   hitting the pagination cap surfaces as an error rather than a silent
   truncation; all 818 apps/api tests pass, `tsc --noEmit` clean.
+- **OPEN-134 (Fixed):** `PUT /api/scoring/lead-intent`
+  (`apps/api/routes/scoring/lead-intent/route.ts`) let **any** authenticated
+  user, from any team, overwrite the lead-scoring weights used by
+  `leadScoringService` — with no admin-role check and no input validation.
+  `leadScoringService` is a module-level singleton
+  (`apps/api/src/modules/scoring/service/LeadScoringService.ts`), and
+  `updateWeights()` mutates its `this.config` in place — a single process-wide
+  object, not scoped per team. Any team could silently corrupt or disable
+  lead-intent scoring for *every other team* on the instance (a cross-tenant
+  integrity/DoS issue), and since `weights` was spread into the config with
+  no validation, arbitrary values (negative, `NaN`, `Infinity`, unknown keys)
+  flowed straight into the scoring formula used by every subsequent
+  `scoreAndPersist`/`batchScoreLeads` call, for every team, until the process
+  restarted. Fixed by (1) requiring an admin role
+  (`ORG_ADMIN`/`SYSTEM_ADMIN`/`SUPER_ADMIN`, matching the pattern already
+  used by `admin/audit` and `admin/agent-audit` for other cross-tenant-impact
+  configuration) and (2) validating `weights` — only the three known keys
+  (`dwellTime`/`emailClicks`/`socialMentions`), each a finite number in
+  `[0, 10]`, or the request is rejected outright. No `apps/web` route exposes
+  this; `apps/web`'s duplicate `LeadScoringService.ts` has its own
+  `updateWeights` but nothing calls it. Added `route.test.ts` (new, 4 tests):
+  non-admin rejected, unknown weight key rejected, non-finite/out-of-range
+  value rejected, valid admin update succeeds; all 824 apps/api tests pass,
+  `tsc --noEmit` clean.
+
+- **OPEN-135 (Fixed):** cross-tenant IDOR in `apps/api/routes/whatsapp/send/route.ts`
+  (both `POST` and `GET`) — `getCurrentContextFromRequest` was called but only
+  `userId` was used; `teamId` was discarded, and the lead lookup
+  (`prisma.lead.findUnique({ where: { id: leadId } })`) never checked it
+  belonged to the caller's own team. `withFeatureGuard("whatsapp_outbound",
+  { teamId: lead.teamId }, ...)` only checks whether the flag is enabled for
+  *that* team — it doesn't validate the caller belongs to it. So any
+  authenticated user from Team A could send a WhatsApp message to (or, via
+  the `phone: lead.phone || body.recipientPhone` fallback, redirect to an
+  arbitrary attacker-chosen number as) any lead belonging to Team B, using
+  Team B's WABA credentials/quota, as long as Team B had `whatsapp_outbound`
+  enabled — and separately, `GET` had no team check (or feature guard) at
+  all, letting any authenticated user read any other team's WhatsApp consent
+  audit trail (grant/revocation history, timestamps, actors) for an arbitrary
+  `leadId`. A distinct, previously-unaudited file — `apps/api/src/modules/whatsapp/`
+  hadn't been touched by this sweep before. Fixed by destructuring `teamId`
+  from `getCurrentContextFromRequest` in both handlers and replacing the
+  unscoped lookup with `prisma.lead.findFirst({ where: { id: leadId, teamId } })`,
+  404'ing on a miss before any consent check, feature guard, or send. No
+  `apps/web` duplicate of this route exists. Added `route.test.ts` (new, 4
+  tests): POST/GET both reject a lead from another team, both succeed for a
+  lead in the caller's own team; all 826 apps/api tests pass, `tsc --noEmit`
+  clean.
 
 - **OPEN-136 (Fixed):** unauthenticated-scope, cross-tenant PII de-masking
   oracle at `GET /api/leads/[id]/identity`
