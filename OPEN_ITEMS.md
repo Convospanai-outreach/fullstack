@@ -524,28 +524,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   sites (`facebook-leads-worker.test.ts` x2, `facebookLeadsService.test.ts`)
   and a lost-race test (`landing-lead-intake-worker.test.ts`); all 817
   apps/api and 342 apps/web tests pass, `tsc --noEmit` clean on both apps.
-- **OPEN-131 (Fixed):** `apps/api/src/modules/branding/customDomainPoller.ts`'s
-  `writeHostOwnership()` silently returned (no-op) when
-  `CLOUDFLARE_ACCOUNT_ID`/`CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_KV_NAMESPACE_ID`
-  weren't all configured — but its caller, `pollPendingCustomDomains()`, still
-  proceeded to write `status: "active"` to the `CustomDomain` row regardless.
-  Since the poller only re-checks rows with `status: "pending"`, that row was
-  never revisited: the domain shows "active" permanently while the
-  `host:<domain> -> teamId` mapping in Workers KV (which
-  `workers/landing-pages/src/index.ts` needs to serve the page on that
-  hostname) was never written — durable, silent breakage with no error
-  surfaced anywhere. Reachable in practice, not just hypothetical: hostname
-  *creation* (`cloudflareCustomHostnameService.ts`) only requires
-  `CLOUDFLARE_ZONE_ID` + `CLOUDFLARE_API_TOKEN` — a different variable set —
-  so Cloudflare's own verification can genuinely reach "active" while the KV
-  write's three-variable config is still incomplete. A genuine Cloudflare API
-  failure already threw and was correctly caught (leaving the row `pending`
-  for retry); the missing-env-var path just skipped that safety net. Fixed by
-  throwing instead of silently returning, so the existing catch block in
-  `pollPendingCustomDomains` handles it the same way as a real API failure.
-  Added a test asserting the domain stays non-active (and no KV write is
-  attempted) when the config is incomplete; all apps/api tests pass,
-  `tsc --noEmit` clean.
+- **OPEN-132 (Fixed):** stored XSS on published landing pages via the `css`
+  field. `getLandingRenderPayload()`'s `withLandingBaseCss()`
+  (`apps/api/src/modules/landing-agent/rendering.ts`, and its byte-identical
+  `apps/web` duplicate) passed the caller-supplied `css` string through
+  completely unsanitized — unlike `html`, which goes through the sound
+  `sanitizeLandingHtml()` scanner. `apps/api/src/modules/landing-agent/service/
+  cloudflarePagesService.ts`'s `buildFullDocument()` then interpolates that
+  `css` value directly into a static `<style>${css}</style>` string, which is
+  written to Cloudflare KV and served as real `text/html` to every visitor of
+  a published (public, unauthenticated) landing page. A `<style>` element is
+  an HTML "raw text" element — the browser's tokenizer exits style-parsing
+  mode on the literal sequence `</style` alone, with no regard for CSS
+  syntax — so a `css` value containing `</style><img src=x onerror=...>`
+  breaks out of the style block and executes as real markup. `css` reaches
+  this path via `saveEditorState`'s `renderedJson` input (the GrapesJS
+  editor's exported CSS, sent from the browser), and the only upstream
+  defense (`service.ts`'s regex-based `sanitizeString`) only strips
+  *complete*, *quoted* `<style>...</style>`/`on*="..."` pairs — a bare,
+  unbalanced `</style` with an unquoted `onerror=` attribute passes through
+  untouched, the same class of unsound regex-based filtering the manual
+  `sanitizeLandingHtml` scanner was written to replace (see the rendering.ts
+  sanitizer rewrite in the PR #369 CI-fix work). The React-rendered editor
+  preview path (`PublishedLandingRenderer.tsx`) was never vulnerable — React
+  sets style content via a text-content DOM API, not raw string
+  interpolation — this only affected the static-HTML Cloudflare serving
+  path. Fixed by stripping the literal case-insensitive `</style` sequence
+  from `css` inside `withLandingBaseCss()` (the single choke point every
+  consumer of the `css` field already goes through), which keeps everything
+  after an attempted breakout as inert raw text instead of real markup.
+  Added 3 tests to `rendering.test.ts` (breakout stripped, case-varied
+  breakout stripped, ordinary CSS left untouched); all 817 apps/api and 342
+  apps/web tests pass, `tsc --noEmit` clean on both apps.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
