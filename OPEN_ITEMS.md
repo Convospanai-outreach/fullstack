@@ -201,15 +201,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   ceiling:** unit tests cover config resolution and the signIn guards;
   end-to-end OIDC against a real IdP is unverified (no test IdP available
   in this environment).
-- **OPEN-113 (Found, not fixed):** SSO *enforcement* is stubbed out.
-  `SsoConfiguration.enforced` is persisted and shown as a toggle in the
-  settings UI, but nothing actually blocks password/Clerk login for a
-  domain once it's set — `apps/api/src/middleware.ts` has a
-  `[STUB-3 Remediation]` comment admitting as much ("In a full
-  implementation, we'd query SsoConfiguration here"). Needs careful design
-  to avoid lockout (e.g. an org admin enabling enforcement before OIDC is
-  fully configured/working must not lock themselves out) — deliberately
-  deferred until OIDC login (OPEN-112) has real-world usage.
+- **OPEN-113 (Fixed):** SSO *enforcement* was stubbed out —
+  `SsoConfiguration.enforced` was persisted and shown as a toggle in the
+  settings UI, but nothing actually blocked password/Clerk login for a
+  domain once it was set. The `[STUB-3 Remediation]` comment pointing at
+  `apps/api/src/middleware.ts` was misleading: that app has no Clerk
+  integration at all (Clerk is apps/web-only), so it was never the real
+  enforcement point. Fixed in `apps/web/src/lib/clerkAuth.ts`'s
+  `findOrCreateClerkAppUser()` — the function every protected page/API
+  route already funnels through (`requireAuth`/`requireClerkAppUser`/
+  `getCurrentContext`) to turn a Clerk session into an app `User` — by
+  adding a new `isSsoEnforcedForEmail()` check (`apps/web/src/lib/sso/oidc.ts`)
+  before returning either an existing Clerk-linked user or provisioning a
+  new one. Re-checked live on every call (not cached on the session), so
+  flipping enforcement on takes effect immediately even for an
+  already-signed-in session, without needing an edge-middleware change.
+  **Lockout safeguard** (the reason this was originally deferred):
+  `isSsoEnforcedForEmail()` only returns true when OIDC is *fully*
+  configured for the domain — `providerType: "OIDC"`, `clientId`,
+  `wellKnownUrl`, and a resolvable `clientSecret` all present — mirroring
+  `resolveOidcSsoForTeam`'s own "fully configured" check. An admin flipping
+  `enforced` on before OIDC is wired up (or a SAML-only config, which isn't
+  implemented end-to-end — see the `/auth/sso/check` route) simply doesn't
+  enforce yet, so nobody gets locked out with no working sign-in path.
+  The NextAuth/OIDC sign-in path itself (`apps/web/src/lib/auth.ts`'s
+  `signIn` callback, used by `requireAuth`'s Clerk-absent fallback) is
+  untouched — enforcement only ever blocks the Clerk/password path.
+  Added `oidc.test.ts` cases for `isSsoEnforcedForEmail` and a new
+  `clerkAuth.ssoEnforcement.test.ts` covering both the already-linked-user
+  and new-user provisioning paths; corrected the stale, misleading comment
+  in `apps/api/src/middleware.ts` to point at the real fix location. All
+  342 apps/web tests and 813 apps/api tests pass; `tsc --noEmit` clean on
+  both apps.
 - **OPEN-114 (Fixed, merged PR #348):** `SsoConfiguration.clientSecret` was
   stored and returned in plaintext — the settings PUT handler upserted it
   verbatim and GET echoed the real secret back into the UI response. Added

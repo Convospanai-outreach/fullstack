@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
-        ssoConfiguration: { findUnique: vi.fn() },
+        ssoConfiguration: { findUnique: vi.fn(), findFirst: vi.fn() },
         user: { findUnique: vi.fn() },
         teamMember: { findFirst: vi.fn() },
     },
@@ -10,7 +10,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { resolveOidcSsoForTeam, isOidcSignInAllowed } from "./oidc";
+import { resolveOidcSsoForTeam, isOidcSignInAllowed, isSsoEnforcedForEmail } from "./oidc";
 
 describe("resolveOidcSsoForTeam", () => {
     beforeEach(() => vi.clearAllMocks());
@@ -119,5 +119,49 @@ describe("isOidcSignInAllowed", () => {
             where: { teamId: "team-1", userId: "user-1", status: "active" },
             select: { id: true },
         });
+    });
+});
+
+describe("isSsoEnforcedForEmail", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("is false when no SsoConfiguration matches the domain", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue(null);
+        expect(await isSsoEnforcedForEmail("user@enterprise.com")).toBe(false);
+        expect(mockPrisma.ssoConfiguration.findFirst).toHaveBeenCalledWith({
+            where: { allowedDomains: { has: "enterprise.com" }, enforced: true, providerType: "OIDC" },
+        });
+    });
+
+    it("is false when an admin enabled enforcement before OIDC is fully configured (no lockout)", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({
+            clientId: null,
+            wellKnownUrl: "https://idp.example.com/.well-known/openid-configuration",
+            clientSecret: "secret",
+        });
+        expect(await isSsoEnforcedForEmail("user@enterprise.com")).toBe(false);
+    });
+
+    it("is false when the client secret can't be resolved", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({
+            clientId: "abc",
+            wellKnownUrl: "https://idp.example.com/.well-known/openid-configuration",
+            clientSecret: null,
+        });
+        expect(await isSsoEnforcedForEmail("user@enterprise.com")).toBe(false);
+    });
+
+    it("is true once enforced and OIDC is fully configured, lowercasing the domain", async () => {
+        mockPrisma.ssoConfiguration.findFirst.mockResolvedValue({
+            clientId: "abc",
+            wellKnownUrl: "https://idp.example.com/.well-known/openid-configuration",
+            clientSecret: "secret",
+        });
+        expect(await isSsoEnforcedForEmail("user@Enterprise.com")).toBe(true);
+    });
+
+    it("is false for an email with no domain", async () => {
+        expect(await isSsoEnforcedForEmail("not-an-email")).toBe(false);
+        expect(mockPrisma.ssoConfiguration.findFirst).not.toHaveBeenCalled();
     });
 });

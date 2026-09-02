@@ -70,3 +70,20 @@ export async function isOidcSignInAllowed(params: {
     });
     return Boolean(membership);
 }
+
+// OPEN-113: `SsoConfiguration.enforced` must only ever block Clerk/password
+// login (see clerkAuth.ts's findOrCreateClerkAppUser) once OIDC is actually
+// fully wired up for the domain - an admin flipping `enforced` on before
+// clientId/wellKnownUrl/clientSecret are all set must not lock everyone
+// (including themselves) out of the app with no working sign-in path left.
+export async function isSsoEnforcedForEmail(email: string): Promise<boolean> {
+    const domain = email.toLowerCase().split("@")[1];
+    if (!domain) return false;
+
+    const config = await prisma.ssoConfiguration.findFirst({
+        where: { allowedDomains: { has: domain }, enforced: true, providerType: "OIDC" },
+    });
+    if (!config || !config.clientId || !config.wellKnownUrl) return false;
+
+    return Boolean(decryptClientSecret(config.clientSecret));
+}
