@@ -83,11 +83,11 @@ export async function middleware(req: NextRequest) {
 
     if (!isPublic) {
         if (!token) {
-            // [STUB-3 Remediation] SSO Enforcement Check
-            // If the user is on the login/signup page and enters an email with an enforced domain, 
-            // the frontend will detect it, but as a secondary guard, we block password paths for those domains.
-            // (In a full implementation, we'd query SsoConfiguration here).
-            
+            // SSO enforcement (OPEN-113) doesn't apply here: this app has no Clerk
+            // integration (that's apps/web only), so there's no password/Clerk
+            // session for an enforced domain to block in the first place - see
+            // apps/web/src/lib/clerkAuth.ts's findOrCreateClerkAppUser instead.
+
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
