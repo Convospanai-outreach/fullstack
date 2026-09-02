@@ -65,11 +65,22 @@ below in the Resolved table.)
   private/loopback/link-local ranges via `node:net`'s `BlockList`) before
   the `fetch`, same pattern already used for outbound webhooks.
 
-- **OPEN-102 (Found, NOT fixed — deferred):** a ReDoS-shaped regex was
-  flagged during the SSRF sweep (catastrophic-backtracking risk on
-  attacker-controlled input). Deferred because it needed a closer look at
-  actual reachability/input length limits before deciding on a fix; not
-  yet re-investigated. Revisit before calling the sweep done.
+- **OPEN-102 (Closed — duplicate of OPEN-106, fixed in PR #342):** a
+  ReDoS-shaped regex was flagged during the SSRF sweep, deferred pending "a
+  closer look at actual reachability/input length limits." Re-investigated
+  this session (systematic re-scan of every regex touching external input
+  in both `apps/api/src` and `apps/web/src` for nested-quantifier/
+  catastrophic-backtracking shapes — SSRF/ingest/webhook code paths ruled
+  out, none contain ReDoS-prone patterns): the only real match anywhere in
+  the codebase is `GuardrailService.evaluate`'s team-authored
+  `policy.regexRules`, compiled via `new RegExp()` and run against message
+  content — and OPEN-106 already fixed exactly that (VM-sandboxed 250ms
+  timeout budget), independently rediscovering it via a duplicate-file
+  audit rather than by tracing back to this entry. OPEN-106's own writeup
+  ("content is capped at 2200 chars, far past where such patterns blow up")
+  directly answers the reachability/input-length question this entry left
+  open. No separate unfixed regex exists — closing as a duplicate rather
+  than continuing to search for a phantom second bug.
 
 - **OPEN-103 (Fixed, merged PR #338):** `GET`/`POST /api/dashboard/campaigns`
   and `PATCH`/`DELETE /api/dashboard/campaigns/[id]` had no role check at
