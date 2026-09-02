@@ -133,6 +133,69 @@ describe("syncDueFacebookLeadSources", () => {
         expect(results.map((r: any) => r.formId)).toEqual(["form-1", "form-2"]);
     });
 
+    it("continues processing remaining leads (without duplicating already-recorded activity on the next poll) after one lead throws mid-batch", async () => {
+        mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+            { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+        ]);
+        mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
+        mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create
+            .mockResolvedValueOnce({ id: "lead-1" })
+            .mockRejectedValueOnce(new Error("db unavailable"))
+            .mockResolvedValueOnce({ id: "lead-3" });
+
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }] })) // leadgen_forms
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [
+                        { id: "fb-lead-1", created_time: "2026-09-01T00:00:00+0000", field_data: [{ name: "email", values: ["a@example.com"] }] },
+                        { id: "fb-lead-2", created_time: "2026-09-01T01:00:00+0000", field_data: [{ name: "email", values: ["b@example.com"] }] },
+                        { id: "fb-lead-3", created_time: "2026-09-01T02:00:00+0000", field_data: [{ name: "email", values: ["c@example.com"] }] },
+                    ],
+                })
+            );
+        global.fetch = fetchMock as any;
+
+        const results = await syncDueFacebookLeadSources();
+
+        expect(mockPrisma.lead.create).toHaveBeenCalledTimes(3);
+        expect(mockPrisma.leadActivity.create).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.facebookLeadSyncCursor.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "IDLE", lastCreatedTime: new Date("2026-09-01T02:00:00+0000") }) })
+        );
+        expect(results[0]).toMatchObject({ synced: 3 });
+    });
+
+    it("throws instead of silently truncating when Graph API pagination exceeds the safety cap", async () => {
+        mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+            { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+        ]);
+        mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
+        mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.facebookLeadSyncCursor.update.mockResolvedValue({});
+
+        const loopingUrl = "https://graph.facebook.com/v21.0/form-1/leads?after=forever";
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }] })) // leadgen_forms
+            .mockResolvedValue(
+                jsonResponse({
+                    data: [{ id: "fb-lead", created_time: "2026-09-01T00:00:00+0000", field_data: [] }],
+                    paging: { next: loopingUrl },
+                })
+            ); // leads: always another page - never terminates on its own
+        global.fetch = fetchMock as any;
+
+        const results = await syncDueFacebookLeadSources();
+
+        expect(results[0]).toMatchObject({ formId: "form-1", synced: 0 });
+        expect(results[0].error).toMatch(/pagination exceeded/i);
+        expect(mockPrisma.facebookLeadSyncCursor.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "ERROR" }) })
+        );
+    });
+
     it("updates an existing Lead (matched by email) instead of creating a duplicate", async () => {
         mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
             { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
