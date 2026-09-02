@@ -173,6 +173,27 @@ async function getCampaignOrThrow(campaignId: string, teamId: string) {
     return campaign;
 }
 
+// Scoped by teamId here too, not just getCampaignOrThrow's pre-check - same
+// "scope the mutation, not just a pre-check" anti-pattern already fixed under
+// OPEN-99/109/110/118/120/121/122/123/127. A page/campaign id resolved through
+// getCampaignOrThrow is already team-owned at call time, so this is
+// defense-in-depth, not currently exploitable.
+async function updateOwnedPage(id: string, teamId: string, data: Prisma.LandingPageUpdateInput) {
+    const result = await prisma.landingPage.updateMany({ where: { id, teamId }, data });
+    if (result.count === 0) {
+        throw new Error("Landing page not found");
+    }
+    return prisma.landingPage.findUniqueOrThrow({ where: { id } });
+}
+
+async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
+    const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
+    if (result.count === 0) {
+        throw new Error("Landing campaign not found");
+    }
+    return prisma.landingCampaign.findUniqueOrThrow({ where: { id } });
+}
+
 export const landingAgentService = {
     async createCampaign(input: {
         teamId: string;
@@ -289,14 +310,11 @@ export const landingAgentService = {
             // Keep deterministic fallback for unavailable AI or invalid JSON.
         }
 
-        await prisma.landingCampaign.update({
-            where: { id: campaign.id },
-            data: {
-                challenge: brief.challenge,
-                solution: brief.solution,
-                benefit: brief.benefit,
-                framework: brief.framework,
-            },
+        await updateOwnedCampaign(campaign.id, input.teamId, {
+            challenge: brief.challenge,
+            solution: brief.solution,
+            benefit: brief.benefit,
+            framework: brief.framework,
         });
 
         return brief;
@@ -390,20 +408,14 @@ export const landingAgentService = {
 
         const existingPage = campaign.pages[0];
         if (existingPage) {
-            const updatedPage = await prisma.landingPage.update({
-                where: { id: existingPage.id },
-                data: {
-                    renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-                    version: { increment: 1 },
-                    status: existingPage.status === "published" ? "draft" : existingPage.status,
-                },
+            const updatedPage = await updateOwnedPage(existingPage.id, input.teamId, {
+                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                version: { increment: 1 },
+                status: existingPage.status === "published" ? "draft" : existingPage.status,
             });
-            await prisma.landingCampaign.update({
-                where: { id: campaign.id },
-                data: {
-                    selectedWireframeId: wireframe.id,
-                    status: "draft",
-                },
+            await updateOwnedCampaign(campaign.id, input.teamId, {
+                selectedWireframeId: wireframe.id,
+                status: "draft",
             });
             return updatedPage;
         }
@@ -421,12 +433,9 @@ export const landingAgentService = {
             },
         });
 
-        await prisma.landingCampaign.update({
-            where: { id: campaign.id },
-            data: {
-                selectedWireframeId: wireframe.id,
-                status: "draft",
-            },
+        await updateOwnedCampaign(campaign.id, input.teamId, {
+            selectedWireframeId: wireframe.id,
+            status: "draft",
         });
 
         return createdPage;
@@ -474,13 +483,10 @@ export const landingAgentService = {
 
         const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
 
-        return prisma.landingPage.update({
-            where: { id: page.id },
-            data: {
-                renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: page.status === "published" ? "draft" : page.status,
-            },
+        return updateOwnedPage(page.id, input.teamId, {
+            renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+            version: { increment: 1 },
+            status: page.status === "published" ? "draft" : page.status,
         });
     },
 
@@ -500,15 +506,12 @@ export const landingAgentService = {
         const sanitizedEditorState = sanitizeJson(input.editorState);
         const sanitizedRendered = sanitizeJson(input.renderedJson);
 
-        return prisma.landingPage.update({
-            where: { id: page.id },
-            data: {
-                title: input.title ?? page.title,
-                editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-                renderedJson: sanitizedRendered as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: page.status === "published" ? "draft" : page.status,
-            },
+        return updateOwnedPage(page.id, input.teamId, {
+            title: input.title ?? page.title,
+            editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+            renderedJson: sanitizedRendered as Prisma.InputJsonValue,
+            version: { increment: 1 },
+            status: page.status === "published" ? "draft" : page.status,
         });
     },
 
@@ -555,18 +558,26 @@ export const landingAgentService = {
 
         const updates = await prisma.$transaction(async (tx) => {
             const activeSlug = page.slug || (await generateUniqueSlug(campaign.name));
-            const updatedPage = await tx.landingPage.update({
-                where: { id: page.id },
+            const pageResult = await tx.landingPage.updateMany({
+                where: { id: page.id, teamId: input.teamId },
                 data: {
                     slug: activeSlug,
                     status: "published",
                     publishedAt: new Date(),
                 },
             });
-            const updatedCampaign = await tx.landingCampaign.update({
-                where: { id: campaign.id },
+            if (pageResult.count === 0) {
+                throw new Error("Landing page not found");
+            }
+            const campaignResult = await tx.landingCampaign.updateMany({
+                where: { id: campaign.id, teamId: input.teamId },
                 data: { status: "published" },
             });
+            if (campaignResult.count === 0) {
+                throw new Error("Landing campaign not found");
+            }
+            const updatedPage = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
+            const updatedCampaign = await tx.landingCampaign.findUniqueOrThrow({ where: { id: campaign.id } });
             return { updatedPage, updatedCampaign };
         });
 

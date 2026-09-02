@@ -419,6 +419,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   that a lost race (`count: 0`) surfaces as an error rather than silently
   succeeding.
 
+- **OPEN-128 (Fixed):** six more instances of the "scope the mutation, not just
+  a pre-check" anti-pattern (OPEN-99/109/110/118/120/121/122/123/127), all in
+  the newest, previously-unaudited modules from PR #369 —
+  `apps/api/src/modules/landing-agent/service.ts`'s `generateBrief`,
+  `selectWireframe` (both branches), `generateImagesForPage`, `saveEditorState`,
+  and `publishCampaign` all resolve a `LandingCampaign`/`LandingPage` id via
+  `getCampaignOrThrow(campaignId, teamId)` (properly scoped) but then wrote
+  through `prisma.landingPage.update()`/`landingCampaign.update()` filtered by
+  bare `{ id }` — including inside `publishCampaign`'s `$transaction`. Same gap
+  in `apps/api/src/workers/handlers/facebook-leads-worker.ts`'s
+  `upsertLeadFromFacebook`: the existing-lead branch found via a
+  `teamId`-scoped `findFirst` was updated via bare `{ id: existing.id }`.
+  **Not currently exploitable** — every id involved is already team-owned by
+  the time the write runs — same defense-in-depth classification as
+  OPEN-118/120/121/123/127. Fixed the landing-agent file via two new helpers,
+  `updateOwnedPage`/`updateOwnedCampaign` (scoped `updateMany` + `count === 0`
+  check + a `findUniqueOrThrow` re-read, since `updateMany` doesn't return the
+  row and callers need the updated record back), used at all five call sites
+  plus inline in the transaction; the worker fix follows the established
+  `updateMany`/`count`/`findUniqueOrThrow` pattern directly. No `apps/web`
+  duplicate of `landing-agent/service.ts` exists (only `rendering.ts`/
+  `types.ts` are duplicated there). Added `service.test.ts` (new) for the
+  landing-agent fix and extended `facebook-leads-worker.test.ts` with a
+  lost-race case; all 813 apps/api tests pass.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
