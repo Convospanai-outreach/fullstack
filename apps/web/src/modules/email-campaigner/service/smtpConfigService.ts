@@ -24,8 +24,8 @@ type StoredSmtpRecord = StoredSmtpConfig & {
 };
 
 function getKey(): Buffer {
-    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
-        throw new Error("ENCRYPTION_KEY must be set to a 32-byte hex string");
+    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(ENCRYPTION_KEY)) {
+        throw new Error("ENCRYPTION_KEY must be a 64-character hex string");
     }
     return Buffer.from(ENCRYPTION_KEY, "hex");
 }

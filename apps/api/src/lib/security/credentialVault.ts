@@ -16,8 +16,8 @@ export type EncryptedCredential = {
 
 function getEncryptionKey(): Buffer {
     const key = process.env["ENCRYPTION_KEY"] || "";
-    if (!key || key.length < 32) {
-        throw new Error("ENCRYPTION_KEY must be configured and at least 32 characters long.");
+    if (!key || key.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)) {
+        throw new Error("ENCRYPTION_KEY must be a 64-character hex string.");
     }
     return Buffer.from(key, "hex");
 }

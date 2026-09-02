@@ -9,8 +9,8 @@ export type EncryptedCredential = {
 
 function getEncryptionKey(): Buffer {
     const key = process.env["ENCRYPTION_KEY"] || "";
-    if (!key || key.length < 32) {
-        throw new Error("ENCRYPTION_KEY must be configured and at least 32 characters long.");
+    if (!key || key.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)) {
+        throw new Error("ENCRYPTION_KEY must be a 64-character hex string.");
     }
     return Buffer.from(key, "hex");
 }
@@ -20,8 +20,8 @@ export function validateCredentialVaultKey(): { valid: boolean; error?: string }
     if (!key) {
         return { valid: false, error: "ENCRYPTION_KEY environment variable is missing." };
     }
-    if (key.length < 32) {
-        return { valid: false, error: "ENCRYPTION_KEY must be at least 32 characters/hex bytes long." };
+    if (key.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)) {
+        return { valid: false, error: "ENCRYPTION_KEY must be a 64-character hex string." };
     }
     return { valid: true };
 }
