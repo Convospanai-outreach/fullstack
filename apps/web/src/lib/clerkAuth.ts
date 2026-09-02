@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/prisma-safe";
 import { findValidInvitation, isAssignableInviteRole } from "@/lib/invitations";
+import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 
 type AppUserWithMemberships = {
     id: string;
@@ -37,11 +38,23 @@ export async function findOrCreateClerkAppUser(): Promise<AppUserWithMemberships
         where: { clerkUserId },
         include: { memberships: true }
     }) as AppUserWithMemberships | null;
-    if (existingByClerk) return existingByClerk;
+    if (existingByClerk) {
+        // OPEN-113: re-checked on every call (not cached on the session) so a
+        // domain having SSO enforcement turned on takes effect immediately for
+        // already-signed-in Clerk sessions too, not just new sign-ins.
+        if (existingByClerk.email && (await isSsoEnforcedForEmail(existingByClerk.email))) {
+            return null;
+        }
+        return existingByClerk;
+    }
 
     const clerkUser = await currentUser();
     const email = primaryEmail(clerkUser);
     if (!email) return null;
+
+    if (await isSsoEnforcedForEmail(email)) {
+        return null;
+    }
 
     const inviteToken = clerkUser?.unsafeMetadata?.["inviteToken"];
 
