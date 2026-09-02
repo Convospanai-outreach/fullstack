@@ -43,6 +43,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
     // RFC 8058 Compliance: GET must NOT mutate database state to prevent antivirus scanner mass-unsubscribes.
     // Renders a clean HTML confirmation page requiring a human click.
     const { trackingId } = await params;
+    const safeTrackingId = encodeURIComponent(trackingId);
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
     <div class="card">
         <h1>Confirm Unsubscribe</h1>
         <p>Are you sure you want to stop receiving outreach emails from this campaign?</p>
-        <form method="POST" action="/api/email/unsubscribe/${trackingId}">
+        <form method="POST" action="/api/email/unsubscribe/${safeTrackingId}">
             <button type="submit">Confirm Unsubscribe</button>
         </form>
     </div>
