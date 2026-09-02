@@ -65,7 +65,14 @@ async function fetchAllPages<T>(initialPath: string, accessToken: string): Promi
     items.push(...(res?.data || []));
 
     let pages = 1;
-    while (res?.paging?.next && pages < MAX_PAGES) {
+    while (res?.paging?.next) {
+        if (pages >= MAX_PAGES) {
+            // Throw rather than silently truncating: for leads specifically, the
+            // caller advances the sync cursor to the max created_time seen, so a
+            // silent truncation here would permanently skip every lead past the
+            // cap the same way the missing-pagination bug (OPEN-130) did.
+            throw new Error(`Graph API pagination exceeded ${MAX_PAGES} pages for ${initialPath} - aborting instead of silently truncating results`);
+        }
         res = await graphFetchUrl(res.paging.next);
         items.push(...(res?.data || []));
         pages += 1;
@@ -141,17 +148,29 @@ async function syncForm(teamId: string, sourceId: string, formId: string, access
         let latestCreatedTime = cursor.lastCreatedTime;
         for (const lead of leads) {
             const created = new Date(lead.created_time);
-            const upserted = await upsertLeadFromFacebook(teamId, lead.field_data || []);
-            if (upserted) {
-                await prisma.leadActivity.create({
-                    data: {
-                        leadId: upserted.id,
-                        channel: "FACEBOOK_LEADS",
-                        type: "LEAD_CAPTURED",
-                        title: "Captured from Facebook/Instagram Lead Ad",
-                        metadata: { formId, facebookLeadId: lead.id },
-                    },
-                }).catch(() => undefined);
+            try {
+                const upserted = await upsertLeadFromFacebook(teamId, lead.field_data || []);
+                if (upserted) {
+                    await prisma.leadActivity.create({
+                        data: {
+                            leadId: upserted.id,
+                            channel: "FACEBOOK_LEADS",
+                            type: "LEAD_CAPTURED",
+                            title: "Captured from Facebook/Instagram Lead Ad",
+                            metadata: { formId, facebookLeadId: lead.id },
+                        },
+                    }).catch(() => undefined);
+                }
+            } catch (leadError) {
+                // Don't let one bad lead abort the whole batch: the cursor below only
+                // advances once, after this loop, so an uncaught throw here would
+                // roll every already-processed lead in this batch back to unsynced -
+                // upsertLeadFromFacebook and the leadActivity.create above aren't
+                // idempotent against a from-scratch replay, so the next successful
+                // poll would silently duplicate their LeadActivity rows.
+                const leadMessage = leadError instanceof Error ? leadError.message : "Unknown error";
+                logger.error(`[FacebookLeadsWorker] Failed processing lead ${lead.id} for form ${formId}:`, { error: leadMessage });
+                continue;
             }
             if (!latestCreatedTime || created > latestCreatedTime) latestCreatedTime = created;
         }

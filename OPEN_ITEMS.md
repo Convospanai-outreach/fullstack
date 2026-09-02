@@ -557,6 +557,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   breakout stripped, ordinary CSS left untouched); all 817 apps/api and 342
   apps/web tests pass, `tsc --noEmit` clean on both apps.
 
+- **OPEN-133 (Fixed):** two bugs in `facebook-leads-worker.ts`'s `syncForm`,
+  found while re-auditing the file after OPEN-130's pagination fix.
+  (1) A single lead throwing partway through a batch (e.g. `upsertLeadFromFacebook`'s
+  `findUniqueOrThrow` racing a lead getting reassigned/deleted mid-poll) aborted
+  the whole function via the outer try/catch — but the sync cursor
+  (`lastCreatedTime`) is only persisted **once, after the full loop**, so every
+  lead already successfully processed *before* the throw got silently rolled
+  back too. The next successful poll would re-fetch the same window and
+  reprocess those already-handled leads from scratch, and since neither
+  `upsertLeadFromFacebook`'s write nor the trailing
+  `prisma.leadActivity.create()` is idempotent against a full replay, this
+  duplicated `LeadActivity` rows (same bug class as commit `a2ae8731`'s
+  "prevent duplicate EmailEvent rows on Resend webhook redelivery" fix, just a
+  different file). Fixed by wrapping each lead's processing in its own
+  try/catch — one bad lead is logged and skipped without aborting the batch or
+  rolling back leads already handled in it. (2) `fetchAllPages()`'s
+  `MAX_PAGES = 200` safety cap (added by OPEN-130) silently truncated the
+  result set when hit, and the caller then advances the cursor to the max
+  `created_time` seen in the truncated set — reintroducing, via the safety cap
+  itself, the exact permanent-skip failure mode OPEN-130 was fixing. Fixed by
+  throwing instead of truncating when the cap is hit while `paging.next` still
+  exists, so the existing catch block handles it like any other API failure
+  (cursor stays put, retried next poll) rather than silently advancing past
+  unseen leads. Added 2 tests (`facebook-leads-worker.test.ts`): a mid-batch
+  failure still records and advances past the leads before and after it, and
+  hitting the pagination cap surfaces as an error rather than a silent
+  truncation; all 818 apps/api tests pass, `tsc --noEmit` clean.
 - **OPEN-134 (Fixed):** `PUT /api/scoring/lead-intent`
   (`apps/api/routes/scoring/lead-intent/route.ts`) let **any** authenticated
   user, from any team, overwrite the lead-scoring weights used by
