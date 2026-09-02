@@ -75,6 +75,39 @@ describe("syncDueFacebookLeadSources", () => {
         expect(results).toHaveLength(1);
     });
 
+    it("follows Graph API pagination (paging.next) instead of only reading the first page of leads", async () => {
+        mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+            { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+        ]);
+        mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
+        mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        const nextPageUrl = "https://graph.facebook.com/v21.0/form-1/leads?after=cursor123&access_token=page-access-token";
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }] })) // leadgen_forms
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [{ id: "fb-lead-1", created_time: "2026-09-01T00:00:00+0000", field_data: [{ name: "email", values: ["a@example.com"] }] }],
+                    paging: { next: nextPageUrl },
+                })
+            ) // leads page 1
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [{ id: "fb-lead-2", created_time: "2026-09-01T01:00:00+0000", field_data: [{ name: "email", values: ["b@example.com"] }] }],
+                })
+            ); // leads page 2 (no further paging.next)
+        global.fetch = fetchMock as any;
+
+        const results = await syncDueFacebookLeadSources();
+
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(fetchMock).toHaveBeenNthCalledWith(3, nextPageUrl);
+        expect(mockPrisma.lead.create).toHaveBeenCalledTimes(2);
+        expect(results[0]).toMatchObject({ synced: 2 });
+    });
+
     it("updates an existing Lead (matched by email) instead of creating a duplicate", async () => {
         mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
             { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },

@@ -467,6 +467,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   so no test changes were needed; ran the affected suites to confirm
   (13 apps/api + 19 apps/web tests pass).
 
+- **OPEN-130 (Fixed):** two bugs in the Facebook/Instagram Lead Ads worker and
+  its sibling landing-page lead intake worker.
+  (1) `apps/api/src/workers/handlers/facebook-leads-worker.ts`'s `syncForm`
+  only read `leadsRes.data` (page 1 of the Graph API's `/leads` edge) and
+  never followed `leadsRes.paging.next`. Since the sync cursor
+  (`facebookLeadSyncCursor.lastCreatedTime`) advances to the newest
+  `created_time` seen that poll and the next poll's filter only asks for
+  leads created *after* that cursor, any lead on a page past the first
+  (default page size 25) was skipped that poll **and every poll after** —
+  permanent, silent lead loss with no error logged, once a form accumulated
+  more than one page of new leads between the ~5h polls. Fixed by adding
+  `fetchAllLeadPages()`, which loops on `paging.next` until exhausted (capped
+  at `MAX_LEAD_PAGES = 200` as a guard against a malformed/looping paging
+  response) before the cursor is computed. (2) The same "scope the mutation,
+  not just the pre-check" anti-pattern as OPEN-99/109/110/118/120/121/122/
+  123/127/128 in `apps/api/src/workers/handlers/landing-lead-intake-worker.ts`'s
+  `handleLandingLeadIntake` — a `teamId`-scoped `findFirst` was followed by
+  `prisma.lead.update({ where: { id: existing.id } })` with no `teamId`.
+  **Not currently exploitable** (same classification as the other instances —
+  `existing.id` is same-function, already-team-scoped). Fixed via
+  `updateMany({ where: { id, teamId } })` + `count === 0` check, matching the
+  established convention. No `apps/web` duplicate of either worker exists.
+  Added a pagination-following test (`facebook-leads-worker.test.ts`) and a
+  lost-race test (`landing-lead-intake-worker.test.ts`); all 815 apps/api
+  tests pass, `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

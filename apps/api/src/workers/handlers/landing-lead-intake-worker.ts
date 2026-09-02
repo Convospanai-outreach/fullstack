@@ -36,8 +36,10 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
         });
 
         if (existing) {
-            const updated = await prisma.lead.update({
-                where: { id: existing.id },
+            // Scoped by teamId here too, not just the pre-check above - same anti-pattern
+            // already fixed under OPEN-99/109/110/118/120/121/122/123/127/128.
+            const result = await prisma.lead.updateMany({
+                where: { id: existing.id, teamId },
                 data: {
                     campaignId: campaignId || existing.campaignId,
                     fullName: landingLead.name?.trim() || existing.fullName || undefined,
@@ -48,9 +50,14 @@ export async function handleLandingLeadIntake(payload: JobPayload) {
                 },
             });
 
-            await scoreNewLead(updated.id);
-            await pushToMautic(updated.id, teamId);
-            return { created: false, leadId: updated.id };
+            if (result.count === 0) {
+                logger.warn(`[LandingLeadIntake] Lead ${existing.id} no longer belongs to team ${teamId} — skipping update`);
+                return { created: false, reason: "lead_not_found" };
+            }
+
+            await scoreNewLead(existing.id);
+            await pushToMautic(existing.id, teamId);
+            return { created: false, leadId: existing.id };
         }
     }
 
