@@ -526,6 +526,12 @@ export const landingAgentService = {
             },
         });
 
+        const { cloudflarePagesService } = await import("./service/cloudflarePagesService");
+        const cloudflareResult = await cloudflarePagesService.publishPageToCloudflare(updates.updatedPage.id);
+        if (cloudflareResult.status === "error") {
+            console.error(`[landingAgentService] Cloudflare push failed for page ${updates.updatedPage.id}: ${cloudflareResult.details}`);
+        }
+
         return {
             status: "PUBLISHED" as const,
             page: updates.updatedPage,

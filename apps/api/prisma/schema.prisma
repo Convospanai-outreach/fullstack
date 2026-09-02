@@ -46,6 +46,11 @@ model Lead {
   crmId       String? // External ID in HubSpot/Salesforce
   crmSyncedAt DateTime?
 
+  // Mautic Sync (top-of-funnel capture/segmentation only - Mautic never sends
+  // nurture email for a lead already in this app's own sequence pipeline)
+  mauticContactId String?
+  mauticSyncedAt  DateTime?
+
   // Lead Intent Scoring (Weighted Algorithm)
   intentScore      Float?    @default(0.0) // 0.0 - 1.0 weighted intent score
   leadScore        Int       @default(0) // Integer score based on successful generations
@@ -1156,6 +1161,8 @@ model Team {
   ssoConfiguration           SsoConfiguration?
   userQuotas                 UserQuota[]
   crmIntegrations            CrmIntegration[]
+  facebookLeadSources        FacebookLeadSource[]
+  facebookLeadSyncCursors    FacebookLeadSyncCursor[]
   icps                       ICP[]
   paymentAccounts            PaymentAccount[]
   products                   Product[]
@@ -1207,6 +1214,51 @@ model CrmIntegration {
   team Team @relation(fields: [teamId], references: [id])
 
   @@unique([teamId, provider])
+}
+
+// A team's connected Facebook Page(s) for Lead Ads polling (no Zapier, no
+// realtime webhook - a worker polls each form on an interval, see
+// FacebookLeadSyncCursor). One row per connected Page per team.
+model FacebookLeadSource {
+  id                       String    @id @default(uuid())
+  teamId                   String
+  pageId                   String
+  pageName                 String?
+  encryptedPageAccessToken Json?
+  isActive                 Boolean   @default(true)
+  lastError                String?   @db.Text
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  team        Team                     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  syncCursors FacebookLeadSyncCursor[]
+
+  @@unique([teamId, pageId])
+  @@index([teamId])
+}
+
+// Per-form sync watermark, mirroring MailboxSyncCursor's lock/retry shape so a
+// stuck or crashed poll doesn't wedge future ticks (see worker-manager.ts).
+model FacebookLeadSyncCursor {
+  id                  String    @id @default(uuid())
+  teamId              String
+  sourceId            String
+  formId              String
+  lastCreatedTime     DateTime?
+  status              String    @default("IDLE")
+  consecutiveFailures Int       @default(0)
+  lastError           String?   @db.Text
+  lockedAt            DateTime?
+  lockExpiresAt       DateTime?
+  lockToken           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  team   Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  source FacebookLeadSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, formId])
+  @@index([teamId])
 }
 
 model SsoConfiguration {
@@ -1838,6 +1890,14 @@ model CustomDomain {
   teamId    String
   status    String   @default("pending") // pending, active, invalid
   createdAt DateTime @default(now())
+
+  // Cloudflare for SaaS custom hostname tracking (see BrandingService.addDomain
+  // and the poll tick in apps/api/src/workers/worker-manager.ts that advances
+  // status from pending -> active/invalid against Cloudflare's API).
+  cloudflareHostnameId       String?
+  ownershipVerificationName  String?
+  ownershipVerificationValue String?
+  lastCheckedAt              DateTime?
 
   team Team @relation(fields: [teamId], references: [id])
 

@@ -1,0 +1,28 @@
+{
+	// Serves published landing pages (see apps/api/src/modules/landing-agent/service/cloudflarePagesService.ts,
+	// which is the only writer of the LANDING_PAGES KV namespace this Worker reads from).
+	"name": "craftmyfunnel-landing-pages",
+	"main": "src/index.ts",
+	// Set this to today's date when deploying.
+	"compatibility_date": "2026-09-02",
+
+	"kv_namespaces": [
+		{
+			"binding": "LANDING_PAGES",
+			// Fill in after `npx wrangler kv namespace create LANDING_PAGES`.
+			"id": ""
+		}
+	],
+
+	"vars": {
+		// The team's own outreach app - lead/event POSTs are proxied here unchanged.
+		"API_ORIGIN": "https://api.craftmyfunnel.live",
+		// This Worker's own default/shared hostname - served without a host->teamId
+		// ownership check, unlike a connected custom domain (see src/index.ts).
+		"DEFAULT_HOST": "pages.craftmyfunnel.live"
+	}
+
+	// Routes are added once the Cloudflare for SaaS zone setup (plan step 1) is
+	// done: a `*/*` route on the SaaS zone pointed at this Worker. Not declared
+	// here because that route lives on the zone dashboard/API, not per-Worker.
+}
