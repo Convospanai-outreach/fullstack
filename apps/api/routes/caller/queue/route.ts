@@ -37,16 +37,16 @@ const CallerActionSchema = z.discriminatedUnion("action", [
 ]);
 
 export async function GET(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
     const user = userId
         ? await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } })
         : null;
-    if (!userId || !user || !isAllowed(user.enterpriseRole)) {
+    if (!userId || !teamId || !user || !isAllowed(user.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     try {
-        const queue = await CallerService.getQueue(userId);
+        const queue = await CallerService.getQueue(userId, teamId);
         return NextResponse.json(queue);
     } catch (error) {
         console.error("Queue fetch error:", error);
@@ -55,11 +55,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
     const user = userId
         ? await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } })
         : null;
-    if (!userId || !user || !isAllowed(user.enterpriseRole)) {
+    if (!userId || !teamId || !user || !isAllowed(user.enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -76,18 +76,21 @@ export async function POST(req: NextRequest) {
         const data = validation.data;
 
         if (data.action === "claim") {
-            const result = await CallerService.claimLead(data.leadId, userId);
+            const result = await CallerService.claimLead(data.leadId, userId, teamId);
             return NextResponse.json({ result });
         }
 
         if (data.action === "complete") {
-            await CallerService.completeTask(data.leadId, userId, data.outcome as ConversationState, data.notes);
+            await CallerService.completeTask(data.leadId, userId, teamId, data.outcome as ConversationState, data.notes);
             return NextResponse.json({ success: true });
         }
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
     } catch (error: any) {
+        if (error.message === "LEAD_NOT_FOUND") {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
         console.error("Caller action error:", error);
         return NextResponse.json({ error: error.message || "Internal Error" }, { status: 500 });
     }
