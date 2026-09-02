@@ -76,4 +76,22 @@ describe("POST /api/webhooks/resend - email.opened idempotency", () => {
         expect(res.status).toBe(200);
         expect(mockAdvanceLeadAfterEmailOpened).not.toHaveBeenCalled();
     });
+
+    it("writes exactly one EmailEvent row when the claim succeeds", async () => {
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
+
+        await POST(request({ type: "email.opened", data: { email_id: "provider-1" } }));
+
+        expect(mockPrisma.emailEvent.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not write a duplicate EmailEvent row on a redelivery that loses the claim", async () => {
+        // A redelivered event must not double-count analytics even though the lead-stage
+        // advance is already guarded - this is the regression this test protects against.
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 0 });
+
+        await POST(request({ type: "email.opened", data: { email_id: "provider-1" } }));
+
+        expect(mockPrisma.emailEvent.create).not.toHaveBeenCalled();
+    });
 });

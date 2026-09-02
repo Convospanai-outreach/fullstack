@@ -110,15 +110,33 @@ export async function POST(req: NextRequest) {
   const { prisma } = await import("@/lib/db");
   const advanceParams = { leadId: email.leadId, teamId, campaignId: email.campaignId, emailId: email.id };
 
+  const recordEmailEvent = (type: string) =>
+    prisma.emailEvent.create({
+      data: {
+        teamId,
+        emailId: email.id,
+        mailboxId: mailbox.id,
+        leadId: email.leadId,
+        campaignId: email.campaignId,
+        type,
+        provider: "RESEND",
+        providerMessageId: event.data?.email_id || null,
+        payload: event.data as any,
+      },
+    }).catch(() => undefined);
+
   switch (event.type) {
     case "email.opened": {
       // Webhook providers redeliver at-least-once, so a plain read-then-write here (read
       // openedAt, decide, write) could let two concurrent deliveries both see it unset and
       // both fire the lead-stage side effect. updateMany with the guard in the WHERE clause
       // makes the claim atomic - only the delivery that actually flips the flag proceeds.
+      // The EmailEvent write is gated behind the same claim so a redelivery doesn't also
+      // double-count analytics after the lead-stage race was already fixed (OPEN-107).
       const claimed = await prisma.email.updateMany({ where: { id: email.id, openedAt: null }, data: { openedAt: new Date() } });
       if (claimed.count > 0) {
         await advanceLeadAfterEmailOpened(prisma, advanceParams).catch(() => undefined);
+        await recordEmailEvent("OPENED");
       }
       break;
     }
@@ -126,11 +144,13 @@ export async function POST(req: NextRequest) {
       const claimed = await prisma.email.updateMany({ where: { id: email.id, clickedAt: null }, data: { clickedAt: new Date() } });
       if (claimed.count > 0) {
         await advanceLeadAfterEmailClicked(prisma, advanceParams).catch(() => undefined);
+        await recordEmailEvent("CLICKED");
       }
       break;
     }
     case "email.bounced": {
       await prisma.email.update({ where: { id: email.id }, data: { bouncedAt: new Date(), status: "bounced" } });
+      await recordEmailEvent("BOUNCED");
       break;
     }
     case "email.complained": {
@@ -143,32 +163,20 @@ export async function POST(req: NextRequest) {
         });
         await prisma.lead.update({ where: { id: email.leadId }, data: { status: "OPT_OUT" } }).catch(() => undefined);
       }
+      await recordEmailEvent("COMPLAINED");
       break;
     }
     case "email.received": {
       const claimed = await prisma.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
       if (claimed.count > 0) {
         await advanceLeadAfterReply(prisma, advanceParams).catch(() => undefined);
+        await recordEmailEvent("REPLY_RECEIVED");
       }
       break;
     }
     default:
       break;
   }
-
-  await prisma.emailEvent.create({
-    data: {
-      teamId,
-      emailId: email.id,
-      mailboxId: mailbox.id,
-      leadId: email.leadId,
-      campaignId: email.campaignId,
-      type: event.type === "email.received" ? "REPLY_RECEIVED" : event.type.toUpperCase().replace("EMAIL.", ""),
-      provider: "RESEND",
-      providerMessageId: event.data?.email_id || null,
-      payload: event.data as any,
-    },
-  }).catch(() => undefined);
 
   return NextResponse.json({ ok: true });
 }
