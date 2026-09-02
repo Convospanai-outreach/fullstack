@@ -39,6 +39,23 @@ describe("getLandingRenderPayload image handling", () => {
         expect(html).not.toContain("data:");
     });
 
+    it("strips a nested/overlapping <scr<script>ipt> payload that a single-pass regex would miss", () => {
+        const { html } = getLandingRenderPayload({
+            html: '<section><scr<script>ipt>alert(1)</script>ipt></section>',
+            css: "",
+        });
+        expect(html).not.toContain("<script");
+    });
+
+    it("strips a </script > closing tag with trailing whitespace before the angle bracket", () => {
+        const { html } = getLandingRenderPayload({
+            html: '<section><script>alert(1)</script ></section>',
+            css: "",
+        });
+        expect(html).not.toContain("<script");
+        expect(html).not.toContain("alert(1)");
+    });
+
     it("still renders sections without an imageUrl (no regression to plain pages)", () => {
         const { html } = getLandingRenderPayload([
             { id: "hero", type: "hero", heading: "Welcome", body: "No image here" },

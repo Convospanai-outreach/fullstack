@@ -214,14 +214,27 @@ function isSafeLink(value: string): boolean {
     return false;
 }
 
+function stripDangerousBlocks(rawHtml: string): string {
+    // Looped to a fixed point so a nested/overlapping payload (e.g. "<scr<script>ipt>")
+    // can't reform a stripped tag by having its outer half re-close after the inner
+    // match is removed - a single non-recursive pass would miss that.
+    let previous: string;
+    let current = rawHtml;
+    do {
+        previous = current;
+        current = current
+            .replace(/<!--[\s\S]*?-->/g, "")
+            .replace(/<script[^>]*>[\s\S]*?<\/script\s*>/gi, "")
+            .replace(/<style[^>]*>[\s\S]*?<\/style\s*>/gi, "")
+            .replace(/<iframe[^>]*>[\s\S]*?<\/iframe\s*>/gi, "")
+            .replace(/<object[^>]*>[\s\S]*?<\/object\s*>/gi, "")
+            .replace(/<embed[^>]*>[\s\S]*?<\/embed\s*>/gi, "");
+    } while (current !== previous);
+    return current;
+}
+
 function sanitizeLandingHtml(rawHtml: string): string {
-    const withoutDangerousBlocks = rawHtml
-        .replace(/<!--[\s\S]*?-->/g, "")
-        .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
-        .replace(/<iframe[\s\S]*?>[\s\S]*?<\/iframe>/gi, "")
-        .replace(/<object[\s\S]*?>[\s\S]*?<\/object>/gi, "")
-        .replace(/<embed[\s\S]*?>[\s\S]*?<\/embed>/gi, "");
+    const withoutDangerousBlocks = stripDangerousBlocks(rawHtml);
 
     return withoutDangerousBlocks.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (match, rawTagName: string, rawAttrs: string) => {
         const tagName = rawTagName.toLowerCase();
