@@ -214,87 +214,131 @@ function isSafeLink(value: string): boolean {
     return false;
 }
 
-function stripDangerousBlocks(rawHtml: string): string {
-    // Looped to a fixed point so a nested/overlapping payload (e.g. "<scr<script>ipt>")
-    // can't reform a stripped tag by having its outer half re-close after the inner
-    // match is removed - a single non-recursive pass would miss that.
-    let previous: string;
-    let current = rawHtml;
-    do {
-        previous = current;
-        current = current
-            .replace(/<!--[\s\S]*?-->/g, "")
-            .replace(/<script[^>]*>[\s\S]*?<\/script\s*>/gi, "")
-            .replace(/<style[^>]*>[\s\S]*?<\/style\s*>/gi, "")
-            .replace(/<iframe[^>]*>[\s\S]*?<\/iframe\s*>/gi, "")
-            .replace(/<object[^>]*>[\s\S]*?<\/object\s*>/gi, "")
-            .replace(/<embed[^>]*>[\s\S]*?<\/embed\s*>/gi, "");
-    } while (current !== previous);
-    return current;
+// Elements whose content browsers tokenize as raw text (not markup) up to their
+// literal closing tag - script/style/iframe/object/embed. Content is skipped
+// verbatim rather than matched/removed with a regex, which is what makes a
+// nested payload like "<scr<script>ipt>" harmless: it's never re-interpreted
+// as markup once we're inside one of these elements, so there's nothing for a
+// broken-apart tag to reform. This intentionally replaces a chained
+// String.replace() tag-stripper, which only ever inspects the input in a fixed
+// number of passes and can't soundly track "am I currently inside a raw-text
+// element" the way this scan does.
+const RAW_TEXT_TAGS = new Set(["script", "style", "iframe", "object", "embed"]);
+
+const TAG_START_PATTERN = /^<(\/?)([a-zA-Z0-9-]+)/;
+const ATTR_PATTERN = /([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
+
+function sanitizeTag(tagName: string, isClosing: boolean, rawAttrs: string): string {
+    if (!ALLOWED_HTML_TAGS.has(tagName)) {
+        return "";
+    }
+    if (isClosing) {
+        return `</${tagName}>`;
+    }
+
+    const attrs: string[] = [];
+    rawAttrs.replace(
+        ATTR_PATTERN,
+        (_full: string, rawAttrName: string, doubleQuoted?: string, singleQuoted?: string, unquoted?: string) => {
+            const attrName = rawAttrName.toLowerCase();
+            if (attrName.startsWith("on") || attrName === "style") {
+                return "";
+            }
+            if (!ALLOWED_HTML_ATTRS.has(attrName)) {
+                return "";
+            }
+
+            const rawValue = String(doubleQuoted ?? singleQuoted ?? unquoted ?? "").trim();
+            if (!rawValue) {
+                return "";
+            }
+
+            if ((attrName === "href" || attrName === "src") && !isSafeLink(rawValue)) {
+                return "";
+            }
+            if (attrName === "class") {
+                const safeClass = sanitizeClassTokens(rawValue);
+                if (!safeClass) return "";
+                attrs.push(`class="${safeClass}"`);
+                return "";
+            }
+            if (attrName === "target") {
+                const safeTarget = rawValue === "_blank" ? "_blank" : "_self";
+                attrs.push(`target="${safeTarget}"`);
+                if (safeTarget === "_blank") {
+                    attrs.push(`rel="noopener noreferrer"`);
+                }
+                return "";
+            }
+            if (attrName === "rel") {
+                // rel is controlled when target="_blank"; ignore direct raw rel to avoid spoofing.
+                return "";
+            }
+
+            attrs.push(`${attrName}="${escapeHtml(rawValue)}"`);
+            return "";
+        }
+    );
+
+    return `<${tagName}${attrs.length ? ` ${attrs.join(" ")}` : ""}>`;
 }
 
 function sanitizeLandingHtml(rawHtml: string): string {
-    const withoutDangerousBlocks = stripDangerousBlocks(rawHtml);
+    const lower = rawHtml.toLowerCase();
+    let output = "";
+    let i = 0;
+    const n = rawHtml.length;
 
-    return withoutDangerousBlocks.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (match, rawTagName: string, rawAttrs: string) => {
-        const tagName = rawTagName.toLowerCase();
-        const isClosing = match.startsWith("</");
-        if (!ALLOWED_HTML_TAGS.has(tagName)) {
-            return "";
+    while (i < n) {
+        if (rawHtml[i] !== "<") {
+            output += rawHtml[i];
+            i += 1;
+            continue;
         }
-        if (isClosing) {
-            return `</${tagName}>`;
+
+        if (rawHtml.startsWith("<!--", i)) {
+            const end = rawHtml.indexOf("-->", i + 4);
+            i = end === -1 ? n : end + 3;
+            continue;
         }
 
-        const attrs: string[] = [];
-        rawAttrs.replace(
-            /([a-zA-Z0-9:_-]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g,
-            (_full: string, rawAttrName: string, doubleQuoted?: string, singleQuoted?: string, unquoted?: string) => {
-                const attrName = rawAttrName.toLowerCase();
-                if (attrName.startsWith("on") || attrName === "style") {
-                    return "";
-                }
-                if (!ALLOWED_HTML_ATTRS.has(attrName)) {
-                    return "";
-                }
+        const tagToken = TAG_START_PATTERN.exec(rawHtml.slice(i));
+        if (!tagToken) {
+            output += "<";
+            i += 1;
+            continue;
+        }
 
-                const rawValue = String(doubleQuoted ?? singleQuoted ?? unquoted ?? "").trim();
-                if (!rawValue) {
-                    return "";
-                }
+        const isClosing = tagToken[1] === "/";
+        const tagName = tagToken[2]!.toLowerCase();
+        const tagEnd = rawHtml.indexOf(">", i);
+        if (tagEnd === -1) {
+            // Unterminated tag - drop the remainder rather than risk misparsing it.
+            i = n;
+            continue;
+        }
 
-                if (attrName === "href" && !isSafeLink(rawValue)) {
-                    return "";
-                }
-                if (attrName === "src" && !isSafeLink(rawValue)) {
-                    return "";
-                }
-                if (attrName === "class") {
-                    const safeClass = sanitizeClassTokens(rawValue);
-                    if (!safeClass) return "";
-                    attrs.push(`class="${safeClass}"`);
-                    return "";
-                }
-                if (attrName === "target") {
-                    const safeTarget = rawValue === "_blank" ? "_blank" : "_self";
-                    attrs.push(`target="${safeTarget}"`);
-                    if (safeTarget === "_blank") {
-                        attrs.push(`rel="noopener noreferrer"`);
-                    }
-                    return "";
-                }
-                if (attrName === "rel") {
-                    // rel is controlled when target="_blank"; ignore direct raw rel to avoid spoofing.
-                    return "";
-                }
-
-                attrs.push(`${attrName}="${escapeHtml(rawValue)}"`);
-                return "";
+        if (!isClosing && RAW_TEXT_TAGS.has(tagName)) {
+            // Skip this raw-text element's content up to (and including) its literal
+            // closing tag - see RAW_TEXT_TAGS above for why this must be a literal
+            // substring search rather than a regex match.
+            const closeToken = `</${tagName}`;
+            const closeIndex = lower.indexOf(closeToken, tagEnd + 1);
+            if (closeIndex === -1) {
+                i = n;
+            } else {
+                const closeTagEnd = rawHtml.indexOf(">", closeIndex);
+                i = closeTagEnd === -1 ? n : closeTagEnd + 1;
             }
-        );
+            continue;
+        }
 
-        return `<${tagName}${attrs.length ? ` ${attrs.join(" ")}` : ""}>`;
-    });
+        const rawAttrs = rawHtml.slice(i + 1 + (isClosing ? 1 : 0) + tagName.length, tagEnd);
+        output += sanitizeTag(tagName, isClosing, rawAttrs);
+        i = tagEnd + 1;
+    }
+
+    return output;
 }
 
 function normalizeSections(value: unknown): LandingPageSectionLike[] {

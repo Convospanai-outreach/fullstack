@@ -56,6 +56,15 @@ describe("getLandingRenderPayload image handling", () => {
         expect(html).not.toContain("alert(1)");
     });
 
+    it("strips a </script bar> closing tag carrying bogus trailing content", () => {
+        const { html } = getLandingRenderPayload({
+            html: '<section><script>alert(1)</script bar></section>',
+            css: "",
+        });
+        expect(html).not.toContain("<script");
+        expect(html).not.toContain("alert(1)");
+    });
+
     it("still renders sections without an imageUrl (no regression to plain pages)", () => {
         const { html } = getLandingRenderPayload([
             { id: "hero", type: "hero", heading: "Welcome", body: "No image here" },
