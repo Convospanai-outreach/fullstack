@@ -345,6 +345,21 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   anywhere in the codebase, so the vulnerable auth-negotiation code path is
   unreachable. Allowlisted in `scripts/audit-with-allowlist.mjs`.
 
+- **OPEN-126 (Fixed):** `apps/web/src/app/api/email/unsubscribe/[trackingId]/route.ts`'s
+  `GET` handler interpolated the raw, attacker-controlled `trackingId` URL
+  path segment directly into an HTML `<form action="...">` attribute with no
+  escaping — a crafted unsubscribe link (e.g.
+  `/api/email/unsubscribe/"><script>alert(1)</script>`) could break out of
+  the attribute and inject arbitrary markup/script into the confirmation
+  page a real recipient would see and click through. Found mid-session as an
+  unrelated, unfinished fix already sitting uncommitted in the working tree:
+  a `safeTrackingId = encodeURIComponent(trackingId)` variable had been
+  added but never actually used in the template, leaving the raw value in
+  place. `encodeURIComponent` percent-encodes `"`, `<`, `>` (the breakout
+  characters), so wiring `safeTrackingId` into the `action` attribute closes
+  it. Added `route.test.ts` (malicious trackingId no longer reflected raw;
+  normal trackingId still renders a working action URL).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
