@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
         },
         lead: {
             findFirst: vi.fn(),
-            update: vi.fn(),
+            updateMany: vi.fn(),
             create: vi.fn(),
         },
     },
@@ -101,12 +101,12 @@ describe("landing-lead-intake-worker", () => {
             source: "csv_import",
             campaignId: "old-campaign",
         });
-        (prisma.lead.update as any).mockResolvedValue({ id: "lead-existing" });
+        (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
 
         const result = await handleLandingLeadIntake({ landingLeadId: "ll-2", teamId: "team-1" } as any);
 
-        expect(prisma.lead.update).toHaveBeenCalledWith({
-            where: { id: "lead-existing" },
+        expect(prisma.lead.updateMany).toHaveBeenCalledWith({
+            where: { id: "lead-existing", teamId: "team-1" },
             data: {
                 campaignId: "old-campaign",
                 fullName: "Jane Doe",
@@ -118,6 +118,34 @@ describe("landing-lead-intake-worker", () => {
         });
         expect(leadScoringService.scoreAndPersist).toHaveBeenCalledWith("lead-existing");
         expect(result).toEqual({ created: false, leadId: "lead-existing" });
+    });
+
+    it("does not silently succeed if the lead was reassigned out of the team between the lookup and the write", async () => {
+        (prisma.landingLead.findFirst as any).mockResolvedValue({
+            id: "ll-4",
+            teamId: "team-1",
+            email: "jane@example.com",
+            name: "Jane Doe",
+            phone: null,
+            company: null,
+            title: null,
+            campaign: { linkedCampaignId: null },
+        });
+        (prisma.lead.findFirst as any).mockResolvedValue({
+            id: "lead-existing",
+            fullName: null,
+            phone: null,
+            company: null,
+            jobTitle: null,
+            source: "csv_import",
+            campaignId: null,
+        });
+        (prisma.lead.updateMany as any).mockResolvedValue({ count: 0 });
+
+        const result = await handleLandingLeadIntake({ landingLeadId: "ll-4", teamId: "team-1" } as any);
+
+        expect(leadScoringService.scoreAndPersist).not.toHaveBeenCalled();
+        expect(result).toEqual({ created: false, reason: "lead_not_found" });
     });
 
     it("does not fail the job when post-intake scoring throws", async () => {

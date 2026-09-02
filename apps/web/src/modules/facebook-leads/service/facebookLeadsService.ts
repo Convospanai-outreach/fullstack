@@ -11,6 +11,7 @@ import { encryptCredential } from "@/lib/security/credentialVault";
 const GRAPH_API_VERSION = "v21.0"; // re-verify this is still a supported version at deploy time
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 const FACEBOOK_OAUTH_URL = "https://www.facebook.com/" + GRAPH_API_VERSION + "/dialog/oauth";
+const MAX_ACCOUNT_PAGES = 200; // safety cap against a runaway/malformed paging loop
 
 // leads_retrieval is the permission that actually gates reading Lead Ads leads;
 // the rest are needed to enumerate the team's pages and their access tokens.
@@ -143,15 +144,23 @@ export async function connectFacebookPages(input: { code: string; state: string 
 
     // /me/accounts returns a page access token per page, already long-lived when
     // derived from a long-lived user token - no further exchange needed per page.
-    const pagesRes = await fetch(
-        `${GRAPH_BASE_URL}/me/accounts?` + new URLSearchParams({ access_token: longLivedJson.access_token })
-    );
-    const pagesJson: any = await pagesRes.json();
-    if (!pagesRes.ok) {
-        throw new Error(pagesJson?.error?.message || "Unable to list Facebook Pages.");
+    // Paginated (default page size 25) - follows `paging.next` until exhausted so
+    // an account managing more than one page's worth of Pages doesn't silently
+    // connect only the first 25 (capped at MAX_ACCOUNT_PAGES as a guard against a
+    // malformed/looping paging response).
+    const pages: Array<{ id: string; name?: string; access_token: string }> = [];
+    let accountsUrl = `${GRAPH_BASE_URL}/me/accounts?` + new URLSearchParams({ access_token: longLivedJson.access_token });
+    let pageCount = 0;
+    while (accountsUrl && pageCount < MAX_ACCOUNT_PAGES) {
+        const pagesRes = await fetch(accountsUrl);
+        const pagesJson: any = await pagesRes.json();
+        if (!pagesRes.ok) {
+            throw new Error(pagesJson?.error?.message || "Unable to list Facebook Pages.");
+        }
+        pages.push(...(pagesJson?.data || []));
+        accountsUrl = pagesJson?.paging?.next || "";
+        pageCount += 1;
     }
-
-    const pages: Array<{ id: string; name?: string; access_token: string }> = pagesJson?.data || [];
     if (pages.length === 0) {
         throw new Error("No Facebook Pages found for this account. Connect a Page you manage.");
     }
