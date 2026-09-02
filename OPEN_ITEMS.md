@@ -343,7 +343,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (`apps/api/prisma/schema.prisma`) uses `provider = "postgresql"`
   exclusively — `mysql2` is never imported, configured, or connected to
   anywhere in the codebase, so the vulnerable auth-negotiation code path is
-  unreachable. Allowlisted in `scripts/audit-with-allowlist.mjs`.
+  unreachable. Allowlisted in `scripts/audit-with-allowlist.mjs`. **Extended
+  same day:** a second mysql2 advisory (`GHSA-rgwj-5xj2-c3m3`, decompression-
+  bomb DoS via unbounded zlib inflate, <=3.23.0) surfaced on the very next PR
+  run — same package, same unreachable-dependency reasoning, allowlisted
+  alongside it. Separately, `fast-uri` (pulled in via
+  `fastify`/`@fastify/ajv-compiler`/`fast-json-stringify` → `ajv`) showed 4
+  new host-confusion/SSRF advisories (`GHSA-5jgf-p345-68v8`,
+  `GHSA-f65p-4m7j-42xc`, `GHSA-fph4-wmhf-6fwf`, `GHSA-jqff-g426-hqxp`,
+  range `3.0.0-3.1.5`) on the same run. **Attempted a fix first:** the root
+  `package.json` override pins `fast-uri` to exactly `3.1.5` (top of the
+  vulnerable range) while `apps/api`/`apps/web`'s own per-workspace
+  overrides already pin the safe `4.1.1` — tried aligning the root override
+  to `4.1.1` to remove the mismatch, but confirmed via `npm install
+  --loglevel silly` this hits the exact same "Conflicting override sets"
+  silent-failure class OPEN-40 already documented: the pin does not apply,
+  `fast-uri@3.1.5` stays resolved regardless of what the root override says.
+  Reverted the override edit (leaving a fix that doesn't take effect is
+  worse than no fix — it reads as resolved when it isn't). **Allowlisted
+  instead, after checking reachability** (not assumed): the vulnerable code
+  is ajv's URI-format validators, invoked only when a fastify route schema
+  declares `format: "uri"`/`"uri-reference"`; a repo-wide search found zero
+  routes in this app declaring any JSON-schema `format` keyword at all
+  (fastify's request/response schema validation isn't used here), so the
+  parser never runs against attacker-controlled input. **Takeaway:** `npm
+  audit` queries a live advisory feed, so this gate can regress between two
+  CI runs of identical code with zero diff — expect to keep revisiting this
+  list as new advisories land on existing transitive deps.
 
 - **OPEN-126 (Fixed):** `apps/web/src/app/api/email/unsubscribe/[trackingId]/route.ts`'s
   `GET` handler interpolated the raw, attacker-controlled `trackingId` URL
