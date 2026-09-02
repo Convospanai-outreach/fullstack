@@ -4,7 +4,7 @@ const { mockPrisma, mockDecryptCredential } = vi.hoisted(() => ({
     mockPrisma: {
         facebookLeadSource: { findMany: vi.fn(), update: vi.fn() },
         facebookLeadSyncCursor: { upsert: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-        lead: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+        lead: { findFirst: vi.fn(), updateMany: vi.fn(), findUniqueOrThrow: vi.fn(), create: vi.fn() },
         leadActivity: { create: vi.fn() },
     },
     mockDecryptCredential: vi.fn(),
@@ -82,7 +82,8 @@ describe("syncDueFacebookLeadSources", () => {
         mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
         mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
         mockPrisma.lead.findFirst.mockResolvedValue({ id: "existing-lead", fullName: null, company: null, jobTitle: null, phone: null, source: "FACEBOOK_LEADS" });
-        mockPrisma.lead.update.mockResolvedValue({ id: "existing-lead" });
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.lead.findUniqueOrThrow.mockResolvedValue({ id: "existing-lead" });
 
         const fetchMock = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }] }))
@@ -96,7 +97,33 @@ describe("syncDueFacebookLeadSources", () => {
         await syncDueFacebookLeadSources();
 
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
-        expect(mockPrisma.lead.update).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "existing-lead" } }));
+        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { id: "existing-lead", teamId: "team-1" } })
+        );
+    });
+
+    it("does not silently succeed if the lead was reassigned out of the team between the lookup and the write", async () => {
+        mockPrisma.facebookLeadSource.findMany.mockResolvedValue([
+            { id: "source-1", teamId: "team-1", pageId: "page-1", encryptedPageAccessToken: {}, lastError: null },
+        ]);
+        mockPrisma.facebookLeadSyncCursor.upsert.mockResolvedValue({ id: "cursor-1", lastCreatedTime: null });
+        mockPrisma.facebookLeadSyncCursor.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "existing-lead", fullName: null, company: null, jobTitle: null, phone: null, source: "FACEBOOK_LEADS" });
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 0 });
+
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({ data: [{ id: "form-1" }] }))
+            .mockResolvedValueOnce(
+                jsonResponse({
+                    data: [{ id: "fb-lead-2", created_time: "2026-09-01T00:00:00+0000", field_data: [{ name: "email", values: ["lead@example.com"] }] }],
+                })
+            );
+        global.fetch = fetchMock as any;
+
+        await syncDueFacebookLeadSources();
+
+        expect(mockPrisma.lead.findUniqueOrThrow).not.toHaveBeenCalled();
+        expect(mockPrisma.leadActivity.create).not.toHaveBeenCalled();
     });
 
     it("skips a form whose sync cursor is already locked by another run", async () => {

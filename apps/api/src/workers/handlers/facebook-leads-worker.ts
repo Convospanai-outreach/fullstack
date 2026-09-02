@@ -62,8 +62,11 @@ async function upsertLeadFromFacebook(teamId: string, fields: LeadField[]) {
     });
 
     if (existing) {
-        return prisma.lead.update({
-            where: { id: existing.id },
+        // Scoped by teamId here too, not just the findFirst lookup above - same
+        // "scope the mutation, not just a pre-check" anti-pattern already fixed
+        // under OPEN-99/109/110/118/120/121/122/123/127.
+        const result = await prisma.lead.updateMany({
+            where: { id: existing.id, teamId },
             data: {
                 fullName: fullName || existing.fullName || undefined,
                 company: company || existing.company || undefined,
@@ -72,6 +75,8 @@ async function upsertLeadFromFacebook(teamId: string, fields: LeadField[]) {
                 source: existing.source || "FACEBOOK_LEADS",
             },
         });
+        if (result.count === 0) return null;
+        return prisma.lead.findUniqueOrThrow({ where: { id: existing.id } });
     }
 
     return prisma.lead.create({
