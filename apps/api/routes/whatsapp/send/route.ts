@@ -8,9 +8,9 @@ import { WhatsAppService } from "@/services/WhatsAppService";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
 
-    if (!userId) {
+    if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,9 +25,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Retrieve Team ID and Phone for Feature Flag Check and Delivery
-        const lead = await prisma.lead.findUnique({
-            where: { id: leadId },
+        // Scoped by the caller's own teamId, not just leadId - leadId alone isn't
+        // guaranteed to belong to the caller's team.
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, teamId },
             select: { teamId: true, phone: true }
         });
 
@@ -94,9 +95,9 @@ export async function POST(req: NextRequest) {
 
 // GET endpoint to check if a lead can receive WhatsApp messages
 export async function GET(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
 
-    if (!userId) {
+    if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -108,6 +109,13 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Scoped by the caller's own teamId, not just leadId - leadId alone isn't
+        // guaranteed to belong to the caller's team.
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+        if (!lead) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
+
         const consentCheck = await ConsentService.validateConsent(leadId);
         const history = await ConsentService.getConsentHistory(leadId);
 

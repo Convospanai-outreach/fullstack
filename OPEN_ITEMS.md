@@ -609,6 +609,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   value rejected, valid admin update succeeds; all 824 apps/api tests pass,
   `tsc --noEmit` clean.
 
+- **OPEN-135 (Fixed):** cross-tenant IDOR in `apps/api/routes/whatsapp/send/route.ts`
+  (both `POST` and `GET`) — `getCurrentContextFromRequest` was called but only
+  `userId` was used; `teamId` was discarded, and the lead lookup
+  (`prisma.lead.findUnique({ where: { id: leadId } })`) never checked it
+  belonged to the caller's own team. `withFeatureGuard("whatsapp_outbound",
+  { teamId: lead.teamId }, ...)` only checks whether the flag is enabled for
+  *that* team — it doesn't validate the caller belongs to it. So any
+  authenticated user from Team A could send a WhatsApp message to (or, via
+  the `phone: lead.phone || body.recipientPhone` fallback, redirect to an
+  arbitrary attacker-chosen number as) any lead belonging to Team B, using
+  Team B's WABA credentials/quota, as long as Team B had `whatsapp_outbound`
+  enabled — and separately, `GET` had no team check (or feature guard) at
+  all, letting any authenticated user read any other team's WhatsApp consent
+  audit trail (grant/revocation history, timestamps, actors) for an arbitrary
+  `leadId`. A distinct, previously-unaudited file — `apps/api/src/modules/whatsapp/`
+  hadn't been touched by this sweep before. Fixed by destructuring `teamId`
+  from `getCurrentContextFromRequest` in both handlers and replacing the
+  unscoped lookup with `prisma.lead.findFirst({ where: { id: leadId, teamId } })`,
+  404'ing on a miss before any consent check, feature guard, or send. No
+  `apps/web` duplicate of this route exists. Added `route.test.ts` (new, 4
+  tests): POST/GET both reject a lead from another team, both succeed for a
+  lead in the caller's own team; all 826 apps/api tests pass, `tsc --noEmit`
+  clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
