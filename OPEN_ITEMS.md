@@ -633,6 +633,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   lead in the caller's own team; all 826 apps/api tests pass, `tsc --noEmit`
   clean.
 
+- **OPEN-136 (Fixed):** unauthenticated-scope, cross-tenant PII de-masking
+  oracle at `GET /api/leads/[id]/identity`
+  (`apps/api/routes/leads/[id]/identity/route.ts`). The handler never called
+  `getCurrentContextFromRequest`/`getCurrentContext` at all — no `teamId`,
+  not even a `userId` check — and looked up the target by bare `id` alone
+  (`prisma.lead.findUnique({ where: { id } })`, with the same gap on its
+  `ScrapingJob` fallback lookup). If the lead's stored email/phone was masked
+  (`"[..."` token format), the handler actively called
+  `IdentityService.reidentify()` and returned the real, unmasked PII in the
+  response. Site middleware only requires *some* valid session for
+  non-public API paths (no team scoping there either — see OPEN-135's note
+  on the same gap), so any authenticated user on the platform, from any
+  team, could enumerate or guess a lead/scrapingJob UUID belonging to a
+  *different* team and have this endpoint actively de-mask and hand back
+  that other team's PII — worse than a typical IDOR read, since it's an
+  explicit unmasking action, not just an info leak of already-visible data.
+  Same underlying bug class as OPEN-135 (auth context discarded, lookup not
+  team-scoped) but a distinct, previously-unaudited route. Fixed by requiring
+  `getCurrentContextFromRequest`'s `teamId` (401 if absent) and scoping both
+  the `Lead` and `ScrapingJob` lookups (`findUnique` → `findFirst` with
+  `{ id, teamId }`) across both the GLOBAL and UAE regional DB clients. Added
+  `route.test.ts` (new, 4 tests): no-auth-context rejected, `Lead` lookup
+  scoped by teamId, `ScrapingJob` fallback lookup scoped by teamId, a lead
+  actually in the caller's team still gets its PII correctly revealed; all
+  826 apps/api tests pass, `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
