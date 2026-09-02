@@ -659,6 +659,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   actually in the caller's team still gets its PII correctly revealed; all
   826 apps/api tests pass, `tsc --noEmit` clean.
 
+- **OPEN-137 (Fixed):** cross-tenant IDOR in
+  `apps/api/routes/playbooks/[id]/fork/route.ts` — the fork lookup
+  (`prisma.playbook.findUnique({ where: { id } })`) had no `teamId` filter
+  and no ownership check anywhere in the handler, unlike the sibling
+  `instantiate` route (`playbookService.instantiatePlaybook`, fixed by
+  OPEN-95, `findFirst({ where: { id, teamId } })`) and `publish` route
+  (which does check `playbook.teamId !== teamId` before proceeding). Any
+  authenticated user, from any team, could `POST
+  /api/playbooks/{anyId}/fork` for a playbook belonging to a different
+  team and receive back a full copy of its `config` (the entire campaign
+  template: messages/steps) and `parameters`, persisted into their own
+  team. `Playbook.visibility` ("INTERNAL"/"PUBLIC") exists in the schema
+  but nothing in the codebase (`listPlaybooks`, `instantiatePlaybook`)
+  ever surfaces or honors a team's `PUBLIC` playbooks to other teams, so
+  there's no legitimate cross-team discovery/fork path — strict
+  same-team scoping matches existing convention. Fixed by replacing the
+  lookup with `prisma.playbook.findFirst({ where: { id, teamId } })`,
+  404'ing on a miss before any fork/audit-log write. Added
+  `route.test.ts` (new, 2 tests): fork of another team's playbook is
+  rejected (404, no `create` call), fork of the caller's own team's
+  playbook succeeds; `tsc --noEmit` clean (pre-existing unrelated error
+  in `services/browser/browser-engine.ts` only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
