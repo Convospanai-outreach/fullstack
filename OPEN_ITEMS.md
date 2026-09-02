@@ -397,6 +397,28 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   it. Added `route.test.ts` (malicious trackingId no longer reflected raw;
   normal trackingId still renders a working action URL).
 
+- **OPEN-127 (Fixed):** `apps/api/src/modules/mautic-integration/service/mauticService.ts`'s
+  `pushLead()` — the same "scope the mutation, not just the pre-check"
+  anti-pattern already fixed 6+ times this sweep (OPEN-99/109/110/118/120/
+  121/123). The function's own pre-check correctly scopes by team
+  (`prisma.lead.findFirst({ where: { id: leadId, teamId } })`, with a
+  comment already flagging exactly this risk), but the final write dropped
+  `teamId` entirely (`prisma.lead.update({ where: { id: leadId }, ... })`).
+  Found by a targeted sweep of the modules merged via PR #369
+  (`mautic-integration`, `landing-agent`, `facebook-leads`, `branding`) that
+  had never been through this ledger's scrutiny. **Not currently
+  exploitable** — `pushLead`'s only caller (`landing-lead-intake-worker.ts`)
+  passes an already-validated `leadId`/`teamId` pair from the same DB row,
+  same defense-in-depth classification as OPEN-118/120/121/123 — but one
+  future route wiring a client-supplied `leadId` against the caller's
+  `teamId` would turn this into a real cross-tenant IDOR (attaching another
+  team's lead to the wrong `mauticContactId`). Fixed via `updateMany({
+  where: { id: leadId, teamId }, ... })` + `count === 0` check, matching the
+  established convention. No `apps/web` duplicate of this file exists.
+  Added a regression test asserting the write is scoped by `teamId` and
+  that a lost race (`count: 0`) surfaces as an error rather than silently
+  succeeding.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
