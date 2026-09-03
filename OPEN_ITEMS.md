@@ -1166,6 +1166,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   succeeds with the write itself scoped by `teamId`). 882/882 apps/api tests
   pass (3 new), `tsc --noEmit` clean.
 
+- **OPEN-151 (Fixed):** cross-tenant data leak + unauthorized mutation in
+  `apps/api/routes/agent/outreach/drafts/route.ts` (`GET`) and
+  `apps/api/routes/agent/outreach/approve/route.ts` (`POST`) — found by
+  applying the same sibling-inconsistency method that found OPEN-149/150,
+  comparing against `apps/api/routes/leads/[id]/identity/route.ts`, which
+  explicitly scopes both `Lead` and `ScrapingJob` lookups by `teamId` with a
+  comment explaining why. Neither outreach route called
+  `getCurrentContext`/`getCurrentContextFromRequest` at all. `drafts/route.ts`
+  fetched `scrapingJob.findMany({ where: { status: "COMPLETED" } })` from both
+  the GLOBAL and UAE db clients with no `teamId` filter, returning up to 40
+  other teams' scraped-lead drafts (name, company, generated outreach
+  message, masked-PII flag) to any authenticated user of any team.
+  `approve/route.ts` did `prisma.scrapingJob.update({ where: { id }, data:
+  { status } })` with no `teamId` filter, letting any authenticated user
+  approve/reject any other team's scraping job (dispatching or killing their
+  outreach agent run) by supplying an arbitrary `id` harvested from the leaky
+  GET. `ScrapingJob.teamId` is a nullable field
+  (`apps/api/prisma/schema.prisma:551`). Fixed by adding a `getCurrentContext()`
+  401 check to both routes; scoping both `findMany` calls in `drafts/route.ts`
+  by the caller's `teamId`; and in `approve/route.ts`, scoping the write
+  itself via `updateMany({ where: { id, teamId } })` (`.count === 0` → 404)
+  followed by a `findFirst({ where: { id, teamId } })` re-read for the
+  response payload — not just a pre-check, same defense-in-depth anti-pattern
+  already fixed under OPEN-99/109/110/118/120/121/122/123/150. New
+  `route.test.ts` added for both routes (7 tests total: unauthenticated
+  caller rejected before any DB access, both DB clients' queries scoped by
+  teamId in the GET, cross-team approve/reject rejected with 404, same-team
+  approve/reject succeeds). 898/898 apps/api tests pass (7 new), `tsc
+  --noEmit` clean (one pre-existing, unrelated failure in
+  `services/browser/browser-engine.ts` confirmed present on `origin/main`
+  before this change).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
