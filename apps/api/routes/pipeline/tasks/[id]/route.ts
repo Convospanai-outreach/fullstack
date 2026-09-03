@@ -8,8 +8,8 @@ export async function PATCH(
 ) {
     try {
         const { id } = await params;
-        const { userId } = await getCurrentContextFromRequest(req);
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContextFromRequest(req);
+        if (!userId || !teamId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -17,8 +17,8 @@ export async function PATCH(
         const { status, title, description, priority, dueDate } = body;
 
         // Verify task belongs to user's team
-        const existingTask = await prisma.task.findUnique({
-            where: { id },
+        const existingTask = await prisma.task.findFirst({
+            where: { id, teamId },
             include: { lead: true }
         });
 
@@ -26,16 +26,25 @@ export async function PATCH(
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
 
-        // Update task
-        const updatedTask = await prisma.task.update({
-            where: { id },
+        // Update task - scoped by teamId here too, not just the pre-check
+        // above, same defense-in-depth anti-pattern already fixed under
+        // OPEN-99/109/110/118/120/121/122/123.
+        const updateResult = await prisma.task.updateMany({
+            where: { id, teamId },
             data: {
                 ...(status && { status }),
                 ...(title && { title }),
                 ...(description && { description }),
                 ...(priority && { priority }),
                 ...(dueDate && { dueDate: new Date(dueDate) })
-            },
+            }
+        });
+        if (updateResult.count === 0) {
+            return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+        }
+
+        const updatedTask = await prisma.task.findFirst({
+            where: { id, teamId },
             include: {
                 lead: {
                     select: {
