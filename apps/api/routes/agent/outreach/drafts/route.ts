@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function GET() {
     try {
-        // Fetch from Global DB
+        const { teamId } = await getCurrentContext();
+        if (!teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        // Fetch from Global DB - scoped by the caller's own teamId, same as the
+        // sibling leads/[id]/identity/route.ts, so this can't leak other teams'
+        // scraped-lead drafts.
         const globalClient = DbFactory.getClient('GLOBAL');
         const globalJobs = await globalClient.scrapingJob.findMany({
             where: {
                 status: "COMPLETED",
+                teamId,
                 // In a real app, we might filter by those that haven't been turned into Leads yet
                 // or use a specific flag like 'needs_approval'
             },
@@ -21,7 +30,7 @@ export async function GET() {
             try {
                 const uaeClient = DbFactory.getClient('UAE');
                 uaeJobs = await uaeClient.scrapingJob.findMany({
-                    where: { status: "COMPLETED" },
+                    where: { status: "COMPLETED", teamId },
                     orderBy: { createdAt: 'desc' },
                     take: 20
                 });
