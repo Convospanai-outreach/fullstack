@@ -828,6 +828,46 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   as a side effect of this bug fix) — left as a separate, optional
   follow-up if the user wants it recorded.
 
+- **OPEN-146 (Fixed):** unauthenticated, cross-tenant lead-scoring
+  manipulation via `apps/api/routes/webhooks/lead-tracking/route.ts`. Unlike
+  every other webhook checked this sweep (razorpay, resend, scraper-ingest
+  all verify an HMAC/secret) and unlike its own sibling
+  `apps/api/routes/scoring/lead-intent/route.ts` (which requires
+  `getCurrentContext()` and scopes by `teamId`), this route had **zero
+  authentication and zero tenant scoping**: the `email_click` branch did
+  `prisma.lead.findUnique({ where: { id: leadId } })` with no `teamId`
+  filter, and the `dwell` branch resolved a lead by **`prisma.lead.findFirst
+  ({ where: { email } })`** — matching the first lead with that email
+  across *every team in the system*, since email is not globally unique.
+  Both branches then mutated the resolved lead's engagement fields and
+  immediately recomputed its intent score. Since `/webhooks` is a
+  full-prefix public path in `server.ts`'s Fastify gate (same as the HMAC
+  webhooks above — "public" there means "no NextAuth-token gate," not
+  "exempt from its own auth"), an unauthenticated caller could inflate or
+  pollute a lead's engagement/intent score in *any* team's pipeline given
+  nothing but a guessable lead UUID or a leaked/guessed email address — the
+  only defense was a 30-req/min per-IP rate limiter, trivially bypassed by
+  rotating source IPs. Fixed by requiring `getCurrentContext()` (401 if no
+  `userId`/`teamId`, matching `/scoring/lead-intent`'s pattern) and scoping
+  every lookup and write by the caller's own `teamId`: the `email_click`
+  pre-check and increment, the `dwell` email-based resolution, and the
+  `dwell` pre-check *and* the dwell-time increment itself (previously a
+  bare `update({ where: { id } })` after only the pre-check was scoped —
+  same defense-in-depth anti-pattern already fixed under
+  OPEN-99/109/110/118/120/121/122/123, now also closed here). Not a
+  duplicate of OPEN-68 (already open, unfixed) — that entry flags this same
+  route from a data-integrity angle (nothing in `apps/web/src` currently
+  calls it, so real engagement data never reaches the scorer) but never
+  noted the route itself is unauthenticated and cross-tenant; this fix
+  doesn't resolve OPEN-68's disconnection issue, only the auth/scoping gap.
+  Found via a dispatched investigation of the Facebook Lead
+  Ads/Cloudflare-custom-domain/remaining-webhooks areas from commit
+  b2e73c28. New `route.test.ts` added (5 tests: unauthenticated caller
+  rejected before any DB access, cross-team lead-by-id rejected, same-team
+  email click succeeds and rescopes, cross-team email lookup finds nothing,
+  cross-team dwell-by-id rejected). 870/870 apps/api tests pass (5 new),
+  `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
