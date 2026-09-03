@@ -1091,6 +1091,54 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rejects a different-length hash instead of throwing). 879/879 apps/api
   tests pass (4 new), `tsc --noEmit` clean.
 
+- **OPEN-149 (Fixed):** two routes missing the same `getCurrentContext()`
+  auth check their sibling in the same module has, found via a systematic
+  pass cross-checking every `apps/api/routes/` tree against
+  `server.ts`'s `publicPaths`/`apiAuth.ts`'s policies (this gate has now had
+  two real bugs found in it, OPEN-143/OPEN-148, so it was worth one more
+  pass). (1) **`apps/api/src/modules/linkedin-runner/api/run.ts`**
+  (`POST /linkedin-runner/run`, live-wired from
+  `apps/web/src/modules/linkedin-runner/ui/RunnerPage.tsx`) had zero auth
+  and zero lead-ownership check — it enqueued a `linkedin_scraping` job
+  straight from `{ profileUrl, action, leadId }` in the request body with no
+  `teamId`. The worker,
+  `apps/api/src/workers/handlers/linkedin-worker.ts:38-42`, then ran
+  `prisma.lead.update({ where: { id: leadId } })` (no `teamId` filter) when
+  `action === "connect"`. Any authenticated user of *any* team could POST an
+  arbitrary `leadId` belonging to a *different* team plus `action: "connect"`
+  to trigger real outbound LinkedIn automation and overwrite that other
+  team's `Lead.status` — an unauthenticated-by-any-team-member cross-tenant
+  IDOR write with a real external side effect. Contrast with the correct
+  sibling pattern, `apps/api/routes/leads/[id]/action/route.ts`, which
+  verifies `getCurrentContextFromRequest` + `prisma.lead.findUnique
+  ({ where: { id, teamId } })` before enqueueing the same job type. Fixed by
+  adding the same `getCurrentContext()` check (401 if missing), verifying
+  `leadId` (when provided — a bare profile scrape needs none) belongs to the
+  caller's `teamId` via `findFirst`, and threading `teamId` through the job
+  payload into the worker, whose `prisma.lead.update` was changed to
+  `updateMany({ where: { id: leadId, teamId } })` (skipping the write
+  entirely, rather than updating unscoped, if `teamId` is absent — e.g. an
+  older enqueue with no caller context). (2)
+  **`apps/api/src/modules/scraper-bridge/api/batch-scrape.ts`** had the
+  identical gap versus its sibling `scrape.ts`: no `getCurrentContext()`,
+  no `enforcePolicy({ action: "SCRAPING" })` governance/quota check, and no
+  audit log — any authenticated user of any team could run unlimited batch
+  scrapes bypassing per-team scraping quotas entirely. Fixed by adding the
+  identical auth+`enforcePolicy`+`audit` calls `scrape.ts` already has.
+  **Noted but not fixed, out of scope for this surgical fix:**
+  `leads/[id]/action/route.ts`'s own `linkedin_scraping` enqueue passes
+  `{ leadId, url }` — but the worker destructures `profileUrl` (not `url`)
+  and defaults `action` to `"scrape"` when not provided (which this route
+  never sets for its `"CONNECT"` branch) — a pre-existing payload-shape
+  mismatch meaning that route's `CONNECT` path already silently never
+  triggered the `connection_sent` update even before this fix, a separate,
+  unrelated correctness bug worth a future dedicated look. New tests:
+  `run.test.ts` (4 tests), `batch-scrape.test.ts` (3 tests), and
+  `handlers/__tests__/linkedin-worker.test.ts` (2 tests, new file for a
+  previously-untested worker) — asserting unauthenticated/cross-team
+  rejection before any enqueue/scrape/write, and correct `teamId` threading
+  end to end. 888/888 apps/api tests pass (9 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
