@@ -3,10 +3,21 @@
 
 import { AgentExecutor } from "@/modules/agent/core/AgentExecutor";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
+import { getCurrentContext } from "@/lib/auth";
+import { authorizePermission, Permission } from "@/lib/permissions";
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 
-export async function startAgentTask(goal: string, teamId: string) {
+// These are Next.js Server Actions - directly callable with arbitrary arguments by
+// any authenticated client, not just through the UI that happens to render them. Every
+// export here must derive identity/team from the real server-side session and verify
+// ownership/permission itself; none of the parameters below (teamId, approverId) can be
+// trusted as proof of who the caller is or what team they belong to.
+
+export async function startAgentTask(goal: string, _teamId: string) {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) throw new Error("Unauthorized");
+
     console.log("[Action] Starting Agent Task:", goal);
     const executor = new AgentExecutor();
     const taskId = await executor.startTask(teamId, goal);
@@ -17,27 +28,42 @@ export async function startAgentTask(goal: string, teamId: string) {
     return { success: true, taskId };
 }
 
-export async function approveTask(requestId: string, approverId: string, revisedPayload?: any) {
+export async function approveTask(requestId: string, _approverId: string, revisedPayload?: any) {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) throw new Error("Unauthorized");
+    await authorizePermission(userId, teamId, Permission.RESOLVE_APPROVALS);
+
+    const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+    if (!request) throw new Error("Request not found");
+
     console.log("[Action] Approving Request:", requestId, revisedPayload ? "(with edits)" : "");
-    await ApprovalService.approve(requestId, approverId, revisedPayload);
+    await ApprovalService.approve(requestId, userId, revisedPayload);
     revalidatePath("/dashboard");
     return { success: true };
 }
 
-export async function rejectTask(requestId: string, approverId: string) {
+export async function rejectTask(requestId: string, _approverId: string) {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) throw new Error("Unauthorized");
+    await authorizePermission(userId, teamId, Permission.RESOLVE_APPROVALS);
+
+    const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+    if (!request) throw new Error("Request not found");
+
     console.log("[Action] Rejecting Request:", requestId);
-    await ApprovalService.reject(requestId, approverId);
+    await ApprovalService.reject(requestId, userId);
     revalidatePath("/dashboard");
     return { success: true };
 }
 
-export async function getPendingApprovals(teamId: string) {
-    // In a real app we'd filter by teamId
-    // For MVP we just return all PENDING requests joined with Task info
+export async function getPendingApprovals(_teamId: string) {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) throw new Error("Unauthorized");
+
     const requests = await prisma.approvalRequest.findMany({
         where: {
             status: "PENDING",
-            teamId: teamId
+            teamId
         },
         orderBy: { createdAt: 'desc' }
     });
@@ -56,6 +82,7 @@ export async function getPendingApprovals(teamId: string) {
             id: r.id,
             type: r.actionType,
             risk: "HIGH",
+            tier: r.tier,
             detail: detail,
             status: r.status,
             payload: r.payload // Include the raw payload for editing

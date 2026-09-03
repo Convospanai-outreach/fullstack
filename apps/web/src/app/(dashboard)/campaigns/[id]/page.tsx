@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import StatusBadge from "@/components/campaigns/StatusBadge";
 import ActivityFeed from "@/components/shared/ActivityFeed";
 import {
@@ -109,7 +110,7 @@ export default function CampaignDetailPage({
             loadAnalytics();
             loadActivities(); // Refresh activity log
         } catch (err) {
-            alert("Failed to update status");
+            toast.error("Failed to update status");
         }
     };
 
@@ -120,7 +121,7 @@ export default function CampaignDetailPage({
             loadCampaign();
             loadActivities();
         } catch (err) {
-            alert("Failed to update campaign");
+            toast.error("Failed to update campaign");
         }
     };
 
@@ -131,7 +132,7 @@ export default function CampaignDetailPage({
             await deleteCampaign(campaignId);
             router.push("/campaigns");
         } catch (err) {
-            alert("Failed to delete campaign");
+            toast.error("Failed to delete campaign");
         }
     };
 
@@ -140,7 +141,7 @@ export default function CampaignDetailPage({
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                    <p className="mt-2 text-zinc-400">Loading campaign...</p>
+                    <p className="mt-2 text-muted-foreground">Loading campaign...</p>
                 </div>
             </div>
         );
@@ -163,7 +164,7 @@ export default function CampaignDetailPage({
     }
 
     return (
-        <div className="min-h-screen text-slate-200">
+        <div className="min-h-screen text-foreground">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-6">
                     <button
@@ -185,7 +186,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, name: e.target.value })
                                         }
-                                        className="text-3xl font-bold w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="text-3xl font-bold w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     />
                                     <textarea
                                         title="Campaign description"
@@ -194,7 +195,7 @@ export default function CampaignDetailPage({
                                         onChange={(e) =>
                                             setEditData({ ...editData, description: e.target.value })
                                         }
-                                        className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                                         rows={2}
                                     />
                                     <input
@@ -208,7 +209,7 @@ export default function CampaignDetailPage({
                                                 targetCount: parseInt(e.target.value) || 0,
                                             })
                                         }
-                                        className="w-32 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        className="w-32 px-3 py-2 bg-muted border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                                     />
                                     <div className="space-x-2">
                                         <button
@@ -219,7 +220,7 @@ export default function CampaignDetailPage({
                                         </button>
                                         <button
                                             onClick={() => setIsEditing(false)}
-                                            className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition"
+                                            className="bg-muted text-foreground px-4 py-2 rounded-lg hover:bg-accent transition"
                                         >
                                             Cancel
                                         </button>
@@ -227,11 +228,11 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <>
-                                    <h1 className="text-3xl font-bold text-white">
+                                    <h1 className="text-3xl font-bold text-foreground">
                                         {campaign.name}
                                     </h1>
                                     {campaign.description && (
-                                        <p className="mt-2 text-zinc-400">{campaign.description}</p>
+                                        <p className="mt-2 text-muted-foreground">{campaign.description}</p>
                                     )}
                                 </>
                             )}
@@ -243,7 +244,7 @@ export default function CampaignDetailPage({
                 </div>
 
                 {/* Tabs */}
-                <div className="border-b border-white/10 mb-6">
+                <div className="border-b border-border mb-6">
                     <nav className="-mb-px flex space-x-8">
                         {["overview", "sequence", "leads", "activity", "timeline", "analytics"].map((tab) => (
                             <button
@@ -253,7 +254,7 @@ export default function CampaignDetailPage({
                                     whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors
                                     ${activeTab === tab
                                         ? "border-purple-500 text-purple-400"
-                                        : "border-transparent text-zinc-500 hover:text-zinc-300 hover:border-white/10"
+                                        : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                                     }
                                 `}
                             >
@@ -268,13 +269,13 @@ export default function CampaignDetailPage({
                     {activeTab === "overview" && (
                         <>
                             <div className="lg:col-span-2 space-y-6">
-                                <div className="glass-card p-6">
-                                    <h2 className="text-xl font-semibold mb-4 text-white">Campaign Actions</h2>
+                                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-foreground">Campaign Actions</h2>
                                     <div className="flex flex-wrap gap-2">
                                         {!isEditing && (
                                             <button
                                                 onClick={() => setIsEditing(true)}
-                                                className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20 transition"
+                                                className="bg-muted text-foreground px-4 py-2 rounded-lg hover:bg-accent transition"
                                             >
                                                 Edit Campaign
                                             </button>
@@ -339,28 +340,28 @@ export default function CampaignDetailPage({
                             </div>
 
                             <div className="space-y-6">
-                                <div className="glass-card p-6">
-                                    <h2 className="text-xl font-semibold mb-4 text-white">Stats</h2>
+                                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                                    <h2 className="text-xl font-semibold mb-4 text-foreground">Stats</h2>
                                     <div className="space-y-3">
                                         <div>
-                                            <p className="text-sm text-zinc-400">Total Leads</p>
-                                            <p className="text-2xl font-bold text-white">
+                                            <p className="text-sm text-muted-foreground">Total Leads</p>
+                                            <p className="text-2xl font-bold text-foreground">
                                                 {analytics?.totalLeads || 0}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-zinc-400">Target</p>
-                                            <p className="text-2xl font-bold text-white">{campaign.targetCount}</p>
+                                            <p className="text-sm text-muted-foreground">Target</p>
+                                            <p className="text-2xl font-bold text-foreground">{campaign.targetCount}</p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-zinc-400">Completed</p>
-                                            <p className="text-2xl font-bold text-white">
+                                            <p className="text-sm text-muted-foreground">Completed</p>
+                                            <p className="text-2xl font-bold text-foreground">
                                                 {Math.min(campaign.completedCount, analytics?.totalLeads || campaign.targetCount || campaign.completedCount)}
                                             </p>
                                         </div>
                                         <div>
-                                            <p className="text-sm text-zinc-400">Completion Rate</p>
-                                            <p className="text-2xl font-bold text-white">
+                                            <p className="text-sm text-muted-foreground">Completion Rate</p>
+                                            <p className="text-2xl font-bold text-foreground">
                                                 {analytics?.completionRate || 0}%
                                             </p>
                                         </div>
@@ -368,14 +369,14 @@ export default function CampaignDetailPage({
                                 </div>
 
                                 {analytics?.leadsByStatus && (
-                                    <div className="glass-card p-6">
-                                        <h2 className="text-xl font-semibold mb-4 text-white">Leads by Status</h2>
+                                    <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                                        <h2 className="text-xl font-semibold mb-4 text-foreground">Leads by Status</h2>
                                         <div className="space-y-2">
                                             {Object.entries(analytics.leadsByStatus).map(
                                                 ([status, count]: [string, any]) => (
-                                                    <div key={status} className="flex justify-between border-b border-white/5 pb-1">
-                                                        <span className="text-sm capitalize text-zinc-400">{status}</span>
-                                                        <span className="text-sm font-semibold text-white">{count}</span>
+                                                    <div key={status} className="flex justify-between border-b border-border pb-1">
+                                                        <span className="text-sm capitalize text-muted-foreground">{status}</span>
+                                                        <span className="text-sm font-semibold text-foreground">{count}</span>
                                                     </div>
                                                 )
                                             )}
@@ -388,31 +389,31 @@ export default function CampaignDetailPage({
 
                     {/* LEADS TAB */}
                     {activeTab === "leads" && (
-                        <div className="lg:col-span-3 glass-card p-6">
-                            <h2 className="text-xl font-semibold mb-4 text-white">Leads</h2>
+                        <div className="lg:col-span-3 rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                            <h2 className="text-xl font-semibold mb-4 text-foreground">Leads</h2>
                             {campaign.leads && campaign.leads.length > 0 ? (
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-white/10">
+                                    <table className="min-w-full divide-y divide-border">
                                         <thead>
                                             <tr>
-                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                                     Name
                                                 </th>
-                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                                     Email
                                                 </th>
-                                                <th className="px-4 py-2 text-left text-xs font-semibold text-zinc-400 uppercase tracking-wider">
+                                                <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                                                     Status
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-white/5">
+                                        <tbody className="divide-y divide-border">
                                             {campaign.leads.map((lead: any) => (
-                                                <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
-                                                    <td className="px-4 py-2.5 text-sm text-slate-200">
+                                                <tr key={lead.id} className="hover:bg-muted transition-colors">
+                                                    <td className="px-4 py-2.5 text-sm text-foreground">
                                                         {lead.fullName || "—"}
                                                     </td>
-                                                    <td className="px-4 py-2.5 text-sm text-slate-300">
+                                                    <td className="px-4 py-2.5 text-sm text-foreground">
                                                         {lead.email || "—"}
                                                     </td>
                                                     <td className="px-4 py-2.5 text-sm">
@@ -427,7 +428,7 @@ export default function CampaignDetailPage({
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
-                                    <p className="text-zinc-500 mb-4">No leads assigned yet.</p>
+                                    <p className="text-muted-foreground mb-4">No leads assigned yet.</p>
                                     <button
                                         onClick={() => router.push(`/leads/import?campaignId=${campaignId}`)}
                                         className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-semibold transition"
@@ -459,8 +460,8 @@ export default function CampaignDetailPage({
 
                     {/* TIMELINE TAB */}
                     {activeTab === "timeline" && (
-                        <div className="lg:col-span-3 glass-card p-6">
-                            <h2 className="text-xl font-semibold mb-6 text-white">Execution Timeline</h2>
+                        <div className="lg:col-span-3 rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                            <h2 className="text-xl font-semibold mb-6 text-foreground">Execution Timeline</h2>
                             <ExecutionTimeline campaignId={campaignId} />
                         </div>
                     )}
@@ -468,16 +469,16 @@ export default function CampaignDetailPage({
                     {/* ANALYTICS TAB */}
                     {activeTab === "analytics" && (
                         <div className="lg:col-span-3">
-                            <div className="flex items-center justify-end mb-4 gap-3 bg-white/5 p-3 rounded-lg border border-white/10">
-                                <span className={`text-sm font-medium ${!is3DMode ? "text-purple-400" : "text-zinc-500"}`}>2D Charts</span>
+                            <div className="flex items-center justify-end mb-4 gap-3 bg-muted p-3 rounded-lg border border-border">
+                                <span className={`text-sm font-medium ${!is3DMode ? "text-purple-400" : "text-muted-foreground"}`}>2D Charts</span>
                                 <button
                                     onClick={() => setIs3DMode(!is3DMode)}
                                     aria-label={is3DMode ? "Switch to 2D charts" : "Switch to 3D immersive view"}
-                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-white/10"}`}
+                                    className={`relative w-14 h-7 rounded-full p-1 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 ${is3DMode ? "bg-purple-600" : "bg-muted"}`}
                                 >
                                     <span className={`block w-5 h-5 rounded-full bg-white shadow-md transform transition-transform duration-300 ${is3DMode ? "translate-x-7" : "translate-x-0"}`} />
                                 </button>
-                                <span className={`text-sm font-medium ${is3DMode ? "text-purple-400 shimmer-text" : "text-zinc-500"}`}>3D Immersive</span>
+                                <span className={`text-sm font-medium ${is3DMode ? "text-purple-400 shimmer-text" : "text-muted-foreground"}`}>3D Immersive</span>
                             </div>
 
                             {analytics ? (

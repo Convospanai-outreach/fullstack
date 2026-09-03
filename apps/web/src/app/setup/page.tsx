@@ -29,6 +29,8 @@ import {
 import { toast } from "sonner";
 import { PRODUCT_FLAGS } from "@/lib/productFlags";
 import NotificationSettings from "@/components/dashboard/settings/NotificationSettings";
+import { WabaSetupCard, type WabaSettings } from "@/components/whatsapp/WabaSetupCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type SetupStatus = {
   hasAccount: boolean;
@@ -50,6 +52,8 @@ type SetupStatus = {
   edgeNodeOptional: boolean;
   edgeNodeStatus: "UP" | "DOWN" | "NOT_CONFIGURED";
   edgeNodeMessage: string;
+  edgeNodePaired: boolean;
+  edgeNodePairingStatus: string;
   readyToLaunch: boolean;
   completionPercent: number;
   teamName: string;
@@ -61,6 +65,7 @@ type Mailbox = {
   id: string;
   email: string;
   displayName?: string | null;
+  provider?: string;
   status: string;
   dailyLimit: number;
   sentToday: number;
@@ -83,7 +88,7 @@ type DomainCheckResult = {
 const STEPS = [
   { id: 1, title: "Launch Brief", icon: Users, description: "Confirm account access and the operating goal for the first campaign." },
   { id: 2, title: "Workspace Identity", icon: Palette, description: "Set the brand details used in outreach, approvals, and meeting assets." },
-  { id: 3, title: "Google Workspace", icon: Mail, description: "Connect sending mailboxes, check domain records, and keep SMTP as a fallback." },
+  { id: 3, title: "Sending Mailbox", icon: Mail, description: "Choose how outreach gets sent: Google Workspace, Microsoft 365, SMTP, or Resend." },
   { id: 4, title: "Optional Channels", icon: Linkedin, description: "Keep the first launch email-first, then add LinkedIn or WhatsApp context when needed." },
   { id: 5, title: "Message Voice", icon: MessageSquare, description: "Define tone, greeting, signoff, and review guidance for generated drafts." },
   { id: 6, title: "AI Drafting", icon: Bot, description: "Add the provider key used for draft preparation and enrichment support." },
@@ -111,7 +116,7 @@ export default function SetupWizardPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [domainCheck, setDomainCheck] = useState<DomainCheckResult | null>(null);
   const [formData, setFormData] = useState<any>({});
-  const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy").replace(/\/$/, "");
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
 
   const completion = Math.max(0, Math.min(100, status?.completionPercent ?? 0));
   const connectedMailboxes = mailboxes.filter((mailbox) => mailbox.status === "CONNECTED").length;
@@ -151,6 +156,7 @@ export default function SetupWizardPage() {
           guidelinesUrl: data.branding?.guidelinesUrl || "",
         },
         step3: {
+          provider: "GOOGLE",
           host: data.aiConfig?.smtpConfig?.host || "smtp.gmail.com",
           port: data.aiConfig?.smtpConfig?.port || 587,
           secure: data.aiConfig?.smtpConfig?.secure || false,
@@ -160,6 +166,9 @@ export default function SetupWizardPage() {
           fromEmail: data.aiConfig?.smtpConfig?.fromEmail || data.aiConfig?.smtpConfig?.user || "",
           domain: data.aiConfig?.smtpConfig?.fromEmail?.split("@")[1] || "",
           selector: "google",
+          resendApiKey: "",
+          resendFromName: data.teamName || "",
+          resendEmail: "",
         },
         step5: {
           tone: data.aiConfig?.tone || "Professional",
@@ -202,7 +211,22 @@ export default function SetupWizardPage() {
     if (requestedStep >= 1 && requestedStep <= STEPS.length) setActiveStep(requestedStep);
     if (params.get("googleMailbox") === "connected") setActiveStep(3);
 
-    Promise.all([loadStatus(), loadMailboxes()]).finally(() => setLoading(false));
+    // /setup sits outside the (dashboard) route group, so it doesn't get the
+    // clerk-sync bootstrap DashboardLayout runs on mount. Right after signup,
+    // Clerk redirects here immediately while the user/team row is still only
+    // guaranteed by an async webhook - without this call, /setup/status can
+    // 401 on ctx.teamId before that webhook lands, showing a permanent
+    // "Setup is unavailable" error for a brand-new user.
+    fetch("/api/auth/clerk-sync", { cache: "no-store" })
+      .then((res) => {
+        if (res.status === 403) {
+          window.location.href = "/login?invite=required";
+          return;
+        }
+        return Promise.all([loadStatus(), loadMailboxes()]);
+      })
+      .catch(() => Promise.all([loadStatus(), loadMailboxes()]))
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSaveStep(stepId: number) {
@@ -210,26 +234,48 @@ export default function SetupWizardPage() {
     setActionMessage(null);
     try {
       if (stepId === 3) {
-        const smtpPayload = {
-          host: formData.step3?.host,
-          port: Number(formData.step3?.port || 587),
-          secure: Boolean(formData.step3?.secure),
-          user: formData.step3?.user,
-          password: formData.step3?.password,
-          fromName: formData.step3?.fromName || formData.step3?.fromEmail,
-          email: formData.step3?.fromEmail || formData.step3?.user,
-        };
+        const provider = formData.step3?.provider || "GOOGLE";
 
-        const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(smtpPayload),
-        });
+        if (provider === "SMTP") {
+          const smtpPayload = {
+            host: formData.step3?.host,
+            port: Number(formData.step3?.port || 587),
+            secure: Boolean(formData.step3?.secure),
+            user: formData.step3?.user,
+            password: formData.step3?.password,
+            fromName: formData.step3?.fromName || formData.step3?.fromEmail,
+            email: formData.step3?.fromEmail || formData.step3?.user,
+          };
 
-        const data = await readJson(res);
-        if (!res.ok) {
-          throw new Error(data.error || "Failed to connect SMTP server. Please check credentials.");
+          const res = await fetch(`${apiBase}/integrations/smtp/connect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(smtpPayload),
+          });
+
+          const data = await readJson(res);
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to connect SMTP server. Please check credentials.");
+          }
+        } else if (provider === "RESEND") {
+          const resendPayload = {
+            apiKey: formData.step3?.resendApiKey,
+            fromName: formData.step3?.resendFromName,
+            email: formData.step3?.resendEmail,
+          };
+
+          const res = await fetch(`${apiBase}/integrations/resend/connect`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(resendPayload),
+          });
+
+          const data = await readJson(res);
+          if (!res.ok) {
+            throw new Error(data.error || "Failed to connect Resend. Please check the API key.");
+          }
         }
+        // GOOGLE / MICROSOFT connect via their own OAuth buttons, not this form submit — nothing to POST here.
       } else {
         const payload = stepId === 2 ? formData.step2 : stepId === 5 ? formData.step5 : stepId === 6 ? formData.step6 : stepId === 9 ? formData.step9 : null;
         if (payload) {
@@ -269,6 +315,10 @@ export default function SetupWizardPage() {
       setActionMessage(error instanceof Error ? error.message : "Unable to start Google connection.");
       setSaving(false);
     }
+  }
+
+  function connectMicrosoftMailbox() {
+    window.location.href = `/api/integrations/microsoft/oauth/start?state=${encodeURIComponent("/setup?step=3")}`;
   }
 
   async function syncMailbox(mailboxId: string) {
@@ -402,7 +452,7 @@ export default function SetupWizardPage() {
             {activeStep === 1 && <LaunchBrief status={status} />}
             {activeStep === 2 && <WorkspaceIdentity formData={formData} setFormData={setFormData} />}
             {activeStep === 3 && (
-              <GoogleWorkspaceStep
+              <MailboxProviderStep
                 status={status}
                 formData={formData}
                 setFormData={setFormData}
@@ -410,7 +460,8 @@ export default function SetupWizardPage() {
                 mailboxLoading={mailboxLoading}
                 actionMessage={actionMessage}
                 domainCheck={domainCheck}
-                onConnect={connectGoogleMailbox}
+                onConnectGoogle={connectGoogleMailbox}
+                onConnectMicrosoft={connectMicrosoftMailbox}
                 onReload={loadMailboxes}
                 onSync={syncMailbox}
                 onCheckDomain={checkDomain}
@@ -442,7 +493,7 @@ export default function SetupWizardPage() {
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-wait disabled:opacity-70"
               >
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {continueLabel(activeStep)}
+                {continueLabel(activeStep, formData.step3?.provider)}
               </button>
             </footer>
           </form>
@@ -452,7 +503,14 @@ export default function SetupWizardPage() {
   );
 }
 
-function GoogleWorkspaceStep(props: {
+const MAILBOX_PROVIDERS = [
+  { id: "GOOGLE", label: "Google Workspace" },
+  { id: "MICROSOFT", label: "Microsoft 365" },
+  { id: "SMTP", label: "SMTP" },
+  { id: "RESEND", label: "Resend" },
+] as const;
+
+function MailboxProviderStep(props: {
   status: SetupStatus;
   formData: any;
   setFormData: (value: any) => void;
@@ -460,78 +518,156 @@ function GoogleWorkspaceStep(props: {
   mailboxLoading: boolean;
   actionMessage: string | null;
   domainCheck: DomainCheckResult | null;
-  onConnect: () => void;
+  onConnectGoogle: () => void;
+  onConnectMicrosoft: () => void;
   onReload: () => void;
   onSync: (mailboxId: string) => void;
   onCheckDomain: () => void;
   saving: boolean;
 }) {
   const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
+  const provider = props.formData.step3?.provider || "GOOGLE";
+  const setProvider = (next: string) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, provider: next } });
+  const setStep3 = (patch: Record<string, any>) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, ...patch } });
+
   return (
     <div className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-      <section className={panelClass}>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h3 className="text-xl font-semibold text-white">Connected mailboxes</h3>
-            <p className="mt-1 text-sm text-slate-400">Use OAuth for Google Workspace sending, reply detection, bounce tracking, and warmup controls.</p>
-          </div>
-          <div className="flex gap-2">
+      <div className="space-y-5">
+        <section className={panelClass}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-xl font-semibold text-white">Connected mailboxes</h3>
+              <p className="mt-1 text-sm text-slate-400">Every mailbox connected below — from any provider — becomes available as a sender for outreach campaigns.</p>
+            </div>
             <button type="button" onClick={props.onReload} className="rounded-lg border border-white/10 p-2 text-slate-300 hover:bg-white/5" title="Refresh mailboxes">
               <RefreshCw className={`h-4 w-4 ${props.mailboxLoading ? "animate-spin" : ""}`} />
             </button>
-            <button type="button" onClick={props.onConnect} disabled={props.saving} className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
-              <Mail className="h-4 w-4" /> Connect Google
-            </button>
           </div>
-        </div>
 
-        <div className="mt-5 space-y-3">
-          {props.mailboxes.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-white/15 p-6 text-sm text-slate-400">
-              No Google mailboxes are connected yet. Connect the mailbox that should send approved campaign emails.
-            </div>
-          ) : props.mailboxes.map((mailbox) => (
-            <div key={mailbox.id} className="rounded-lg border border-white/10 bg-slate-950/50 p-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-white">{mailbox.displayName || mailbox.email}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${mailbox.status === "CONNECTED" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{mailbox.status.replace(/_/g, " ")}</span>
+          <div className="mt-5 space-y-3">
+            {props.mailboxes.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-white/15 p-6 text-sm text-slate-400">
+                No mailboxes are connected yet. Pick a provider below to connect the mailbox that should send approved campaign emails.
+              </div>
+            ) : props.mailboxes.map((mailbox) => (
+              <div key={mailbox.id} className="rounded-lg border border-white/10 bg-slate-950/50 p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-white">{mailbox.displayName || mailbox.email}</p>
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-300">{mailbox.provider || "GOOGLE_WORKSPACE"}</span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${mailbox.status === "CONNECTED" ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{mailbox.status.replace(/_/g, " ")}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">{mailbox.email}</p>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">{mailbox.email}</p>
+                  <button type="button" onClick={() => props.onSync(mailbox.id)} className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">
+                    Sync replies
+                  </button>
                 </div>
-                <button type="button" onClick={() => props.onSync(mailbox.id)} className="rounded-lg border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-white/5">
-                  Sync replies
+                <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                  <Metric label="Sent today" value={`${mailbox.sentToday}/${mailbox.dailyLimit}`} />
+                  <Metric label="Delay" value={`${mailbox.minDelaySeconds}s`} />
+                  <Metric label="Replies" value={String(mailbox.replyCount)} />
+                  <Metric label="Bounces" value={String(mailbox.bounceCount)} />
+                </dl>
+              </div>
+            ))}
+          </div>
+
+          {props.actionMessage ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{props.actionMessage}</p> : null}
+        </section>
+
+        <section className={panelClass}>
+          <h3 className="text-xl font-semibold text-white">Choose a sending provider</h3>
+          <p className="mt-1 text-sm text-slate-400">Google and Microsoft connect via OAuth immediately. SMTP and Resend save when you click Continue below.</p>
+
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {MAILBOX_PROVIDERS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setProvider(p.id)}
+                className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${provider === p.id ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100" : "border-white/10 text-slate-300 hover:bg-white/5"}`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5">
+            {provider === "GOOGLE" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">OAuth for Google Workspace sending, native reply detection, bounce tracking, and warmup controls.</p>
+                <button type="button" onClick={props.onConnectGoogle} disabled={props.saving} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
+                  <Mail className="h-4 w-4" /> Connect Google
                 </button>
               </div>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-                <Metric label="Sent today" value={`${mailbox.sentToday}/${mailbox.dailyLimit}`} />
-                <Metric label="Delay" value={`${mailbox.minDelaySeconds}s`} />
-                <Metric label="Replies" value={String(mailbox.replyCount)} />
-                <Metric label="Bounces" value={String(mailbox.bounceCount)} />
-              </dl>
-            </div>
-          ))}
-        </div>
+            )}
 
-        {props.actionMessage ? <p className="mt-4 rounded-lg bg-cyan-400/10 px-3 py-2 text-sm text-cyan-100">{props.actionMessage}</p> : null}
-      </section>
+            {provider === "MICROSOFT" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">OAuth for Microsoft 365 / Outlook sending via Microsoft Graph, with native reply detection.</p>
+                <button type="button" onClick={props.onConnectMicrosoft} disabled={props.saving} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
+                  <Mail className="h-4 w-4" /> Connect Microsoft 365
+                </button>
+              </div>
+            )}
+
+            {provider === "SMTP" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">Any SMTP-capable mail server. Reply detection relies on IMAP polling rather than a native inbox webhook.</p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Field label="SMTP host">
+                    <input className={inputClass} value={props.formData.step3?.host || ""} onChange={(event) => setStep3({ host: event.target.value })} />
+                  </Field>
+                  <Field label="Port">
+                    <input className={inputClass} value={props.formData.step3?.port || ""} onChange={(event) => setStep3({ port: event.target.value })} />
+                  </Field>
+                  <Field label="Username">
+                    <input type="email" className={inputClass} value={props.formData.step3?.user || ""} onChange={(event) => setStep3({ user: event.target.value, fromEmail: props.formData.step3?.fromEmail || event.target.value })} />
+                  </Field>
+                  <Field label="App password">
+                    <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => setStep3({ password: event.target.value })} />
+                  </Field>
+                </div>
+              </div>
+            )}
+
+            {provider === "RESEND" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">Send via the Resend API. Reply detection is optional and configured later in Settings → Mailboxes.</p>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <Field label="Resend API key">
+                    <input type="password" placeholder="re_xxxxxxxxxxxx" className={inputClass} value={props.formData.step3?.resendApiKey || ""} onChange={(event) => setStep3({ resendApiKey: event.target.value })} />
+                  </Field>
+                  <Field label="From display name">
+                    <input className={inputClass} value={props.formData.step3?.resendFromName || ""} onChange={(event) => setStep3({ resendFromName: event.target.value })} />
+                  </Field>
+                  <Field label="From sender email (verified domain)">
+                    <input type="email" className={inputClass} value={props.formData.step3?.resendEmail || ""} onChange={(event) => setStep3({ resendEmail: event.target.value })} />
+                  </Field>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
 
       <section className={panelClass}>
         <div className="flex items-start gap-3">
           <ShieldCheck className="mt-1 h-5 w-5 text-cyan-300" />
           <div>
             <h3 className="text-xl font-semibold text-white">Domain readiness</h3>
-            <p className="mt-1 text-sm text-slate-400">Check Google MX, SPF, DMARC, and DKIM records before scaled sending.</p>
+            <p className="mt-1 text-sm text-slate-400">Check MX, SPF, DMARC, and DKIM records for your sending domain before scaled sending.</p>
           </div>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_8rem]">
           <Field label="Sending domain">
-            <input className={inputClass} value={props.formData.step3?.domain || ""} placeholder="example.com" onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, domain: event.target.value } })} />
+            <input className={inputClass} value={props.formData.step3?.domain || ""} placeholder="example.com" onChange={(event) => setStep3({ domain: event.target.value })} />
           </Field>
           <Field label="DKIM selector">
-            <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, selector: event.target.value } })} />
+            <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => setStep3({ selector: event.target.value })} />
           </Field>
         </div>
 
@@ -552,28 +688,10 @@ function GoogleWorkspaceStep(props: {
         ) : (
           <div className="mt-5 space-y-2 text-sm text-slate-400">
             <ChecklistItem label="At least one connected mailbox" passed={connected.length > 0 || props.status.canSendEmail} />
-            <ChecklistItem label="Domain records checked for Google Workspace" passed={false} />
-            <ChecklistItem label="SMTP fallback available" passed={props.status.canSendEmail} />
+            <ChecklistItem label="Domain records checked" passed={false} />
+            <ChecklistItem label="A sending provider is configured" passed={props.status.canSendEmail} />
           </div>
         )}
-
-        <details className="mt-5 rounded-lg border border-white/10 p-4">
-          <summary className="cursor-pointer text-sm font-semibold text-slate-200">SMTP fallback</summary>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label="SMTP host">
-              <input className={inputClass} value={props.formData.step3?.host || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, host: event.target.value } })} />
-            </Field>
-            <Field label="Port">
-              <input className={inputClass} value={props.formData.step3?.port || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, port: event.target.value } })} />
-            </Field>
-            <Field label="Username">
-              <input type="email" className={inputClass} value={props.formData.step3?.user || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, user: event.target.value, fromEmail: props.formData.step3?.fromEmail || event.target.value } })} />
-            </Field>
-            <Field label="App password">
-              <input type="password" className={inputClass} value={props.formData.step3?.password || ""} onChange={(event) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, password: event.target.value } })} />
-            </Field>
-          </div>
-        </details>
       </section>
     </div>
   );
@@ -610,9 +728,36 @@ function WorkspaceIdentity({ formData, setFormData }: any) {
 function OptionalChannels({ status }: { status: SetupStatus }) {
   return (
     <div className="space-y-5">
-      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey]]} />
+      <SimpleChecklist items={[["Email-first beta mode", PRODUCT_FLAGS.emailFirstBeta], ["LinkedIn session connected", status.hasLinkedInSession], ["Extension API key available", status.hasExtensionApiKey], ["WhatsApp Business API connected", status.hasWhatsApp]]} />
       <ExtensionSyncToken />
+      <WabaSetupSection />
     </div>
+  );
+}
+
+function WabaSetupSection() {
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
+  const [settings, setSettings] = useState<WabaSettings | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${apiBase}/whatsapp/settings`)
+      .then((res) => (res.ok ? res.json() : { hasWaba: false, phoneNumberId: null }))
+      .then((data) => { if (!cancelled) setSettings(data); })
+      .catch(() => { if (!cancelled) setSettings({ hasWaba: false, phoneNumberId: null }); });
+    return () => { cancelled = true; };
+  }, [apiBase]);
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-lg font-semibold text-white">WhatsApp Business API (optional)</h3>
+      <p className="mt-2 text-sm text-slate-400">
+        Only needed if you plan to send WhatsApp messages from drip sequences. Skip this if you don&apos;t have a WhatsApp Business account yet - sequences will queue a task for a rep to send manually instead.
+      </p>
+      <div className="mt-4">
+        {settings ? <WabaSetupCard settings={settings} onSaved={setSettings} /> : <p className="text-sm text-slate-500">Loading...</p>}
+      </div>
+    </section>
   );
 }
 
@@ -761,7 +906,73 @@ function CommercialReadiness({ status }: { status: SetupStatus }) {
 }
 
 function Handoffs({ status }: { status: SetupStatus }) {
-  return <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />;
+  return (
+    <div className="space-y-5">
+      <SimpleChecklist items={[["Advanced channels deferred safely", PRODUCT_FLAGS.emailFirstBeta], [`Edge node: ${status.edgeNodeStatus}`, status.edgeNodeOptional || status.edgeNodeStatus === "UP"], [status.edgeNodeMessage || "Core cloud workflow available", true]]} />
+      <EdgeNodePairingSection paired={status.edgeNodePaired} pairingStatus={status.edgeNodePairingStatus} />
+    </div>
+  );
+}
+
+function EdgeNodePairingSection({ paired, pairingStatus }: { paired: boolean; pairingStatus: string }) {
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
+  const [fingerprint, setFingerprint] = useState("");
+  const [publicKey, setPublicKey] = useState("");
+  const [endpoint, setEndpoint] = useState("");
+  const [pairing, setPairing] = useState(false);
+  const [pairError, setPairError] = useState<string | null>(null);
+  const [justPaired, setJustPaired] = useState(false);
+
+  async function pair() {
+    setPairing(true);
+    setPairError(null);
+    try {
+      const res = await fetch(`${apiBase}/edge/nodes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hardwareFingerprint: fingerprint, publicKey, endpoint: endpoint || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setJustPaired(true);
+    } catch (error: any) {
+      setPairError(error?.message || "Failed to pair edge node");
+    } finally {
+      setPairing(false);
+    }
+  }
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-lg font-semibold text-white">Sovereign Wall edge node (optional)</h3>
+      <p className="mt-2 text-sm text-slate-400">
+        Only needed if you&apos;ve bought a physical Sovereign Wall device for on-premise PII masking. Skip this otherwise - it has no effect on the rest of your setup.
+      </p>
+      {(paired || justPaired) ? (
+        <div className="mt-4 rounded-lg bg-emerald-400/10 border border-emerald-400/30 p-4 text-emerald-200 text-sm">
+          Node paired ({pairingStatus}). Manage it from Settings &gt; Compliance.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-3">
+          <p className="text-xs text-slate-500">
+            Find the hardware fingerprint and public key in your device&apos;s startup log (printed once the node is powered on with cloud connectivity configured).
+          </p>
+          <Field label="Hardware fingerprint"><input className={inputClass} value={fingerprint} onChange={(e) => setFingerprint(e.target.value)} /></Field>
+          <Field label="Public key (PEM)"><textarea className={`${inputClass} min-h-28 font-mono text-xs`} value={publicKey} onChange={(e) => setPublicKey(e.target.value)} /></Field>
+          <Field label="Endpoint (optional, LAN address)"><input className={inputClass} value={endpoint} onChange={(e) => setEndpoint(e.target.value)} placeholder="http://192.168.1.50:8000" /></Field>
+          {pairError && <p className="text-xs text-rose-400">{pairError}</p>}
+          <button
+            type="button"
+            onClick={pair}
+            disabled={pairing || !fingerprint || !publicKey}
+            className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+          >
+            {pairing ? "Pairing..." : "Pair node"}
+          </button>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function NotificationsStep() {
@@ -816,8 +1027,8 @@ function StatusPill({ ready }: { ready: boolean }) {
   return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${ready ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>{ready ? "Ready" : "Needs review"}</span>;
 }
 
-function continueLabel(stepId: number) {
-  if (stepId === 3) return "Save fallback and continue";
+function continueLabel(stepId: number, provider?: string) {
+  if (stepId === 3) return provider === "RESEND" ? "Save Resend and continue" : provider === "SMTP" ? "Save SMTP and continue" : "Continue";
   if (stepId === 7) return "Continue to campaign plan";
   if (stepId === 12) return "Open dashboard";
   return "Save and continue";

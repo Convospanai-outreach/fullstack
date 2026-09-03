@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Building2, CheckCircle2, ArrowLeft, ArrowRight, ShieldCheck, Zap, Activity, Users } from "lucide-react";
 import type { Metadata } from "next";
@@ -5,31 +6,70 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Facility Management & Commercial Property Outreach | CraftMyFunnel",
     description: "Learn how commercial facility management and cleaning firms use CraftMyFunnel to track office expansions, construction permits, and engage property managers before RFPs go live.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/facility-management",
+    },
     openGraph: {
         title: "Facility Management Outbound Sales Playbook | CraftMyFunnel",
         description: "Win high-margin commercial cleaning and facility maintenance contracts with governed outreach and intent signals.",
+        images: [
+            {
+                url: "/images/use-cases/facility-management.webp",
+                width: 820,
+                height: 460,
+                alt: "Commercial Facility Management Outreach Engine",
+            }
+        ],
     },
 };
+
 
 export default function FacilityManagementUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Facility Management & Commercial Property Outbound Playbook",
-        "description": "How facility management and commercial property service providers automate outbound sales using intent signals and governed approval queues.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Facility Management",
+                        "item": "https://craftmyfunnel.live/use-cases/facility-management"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Facility Management & Commercial Property Outbound Playbook",
+                "description": "How facility management and commercial property service providers automate outbound sales using intent signals and governed approval queues.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/facility-management"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/facility-management"
+        ]
     };
 
     return (
@@ -78,11 +118,24 @@ export default function FacilityManagementUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/facility-management.webp"
+                        alt="Commercial Facility Management RFP Alert Radar and Governed Outbound Pipeline"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Core Challenges & Solutions */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
                         The Facility Management Outbound Engine
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 font-bold">

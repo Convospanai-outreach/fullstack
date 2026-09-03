@@ -1,15 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, UserPlus, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+const VALID_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
 
 export default function NewLeadPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const requestedStage = searchParams.get("stage");
+    const initialStage = requestedStage && VALID_STAGES.includes(requestedStage) ? requestedStage : null;
+
     const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState({
         fullName: "",
@@ -29,10 +35,10 @@ export default function NewLeadPage() {
 
         setSaving(true);
         try {
-            const res = await fetch(`${API_BASE}/leads`, {
+            const res = await fetch(getBrowserApiUrl("/leads"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(initialStage ? { ...formData, pipelineState: initialStage } : formData),
             });
 
             const data = await res.json();
@@ -51,27 +57,19 @@ export default function NewLeadPage() {
 
     return (
         <div className="max-w-2xl mx-auto space-y-6 pb-12">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+            <div className="flex items-center gap-3">
                 <Link
                     href="/leads"
-                    className="p-1 text-zinc-400 hover:text-white transition-colors"
+                    className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" />
                 </Link>
-                <div>
-                    <h1 className="text-xl font-normal text-white font-outfit flex items-center gap-2">
-                        <UserPlus className="w-5 h-5 text-cyan-400" />
-                        Add New Lead
-                    </h1>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                        Manually enter a contact into the Lead Registry.
-                    </p>
-                </div>
+                <SectionHeader title="Add New Lead" subtitle="Manually enter a contact into your leads." />
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-[#030303] border border-white/10 p-6 rounded-lg space-y-4">
+            <form onSubmit={handleSubmit} className="rounded-lg border bg-card text-card-foreground shadow-sm p-6 space-y-4">
                 <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
                         Full Name
                     </label>
                     <input
@@ -79,13 +77,13 @@ export default function NewLeadPage() {
                         value={formData.fullName}
                         onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                         placeholder="Jane Doe"
-                        className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">
-                        Email Address <span className="text-cyan-400">*</span>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        Email Address <span className="text-primary">*</span>
                     </label>
                     <input
                         type="email"
@@ -93,13 +91,13 @@ export default function NewLeadPage() {
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         placeholder="jane@company.com"
-                        className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Company
                         </label>
                         <input
@@ -107,12 +105,12 @@ export default function NewLeadPage() {
                             value={formData.company}
                             onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                             placeholder="Acme Corp"
-                            className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-medium text-zinc-400 mb-1">
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
                             Job Title
                         </label>
                         <input
@@ -120,13 +118,13 @@ export default function NewLeadPage() {
                             value={formData.jobTitle}
                             onChange={(e) => setFormData({ ...formData, jobTitle: e.target.value })}
                             placeholder="VP of Growth"
-                            className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                            className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-medium text-zinc-400 mb-1">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">
                         LinkedIn Profile URL
                     </label>
                     <input
@@ -134,21 +132,21 @@ export default function NewLeadPage() {
                         value={formData.linkedIn}
                         onChange={(e) => setFormData({ ...formData, linkedIn: e.target.value })}
                         placeholder="https://linkedin.com/in/janedoe"
-                        className="w-full bg-zinc-900 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
+                        className="w-full bg-background border border-input rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
                     />
                 </div>
 
-                <div className="pt-4 flex justify-end gap-3 border-t border-white/10">
+                <div className="pt-4 flex justify-end gap-3 border-t border-border/50">
                     <Link
                         href="/leads"
-                        className="px-4 py-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors"
+                        className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                     >
                         Cancel
                     </Link>
                     <button
                         type="submit"
                         disabled={saving}
-                        className="px-4 py-2 bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-semibold rounded transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-medium rounded-md shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                         {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                         Save Lead

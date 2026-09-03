@@ -11,6 +11,7 @@ export async function PATCH(
     if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
+        const { leadId } = await params;
         const { status, dealValue } = await req.json();
         const updated = await PipelineService.moveLead(ctx.teamId, leadId, status as PipelineStage, dealValue);
         return NextResponse.json({ success: true, data: updated });

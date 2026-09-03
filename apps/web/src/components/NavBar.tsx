@@ -35,6 +35,7 @@ const NAV_GROUPS = [
       { label: "Pilot programme", href: "/#pilot" },
       { label: "Pricing", href: "/pricing", badge: "Popular" },
       { label: "About", href: "/about" },
+      { label: "Regional Hubs", href: "/locations" },
     ],
   },
   {
@@ -68,7 +69,12 @@ function DropdownMenu({
   }, []);
 
   return (
-    <div ref={ref} className="relative">
+    <div
+      ref={ref}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -82,13 +88,13 @@ function DropdownMenu({
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-2 w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-2xl">
+        <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-2xl border border-white/10 bg-slate-950/95 p-2 shadow-2xl shadow-black/50 backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-150">
           {group.items.map((item) => (
             <Link
               key={item.href + item.label}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex items-center justify-between rounded-xl px-4 py-3 text-sm font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
+              className="flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/[0.07] hover:text-white"
             >
               {item.label}
               {"badge" in item && item.badge && (
@@ -114,7 +120,7 @@ export function NavBar() {
         <Link href="/" className="group flex items-center gap-2">
           <LogoMark priority className="h-8 w-8" />
           <span className="bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-bold text-transparent">
-            CraftMyFunnel
+            CraftMyFunnel AI
           </span>
         </Link>
 

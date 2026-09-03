@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface AuditLog {
     id: string;
@@ -18,7 +19,7 @@ interface AuditLog {
     };
 }
 
-export function AuditLogTable({ apiUrl = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/audit" }: { apiUrl?: string }) {
+export function AuditLogTable({ apiUrl = getBrowserApiBase() + "/settings/audit" }: { apiUrl?: string }) {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState("ALL");

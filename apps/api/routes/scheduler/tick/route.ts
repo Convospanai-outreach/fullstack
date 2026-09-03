@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { schedulerService } from "@/modules/scheduler/schedulerService";
+
+function isAuthorized(authHeader: string | null, secret: string): boolean {
+    const expected = `Bearer ${secret}`;
+    const expectedBuffer = Buffer.from(expected);
+    const actualBuffer = Buffer.from(authHeader || "");
+    return actualBuffer.length === expectedBuffer.length && timingSafeEqual(actualBuffer, expectedBuffer);
+}
 
 export async function POST(req: NextRequest) {
     // Simple security check
@@ -8,7 +16,7 @@ export async function POST(req: NextRequest) {
     if (!secret) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
-    if (authHeader !== `Bearer ${secret}`) {
+    if (!isAuthorized(authHeader, secret)) {
         return new NextResponse("Unauthorized", { status: 401 });
     }
 

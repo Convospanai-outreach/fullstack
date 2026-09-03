@@ -2,11 +2,12 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function TeamSettings() {
-    const { data: team, mutate } = useSWR((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team", fetcher);
+    const { data: team, mutate } = useSWR(getBrowserApiBase() + "/team", fetcher);
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState("member");
     const [loading, setLoading] = useState(false);
@@ -17,7 +18,7 @@ export default function TeamSettings() {
         setLoading(true);
         setInviteLink(null);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/team/invite", {
+            const res = await fetch(getBrowserApiBase() + "/team/invite", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: inviteEmail, role: inviteRole }),
@@ -39,7 +40,7 @@ export default function TeamSettings() {
     const handleRemove = async (id: string) => {
         if (!confirm("Are you sure you want to remove this member?")) return;
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, { method: "DELETE" });
+            const res = await fetch(`${getBrowserApiBase()}/team/members/${id}`, { method: "DELETE" });
             if (!res.ok) throw new Error("Failed to remove");
             toast.success("Member removed");
             mutate();
@@ -50,7 +51,7 @@ export default function TeamSettings() {
 
     const handleRoleUpdate = async (id: string, newRole: string) => {
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/team/members/${id}`, {
+            const res = await fetch(`${getBrowserApiBase()}/team/members/${id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ role: newRole }),
@@ -63,38 +64,38 @@ export default function TeamSettings() {
         }
     };
 
-    if (!team) return <div className="p-8 text-center text-gray-400">Loading team...</div>;
+    if (!team) return <div className="p-8 text-center text-muted-foreground">Loading team...</div>;
     // Assuming /api/team returns { ...team, members: [...] }
     const members = team.members || [];
 
     return (
         <div className="space-y-8">
             <div className="flex flex-col gap-2">
-                <h3 className="text-xl font-bold text-white">Team Members</h3>
-                <p className="text-sm text-gray-400">Manage your team and invites.</p>
+                <h3 className="text-xl font-bold text-foreground">Team Members</h3>
+                <p className="text-sm text-muted-foreground">Manage your team and invites.</p>
             </div>
 
             {/* Invite Form */}
-            <div className="glass p-6 rounded-xl border border-white/10">
-                <h4 className="text-lg font-semibold text-white mb-4">Invite New Member</h4>
+            <div className="glass p-6 rounded-xl border border-border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">Invite New Member</h4>
                 <form onSubmit={handleInvite} className="flex gap-4 items-end">
                     <div className="flex-1">
-                        <label className="block text-xs text-gray-400 mb-1">Email Address</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Email Address</label>
                         <input
                             type="email"
                             required
                             value={inviteEmail}
                             onChange={(e) => setInviteEmail(e.target.value)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                            className="w-full bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-purple-500"
                             placeholder="colleague@company.com"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs text-gray-400 mb-1">Role</label>
+                        <label className="block text-xs text-muted-foreground mb-1">Role</label>
                         <select
                             value={inviteRole}
                             onChange={(e) => setInviteRole(e.target.value)}
-                            className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500"
+                            className="bg-muted border border-border rounded-lg px-4 py-2 text-foreground focus:outline-none focus:border-purple-500"
                         >
                             <option value="member">Member</option>
                             <option value="admin">Admin</option>
@@ -111,23 +112,23 @@ export default function TeamSettings() {
                 {inviteLink && (
                     <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
                         <p className="font-semibold mb-1">Invitation Link Generated:</p>
-                        <code className="block bg-black/20 p-2 rounded select-all">{inviteLink}</code>
+                        <code className="block bg-muted p-2 rounded select-all">{inviteLink}</code>
                     </div>
                 )}
             </div>
 
             {/* Member List */}
-            <div className="glass p-6 rounded-xl border border-white/10">
-                <h4 className="text-lg font-semibold text-white mb-4">Current Members</h4>
+            <div className="glass p-6 rounded-xl border border-border">
+                <h4 className="text-lg font-semibold text-foreground mb-4">Current Members</h4>
                 <div className="flex flex-col gap-2">
                     {members.length === 0 ? (
-                        <div className="text-gray-500 italic">No other members yet.</div>
+                        <div className="text-muted-foreground italic">No other members yet.</div>
                     ) : (
                         members.map((m: any) => (
-                            <div key={m.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                            <div key={m.id} className="flex items-center justify-between p-3 bg-muted rounded-lg border border-border">
                                 <div>
-                                    <div className="text-white font-medium">{m.email}</div>
-                                    <div className="text-xs text-gray-400 flex gap-2 items-center">
+                                    <div className="text-foreground font-medium">{m.email}</div>
+                                    <div className="text-xs text-muted-foreground flex gap-2 items-center">
                                         <span className={`uppercase font-bold text-[10px] ${m.status === 'invited' ? 'text-yellow-500' : 'text-green-500'}`}>
                                             {m.status}
                                         </span>
@@ -139,7 +140,7 @@ export default function TeamSettings() {
                                     <select
                                         value={m.role}
                                         onChange={(e) => handleRoleUpdate(m.id, e.target.value)}
-                                        className="bg-black/20 border border-white/10 rounded px-2 py-1 text-xs text-gray-300 focus:outline-none"
+                                        className="bg-muted border border-border rounded px-2 py-1 text-xs text-muted-foreground focus:outline-none"
                                     >
                                         <option value="member">Member</option>
                                         <option value="admin">Admin</option>

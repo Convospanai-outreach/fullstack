@@ -62,17 +62,17 @@ export default function LandingAgentWireframesPage() {
         }
     }
 
-    if (loading) return <div className="p-8 text-slate-300">Loading wireframes...</div>;
-    if (!campaign || error) return <div className="p-8 text-rose-300">{error || "Campaign not found"}</div>;
+    if (loading) return <div className="p-8 text-muted-foreground">Loading wireframes...</div>;
+    if (!campaign || error) return <div className="p-8 text-destructive">{error || "Campaign not found"}</div>;
 
     return (
         <div className="p-6 lg:p-8 space-y-6">
             <GlassCard className="p-6 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                        <p className="text-xs uppercase tracking-[0.2em] text-cyan-300">Step 2</p>
-                        <h1 className="mt-2 text-2xl font-bold text-white">Wireframe Directions</h1>
-                        <p className="mt-2 text-sm text-slate-300">
+                        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Step 2</p>
+                        <h1 className="mt-2 text-2xl font-bold text-foreground">Wireframe Directions</h1>
+                        <p className="mt-2 text-sm text-muted-foreground">
                             Generate and compare three page directions, then open the selected one in editor.
                         </p>
                     </div>
@@ -80,11 +80,11 @@ export default function LandingAgentWireframesPage() {
                         {generating ? "Generating..." : "Generate 3 Wireframes"}
                     </Button>
                 </div>
-                {error ? <p className="text-sm text-rose-300">{error}</p> : null}
+                {error ? <p className="text-sm text-destructive">{error}</p> : null}
             </GlassCard>
 
             {campaign.wireframeOptions.length === 0 ? (
-                <GlassCard className="p-8 text-slate-300">No wireframes yet. Generate options to continue.</GlassCard>
+                <GlassCard className="p-8 text-muted-foreground">No wireframes yet. Generate options to continue.</GlassCard>
             ) : (
                 <div className="grid gap-5 lg:grid-cols-3">
                     {campaign.wireframeOptions.map((option) => (

@@ -72,6 +72,8 @@ type RecentSignal = {
     verificationMode: "HMAC_VERIFIED" | "SHARED_KEY_ONLY";
 };
 
+type CreateLeadResult = { status: "success"; leadId: string } | { status: "error"; message: string };
+
 type IntelSummary = {
     integration: {
         feed: FeedStatus;
@@ -125,40 +127,65 @@ export default function IntelPage() {
     const [summary, setSummary] = useState<IntelSummary | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [creatingLeadForSignalId, setCreatingLeadForSignalId] = useState<string | null>(null);
+    const [createLeadResults, setCreateLeadResults] = useState<Record<string, CreateLeadResult>>({});
+
+    const load = async () => {
+        try {
+            const res = await fetch("/api/proxy/intel/summary", { cache: "no-store" });
+            if (!res.ok) {
+                throw new Error("Failed to load Intel summary");
+            }
+
+            const data = await res.json();
+            setSummary(data);
+            setError(null);
+        } catch (err: any) {
+            setError(err.message || "Failed to load Intel summary");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
 
-        const load = async () => {
-            try {
-                const res = await fetch("/api/proxy/intel/summary", { cache: "no-store" });
-                if (!res.ok) {
-                    throw new Error("Failed to load Intel summary");
-                }
-
-                const data = await res.json();
-                if (!cancelled) {
-                    setSummary(data);
-                    setError(null);
-                }
-            } catch (err: any) {
-                if (!cancelled) {
-                    setError(err.message || "Failed to load Intel summary");
-                }
-            } finally {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            }
+        const run = async () => {
+            if (cancelled) return;
+            await load();
         };
 
-        load();
-        const interval = setInterval(load, 30000);
+        run();
+        const interval = setInterval(run, 30000);
         return () => {
             cancelled = true;
             clearInterval(interval);
         };
     }, []);
+
+    const handleCreateLead = async (signalId: string) => {
+        setCreatingLeadForSignalId(signalId);
+        try {
+            const res = await fetch("/api/proxy/intel/signals/create-lead", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ signalId }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || !data.ok) {
+                throw new Error(data.error || "Failed to create lead from signal");
+            }
+            setCreateLeadResults((prev) => ({ ...prev, [signalId]: { status: "success", leadId: data.leadId } }));
+            await load();
+        } catch (err: any) {
+            setCreateLeadResults((prev) => ({
+                ...prev,
+                [signalId]: { status: "error", message: err.message || "Failed to create lead from signal" },
+            }));
+        } finally {
+            setCreatingLeadForSignalId(null);
+        }
+    };
 
     const statCards = useMemo(() => {
         if (!summary) {
@@ -440,7 +467,9 @@ export default function IntelPage() {
                         {summary.recentSignals.length === 0 && (
                             <p className="text-sm text-muted-foreground">No recent Netjana signals yet.</p>
                         )}
-                        {summary.recentSignals.map((signal) => (
+                        {summary.recentSignals.map((signal) => {
+                            const createLeadResult = createLeadResults[signal.id];
+                            return (
                             <article key={signal.id} className="rounded-lg border border-border/50 bg-card p-5">
                                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                     <div>
@@ -497,8 +526,32 @@ export default function IntelPage() {
                                         <p className="mt-2 text-sm leading-6 text-foreground">{signal.recommendedAction || "No action guidance supplied."}</p>
                                     </div>
                                 </div>
+
+                                {signal.matchStatus === "UNMATCHED" && (
+                                    <div className="mt-4 flex flex-col gap-2 border-t border-border/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="text-xs text-muted-foreground">
+                                            This signal did not match an existing lead. Create one to bring {signal.companyName} into your pipeline.
+                                        </p>
+                                        {createLeadResult?.status === "success" ? (
+                                            <Badge variant="success">Lead created</Badge>
+                                        ) : (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={creatingLeadForSignalId === signal.id}
+                                                onClick={() => handleCreateLead(signal.id)}
+                                            >
+                                                {creatingLeadForSignalId === signal.id ? "Creating..." : "Create Lead"}
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
+                                {createLeadResult?.status === "error" && (
+                                    <p className="mt-2 text-xs text-destructive">{createLeadResult.message}</p>
+                                )}
                             </article>
-                        ))}
+                            );
+                        })}
                     </CardContent>
                 </Card>
             </section>

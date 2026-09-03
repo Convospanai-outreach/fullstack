@@ -1,22 +1,30 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Header from "@/components/Header";
+import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
 
-const DASHBOARD_PREFIXES = [
-    "/dashboard", "/campaigns", "/workflows", "/leads", "/inbox",
-    "/templates", "/pipeline", "/playbooks", "/knowledge", "/marketplace",
-    "/approvals", "/billing", "/settings", "/agents",
-    "/icp-builder", "/studio", "/team", "/caller", "/crm", "/landing-agent",
-    "/governance", "/analytics", "/admin", "/intel", "/audit-logs",
-    "/automations", "/calendar", "/jobs", "/monitoring", "/notifications",
-    "/profile", "/tools"
+// Kept in sync with apps/web/src/app/(dashboard)/* by
+// tests/unit/dashboard-prefixes.test.ts, which fails the build if a new
+// top-level folder is added there without a matching entry here (this list
+// previously drifted silently - /whatsapp, /edge, /sovereign, /runtime, and
+// /command-center were missing and rendered with the wrong marketing chrome
+// instead of the dashboard sidebar).
+export const DASHBOARD_PREFIXES = [
+    "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
+    "/automations", "/billing", "/calendar", "/caller", "/campaigns",
+    "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
+    "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",
+    "/jobs", "/knowledge", "/landing-agent", "/leads", "/linkedin-runner",
+    "/marketplace", "/monitoring", "/notifications", "/pipeline",
+    "/playbooks", "/profile", "/runtime", "/scraper-bridge", "/settings",
+    "/sovereign", "/studio", "/team", "/templates", "/tools",
+    "/whatsapp", "/workflows"
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
-    // "/setup", "/scraper-bridge", "/onboarding" excluded for the same reason —
-    // none of them are inside the (dashboard) route group.
+    // "/setup", "/onboarding" excluded for the same reason — neither is inside
+    // the (dashboard) route group.
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
@@ -51,8 +59,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-            {showHeader && <Header />}
-            <main id="main-content" className="flex-1 focus:outline-none">{children}</main>
+            {showHeader && <NavBar />}
+            <main id="main-content" className={`flex-1 focus:outline-none ${showHeader ? "pt-20" : ""}`}>{children}</main>
             {showFooter && <Footer />}
         </>
     );

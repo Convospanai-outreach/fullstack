@@ -15,12 +15,12 @@ export default function ProfilePage() {
             <GlassCard title="User Settings">
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm text-gray-400">Name</label>
-                        <div className="text-white">{isLoaded ? name : "Loading..."}</div>
+                        <label className="block text-sm text-muted-foreground">Name</label>
+                        <div className="text-foreground">{isLoaded ? name : "Loading..."}</div>
                     </div>
                     <div>
-                        <label className="block text-sm text-gray-400">Email</label>
-                        <div className="text-white">{isLoaded ? email : "Loading..."}</div>
+                        <label className="block text-sm text-muted-foreground">Email</label>
+                        <div className="text-foreground">{isLoaded ? email : "Loading..."}</div>
                     </div>
                 </div>
             </GlassCard>

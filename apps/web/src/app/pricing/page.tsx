@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Crown, PhoneCall, Rocket, Shield, Star, TrendingUp, Zap } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type Plan = {
     name: "Starter" | "Growth" | "Enterprise";
@@ -118,7 +121,7 @@ export default function PricingPage() {
     // so the displayed price always matches what checkout would actually charge.
     useEffect(() => {
         const resolvedCountry = billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry;
-        const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+        const apiBase = getBrowserApiBase();
         const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
 
         fetch(`${base}/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
@@ -182,7 +185,7 @@ export default function PricingPage() {
         const resolvedCountry = billingCountry === "OTHER" ? billingCustomCountry.trim() : billingCountry;
 
         try {
-            const apiBase = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+            const apiBase = getBrowserApiBase();
             const base = apiBase.endsWith("/") ? apiBase.slice(0, -1) : apiBase;
             const res = await fetch(`${base}/billing/checkout`, {
                 method: "POST",
@@ -228,8 +231,77 @@ export default function PricingPage() {
         }
     };
 
+    const pricingSchema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Pricing",
+                        "item": "https://craftmyfunnel.live/pricing"
+                    }
+                ]
+            },
+            {
+                "@type": "Product",
+                "name": "CraftMyFunnel Outbound Automation Platform",
+                "description": "Governed AI outreach and qualified meeting workflow automation platform for B2B service teams.",
+                "brand": {
+                    "@type": "Brand",
+                    "name": "CraftMyFunnel"
+                },
+                "offers": {
+                    "@type": "AggregateOffer",
+                    "priceCurrency": "USD",
+                    "lowPrice": "49",
+                    "highPrice": "499",
+                    "offerCount": "3",
+                    "offers": [
+                        {
+                            "@type": "Offer",
+                            "name": "Pilot",
+                            "price": "49",
+                            "priceCurrency": "USD",
+                            "description": "30-day growth pilot package for one ICP, one geography, and one offer",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        },
+                        {
+                            "@type": "Offer",
+                            "name": "Growth Autopilot",
+                            "price": "99",
+                            "priceCurrency": "USD",
+                            "description": "Monthly managed campaign operations for repeatable pipeline tracking",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        },
+                        {
+                            "@type": "Offer",
+                            "name": "Enterprise",
+                            "price": "499",
+                            "priceCurrency": "USD",
+                            "description": "Custom vertical playbooks, governance, and private-data execution options",
+                            "url": "https://craftmyfunnel.live/pricing"
+                        }
+                    ]
+                }
+            }
+        ]
+    };
+
     return (
         <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingSchema) }}
+            />
             <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
             <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 
@@ -388,7 +460,20 @@ export default function PricingPage() {
                     </div>
                 </div>
 
+                {/* Pilot & Guarantee Architecture Visual */}
+                <div className="mt-16 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/platform/pricing-guarantee.webp"
+                        alt="CraftMyFunnel 30-Day Governed Pilot and Credit Allotment Guarantee"
+                        width={820}
+                        height={460}
+                        loading="lazy"
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+
                     <div className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
                         <div className="w-fit rounded-xl bg-cyan-500/10 p-3 text-cyan-300">
                             <Shield className="h-5 w-5" />

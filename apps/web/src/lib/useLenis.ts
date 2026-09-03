@@ -48,7 +48,11 @@ export function useLenis(options: boolean | UseLenisOptions = true) {
     ensureGsapRegistered();
 
     const reduceMotion = getPrefersReducedMotion();
-    if (reduceMotion) {
+    const isTouchDevice =
+      window.matchMedia("(pointer: coarse)").matches ||
+      (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0);
+
+    if (reduceMotion || isTouchDevice) {
       ScrollTrigger.refresh();
       return;
     }

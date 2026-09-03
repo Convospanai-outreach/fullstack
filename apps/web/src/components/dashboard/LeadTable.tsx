@@ -5,6 +5,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import BulkActions from "@/components/leads/BulkActions";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Lead {
     id: string;
@@ -55,7 +56,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
     const handleBulkDelete = async () => {
         if (!confirm(`Delete ${selectedIds.length} leads?`)) return;
         try {
-            await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads/bulk", {
+            await fetch(getBrowserApiBase() + "/leads/bulk", {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ids: selectedIds })
@@ -68,7 +69,7 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
 
     const handleBulkExport = () => {
         // In a real app, we'd POST ids to export endpoint
-        window.location.href = `${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/leads/export?ids=${selectedIds.join(",")}`;
+        window.location.href = `${getBrowserApiBase()}/leads/export?ids=${selectedIds.join(",")}`;
     };
 
     return (
@@ -81,15 +82,15 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
                     </div>
                 </div>
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-300">
-                        <thead className="text-xs uppercase bg-white/5 text-gray-400">
+                    <table className="w-full text-left text-sm text-foreground">
+                        <thead className="text-xs uppercase bg-muted text-muted-foreground">
                             <tr>
                                 <th className="px-4 py-3 w-10">
                                     <input
                                         type="checkbox"
                                         checked={leads.length > 0 && selectedIds.length === leads.length}
                                         onChange={toggleSelectAll}
-                                        className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+                                        className="rounded border-input bg-background text-primary focus:ring-primary"
                                     />
                                 </th>
                                 <th className="px-4 py-3 rounded-tl-lg">Name</th>
@@ -101,20 +102,20 @@ export function LeadTable({ leads = [] }: LeadTableProps) {
                         <tbody>
                             {leads.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-4 py-3 text-center text-gray-500">No leads found</td>
+                                    <td colSpan={5} className="px-4 py-3 text-center text-muted-foreground">No leads found</td>
                                 </tr>
                             ) : (
                                 leads.map((lead) => (
-                                    <tr key={lead.id} className={`border-b border-white/5 transition ${selectedIds.includes(lead.id) ? 'bg-blue-500/10' : 'hover:bg-white/5'}`}>
+                                    <tr key={lead.id} className={`border-b border-border transition ${selectedIds.includes(lead.id) ? 'bg-primary/10' : 'hover:bg-accent'}`}>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="checkbox"
                                                 checked={selectedIds.includes(lead.id)}
                                                 onChange={() => toggleSelect(lead.id)}
-                                                className="rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500"
+                                                className="rounded border-input bg-background text-primary focus:ring-primary"
                                             />
                                         </td>
-                                        <td className="px-4 py-3 font-medium text-white">{lead.name || "Unknown"}</td>
+                                        <td className="px-4 py-3 font-medium text-foreground">{lead.name || "Unknown"}</td>
                                         <td className="px-4 py-3">{lead.email || "—"}</td>
                                         <td className="px-4 py-3">{new Date(lead.createdAt).toLocaleDateString()}</td>
                                         <td className="px-4 py-3">

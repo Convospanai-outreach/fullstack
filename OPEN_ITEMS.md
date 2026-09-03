@@ -1,20 +1,816 @@
 # Persistent Open-Items Ledger
 
+## Active: Continuous bug-fix sweep (started 2026-08-31)
+
+User asked to keep finding+fixing bugs, one at a time, each committed and PR'd
+to `main` (protected, requires 4 green checks), auto-merged once clean, until
+no more high-confidence findings remain. No fixed stopping point ("100% ok"
+isn't measurable) — this sweep continues until a session ends it or nothing
+new turns up.
+
+(Numbered OPEN-95+ to avoid colliding with the already-used OPEN-85/86/87
+below in the Resolved table.)
+
+- **OPEN-95 (Fixed, merged PR #334):** cross-team IDOR in
+  `playbookService.instantiatePlaybook` (apps/api + dormant apps/web
+  duplicate) — `teamId` param was accepted but never used to scope the
+  `playbook` lookup, letting any team instantiate another team's playbook by
+  ID. Fixed via `findFirst({ where: { id, teamId } })` in both copies +
+  regression test.
+
+- **OPEN-96 (Fixed, merged PR #335):** cross-team IDOR in
+  `crmService.syncLead` (apps/api copy) — `teamId` accepted but the
+  `prisma.lead.findUnique({ id })` lookup, and the calling route's own
+  redundant pre-check, ignored it, letting any team push/mutate another
+  team's lead via HubSpot sync. The `apps/web` copy of this service was
+  already fixed with a test; the `apps/api` copy and its route were missed.
+  Fixed both + added a matching regression test.
+
+- **OPEN-97 (Fixed, merged PR #335):** cross-team IDOR in
+  `ApprovalService.approve`/`reject` — no team scoping at all (not even a
+  `teamId` param), so any authenticated user could approve/reject another
+  team's pending approval request by guessing its id, including triggering
+  `approve()`'s `CAMPAIGN_START` side-effect on another team's campaign.
+  Added a required `teamId` param, scoped the lookup, updated all three
+  callers (route, internal AUTO-tier auto-approve, expiry sweep), added
+  regression tests.
+
+- **OPEN-98 (Fixed, merged PR #336):** cross-team IDOR in
+  `PipelineAIService.recommendStage`/`summarizeLead` — `teamId` was accepted
+  but the `prisma.lead.findUnique({ id })` lookup ignored it, letting any
+  team run AI stage-recommendation/summary against another team's lead.
+  Fixed via `findFirst({ where: { id, teamId } })` in both methods + the
+  calling route, plus regression tests.
+
+- **OPEN-99 (Fixed, merged PR #336):** cross-team IDOR in
+  `POST /api/automations/evaluate` — matched campaign/lead updates by bare
+  `id` with no `teamId` filter, letting an automation rule from one team
+  mutate another team's campaign/lead. Fixed via `updateMany` scoped to
+  `{ id, teamId }`, marking the run `failed` when the scoped update matches
+  zero rows (cross-tenant or already-deleted target) instead of silently
+  succeeding.
+
+- **OPEN-100 (Fixed, merged PR #336):** cross-team IDOR in
+  `GET /api/campaigns/[id]/analytics/v2` — ran analytics queries directly
+  against the path `id` with no ownership check, letting any team read
+  another team's campaign analytics. Fixed via an explicit
+  `findFirst({ id, teamId })` ownership pre-check returning 404 when absent.
+
+- **OPEN-101 (Fixed, merged PR #337):** SSRF in `ingestService.ingestUrl`
+  (RAG knowledge-base URL ingestion) — fetched an attacker/user-supplied URL
+  with no validation of the resolved IP, allowing requests into internal
+  infra (cloud metadata endpoints, private-network services) via the
+  knowledge-base ingestion feature. Fixed by reusing the existing
+  `assertSafeWebhookUrl` guard (DNS-resolves the host and blocks
+  private/loopback/link-local ranges via `node:net`'s `BlockList`) before
+  the `fetch`, same pattern already used for outbound webhooks.
+
+- **OPEN-102 (Closed — duplicate of OPEN-106, fixed in PR #342):** a
+  ReDoS-shaped regex was flagged during the SSRF sweep, deferred pending "a
+  closer look at actual reachability/input length limits." Re-investigated
+  this session (systematic re-scan of every regex touching external input
+  in both `apps/api/src` and `apps/web/src` for nested-quantifier/
+  catastrophic-backtracking shapes — SSRF/ingest/webhook code paths ruled
+  out, none contain ReDoS-prone patterns): the only real match anywhere in
+  the codebase is `GuardrailService.evaluate`'s team-authored
+  `policy.regexRules`, compiled via `new RegExp()` and run against message
+  content — and OPEN-106 already fixed exactly that (VM-sandboxed 250ms
+  timeout budget), independently rediscovering it via a duplicate-file
+  audit rather than by tracing back to this entry. OPEN-106's own writeup
+  ("content is capped at 2200 chars, far past where such patterns blow up")
+  directly answers the reachability/input-length question this entry left
+  open. No separate unfixed regex exists — closing as a duplicate rather
+  than continuing to search for a phantom second bug.
+
+- **OPEN-103 (Fixed, merged PR #338):** `GET`/`POST /api/dashboard/campaigns`
+  and `PATCH`/`DELETE /api/dashboard/campaigns/[id]` had no role check at
+  all beyond authentication — any team member (including VIEWER) could
+  create, edit, or delete campaigns, which sibling campaign routes gate
+  behind MEMBER/ADMIN. Added `authorizeRole` calls matching the levels the
+  canonical `campaigns/[id]/route.ts` already enforces (VIEWER for read,
+  MEMBER for write, ADMIN for delete), with regression tests covering the
+  403 path. Note: these tests mock `authorizeRole` outright and only assert
+  the rejection path, not that a legitimate MEMBER/ADMIN still passes —
+  worth a real integration check if users report unexpected 403s here.
+
+- **OPEN-104 (Fixed, merged PR #338):** `DELETE /api/webhooks/[id]` had no
+  role check — any authenticated team member could delete a team's webhook,
+  where every other webhook-management route requires ADMIN. Added the same
+  `authorizeRole(..., TeamRole.ADMIN)` check, with a regression test.
+
+**Deploy note (corrected 2026-09-01):** OPEN-95–101/103–104 were manually
+redeployed to both Oracle VMs after merging, on the belief the VMs don't
+auto-pull (true historically — a stale image silently ran a week-old build
+for days earlier this session). That's now **stale**: the repo has a
+`.github/workflows/deploy-oracle.yml` that triggers after
+`Register Docker Images to GHCR` completes and runs `docker compose pull &&
+up -d` on both `api-main` and `api-worker` automatically. Confirmed via the
+Actions log — it already fired for the #334-#339 merges before the manual
+redeploy ran, so the manual step was redundant, not required. No manual
+deploy step is needed for OPEN-105's PR (#340) or future merges — just
+verify the `Deploy to Oracle VMs` run succeeds after merge.
+
+- **OPEN-105 (Fixed, PR #340):** mailbox daily-send-quota race condition in
+  `apps/api` (`assertMailboxCanSend` read, `markMailboxSend` write after the
+  Gmail round-trip — two concurrent sends through the same mailbox could
+  both pass the check before either write landed, busting the daily/warmup
+  cap) — fixed with an atomic `reserveMailboxSend`/`releaseMailboxSend` pair
+  claiming the slot in one conditional UPDATE before the send, released on
+  failure. Same race existed in `warmupSeedService`'s SMTP path (fixed) and
+  it additionally **double-counted every Gmail warmup send** against the
+  mailbox's quota (`sendViaGmailMailbox` already marks internally) — fixed
+  by dropping the redundant mark. Checking the `apps/web` duplicate of this
+  service (past sweeps found real desync there twice already) turned up a
+  **worse, always-triggered version of the same double-count bug**:
+  `apps/web`'s production send path (`handleEmailSending`) already claims
+  the daily slot atomically via raw SQL before invoking the mail provider,
+  but `GoogleWorkspaceProvider`'s `sendViaGmailMailbox` called
+  `markMailboxSend` again internally — burning 2 quota units per real Gmail
+  send, on every send, not just under a race. No sibling provider (SMTP/
+  Microsoft/Resend) does this. Removed the redundant call and the now-dead
+  function, added a regression test (no prior test coverage existed for
+  this path). 702 apps/api tests and 291 apps/web tests pass.
+
+- **OPEN-106 (Fixed, merged PR #342):** ReDoS in
+  `GuardrailService.evaluate`'s custom regex rules — `policy.regexRules`
+  (team-authored, stored in the DB) was run directly against message
+  content with `new RegExp(pattern).test()`. A catastrophically-backtracking
+  pattern (e.g. `(a+)+b`) would hang this synchronous, single-threaded
+  process on every non-matching message (content is capped at 2200 chars,
+  far past where such patterns blow up). Bounded each pattern to a 250ms
+  budget in a throwaway `node:vm` context (no new dependency) — verified a
+  real catastrophic pattern now returns in ~265ms instead of hanging
+  indefinitely. Found and fixed identically in the `apps/web` duplicate of
+  this exact same file.
+- **OPEN-107 (Fixed, merged PR #342):** double-processing race in the
+  Resend webhook handler (`apps/web`) — `email.opened`/`clicked`/`received`
+  cases did a plain read-then-write (check the flag, then update) to guard
+  against reprocessing a redelivered event; Resend's own docs describe
+  at-least-once delivery, so two concurrent deliveries of the same event
+  could both see the flag unset and both fire the lead-stage-transition
+  side effect. Replaced with an atomic `updateMany` claim (guard in the
+  `WHERE` clause), only advancing the lead when the claim actually flips a
+  row. 706 apps/api tests and 297 apps/web tests pass.
+
+- **OPEN-108 (Fixed, merged PR #344):** cross-tenant approval bypass in
+  `guard.ts`'s `enforcePolicy` (apps/api + apps/web duplicate) — the
+  CAMPAIGN_RUN approval check looked up `payload.approvalId` with no team
+  or entity scoping, so any approved request belonging to a *different*
+  team or a *different* campaign would satisfy the requesting org's own
+  "requires approval" policy gate. Scoped the lookup by `teamId` +
+  `entityType` + `entityId`.
+- **OPEN-109 (Fixed, merged PR #344):** unscoped campaign reschedule in
+  `orchestrator/run/route.ts` (apps/api) — the scheduled-status update ran
+  unconditionally by bare `campaignId`, before the team-membership/
+  governance check later in the same handler, letting any authenticated
+  user reschedule another team's campaign by guessing its id. Reordered so
+  the write only runs after `enforcePolicy`/`checkLimits` pass, and scoped
+  it by `teamId`.
+- **OPEN-110 (Fixed, merged PR #344):** double agent-run in
+  `orchestrator/agents/[id]/run/route.ts` (apps/api + apps/web duplicate)
+  — unconditional status update + enqueue meant a double-click or client
+  retry launched two concurrent LLM-backed runs of the same agent. Fixed
+  with an atomic `updateMany` claim (`status != "running"` in the WHERE),
+  rejecting a second concurrent attempt with 409.
+- **OPEN-111 (Fixed, merged PR #344):** no rate limit on
+  `orchestrator/swarm/run/route.ts` (apps/api) — launches up to 30
+  concurrent LLM-backed `agent_run` jobs per request with no guard, unlike
+  sibling AI routes using `aiLimiter`. Added a dedicated per-team
+  `swarmLimiter` (1/minute), since a swarm's cost lands on the team's
+  shared AI budget regardless of which member triggers it.
+- **OPEN-112 (Fixed, merged PR #346):** SSO login was a facade — the
+  settings UI and `SsoConfiguration` persistence were real, but
+  `/auth/sso/check` redirected to a nonexistent `/api/auth/signin/oidc`
+  registration, since NextAuth's `providers` array was empty (`[]`,
+  Clerk-only comment). Implemented real OIDC login: a per-team dynamic
+  OIDC provider is resolved from `SsoConfiguration` at request time inside
+  `[...nextauth]/route.ts` (NextAuth's `providers` array is normally
+  static, but SSO config is per-team), with a short-lived cookie carrying
+  `teamId` across the signin→callback hop since the IdP's redirect_uri has
+  no room for it. Account linking uses `allowDangerousEmailAccountLinking`,
+  gated by hard preconditions in the signIn guard (`isOidcSignInAllowed`):
+  the IdP must assert `email_verified`, the email's domain must be in that
+  team's `allowedDomains`, and the user must already be an active member
+  of that team — no auto-provisioning of new users or memberships.
+  `providerType === "SAML"` now returns an explicit "not supported"
+  message from `/auth/sso/check` instead of a dead redirect (SAML was
+  explicitly descoped in favor of OIDC-only). **Scope note:** login path
+  only — SSO *enforcement* (blocking password/Clerk login for domains with
+  `enforced: true`) is a separate, still-open gap (see below); building it
+  on top of an unverified login path risks lockout. **Verification
+  ceiling:** unit tests cover config resolution and the signIn guards;
+  end-to-end OIDC against a real IdP is unverified (no test IdP available
+  in this environment).
+- **OPEN-113 (Fixed):** SSO *enforcement* was stubbed out —
+  `SsoConfiguration.enforced` was persisted and shown as a toggle in the
+  settings UI, but nothing actually blocked password/Clerk login for a
+  domain once it was set. The `[STUB-3 Remediation]` comment pointing at
+  `apps/api/src/middleware.ts` was misleading: that app has no Clerk
+  integration at all (Clerk is apps/web-only), so it was never the real
+  enforcement point. Fixed in `apps/web/src/lib/clerkAuth.ts`'s
+  `findOrCreateClerkAppUser()` — the function every protected page/API
+  route already funnels through (`requireAuth`/`requireClerkAppUser`/
+  `getCurrentContext`) to turn a Clerk session into an app `User` — by
+  adding a new `isSsoEnforcedForEmail()` check (`apps/web/src/lib/sso/oidc.ts`)
+  before returning either an existing Clerk-linked user or provisioning a
+  new one. Re-checked live on every call (not cached on the session), so
+  flipping enforcement on takes effect immediately even for an
+  already-signed-in session, without needing an edge-middleware change.
+  **Lockout safeguard** (the reason this was originally deferred):
+  `isSsoEnforcedForEmail()` only returns true when OIDC is *fully*
+  configured for the domain — `providerType: "OIDC"`, `clientId`,
+  `wellKnownUrl`, and a resolvable `clientSecret` all present — mirroring
+  `resolveOidcSsoForTeam`'s own "fully configured" check. An admin flipping
+  `enforced` on before OIDC is wired up (or a SAML-only config, which isn't
+  implemented end-to-end — see the `/auth/sso/check` route) simply doesn't
+  enforce yet, so nobody gets locked out with no working sign-in path.
+  The NextAuth/OIDC sign-in path itself (`apps/web/src/lib/auth.ts`'s
+  `signIn` callback, used by `requireAuth`'s Clerk-absent fallback) is
+  untouched — enforcement only ever blocks the Clerk/password path.
+  Added `oidc.test.ts` cases for `isSsoEnforcedForEmail` and a new
+  `clerkAuth.ssoEnforcement.test.ts` covering both the already-linked-user
+  and new-user provisioning paths; corrected the stale, misleading comment
+  in `apps/api/src/middleware.ts` to point at the real fix location. All
+  342 apps/web tests and 813 apps/api tests pass; `tsc --noEmit` clean on
+  both apps.
+- **OPEN-114 (Fixed, merged PR #348):** `SsoConfiguration.clientSecret` was
+  stored and returned in plaintext — the settings PUT handler upserted it
+  verbatim and GET echoed the real secret back into the UI response. Added
+  AES-256-GCM encryption at rest (`apps/api/src/modules/settings/ssoSecrets.ts`,
+  same pattern as `wabaCredentials.ts`/`smtpConfigService.ts`); GET/PUT now
+  redact the secret to a placeholder, and PUT only re-encrypts when a
+  genuinely new, non-placeholder value is submitted (so the settings form
+  round-tripping the placeholder can't clobber the real secret).
+  `apps/web`'s `oidc.ts` decrypts via a mirrored decrypt-only helper for
+  the actual OIDC token exchange. Backward compatible: rows with a
+  pre-existing plaintext secret keep working via a legacy-plaintext
+  fallback until next saved.
+- **OPEN-115 (Fixed, merged PR #350):** `playbookService.instantiatePlaybook()`
+  (apps/api + apps/web duplicate) built each `{{key}}` pattern into a
+  `RegExp` from the raw, unescaped parameter key, and passed the
+  substitution value straight into the string form of `String.replace()`.
+  A key with regex metacharacters (e.g. `first.name`) could match more
+  broadly than intended or throw; a value containing a literal `$`
+  followed by a special replacement token (`$&`, `$$`, `$1`, ...) — not
+  unusual in pricing/currency data — got silently reinterpreted instead of
+  inserted verbatim, corrupting the generated campaign email. Fixed by
+  escaping the key and using a replacer function (not subject to
+  special-pattern interpretation) for the value.
+- **OPEN-116 (Fixed, merged PR #352):** `CrmIntegration.accessToken`/
+  `refreshToken` (HubSpot OAuth bearer tokens) were stored and used in
+  plaintext — same bug class as OPEN-114 (SSO clientSecret) but higher
+  impact, since this is a live bearer token granting direct write access
+  to the team's connected HubSpot account. Added AES-256-GCM encryption
+  (`crmSecrets.ts`, same pattern as `ssoSecrets.ts`); `settings/crm`'s PUT
+  route encrypts both tokens before upsert (GET already redacted them via
+  `hasAccessToken`/`hasRefreshToken` booleans, so no placeholder-round-trip
+  concern here), and `crmService.ts` decrypts before use and re-encrypts
+  the refreshed pair before writing them back in the token-refresh path.
+  Backward compatible via the same legacy-plaintext-fallback pattern.
+- **OPEN-117 (Fixed, merged PR #354):** `/billing/topup` unconditionally
+  wrote the team's `billingCountry`/`billingState` before calling
+  `billingService.createTopUpOrder` (a Razorpay API call) — if that call
+  threw, the team's billing address was left mutated with no
+  corresponding order (caller sees a 500, but the team record silently
+  changed anyway). Reordered so the address is only persisted after the
+  order is successfully created.
+- **OPEN-118 (Fixed, merged PR #356):** `apps/api`'s `DELETE /leads/bulk`
+  verified ownership via a separate `count()` pre-check, but the actual
+  `deleteMany()` dropped the `teamId` filter — its safety depended solely
+  on the pre-check holding, not on the mutation itself being scoped (same
+  anti-pattern as OPEN-99/OPEN-109/OPEN-110; not currently exploitable
+  since the pre-check already blocks foreign ids, but one stray refactor
+  from a real IDOR). `apps/web`'s `BulkService.deleteResources`/
+  `tagResources` had **no** teamId scoping at all — a genuine cross-tenant
+  IDOR, currently unreachable since nothing in apps/web calls this service
+  yet. Fixed both: apps/api's deleteMany now scopes by teamId directly;
+  apps/web's deleteResources does the same, and tagResources verifies
+  ownership via findMany first (Prisma's updateMany doesn't support the
+  array `push` operator used for tagging, so it has to stay a scoped
+  per-id update loop).
+- **OPEN-119 (Fixed, merged PR #357):** `apps/api`'s CSV lead-import route
+  had no row-count cap and no rate limiter — `csvIngestionService.ts`
+  processes rows in a sequential per-row `await` loop (findFirst +
+  create/update per row) with no cap on rows parsed, so an authenticated
+  user could submit an arbitrarily large CSV and tie up a request/worker
+  indefinitely. Same "missing rate limit on an expensive route" class as
+  OPEN-111 (swarm). Added a 5,000-row cap (rejects with a clear error
+  instead of processing) and a new per-team `csvImportLimiter`
+  (3 imports/minute), matching the `aiLimiter`/`swarmLimiter` pattern.
+  `apps/web`'s CSV service is just a thin proxy client forwarding to this
+  same apps/api route, so no duplicate fix was needed there.
+- **OPEN-120 (Fixed, merged PR #359):** `teamService.removeMember()` and
+  `updateRole()` (apps/api + apps/web duplicate) both did a scoped
+  pre-check (`findFirst({ id: memberId, teamId })`) but the actual
+  mutation dropped the `teamId` guard — `prisma.teamMember.delete()`/
+  `.update()` were called with only `{ id: memberId }`. Same "scope the
+  mutation, not just a pre-check" anti-pattern as OPEN-99/OPEN-109/
+  OPEN-110/OPEN-118 (not currently exploitable since the pre-check already
+  blocks a foreign memberId, but one stray refactor from a real
+  cross-tenant IDOR). `TeamMember` has no compound unique on
+  `(id, teamId)`, so converted both to `deleteMany()`/`updateMany()`
+  scoped by `{ id: memberId, teamId }`, checking `.count === 0` for the
+  "not found" case.
+- **OPEN-121 (Fixed, merged PR #361):** `productService.update()` and
+  `delete()` both called `getById(teamId, id)` as a scoped pre-check, but
+  the actual mutations dropped `teamId` entirely —
+  `prisma.product.update()`/`delete()` filtered by bare `{ id }`. Same
+  "scope the mutation, not just a pre-check" anti-pattern as
+  OPEN-99/109/110/118/120 (not currently exploitable since the pre-check
+  already blocks a foreign id, but one stray refactor from a real
+  cross-tenant IDOR reachable via `productDetail.ts`'s PATCH/DELETE
+  handlers). `Product` has no compound unique on `(id, teamId)`, so
+  converted both to `updateMany()`/`deleteMany()` scoped by
+  `{ id, teamId }`, checking `.count === 0` for the "not found" case.
+- **OPEN-122 (Fixed, merged PR #363):** cross-tenant IDOR on knowledge
+  base upload/search/list — **currently exploitable**, unlike the recent
+  "one refactor away" scoping fixes above. `/knowledge/[id]/upload`'s
+  POST and GET took the `knowledgeBaseId` path param straight into
+  `knowledgeService.addDocument()`/`search()` with no ownership check
+  against the caller's team — any authenticated user could inject a
+  document into, or search the contents of, any other team's knowledge
+  base by supplying its id. GET additionally had no auth check at all
+  (never called `getCurrentContext()`). `/knowledge/[id]`'s GET had the
+  same ownership gap listing `knowledgeItem`s by bare `id`, even though
+  its own sibling POST/DELETE in the same file already do the correct
+  `findFirst({ id, teamId })` check. Fixed by adding the matching
+  ownership check to all three handlers, adding the missing auth check to
+  upload's GET, and converting DELETE's pre-check + unscoped `delete()` to
+  a `teamId`-scoped `deleteMany()` (same pattern as OPEN-99/109/110/118/
+  120/121).
+- **OPEN-123 (Fixed, merged PR #365):** three more instances of the
+  "scope the mutation, not just a pre-check" anti-pattern, all
+  defense-in-depth (not currently exploitable — each pre-check already
+  blocks a foreign id): `templates/[id]/route.ts` (PUT/DELETE) —
+  `emailTemplate.update()`/`delete()` filtered by bare `{ id }` after a
+  scoped pre-check; `ApprovalService.approve()`/`reject()` —
+  `approvalRequest.update()` filtered by bare `{ id: requestId }` (plus
+  `approve()`'s `CAMPAIGN_START` side-effect now also scoped by teamId for
+  defense-in-depth); `automations/approve/route.ts` — `automationLog.update()`
+  filtered by bare `{ id: logId }` after a manual teamId comparison
+  (`AutomationLog` has no direct teamId column, so this one filters
+  through the `automation` relation instead: `updateMany({ id, automation:
+  { teamId } })`). All converted to `updateMany()` scoped by the team
+  filter, checking `.count === 0` for the "not found" case.
+- **OPEN-124 (Fixed, merged PR #367):** `admin/actions/[action]/route.ts`
+  accepted a client-supplied `teamId` in the POST body with no check that
+  the calling admin actually belongs to that team. `getAdminUser()`'s
+  default minimum role is `ORG_ADMIN`, which is a normal, self-service-
+  assignable per-workspace role (any team owner can invite a teammate as
+  `ORG_ADMIN` via `WORKSPACE_ASSIGNABLE_ROLES`), not a platform-level
+  privilege — so any customer who invited a colleague as `ORG_ADMIN` of
+  their own workspace could pass another tenant's `teamId` and pause that
+  tenant's active campaigns (`pause-outreach`) or enqueue scraper/CRM-sync
+  jobs scoped to it (`start-scrapers`, `sync-crm`). Distinct from the
+  OPEN-99-family "scope the mutation, not just a pre-check" pattern: there
+  was no pre-check at all here, and the vulnerable scope came from trusting
+  a client-supplied `teamId` outright. Fixed by verifying `TeamMember`
+  membership before honoring a client-supplied `teamId`, unless the caller
+  is a genuine platform-level operator (`SYSTEM_ADMIN`/`SUPER_ADMIN`, which
+  are not self-service-assignable).
+
+- **OPEN-125 (Accepted risk, not exploitable):** `npm audit` flags
+  `GHSA-3f6p-5ww8-9rcr` (mysql2 <3.22.0: auth-plugin downgrade to
+  `mysql_clear_password` can leak plaintext credentials to a malicious/
+  MITM'd server) as a high-severity transitive dependency, pulled in solely
+  by `prisma`'s bundled multi-driver support. This repo's Prisma schema
+  (`apps/api/prisma/schema.prisma`) uses `provider = "postgresql"`
+  exclusively — `mysql2` is never imported, configured, or connected to
+  anywhere in the codebase, so the vulnerable auth-negotiation code path is
+  unreachable. Allowlisted in `scripts/audit-with-allowlist.mjs`. **Extended
+  same day:** a second mysql2 advisory (`GHSA-rgwj-5xj2-c3m3`, decompression-
+  bomb DoS via unbounded zlib inflate, <=3.23.0) surfaced on the very next PR
+  run — same package, same unreachable-dependency reasoning, allowlisted
+  alongside it. Separately, `fast-uri` (pulled in via
+  `fastify`/`@fastify/ajv-compiler`/`fast-json-stringify` → `ajv`) showed 4
+  new host-confusion/SSRF advisories (`GHSA-5jgf-p345-68v8`,
+  `GHSA-f65p-4m7j-42xc`, `GHSA-fph4-wmhf-6fwf`, `GHSA-jqff-g426-hqxp`,
+  range `3.0.0-3.1.5`) on the same run. **Attempted a fix first:** the root
+  `package.json` override pins `fast-uri` to exactly `3.1.5` (top of the
+  vulnerable range) while `apps/api`/`apps/web`'s own per-workspace
+  overrides already pin the safe `4.1.1` — tried aligning the root override
+  to `4.1.1` to remove the mismatch, but confirmed via `npm install
+  --loglevel silly` this hits the exact same "Conflicting override sets"
+  silent-failure class OPEN-40 already documented: the pin does not apply,
+  `fast-uri@3.1.5` stays resolved regardless of what the root override says.
+  Reverted the override edit (leaving a fix that doesn't take effect is
+  worse than no fix — it reads as resolved when it isn't). **Allowlisted
+  instead, after checking reachability** (not assumed): the vulnerable code
+  is ajv's URI-format validators, invoked only when a fastify route schema
+  declares `format: "uri"`/`"uri-reference"`; a repo-wide search found zero
+  routes in this app declaring any JSON-schema `format` keyword at all
+  (fastify's request/response schema validation isn't used here), so the
+  parser never runs against attacker-controlled input. **Takeaway:** `npm
+  audit` queries a live advisory feed, so this gate can regress between two
+  CI runs of identical code with zero diff — expect to keep revisiting this
+  list as new advisories land on existing transitive deps.
+
+- **OPEN-126 (Fixed):** `apps/web/src/app/api/email/unsubscribe/[trackingId]/route.ts`'s
+  `GET` handler interpolated the raw, attacker-controlled `trackingId` URL
+  path segment directly into an HTML `<form action="...">` attribute with no
+  escaping — a crafted unsubscribe link (e.g.
+  `/api/email/unsubscribe/"><script>alert(1)</script>`) could break out of
+  the attribute and inject arbitrary markup/script into the confirmation
+  page a real recipient would see and click through. Found mid-session as an
+  unrelated, unfinished fix already sitting uncommitted in the working tree:
+  a `safeTrackingId = encodeURIComponent(trackingId)` variable had been
+  added but never actually used in the template, leaving the raw value in
+  place. `encodeURIComponent` percent-encodes `"`, `<`, `>` (the breakout
+  characters), so wiring `safeTrackingId` into the `action` attribute closes
+  it. Added `route.test.ts` (malicious trackingId no longer reflected raw;
+  normal trackingId still renders a working action URL).
+
+- **OPEN-127 (Fixed):** `apps/api/src/modules/mautic-integration/service/mauticService.ts`'s
+  `pushLead()` — the same "scope the mutation, not just the pre-check"
+  anti-pattern already fixed 6+ times this sweep (OPEN-99/109/110/118/120/
+  121/123). The function's own pre-check correctly scopes by team
+  (`prisma.lead.findFirst({ where: { id: leadId, teamId } })`, with a
+  comment already flagging exactly this risk), but the final write dropped
+  `teamId` entirely (`prisma.lead.update({ where: { id: leadId }, ... })`).
+  Found by a targeted sweep of the modules merged via PR #369
+  (`mautic-integration`, `landing-agent`, `facebook-leads`, `branding`) that
+  had never been through this ledger's scrutiny. **Not currently
+  exploitable** — `pushLead`'s only caller (`landing-lead-intake-worker.ts`)
+  passes an already-validated `leadId`/`teamId` pair from the same DB row,
+  same defense-in-depth classification as OPEN-118/120/121/123 — but one
+  future route wiring a client-supplied `leadId` against the caller's
+  `teamId` would turn this into a real cross-tenant IDOR (attaching another
+  team's lead to the wrong `mauticContactId`). Fixed via `updateMany({
+  where: { id: leadId, teamId }, ... })` + `count === 0` check, matching the
+  established convention. No `apps/web` duplicate of this file exists.
+  Added a regression test asserting the write is scoped by `teamId` and
+  that a lost race (`count: 0`) surfaces as an error rather than silently
+  succeeding.
+
+- **OPEN-128 (Fixed):** six more instances of the "scope the mutation, not just
+  a pre-check" anti-pattern (OPEN-99/109/110/118/120/121/122/123/127), all in
+  the newest, previously-unaudited modules from PR #369 —
+  `apps/api/src/modules/landing-agent/service.ts`'s `generateBrief`,
+  `selectWireframe` (both branches), `generateImagesForPage`, `saveEditorState`,
+  and `publishCampaign` all resolve a `LandingCampaign`/`LandingPage` id via
+  `getCampaignOrThrow(campaignId, teamId)` (properly scoped) but then wrote
+  through `prisma.landingPage.update()`/`landingCampaign.update()` filtered by
+  bare `{ id }` — including inside `publishCampaign`'s `$transaction`. Same gap
+  in `apps/api/src/workers/handlers/facebook-leads-worker.ts`'s
+  `upsertLeadFromFacebook`: the existing-lead branch found via a
+  `teamId`-scoped `findFirst` was updated via bare `{ id: existing.id }`.
+  **Not currently exploitable** — every id involved is already team-owned by
+  the time the write runs — same defense-in-depth classification as
+  OPEN-118/120/121/123/127. Fixed the landing-agent file via two new helpers,
+  `updateOwnedPage`/`updateOwnedCampaign` (scoped `updateMany` + `count === 0`
+  check + a `findUniqueOrThrow` re-read, since `updateMany` doesn't return the
+  row and callers need the updated record back), used at all five call sites
+  plus inline in the transaction; the worker fix follows the established
+  `updateMany`/`count`/`findUniqueOrThrow` pattern directly. No `apps/web`
+  duplicate of `landing-agent/service.ts` exists (only `rendering.ts`/
+  `types.ts` are duplicated there). Added `service.test.ts` (new) for the
+  landing-agent fix and extended `facebook-leads-worker.test.ts` with a
+  lost-race case; all 813 apps/api tests pass.
+
+- **OPEN-129 (Fixed):** `ENCRYPTION_KEY` length validation checked the raw
+  string length (`< 32`) instead of the decoded byte length, in five places:
+  `apps/api/src/lib/security/credentialVault.ts` and its `apps/web` duplicate
+  (both `getEncryptionKey` and `apps/web`'s `validateCredentialVaultKey`),
+  plus `apps/api`/`apps/web`'s `email-campaigner/service/smtpConfigService.ts`
+  and `apps/api`'s `warmupSeedService.ts`. The key is hex-decoded and fed to
+  `aes-256-gcm`, which requires exactly 32 bytes (64 hex chars) — a 32-*character*
+  hex string (16 bytes) passed the old check but throws `Invalid key length`
+  at `createCipheriv`/`createDecipheriv` time. Not hypothetical:
+  `apps/web/.env.example` shipped exactly such a value
+  (`0123456789abcdef0123456789abcdef`, generated per its own
+  `openssl rand -hex 16` comment), so following the example file into a real
+  `.env` broke Facebook OAuth token encryption and SMTP password encryption
+  with a confusing runtime crash far from the misconfiguration. Sibling
+  modules (`crmSecrets.ts`, `ssoSecrets.ts`, `wabaCredentials.ts`,
+  `googleMailboxService.ts`) already used the correct
+  `length !== 64 || !/^[0-9a-fA-F]{64}$/.test(key)` check; brought all five
+  broken call sites in line with that pattern, and fixed
+  `apps/web/.env.example`'s sample key and generation comment
+  (`-hex 16` → `-hex 32`). All existing tests already stubbed a 64-char key,
+  so no test changes were needed; ran the affected suites to confirm
+  (13 apps/api + 19 apps/web tests pass).
+
+- **OPEN-130 (Fixed):** three bugs across the Facebook/Instagram Lead Ads
+  integration (worker + OAuth connect flow) and the sibling landing-page lead
+  intake worker.
+  (1) `apps/api/src/workers/handlers/facebook-leads-worker.ts`'s `syncForm`
+  only read `leadsRes.data` (page 1 of the Graph API's `/leads` edge) and
+  never followed `leadsRes.paging.next`. Since the sync cursor
+  (`facebookLeadSyncCursor.lastCreatedTime`) advances to the newest
+  `created_time` seen that poll and the next poll's filter only asks for
+  leads created *after* that cursor, any lead on a page past the first
+  (default page size 25) was skipped that poll **and every poll after** —
+  permanent, silent lead loss with no error logged, once a form accumulated
+  more than one page of new leads between the ~5h polls. The same file's
+  `leadgen_forms` listing (page's list of lead ad forms) had the identical
+  gap — any form past page 1 was never synced at all. Fixed by adding a
+  generic `fetchAllPages()` that loops on `paging.next` until exhausted
+  (capped at `MAX_PAGES = 200` as a guard against a malformed/looping paging
+  response), used for both the leads and forms listing. (2) The same gap in
+  `apps/web/src/modules/facebook-leads/service/facebookLeadsService.ts`'s
+  OAuth connect flow — `/me/accounts` (listing the Facebook Pages the
+  connecting user manages) only read page 1, so an account managing more
+  than ~25 Pages would silently connect only the first page's worth. Fixed
+  the same way (capped at `MAX_ACCOUNT_PAGES = 200`). (3) The same "scope the
+  mutation, not just the pre-check" anti-pattern as
+  OPEN-99/109/110/118/120/121/122/123/127/128 in
+  `apps/api/src/workers/handlers/landing-lead-intake-worker.ts`'s
+  `handleLandingLeadIntake` — a `teamId`-scoped `findFirst` was followed by
+  `prisma.lead.update({ where: { id: existing.id } })` with no `teamId`.
+  **Not currently exploitable** (same classification as the other instances —
+  `existing.id` is same-function, already-team-scoped). Fixed via
+  `updateMany({ where: { id, teamId } })` + `count === 0` check, matching the
+  established convention. Added pagination-following tests for all three call
+  sites (`facebook-leads-worker.test.ts` x2, `facebookLeadsService.test.ts`)
+  and a lost-race test (`landing-lead-intake-worker.test.ts`); all 817
+  apps/api and 342 apps/web tests pass, `tsc --noEmit` clean on both apps.
+- **OPEN-132 (Fixed):** stored XSS on published landing pages via the `css`
+  field. `getLandingRenderPayload()`'s `withLandingBaseCss()`
+  (`apps/api/src/modules/landing-agent/rendering.ts`, and its byte-identical
+  `apps/web` duplicate) passed the caller-supplied `css` string through
+  completely unsanitized — unlike `html`, which goes through the sound
+  `sanitizeLandingHtml()` scanner. `apps/api/src/modules/landing-agent/service/
+  cloudflarePagesService.ts`'s `buildFullDocument()` then interpolates that
+  `css` value directly into a static `<style>${css}</style>` string, which is
+  written to Cloudflare KV and served as real `text/html` to every visitor of
+  a published (public, unauthenticated) landing page. A `<style>` element is
+  an HTML "raw text" element — the browser's tokenizer exits style-parsing
+  mode on the literal sequence `</style` alone, with no regard for CSS
+  syntax — so a `css` value containing `</style><img src=x onerror=...>`
+  breaks out of the style block and executes as real markup. `css` reaches
+  this path via `saveEditorState`'s `renderedJson` input (the GrapesJS
+  editor's exported CSS, sent from the browser), and the only upstream
+  defense (`service.ts`'s regex-based `sanitizeString`) only strips
+  *complete*, *quoted* `<style>...</style>`/`on*="..."` pairs — a bare,
+  unbalanced `</style` with an unquoted `onerror=` attribute passes through
+  untouched, the same class of unsound regex-based filtering the manual
+  `sanitizeLandingHtml` scanner was written to replace (see the rendering.ts
+  sanitizer rewrite in the PR #369 CI-fix work). The React-rendered editor
+  preview path (`PublishedLandingRenderer.tsx`) was never vulnerable — React
+  sets style content via a text-content DOM API, not raw string
+  interpolation — this only affected the static-HTML Cloudflare serving
+  path. Fixed by stripping the literal case-insensitive `</style` sequence
+  from `css` inside `withLandingBaseCss()` (the single choke point every
+  consumer of the `css` field already goes through), which keeps everything
+  after an attempted breakout as inert raw text instead of real markup.
+  Added 3 tests to `rendering.test.ts` (breakout stripped, case-varied
+  breakout stripped, ordinary CSS left untouched); all 817 apps/api and 342
+  apps/web tests pass, `tsc --noEmit` clean on both apps.
+
+- **OPEN-133 (Fixed):** two bugs in `facebook-leads-worker.ts`'s `syncForm`,
+  found while re-auditing the file after OPEN-130's pagination fix.
+  (1) A single lead throwing partway through a batch (e.g. `upsertLeadFromFacebook`'s
+  `findUniqueOrThrow` racing a lead getting reassigned/deleted mid-poll) aborted
+  the whole function via the outer try/catch — but the sync cursor
+  (`lastCreatedTime`) is only persisted **once, after the full loop**, so every
+  lead already successfully processed *before* the throw got silently rolled
+  back too. The next successful poll would re-fetch the same window and
+  reprocess those already-handled leads from scratch, and since neither
+  `upsertLeadFromFacebook`'s write nor the trailing
+  `prisma.leadActivity.create()` is idempotent against a full replay, this
+  duplicated `LeadActivity` rows (same bug class as commit `a2ae8731`'s
+  "prevent duplicate EmailEvent rows on Resend webhook redelivery" fix, just a
+  different file). Fixed by wrapping each lead's processing in its own
+  try/catch — one bad lead is logged and skipped without aborting the batch or
+  rolling back leads already handled in it. (2) `fetchAllPages()`'s
+  `MAX_PAGES = 200` safety cap (added by OPEN-130) silently truncated the
+  result set when hit, and the caller then advances the cursor to the max
+  `created_time` seen in the truncated set — reintroducing, via the safety cap
+  itself, the exact permanent-skip failure mode OPEN-130 was fixing. Fixed by
+  throwing instead of truncating when the cap is hit while `paging.next` still
+  exists, so the existing catch block handles it like any other API failure
+  (cursor stays put, retried next poll) rather than silently advancing past
+  unseen leads. Added 2 tests (`facebook-leads-worker.test.ts`): a mid-batch
+  failure still records and advances past the leads before and after it, and
+  hitting the pagination cap surfaces as an error rather than a silent
+  truncation; all 818 apps/api tests pass, `tsc --noEmit` clean.
+- **OPEN-134 (Fixed):** `PUT /api/scoring/lead-intent`
+  (`apps/api/routes/scoring/lead-intent/route.ts`) let **any** authenticated
+  user, from any team, overwrite the lead-scoring weights used by
+  `leadScoringService` — with no admin-role check and no input validation.
+  `leadScoringService` is a module-level singleton
+  (`apps/api/src/modules/scoring/service/LeadScoringService.ts`), and
+  `updateWeights()` mutates its `this.config` in place — a single process-wide
+  object, not scoped per team. Any team could silently corrupt or disable
+  lead-intent scoring for *every other team* on the instance (a cross-tenant
+  integrity/DoS issue), and since `weights` was spread into the config with
+  no validation, arbitrary values (negative, `NaN`, `Infinity`, unknown keys)
+  flowed straight into the scoring formula used by every subsequent
+  `scoreAndPersist`/`batchScoreLeads` call, for every team, until the process
+  restarted. Fixed by (1) requiring an admin role
+  (`ORG_ADMIN`/`SYSTEM_ADMIN`/`SUPER_ADMIN`, matching the pattern already
+  used by `admin/audit` and `admin/agent-audit` for other cross-tenant-impact
+  configuration) and (2) validating `weights` — only the three known keys
+  (`dwellTime`/`emailClicks`/`socialMentions`), each a finite number in
+  `[0, 10]`, or the request is rejected outright. No `apps/web` route exposes
+  this; `apps/web`'s duplicate `LeadScoringService.ts` has its own
+  `updateWeights` but nothing calls it. Added `route.test.ts` (new, 4 tests):
+  non-admin rejected, unknown weight key rejected, non-finite/out-of-range
+  value rejected, valid admin update succeeds; all 824 apps/api tests pass,
+  `tsc --noEmit` clean.
+
+- **OPEN-135 (Fixed):** cross-tenant IDOR in `apps/api/routes/whatsapp/send/route.ts`
+  (both `POST` and `GET`) — `getCurrentContextFromRequest` was called but only
+  `userId` was used; `teamId` was discarded, and the lead lookup
+  (`prisma.lead.findUnique({ where: { id: leadId } })`) never checked it
+  belonged to the caller's own team. `withFeatureGuard("whatsapp_outbound",
+  { teamId: lead.teamId }, ...)` only checks whether the flag is enabled for
+  *that* team — it doesn't validate the caller belongs to it. So any
+  authenticated user from Team A could send a WhatsApp message to (or, via
+  the `phone: lead.phone || body.recipientPhone` fallback, redirect to an
+  arbitrary attacker-chosen number as) any lead belonging to Team B, using
+  Team B's WABA credentials/quota, as long as Team B had `whatsapp_outbound`
+  enabled — and separately, `GET` had no team check (or feature guard) at
+  all, letting any authenticated user read any other team's WhatsApp consent
+  audit trail (grant/revocation history, timestamps, actors) for an arbitrary
+  `leadId`. A distinct, previously-unaudited file — `apps/api/src/modules/whatsapp/`
+  hadn't been touched by this sweep before. Fixed by destructuring `teamId`
+  from `getCurrentContextFromRequest` in both handlers and replacing the
+  unscoped lookup with `prisma.lead.findFirst({ where: { id: leadId, teamId } })`,
+  404'ing on a miss before any consent check, feature guard, or send. No
+  `apps/web` duplicate of this route exists. Added `route.test.ts` (new, 4
+  tests): POST/GET both reject a lead from another team, both succeed for a
+  lead in the caller's own team; all 826 apps/api tests pass, `tsc --noEmit`
+  clean.
+
+- **OPEN-136 (Fixed):** unauthenticated-scope, cross-tenant PII de-masking
+  oracle at `GET /api/leads/[id]/identity`
+  (`apps/api/routes/leads/[id]/identity/route.ts`). The handler never called
+  `getCurrentContextFromRequest`/`getCurrentContext` at all — no `teamId`,
+  not even a `userId` check — and looked up the target by bare `id` alone
+  (`prisma.lead.findUnique({ where: { id } })`, with the same gap on its
+  `ScrapingJob` fallback lookup). If the lead's stored email/phone was masked
+  (`"[..."` token format), the handler actively called
+  `IdentityService.reidentify()` and returned the real, unmasked PII in the
+  response. Site middleware only requires *some* valid session for
+  non-public API paths (no team scoping there either — see OPEN-135's note
+  on the same gap), so any authenticated user on the platform, from any
+  team, could enumerate or guess a lead/scrapingJob UUID belonging to a
+  *different* team and have this endpoint actively de-mask and hand back
+  that other team's PII — worse than a typical IDOR read, since it's an
+  explicit unmasking action, not just an info leak of already-visible data.
+  Same underlying bug class as OPEN-135 (auth context discarded, lookup not
+  team-scoped) but a distinct, previously-unaudited route. Fixed by requiring
+  `getCurrentContextFromRequest`'s `teamId` (401 if absent) and scoping both
+  the `Lead` and `ScrapingJob` lookups (`findUnique` → `findFirst` with
+  `{ id, teamId }`) across both the GLOBAL and UAE regional DB clients. Added
+  `route.test.ts` (new, 4 tests): no-auth-context rejected, `Lead` lookup
+  scoped by teamId, `ScrapingJob` fallback lookup scoped by teamId, a lead
+  actually in the caller's team still gets its PII correctly revealed; all
+  826 apps/api tests pass, `tsc --noEmit` clean.
+
+- **OPEN-137 (Fixed):** cross-tenant IDOR in
+  `apps/api/routes/playbooks/[id]/fork/route.ts` — the fork lookup
+  (`prisma.playbook.findUnique({ where: { id } })`) had no `teamId` filter
+  and no ownership check anywhere in the handler, unlike the sibling
+  `instantiate` route (`playbookService.instantiatePlaybook`, fixed by
+  OPEN-95, `findFirst({ where: { id, teamId } })`) and `publish` route
+  (which does check `playbook.teamId !== teamId` before proceeding). Any
+  authenticated user, from any team, could `POST
+  /api/playbooks/{anyId}/fork` for a playbook belonging to a different
+  team and receive back a full copy of its `config` (the entire campaign
+  template: messages/steps) and `parameters`, persisted into their own
+  team. `Playbook.visibility` ("INTERNAL"/"PUBLIC") exists in the schema
+  but nothing in the codebase (`listPlaybooks`, `instantiatePlaybook`)
+  ever surfaces or honors a team's `PUBLIC` playbooks to other teams, so
+  there's no legitimate cross-team discovery/fork path — strict
+  same-team scoping matches existing convention. Fixed by replacing the
+  lookup with `prisma.playbook.findFirst({ where: { id, teamId } })`,
+  404'ing on a miss before any fork/audit-log write. Added
+  `route.test.ts` (new, 2 tests): fork of another team's playbook is
+  rejected (404, no `create` call), fork of the caller's own team's
+  playbook succeeds; `tsc --noEmit` clean (pre-existing unrelated error
+  in `services/browser/browser-engine.ts` only).
+
+- **OPEN-138 (Fixed):** cross-tenant IDOR (read + write) in the human
+  caller handoff queue — `apps/api/routes/caller/queue/route.ts` +
+  `apps/api/src/modules/caller/CallerService.ts` (and dormant
+  `apps/web/src/modules/caller/CallerService.ts` duplicate). The route's
+  `isAllowed()` check only validated the caller's global `enterpriseRole`
+  (`CALLER`/`SALES_MANAGER`/`ORG_ADMIN`/`SYSTEM_ADMIN`) — not team-scoped
+  — and neither the route nor any function in `CallerService.ts` read or
+  filtered by `teamId` anywhere in the call chain (confirmed zero
+  `teamId` references in the file). `MeetingCoordinationQueue` itself has
+  no `teamId` column, only a `lead` relation. Effect: `GET
+  /api/caller/queue` returned every team's unassigned lead-handoff pool
+  (`pool`) — including each lead's PII and full conversation-thread
+  history — to any authenticated user with a CALLER-tier role in *any*
+  team; `POST .../queue` with `{action:"claim", leadId}` let that user
+  claim and mutate (`Lead.pipelineState → COORDINATING`) an arbitrary
+  team's lead by ID with no ownership check; `{action:"complete",
+  leadId, outcome}` let them transition another team's lead all the way
+  to `MEETING_CONFIRMED`/`COMPLETED`/`wonAt` — the one assignment check
+  present (`completeTask`) was a no-op, its enforcing `throw` literally
+  commented out. Not the usual "pre-check exists, mutation isn't scoped"
+  shape — there was no team check anywhere. Fixed by threading `teamId`
+  from `getCurrentContextFromRequest` into `getQueue`/`claimLead`/
+  `completeTask`: `getQueue`'s `assigned`/`pool` queries now filter via
+  the `lead: { teamId }` relation (no schema change needed);
+  `claimLead`/`completeTask` now do `prisma.lead.findFirst({ where: {
+  id: leadId, teamId } })` up front and throw `LEAD_NOT_FOUND` (mapped
+  to 404) on a miss, and the `Lead.pipelineState` writes changed from
+  `update({ where: { id } })` to `updateMany({ where: { id, teamId } })`.
+  Applied the same scoping to the `apps/web` duplicate (referenced only
+  by its own dev scripts, not wired to a route) for consistency, and
+  updated the `teamId`-unaware dev/stress-test scripts in both apps that
+  called these methods. Added `CallerService.test.ts` (new, 5 tests) and
+  `routes/caller/queue/route.test.ts` (new, 6 tests); all 847 apps/api
+  and 343 apps/web tests pass, `tsc --noEmit` clean in both apps
+  (pre-existing unrelated `services/browser/browser-engine.ts` error
+  only).
+
+- **OPEN-139 (Fixed):** cross-tenant IDOR (read + write) across the
+  inbox draft/reply flow — `apps/api/routes/inbox/drafts/route.ts`
+  (`POST`/`DELETE`), `apps/api/routes/inbox/reply/route.ts` (`POST`),
+  and their shared `apps/api/src/lib/inboxService.ts` (plus the dormant
+  byte-identical `apps/web/src/lib/inboxService.ts` duplicate). `Message`
+  has no `teamId` column — the only tenant boundary is via
+  `Message.leadId -> Lead.teamId`. `drafts/route.ts` called
+  `getCurrentContext()` but never even read `teamId`, only `userId`;
+  `saveDraft(leadId, ...)` and `discardDraft(draftId)` never checked lead
+  ownership at all. `discardDraft` was the worst case: a bare
+  `prisma.message.delete({ where: { id: draftId } })` with **no
+  precondition whatsoever** — not even the usual unscoped-pre-check
+  pattern — letting any authenticated user delete *any* `Message` row in
+  the system (draft, sent, or received, any team) by ID. `saveDraft` let
+  an attacker inject a fabricated draft into another team's lead thread.
+  Separately, `reply/route.ts` *did* have `teamId` in scope (via
+  `getCurrentContextFromRequest`) but never used it before
+  `prisma.message.create({ data: { leadId, ... } })`, and its LinkedIn
+  branch did `prisma.lead.findUnique({ where: { id: leadId } })` with no
+  `teamId` filter — letting an attacker inject a message into another
+  team's lead thread and trigger a real outbound `LINKEDIN_ACTION` send
+  job to that lead's LinkedIn profile using the attacker's own
+  automation/teamId. Confirmed via the correct pattern next door in
+  `routes/inbox/[id]/suggest/route.ts` (`findFirst({ where: { id,
+  teamId } })` before `InboxService.getMessages`), proving these two
+  routes were the outliers. Fixed by threading `teamId` through
+  `saveDraft`/`discardDraft`/`sendMessage` in both `inboxService.ts`
+  copies — `saveDraft`/`sendMessage` now verify
+  `prisma.lead.findFirst({ where: { id: leadId, teamId } })` up front
+  (throw `LEAD_NOT_FOUND`), `discardDraft` now does
+  `prisma.message.findFirst({ where: { id: draftId, status: 'draft',
+  lead: { teamId } } })` before deleting (throw `DRAFT_NOT_FOUND`) — and
+  by having `reply/route.ts` verify `prisma.lead.findFirst({ where: {
+  id: leadId, teamId } })` before creating the message or touching
+  `lead.linkedIn`. Both route handlers now map the "not found" errors to
+  404. Added `inboxService.test.ts` (5 tests),
+  `routes/inbox/drafts/route.test.ts` (5 tests), and
+  `routes/inbox/reply/route.test.ts` (3 tests); all 860 apps/api tests
+  pass, `tsc --noEmit` clean in both apps (pre-existing unrelated
+  `services/browser/browser-engine.ts` error only).
+
+- **OPEN-140 (Fixed):** mass-assignment `teamId` reassignment in
+  `PATCH /api/schedules/[id]` (`apps/api/routes/schedules/[id]/route.ts`)
+  enabling cross-tenant credit drain and job injection, plus the usual
+  pre-check/unscoped-mutation gap on `DELETE`. The `PATCH` handler did a
+  `teamId`-scoped `findFirst` ownership pre-check, then wrote the
+  **entire raw request body** straight into `prisma.schedule.update({
+  where: { id }, data: body })` — no allow-list, no `teamId` in the
+  write's `where`. Since `Schedule.teamId` is a plain client-writable
+  scalar (and scheduler dispatch never re-validates ownership after the
+  initial `findFirst`), a member of Team A could create a schedule in
+  their own team with an immediate cron and any `campaignId`/`agentId`
+  they choose, then `PATCH` it (ownership check still passes — it's
+  still their own row) to overwrite `teamId` to Team B's id. The next
+  `schedulerService.processDueSchedules()` tick
+  (`apps/api/src/modules/scheduler/schedulerService.ts:42-100`) finds it
+  via `isActive`/`nextRunAt` with no further ownership check, calls
+  `checkCredits(schedule.teamId, 1)`/`deductCredits(...)` — draining
+  Team B's credits — and enqueues a job with `teamId: schedule.teamId`
+  carrying the attacker's chosen `campaignId`/`agentId`/`groundingConfig`
+  — a cross-tenant credit-drain and job-injection primitive, not just an
+  IDOR on the row itself. `DELETE` had the standard shape: `findFirst({
+  id, teamId })` pre-check then a bare `delete({ where: { id } })`.
+  Fixed `PATCH` with an explicit allow-list
+  (`name`/`cron`/`timezone`/`isActive`/`batchSize`/`groundingConfig`/
+  `campaignId`/`agentId` — excluding `id`/`teamId`/system-managed
+  `nextRunAt`/`lastRunAt`) applied via `updateMany({ where: { id,
+  teamId }, data })` + `count === 0 → 404` (re-reading via
+  `findUniqueOrThrow` for the response), and `DELETE` via
+  `deleteMany({ where: { id, teamId } })` + the same count check. No
+  `apps/web` duplicate of this route exists. Added `route.test.ts` (new,
+  5 tests): non-allow-listed fields (including `teamId`) stripped from
+  the update, 404 on another team's schedule for both PATCH and DELETE,
+  success for the caller's own team; all 865 apps/api tests pass,
+  `tsc --noEmit` clean (pre-existing unrelated
+  `services/browser/browser-engine.ts` error only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
 
-## Current Priority Order (2026-08-23)
+## Current Priority Order (2026-08-25, post-fix)
 
-Reprioritized across all currently non-resolved items, most urgent+important first. Everything not listed here is **Resolved** — see the table below.
+Reprioritized across all currently non-resolved items, most urgent+important first. Everything not listed here is **Resolved** — see the table below. OPEN-77 through OPEN-84 are now all **Fixed** — see their detail rows below for exact implementation notes. Only user/admin-owned items remain open, plus the Automations/Workflows duplicate and the Command Center/Monitoring/Runtime/Edge/Jobs overlap cluster noted in OPEN-84 as candidates for a future consolidation pass.
 
-1. **OPEN-60 (code fixed, PAT rotation owed to user)** — the CMS route no longer exfiltrates a GitHub PAT into the git remote URL, but the actual live token that was stored in Windows Credential Manager still needs manual revocation/rotation at https://github.com/settings/tokens — not something the assistant can do from this session.
-2. **OPEN-59 (fixed and deployed, extension key handed to user)** — LinkedIn extension backend is live and verified end-to-end; the new `EXTENSION_API_KEY` still needs to be pasted into the Chrome extension's own settings popup by the user.
-3. **OPEN-25 (code-complete, runtime verification still blocked)** — `apps/edge-fastapi`'s new endpoints were reimplemented on the hardened base back on 2026-08-13, but this environment has no running Docker daemon (checked 2026-08-23, Docker Desktop not started) and fastapi/sqlalchemy aren't installed locally, so a live smoke test is still owed. Also: production's `api-main`/`api-worker` have no `EDGE_NODE_URI` set at all (confirmed via SSH), so edge-fastapi may not even be deployed in production today — worth confirming with the user before treating this as solely a "verification" gap.
-4. **OPEN-39 (deliberately deferred, user instruction 2026-08-17)** — everything is fixed and merged except the placeholder Stripe price IDs on the Razorpay-only billing page, which need real Razorpay plan IDs only the user has. User said to leave this for now.
-5. **OPEN-21 (outstanding half, user-owned)** — Neon `neondb_owner` rotation applied everywhere and confirmed live. Still owed: Google OAuth client secret rotation (no assistant tool access). Not assistant's task going forward per explicit instruction.
-6. **OPEN-03 / OPEN-04** — Deferred, blocked on external human action (Google CASA, Azure AD portal) — not actionable further without the user driving those portals directly.
-7. **Recurring process risk (not a numbered item, flagged in OPEN-58 and OPEN-60)** — background forks and the user's own local branch switching keep colliding in the same shared working directory with no `git worktree` isolation, twice causing commits/rebases to land against the wrong branch mid-task. Worth fixing at the root (always pass `isolation: "worktree"` for any agent that runs git commands) rather than continuing to recover after the fact.
+**User/admin-owned, not further actionable by the assistant:**
+
+1. **OPEN-73 (not yet fixed)** — Netjana `NETJANA_URL` production connectivity unconfirmed; needs a direct env-var check the assistant doesn't have access to.
+2. **OPEN-60 (code fixed, PAT rotation owed to user)** — the CMS route no longer exfiltrates a GitHub PAT into the git remote URL, but the actual live token that was stored in Windows Credential Manager still needs manual revocation/rotation at https://github.com/settings/tokens.
+3. **OPEN-21 (outstanding half, user-owned)** — Neon `neondb_owner` rotation applied everywhere and confirmed live. Still owed: Google OAuth client secret rotation (no assistant tool access).
+4. **OPEN-03 / OPEN-04** — Deferred, blocked on external human action (Google CASA, Azure AD portal) — not actionable further without the user driving those portals directly.
+5. **Recurring process risk (not a numbered item, flagged in OPEN-58 and OPEN-60)** — background forks and the user's own local branch switching keep colliding in the same shared working directory with no `git worktree` isolation. Worth fixing at the root (always pass `isolation: "worktree"` for any agent that runs git commands) rather than continuing to recover after the fact.
 
 **Resolved 2026-08-17:** OPEN-36 (full-platform outage — user rotated the Neon credential in both Oracle VMs' `.env` and Vercel's env vars; both `/health` endpoints confirmed `"database":"up"` after redeploy) and OPEN-37 (added `.github/workflows/health-check.yml`, a 15-minute scheduled + manually-dispatchable job that polls both endpoints and fails loudly with the response body on non-200 or an explicit `"database":"down"`, committed `80d76bd` on `fix/wire-orphaned-features-and-invite-flow`, merged to `main` via PR #193 same day — schedule is now live). Same investigation also explained a previously-unexplained finding: every Vercel **preview** deployment (any branch) had been failing with `Resource provisioning failed` since the credentials went stale — confirmed resolved, PR #193's preview redeployed clean with the new secret.
 
@@ -94,7 +890,30 @@ Reprioritized across all currently non-resolved items, most urgent+important fir
 | **OPEN-59** | LinkedIn Chrome Extension Fully Unreachable in Production — Two Independent Bugs | Production Bug / Revenue Impact | **Resolved 2026-08-22** | User asked to "ensure the LinkedIn Chrome extension works." Found two separate, stacked bugs, both required for the extension to function at all: **(1) Routing bug** — `apps/api/server.ts`'s `nextAdapter` runs its own NextAuth/internal-header auth gate (`publicPaths` allowlist) before any route handler executes; `/extension` was missing from it, so every extension request (authenticated via `x-extension-key` + a Bearer session token, never a NextAuth cookie or Clerk-signed internal header) was rejected with a bare `{"error":"Unauthorized"}` before ever reaching the route's own `validateExtensionAuth()` check. Confirmed live via `curl` against `api.craftmyfunnel.live` — the response was the Fastify adapter's generic shape, not the extension route's own error shape. Same bug class as OPEN-58, on the apps/api side this time. Fixed by adding `/extension` to `publicPaths` (PR #240), since every extension route already does its own auth via `validateExtensionAuth()` and needed no changes. Audited the full extension route set (`_lib/auth.ts`, `_lib/teamScope.ts`, all 10 route files) while investigating — none use `getServerSession`/`next/headers` (OPEN-56's bug class), and the one dynamic route (`leads/[id]/linkedin-contacted`) already awaited `params` correctly (OPEN-57's bug class was already absent here). **(2) Missing secret** — even after the routing fix, `EXTENSION_API_KEY` was confirmed (via `curl`, and independently via SSH + `grep` against `/opt/fullstack/.env`) to be completely unset on the `api-main` Oracle VM, so `validateExtensionAuth()` unconditionally returned `MISSING_EXTENSION_KEY` for every request. Generated a new 32-byte hex key via `openssl rand -hex 32`, appended it to `api-main`'s `.env` over SSH, and restarted the `api-main` container (`docker compose up -d`) to pick it up — `api-worker` deliberately left unchanged since it only runs the background job loop, never the Fastify HTTP server that serves `/extension/*`. Full chain verified live end-to-end post-fix: wrong key → `INVALID_EXTENSION_KEY`, correct key with no bearer token → `MISSING_TOKEN` — both are the extension route's own real validation responses. **User-owed:** the new key must be entered into the Chrome extension's settings popup (per `RunnerPage.tsx`'s in-app instructions) for the extension to actually authenticate — not something the assistant can do from this session. |
 | **OPEN-60** | `apps/web/src/app/api/admin/cms/route.ts` Exfiltrated a Live GitHub PAT Into the Git Remote URL | Security | **Code fixed 2026-08-23, PAT rotation still owed to user** | User asked to "rotate the git remote credential exposure in that old CMS route." `getGitToken()` read a GitHub PAT out of Windows Credential Manager via inline PowerShell + a `CredReadW` P/Invoke helper, and the `PUT` handler then embedded that token directly into the git remote URL (`https://x-access-token:<token>@github.com/...`) before pushing — a real plaintext-in-process-args/`.git/config` exposure pattern. Confirmed the exposure was live, not theoretical: `cmdkey /list` on this machine showed a credential actually stored under the exact target this code read (`git:https://github.com`, user `Convospan`). Also confirmed non-functional in production regardless — Vercel's Linux serverless runtime has no Windows Credential Manager and no checked-out git repo, so this code path could only ever run (and leak the secret) during local dev testing of the CMS route. Fix: removed `getGitToken()` and the URL-embedding entirely; `git push` in the `PUT` handler now goes through the normal system git credential helper like any other push, with no application code touching the secret. Merged as PR #242. **Not done, and not something this session could do:** the actual live PAT under the `git:https://github.com` Windows credential was deliberately never extracted or viewed, and still needs to be manually revoked/rotated by the user at https://github.com/settings/tokens, since it may have been exposed by this code path during local testing. **Git-chaos recurrence:** merging PR #242 hit the same shared-working-directory hazard as OPEN-58 — a `git rebase` landed mid-way into an unrelated, already-in-progress merge conflict on the user's own concurrently active `feature/add-blog-infrastructure` branch. Recovered without touching that conflict by using `gh api -X PUT .../pulls/242/update-branch` (a server-side merge) instead of any local git surgery. |
 | **OPEN-61** | Raspberry Pi Edge Node: Stale Paths, Stub Endpoint, Missing Status/Activity Surface | Feature/Bug | **Fixed 2026-08-23 — node reachability now polls/heartbeats (branch `feature/edge-node-heartbeat`), optional per-team add-on** | User asked to audit the Raspberry Pi edge-node ("Sovereign Wall") setup — PII masking + encryption-key vault — then to fix findings and add dashboard visibility. Audit confirmed the core design is real and correct: `apps/edge-fastapi` runs Presidio-based PII masking (`services/local_intelligence.py`), Fernet-encrypts original values before storing in `PIITokenMap` (`EDGE_VAULT_KEY`, `enc:v1:` prefix), and refuses to boot in `EDGE_MODE` without a vault key when `EDGE_REQUIRE_VAULT_KEY=true` (default) — no insecure default. Two real bugs found and **fixed**: (1) `docker-compose.edge.yml` (repo root, a legacy dev-sim harness distinct from the maintained `apps/docker-compose.split.yml`) had both its `edge-node-sim` and `craftmyfunnel-web` services pointing at nonexistent build contexts (`./services/edge-node`, root `Dockerfile`) predating the `apps/*` split — repointed to `./apps/edge-fastapi` and `apps/web/Dockerfile`, and gave `edge-node-sim` working `EDGE_MODE`/`EDGE_API_KEY`/`EDGE_VAULT_KEY` env vars so it actually boots; `docs/SOVEREIGN_WALL_INTEGRATION.md`'s install steps had the same stale `cd services/edge-node`, fixed to `cd apps/edge-fastapi` with a note on which compose file to use. See correction on OPEN-28. (2) `main.py`'s `/execute` endpoint was labeled "Secured Proxy for Browser Node (Puppeteer)" but is an unimplemented stub that logs and returns success without driving any browser — docstring and log line corrected to say STUB/not wired, behavior unchanged (still out of scope to implement the real Puppeteer bridge). Also fixed: `apps/edge-fastapi/Dockerfile`'s `LABEL org.opencontainers.image.source` pointed at `craftmyfunnel-outreach/fullstack`, a nonexistent org (real org is `Convospanai-outreach`) — would have mislinked the GHCR package. **Built new, in scope:** (a) a `pi5` arm64 CI job in `.github/workflows/docker-ghcr.yml` (QEMU + buildx, `requirements.pi.txt`, `FORCE_CMAKE=1`, publishes `ghcr.io/convospanai-outreach/fullstack/edge-fastapi:latest-pi5`/`:sha-pi5`) — this is the "image is created for the raspberry pi based edge node setup" ask, as a *container* image built by CI, not a flashable SD-card OS image (no such tooling existed or was requested to be built). (b) An on-node `edge_activity_log` table + `GET /activity` endpoint (`database.py`, `local_intelligence.py`, `main.py`) recording which function ran (sanitize/reidentify/critique) and what entity types/counts it touched — **never plaintext** — called from `sanitize_and_tag`, `reidentify_token`, `critique_response`. (c) `HardwareService.getStatus()`/`getActivity()` (both `apps/api` and `apps/web` copies, plus new `STATUS`/`ACTIVITY` actions in `apps/api/routes/hardware/route.ts`) and a new `EdgeNodeStatus` component wired into the existing Compliance & Sovereignty dashboard page (`/dashboard/settings/compliance`) showing live connected/disconnected + hardware-ID/signature-match, polling every 30s — this is the "connection shown in dashboard under app status" ask; there was no separate "app status" page in the codebase, so it was added to the existing edge-node-relevant settings page rather than inventing a new one. `ComplianceLog.tsx` was rewired from hardcoded fake data (including a `blur-to-reveal` fake-plaintext column that displayed nothing real) to the real `/activity` feed, metadata-only. **Deliberately NOT built — flagged, not implemented:** the user's ask for a UI where "user should be able to view the DB, residing inside the node, which is accessible only through decryption" was not built as a cloud-dashboard feature. Building it would mean either proxying decrypted PII through `api-main`/Vercel or shipping `EDGE_VAULT_KEY` off the physical device — both directly contradict this project's own documented "Zero-Knowledge Boundary" (`SOVEREIGN_WALL_INTEGRATION.md` §6: "Plaintext PII never leaves the local network of the Sovereign Wall"). A single-token decrypt path already exists server-to-server (`HardwareService.reIdentify` → edge node's `/v1/reidentify`, now audit-logged via `_log_activity`) but is not exposed as a dashboard UI, and shouldn't be without an explicit compliance/RBAC decision from the user (who may view decrypted PII, under DPDP/GDPR) — this is a business decision, not a technical one. Recommend: if a DB browser is truly needed, it should run *on* the node (browser connects directly to the LAN-local edge node, decryption never transits the cloud), not through craftmyfunnel.live. **Also deferred, needs a user decision before building:** the dashboard connection-status feature above assumes today's single-node-per-deployment model (`HardwareService` resolves one global `EDGE_NODE_URI`; confirmed via SSH that production's `api-main` has no `EDGE_NODE_URI` set at all today, so edge-fastapi isn't connected to production yet). A real per-user/per-team Pi at a home address needs a reachability decision this session didn't make unilaterally: node polls out with a heartbeat/registration (works behind NAT, no per-device tunnel provisioning) vs. cloud dials in via a per-node Cloudflare tunnel (`docker-compose.edge.yml`'s `tunnel-service` already sketches this, needs per-device `TUNNEL_TOKEN` provisioning). Whichever is chosen determines whether the Pi image needs tunnel credentials baked into a provisioning flow, and needs a schema change (node registration: id, owner team, hostname, API key, last-heartbeat) in the main app DB — out of scope for this session without that decision. **Correction 2026-08-23:** the claim above ("needs a schema change... out of scope") was wrong — an earlier session had already built the full node-registration schema and cloud-side protocol (`EdgeNode` Prisma model with `hardwareFingerprintHash`/`publicKey`/`sessionTokenHash`/`lastSeenAt`/`attestationStatus`/`revokedAt`; `POST/GET/PATCH /edge/nodes` for admin-driven pairing/status/revoke; `PUT /edge/nodes` for signed heartbeats with staleness-based offline detection in `apps/api/src/lib/edgeRuntime.ts`, default 45s timeout, fail-closed). It just never got used — this OPEN-61 audit itself missed it. **User picked the polling/heartbeat model over cloud-dials-in tunnels** (simpler provisioning, no per-device `TUNNEL_TOKEN`, and no latency requirement for status/activity polling). **Real gaps found and fixed:** (1) after admin-driven pairing, the physical node has no way to learn its own DB-assigned `id` (a random cuid) to authenticate future heartbeats — fixed by adding an `x-edge-hardware-fingerprint` lookup path to `PUT /edge/nodes` (looks up by `hardwareFingerprintHash`, which the node can always recompute from the same fingerprint it used at pairing) alongside the existing `x-edge-node-id` path, so no manual pairing-code copy step is needed. (2) `apps/edge-fastapi` had zero client code calling any of this — built `services/cloud_registration.py`: generates and persists an RSA-2048 keypair on first boot (stored via the existing `EdgeSetting` key/value table, private key never leaves the device), signs heartbeats (RSA-SHA256 over `{timestamp}.{nonce}.{raw_body}`, matching `verifyEdgeRequestSignature` exactly — cross-verified in tests), and sends one every `EDGE_HEARTBEAT_INTERVAL_SECONDS` (default 20s, under the cloud's 45s offline timeout) to `PUT {EDGE_CLOUD_API_URL}/edge/nodes`. **Deliberately optional, per explicit user instruction — not all users buy this add-on:** the whole client is gated behind `EDGE_CLOUD_API_URL` being set; `main.py` only imports/constructs it when that env var is present, logs "optional service, not required" otherwise, and does nothing further. A team's `EdgeNode` row only exists at all once an admin pairs a physical device from the dashboard (`POST /edge/nodes`) — that pairing action is itself the "user selected this service at onboarding" gate; teams without a Pi never get a row and are completely unaffected. `isEdgeRuntimeOptional()` (edgeRuntime.ts) already defaults to fail-open unless `STRICT_SOVEREIGNTY=true`, so this doesn't newly block anyone. Startup also logs the node's fingerprint + public key so an admin can complete pairing from the dashboard. **Tested:** 6 new pytest cases in `apps/edge-fastapi/tests/test_cloud_registration.py` (keypair generation/persistence, cross-language signature verification against the exact Node.js scheme, heartbeat header construction, not-yet-paired handling) — all pass in an isolated venv (no repo-wide Python test infra existed before this). `apps/api` side: `PUT /edge/nodes`'s new fingerprint-lookup branch typechecks clean (`tsc -p tsconfig.strict.json --noEmit`) and the full suite (560/560) still passes; no dedicated route test existed before or was added (none of `/edge/nodes`'s branches had test coverage previously either). **Not tested:** end-to-end against a real Postgres/Docker/physical Pi — none available in this environment. **Still not built:** `HardwareService`'s actual data-plane calls (sanitize/critique/search/execute/reidentify) still hardcode one global `EDGE_NODE_URI`/`EDGE_API_KEY` rather than resolving a team's paired `EdgeNode.ipAddress` — so the heartbeat/status model is now real and live, but a second team's Pi still wouldn't get its own routing for actual PII operations. Flagged as a separate, larger follow-up (touches ~17 call sites across `instrumentation.ts`, `AgentExecutor.ts`, `GraphStore.ts`, `IdentityService.ts`, `routes/hardware/route.ts`) — not built without explicit sign-off given the boot-path risk (`instrumentation.ts` calls `HardwareService` at startup) and the cloud→node vs. node→cloud auth-model mismatch (shared `EDGE_API_KEY` vs. per-node signed requests) that would need resolving first. |
+| **OPEN-63** | `@/components/ui/GlassCard` Component Renders Unstyled — 53 Files Silently Affected | Bug/Design-System | **Fixed 2026-08-23 (PR #253)** | Found while doing Phase 3 dashboard convergence (campaigns cluster). `apps/web/src/components/ui/GlassCard.tsx` applies a single class, `clerk-card`, to its wrapper div — that class has **no definition anywhere in the repo** (checked `globals.css` and all `.css`/`.ts`/`.tsx` files; `scripts/verify-ui.ts` even already asserted on a `.clerk-card` locator, suggesting the class was meant to exist but never got defined). Any page using this component (53 files, via `grep -rl 'from "@/components/ui/GlassCard"'`) got a bare unstyled `<div>` — no background, border, blur, or shadow — instead of the intended glass-panel look. A second, unrelated `apps/web/src/components/GlassCard.tsx` (default export, different props, only 1 usage, used by `admin/cms/page.tsx`) also exists and was never broken — it uses the real `.glass` utility class directly. **Fixed in PR #253:** pointed `GlassCard.tsx` at `.glass-card p-6` (the working utility class, with explicit padding since `.glass-card` carries none of its own) instead of `clerk-card`; also fixed `scripts/verify-ui.ts`'s now-meaningful `.glass-card` locator. Sampled several of the 53 usage sites for double-border/nesting risk (none found) but did not do a full authenticated visual sweep of all 53 pages. See OPEN-64 for the follow-up decision this fix triggered about which card idiom (`.glass-card` vs shadcn `Card`) is actually the dashboard-wide standard. |
+| **OPEN-64** | Phase 3 Convergence Picked the Wrong Idiom: `.glass-card` vs. shadcn `Card` — 27 Files Already Use `Card` | Design-System | **Decided 2026-08-23 — `Card` is the real target; `.glass-card` migration not urgent. Migrated 2026-08-24.** | While auditing the admin cluster (16 routes) for Phase 3 convergence, found that most of it needed **zero visual changes**: `ai-config`, `health`, `usage`, and `super/SuperAdminDashboardClient.tsx` already correctly use `GlassCard` (now fixed by OPEN-63/#253) and render correctly with no edits; `audit`, `client-errors`, and `observability` already use shadcn `Card` (`@/components/ui/card`). Checked how widely `Card` is used dashboard-wide: **27 files**, spanning governance/*, analytics/*, billing, crm, intel, whatsapp, and most of admin — a far larger and older-established idiom than `.glass-card`, which campaigns (#251) and leads (#254) had just converged onto instead (6 files total). Compared the two: `Card` renders `rounded-lg border bg-card text-card-foreground shadow-sm`; `.glass-card` renders the same plus `backdrop-blur-xl` and a translucent border — nearly CSS-identical, not a real visual fork. **User decided:** adopt `Card` as the actual dashboard-wide target going forward, since it's the pre-existing, far more prevalent standard. Admin's `Card`-based pages needed no changes as a result. Campaigns and leads are now the outliers (both on `.glass-card`) — **not urgent to fix** since the two idioms render almost identically; fold them back to `Card` in a small follow-up PR whenever convenient, not blocking. **2026-08-24 — done:** all 15 `glass-card` occurrences across 6 files (`campaigns/page.tsx`, `campaigns/[id]/page.tsx`, `campaigns/new/page.tsx`, `leads/page.tsx`, `leads/new/page.tsx`, `leads/import/page.tsx`) replaced with `Card`'s exact base classes (`rounded-lg border bg-card text-card-foreground shadow-sm`), applied to the same elements in place — some hosts are `<form>`/`<Link>`, not `<div>`, so a literal `<Card>` component swap wasn't possible everywhere; a class-level swap keeps every element's existing tag/semantics while matching the target idiom's rendered output exactly, consistent with OPEN-64's own finding that the two are "nearly CSS-identical." Verified: `tsc --noEmit` clean, full vitest suite green, production build succeeds. Not visually verified against a running authenticated session — no dev DB/session available in this environment (same constraint noted elsewhere in this ledger); the change is a scoped, exact-string class substitution with no structural JSX risk. | Also flagged, not fixed: `apps/web/src/modules/admin/ui/AuditPage.tsx` (25 lines) is orphaned dead code — `admin/audit/page.tsx` has its own inline implementation and never imports it. `admin/cms/page.tsx` + `admin/cms/edit/page.tsx` were deliberately left as their own distinct visual sub-brand (purple/`neo-shadow`/`.glass`, consistent within the CMS tool itself) rather than forced into `Card` or `.glass-card` — same reasoning as leaving `cms/edit`'s split-pane markdown editor alone: a bespoke internal tool, not a generic dashboard content page. `InvitesPage.tsx`/`RateLimitPage.tsx`/`UserManagementPage.tsx` (`modules/admin/ui/`) use a self-consistent table-based layout (`bg-black`, `border-white/10`), left as-is since it's a legitimate distinct idiom for tabular admin data, not card fragmentation. |
+| **OPEN-65** | Settings Cluster (21 routes) Phase 3 Convergence | Design-System | **Fixed 2026-08-23** | Next Phase 3 cluster after admin. Surveyed all 21 `settings/*` routes: 13 already used `SectionHeader` + `GlassCard` (now correctly rendering per OPEN-63/#253, consistent with each other even if not yet on the OPEN-64-decided `Card` target — not urgent to migrate per that decision); `crm/page.tsx` and `settings/page.tsx` are thin delegates/redirects with nothing to converge; `layout.tsx` (the settings sidebar shell) is fine as-is. Found and converged 4 real outliers that used a raw custom `<h1>` + ad-hoc `.glass ... rounded-2xl` markup instead of `SectionHeader`/`GlassCard`: `agent/page.tsx`, `general/page.tsx` (header only — its card content already used a reasonable `rounded-xl border border-white/10 bg-white/[0.03]` recipe, left alone), `notifications/page.tsx`, `team/page.tsx` (header only — its `.glass-panel` member table left alone, same reasoning as leaving admin's tabular UIs alone under OPEN-64). Also fixed the raw `process.env['NEXT_PUBLIC_API_URL']` fetch pattern to `getBrowserApiUrl()` in `agent/page.tsx`, `notifications/page.tsx`, and `team/page.tsx` (4 call sites), matching the fix already applied elsewhere in Phase 3. **Deliberately left alone:** `mailboxes/page.tsx` (641 lines) — a large, internally self-consistent connected-mailboxes UI (`bg-zinc-900/80`, `rounded-2xl`, `border-white/10` throughout) where the "cards" are the primary content, not incidental wrappers; rewriting it for a header-idiom match carries real regression risk disproportionate to a cosmetic goal, same reasoning as leaving `admin/cms/edit/page.tsx`'s editor alone. Also noted, not fixed: `settings/layout.tsx`'s sidebar nav is missing links to `crm`, `hitl`, `sso`, and `governance/analytics` (all real, reachable-by-URL pages) — a minor IA gap, out of scope for a visual-convergence pass. |
 | **OPEN-62** | Lead Journey: Enrichment/Drip Didn't Advance Pipeline State; Caller & WhatsApp Hidden From Dashboard | Bug/Feature | **Fixed 2026-08-23 — WhatsApp drip automation built (branch `feature/whatsapp-drip-automation`), gated by per-team WABA setup with human-in-the-loop fallback** | User asked to verify enrichment/LinkedIn-enrichment/email-drip actually move leads through the "lead journey," to test it end-to-end via a live campaign, and to finish WhatsApp + human-calling-handover which were "built, stubbed, WIP" and not visible on the dashboard. Audit found: `Lead` has two state fields, `status` (free string) and `pipelineState` (free string; `PipelineService.ts`'s `PipelineStage` enum is aspirational — real values in use are `COLD/WARM/HOT/COORDINATING/MEETING_CONFIRMED/COMPLETED/CLOSED_WON/CLOSED_LOST`, defined in `apps/web/src/lib/crm/leadStageTransitions.ts`). That file already has a well-built, priority-guarded (forward-only) transition engine — `advanceLeadAfterEmailSent/EmailOpened/EmailClicked/Reply/MeetingScheduled/Won/Lost` — but before this fix it had exactly **one** caller anywhere in the codebase (`apps/web`'s own `email-sending-worker.ts`); `apps/api`'s actual production drip engine (`sequenceService.ts`) sent real emails via `emailService.sendEmail` but never called it or touched lead state at all, and `apps/api`'s `email-worker.ts`/`googleMailboxService.ts` wrote lead state directly and inconsistently — `email-worker.ts` set `status: "contacted"` (lowercase) while the dashboard funnel route's `contactedLeads` card counts `status: {in: ["CONTACTED","REPLIED","CONVERTED"]}` (uppercase), so contacted leads from that path were silently never counted. **Fixed:** ported `leadStageTransitions.ts` into `apps/api/src/lib/crm/` (apps/api and apps/web are separate deployables with no shared package for this — an exact-copy duplication, same precedent as `HardwareService.ts`); wired `advanceLeadAfterEmailSent` into `sequenceService.ts`'s send path (drip campaigns now advance `status`/`pipelineState`) and into `email-worker.ts` (replacing the case-mismatched raw write); wired `advanceLeadAfterReply` into `googleMailboxService.ts`'s reply-detection transaction (replacing a raw `status: "REPLIED"` write that never touched `pipelineState`, so replies weren't promoting leads to HOT). **Not touched:** `enrichment-worker.ts`'s `status: "enriched"` write — enrichment isn't one of this state machine's actions (it's a data-completeness signal, not an outreach-progress milestone) and inventing a new transition for it wasn't done unilaterally; flagging for a product decision on whether enrichment completion should also advance `pipelineState` (e.g. COLD→WARM) or stay separate. **Calling handover:** audit found `CallerService.ts` + a full 358-line dashboard at `apps/web/.../caller/page.tsx` already fully built and correctly wired (real human-rep queue: `MeetingCoordinationQueue` + `ConversationThread`, auto-transitions `INITIATED→ENGAGED→QUALIFIED→HANDOFF_REQUIRED` on a HOT lead, `claimLead`/`completeTask` correctly advance `pipelineState`) — it just wasn't in `ALWAYS_ON_HIDDEN_FEATURE_KEYS` (`productFlags.ts`). Fixed: added `"caller"` to that list (same one-line pattern as commit f46fa96's `linkedin-runner`/`knowledge` default-enable). Not telephony — "handover" means a real human rep works a real queue and calls the lead's phone; there is no Twilio Voice/dialer anywhere in this codebase. **WhatsApp:** backend (`WhatsAppService.ts`, real Meta Cloud API, no mock fallback) + compliance (`ConsentService`, `TemplateGuard`, DPDP-aware) were real and working, but manual-trigger-only via `/whatsapp/send` — no worker/sequence/campaign called it, and the only dashboard trace (`LeadDetail.tsx`'s channel selector) was a "log what I already did" form that never actually sent anything. Built new: a read-only team-wide dashboard page (`apps/web/.../whatsapp/page.tsx`) backed by a new `GET /whatsapp/overview` route in `apps/api` (recent message activity + consent/phone-coverage stats, joined via `lead.teamId`), registered as a new `"whatsapp"` hidden-feature key and default-enabled the same way as `caller`. **Deliberately NOT built:** automated WhatsApp sending from drip sequences. The user's "next in enrichment and outreach is whatsapp" reads as wanting this, but Meta's Cloud API has a 24-hour customer-service-window rule and template-approval requirements that automated sequence sends would need to respect via `TemplateGuard`/`ConsentService` — that's a compliance-surface decision (which sequences may auto-send WhatsApp, under what template/consent conditions) that needs an explicit call from the user, not something to wire in as a side effect of a dashboard-visibility ask. **2026-08-23 follow-up — automation built:** user decided the compliance question — build it, gated by a setup-time question ("does this team have a WABA?"), with human-in-the-loop as the fallback/default. Added `Team.whatsappPhoneNumberId`/`whatsappAccessTokenEnc` (AES-256-GCM, same pattern as `ConnectedMailbox`, see `apps/api/src/modules/whatsapp/wabaCredentials.ts`) — automated-vs-human is derived from credential presence, no separate mode enum (avoids an invalid state where mode disagrees with configured creds). New `GET/POST /whatsapp/settings` route validates credentials against the Graph API before saving and never logs the token. New `"whatsapp"` `SequenceStep.stepType` dispatches in `sequenceService.ts::executeWhatsAppRun`: missing phone → fail; no WhatsApp consent (`lead.whatsappConsent` cache + `ConsentService.validateConsent` ledger check) → skip this step only, not a retryable failure, and does not exit the whole enrollment (other channels may still be valid); no per-team WABA configured, or `TemplateGuard` says the send requires a pre-approved template (first contact / outside the 24h window, which this pass doesn't manage) → creates a `Task` for the campaign owner instead of failing (human-in-the-loop); otherwise sends via `WhatsAppService.sendMessage` with the team's own credentials and advances `status`/`pipelineState` (reuses `advanceLeadAfterEmailSent` — the transition is channel-agnostic "outreach sent" logic despite the name). Sequence-builder UI: added a `WHATSAPP` step type to `stepDefinitions.ts` (reuses the existing `hasMessageBody` editor, no special-casing needed) and a WABA setup card to `apps/web/.../whatsapp/page.tsx`. Schema: `apps/web/prisma/schema.prisma` is a byte-identical duplicate of `apps/api`'s (confirmed via diff) — updated both, plus matching migration folders in both apps' `prisma/migrations/`, per the OPEN-34 lesson about the two schemas drifting. New tests in `sequenceService.whatsapp.test.ts` (5 cases: missing phone, no-consent skip, automated send, no-WABA fallback, template-required fallback) — full apps/api suite (560/560) and `tsc -p tsconfig.strict.json --noEmit` pass clean. **Not built:** Meta Embedded Signup OAuth (manual phone-number-ID + token paste is the MVP, matching how other integrations in this repo take keys); template selection/management UI (any send needing a template always falls back to human-in-the-loop for now). Not integration-tested against a live DB/live Meta credentials — no local Postgres/Docker in this environment, same constraint as before. **"Instigate a campaign to test":** did not run one against real leads/numbers. Found the codebase already has exactly this kind of safe, DB-only verification: `apps/api/src/scripts/test-caller-flow.ts` and `test-whatsapp-consent.ts` exercise the caller queue and WhatsApp consent/template logic end-to-end against a dummy seeded lead (`test.lead@example.com`), with **zero real messages sent** (the WhatsApp test never calls `WhatsAppService.sendMessage`). Could not actually run them in this session — no local Postgres/Docker daemon available in this environment (same constraint hit earlier for edge-fastapi) — but recommended these as the answer to "test the pipeline" instead of a live campaign; user or CI should run `npx tsx apps/api/src/scripts/test-caller-flow.ts` / `test-whatsapp-consent.ts` against a real dev DB to verify. **Verified:** `tsc -p tsconfig.strict.json --noEmit` (apps/api) and `tsc --noEmit` (apps/web) both pass clean after all changes. Not integration-tested against a live DB for the same reason as above. |
+| **OPEN-66** | Dashboard Home Cluster Phase 3 Convergence | Design-System | **Audited 2026-08-23 — no convergence needed, deliberately left as-is** | Next Phase 3 cluster after settings (OPEN-65). `dashboard/page.tsx` (146 lines) is a recently reworked home page — its own header comment documents the rework (removed `AppShell`/old quick-action cards/funnel cards/intel signals, added `SetupBanner`/`KPIRow`/`WorkflowSection`/`BottomGrid`). It delegates entirely to 7 purpose-built widget components (`SetupBanner`, `KPIRow`, `WorkflowSection`, `BottomGrid`, `PipelineTrendCard`, `RecentLeadsCard`, `LeadDrilldown`), none of which use `GlassCard`/`SectionHeader`/`Card` — they share their own consistent near-black hex palette (`#101624` used by 3 of them; `#030303`/`#06080A`/`#080808`/`#0b0f17`/`#101e33` elsewhere, all very close variants). This isn't fragmentation, it's a deliberate, internally-consistent, recently-built design — forcing the generic dashboard idiom onto it would work against a recent intentional decision, so left untouched (same reasoning as `admin/cms/edit`'s editor and `settings/mailboxes` in OPEN-65). **One small fix made:** `dashboard/settings/compliance/page.tsx` (11 lines, a thin wrapper around `ComplianceSettings.tsx`) used a raw `<h1>` with no reason to — converged to `SectionHeader` since it was a trivial, zero-risk change unlike the home page itself. |
+| **OPEN-68** | Lead-Gen/Scoring Trace — Engagement Scorer Fed By A Disconnected Tracking System | Data Integrity | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 1), first-ever audit of this domain (confirmed zero prior "Netjana"/"intel" mentions in this ledger). Real outbound emails embed a genuine tracking pixel/click-redirect (`apps/api/src/modules/email-campaigner/service/emailService.ts:41,49` → `/api/proxy/email/track/open\|click/:trackingId`), and it fires in production, writing `Email.openedAt`/`Email.clickedAt` (`trackingService.ts:204-205,255-256`). But `LeadScoringService`'s engagement inputs (`dwellTimeMinutes`/`emailClicks`/`socialMentions`, weighted 0.4/0.35/0.25) are read off the **`Lead`** record (`LeadScoringService.ts:215-217,346-348`), and the only writers of those `Lead` fields (`/webhooks/lead-tracking`, `/scoring/lead-intent`) have zero callers anywhere in `apps/web/src`. The two tracking systems never connect — `hasEngagementSignals` is false for nearly every lead, so `intentScore` falls back to `freshLeadPrior` (capped at 0.39) for the vast majority of scored leads despite real engagement data existing in the DB on a different table. `optimalSendHour`'s separate real branch (`LeadScoringService.ts:264-268`) does read `Email.openedAt` correctly and is the one part of this scorer that self-corrects with real data. Fix requires either making `scoreAndPersist` read `Email.openedAt`/`clickedAt` directly, or having the tracking routes also update the `Lead` engagement fields. |
+| **OPEN-69** | Lead-Gen/Scoring Trace — Two Scoring Writers Can Clobber Each Other, Live Not Latent | Data Integrity | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 2), coupled with OPEN-68. `LeadScoringService.scoreAndPersist` writes `Lead.intentScore` **flat** (`intentScore: score.score`, no floor); `netjanaIntelService` writes it via `Math.max(existing, signal.intentScore/100)` (monotonic-max, `netjanaIntelService.ts:709-712`). Traced the real trigger path: `lead_enrichment` jobs — which always call `scoreAndPersist` post-enrichment (`enrichment-worker.ts:135-140`) — are enqueued by `EnrichmentService.ts`, `campaign-worker.ts` (on ordinary campaign enrollment), and two manual UI-triggered routes (`routes/enrichment/lead`, `routes/learning/enrich-lead`). None of these are exotic — campaign enrollment and manual re-enrich are everyday actions. So a lead that received a high Netjana-derived `intentScore` (e.g. 0.8, HOT) can be silently downgraded to ≤0.39 (WARM/COLD) the next time it's enrolled in a campaign or re-enriched, with no log, flag, or guard. Because of OPEN-68, the downgrade value is structurally guaranteed to land at/near the `freshLeadPrior` floor, not just "somewhat lower." Fix requires giving `scoreAndPersist` the same monotonic-max (or an explicit, logged override) instead of a flat overwrite. |
+| **OPEN-70** | Lead-Gen/Scoring Trace — Netjana Signals Can Never Create A New Lead | Product/Architecture | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 3). `netjanaIntelService.ts:702`'s `if (lead)` gate means an unmatched Netjana signal — a company flagged as in-market that isn't already a Lead in this team's data — is silently dropped; no Lead is ever created from it. `apps/web/src/app/(dashboard)/intel/page.tsx`'s "Unmatched Signals — needs review" card has no action to promote a signal into a new Lead. This is the structural gap behind the marketing homepage's core promise (`CinematicHome.tsx`'s "Layer 01 Netjana" act — surfacing a previously-unknown in-market company) having no corresponding code path: Netjana can only sharpen the score of a prospect a human already entered, never introduce a brand-new one. Diagram corrected in `docs/architecture-diagram.md`'s "Netjana Buyer Signal To Outreach Flow" (dashed edge + label). Fix requires either an explicit "create lead from unmatched signal" action on `/intel`, or an auto-create policy behind a confidence threshold. |
+| **OPEN-71** | Lead-Gen/Scoring Trace — `LandingLead` Is A Dead End | Product/Architecture | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 4). Public `/p/:slug` funnel-page form submissions are written to `LandingLead` (`landing-agent/service.ts:579`) but never read anywhere in `apps/api` or referenced anywhere in `apps/web/src` — confirmed by repo-wide grep, zero hits either side. Combined with OPEN-70, both of the app's "new prospect enters the system from outside" paths are non-functional; the only confirmed `prisma.lead.create` call sites are manual/extension entry, LinkedIn scraping, CSV import, and a non-prod seed script. `docs/architecture-diagram.md`'s "Landing, Email, And LinkedIn Lead/Event Loop" diagram corrected (the `landingLead --> campaignRecord` edge marked dashed/gap-labeled — it did not exist in code). Fix requires wiring `LandingLead` rows into `Lead`/`Campaign` creation, or deprecating the capture path if it's superseded by something else. |
+| **OPEN-72** | Lead-Gen/Scoring Trace — `optimalSendHour` Fabricates A Rep-Facing Value | UX/Data Integrity | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 5). When there's no real email-open history yet, `LeadScoringService.ts:275` and `:410` fall back to `leadId.charCodeAt(0) % 2 === 0 ? 10 : 14` — a value derived from the first character of the lead's own ID, not from any signal. This isn't an inert internal placeholder: it's rendered directly to sales reps as a specific, confident recommendation ("Best time to reach: 2:00 PM") in `apps/web/src/components/crm/LeadDetail.tsx:690-691` and `apps/web/src/app/(dashboard)/caller/page.tsx:258-259`, with nothing in the API response or UI disclosing that it's fabricated rather than computed. Confirmed it does not drive any automated send scheduling (no other caller reads the field to time actual sends) — the harm is misleading a human rep, not a scheduling bug. Fix is cheap: either omit the field until real data exists, or label it explicitly as an unverified default in the UI. |
+| **OPEN-73** | Lead-Gen/Scoring Trace — Netjana Live Connectivity Unconfirmed In Production | Operations | **Found 2026-08-24, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 6). `apps/api/src/modules/integration/mcp/netjana-server.ts:18`: `NETJANA_URL` defaults to a placeholder (`http://netjana-api.internal`) and is absent from `.env.example`. `docs/NETJANA_SIGNAL_INTEGRATION_PLAN.md` self-reports the webhook/scoring/dashboard path as built but flags full upstream detail-pull as depending on `NETJANA_URL` and feature flags actually being live in production — the project's own docs treat this as still-open, not this session's finding alone. Combined with OPEN-70, worth confirming with the user whether "Layer 01" of the marketing narrative is currently sold ahead of what's live even when Netjana is reachable. Needs a direct check of production env vars, not further code tracing. |
+| **OPEN-74** | Lead-Gen/Scoring Trace — Misleading "ML" Naming In Scoring Fields | Code Quality | **Found 2026-08-24, low priority, not yet fixed** | Full trace in `LEAD_GEN_SCORING_TRACE.md` (Gap 7). `clusterLabel` ("K-means") and `churnRisk` ("Churn Risk Index") in `LeadScoringService.ts` are comment/name labels for simpler heuristics, not literal ML models. Distinct from OPEN-72: the *value* these produce is a real function of real inputs, just not the algorithm the name implies — a naming/comment cleanup, not a behavior defect. Lowest priority of the seven findings in this trace. |
+| **OPEN-75** | Google Core Web Vitals 2026 Performance Optimization (LCP, INP, CLS, TBT) | Performance / UX | **Resolved 2026-08-24** | Optimized frontend for Google Web Vitals 95%+ performance score under 2026 guidelines: (1) **LCP**: Compressed `apps/web/public/craftmyfunnel-logo.png` from 990 KB to 18.1 KB (98.2% bandwidth reduction) and configured `next.config.mjs` with next-gen `images.formats = ['image/avif', 'image/webp']` and immutable static caching; (2) **CLS**: Eliminated render-blocking `@import url(...)` from `globals.css` and implemented self-hosted zero-shift fonts using `next/font/google` (`Inter`, `Plus_Jakarta_Sans`, `JetBrains_Mono`); (3) **INP**: Added mobile touch device guard to `useLenis.ts` to bypass JS scroll interception on touchscreens, and throttled React scroll state updates in `CinematicHome.tsx` to prevent 60fps main-thread reconciliation locking; (4) **TBT / Bundle**: Shifted third-party PostHog snippet to `strategy="afterInteractive"`, added preconnect/dns-prefetch tags, and moved `CommandPalette` and `SupportAssistant` into client-only dynamic overlay components. Verified: 131/131 unit tests passing, clean typecheck, full production Next.js build across 188 routes completed cleanly. |
+| **OPEN-76** | Navigation Bar Dropdowns, Heading Spacing & Public Route Auth Access | UI/UX / Routing | **Resolved 2026-08-24** | (1) Replaced legacy `<Header />` in `LayoutShell.tsx` with canonical `<NavBar />`, restoring all desktop and mobile dropdown navigation menus (`Product`, `Use Cases`, `Platform`, `Resources`) and CTAs (`Sign In`, `Get Started`); (2) Added `pt-20` on `<main id="main-content">` and adjusted container padding in `/blog` and `/blog/[slug]` to ensure all heading text is fully visible with clear spacing and never covered by the fixed navbar; (3) Added `/blog`, `/use-cases`, `/vs`, `/docs`, and public SEO routes to `publicPaths` in `proxy.ts` to prevent unwanted redirect loops to `/login`. Verified: 131/131 unit tests passing, 0 TypeScript errors. |
+| **OPEN-77** | Add Resend As A Sending Provider (Lemlist-Parity Gap Analysis, Item 0) | Feature | **Resolved 2026-08-26** | Added `ResendProvider.ts` implementing the existing `MailProvider` interface, registered in `MailProviderFactory` alongside Google Workspace/Microsoft 365/SMTP. New connect/test routes (`/api/integrations/resend/connect`, `/test`) mirror the existing SMTP ones — API key encrypted via `credentialVault`, stored on `ConnectedMailbox` with `provider: "RESEND"`. New "Resend" connect button + modal added to `/settings/mailboxes`. Per user instruction, no automatic runtime fallback to SMTP — each mailbox explicitly picks its provider, consistent with the existing Google/Microsoft/SMTP pattern; the sequence-sending worker already dispatches by `mailbox.provider` so this required zero worker changes. 5 new unit tests in `providers.test.ts` (registry, missing-key, invalid-key, error classification, successful send), all passing; clean `tsc --noEmit`. |
+| **OPEN-78** | Lemlist-Parity Gap: No Open/Click Tracking At Send Time | Product/Deliverability | **Resolved 2026-08-26** | `TrackedLink`/`EmailEvent` models and `ConnectedMailbox.openCount`/`clickCount` existed but nothing ever populated them — `email-sending-worker.ts` sent raw HTML untouched. Added `lib/email/linkTracking.ts` (`rewriteLinksForTracking` — rewrites `<a href>` targets to `/api/track/click/[trackingKey]`, creating one `TrackedLink` row per link; `buildOpenPixelHtml` — 1x1 tracking pixel keyed off `Email.trackingId`). New routes `/api/track/open/[trackingId]` (returns a GIF, sets `Email.openedAt` once, increments `ConnectedMailbox.openCount` and `CampaignVariant.openCount`) and `/api/track/click/[trackingKey]` (increments `TrackedLink.clickCount`/`firstClickedAt`/`lastClickedAt`, sets `Email.clickedAt` once, increments `ConnectedMailbox.clickCount`, 302-redirects to the real destination). Wired into `email-sending-worker.ts` before every send, provider-agnostic (works for Google/Microsoft/SMTP/Resend alike since it modifies the HTML, not per-provider code). Added `@@index([trackingKey])` on `TrackedLink` (migration `20260826120000_add_variant_tracking_index`) since click lookups can't carry `teamId` in the URL. |
+| **OPEN-79** | Lemlist-Parity Gap: List-Unsubscribe Header Only Wired For Gmail | Deliverability/Compliance | **Resolved 2026-08-26** | The RFC-8058 one-click unsubscribe *processing* endpoint already existed (`/api/email/unsubscribe/[trackingId]`), and `googleMailboxService.ts` already sent the `List-Unsubscribe`/`List-Unsubscribe-Post` headers — but only for Gmail sends; SMTP, Microsoft 365, and the new Resend provider never set them, and no outgoing email ever had a visible unsubscribe link in the body. Added `lib/email/unsubscribeHeaders.ts` (`buildUnsubscribeHeaders`, `appendUnsubscribeFooter`) and wired both into `email-sending-worker.ts` centrally (applies to every provider) plus threaded the headers through `smtpClient.ts` (added `headers` passthrough to nodemailer), `SmtpProvider.ts`, `MicrosoftGraphProvider.ts` (`internetMessageHeaders`), and `ResendProvider.ts`. Gmail's existing internal header logic in `googleMailboxService.ts` was left untouched (already correct) — the worker-supplied headers are a harmless no-op there since `GoogleWorkspaceProvider.send()` only forwards `Reply-To`/`X-Tracking-ID` from the generic headers bag. |
+| **OPEN-80** | Lemlist-Parity Gap: No Merge-Tag Templating For Manual Sequence Steps | Feature | **Resolved 2026-08-26** | AI-composed sequence steps (`emailComposer.ts`) generate unique per-lead copy already, but a human-authored `SequenceStep.body`/`subject` had no `{{firstName}}`-style substitution, and — found while wiring this up — `sequence-step-worker.ts` never even forwarded `campaignId`, `subject`, or `body` into the `email_sending` job it enqueues (so `handleEmailSending`'s required-`campaignId` check would have always thrown for a real sequence run). Fixed both: added `lib/email/mergeTags.ts` (`renderMergeTags` — supports `{{firstName}}`, `{{lastName}}`, `{{fullName}}`, `{{company}}`, `{{jobTitle}}`, `{{email}}`, unknown tags left untouched) applied centrally in `email-sending-worker.ts` to whichever subject/body source wins (explicit payload, AI draft, A/B variant, or manual step), and fixed `sequence-step-worker.ts` to pass `campaignId: run.campaignId` plus the step's `subject`/`body` through to the job payload. 4 new unit tests for `renderMergeTags` covering substitution, unknown tags, missing fields, and multi-word name splitting. |
+| **OPEN-81** | Lemlist-Parity Gap: A/B Variant Rotation Never Executed + Resend Webhook For Native Delivery Events & Reply Detection | Feature | **Resolved 2026-08-26** | `CampaignVariant` (weight-based A/B) existed in the schema and had a create/list API (`/api/campaigns/[id]/variants`) but nothing ever selected one at send time. Added `lib/email/campaignVariants.ts` (`pickWeightedVariant` — weighted random selection, falls back to uniform pick if all weights are 0) and wired it into `email-sending-worker.ts`: a variant is only chosen when nothing else already supplied subject/body for that send (explicit payload and AI/sequence drafts always take priority over A/B variants), records `Email.variantId` (new column + FK, same migration as OPEN-78), and increments `CampaignVariant.sentCount`/`openCount` on send/open respectively. Added `/api/webhooks/resend` handling `email.opened`/`email.clicked`/`email.bounced`/`email.complained` as a native supplemental signal for Resend-sent mail, plus `advanceLeadAfterEmailOpened`/`Clicked` (which already existed in `leadStageTransitions.ts` but were never called from the OPEN-78 tracking routes — fixed there too). **Reply detection (the original caveat) is now solved, per-tenant, confirmed against Resend's actual docs** (`resend.com/docs/dashboard/webhooks/create-receiving-webhook` — the `email.received` payload contains `to`/`from`/`message_id`/`subject` but not headers or body, consistent with a lightweight relay design): since each team brings its **own** Resend account, reply capture is opt-in and per-mailbox, not a shared platform domain. `/api/integrations/resend/connect` now accepts optional `inboundDomain` (the team's own verified receiving subdomain — e.g. `reply.theirdomain.com`, DNS/MX and Resend-side verification is the team's own action, must never be a domain they also send real mail from per Resend's own MX-priority-conflict warning) and `webhookSecret` (that team's own webhook signing secret from their Resend dashboard, pointed at our shared `/api/webhooks/resend` endpoint); both stored on `ConnectedMailbox` (`metadata.inboundDomain`, `encryptedRefreshToken` — repurposed from the unused SMTP-style fallback slot, so `ResendProvider.getApiKey()` was fixed to stop reading `encryptedRefreshToken` as a fallback API key). `ResendProvider.send()` uses a `reply+{trackingId}@{inboundDomain}` plus-addressed Reply-To only when a team has configured `inboundDomain`; otherwise behavior is unchanged (dormant, zero-config-required feature). `/api/webhooks/resend` is a genuine multi-tenant broker: it resolves the candidate `Email`/`ConnectedMailbox`/team **before** verifying the signature (extracting the trackingId from the plus-address for `email.received`, or via `providerId` for delivery-status events), decrypts that specific mailbox's own webhook secret, and only then verifies — no shared/global secret, and a mailbox with no secret configured is silently skipped (never trusts unverified data) rather than erroring. On a verified `email.received`, sets `Email.repliedAt` (a column that, audit found, was never set by ANY code path in the app before this) and calls `advanceLeadAfterReply`. UI: `/settings/mailboxes`' Resend modal has a collapsed "Reply Capture (optional, advanced)" section with the exact 3 setup steps and both fields. New tests: `verifySvixSignature.test.ts` (5 cases: valid signature, wrong secret, tampered body, multi-candidate header, malformed header) plus the existing provider suite updated for the `getApiKey` fix. All 190 tests passing, clean `tsc --noEmit`. |
+| **OPEN-83** | Lemlist-Parity Gap: Sequence Conditions Never Actually Branched Execution | Feature | **Resolved 2026-08-26** | Investigation of "is inbox warming/sequencing done?" found `apps/api`'s `sequenceService.ts` (the real production engine — polled every 60s by `worker-manager.ts`, confirmed the *only* one wired up; `apps/web`'s own `sequence-step-worker.ts` is a separate, much more primitive job-queue-driven path) already evaluated CONDITION steps via `conditionPasses()`, but a failed condition only ever *skipped* to the same next `stepOrder` — there was no way to route "yes" and "no" to different downstream steps anywhere in the schema or code. Added a new `SequenceEdge` model (`sourceStepId`, `targetStepId`, `sourceHandle`: `"default"` \| `"yes"` \| `"no"`, unique on `(sourceStepId, sourceHandle)` — `sourceHandle` is a required sentinel rather than nullable specifically because Postgres treats NULLs as distinct in unique indexes, which would not have enforced "at most one edge per handle") to both `apps/api/prisma/schema.prisma` and `apps/web/prisma/schema.prisma` (migration `20260826130000_add_sequence_edges` in both, **not applied to any database** — schema/`prisma generate` only, per standing instruction). Rewrote `scheduleNextStep`/new `resolveNextStep` in `sequenceService.ts`: after a condition, follows the `"yes"`/`"no"` edge if one is configured, else falls back to the `"default"` edge, and transparently skips over any deactivated target step (up to 50 hops) to whatever follows it. **Critically, a sequence with zero `SequenceEdge` rows falls back to the old `stepOrder`-based linear traversal untouched** — no backfill migration was written (none is needed for correctness, and one would have required a UUID-generation function not confirmed available on this Postgres instance), so every existing sequence keeps running exactly as before until a future canvas actually authors real branching edges for it. Mirrored the identical routing logic into `apps/web/src/workers/handlers/sequence-step-worker.ts` (which previously only ever executed `EMAIL` steps and silently no-op'd everything else) plus a new `lib/campaigns/sequenceCondition.ts` (`evaluateSequenceCondition`, a line-for-line port of apps/api's `conditionPasses`/`normalize`, since either engine can advance the same enrollment against the shared database). New tests: `sequenceService.branching.test.ts` (5 cases — yes-routing, no-routing, default-edge fallback, legacy stepOrder fallback, inactive-step skip-through) and `sequenceStepWorker.test.ts` (6 cases) on the apps/web mirror, both all passing; full suites clean (apps/api 565/565, apps/web 196/196 + 7 pre-existing skips), `tsc --noEmit` clean on both apps. **No canvas/UI changes in this round** — per explicit user instruction, this was scoped as "backend branching engine first, then the node-based canvas," and there is currently no UI anywhere to author a distinct "no" target for a condition (only the AND-filter gate in `StepEditorDialog.tsx`), so this is pure plumbing readiness for the next phase. |
+| **OPEN-85** | Platform-Owned Seed Mail Pool For Inbox Warming (Resolves The Gap Flagged In OPEN-84) | Feature | **Resolved 2026-08-27** | OPEN-84 flagged real seed-mail traffic between mailboxes as a cross-tenant/privacy product decision, not a code decision, and asked the user how it should flow. User chose **platform-owned seed pool**: craftmyfunnel maintains its own dedicated dummy mailboxes that every warming customer mailbox exchanges mail with, rather than routing warmup traffic between customers' own mailboxes (self-warmup) or between different customers (shared pool of customer mailboxes) — avoids any cross-tenant mail exposure since seed mailboxes are never customer-facing and hold no customer data. Added `WarmupSeedMailbox` model (no `teamId` — deliberately platform-level, not a per-team resource) to both `apps/api/prisma/schema.prisma` and `apps/web/prisma/schema.prisma` (migration `20260826140000_add_warmup_seed_mailbox` in both, **not applied to any database**, per standing instruction — schema/`prisma generate` only). New `apps/api/src/modules/email-campaigner/service/warmupSeedService.ts`: `sendWarmupSeedTraffic()` (runs on `worker-manager.ts`'s tick loop, new hourly `WARMUP_SEED_INTERVAL_MS`-gated tick) iterates mailboxes with `isWarmingUp: true`, checks `assertMailboxCanSend` (the existing OPEN-84 ramped-limit gate) before sending anything, picks an eligible seed mailbox (`status: "ACTIVE"` and under its own `dailyCapacity`, with the same day-rollover-aware counter pattern as `ConnectedMailbox.sentToday`), sends a short templated email via the warming mailbox's own provider (Gmail API or SMTP), and probabilistically (40%) schedules a delayed reply from the seed mailbox back to the warming mailbox via a new `warmup_seed_reply` job type (5–120 min later) so the exchange looks bidirectional rather than one-way. Seed mailbox SMTP passwords are AES-256-GCM encrypted at rest via the same `{v, cipher, iv, tag}` envelope pattern as `smtpConfigService.ts`. Wired `warmup_seed_reply` into `job-processor.ts`'s handler switch and the new tick into `worker-manager.ts` (mocked in `worker-manager.test.ts` to avoid a real dynamic import/Prisma instantiation during that test). New `warmupSeedService.test.ts` (7 cases: Gmail-provider send, SMTP-provider send, throttled-mailbox skip, seed-pool-exhausted stop, reply decrypts and sends via SMTP, reply skips when seed mailbox missing/inactive, throws on missing payload fields) — required stubbing `ENCRYPTION_KEY` via `vi.stubEnv` inside a `beforeAll` before the service module's dynamic import (a plain top-level `process.env` assignment does not reliably take effect before the module's own load-time env read, same class of issue documented in `smtpConfigService.test.ts`). Full apps/api suite passes (572/572, up from 565), `tsc --noEmit` clean (only the pre-existing unrelated `browser-engine.ts` `Browser.isConnected` error remains). **Not done, flagged as a separate ops task**: no `WarmupSeedMailbox` rows exist in any environment yet — provisioning real platform-owned SMTP mailboxes (registering domains/accounts, generating credentials) is an infrastructure/ops action outside a coding session's scope, and `sendWarmupSeedTraffic` is a safe no-op (finds zero eligible seed mailboxes, sends nothing) until that's done. |
+| **OPEN-84** | Inbox Warming Was Only ~80% Inert, Not 100% — Corrected Finding + Two Real Throttle Bugs Fixed | Bug/Correction | **Resolved 2026-08-26 (partial — seed-mail sending explicitly out of scope, see below)** | An earlier status claim in this session that inbox warming was "100% inert" was **wrong** and based only on checking `apps/web`; `apps/api`'s `googleMailboxService.ts` already had real, live warmup logic: `assertMailboxCanSend()` computes a ramped `warmupLimit = max(5, min(dailyLimit, 5 + warmupDay*5))` when `isWarmingUp`, and `advanceMailboxWarmup()` (incrementing `warmupDay`/`warmupLastAdvancedAt` once per UTC day, capped at day 30) is wired into `worker-manager.ts`'s tick loop and runs continuously in production. What genuinely doesn't exist anywhere: **actual seed-email traffic** between mailboxes (the "send low volumes of real mail back and forth to build sender reputation" part of Lemwarm-style warmup) — `isWarmingUp`/`warmupDay` currently only gate the *user's real campaign send volume*, they never trigger any warmup-specific send. This is a genuine gap but **not purely a code decision**: real seed-mail warmup means routing mail between mailboxes across (at minimum) different teams' connected inboxes, which is a cross-tenant traffic / privacy / abuse-surface product decision (shared platform warmup pool vs. per-team self-warmup between a customer's own multiple mailboxes vs. a dedicated craftmyfunnel-owned seed pool) that needs the user's explicit direction before building, not an assumption — flagged rather than guessed at, deliberately not built this round. Separately, while verifying this, confirmed and fixed two real bugs the correction surfaced in `apps/web`'s copy of the throttle (`email-sending-worker.ts`, `handleEmailSending`): its raw-SQL atomic UPDATE (a) never reset `sentToday`/`sentTodayDate` on day rollover — unlike `apps/api`'s `bumpMailboxCounters`, which already did — so a mailbox sent through this path would permanently pin at `dailyLimit` after its first day, and (b) hardcoded `INTERVAL '180 seconds'` instead of honoring the mailbox's own configurable `minDelaySeconds` (30–86400s per the mailbox settings UI), and ignored warmup ramping entirely (checked raw `dailyLimit`, never the ramped `warmupLimit`). Fixed all three in one query using `make_interval(secs => ...)` and a `CASE` on `sentTodayDate`, mirroring `apps/api`'s semantics exactly. `tsc --noEmit` and the full apps/web suite (196/196) stayed clean; no new dedicated unit test was added for this raw-SQL path (no pre-existing test coverage existed for it either — a real Postgres connection is needed to exercise `$executeRaw` meaningfully, which these unit suites don't provision). While in both schema files for OPEN-83, also found and fixed a pre-existing drift from the prior session: `apps/api/prisma/schema.prisma` never received OPEN-78/81's `Email.variantId`/`CampaignVariant.emails` relation or `TrackedLink`'s `trackingKey` index (migration `20260826120000_add_variant_tracking_index` only ever existed under `apps/web/prisma/migrations`) — both apps read/write the same live database, so a drifted second copy of the schema is a real risk for whoever next runs `prisma migrate dev`/`deploy` from apps/api. Mirrored the model changes and copied the migration file across; `apps/api` typechecks clean and its full suite (565/565) still passes. |`/setup` Step 3 ("Google Workspace") only exposed a "Connect Google" button plus SMTP tucked inside a collapsed `<details>` labeled "fallback" — Microsoft 365 and Resend (both already fully wired providers, see OPEN-77/79) had no onboarding path at all. Rebuilt as `MailboxProviderStep`: a 4-way tab selector (Google / Microsoft 365 / SMTP / Resend), renamed step to "Sending Mailbox". Found and fixed two real bugs while restructuring: (1) `handleSaveStep(3)` **unconditionally** POSTed to `/api/integrations/smtp/connect` on every step-3 submit regardless of which provider the user actually used — so a user who connected via Google OAuth and left the SMTP fields blank would have hit "Missing required SMTP connection parameters" and been blocked from continuing; now branches on `formData.step3.provider` (SMTP/Resend actually connect on submit, Google/Microsoft connect via their own OAuth buttons and submit is a no-op). (2) Microsoft's OAuth callback (`/api/integrations/microsoft/oauth/callback`) ignored the `state` param entirely and always redirected to `/settings/mailboxes` regardless of where the flow started (unlike Google's, which already honored `next`) — fixed to redirect back to whatever page initiated the connection (validated as a same-origin relative path only, defaulting to `/settings/mailboxes` to preserve prior behavior), so connecting Microsoft from onboarding now correctly lands back on `/setup?step=3`. Connected-mailboxes list now shows every provider (was Google-only in copy, though the underlying API already returned all providers) with a provider badge per row. `tsc --noEmit` clean, all 190 tests still passing (no test regressions; UI/OAuth-redirect behavior not covered by automated browser tests in this session — manual verification in an authenticated session still owed). |
+
+
 
 
 

@@ -26,12 +26,40 @@ vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
     advanceMailboxWarmup: vi.fn().mockResolvedValue({ count: 0 }),
 }));
 
+vi.mock("@/modules/email-campaigner/service/warmupSeedService", () => ({
+    sendWarmupSeedTraffic: vi.fn().mockResolvedValue({ sent: 0 }),
+}));
+
 vi.mock("../job-processor", () => ({
     worker: { performJob: vi.fn().mockResolvedValue(undefined) },
 }));
 
 vi.mock("@/lib/outboxService", () => ({
     OutboxService: { relayPendingEvents: vi.fn().mockResolvedValue(0) },
+}));
+
+vi.mock("@/modules/governance/ApprovalService", () => ({
+    ApprovalService: { autoDenyExpiredApprovals: vi.fn().mockResolvedValue(0) },
+}));
+
+vi.mock("../handlers/overseerHandler", () => ({
+    processOverseerTick: vi.fn().mockResolvedValue({ candidates: 0, nudgesCreated: 0 }),
+}));
+
+vi.mock("@/modules/overseer/breakerService", () => ({
+    evaluateBreakers: vi.fn().mockResolvedValue({ teamsEvaluated: 0, tripped: 0 }),
+}));
+
+vi.mock("@/modules/overseer/overseerSignalService", () => ({
+    detectProviderDegradation: vi.fn().mockResolvedValue({ providersChecked: 0, signalsOpened: 0, signalsResolved: 0 }),
+}));
+
+vi.mock("../handlers/facebook-leads-worker", () => ({
+    syncDueFacebookLeadSources: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("@/modules/branding/customDomainPoller", () => ({
+    pollPendingCustomDomains: vi.fn().mockResolvedValue([]),
 }));
 
 describe("WorkerManager claim propagation", () => {

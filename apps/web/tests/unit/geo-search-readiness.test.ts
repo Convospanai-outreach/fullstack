@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import robots from "../../src/app/robots";
+import robots, { getRobotsTxt, CONTENT_SIGNAL } from "../../src/app/robots";
 import sitemap from "../../src/app/sitemap";
 import { GET as getLlmsTxt } from "../../src/app/llms.txt/route";
 import { GET as getLlmsFullTxt } from "../../src/app/llms-full.txt/route";
@@ -53,6 +53,12 @@ describe("Generative Engine Optimization (GEO) & AI Search Readiness", () => {
             expect(allowed).toContain("/vs");
             expect(allowed).toContain("/google-api-disclosure");
             expect(allowed).toContain("/data-deletion");
+        });
+
+        it("declares explicit Content-Signal directives in robots.txt output", () => {
+            const txt = getRobotsTxt();
+            expect(CONTENT_SIGNAL).toBe("search=yes, ai-input=yes, ai-train=yes");
+            expect(txt).toContain("Content-Signal: search=yes, ai-input=yes, ai-train=yes");
         });
     });
 

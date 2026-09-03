@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Notification {
     id: string;
@@ -20,7 +21,7 @@ export default function NotificationsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/notifications")
+        fetch(getBrowserApiBase() + "/notifications")
             .then(res => res.json())
             .then(data => {
                 setNotifications(data);
@@ -34,7 +35,7 @@ export default function NotificationsPage() {
 
     const markRead = async (id: string) => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/notifications", {
+            const res = await fetch(getBrowserApiBase() + "/notifications", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action: "markRead", id })
@@ -53,9 +54,9 @@ export default function NotificationsPage() {
 
             <div className="space-y-4 max-w-3xl">
                 {loading ? (
-                    <div className="text-white/60">Loading notifications...</div>
+                    <div className="text-muted-foreground">Loading notifications...</div>
                 ) : notifications.length === 0 ? (
-                    <div className="text-white/60">No new notifications.</div>
+                    <div className="text-muted-foreground">No new notifications.</div>
                 ) : (
                     notifications.map(n => (
                         <GlassCard key={n.id} className="flex justify-between items-center p-4">
@@ -64,8 +65,8 @@ export default function NotificationsPage() {
                                     {n.type}
                                 </Badge>
                                 <div>
-                                    <p className="text-white">{n.message}</p>
-                                    <p className="text-xs text-white/40">{new Date(n.createdAt).toLocaleString()}</p>
+                                    <p className="text-foreground">{n.message}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(n.createdAt).toLocaleString()}</p>
                                 </div>
                             </div>
                             <Button variant="ghost" onClick={() => markRead(n.id)} className="text-sm">

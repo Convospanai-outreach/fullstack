@@ -23,8 +23,16 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    // update agent status
-    await prisma.agent.update({ where: { id }, data: { status: "running" } });
+    // Atomic claim: only proceed if this agent wasn't already running. Without this guard, a
+    // double-click or client retry would unconditionally flip status and enqueue a second
+    // agent_run job for the same agent while the first is still in flight.
+    const claim = await prisma.agent.updateMany({
+        where: { id, status: { not: "running" } },
+        data: { status: "running" },
+    });
+    if (claim.count === 0) {
+        return NextResponse.json({ error: "Agent is already running." }, { status: 409 });
+    }
     // add activity
     await prisma.activity.create({
         data: {

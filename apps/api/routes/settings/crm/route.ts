@@ -3,6 +3,7 @@ import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { audit } from "@/lib/governance/audit";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { encryptCrmToken } from "@/modules/crm-integration/service/crmSecrets";
 
 function sanitizeCrmIntegration(integration: any) {
     const { accessToken, refreshToken, ...safeIntegration } = integration;
@@ -54,9 +55,15 @@ export async function PUT(req: Request) {
             );
         }
 
+        // GET never returns the real tokens (sanitizeCrmIntegration strips them), so
+        // any non-empty value here is a genuinely new token from the OAuth exchange
+        // or a manual paste - never a round-tripped placeholder.
+        const encryptedAccessToken = accessToken ? encryptCrmToken(accessToken) : accessToken;
+        const encryptedRefreshToken = refreshToken ? encryptCrmToken(refreshToken) : refreshToken;
+
         const updateData: any = {
-            accessToken,
-            refreshToken,
+            accessToken: encryptedAccessToken,
+            refreshToken: encryptedRefreshToken,
             isActive,
             fieldMapping,
             syncSettings
@@ -68,8 +75,8 @@ export async function PUT(req: Request) {
         const createData: any = {
             teamId,
             provider,
-            accessToken,
-            refreshToken,
+            accessToken: encryptedAccessToken,
+            refreshToken: encryptedRefreshToken,
             isActive,
             fieldMapping,
             syncSettings

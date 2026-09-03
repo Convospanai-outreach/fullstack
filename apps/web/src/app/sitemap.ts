@@ -1,14 +1,23 @@
 import type { MetadataRoute } from "next";
 import fs from "fs";
-import path from "path";function getBaseUrl() {
+import path from "path";
+import { CITIES_MATRIX } from "@/lib/locations";
+
+function getBaseUrl() {
     return (process.env["NEXT_PUBLIC_SITE_URL"] || process.env["NEXTAUTH_URL"] || "http://localhost:3000").replace(/\/$/, "");
 }
 
-function getBlogSlugs() {
+function getBlogEntries() {
     try {
         const blogDir = path.join(process.cwd(), "content", "blog");
-        const files = fs.readdirSync(blogDir);
-        return files.filter(f => f.endsWith('.md')).map(f => f.replace('.md', ''));
+        const files = fs.readdirSync(blogDir).filter(f => f.endsWith('.md'));
+        return files.map(file => {
+            const slug = file.replace('.md', '');
+            const content = fs.readFileSync(path.join(blogDir, file), 'utf8');
+            const match = content.match(/date:\s*["']([^"']+)["']/);
+            const date = match && match[1] ? new Date(match[1]) : new Date();
+            return { slug, date };
+        });
     } catch (e) {
         return [];
     }
@@ -18,9 +27,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     const baseUrl = getBaseUrl();
     const lastModified = new Date();
     
-    const blogSlugs = getBlogSlugs();
-    const blogEntries: MetadataRoute.Sitemap = blogSlugs.map(slug => ({
-        url: `${baseUrl}/blog/${slug}`,
+    const blogItems = getBlogEntries();
+    const blogEntries: MetadataRoute.Sitemap = blogItems.map(item => ({
+        url: `${baseUrl}/blog/${item.slug}`,
+        lastModified: item.date,
+        changeFrequency: "weekly" as const,
+        priority: 0.8,
+    }));
+
+    const locationEntries: MetadataRoute.Sitemap = CITIES_MATRIX.map(city => ({
+        url: `${baseUrl}/locations/${city.slug}`,
         lastModified,
         changeFrequency: "weekly" as const,
         priority: 0.8,
@@ -35,11 +51,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
         ...blogEntries,
         {
+            url: `${baseUrl}/locations`,
+            lastModified,
+            changeFrequency: "weekly",
+            priority: 0.9,
+        },
+        ...locationEntries,
+        {
             url: baseUrl,
             lastModified,
             changeFrequency: "daily",
             priority: 1.0,
         },
+
         {
             url: `${baseUrl}/pricing`,
             lastModified,

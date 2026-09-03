@@ -1,21 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Mail, Clock, Send, Headphones, Building2 } from "lucide-react";
+import { trackCustomEvent } from "@/components/analytics/GoogleAnalytics";
+
 
 export default function ContactPage() {
-    const [form, setForm] = useState({ name: "", email: "", subject: "", message: "" });
+    const [form, setForm] = useState({ name: "", email: "", subject: "", message: "", website_url: "" });
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Extract GA4 client_id from _ga cookie if available
+            let gaClientId = "";
+            if (typeof document !== "undefined") {
+                const gaCookie = document.cookie.split('; ').find(row => row.startsWith('_ga='));
+                if (gaCookie) {
+                    const parts = gaCookie.split('.');
+                    if (parts.length >= 4) {
+                        gaClientId = `${parts[2]}.${parts[3]}`;
+                    }
+                }
+            }
+
             const response = await fetch("/api/support/contact", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form),
+                body: JSON.stringify({
+                    ...form,
+                    ga_client_id: gaClientId,
+                }),
             });
             const data = await response.json().catch(() => ({}));
 
@@ -24,8 +42,17 @@ export default function ContactPage() {
                 throw new Error(message);
             }
 
+            // Fire standard GA4 Lead Conversion Event
+            trackCustomEvent("generate_lead", {
+                currency: "USD",
+                value: 49,
+                event_category: "Lead Capture",
+                event_label: form.subject || "General Inquiry",
+                form_source: "Contact Page",
+            });
+
             toast.success("Message sent. We'll get back to you as soon as we can.");
-            setForm({ name: "", email: "", subject: "", message: "" });
+            setForm({ name: "", email: "", subject: "", message: "", website_url: "" });
         } catch (error) {
             const message = error instanceof Error ? error.message : "Failed to send message. Please try again.";
             toast.error(message);
@@ -33,6 +60,7 @@ export default function ContactPage() {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
@@ -58,6 +86,17 @@ export default function ContactPage() {
 
                     {/* Contact Info */}
                     <div className="lg:col-span-2 space-y-6">
+                        <div className="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2">
+                            <Image
+                                src="/images/platform/contact-support.webp"
+                                alt="CraftMyFunnel Enterprise Engineering and Support Desk Assistance"
+                                width={400}
+                                height={225}
+                                priority
+                                className="w-full h-auto rounded-xl"
+                            />
+                        </div>
+
                         <h2 className="text-2xl font-bold mb-6">Quick channels</h2>
 
                         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/20 transition-colors space-y-2">
@@ -100,6 +139,19 @@ export default function ContactPage() {
                             <p className="text-sm text-gray-500 mb-8">Short is fine. Tell us what happened and what you expected.</p>
 
                             <form onSubmit={handleSubmit} className="space-y-5">
+                                {/* Anti-bot honeypot field hidden from legitimate users */}
+                                <div className="hidden" aria-hidden="true" style={{ display: 'none' }}>
+                                    <label htmlFor="contact-website-url">Website</label>
+                                    <input
+                                        id="contact-website-url"
+                                        type="text"
+                                        tabIndex={-1}
+                                        autoComplete="off"
+                                        value={form.website_url}
+                                        onChange={(e) => setForm({ ...form, website_url: e.target.value })}
+                                    />
+                                </div>
+
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                     <div>
                                         <label htmlFor="contact-name" className="block text-sm font-medium text-gray-300 mb-2">Your name</label>

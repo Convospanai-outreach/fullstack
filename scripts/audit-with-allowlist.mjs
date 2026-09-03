@@ -31,6 +31,57 @@ const ALLOWLIST = new Map([
         "pre-existing per-workspace overrides in apps/api and apps/web " +
         "package.json. See OPEN_ITEMS.md OPEN-40.",
     ],
+    [
+        "GHSA-3f6p-5ww8-9rcr",
+        "mysql2 (via prisma, <3.22.0): auth-plugin downgrade to " +
+        "mysql_clear_password can leak plaintext credentials to a malicious/" +
+        "MITM'd server. This repo's Prisma schema (apps/api/prisma/schema.prisma) " +
+        "uses provider = \"postgresql\" exclusively - mysql2 is bundled by " +
+        "prisma's multi-driver support but never imported, configured, or " +
+        "connected to anywhere in this codebase, so the vulnerable auth " +
+        "negotiation path is unreachable. See OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-rgwj-5xj2-c3m3",
+        "mysql2 (via prisma, <=3.23.0): unbounded zlib inflate in the " +
+        "compressed MySQL protocol handler allows a decompression-bomb DoS. " +
+        "Same unreachable dependency as GHSA-3f6p-5ww8-9rcr above (postgresql-" +
+        "only schema, mysql2 never connected to). See OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-5jgf-p345-68v8",
+        "fast-uri (via fastify -> @fastify/ajv-compiler/fast-json-stringify -> " +
+        "ajv, 3.0.0-3.1.5): host-confusion via skipped IDN canonicalization on " +
+        "scheme-relative references. The vulnerable code path is ajv's URI-" +
+        "format validators, only invoked when a fastify route schema declares " +
+        "format: \"uri\"/\"uri-reference\" - confirmed via repo-wide search that " +
+        "no route in this app declares any JSON-schema `format` keyword at " +
+        "all (fastify request/response schema validation isn't used here), so " +
+        "the parser never runs against attacker-controlled input. Pinning the " +
+        "root override to a patched fast-uri conflicts with the existing " +
+        "per-workspace overrides in apps/api and apps/web package.json (same " +
+        "\"Conflicting override sets\" failure class as OPEN-40 - confirmed via " +
+        "`npm install --loglevel silly`, the pin silently doesn't apply). See " +
+        "OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-f65p-4m7j-42xc",
+        "fast-uri: SSRF via malformed IPv6 normalization. Same unreachable " +
+        "dependency chain and override conflict as GHSA-5jgf-p345-68v8 above. " +
+        "See OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-fph4-wmhf-6fwf",
+        "fast-uri: SSRF via repeated hostname percent-decoding. Same " +
+        "unreachable dependency chain and override conflict as " +
+        "GHSA-5jgf-p345-68v8 above. See OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-jqff-g426-hqxp",
+        "fast-uri: host confusion via percent-encoded scheme normalization. " +
+        "Same unreachable dependency chain and override conflict as " +
+        "GHSA-5jgf-p345-68v8 above. See OPEN_ITEMS.md OPEN-125.",
+    ],
 ]);
 
 function runAudit() {

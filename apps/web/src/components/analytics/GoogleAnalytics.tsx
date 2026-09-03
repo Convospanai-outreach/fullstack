@@ -45,11 +45,9 @@ function GoogleAnalyticsRouteTracker({ measurementId }: { measurementId: string 
 export function GoogleAnalytics() {
   const measurementId =
     process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] ||
-    process.env["NEXT_PUBLIC_GA_ID"];
+    process.env["NEXT_PUBLIC_GA_ID"] ||
+    "G-PJCWLF4HVJ";
 
-  if (!measurementId) {
-    return null;
-  }
 
   return (
     <>

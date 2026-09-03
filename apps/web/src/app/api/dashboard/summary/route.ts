@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentContext } from "@/lib/auth";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 export const dynamic = "force-dynamic";
 
@@ -69,24 +70,21 @@ export async function GET() {
 
     for (const email of draftEmails) {
       if (!existingEmailIds.has(email.id)) {
-        await prisma.approvalRequest.create({
-          data: {
-            teamId,
-            requesterId: userId,
-            actionType: "email_draft_approval",
-            entityType: "email",
-            entityId: email.id,
-            status: "PENDING",
-            payload: {
-              emailId: email.id,
-              leadId: email.leadId,
-              campaignId: email.campaignId,
-              subject: email.subject,
-              body: email.body,
-              recipient: email.lead?.email,
-            },
+        await ApprovalService.requestEntityApproval(
+          "email",
+          email.id,
+          teamId,
+          "email_draft_approval",
+          {
+            emailId: email.id,
+            leadId: email.leadId,
+            campaignId: email.campaignId,
+            subject: email.subject,
+            body: email.body,
+            recipient: email.lead?.email,
           },
-        }).catch((err) => {
+          userId
+        ).catch((err) => {
             console.error("[Dashboard Summary] Self-healing ApprovalRequest backfill error:", err?.message || err);
         });
       }

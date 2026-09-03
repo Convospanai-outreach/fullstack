@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getCurrentContext } from "@/lib/auth";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 
 export async function GET() {
     try {
+        const { teamId, userId } = await getCurrentContext();
+        if (!teamId || !userId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
+
         const leads = await prisma.lead.findMany({
+            where: { teamId },
             orderBy: { createdAt: "desc" }
         });
 
@@ -35,6 +44,6 @@ export async function GET() {
             }
         });
     } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: error?.statusCode || 500 });
     }
 }

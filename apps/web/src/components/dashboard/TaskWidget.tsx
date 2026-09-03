@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export function TaskWidget() {
     const [tasks, setTasks] = useState<any[]>([]);
@@ -25,7 +26,7 @@ export function TaskWidget() {
         if (!newTaskTitle.trim()) return;
 
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/tasks", {
+            const res = await fetch(getBrowserApiBase() + "/pipeline/tasks", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -47,7 +48,7 @@ export function TaskWidget() {
 
     const loadTasks = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/tasks");
+            const res = await fetch(getBrowserApiBase() + "/pipeline/tasks");
             const data = await res.json();
             if (data.success) {
                 setTasks(data.data);
@@ -62,7 +63,7 @@ export function TaskWidget() {
     const toggleTask = async (taskId: string, currentStatus: string) => {
         const newStatus = currentStatus === "TODO" ? "DONE" : "TODO";
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/pipeline/tasks/${taskId}`, {
+            const res = await fetch(`${getBrowserApiBase()}/pipeline/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: newStatus })
@@ -81,26 +82,26 @@ export function TaskWidget() {
     if (loading) return null;
 
     return (
-        <div className="glass-panel p-6 rounded-2xl border border-white/5 space-y-6">
+        <div className="glass-panel p-6 rounded-2xl border border-border space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                     Pending Verification <span className="text-xs bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full">{tasks.filter(t => t.status === 'TODO').length}</span>
                 </h3>
                 <button
                     onClick={() => setIsCreating(true)}
-                    className="p-2 hover:bg-white/5 rounded-lg text-gray-500 hover:text-white transition-all">
+                    className="p-2 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-all">
                     <Plus className="w-5 h-5" />
                 </button>
             </div>
 
             {/* Creation Form */}
             {isCreating && (
-                <div className="p-4 bg-white/5 rounded-xl border border-white/10 space-y-3 animate-in fade-in slide-in-from-top-2">
+                <div className="p-4 bg-muted rounded-xl border border-border space-y-3 animate-in fade-in slide-in-from-top-2">
                     <input
                         autoFocus
                         type="text"
                         placeholder="What needs to be done?"
-                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500"
+                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground focus:outline-none focus:border-blue-500"
                         value={newTaskTitle}
                         onChange={(e) => setNewTaskTitle(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleCreateTask()}
@@ -108,7 +109,7 @@ export function TaskWidget() {
                     <div className="flex justify-end gap-2">
                         <button
                             onClick={() => setIsCreating(false)}
-                            className="px-3 py-1.5 text-xs text-gray-400 hover:text-white transition-colors">
+                            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
                             Cancel
                         </button>
                         <button
@@ -123,7 +124,7 @@ export function TaskWidget() {
 
             <div className="space-y-3">
                 {tasks.length === 0 ? (
-                    <div className="py-8 text-center text-gray-500 text-sm italic">
+                    <div className="py-8 text-center text-muted-foreground text-sm italic">
                         All clear! No pending tasks.
                     </div>
                 ) : (
@@ -131,8 +132,8 @@ export function TaskWidget() {
                         <div
                             key={task.id}
                             className={`group flex items-start gap-4 p-4 rounded-xl border transition-all ${task.status === 'DONE'
-                                ? 'bg-white/[0.02] border-transparent opacity-60'
-                                : 'bg-white/5 border-white/5 hover:border-white/20'
+                                ? 'bg-muted/40 border-transparent opacity-60'
+                                : 'bg-muted border-border hover:border-primary/30'
                                 }`}
                         >
                             <button
@@ -142,18 +143,18 @@ export function TaskWidget() {
                                 {task.status === 'DONE' ? (
                                     <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                                 ) : (
-                                    <Circle className="w-5 h-5 text-gray-600 group-hover:text-blue-500 transition-colors" />
+                                    <Circle className="w-5 h-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
                                 )}
                             </button>
                             <div className="flex-1">
-                                <div className={`text-sm font-bold tracking-tight ${task.status === 'DONE' ? 'line-through text-gray-600' : 'text-white'}`}>
+                                <div className={`text-sm font-bold tracking-tight ${task.status === 'DONE' ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                                     {task.title}
                                 </div>
                                 {task.description && (
-                                    <div className="text-[10px] text-gray-500 mt-1 line-clamp-1">{task.description}</div>
+                                    <div className="text-[10px] text-muted-foreground mt-1 line-clamp-1">{task.description}</div>
                                 )}
                                 <div className="flex items-center gap-4 mt-3">
-                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-500 uppercase">
+                                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase">
                                         <Calendar className="w-3 h-3" /> {task.dueDate ? formatDistanceToNow(new Date(task.dueDate)) + " ago" : "No date"}
                                     </div>
                                     {task.lead && (
@@ -171,7 +172,7 @@ export function TaskWidget() {
                 )}
             </div>
 
-            <button className="w-full py-3 rounded-xl border border-white/5 text-[10px] font-bold text-gray-500 uppercase tracking-widest hover:bg-white/5 hover:text-white transition-all">
+            <button className="w-full py-3 rounded-xl border border-border text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:bg-muted hover:text-foreground transition-all">
                 View All Tasks
             </button>
         </div>

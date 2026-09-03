@@ -1,7 +1,7 @@
 ---
 title: "Data Privacy in the Era of AI Sales Assistants and LLMs"
 description: "How to safely deploy AI agents for B2B sales without violating GDPR, CCPA, or leaking proprietary data to public LLMs. A guide to secure AI automation."
-date: "2026-08-23T08:30:00.000Z"
+date: "2026-04-27T17:18:27.692Z"
 ---
 
 The productivity gains promised by Large Language Models (LLMs) and autonomous AI sales agents are staggering. The ability to automatically research prospects, summarize discovery calls, and draft hyper-personalized emails can 10x a revenue team's output. 

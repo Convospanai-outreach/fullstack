@@ -1,14 +1,21 @@
 import { NextResponse } from "next/server";
 import { JobQueue } from "@/lib/queue";
 import { prisma } from "@/lib/db";
+import { getCurrentContextFromRequest } from "@/lib/auth";
+import type { NextRequest } from "next/server";
 
-export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { userId, teamId } = await getCurrentContextFromRequest(req);
+        if (!userId || !teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { id } = await params;
         const body = await req.json();
         const { action, message } = body; // action: "CONNECT", "MESSAGE"
 
-        const lead = await prisma.lead.findUnique({ where: { id } });
+        const lead = await prisma.lead.findUnique({ where: { id, teamId } });
         if (!lead || !lead.linkedIn) {
             return NextResponse.json({ error: "Lead or LinkedIn URL not found" }, { status: 404 });
         }

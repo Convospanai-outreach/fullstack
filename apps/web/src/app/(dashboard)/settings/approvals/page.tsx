@@ -11,6 +11,7 @@ import {
     User,
     FileText
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ApprovalsPage() {
     const [requests, setRequests] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export default function ApprovalsPage() {
 
     const fetchRequests = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/approvals");
+            const res = await fetch(getBrowserApiBase() + "/settings/approvals");
             const data = await res.json();
             setRequests(data);
         } catch (err) {
@@ -34,7 +35,7 @@ export default function ApprovalsPage() {
 
     const handleResolve = async (id: string, status: "APPROVED" | "REJECTED") => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/approvals", {
+            const res = await fetch(getBrowserApiBase() + "/settings/approvals", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id, status })
@@ -52,7 +53,7 @@ export default function ApprovalsPage() {
         }
     };
 
-    if (loading) return <div className="p-8 text-white">Loading approvals...</div>;
+    if (loading) return <div className="p-8 text-foreground">Loading approvals...</div>;
 
     const pending = requests.filter(r => r.status === "PENDING");
     const resolved = requests.filter(r => r.status !== "PENDING");
@@ -65,7 +66,7 @@ export default function ApprovalsPage() {
             />
 
             <div className="space-y-4">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                     <Clock className="w-5 h-5 text-yellow-500" />
                     Pending Requests ({pending.length})
                 </h3>
@@ -80,7 +81,7 @@ export default function ApprovalsPage() {
                         />
                     ))}
                     {pending.length === 0 && (
-                        <div className="p-12 text-center text-gray-500 bg-slate-900/40 rounded-2xl border border-dashed border-white/10">
+                        <div className="p-12 text-center text-muted-foreground bg-muted rounded-2xl border border-dashed border-border">
                             No pending approval requests.
                         </div>
                     )}
@@ -88,8 +89,8 @@ export default function ApprovalsPage() {
             </div>
 
             {resolved.length > 0 && (
-                <div className="space-y-4 pt-8 border-t border-white/10">
-                    <h3 className="text-lg font-bold text-gray-400">Resolution History</h3>
+                <div className="space-y-4 pt-8 border-t border-border">
+                    <h3 className="text-lg font-bold text-muted-foreground">Resolution History</h3>
                     <div className="grid gap-4 opacity-70">
                         {resolved.map((req) => (
                             <ApprovalCard
@@ -122,7 +123,7 @@ function ApprovalCard({ request, onResolve, isPending }: {
                     </div>
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-mono uppercase tracking-wider text-gray-500">
+                            <span className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
                                 {request.type.replace(/_/g, ' ')}
                             </span>
                             {!isPending && (
@@ -134,12 +135,12 @@ function ApprovalCard({ request, onResolve, isPending }: {
                                 </span>
                             )}
                         </div>
-                        <h4 className="text-lg font-bold text-white mb-2">
+                        <h4 className="text-lg font-bold text-foreground mb-2">
                             {request.type === 'CAMPAIGN_RUN' ? 'Execute Campaign Workflow' :
                                 request.type === 'PLAYBOOK_PUBLISH' ? 'Publish Playbook to Team' :
                                     'High Volume Action Request'}
                         </h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
                             <div className="flex items-center gap-1.5">
                                 <User className="w-4 h-4" />
                                 <span>Requester: {request.requesterId}</span>
@@ -151,7 +152,7 @@ function ApprovalCard({ request, onResolve, isPending }: {
                         </div>
 
                         {request.payload && (
-                            <div className="mt-4 p-3 bg-slate-950/50 rounded-lg text-xs font-mono text-gray-500 overflow-hidden">
+                            <div className="mt-4 p-3 bg-muted rounded-lg text-xs font-mono text-muted-foreground overflow-hidden">
                                 <pre>{JSON.stringify(request.payload, null, 2)}</pre>
                             </div>
                         )}
@@ -168,7 +169,7 @@ function ApprovalCard({ request, onResolve, isPending }: {
                         </button>
                         <button
                             onClick={() => onResolve(request.id, "APPROVED")}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-emerald-600/20"
+                            className="bg-success hover:bg-success/90 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
                         >
                             <CheckCircle className="w-5 h-5" />
                             Approve

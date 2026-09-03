@@ -9,22 +9,39 @@ interface Props {
     title?: string;
     onSave: (payload: { title?: string; editorState?: unknown; renderedJson: unknown }) => Promise<void>;
     onPublish: () => Promise<void>;
+    onGenerateImages?: () => Promise<unknown>;
 }
 
 function getInitialHtml(initialRenderedJson: unknown): string {
     return getLandingRenderPayload(initialRenderedJson).html;
 }
 
-export default function GrapesEditor({ initialRenderedJson, title, onSave, onPublish }: Props) {
+function buildPreviewDoc(html: string, css: string): string {
+    return `<!doctype html><html><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><style>${css}</style></head><body class="la-page">${html}</body></html>`;
+}
+
+export default function GrapesEditor({ initialRenderedJson, title, onSave, onPublish, onGenerateImages }: Props) {
     const containerRef = useRef<HTMLDivElement | null>(null);
     const editorRef = useRef<any>(null);
+    const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [loadingEditor, setLoadingEditor] = useState(true);
     const [saving, setSaving] = useState(false);
     const [publishing, setPublishing] = useState(false);
+    const [generatingImages, setGeneratingImages] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [pageTitle, setPageTitle] = useState(title || "Landing Page");
+    const [previewDoc, setPreviewDoc] = useState("");
+    const [previewWidth, setPreviewWidth] = useState<"desktop" | "mobile">("desktop");
 
     const starterHtml = useMemo(() => getInitialHtml(initialRenderedJson), [initialRenderedJson]);
+
+    function updatePreviewFromEditor() {
+        if (!editorRef.current) return;
+        const html = editorRef.current.getHtml();
+        const css = withLandingBaseCss(editorRef.current.getCss() || "");
+        const payload = getLandingRenderPayload({ html, css });
+        setPreviewDoc(buildPreviewDoc(payload.html, payload.css));
+    }
 
     useEffect(() => {
         let active = true;
@@ -107,6 +124,12 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
             editor.setComponents(starterHtml);
             editorRef.current = editor;
             setLoadingEditor(false);
+            updatePreviewFromEditor();
+
+            editor.on("update", () => {
+                if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
+                previewDebounceRef.current = setTimeout(updatePreviewFromEditor, 400);
+            });
         }
 
         mountEditor().catch((err) => {
@@ -116,6 +139,7 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
 
         return () => {
             active = false;
+            if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
             try {
                 editorRef.current?.destroy();
             } catch {
@@ -164,6 +188,24 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
         }
     }
 
+    async function handleGenerateImages() {
+        if (!onGenerateImages || !editorRef.current) return;
+        setGeneratingImages(true);
+        setError(null);
+        try {
+            const updatedRenderedJson = await onGenerateImages();
+            if (updatedRenderedJson) {
+                const html = getLandingRenderPayload(updatedRenderedJson).html;
+                editorRef.current.setComponents(html);
+                updatePreviewFromEditor();
+            }
+        } catch (err: any) {
+            setError(err?.message || "Image generation failed");
+        } finally {
+            setGeneratingImages(false);
+        }
+    }
+
     return (
         <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3">
@@ -177,6 +219,15 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
                 <Button onClick={handleSave} disabled={saving || publishing} className="bg-white text-slate-900 hover:bg-slate-200">
                     {saving ? "Saving..." : "Save Draft"}
                 </Button>
+                {onGenerateImages ? (
+                    <Button
+                        onClick={handleGenerateImages}
+                        disabled={generatingImages || saving || publishing}
+                        className="bg-violet-600 hover:bg-violet-500 text-white"
+                    >
+                        {generatingImages ? "Generating images..." : "Generate images"}
+                    </Button>
+                ) : null}
                 <Button onClick={handlePublish} disabled={publishing} className="bg-cyan-600 hover:bg-cyan-500 text-white">
                     {publishing ? "Publishing..." : "Publish"}
                 </Button>
@@ -184,9 +235,40 @@ export default function GrapesEditor({ initialRenderedJson, title, onSave, onPub
 
             {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
-            <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2">
-                {loadingEditor ? <p className="p-6 text-sm text-slate-400">Loading editor...</p> : null}
-                <div ref={containerRef} />
+            <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2">
+                    {loadingEditor ? <p className="p-6 text-sm text-slate-400">Loading editor...</p> : null}
+                    <div ref={containerRef} />
+                </div>
+
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Live Preview</p>
+                        <div className="flex gap-1">
+                            <Button
+                                onClick={() => setPreviewWidth("desktop")}
+                                className={`h-7 px-2 text-xs ${previewWidth === "desktop" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                            >
+                                Desktop
+                            </Button>
+                            <Button
+                                onClick={() => setPreviewWidth("mobile")}
+                                className={`h-7 px-2 text-xs ${previewWidth === "mobile" ? "bg-cyan-600 text-white" : "bg-white/10 text-slate-300"}`}
+                            >
+                                Mobile
+                            </Button>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-white/10 bg-slate-950/60 p-2" style={{ height: "70vh" }}>
+                        <iframe
+                            title="Landing page preview"
+                            srcDoc={previewDoc}
+                            sandbox=""
+                            className="h-full rounded-lg bg-white"
+                            style={{ width: previewWidth === "desktop" ? "100%" : "390px", margin: previewWidth === "mobile" ? "0 auto" : undefined, display: "block" }}
+                        />
+                    </div>
+                </div>
             </div>
         </div>
     );

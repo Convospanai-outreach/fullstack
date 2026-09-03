@@ -36,13 +36,17 @@ export async function DELETE(req: NextRequest) {
             throw new APIError("Some leads not found or unauthorized", 403, "FORBIDDEN");
         }
 
-        await prisma.lead.deleteMany({
+        // Scoped by teamId here too, not just in the count check above - the
+        // mutation's own safety must not depend solely on a separate pre-check
+        // holding true (see OPEN-99/OPEN-109/OPEN-110 for the same anti-pattern).
+        const deleted = await prisma.lead.deleteMany({
             where: {
-                id: { in: ids }
+                id: { in: ids },
+                teamId
             }
         });
 
-        return successResponse({ success: true, count });
+        return successResponse({ success: true, count: deleted.count });
     } catch (error) {
         return handleAPIError(error);
     }

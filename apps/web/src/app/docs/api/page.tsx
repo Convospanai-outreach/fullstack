@@ -11,12 +11,13 @@ import {
     Book
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const ENDPOINTS = [
     {
         category: "Leads",
         method: "GET",
-        path: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/v1/leads",
+        path: getBrowserApiBase() + "/v1/leads",
         description: "Fetch a list of leads with advanced filtering and pagination support.",
         params: [
             { name: "limit", type: "number", desc: "Max results (default 10, max 100)" },
@@ -30,7 +31,7 @@ const ENDPOINTS = [
     {
         category: "Leads",
         method: "POST",
-        path: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/v1/leads",
+        path: getBrowserApiBase() + "/v1/leads",
         description: "Create a new lead and optionally assign to a campaign.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -H "Content-Type: application/json" \\
@@ -40,7 +41,7 @@ const ENDPOINTS = [
     {
         category: "Knowledge",
         method: "GET",
-        path: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/v1/knowledge/search",
+        path: getBrowserApiBase() + "/v1/knowledge/search",
         description: "Contextual search across your knowledge base collections using RAG logic.",
         params: [
             { name: "q", type: "string", desc: "The natural language query" },
@@ -52,7 +53,7 @@ const ENDPOINTS = [
     {
         category: "Workflows",
         method: "POST",
-        path: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/v1/workflows/{id}/run",
+        path: getBrowserApiBase() + "/v1/workflows/{id}/run",
         description: "Programmatically trigger a workflow execution for a specific lead or entity.",
         example: `curl -X POST -H "X-API-KEY: your_key" \\
 -d '{"leadId": "lead_123"}' \\
@@ -61,7 +62,7 @@ const ENDPOINTS = [
     {
         category: "Tasks",
         method: "GET",
-        path: (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/v1/tasks",
+        path: getBrowserApiBase() + "/v1/tasks",
         description: "Retrieve a list of pending and completed tasks for your team.",
         params: [
             { name: "status", type: "string", desc: "Filter by status (TODO, DONE)" },
@@ -83,8 +84,51 @@ export default function ApiDocsPage() {
 
     const categories = Array.from(new Set(ENDPOINTS.map(e => e.category)));
 
+    const apiSchema = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "REST API Reference",
+                        "item": "https://craftmyfunnel.live/docs/api"
+                    }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "headline": "CraftMyFunnel REST API & Webhooks Reference",
+                "description": "Developer guide for programmatically managing leads, triggering campaigns, and listening to webhook events.",
+                "url": "https://craftmyfunnel.live/docs/api",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                }
+            }
+        ]
+    };
+
     return (
         <div className="space-y-8 max-w-[1400px] mx-auto pb-20">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(apiSchema) }}
+            />
             <SectionHeader
                 title="Developer Hub"
                 subtitle="The complete guide to integrating CraftMyFunnel into your stack."

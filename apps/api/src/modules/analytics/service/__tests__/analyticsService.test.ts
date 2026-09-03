@@ -22,6 +22,7 @@ vi.mock("@/lib/db", () => ({
         },
         guardrailLog: {
             count: vi.fn(),
+            findMany: vi.fn(),
         },
     },
 }));
@@ -86,8 +87,14 @@ describe("analyticsService", () => {
     });
 
     describe("getGovernanceStats", () => {
-        it("counts guardrail logs and blocked actions scoped to the team", async () => {
+        it("counts guardrail logs, blocked actions, and derives a real risk level + hourly activity", async () => {
             (prisma.guardrailLog.count as any).mockResolvedValueOnce(20).mockResolvedValueOnce(4);
+            const now = Date.now();
+            (prisma.guardrailLog.findMany as any).mockResolvedValueOnce([
+                { createdAt: new Date(now) }, // this hour
+                { createdAt: new Date(now - 2 * 60 * 60 * 1000) }, // 2h ago
+                { createdAt: new Date(now) }, // this hour
+            ]);
 
             const stats = await analyticsService.getGovernanceStats("team-1");
 
@@ -95,7 +102,23 @@ describe("analyticsService", () => {
             expect(prisma.guardrailLog.count).toHaveBeenNthCalledWith(2, {
                 where: { teamId: "team-1", action: "blocked" },
             });
-            expect(stats).toEqual({ totalLogs: 20, blockedActions: 4 });
+            expect(stats.totalLogs).toBe(20);
+            expect(stats.blockedActions).toBe(4);
+            expect(stats.policyRiskLevel).toBe("HIGH"); // 4/20 = 0.2 block ratio
+            expect(stats.hourlyActivity).toHaveLength(24);
+            expect(stats.hourlyActivity[23]).toBe(2); // this-hour bucket
+            expect(stats.hourlyActivity[21]).toBe(1); // 2h-ago bucket
+            expect(stats.hourlyActivity.reduce((a: number, b: number) => a + b, 0)).toBe(3);
+        });
+
+        it("reports LOW risk with no activity when there are no logs", async () => {
+            (prisma.guardrailLog.count as any).mockResolvedValueOnce(0).mockResolvedValueOnce(0);
+            (prisma.guardrailLog.findMany as any).mockResolvedValueOnce([]);
+
+            const stats = await analyticsService.getGovernanceStats("team-1");
+
+            expect(stats.policyRiskLevel).toBe("LOW");
+            expect(stats.hourlyActivity.every((n: number) => n === 0)).toBe(true);
         });
     });
 

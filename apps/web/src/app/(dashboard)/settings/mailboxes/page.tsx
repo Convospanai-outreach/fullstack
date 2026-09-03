@@ -64,16 +64,30 @@ export default function MailboxesSettingsPage() {
     const [smtpTestResult, setSmtpTestResult] = useState("");
     const [smtpSaving, setSmtpSaving] = useState(false);
 
+    // Resend Modal State
+    const [showResendModal, setShowResendModal] = useState(false);
+    const [resendApiKey, setResendApiKey] = useState("");
+    const [resendFromName, setResendFromName] = useState("");
+    const [resendEmail, setResendEmail] = useState("");
+    const [resendInboundDomain, setResendInboundDomain] = useState("");
+    const [resendWebhookSecret, setResendWebhookSecret] = useState("");
+    const [resendShowReplyCapture, setResendShowReplyCapture] = useState(false);
+    const [resendTestRecipient, setResendTestRecipient] = useState("");
+    const [resendTesting, setResendTesting] = useState(false);
+    const [resendTestResult, setResendTestResult] = useState("");
+    const [resendSaving, setResendSaving] = useState(false);
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
                 if (showSmtpModal) setShowSmtpModal(false);
+                if (showResendModal) setShowResendModal(false);
                 if (editingMailbox) setEditingMailbox(null);
             }
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [showSmtpModal, editingMailbox]);
+    }, [showSmtpModal, showResendModal, editingMailbox]);
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -195,6 +209,68 @@ export default function MailboxesSettingsPage() {
         }
     };
 
+    const handleTestResend = async () => {
+        if (!resendApiKey || !resendEmail || !resendTestRecipient) {
+            setResendTestResult("Please fill in the API key, sender email, and test recipient email.");
+            return;
+        }
+        setResendTesting(true);
+        setResendTestResult("");
+        try {
+            const res = await fetch("/api/integrations/resend/test", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKey: resendApiKey,
+                    fromName: resendFromName,
+                    email: resendEmail,
+                    recipientEmail: resendTestRecipient,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setResendTestResult("✓ Test email sent successfully! Message-ID: " + data.messageId);
+            } else {
+                setResendTestResult("❌ Verification failed: " + (data.error || "Unknown Resend error"));
+            }
+        } catch (err: any) {
+            setResendTestResult("❌ Network error: " + (err?.message || "Failed to contact server"));
+        } finally {
+            setResendTesting(false);
+        }
+    };
+
+    const handleSaveResend = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setResendSaving(true);
+        setError("");
+        try {
+            const res = await fetch("/api/integrations/resend/connect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    apiKey: resendApiKey,
+                    fromName: resendFromName,
+                    email: resendEmail,
+                    inboundDomain: resendInboundDomain || undefined,
+                    webhookSecret: resendWebhookSecret || undefined,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setSuccess(`Resend Mailbox (${data.email}) connected successfully!`);
+                setShowResendModal(false);
+                loadMailboxes();
+            } else {
+                setError(data.error || "Failed to connect Resend mailbox.");
+            }
+        } catch {
+            setError("Failed to connect Resend mailbox.");
+        } finally {
+            setResendSaving(false);
+        }
+    };
+
     const openEditModal = (mb: ConnectedMailbox) => {
         setEditingMailbox(mb);
         setEditDailyLimit(mb.dailyLimit || 50);
@@ -252,15 +328,15 @@ export default function MailboxesSettingsPage() {
 
     const statusBadge = (mb: ConnectedMailbox) => {
         if (mb.status === "CONNECTED") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">● Active</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-success bg-emerald-500/10 border border-emerald-500/20">● Active</span>;
         }
         if (mb.status === "NEEDS_RECONNECT") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-amber-400 bg-amber-500/10 border border-amber-500/20">⚠️ Reconnect</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-warning bg-amber-500/10 border border-amber-500/20">⚠️ Reconnect</span>;
         }
         if (mb.status === "PAUSED") {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-blue-400 bg-blue-500/10 border border-blue-500/20">⏸ Paused</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-primary bg-blue-500/10 border border-blue-500/20">⏸ Paused</span>;
         }
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-zinc-400 bg-zinc-500/10 border border-zinc-500/20">{mb.status}</span>;
+        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold text-muted-foreground bg-muted border border-border">{mb.status}</span>;
     };
 
     const formatTimeRemaining = (dateStr?: string | null) => {
@@ -275,29 +351,29 @@ export default function MailboxesSettingsPage() {
     };
 
     return (
-        <div className="text-slate-200">
+        <div className="text-foreground">
             <div className="max-w-4xl mx-auto py-6">
                 <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white tracking-tight">Connected Mailboxes & Observability</h1>
-                    <p className="mt-2 text-zinc-400 text-sm">
+                    <h1 className="text-3xl font-bold text-foreground tracking-tight">Connected Mailboxes & Observability</h1>
+                    <p className="mt-2 text-muted-foreground text-sm">
                         Manage send capacity, throttle rates, OAuth token health, and Pub/Sub push watch synchronization.
                     </p>
                 </div>
 
                 {success && (
-                    <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-400 flex items-center justify-between">
+                    <div className="mb-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-success flex items-center justify-between">
                         <span>{success}</span>
                         <button onClick={() => setSuccess("")} className="text-xs text-emerald-300 hover:underline">Dismiss</button>
                     </div>
                 )}
                 {error && (
-                    <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-400 flex items-center justify-between">
+                    <div className="mb-6 rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-destructive flex items-center justify-between">
                         <span>{error}</span>
-                        <button onClick={() => setError("")} className="text-xs text-rose-300 hover:underline">Dismiss</button>
+                        <button onClick={() => setError("")} className="text-xs text-destructive hover:underline">Dismiss</button>
                     </div>
                 )}
 
-                <div className="mb-8 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="mb-8 grid grid-cols-1 sm:grid-cols-4 gap-3">
                     {/* Connect Google */}
                     <button
                         onClick={connectGmail}
@@ -327,9 +403,17 @@ export default function MailboxesSettingsPage() {
                     {/* Connect SMTP */}
                     <button
                         onClick={() => setShowSmtpModal(true)}
-                        className="flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white px-4 py-3 rounded-xl font-semibold text-sm border border-white/10 transition"
+                        className="flex items-center justify-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-3 rounded-xl font-semibold text-sm border border-border transition"
                     >
                         ⚡ Custom SMTP
+                    </button>
+
+                    {/* Connect Resend */}
+                    <button
+                        onClick={() => setShowResendModal(true)}
+                        className="flex items-center justify-center gap-2 bg-muted hover:bg-accent text-foreground px-4 py-3 rounded-xl font-semibold text-sm border border-border transition"
+                    >
+                        ✉️ Resend
                     </button>
                 </div>
 
@@ -338,10 +422,10 @@ export default function MailboxesSettingsPage() {
                         <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                     </div>
                 ) : mailboxes.length === 0 ? (
-                    <div className="bg-zinc-900/60 border border-white/10 rounded-2xl p-12 text-center">
+                    <div className="bg-card border border-border rounded-2xl p-12 text-center">
                         <div className="text-5xl mb-4">📭</div>
-                        <h2 className="text-xl font-semibold text-white mb-2">No mailboxes connected</h2>
-                        <p className="text-zinc-400 text-sm max-w-md mx-auto">
+                        <h2 className="text-xl font-semibold text-foreground mb-2">No mailboxes connected</h2>
+                        <p className="text-muted-foreground text-sm max-w-md mx-auto">
                             Connect Google Workspace, Microsoft 365, or Custom SMTP to unlock automated cold outreach and reply tracking.
                         </p>
                     </div>
@@ -354,7 +438,7 @@ export default function MailboxesSettingsPage() {
                             const hasError = mb.metadata?.lastWatchError || mb.metadata?.lastSyncError;
 
                             return (
-                                <div key={mb.id} className="bg-zinc-900/80 border border-white/10 rounded-2xl p-5 space-y-4 transition hover:border-white/20">
+                                <div key={mb.id} className="bg-card border border-border rounded-2xl p-5 space-y-4 transition hover:border-border">
                                     {/* Main Row */}
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex items-start gap-3.5 min-w-0">
@@ -363,14 +447,14 @@ export default function MailboxesSettingsPage() {
                                             </div>
                                             <div className="min-w-0 space-y-1">
                                                 <div className="flex items-center gap-2 flex-wrap">
-                                                    <p className="text-white font-bold text-base truncate">{mb.email}</p>
-                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/10 text-zinc-300 uppercase tracking-wider">
+                                                    <p className="text-foreground font-bold text-base truncate">{mb.email}</p>
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-foreground uppercase tracking-wider">
                                                         {mb.provider || "GOOGLE"}
                                                     </span>
                                                     {statusBadge(mb)}
                                                 </div>
                                                 {mb.displayName && (
-                                                    <p className="text-zinc-400 text-xs">{mb.displayName}</p>
+                                                    <p className="text-muted-foreground text-xs">{mb.displayName}</p>
                                                 )}
                                             </div>
                                         </div>
@@ -386,13 +470,13 @@ export default function MailboxesSettingsPage() {
                                             )}
                                             <button
                                                 onClick={() => openEditModal(mb)}
-                                                className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-xs border border-white/10 transition"
+                                                className="px-3 py-1.5 rounded-lg bg-muted hover:bg-accent text-foreground font-semibold text-xs border border-border transition"
                                             >
                                                 ⚙️ Controls
                                             </button>
                                             <button
                                                 onClick={() => disconnectMailbox(mb.id)}
-                                                className="px-3 py-1.5 rounded-lg text-rose-400 hover:bg-rose-500/10 font-semibold text-xs transition"
+                                                className="px-3 py-1.5 rounded-lg text-destructive hover:bg-rose-500/10 font-semibold text-xs transition"
                                             >
                                                 Disconnect
                                             </button>
@@ -400,23 +484,23 @@ export default function MailboxesSettingsPage() {
                                     </div>
 
                                     {/* Daily Send Capacity & Throttle Progress */}
-                                    <div className="bg-zinc-950/60 rounded-xl p-3.5 border border-white/5 space-y-2 text-xs">
-                                        <div className="flex items-center justify-between text-zinc-300">
+                                    <div className="bg-muted rounded-xl p-3.5 border border-border space-y-2 text-xs">
+                                        <div className="flex items-center justify-between text-foreground">
                                             <span className="font-medium flex items-center gap-1.5">
                                                 <span>📊 Daily Volume</span>
-                                                <span className="text-zinc-500">({mb.sentToday} / {mb.dailyLimit} sent)</span>
+                                                <span className="text-muted-foreground">({mb.sentToday} / {mb.dailyLimit} sent)</span>
                                             </span>
-                                            <span className="text-zinc-400">
-                                                Min Delay: <strong className="text-white">{mb.minDelaySeconds || 180}s</strong>
+                                            <span className="text-muted-foreground">
+                                                Min Delay: <strong className="text-foreground">{mb.minDelaySeconds || 180}s</strong>
                                             </span>
                                         </div>
-                                        <div className="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                                        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                                             <div
                                                 className={`h-full transition-all duration-500 ${pct >= 90 ? "bg-rose-500" : pct >= 70 ? "bg-amber-500" : "bg-indigo-500"}`}
                                                 style={{ width: `${pct}%` }}
                                             />
                                         </div>
-                                        <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                                             <span>{pct}% quota used today</span>
                                             <span>Last sent: {mb.lastSentAt ? new Date(mb.lastSentAt).toLocaleTimeString() : "Never"}</span>
                                         </div>
@@ -425,46 +509,46 @@ export default function MailboxesSettingsPage() {
                                     {/* Observability & Health Grid */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                                         {/* OAuth Token Expiry */}
-                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
-                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">OAuth Token</span>
-                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                        <div className="bg-muted rounded-lg p-2.5 border border-border">
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">OAuth Token</span>
+                                            <span className="text-foreground font-medium truncate block mt-0.5">
                                                 {tokenTime ? (tokenTime === "Expired" ? "❌ Expired" : `🔑 ${tokenTime} left`) : "Active"}
                                             </span>
                                         </div>
 
                                         {/* Gmail Watch Expiration */}
-                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
-                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Pub/Sub Watch</span>
-                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                        <div className="bg-muted rounded-lg p-2.5 border border-border">
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Pub/Sub Watch</span>
+                                            <span className="text-foreground font-medium truncate block mt-0.5">
                                                 {watchTime ? (watchTime === "Expired" ? "⚠️ Watch Due" : `📡 ${watchTime}`) : "Active"}
                                             </span>
                                         </div>
 
                                         {/* Warmup Status */}
-                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
-                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">Warmup State</span>
-                                            <span className="text-zinc-200 font-medium truncate block mt-0.5">
+                                        <div className="bg-muted rounded-lg p-2.5 border border-border">
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Warmup State</span>
+                                            <span className="text-foreground font-medium truncate block mt-0.5">
                                                 {mb.isWarmingUp ? `🔥 Day ${mb.warmupDay || 0}/${mb.warmupTargetDays || 30}` : "✅ Warmed Up"}
                                             </span>
                                         </div>
 
                                         {/* History Cursor */}
-                                        <div className="bg-zinc-950/40 rounded-lg p-2.5 border border-white/5">
-                                            <span className="text-zinc-500 block text-[10px] uppercase font-semibold">History Cursor</span>
-                                            <span className="text-zinc-200 font-medium truncate block mt-0.5 font-mono text-[11px]">
+                                        <div className="bg-muted rounded-lg p-2.5 border border-border">
+                                            <span className="text-muted-foreground block text-[10px] uppercase font-semibold">History Cursor</span>
+                                            <span className="text-foreground font-medium truncate block mt-0.5 font-mono text-[11px]">
                                                 {mb.historyId ? `#${mb.historyId}` : "Not synced"}
                                             </span>
                                         </div>
                                     </div>
 
                                     {/* Engagement Stats Row */}
-                                    <div className="flex items-center gap-4 text-xs text-zinc-400 pt-1 border-t border-white/5">
-                                        <span>📨 <strong className="text-white">{mb.replyCount || 0}</strong> replies</span>
-                                        <span>👁️ <strong className="text-white">{mb.openCount || 0}</strong> opens</span>
-                                        <span>🎯 <strong className="text-white">{mb.clickCount || 0}</strong> clicks</span>
-                                        <span className="text-rose-400">🚨 <strong>{mb.bounceCount || 0}</strong> bounces</span>
+                                    <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border">
+                                        <span>📨 <strong className="text-foreground">{mb.replyCount || 0}</strong> replies</span>
+                                        <span>👁️ <strong className="text-foreground">{mb.openCount || 0}</strong> opens</span>
+                                        <span>🎯 <strong className="text-foreground">{mb.clickCount || 0}</strong> clicks</span>
+                                        <span className="text-destructive">🚨 <strong>{mb.bounceCount || 0}</strong> bounces</span>
                                         {mb.lastSyncAt && (
-                                            <span className="ml-auto text-zinc-500 text-[11px]">
+                                            <span className="ml-auto text-muted-foreground text-[11px]">
                                                 Synced {new Date(mb.lastSyncAt).toLocaleTimeString()}
                                             </span>
                                         )}
@@ -472,7 +556,7 @@ export default function MailboxesSettingsPage() {
 
                                     {/* Error Banner if any */}
                                     {hasError && (
-                                        <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2.5 text-xs text-rose-400 flex items-center gap-2">
+                                        <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-2.5 text-xs text-destructive flex items-center gap-2">
                                             <span>⚠️</span>
                                             <span>Sync Error: {mb.metadata?.lastWatchError || mb.metadata?.lastSyncError}</span>
                                         </div>
@@ -487,26 +571,26 @@ export default function MailboxesSettingsPage() {
             {/* Mailbox Edit Controls Modal */}
             {editingMailbox && (
                 <div role="dialog" aria-modal="true" aria-labelledby="controls-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                            <h2 id="controls-modal-title" className="text-lg font-bold text-white">Mailbox Controls — {editingMailbox.email}</h2>
-                            <button onClick={() => setEditingMailbox(null)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
+                    <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+                        <div className="flex items-center justify-between border-b border-border pb-3">
+                            <h2 id="controls-modal-title" className="text-lg font-bold text-foreground">Mailbox Controls — {editingMailbox.email}</h2>
+                            <button onClick={() => setEditingMailbox(null)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
                         </div>
                         <form onSubmit={handleSaveControls} className="space-y-4 text-sm">
                             <div>
-                                <label className="block text-zinc-400 text-xs mb-1">From Display Name</label>
+                                <label className="block text-muted-foreground text-xs mb-1">From Display Name</label>
                                 <input
                                     type="text"
                                     value={editDisplayName}
                                     onChange={(e) => setEditDisplayName(e.target.value)}
                                     placeholder="e.g. John from Sales"
-                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                    className="w-full bg-muted border border-border rounded-lg p-2.5 text-foreground"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">Daily Limit (1 - 2000)</label>
+                                    <label className="block text-muted-foreground text-xs mb-1">Daily Limit (1 - 2000)</label>
                                     <input
                                         type="number"
                                         min={1}
@@ -514,11 +598,11 @@ export default function MailboxesSettingsPage() {
                                         value={editDailyLimit}
                                         onChange={(e) => setEditDailyLimit(Number(e.target.value))}
                                         required
-                                        className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                        className="w-full bg-muted border border-border rounded-lg p-2.5 text-foreground"
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">Min Send Delay (Sec)</label>
+                                    <label className="block text-muted-foreground text-xs mb-1">Min Send Delay (Sec)</label>
                                     <input
                                         type="number"
                                         min={30}
@@ -526,17 +610,17 @@ export default function MailboxesSettingsPage() {
                                         value={editMinDelay}
                                         onChange={(e) => setEditMinDelay(Number(e.target.value))}
                                         required
-                                        className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                        className="w-full bg-muted border border-border rounded-lg p-2.5 text-foreground"
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-2 pt-2 border-t border-white/10">
-                                <label className="block text-zinc-400 text-xs">Mailbox Status</label>
+                            <div className="space-y-2 pt-2 border-t border-border">
+                                <label className="block text-muted-foreground text-xs">Mailbox Status</label>
                                 <select
                                     value={editStatus}
                                     onChange={(e) => setEditStatus(e.target.value)}
-                                    className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2.5 text-white"
+                                    className="w-full bg-muted border border-border rounded-lg p-2.5 text-foreground"
                                 >
                                     <option value="CONNECTED">CONNECTED — Active Sending</option>
                                     <option value="PAUSED">PAUSED — Pause Outreach</option>
@@ -549,15 +633,15 @@ export default function MailboxesSettingsPage() {
                                     id="isWarmingUp"
                                     checked={editWarmingUp}
                                     onChange={(e) => setEditWarmingUp(e.target.checked)}
-                                    className="rounded bg-zinc-800 border-white/20"
+                                    className="rounded bg-muted border-border"
                                 />
-                                <label htmlFor="isWarmingUp" className="text-zinc-300 text-xs">
+                                <label htmlFor="isWarmingUp" className="text-foreground text-xs">
                                     Enable Warmup Schedule (Gradual Daily Limit Scaling)
                                 </label>
                             </div>
 
-                            <div className="pt-3 flex justify-end gap-2 border-t border-white/10">
-                                <button type="button" onClick={() => setEditingMailbox(null)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">
+                            <div className="pt-3 flex justify-end gap-2 border-t border-border">
+                                <button type="button" onClick={() => setEditingMailbox(null)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">
                                     Cancel
                                 </button>
                                 <button type="submit" disabled={savingControls} className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs">
@@ -572,64 +656,138 @@ export default function MailboxesSettingsPage() {
             {/* Custom SMTP Modal Dialog */}
             {showSmtpModal && (
                 <div role="dialog" aria-modal="true" aria-labelledby="smtp-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div className="bg-zinc-900 border border-white/10 rounded-2xl max-w-lg w-full p-6 space-y-4">
-                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                            <h2 id="smtp-modal-title" className="text-xl font-bold text-white">Connect Custom SMTP Mailbox</h2>
-                            <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-zinc-400 hover:text-white">✕</button>
+                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-border pb-3">
+                            <h2 id="smtp-modal-title" className="text-xl font-bold text-foreground">Connect Custom SMTP Mailbox</h2>
+                            <button onClick={() => setShowSmtpModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
                         </div>
                         <form onSubmit={handleSaveSmtp} className="space-y-3 text-sm">
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">SMTP Host</label>
-                                    <input type="text" placeholder="smtp.domain.com" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">SMTP Host</label>
+                                    <input type="text" placeholder="smtp.domain.com" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">Port</label>
-                                    <input type="number" placeholder="587" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">Port</label>
+                                    <input type="number" placeholder="587" value={smtpPort} onChange={(e) => setSmtpPort(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
-                                <input type="checkbox" id="secure" checked={smtpSecure} onChange={(e) => setSmtpSecure(e.target.checked)} className="rounded bg-zinc-800" />
-                                <label htmlFor="secure" className="text-zinc-300 text-xs">Use SSL/TLS (Port 465)</label>
+                                <input type="checkbox" id="secure" checked={smtpSecure} onChange={(e) => setSmtpSecure(e.target.checked)} className="rounded bg-muted" />
+                                <label htmlFor="secure" className="text-foreground text-xs">Use SSL/TLS (Port 465)</label>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">Username / Auth Email</label>
-                                    <input type="text" placeholder="user@domain.com" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">Username / Auth Email</label>
+                                    <input type="text" placeholder="user@domain.com" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">Password</label>
-                                    <input type="password" placeholder="••••••••" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">Password</label>
+                                    <input type="password" placeholder="••••••••" value={smtpPassword} onChange={(e) => setSmtpPassword(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">From Display Name</label>
-                                    <input type="text" placeholder="John Doe" value={smtpFromName} onChange={(e) => setSmtpFromName(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">From Display Name</label>
+                                    <input type="text" placeholder="John Doe" value={smtpFromName} onChange={(e) => setSmtpFromName(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                                 <div>
-                                    <label className="block text-zinc-400 text-xs mb-1">From Sender Email</label>
-                                    <input type="email" placeholder="john@domain.com" value={smtpEmail} onChange={(e) => setSmtpEmail(e.target.value)} required className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white" />
+                                    <label className="block text-muted-foreground text-xs mb-1">From Sender Email</label>
+                                    <input type="email" placeholder="john@domain.com" value={smtpEmail} onChange={(e) => setSmtpEmail(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
                                 </div>
                             </div>
 
-                            <div className="pt-2 border-t border-white/10">
-                                <label className="block text-zinc-400 text-xs mb-1">Send Verification Test Email To:</label>
+                            <div className="pt-2 border-t border-border">
+                                <label className="block text-muted-foreground text-xs mb-1">Send Verification Test Email To:</label>
                                 <div className="flex gap-2">
-                                    <input type="email" placeholder="mytest@domain.com" value={smtpTestRecipient} onChange={(e) => setSmtpTestRecipient(e.target.value)} className="w-full bg-zinc-800 border border-white/10 rounded-lg p-2 text-white text-xs" />
+                                    <input type="email" placeholder="mytest@domain.com" value={smtpTestRecipient} onChange={(e) => setSmtpTestRecipient(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
                                     <button type="button" onClick={handleTestSmtp} disabled={smtpTesting} className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-semibold text-xs shrink-0">
                                         {smtpTesting ? "Testing…" : "Send Test"}
                                     </button>
                                 </div>
                                 {smtpTestResult && (
-                                    <p className={`mt-1 text-xs ${smtpTestResult.startsWith("✓") ? "text-emerald-400" : "text-rose-400"}`}>{smtpTestResult}</p>
+                                    <p className={`mt-1 text-xs ${smtpTestResult.startsWith("✓") ? "text-success" : "text-destructive"}`}>{smtpTestResult}</p>
                                 )}
                             </div>
 
                             <div className="pt-3 flex justify-end gap-2">
-                                <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold">Cancel</button>
+                                <button type="button" onClick={() => setShowSmtpModal(false)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
                                 <button type="submit" disabled={smtpSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
                                     {smtpSaving ? "Connecting…" : "Verify & Connect Mailbox"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Resend Modal Dialog */}
+            {showResendModal && (
+                <div role="dialog" aria-modal="true" aria-labelledby="resend-modal-title" className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 space-y-4">
+                        <div className="flex items-center justify-between border-b border-border pb-3">
+                            <h2 id="resend-modal-title" className="text-xl font-bold text-foreground">Connect Resend Mailbox</h2>
+                            <button onClick={() => setShowResendModal(false)} aria-label="Close dialog" className="text-muted-foreground hover:text-foreground">✕</button>
+                        </div>
+                        <form onSubmit={handleSaveResend} className="space-y-3 text-sm">
+                            <div>
+                                <label className="block text-muted-foreground text-xs mb-1">Resend API Key</label>
+                                <input type="password" placeholder="re_xxxxxxxxxxxx" value={resendApiKey} onChange={(e) => setResendApiKey(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-muted-foreground text-xs mb-1">From Display Name</label>
+                                    <input type="text" placeholder="John Doe" value={resendFromName} onChange={(e) => setResendFromName(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
+                                </div>
+                                <div>
+                                    <label className="block text-muted-foreground text-xs mb-1">From Sender Email (verified domain)</label>
+                                    <input type="email" placeholder="john@domain.com" value={resendEmail} onChange={(e) => setResendEmail(e.target.value)} required className="w-full bg-muted border border-border rounded-lg p-2 text-foreground" />
+                                </div>
+                            </div>
+
+                            <div className="pt-2 border-t border-border">
+                                <button
+                                    type="button"
+                                    onClick={() => setResendShowReplyCapture((v) => !v)}
+                                    className="flex items-center justify-between w-full text-left text-xs font-semibold text-indigo-400 hover:text-indigo-300"
+                                >
+                                    <span>⚙️ Reply Capture (optional, advanced)</span>
+                                    <span>{resendShowReplyCapture ? "▲" : "▼"}</span>
+                                </button>
+                                {resendShowReplyCapture && (
+                                    <div className="mt-2 space-y-3 bg-muted border border-border rounded-lg p-3">
+                                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                                            Resend doesn't have an inbox, so detecting a prospect's reply requires your own dedicated receiving domain. In <strong>your own</strong> Resend dashboard: (1) verify a subdomain you control for receiving (e.g. <code>reply.yourdomain.com</code>) and add the MX record Resend gives you — never reuse a domain you also send real mail from; (2) create a webhook for the <code>email.received</code> event pointed at <code>{typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/resend</code>; (3) paste that webhook's signing secret below. Until both fields are filled in, replies to this mailbox won't be detected.
+                                        </p>
+                                        <div>
+                                            <label className="block text-muted-foreground text-xs mb-1">Your Verified Inbound Domain</label>
+                                            <input type="text" placeholder="reply.yourdomain.com" value={resendInboundDomain} onChange={(e) => setResendInboundDomain(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-muted-foreground text-xs mb-1">Your Webhook Signing Secret</label>
+                                            <input type="password" placeholder="whsec_xxxxxxxxxxxx" value={resendWebhookSecret} onChange={(e) => setResendWebhookSecret(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="pt-2 border-t border-border">
+                                <label className="block text-muted-foreground text-xs mb-1">Send Verification Test Email To:</label>
+                                <div className="flex gap-2">
+                                    <input type="email" placeholder="mytest@domain.com" value={resendTestRecipient} onChange={(e) => setResendTestRecipient(e.target.value)} className="w-full bg-muted border border-border rounded-lg p-2 text-foreground text-xs" />
+                                    <button type="button" onClick={handleTestResend} disabled={resendTesting} className="bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg text-white font-semibold text-xs shrink-0">
+                                        {resendTesting ? "Testing…" : "Send Test"}
+                                    </button>
+                                </div>
+                                {resendTestResult && (
+                                    <p className={`mt-1 text-xs ${resendTestResult.startsWith("✓") ? "text-success" : "text-destructive"}`}>{resendTestResult}</p>
+                                )}
+                            </div>
+
+                            <div className="pt-3 flex justify-end gap-2">
+                                <button type="button" onClick={() => setShowResendModal(false)} className="px-4 py-2 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold">Cancel</button>
+                                <button type="submit" disabled={resendSaving} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs">
+                                    {resendSaving ? "Connecting…" : "Verify & Connect Mailbox"}
                                 </button>
                             </div>
                         </form>

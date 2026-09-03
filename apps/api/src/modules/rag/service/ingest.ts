@@ -1,4 +1,5 @@
 import { vectorStore } from "./vectorStore";
+import { assertSafeWebhookUrl } from "@/modules/webhooks/service/webhookService";
 
 class IngestService {
     /**
@@ -32,6 +33,12 @@ class IngestService {
         console.log(`[Ingest] Crawling: ${url}`);
 
         try {
+            // Reuses the webhook module's SSRF guard: url is attacker-supplied (any
+            // team member can submit it) and this fetch's response text is stored and
+            // returned to that team, so it must not be usable as a probe against
+            // internal infrastructure or cloud metadata endpoints.
+            await assertSafeWebhookUrl(url);
+
             const response = await fetch(url, { headers: { "User-Agent": "CraftMyFunnel-Bot/1.0" } });
             if (!response.ok) throw new Error(`HTTP ${response.status} fetching ${url}`);
             

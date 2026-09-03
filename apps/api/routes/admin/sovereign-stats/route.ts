@@ -101,6 +101,24 @@ export async function GET() {
             });
         }
 
+        // OverseerSignal: Overseer cross-run anomaly flags (provider degradation today - see
+        // overseerSignalService.ts). Folded into the same Sentinel Events feed rather than a
+        // new panel, since both are "something needs a human's attention" signals.
+        const overseerSignals = await globalDb.overseerSignal.findMany({
+            where: { status: "OPEN" },
+            take: 3,
+            orderBy: { createdAt: 'desc' }
+        }).catch(() => []);
+
+        overseerSignals.forEach(signal => {
+            formattedAudits.push({
+                id: signal.id,
+                score: signal.severity === 'CRITICAL' ? 1 : 5,
+                status: signal.severity === 'CRITICAL' ? 'REJECTED' : 'SYSTEM_ACTION',
+                text: signal.summary,
+            });
+        });
+
         // 3. Queue Depth & Rate Limit Health (Hardening Metrics)
         const [pendingJobs, rateLimitedEvents] = await Promise.all([
             globalDb.job.count({ where: { status: "pending" } }),

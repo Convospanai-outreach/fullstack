@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { ActionButton } from '../auth/ActionButton';
 import { Calendar } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Props {
     isOpen: boolean;
@@ -25,7 +26,7 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
 
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/orchestrator/run", {
+            const res = await fetch(getBrowserApiBase() + "/orchestrator/run", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -49,22 +50,22 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
-            <div className="glass w-full max-w-md p-6 rounded-2xl relative border border-white/10 shadow-2xl">
+            <div className="glass w-full max-w-md p-6 rounded-2xl relative border border-border shadow-2xl">
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white"
+                    className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
                 >
                     ✕
                 </button>
 
                 <div className="mb-6">
-                    <h2 className="text-xl font-bold text-white mb-1">Schedule Campaign</h2>
-                    <p className="text-sm text-gray-400">Run <span className="text-purple-300 font-medium">{campaignName}</span> automatically at a future time.</p>
+                    <h2 className="text-xl font-bold text-foreground mb-1">Schedule Campaign</h2>
+                    <p className="text-sm text-muted-foreground">Run <span className="text-purple-600 font-medium">{campaignName}</span> automatically at a future time.</p>
                 </div>
 
                 <form onSubmit={handleSchedule} className="space-y-6">
                     <div>
-                        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                             Select Start Time
                         </label>
                         <div className="relative group">
@@ -72,13 +73,13 @@ export default function ScheduleCampaignModal({ isOpen, onClose, campaignId, cam
                                 type="datetime-local"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all [color-scheme:dark]"
+                                className="w-full bg-muted border border-border rounded-lg px-4 py-3 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all [color-scheme:light]"
                                 required
                                 min={new Date().toISOString().slice(0, 16)}
                             />
-                            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                            <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                         </div>
-                        <p className="mt-2 text-xs text-gray-500">
+                        <p className="mt-2 text-xs text-muted-foreground">
                             Timezone: {Intl.DateTimeFormat().resolvedOptions().timeZone}
                         </p>
                     </div>

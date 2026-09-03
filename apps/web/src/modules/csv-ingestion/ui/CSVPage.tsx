@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function CSVPage() {
     const [uploading, setUploading] = useState(false);
@@ -13,7 +14,7 @@ export default function CSVPage() {
         setResult(null);
         try {
             const text = await file.text();
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads/import", {
+            const res = await fetch(getBrowserApiBase() + "/leads/import", {
                 method: "POST",
                 body: text,
             });

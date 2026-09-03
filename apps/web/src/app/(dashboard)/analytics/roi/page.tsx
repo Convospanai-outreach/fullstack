@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { AnalyticsTabs } from "@/components/dashboard/AnalyticsTabs";
 import {
     XAxis,
     YAxis,
@@ -151,32 +152,33 @@ export default function ROIDashboardPage() {
 
     return (
         <div className="space-y-6">
+            <AnalyticsTabs />
             <div className="flex justify-between items-end mb-8">
                 <div>
-                    <h1 className="text-3xl font-black text-white tracking-tight mb-2">Campaign ROI</h1>
-                    <p className="text-text-secondary max-w-xl">
+                    <h1 className="text-3xl font-black text-foreground tracking-tight mb-2">Campaign ROI</h1>
+                    <p className="text-muted-foreground max-w-xl">
                         Track the financial impact of your AI agents. Measure spend, attribution, and bottom-line revenue.
                     </p>
                 </div>
                 <div className="flex gap-2">
                     <div
-                        className="flex items-center gap-1 rounded-lg border border-white/10 p-1"
+                        className="flex items-center gap-1 rounded-lg border border-border p-1"
                         title="Sets the Revenue vs Spend chart's time window. KPI totals and campaign stats below are lifetime, not scoped to this range."
                     >
-                        <Calendar className="w-4 h-4 mx-2 text-text-secondary" />
+                        <Calendar className="w-4 h-4 mx-2 text-muted-foreground" />
                         {MONTH_OPTIONS.map((opt) => (
                             <Button
                                 key={opt}
                                 size="sm"
                                 variant={months === opt ? "default" : "ghost"}
-                                className={months === opt ? "" : "text-text-secondary"}
+                                className={months === opt ? "" : "text-muted-foreground"}
                                 onClick={() => setMonths(opt)}
                             >
                                 {opt}mo
                             </Button>
                         ))}
                     </div>
-                    <Button variant="outline" className="border-white/10" onClick={exportReport} disabled={loading}>
+                    <Button variant="outline" className="border-border" onClick={exportReport} disabled={loading}>
                         <Download className="w-4 h-4 mr-2" />
                         Export Report
                     </Button>
@@ -184,7 +186,7 @@ export default function ROIDashboardPage() {
             </div>
 
             {/* KPI Grid */}
-            <p className="text-xs uppercase tracking-wide text-text-secondary mb-2">Lifetime totals</p>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Lifetime totals</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 {loading ? [1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
                     <>
@@ -267,7 +269,7 @@ export default function ROIDashboardPage() {
                             <div className="overflow-x-auto">
                                 <table className="w-full text-left border-collapse">
                                     <thead>
-                                        <tr className="border-b border-white/5 text-xs text-text-muted uppercase tracking-wider">
+                                        <tr className="border-b border-border text-xs text-muted-foreground uppercase tracking-wider">
                                             <th className="py-3 font-semibold">Campaign Name</th>
                                             <th className="py-3 font-semibold">Status</th>
                                             <th className="py-3 font-semibold text-right">Sent</th>
@@ -277,10 +279,10 @@ export default function ROIDashboardPage() {
                                     </thead>
                                     <tbody className="text-sm">
                                         {loading ? (
-                                            <tr><td colSpan={5} className="py-4 text-center text-text-secondary">Loading...</td></tr>
+                                            <tr><td colSpan={5} className="py-4 text-center text-muted-foreground">Loading...</td></tr>
                                         ) : data?.campaigns?.slice(0, 5).map((c: any) => (
-                                            <tr key={c.id} className="border-b border-white/5 group hover:bg-white/5 transition-colors">
-                                                <td className="py-3 font-medium text-white group-hover:text-accent-blue transition-colors">{c.name}</td>
+                                            <tr key={c.id} className="border-b border-border group hover:bg-accent transition-colors">
+                                                <td className="py-3 font-medium text-foreground group-hover:text-primary transition-colors">{c.name}</td>
                                                 <td className="py-3">
                                                     <Badge
                                                         variant={c.status === 'active' ? 'success' : c.status === 'completed' ? 'default' : 'warning'}
@@ -289,11 +291,11 @@ export default function ROIDashboardPage() {
                                                         {c.status}
                                                     </Badge>
                                                 </td>
-                                                <td className="py-3 text-right font-mono text-text-secondary">{c.sent.toLocaleString()}</td>
-                                                <td className="py-3 text-right font-mono text-white">
+                                                <td className="py-3 text-right font-mono text-muted-foreground">{c.sent.toLocaleString()}</td>
+                                                <td className="py-3 text-right font-mono text-foreground">
                                                     {c.openRate.toFixed(1)}%
                                                 </td>
-                                                <td className="py-3 text-right font-mono text-white">
+                                                <td className="py-3 text-right font-mono text-foreground">
                                                     {c.replyRate.toFixed(1)}%
                                                 </td>
                                             </tr>
@@ -338,12 +340,12 @@ export default function ROIDashboardPage() {
                                     />
                                 </div>
 
-                                <div className="p-4 bg-white/5 rounded-xl border border-white/5">
+                                <div className="p-4 bg-muted rounded-xl border border-border">
                                     <div className="flex justify-between items-center mb-1">
-                                        <span className="text-xs text-text-muted">Total Pipeline Value</span>
-                                        <span className="text-xs font-bold text-white">Qualified</span>
+                                        <span className="text-xs text-muted-foreground">Total Pipeline Value</span>
+                                        <span className="text-xs font-bold text-foreground">Qualified</span>
                                     </div>
-                                    <div className="text-2xl font-black text-white tracking-tight">
+                                    <div className="text-2xl font-black text-foreground tracking-tight">
                                         {formatCurrency((data?.financials?.revenue || 0) * 3)}
                                     </div>
                                 </div>
@@ -360,15 +362,15 @@ export default function ROIDashboardPage() {
                             <div className="flex flex-col items-center justify-center py-6 text-center">
                                 <div className="relative w-32 h-32 flex items-center justify-center mb-4">
                                     <svg className="w-full h-full transform -rotate-90">
-                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-white/5" />
-                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={377} strokeDashoffset={data?.financials?.roi ? 377 - (377 * Math.min(1, data.financials.roi / 100)) : 377} className="text-blue-500" />
+                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-foreground/5" />
+                                        <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={377} strokeDashoffset={data?.financials?.roi ? 377 - (377 * Math.min(1, data.financials.roi / 100)) : 377} className="text-primary" />
                                     </svg>
                                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-3xl font-black text-white">{data?.financials?.roi ? `${Math.round(data.financials.roi)}%` : "--"}</span>
-                                        <span className="text-[10px] text-text-secondary font-bold uppercase tracking-widest">{data?.financials?.roi ? "Active" : "Pending"}</span>
+                                        <span className="text-3xl font-black text-foreground">{data?.financials?.roi ? `${Math.round(data.financials.roi)}%` : "--"}</span>
+                                        <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">{data?.financials?.roi ? "Active" : "Pending"}</span>
                                     </div>
                                 </div>
-                                <p className="text-xs text-text-secondary px-4 leading-relaxed">
+                                <p className="text-xs text-muted-foreground px-4 leading-relaxed">
                                     {data?.financials?.roi ? (
                                         <>Efficiency ratio calculated from current campaign spend vs attributed revenue.</>
                                     ) : (
@@ -397,10 +399,10 @@ function FunnelStep({ label, count, color, percent }: any) {
         <div className="relative pl-8 py-3 group">
             <div className={`absolute left-[9px] top-5 w-2 h-2 rounded-full ${color} shadow-[0_0_8px_currentColor]`} />
             <div className="flex justify-between items-end mb-1">
-                <span className="text-sm font-medium text-white group-hover:text-accent-blue transition-colors">{label}</span>
-                <span className="text-xs font-mono text-text-secondary">{count.toLocaleString()}</span>
+                <span className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{label}</span>
+                <span className="text-xs font-mono text-muted-foreground">{count.toLocaleString()}</span>
             </div>
-            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+            <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                 <div
                     ref={barRef}
                     className={`h-full ${color} transition-all duration-1000 ease-out`}

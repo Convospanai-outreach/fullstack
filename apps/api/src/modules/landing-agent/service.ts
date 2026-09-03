@@ -6,9 +6,11 @@ import { audit } from "@/lib/governance/audit";
 import { enforcePolicy } from "@/lib/governance/guard";
 import { buildBriefPrompt, buildWireframePrompt } from "./prompts";
 import type { LandingBrief, LandingPageSection, WireframeOption } from "./types";
+import { LANDING_PAGE_TEMPLATES } from "./templates";
 import { landingEventNameEnum } from "./schemas";
 import { OutboxService } from "@/lib/outboxService";
 import { BlindIndexService } from "@/lib/blindIndexService";
+import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 function extractJsonCandidate(raw: string): string {
     const trimmed = raw.trim();
@@ -171,6 +173,27 @@ async function getCampaignOrThrow(campaignId: string, teamId: string) {
     return campaign;
 }
 
+// Scoped by teamId here too, not just getCampaignOrThrow's pre-check - same
+// "scope the mutation, not just a pre-check" anti-pattern already fixed under
+// OPEN-99/109/110/118/120/121/122/123/127. A page/campaign id resolved through
+// getCampaignOrThrow is already team-owned at call time, so this is
+// defense-in-depth, not currently exploitable.
+async function updateOwnedPage(id: string, teamId: string, data: Prisma.LandingPageUpdateInput) {
+    const result = await prisma.landingPage.updateMany({ where: { id, teamId }, data });
+    if (result.count === 0) {
+        throw new Error("Landing page not found");
+    }
+    return prisma.landingPage.findUniqueOrThrow({ where: { id } });
+}
+
+async function updateOwnedCampaign(id: string, teamId: string, data: Prisma.LandingCampaignUpdateInput) {
+    const result = await prisma.landingCampaign.updateMany({ where: { id, teamId }, data });
+    if (result.count === 0) {
+        throw new Error("Landing campaign not found");
+    }
+    return prisma.landingCampaign.findUniqueOrThrow({ where: { id } });
+}
+
 export const landingAgentService = {
     async createCampaign(input: {
         teamId: string;
@@ -287,14 +310,11 @@ export const landingAgentService = {
             // Keep deterministic fallback for unavailable AI or invalid JSON.
         }
 
-        await prisma.landingCampaign.update({
-            where: { id: campaign.id },
-            data: {
-                challenge: brief.challenge,
-                solution: brief.solution,
-                benefit: brief.benefit,
-                framework: brief.framework,
-            },
+        await updateOwnedCampaign(campaign.id, input.teamId, {
+            challenge: brief.challenge,
+            solution: brief.solution,
+            benefit: brief.benefit,
+            framework: brief.framework,
         });
 
         return brief;
@@ -344,6 +364,7 @@ export const landingAgentService = {
                                 ? section.bullets.map((b: unknown) => String(b))
                                 : undefined,
                             ctaLabel: section.ctaLabel ? String(section.ctaLabel) : undefined,
+                            imagePrompt: section.imagePrompt ? String(section.imagePrompt) : undefined,
                         }))
                         : fallbackWireframes(brief)[index]?.sections || [],
                 }));
@@ -352,15 +373,17 @@ export const landingAgentService = {
             // Keep deterministic fallback options.
         }
 
+        const allOptions = [...options, ...LANDING_PAGE_TEMPLATES];
+
         await prisma.$transaction([
             prisma.landingWireframeOption.deleteMany({ where: { campaignId: campaign.id } }),
             prisma.landingWireframeOption.createMany({
-                data: options.map((option, index) => ({
+                data: allOptions.map((option, index) => ({
                     campaignId: campaign.id,
                     title: option.title,
                     description: option.description,
                     framework: option.framework,
-                    score: 100 - index,
+                    score: allOptions.length - index,
                     structure: sanitizeJson(option.sections) as Prisma.InputJsonValue,
                 })),
             }),
@@ -385,20 +408,14 @@ export const landingAgentService = {
 
         const existingPage = campaign.pages[0];
         if (existingPage) {
-            const updatedPage = await prisma.landingPage.update({
-                where: { id: existingPage.id },
-                data: {
-                    renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
-                    version: { increment: 1 },
-                    status: existingPage.status === "published" ? "draft" : existingPage.status,
-                },
+            const updatedPage = await updateOwnedPage(existingPage.id, input.teamId, {
+                renderedJson: sanitizeJson(wireframe.structure) as Prisma.InputJsonValue,
+                version: { increment: 1 },
+                status: existingPage.status === "published" ? "draft" : existingPage.status,
             });
-            await prisma.landingCampaign.update({
-                where: { id: campaign.id },
-                data: {
-                    selectedWireframeId: wireframe.id,
-                    status: "draft",
-                },
+            await updateOwnedCampaign(campaign.id, input.teamId, {
+                selectedWireframeId: wireframe.id,
+                status: "draft",
             });
             return updatedPage;
         }
@@ -416,15 +433,61 @@ export const landingAgentService = {
             },
         });
 
-        await prisma.landingCampaign.update({
-            where: { id: campaign.id },
-            data: {
-                selectedWireframeId: wireframe.id,
-                status: "draft",
-            },
+        await updateOwnedCampaign(campaign.id, input.teamId, {
+            selectedWireframeId: wireframe.id,
+            status: "draft",
         });
 
         return createdPage;
+    },
+
+    async generateImagesForPage(input: {
+        teamId: string;
+        campaignId: string;
+        pageId: string;
+    }) {
+        const campaign = await getCampaignOrThrow(input.campaignId, input.teamId);
+        const page = campaign.pages.find((p) => p.id === input.pageId);
+        if (!page) {
+            throw new Error("Landing page not found");
+        }
+
+        const renderedJson = page.renderedJson;
+        const isPlainArray = Array.isArray(renderedJson);
+        const data = !isPlainArray && renderedJson && typeof renderedJson === "object" ? (renderedJson as Record<string, unknown>) : null;
+        const sections: LandingPageSection[] | null = isPlainArray
+            ? (renderedJson as unknown as LandingPageSection[])
+            : data && Array.isArray(data["sections"])
+                ? (data["sections"] as unknown as LandingPageSection[])
+                : null;
+        if (!sections) {
+            throw new Error("Landing page does not have generatable sections (already flattened to HTML by an editor save)");
+        }
+
+        const { imageGenerationService } = await import("./service/imageGenerationService");
+
+        let changed = false;
+        for (const section of sections) {
+            if (!section.imagePrompt || section.imageUrl) continue;
+            const key = `${page.id}-${section.id}.png`;
+            const result = await imageGenerationService.generateSectionImage(section.imagePrompt, input.teamId, key);
+            if (result.status === "generated" && result.url) {
+                section.imageUrl = result.url;
+                changed = true;
+            }
+        }
+
+        if (!changed) {
+            return page;
+        }
+
+        const updatedRenderedJson = isPlainArray ? sections : { ...(data as Record<string, unknown>), sections };
+
+        return updateOwnedPage(page.id, input.teamId, {
+            renderedJson: sanitizeJson(updatedRenderedJson) as Prisma.InputJsonValue,
+            version: { increment: 1 },
+            status: page.status === "published" ? "draft" : page.status,
+        });
     },
 
     async saveEditorState(input: {
@@ -443,15 +506,12 @@ export const landingAgentService = {
         const sanitizedEditorState = sanitizeJson(input.editorState);
         const sanitizedRendered = sanitizeJson(input.renderedJson);
 
-        return prisma.landingPage.update({
-            where: { id: page.id },
-            data: {
-                title: input.title ?? page.title,
-                editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
-                renderedJson: sanitizedRendered as Prisma.InputJsonValue,
-                version: { increment: 1 },
-                status: page.status === "published" ? "draft" : page.status,
-            },
+        return updateOwnedPage(page.id, input.teamId, {
+            title: input.title ?? page.title,
+            editorState: sanitizedEditorState as Prisma.InputJsonValue | undefined,
+            renderedJson: sanitizedRendered as Prisma.InputJsonValue,
+            version: { increment: 1 },
+            status: page.status === "published" ? "draft" : page.status,
         });
     },
 
@@ -477,19 +537,14 @@ export const landingAgentService = {
                 });
             } catch (error: any) {
                 if (error?.message === "APPROVAL_REQUIRED") {
-                    const request = await prisma.approvalRequest.create({
-                        data: {
-                            teamId: input.teamId,
-                            requesterId: input.userId,
-                            actionType: "LANDING_PAGE_PUBLISH",
-                            entityType: "LandingPage",
-                            entityId: page.id,
-                            payload: {
-                                landingCampaignId: campaign.id,
-                                landingPageId: page.id,
-                            },
-                        },
-                    });
+                    const request = await ApprovalService.requestEntityApproval(
+                        "LandingPage",
+                        page.id,
+                        input.teamId,
+                        "LANDING_PAGE_PUBLISH",
+                        { landingCampaignId: campaign.id, landingPageId: page.id },
+                        input.userId
+                    );
                     return {
                         status: "PENDING_APPROVAL" as const,
                         requestId: request.id,
@@ -503,18 +558,26 @@ export const landingAgentService = {
 
         const updates = await prisma.$transaction(async (tx) => {
             const activeSlug = page.slug || (await generateUniqueSlug(campaign.name));
-            const updatedPage = await tx.landingPage.update({
-                where: { id: page.id },
+            const pageResult = await tx.landingPage.updateMany({
+                where: { id: page.id, teamId: input.teamId },
                 data: {
                     slug: activeSlug,
                     status: "published",
                     publishedAt: new Date(),
                 },
             });
-            const updatedCampaign = await tx.landingCampaign.update({
-                where: { id: campaign.id },
+            if (pageResult.count === 0) {
+                throw new Error("Landing page not found");
+            }
+            const campaignResult = await tx.landingCampaign.updateMany({
+                where: { id: campaign.id, teamId: input.teamId },
                 data: { status: "published" },
             });
+            if (campaignResult.count === 0) {
+                throw new Error("Landing campaign not found");
+            }
+            const updatedPage = await tx.landingPage.findUniqueOrThrow({ where: { id: page.id } });
+            const updatedCampaign = await tx.landingCampaign.findUniqueOrThrow({ where: { id: campaign.id } });
             return { updatedPage, updatedCampaign };
         });
 
@@ -529,6 +592,12 @@ export const landingAgentService = {
                 slug: updates.updatedPage.slug,
             },
         });
+
+        const { cloudflarePagesService } = await import("./service/cloudflarePagesService");
+        const cloudflareResult = await cloudflarePagesService.publishPageToCloudflare(updates.updatedPage.id);
+        if (cloudflareResult.status === "error") {
+            console.error(`[landingAgentService] Cloudflare push failed for page ${updates.updatedPage.id}: ${cloudflareResult.details}`);
+        }
 
         return {
             status: "PUBLISHED" as const,

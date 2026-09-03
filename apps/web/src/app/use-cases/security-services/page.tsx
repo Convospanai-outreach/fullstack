@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ShieldCheck, CheckCircle2, ArrowLeft, ArrowRight, Lock, Activity, Users, FileCheck } from "lucide-react";
 import type { Metadata } from "next";
@@ -5,31 +6,70 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Security & Guarding Services Outbound Playbook | CraftMyFunnel",
     description: "Learn how commercial physical security, executive guarding, and surveillance providers use CraftMyFunnel to run governed, compliance-safe outbound sales campaigns.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/security-services",
+    },
     openGraph: {
         title: "Security Services Outbound Sales Playbook | CraftMyFunnel",
         description: "Win enterprise guarding and commercial surveillance contracts with manager-approved AI drafts and risk-signal monitoring.",
+        images: [
+            {
+                url: "/images/use-cases/security-services.webp",
+                width: 820,
+                height: 460,
+                alt: "Security Services Outbound Playbook",
+            }
+        ],
     },
 };
+
 
 export default function SecurityServicesUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Security & Guarding Services Outbound Sales Playbook",
-        "description": "How physical security and risk management firms automate compliant enterprise outreach using CraftMyFunnel.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Security Services",
+                        "item": "https://craftmyfunnel.live/use-cases/security-services"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Security & Guarding Services Outbound Sales Playbook",
+                "description": "How physical security and risk management firms automate compliant enterprise outreach using CraftMyFunnel.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/security-services"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/security-services"
+        ]
     };
 
     return (
@@ -78,11 +118,24 @@ export default function SecurityServicesUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/security-services.webp"
+                        alt="Security Services Guarding Proposal Approval Queue and Compliance Workflow"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Key Pillars */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
-                        Built for Strict Regulatory & Enterprise Standards
+                        Built for Strict Regulatory &amp; Enterprise Standards
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-400 font-bold">

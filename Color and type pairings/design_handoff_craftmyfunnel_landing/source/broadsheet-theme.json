@@ -1,0 +1,41 @@
+{
+  "name": "Broadsheet",
+  "palette": {
+    "hue": 4,
+    "band": "light",
+    "scheme": "mono",
+    "sat": 0.75,
+    "pin": {
+      "accent": "#0088b0",
+      "accent2": "#d6006c"
+    },
+    "bg": "#f3f2f2",
+    "surface": "#eae9e9",
+    "text": "#201e1d",
+    "accent": "#0088b0",
+    "accent2": "#d6006c"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Source Serif 4",
+      "class": "serif-trans",
+      "weights": [
+        400,
+        600
+      ]
+    },
+    "body": {
+      "family": "Source Serif 4",
+      "class": "serif-trans",
+      "weights": [
+        400,
+        600
+      ]
+    }
+  },
+  "density": 1.25,
+  "radius": 2,
+  "layoutStyle": "left",
+  "imageTreatment": "halftone",
+  "iconSet": "phosphor-duotone"
+}

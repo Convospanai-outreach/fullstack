@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Documentation & Knowledge Hub | CraftMyFunnel",
     description: "Technical guides, system architecture, deliverability guardrails, and API specifications for CraftMyFunnel's governed B2B outreach platform.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/docs",
+    },
     openGraph: {
         title: "CraftMyFunnel Documentation & Technical Knowledge Hub",
         description: "Explore in-depth technical guides on governed outreach workflows, human review queues, deliverability safeguards, and API integrations.",
@@ -45,19 +48,40 @@ const DOC_TOPICS = [
 export default function DocsHubPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "CraftMyFunnel Documentation Hub",
-        "description": "Comprehensive technical guides and architecture specifications for CraftMyFunnel.",
-        "url": "https://craftmyfunnel.live/docs",
-        "mainEntity": {
-            "@type": "ItemList",
-            "itemListElement": DOC_TOPICS.map((t, idx) => ({
-                "@type": "ListItem",
-                "position": idx + 1,
-                "name": t.title,
-                "url": `https://craftmyfunnel.live/docs/${t.slug}`
-            }))
-        }
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    }
+                ]
+            },
+            {
+                "@type": "CollectionPage",
+                "name": "CraftMyFunnel Documentation Hub",
+                "description": "Comprehensive technical guides and architecture specifications for CraftMyFunnel.",
+                "url": "https://craftmyfunnel.live/docs",
+                "mainEntity": {
+                    "@type": "ItemList",
+                    "itemListElement": DOC_TOPICS.map((t, idx) => ({
+                        "@type": "ListItem",
+                        "position": idx + 1,
+                        "name": t.title,
+                        "url": `https://craftmyfunnel.live/docs/${t.slug}`
+                    }))
+                }
+            }
+        ]
     };
 
     return (

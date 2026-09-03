@@ -16,6 +16,7 @@ import {
     Save,
     CreditCard
 } from 'lucide-react';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface Member {
     id: string;
@@ -69,7 +70,7 @@ export default function BudgetingPage() {
 
     const fetchData = async () => {
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/budgeting");
+            const res = await fetch(getBrowserApiBase() + "/settings/budgeting");
             const d = await res.json();
             const normalized = normalizeBudgetingData(d);
             setData(normalized);
@@ -97,7 +98,7 @@ export default function BudgetingPage() {
                 monthlyLimit
             }));
 
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/budgeting", {
+            const res = await fetch(getBrowserApiBase() + "/settings/budgeting", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -120,7 +121,7 @@ export default function BudgetingPage() {
         }
     };
 
-    if (loading || !data) return <div className="p-8 text-white">Loading budgeting console...</div>;
+    if (loading || !data) return <div className="p-8 text-foreground">Loading budgeting console...</div>;
 
     return (
         <div className="space-y-8 max-w-6xl">
@@ -131,7 +132,7 @@ export default function BudgetingPage() {
                 />
                 <Link
                     href="/credits"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-blue-600/20 transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-sm rounded-xl transition-all"
                 >
                     <CreditCard className="w-4 h-4" />
                     Buy Credits / Top Up
@@ -165,27 +166,27 @@ export default function BudgetingPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Organization Defaults */}
                 <GlassCard className="p-6 space-y-6 lg:col-span-1">
-                    <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+                    <div className="flex items-center gap-3 border-b border-border pb-4">
                         <Wallet className="w-5 h-5 text-blue-400" />
-                        <h3 className="text-lg font-bold text-white">Global Defaults</h3>
+                        <h3 className="text-lg font-bold text-foreground">Global Defaults</h3>
                     </div>
 
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-sm text-gray-400 font-medium">Monthly Credit Cap (Per User)</label>
+                            <label className="text-sm text-muted-foreground font-medium">Monthly Credit Cap (Per User)</label>
                             <input
                                 type="number"
                                 value={data.policy.maxCreditsPerUser}
                                 onChange={(e) => setData({ ...data, policy: { ...data.policy, maxCreditsPerUser: parseInt(e.target.value) } })}
-                                className="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-blue-500 transition-all font-mono"
+                                className="w-full bg-muted border border-border rounded-xl px-4 py-2 text-foreground focus:outline-none focus:border-blue-500 transition-all font-mono"
                             />
-                            <p className="text-[10px] text-gray-500 italic">Default limit applied to all members without an override.</p>
+                            <p className="text-[10px] text-muted-foreground italic">Default limit applied to all members without an override.</p>
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-slate-950/50 rounded-xl border border-white/5">
+                        <div className="flex items-center justify-between p-4 bg-muted rounded-xl border border-border">
                             <div>
-                                <div className="text-white text-xs font-bold">Block on Overage</div>
-                                <div className="text-[10px] text-gray-400">Apply hard cap beyond quota.</div>
+                                <div className=" text-foreground text-xs font-bold">Block on Overage</div>
+                                <div className="text-[10px] text-muted-foreground">Apply hard cap beyond quota.</div>
                             </div>
                             <Toggle
                                 checked={data.policy.requiresApprovalForOverage}
@@ -197,7 +198,7 @@ export default function BudgetingPage() {
                     <button
                         onClick={handleSave}
                         disabled={saving}
-                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
+                        className="w-full py-3 bg-primary hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground text-primary-foreground font-bold rounded-xl transition-all flex items-center justify-center gap-2"
                     >
                         <Save className="w-4 h-4" />
                         {saving ? "Updating..." : "Save Budget Policy"}
@@ -206,10 +207,10 @@ export default function BudgetingPage() {
 
                 {/* User Quotas */}
                 <GlassCard className="p-6 space-y-6 lg:col-span-2">
-                    <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <div className="flex items-center justify-between border-b border-border pb-4">
                         <div className="flex items-center gap-3">
                             <Users className="w-5 h-5 text-purple-400" />
-                            <h3 className="text-lg font-bold text-white">Individual Allocations</h3>
+                            <h3 className="text-lg font-bold text-foreground">Individual Allocations</h3>
                         </div>
                     </div>
 
@@ -221,36 +222,36 @@ export default function BudgetingPage() {
                             const percent = Math.min((currentSpend / currentLimit) * 100, 100);
 
                             return (
-                                <div key={member.id} className="p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-all space-y-3">
+                                <div key={member.id} className="p-4 bg-muted rounded-xl border border-border hover:border-border transition-all space-y-3">
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 bg-blue-500/10 rounded-full flex items-center justify-center text-blue-400">
                                                 <UserIcon className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <div className="text-sm font-bold text-white">{member.name}</div>
-                                                <div className="text-[10px] text-gray-500">{member.email}</div>
+                                                <div className="text-sm font-bold text-foreground">{member.name}</div>
+                                                <div className="text-[10px] text-muted-foreground">{member.email}</div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Limit:</span>
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Limit:</span>
                                             <input
                                                 type="number"
                                                 value={currentLimit}
                                                 onChange={(e) => setOverrides({ ...overrides, [member.id]: parseInt(e.target.value) })}
-                                                className="w-20 bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                className="w-20 bg-muted border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-blue-500 font-mono"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-1">
                                         <div className="flex justify-between text-[10px]">
-                                            <span className="text-gray-500">Spend: <span className="text-white font-bold">{currentSpend} cr</span></span>
-                                            <span className="text-gray-500">Target: <span className="text-white font-bold">{currentLimit} cr</span></span>
+                                            <span className="text-muted-foreground">Spend: <span className=" text-foreground font-bold">{currentSpend} cr</span></span>
+                                            <span className="text-muted-foreground">Target: <span className=" text-foreground font-bold">{currentLimit} cr</span></span>
                                         </div>
-                                        <div className="w-full h-1.5 bg-black/40 rounded-full overflow-hidden">
+                                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div
-                                                className={`h-full transition-all duration-500 ${percent > 90 ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : percent > 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
+                                                className={`h-full transition-all duration-500 ${percent > 90 ? 'bg-destructive' : percent > 70 ? 'bg-warning' : 'bg-primary'}`}
                                                 style={{ width: `${percent}%` }}
                                             />
                                         </div>
@@ -268,12 +269,12 @@ export default function BudgetingPage() {
 function MetricCard({ title, value, icon, subtitle }: any) {
     return (
         <GlassCard className="p-6 space-y-2">
-            <div className="flex justify-between items-center text-gray-500">
+            <div className="flex justify-between items-center text-muted-foreground">
                 <span className="text-xs font-bold uppercase tracking-wider">{title}</span>
                 {icon}
             </div>
-            <div className="text-3xl font-black text-white">{value}</div>
-            <div className="text-[10px] text-gray-500">{subtitle}</div>
+            <div className="text-3xl font-black text-foreground">{value}</div>
+            <div className="text-[10px] text-muted-foreground">{subtitle}</div>
         </GlassCard>
     );
 }
@@ -282,7 +283,7 @@ function Toggle({ checked, onChange }: { checked: boolean, onChange: (val: boole
     return (
         <label className="relative inline-flex items-center cursor-pointer">
             <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-            <div className="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+            <div className="w-9 h-5 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary"></div>
         </label>
     );
 }

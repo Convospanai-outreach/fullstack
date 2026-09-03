@@ -8,9 +8,19 @@ export async function GET(req: NextRequest) {
 
   const baseUrl = process.env["NEXT_PUBLIC_APP_URL"] || "https://www.craftmyfunnel.live";
 
+  // "state" carries back the page that started the connection (e.g. the onboarding wizard) so the
+  // user lands where they began instead of always being bounced to Settings > Mailboxes.
+  const statePath = req.nextUrl.searchParams.get("state") || "";
+  const redirectBasePath = statePath.startsWith("/") && !statePath.startsWith("//") ? statePath : "/settings/mailboxes";
+  const redirectTo = (params: Record<string, string>) => {
+    const url = new URL(redirectBasePath, baseUrl);
+    for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+    return url.toString();
+  };
+
   if (error || !code) {
-    const errMessage = encodeURIComponent(errorDescription || error || "Microsoft OAuth authorization failed.");
-    return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=${errMessage}`, { status: 302 });
+    const errMessage = errorDescription || error || "Microsoft OAuth authorization failed.";
+    return NextResponse.redirect(redirectTo({ connected: "false", error: errMessage }), { status: 302 });
   }
 
   const clientId = process.env["MICROSOFT_CLIENT_ID"];
@@ -20,7 +30,7 @@ export async function GET(req: NextRequest) {
     "https://www.craftmyfunnel.live/api/integrations/microsoft/oauth/callback";
 
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=Microsoft+OAuth+credentials+not+configured`, { status: 302 });
+    return NextResponse.redirect(redirectTo({ connected: "false", error: "Microsoft OAuth credentials not configured" }), { status: 302 });
   }
 
   try {
@@ -39,8 +49,8 @@ export async function GET(req: NextRequest) {
 
     const tokenData = (await tokenRes.json()) as any;
     if (!tokenRes.ok) {
-      const msg = encodeURIComponent(tokenData.error_description || tokenData.error || "Failed to exchange Microsoft token.");
-      return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=${msg}`, { status: 302 });
+      const msg = tokenData.error_description || tokenData.error || "Failed to exchange Microsoft token.";
+      return NextResponse.redirect(redirectTo({ connected: "false", error: msg }), { status: 302 });
     }
 
     // Fetch user profile email
@@ -51,7 +61,7 @@ export async function GET(req: NextRequest) {
     const email = (meData.mail || meData.userPrincipalName || "").toLowerCase().trim();
 
     if (!email) {
-      return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=Failed+to+retrieve+Microsoft+user+email`, { status: 302 });
+      return NextResponse.redirect(redirectTo({ connected: "false", error: "Failed to retrieve Microsoft user email" }), { status: 302 });
     }
 
     const { prisma } = await import("@/lib/db");
@@ -59,7 +69,7 @@ export async function GET(req: NextRequest) {
     // Fetch or create team
     const team = await prisma.team.findFirst({ select: { id: true } });
     if (!team) {
-      return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=No+active+workspace+team+found`, { status: 302 });
+      return NextResponse.redirect(redirectTo({ connected: "false", error: "No active workspace team found" }), { status: 302 });
     }
 
     const encryptedAccessToken = await encryptCredential(tokenData.access_token);
@@ -90,9 +100,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=true&email=${encodeURIComponent(email)}&provider=MICROSOFT_365`, { status: 302 });
+    return NextResponse.redirect(redirectTo({ connected: "true", email, provider: "MICROSOFT_365" }), { status: 302 });
   } catch (err: any) {
-    const errStr = encodeURIComponent(err?.message || "Unexpected Microsoft OAuth error");
-    return NextResponse.redirect(`${baseUrl}/settings/mailboxes?connected=false&error=${errStr}`, { status: 302 });
+    return NextResponse.redirect(redirectTo({ connected: "false", error: err?.message || "Unexpected Microsoft OAuth error" }), { status: 302 });
   }
 }

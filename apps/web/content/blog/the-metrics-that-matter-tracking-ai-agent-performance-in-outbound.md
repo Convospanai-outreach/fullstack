@@ -1,7 +1,7 @@
 ---
 title: "The Metrics that Matter: Tracking AI Agent Performance in Outbound"
 description: "Traditional sales metrics don't apply to autonomous agents. Learn how to track AI performance, from Prompt Adherence Scores to Cost Per Qualified Meeting."
-date: "2026-08-23T11:30:00.000Z"
+date: "2026-07-29T14:32:18.461Z"
 ---
 
 When you manage a team of human Sales Development Representatives (SDRs), the metrics are standardized: Calls Made, Emails Sent, Open Rates, Reply Rates, and Meetings Booked. You track inputs (effort) to predict outputs (revenue).

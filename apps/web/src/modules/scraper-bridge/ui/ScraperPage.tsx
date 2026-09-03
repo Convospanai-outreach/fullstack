@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ScrapeForm from "./components/ScrapeForm";
 import ScrapeResult from "./components/ScrapeResult";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ScraperPage() {
     const [result, setResult] = useState<any>(null);
@@ -11,7 +12,7 @@ export default function ScraperPage() {
     const handleScrape = async (request: any) => {
         setLoading(true);
         try {
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/scraper-bridge/scrape", {
+            const res = await fetch(getBrowserApiBase() + "/scraper-bridge/scrape", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(request),

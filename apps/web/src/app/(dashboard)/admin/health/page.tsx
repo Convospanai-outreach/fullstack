@@ -13,6 +13,7 @@ import {
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/button";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 type ServiceStatus = "UP" | "DOWN" | "DEGRADED" | "NOT_CONFIGURED";
 
@@ -80,7 +81,7 @@ const statusClass: Record<ServiceStatus, string> = {
   UP: "bg-emerald-400",
   DOWN: "bg-red-400",
   DEGRADED: "bg-amber-400",
-  NOT_CONFIGURED: "bg-slate-400",
+  NOT_CONFIGURED: "bg-muted-foreground",
 };
 
 const shortRangeLabel: Record<string, string> = {
@@ -100,7 +101,7 @@ export default function AdminHealthPage() {
     setLoading(true);
     setError(null);
     try {
-      const apiBase = (process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy");
+      const apiBase = getBrowserApiBase();
       const res = await fetch(`${apiBase}/admin/runtime-overview?range=${nextRange}`);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -120,7 +121,7 @@ export default function AdminHealthPage() {
   }, [range]);
 
   return (
-    <div className="p-8 min-h-screen bg-black relative overflow-hidden">
+    <div className="p-8 min-h-screen bg-background relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
         <div className="absolute top-[-12%] left-[-8%] w-[48%] h-[48%] bg-cyan-900/20 rounded-full blur-[120px]" />
         <div className="absolute bottom-[-10%] right-[-12%] w-[50%] h-[50%] bg-emerald-900/20 rounded-full blur-[120px]" />
@@ -149,7 +150,7 @@ export default function AdminHealthPage() {
           </div>
         </div>
 
-        {loading && <GlassCard className="p-6 text-gray-200">Loading runtime overview...</GlassCard>}
+        {loading && <GlassCard className="p-6 text-foreground">Loading runtime overview...</GlassCard>}
         {!loading && error && (
           <GlassCard className="p-6 border border-red-400/20 text-red-200">
             Failed to load runtime overview: {error}
@@ -163,27 +164,27 @@ export default function AdminHealthPage() {
                 <GlassCard key={serviceName} className="p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-gray-400">{serviceName}</div>
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{serviceName}</div>
                       <div className="mt-2 flex items-center gap-2">
                         <span className={`h-2.5 w-2.5 rounded-full ${
                           service.optional && service.status !== "UP" ? "bg-amber-400" : statusClass[service.status]
                         }`} />
-                        <span className="text-sm font-semibold text-white">{service.status}</span>
+                        <span className="text-sm font-semibold text-foreground">{service.status}</span>
                         {service.optional && (
-                          <span className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-gray-400">
+                          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                             optional
                           </span>
                         )}
                       </div>
                     </div>
-                    <Server className="h-4 w-4 text-gray-400" />
+                    <Server className="h-4 w-4 text-muted-foreground" />
                   </div>
-                  <p className="mt-3 text-sm text-gray-300">{service.message}</p>
+                  <p className="mt-3 text-sm text-foreground">{service.message}</p>
                   {typeof service.latencyMs === "number" && (
-                    <p className="mt-2 text-xs text-gray-400">Latency: {service.latencyMs}ms</p>
+                    <p className="mt-2 text-xs text-muted-foreground">Latency: {service.latencyMs}ms</p>
                   )}
                   {service.endpoint && (
-                    <p className="mt-1 text-[11px] text-gray-500 break-all">{service.endpoint}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground break-all">{service.endpoint}</p>
                   )}
                 </GlassCard>
               ))}
@@ -191,11 +192,11 @@ export default function AdminHealthPage() {
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <GlassCard className="p-6 xl:col-span-2">
-                <div className="flex items-center gap-2 text-white">
+                <div className="flex items-center gap-2 text-foreground">
                   <Activity className="h-5 w-5 text-cyan-300" />
                   <h3 className="text-lg font-semibold">Data Flow</h3>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">Lead to campaign to email to reply pipeline</p>
+                <p className="text-sm text-muted-foreground mt-1">Lead to campaign to email to reply pipeline</p>
 
                 <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <FlowMetric title="Leads Created" value={overview.dataFlow.leadsCreated.toLocaleString()} />
@@ -206,9 +207,9 @@ export default function AdminHealthPage() {
 
                 <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-2 items-center">
                   <StageChip label="Lead Ingest" value={overview.dataFlow.leadsCreated} />
-                  <ArrowRight className="mx-auto h-4 w-4 text-gray-500 hidden md:block" />
+                  <ArrowRight className="mx-auto h-4 w-4 text-muted-foreground hidden md:block" />
                   <StageChip label="Campaign Ops" value={overview.dataFlow.campaignsCreated} />
-                  <ArrowRight className="mx-auto h-4 w-4 text-gray-500 hidden md:block" />
+                  <ArrowRight className="mx-auto h-4 w-4 text-muted-foreground hidden md:block" />
                   <StageChip label="Email Execution" value={overview.dataFlow.emailsSent} />
                 </div>
 
@@ -220,11 +221,11 @@ export default function AdminHealthPage() {
               </GlassCard>
 
               <GlassCard className="p-6">
-                <div className="flex items-center gap-2 text-white">
-                  <Wallet className="h-5 w-5 text-emerald-300" />
+                <div className="flex items-center gap-2 text-foreground">
+                  <Wallet className="h-5 w-5 text-success" />
                   <h3 className="text-lg font-semibold">Token Flow</h3>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">LLM traffic and cost in selected window</p>
+                <p className="text-sm text-muted-foreground mt-1">LLM traffic and cost in selected window</p>
                 <div className="mt-5 space-y-3">
                   <MiniStat label="Requests" value={overview.tokenFlow.requests.toLocaleString()} />
                   <MiniStat label="Tokens In" value={overview.tokenFlow.tokensIn.toLocaleString()} />
@@ -242,11 +243,11 @@ export default function AdminHealthPage() {
 
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               <GlassCard className="p-6">
-                <h3 className="text-lg font-semibold text-white">Provider Matrix</h3>
-                <p className="text-sm text-gray-400 mt-1">Token and cost split by provider</p>
+                <h3 className="text-lg font-semibold text-foreground">Provider Matrix</h3>
+                <p className="text-sm text-muted-foreground mt-1">Token and cost split by provider</p>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="text-left text-gray-400 border-b border-white/10">
+                    <thead className="text-left text-muted-foreground border-b border-border">
                       <tr>
                         <th className="py-2 pr-3">Provider</th>
                         <th className="py-2 pr-3 text-right">Req</th>
@@ -255,17 +256,17 @@ export default function AdminHealthPage() {
                         <th className="py-2 text-right">Cost</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5 text-gray-200">
+                    <tbody className="divide-y divide-border text-foreground">
                       {overview.tokenFlow.providerMatrix.length === 0 && (
                         <tr>
-                          <td className="py-3 text-gray-400" colSpan={5}>
+                          <td className="py-3 text-muted-foreground" colSpan={5}>
                             No token usage in this range.
                           </td>
                         </tr>
                       )}
                       {overview.tokenFlow.providerMatrix.map((provider) => (
                         <tr key={provider.provider}>
-                          <td className="py-2 pr-3 font-medium text-white">{provider.provider}</td>
+                          <td className="py-2 pr-3 font-medium text-foreground">{provider.provider}</td>
                           <td className="py-2 pr-3 text-right">{provider.requests.toLocaleString()}</td>
                           <td className="py-2 pr-3 text-right">{provider.tokensIn.toLocaleString()}</td>
                           <td className="py-2 pr-3 text-right">{provider.tokensOut.toLocaleString()}</td>
@@ -278,37 +279,37 @@ export default function AdminHealthPage() {
               </GlassCard>
 
               <GlassCard className="p-6">
-                <div className="flex items-center gap-2 text-white">
+                <div className="flex items-center gap-2 text-foreground">
                   <Shield className="h-5 w-5 text-indigo-300" />
                   <h3 className="text-lg font-semibold">Operational Matrix</h3>
                 </div>
-                <p className="text-sm text-gray-400 mt-1">Queue health and event pressure points</p>
+                <p className="text-sm text-muted-foreground mt-1">Queue health and event pressure points</p>
 
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-gray-400 mb-2">Jobs by status</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-2">Jobs by status</p>
                     <div className="space-y-2">
                       {overview.operationalMatrix.jobsByStatus.length === 0 && (
-                        <div className="text-sm text-gray-400">No jobs in this range.</div>
+                        <div className="text-sm text-muted-foreground">No jobs in this range.</div>
                       )}
                       {overview.operationalMatrix.jobsByStatus.map((job) => (
                         <div key={job.status} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-200">{job.status}</span>
-                          <span className="text-white font-semibold">{job.count.toLocaleString()}</span>
+                          <span className="text-foreground">{job.status}</span>
+                          <span className="text-foreground font-semibold">{job.count.toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.16em] text-gray-400 mb-2">Top system events</p>
+                    <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground mb-2">Top system events</p>
                     <div className="space-y-2">
                       {overview.operationalMatrix.topSystemEvents.length === 0 && (
-                        <div className="text-sm text-gray-400">No events in this range.</div>
+                        <div className="text-sm text-muted-foreground">No events in this range.</div>
                       )}
                       {overview.operationalMatrix.topSystemEvents.map((event) => (
                         <div key={event.name} className="flex items-center justify-between text-sm">
-                          <span className="text-gray-200 truncate pr-2">{event.name}</span>
-                          <span className="text-white font-semibold">{event.count.toLocaleString()}</span>
+                          <span className="text-foreground truncate pr-2">{event.name}</span>
+                          <span className="text-foreground font-semibold">{event.count.toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
@@ -317,7 +318,7 @@ export default function AdminHealthPage() {
               </GlassCard>
             </div>
 
-            <GlassCard className="p-4 flex items-center gap-3 text-xs text-gray-400">
+            <GlassCard className="p-4 flex items-center gap-3 text-xs text-muted-foreground">
               <Database className="h-4 w-4 text-cyan-300" />
               <span>
                 Updated {new Date(overview.timestamp).toLocaleString()} | Window start{" "}
@@ -333,36 +334,36 @@ export default function AdminHealthPage() {
 
 function FlowMetric({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <p className="text-xs uppercase tracking-[0.14em] text-gray-400">{title}</p>
-      <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+    <div className="rounded-xl border border-border bg-muted p-3">
+      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+      <p className="mt-2 text-lg font-semibold text-foreground">{value}</p>
     </div>
   );
 }
 
 function StageChip({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-center">
-      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-white">{value.toLocaleString()}</p>
+    <div className="rounded-xl border border-border bg-muted px-3 py-2 text-center">
+      <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-semibold text-foreground">{value.toLocaleString()}</p>
     </div>
   );
 }
 
 function FlowRate({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-      <p className="text-xs uppercase tracking-[0.14em] text-gray-400">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-emerald-300">{value.toFixed(2)}%</p>
+    <div className="rounded-xl border border-border bg-muted p-3">
+      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{label}</p>
+      <p className="mt-2 text-lg font-semibold text-success">{value.toFixed(2)}%</p>
     </div>
   );
 }
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between text-sm border-b border-white/5 pb-2">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-white font-medium">{value}</span>
+    <div className="flex items-center justify-between text-sm border-b border-border pb-2">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-foreground font-medium">{value}</span>
     </div>
   );
 }

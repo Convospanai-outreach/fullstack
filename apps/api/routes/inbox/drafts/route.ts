@@ -5,8 +5,8 @@ import { InboxService } from "@/lib/inboxService";
 
 export async function POST(req: NextRequest) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -19,11 +19,14 @@ export async function POST(req: NextRequest) {
 
         const user = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
         const senderName = user?.name || "Agent";
-        const draft = await InboxService.saveDraft(leadId, content, senderName);
+        const draft = await InboxService.saveDraft(leadId, content, senderName, teamId);
 
         return NextResponse.json({ draft });
 
     } catch (error: any) {
+        if (error.message === "LEAD_NOT_FOUND") {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
         console.error("Error saving draft:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
@@ -31,8 +34,8 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -43,11 +46,14 @@ export async function DELETE(req: NextRequest) {
             return NextResponse.json({ error: "Missing draftId" }, { status: 400 });
         }
 
-        await InboxService.discardDraft(draftId);
+        await InboxService.discardDraft(draftId, teamId);
 
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
+        if (error.message === "DRAFT_NOT_FOUND") {
+            return NextResponse.json({ error: "Draft not found" }, { status: 404 });
+        }
         console.error("Error discarding draft:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

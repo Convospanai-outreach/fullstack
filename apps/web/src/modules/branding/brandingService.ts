@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { createCustomHostname } from "./cloudflareCustomHostnameService";
 
 export interface BrandingConfig {
     logoUrl?: string;
@@ -52,11 +53,24 @@ export class BrandingService {
     }
 
     static async addDomain(teamId: string, domain: string) {
+        // Real ownership verification via Cloudflare for SaaS (Custom Hostnames) -
+        // see cloudflareCustomHostnameService.ts. Status polling happens exclusively
+        // in apps/api's worker-manager tick (this deployment has no long-running
+        // process to poll from); if Cloudflare isn't configured here, the row is
+        // still created as "pending" so the flow keeps working.
+        const cloudflareResult = await createCustomHostname(domain).catch((error) => {
+            console.error(`[BrandingService] Cloudflare custom hostname creation failed for ${domain}:`, error);
+            return null;
+        });
+
         return prisma.customDomain.create({
             data: {
                 teamId,
                 domain,
-                status: "pending" // Needs CNAME verification logic usually
+                status: "pending",
+                cloudflareHostnameId: cloudflareResult?.cloudflareHostnameId ?? null,
+                ownershipVerificationName: cloudflareResult?.ownershipVerification?.name ?? null,
+                ownershipVerificationValue: cloudflareResult?.ownershipVerification?.value ?? null,
             }
         });
     }

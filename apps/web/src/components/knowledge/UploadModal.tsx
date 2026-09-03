@@ -6,6 +6,7 @@ import { PrimaryButton } from "@/components/ui/PrimaryButton"
 import { Input } from "@/components/ui/Input"
 import { toast } from "sonner"
 import { Loader2, UploadCloud } from "lucide-react"
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface UploadModalProps {
     knowledgeBaseId: string
@@ -26,7 +27,7 @@ export function UploadModal({ knowledgeBaseId, onUploadComplete }: UploadModalPr
 
         setLoading(true)
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/knowledge/${knowledgeBaseId}/upload`, {
+            const res = await fetch(`${getBrowserApiBase()}/knowledge/${knowledgeBaseId}/upload`, {
                 method: "POST",
                 body: JSON.stringify({
                     content,

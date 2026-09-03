@@ -3,6 +3,7 @@
 
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { AuditLogTable } from "@/components/audit/AuditLogTable";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function AuditPage() {
     return (
@@ -17,7 +18,7 @@ export default function AuditPage() {
                 <SectionHeader title="System Audit Logs" subtitle="Track user activity and security events" />
 
                 <div className="mt-8">
-                    <AuditLogTable apiUrl={(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/audit"} />
+                    <AuditLogTable apiUrl={getBrowserApiBase() + "/audit"} />
                 </div>
             </div>
         </div>

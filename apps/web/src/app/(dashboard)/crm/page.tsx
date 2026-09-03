@@ -14,6 +14,7 @@ import {
     Database,
     AlertTriangle
 } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -26,7 +27,7 @@ interface CrmIntegration {
 }
 
 export default function CRMIntegrationPage() {
-    const { data: integrations } = useSWR<CrmIntegration[]>((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/settings/crm", fetcher);
+    const { data: integrations } = useSWR<CrmIntegration[]>(getBrowserApiBase() + "/settings/crm", fetcher);
     const [connecting, setConnecting] = useState<string | null>(null);
 
     const handleConnect = async (provider: string) => {
@@ -42,10 +43,10 @@ export default function CRMIntegrationPage() {
                 <div className="flex justify-between items-start">
                     <div>
                         <div className="flex items-center gap-3 mb-2">
-                            <h1 className="text-3xl font-black text-white tracking-tight">CRM Bridge</h1>
+                            <h1 className="text-3xl font-black text-foreground tracking-tight">CRM Bridge</h1>
                             <Badge variant="warning" className="bg-amber-500/20 text-amber-300 border-amber-500/30">Integration Preview</Badge>
                         </div>
-                        <p className="text-text-secondary max-w-2xl">
+                        <p className="text-muted-foreground max-w-2xl">
                             Bi-directional sync between CraftMyFunnel and your System of Record.
                         </p>
                     </div>
@@ -54,15 +55,15 @@ export default function CRMIntegrationPage() {
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-200 flex items-center gap-3 text-sm">
                     <AlertTriangle className="w-5 h-5 shrink-0 text-amber-400" />
                     <span>
-                        <strong className="font-bold text-white">Integration Preview:</strong> Native CRM Sync is currently under active development. Connector cards demonstrate configuration layout.
+                        <strong className="font-bold text-foreground">Integration Preview:</strong> Native CRM Sync is currently under active development. Connector cards demonstrate configuration layout.
                     </span>
                 </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Integration Cards */}
                 <div className="lg:col-span-2 space-y-6">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Plug className="w-5 h-5 text-accent-blue" />
+                    <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                        <Plug className="w-5 h-5 text-primary" />
                         Available Connectors
                     </h2>
 
@@ -94,10 +95,10 @@ export default function CRMIntegrationPage() {
                             onSync={() => handleSync('PIPEDRIVE')}
                             loading={connecting === 'PIPEDRIVE'}
                         />
-                        <div className="glass p-6 rounded-2xl border border-white/5 border-dashed flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
-                            <Database className="w-10 h-10 text-text-muted mb-4 opacity-30" />
-                            <h3 className="text-white font-bold mb-1">Request a Connector</h3>
-                            <p className="text-xs text-text-muted mb-4">Need Zoho, Dynamics, or Copper?</p>
+                        <div className="glass p-6 rounded-2xl border border-border border-dashed flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition">
+                            <Database className="w-10 h-10 text-muted-foreground mb-4 opacity-30" />
+                            <h3 className="text-foreground font-bold mb-1">Request a Connector</h3>
+                            <p className="text-xs text-muted-foreground mb-4">Need Zoho, Dynamics, or Copper?</p>
                             <Button variant="ghost">Contact Product Team</Button>
                         </div>
                     </div>
@@ -113,29 +114,29 @@ export default function CRMIntegrationPage() {
                             <div className="space-y-6">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h4 className="text-sm font-bold text-white">Auto-Push Qualified Leads</h4>
-                                        <p className="text-[10px] text-text-secondary mt-1">
+                                        <h4 className="text-sm font-bold text-foreground">Auto-Push Qualified Leads</h4>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
                                             Automatically create CRM contacts when a lead replies or reaches score 80+
                                         </p>
                                     </div>
-                                    <div className="h-6 w-11 bg-accent-blue rounded-full relative cursor-pointer">
+                                    <div className="h-6 w-11 bg-primary rounded-full relative cursor-pointer">
                                         <div className="absolute top-1 right-1 h-4 w-4 bg-white rounded-full transition-all shadow-sm" />
                                     </div>
                                 </div>
 
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <h4 className="text-sm font-bold text-white">Bi-Directional Opt-Outs</h4>
-                                        <p className="text-[10px] text-text-secondary mt-1">
+                                        <h4 className="text-sm font-bold text-foreground">Bi-Directional Opt-Outs</h4>
+                                        <p className="text-[10px] text-muted-foreground mt-1">
                                             If marked DND in CRM, immediately stop campaigns in CraftMyFunnel
                                         </p>
                                     </div>
-                                    <div className="h-6 w-11 bg-white/10 rounded-full relative cursor-pointer">
+                                    <div className="h-6 w-11 bg-muted rounded-full relative cursor-pointer">
                                         <div className="absolute top-1 left-1 h-4 w-4 bg-white/50 rounded-full transition-all shadow-sm" />
                                     </div>
                                 </div>
 
-                                <div className="pt-4 border-t border-white/5">
+                                <div className="pt-4 border-t border-border">
                                     <Button className="w-full gap-2" variant="outline">
                                         <Settings className="w-4 h-4" />
                                         Map Custom Fields
@@ -152,22 +153,22 @@ export default function CRMIntegrationPage() {
                         <CardContent>
                             <div className="space-y-4">
                                 {[1, 2, 3].map((_, i) => (
-                                    <div key={i} className="flex gap-3 items-start p-3 hover:bg-white/5 rounded-xl transition">
+                                    <div key={i} className="flex gap-3 items-start p-3 hover:bg-accent rounded-xl transition">
                                         <div className={`mt-0.5 p-1.5 rounded-full ${i === 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-blue-500/20 text-blue-400'}`}>
                                             <ArrowRightLeft className="w-3 h-3" />
                                         </div>
                                         <div>
-                                            <p className="text-xs text-white">
+                                            <p className="text-xs text-foreground">
                                                 {i === 0 ? "Pushed lead 'Sarah Chen' to Salesforce" : "Updated 'TechCorp' opportunity stage"}
                                             </p>
                                             <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-[10px] text-text-muted">2 mins ago</span>
+                                                <span className="text-[10px] text-muted-foreground">2 mins ago</span>
                                                 {i === 0 && <Badge variant="success" className="px-1 py-0 text-[9px] h-4">Success</Badge>}
                                             </div>
                                         </div>
                                     </div>
                                 ))}
-                                <Button variant="ghost" className="w-full text-xs text-text-muted">Older Logs</Button>
+                                <Button variant="ghost" className="w-full text-xs text-muted-foreground">Older Logs</Button>
                             </div>
                         </CardContent>
                     </Card>
@@ -181,19 +182,19 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
     const isActive = status === 'active';
 
     return (
-        <div className="glass p-6 rounded-2xl border border-white/5 hover:border-accent-blue/30 transition-all group relative overflow-hidden">
+        <div className="glass p-6 rounded-2xl border border-border hover:border-primary/30 transition-all group relative overflow-hidden">
             <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center p-2 shadow-lg">
                     {/* Fallback specific icon handling or img */}
                     <div className="text-black font-black text-xs">{name.substring(0, 2).toUpperCase()}</div>
                 </div>
-                <Badge variant={isActive ? "success" : "default"} className={isActive ? "bg-emerald-500/20 text-emerald-400 border-none" : "bg-white/5 text-text-muted"}>
+                <Badge variant={isActive ? "success" : "default"} className={isActive ? "bg-emerald-500/20 text-emerald-400 border-none" : "bg-muted text-muted-foreground"}>
                     {isActive ? "Connected" : "Not Connected"}
                 </Badge>
             </div>
 
-            <h3 className="text-lg font-bold text-white mb-2">{name}</h3>
-            <p className="text-xs text-text-secondary h-16 leading-relaxed mb-6">
+            <h3 className="text-lg font-bold text-foreground mb-2">{name}</h3>
+            <p className="text-xs text-muted-foreground h-16 leading-relaxed mb-6">
                 {description}
             </p>
 
@@ -202,7 +203,7 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
                     <>
                         <Button
                             variant="default"
-                            className="flex-1 bg-white/5 hover:bg-white/10 border-white/10"
+                            className="flex-1 bg-muted hover:bg-accent border-border"
                             onClick={onSync}
                         >
                             <RefreshCw className="w-4 h-4 mr-2" />
@@ -217,7 +218,7 @@ function ConnectorCard({ name, icon: _icon, description, status, onConnect, onSy
                         variant="outline"
                         disabled={loading}
                         onClick={onConnect}
-                        className="w-full text-accent-blue border-accent-blue/30 hover:bg-accent-blue/10"
+                        className="w-full text-primary border-primary/30 hover:bg-primary/10"
                     >
                         {loading && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
                         Connect {name}

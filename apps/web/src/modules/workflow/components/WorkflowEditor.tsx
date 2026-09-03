@@ -19,6 +19,7 @@ import { Bot, Mail, Clock, Split } from 'lucide-react';
 import { AiNode, DelayNode, ConditionNode, ActionNode } from './nodes/CustomNodes';
 import { WorkflowNode, WorkflowEdge } from '../types';
 import { Edge } from 'reactflow';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const nodeTypes = {
     ai: AiNode,
@@ -85,7 +86,7 @@ export default function WorkflowEditor({ initialNodes = [], initialEdges = [], w
             onSave(nodes, edges);
         } else {
             try {
-                const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/workflows/${workflowId}`, {
+                const res = await fetch(`${getBrowserApiBase()}/workflows/${workflowId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nodes, edges })

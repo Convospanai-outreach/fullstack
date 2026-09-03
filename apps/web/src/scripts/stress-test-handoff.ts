@@ -62,7 +62,7 @@ async function runHandoffStress() {
     const start = performance.now();
     const claimTasks = Array.from({ length: 100 }).map(async () => {
         try {
-            return await CallerService.claimLead(leadIds[0]!, callerId);
+            return await CallerService.claimLead(leadIds[0]!, callerId, teamId);
         } catch (e: any) {
             return { error: e.message };
         }
@@ -83,7 +83,7 @@ async function runHandoffStress() {
     // 4. Simulate Bulk Throughput (Queue Fetch)
     console.log("\nSimulating 500 parallel queue fetches...");
     const startFetch = performance.now();
-    const fetchTasks = Array.from({ length: 500 }).map(() => CallerService.getQueue(callerId));
+    const fetchTasks = Array.from({ length: 500 }).map(() => CallerService.getQueue(callerId, teamId));
     await Promise.all(fetchTasks);
     const endFetch = performance.now();
     

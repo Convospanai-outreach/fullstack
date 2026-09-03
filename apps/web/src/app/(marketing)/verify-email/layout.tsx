@@ -1,6 +1,6 @@
 export const metadata = {
-    title: "Verify Email | CraftMyFunnel",
-    description: "Verify your email address to activate your CraftMyFunnel account.",
+    title: "Verify Email | CraftMyFunnel AI",
+    description: "Verify your email address to activate your CraftMyFunnel AI account.",
 };
 
 export default function VerifyEmailLayout({

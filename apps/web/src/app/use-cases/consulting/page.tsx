@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Briefcase, CheckCircle2, ArrowLeft, ArrowRight, TrendingUp, Users, Activity, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
@@ -5,31 +6,70 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Management Consulting & Advisory Outbound Playbook | CraftMyFunnel",
     description: "Learn how management consultants and boutique advisory firms use CraftMyFunnel to conduct executive-level outreach with zero hallucinated claims or awkward email errors.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/use-cases/consulting",
+    },
     openGraph: {
         title: "Management Consulting & Advisory Outbound Playbook | CraftMyFunnel",
         description: "Engage C-suite buyers with high-trust advisory proposals, partner approval workflows, and intent signals.",
+        images: [
+            {
+                url: "/images/use-cases/consulting.webp",
+                width: 820,
+                height: 460,
+                alt: "Management Consulting & Advisory Outbound Playbook",
+            }
+        ],
     },
 };
+
 
 export default function ConsultingUseCasePage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "Management Consulting & Advisory Outbound Sales Playbook",
-        "description": "How boutique management consultancies and strategic advisory firms scale executive pipeline with governed AI draft synthesis.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Use Cases",
+                        "item": "https://craftmyfunnel.live/use-cases"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Consulting & Advisory",
+                        "item": "https://craftmyfunnel.live/use-cases/consulting"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "Management Consulting & Advisory Outbound Sales Playbook",
+                "description": "How boutique management consultancies and strategic advisory firms scale executive pipeline with governed AI draft synthesis.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/consulting"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/use-cases/consulting"
+        ]
     };
 
     return (
@@ -78,11 +118,24 @@ export default function ConsultingUseCasePage() {
                     </div>
                 </div>
 
+                {/* Workflow Architecture Visual */}
+                <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                    <Image
+                        src="/images/use-cases/consulting.webp"
+                        alt="Management Consulting Partner-Approved Advisory Outbound Architecture"
+                        width={820}
+                        height={460}
+                        priority
+                        className="w-full h-auto rounded-2xl"
+                    />
+                </div>
+
                 {/* Key Pillars */}
                 <div className="space-y-8">
                     <h2 className="text-2xl font-bold text-white">
-                        Built for Discerning Advisory & Professional Services
+                        Built for Discerning Advisory &amp; Professional Services
                     </h2>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
                             <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center text-rose-400 font-bold">

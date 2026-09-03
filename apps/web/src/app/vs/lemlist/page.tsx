@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "CraftMyFunnel vs Lemlist | Governed AI Outbound vs Generic Sequencer",
     description: "Compare CraftMyFunnel and Lemlist. Discover why B2B agencies and revenue teams choose CraftMyFunnel for vertical playbooks, human approval review, and multi-tenant security.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs/lemlist",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Lemlist: Governed Outbound & Vertical Playbooks",
         description: "Compare CraftMyFunnel with Lemlist. Designed for teams requiring industry-specific sequence playbooks, approval queues, and enterprise data governance.",
@@ -59,22 +62,49 @@ const FEATURE_ROWS = [
 export default function LemlistComparisonPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "CraftMyFunnel vs Lemlist: The Modern Comparison for B2B Outbound Teams",
-        "description": "Comparing CraftMyFunnel and Lemlist on vertical playbooks, AI approval workflows, and multi-tenant enterprise features.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Product Comparisons",
+                        "item": "https://craftmyfunnel.live/vs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "CraftMyFunnel vs Lemlist",
+                        "item": "https://craftmyfunnel.live/vs/lemlist"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "CraftMyFunnel vs Lemlist: The Modern Comparison for B2B Outbound Teams",
+                "description": "Comparing CraftMyFunnel and Lemlist on vertical playbooks, AI approval workflows, and multi-tenant enterprise features.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/vs/lemlist"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/vs/lemlist"
+        ]
     };
 
     return (

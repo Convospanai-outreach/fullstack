@@ -66,10 +66,10 @@ export default function EdgeRuntimePage() {
                         <Radio className="w-3.5 h-3.5" />
                         Private Edge Hardware
                     </div>
-                    <h1 className="text-3xl font-extrabold tracking-tight text-white">
+                    <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
                         Edge Runtime
                     </h1>
-                    <p className="text-sm text-slate-400">
+                    <p className="text-sm text-muted-foreground">
                         Local micro-LLM inference, Raspberry Pi 5 node fleet, and offline dispatch buffers.
                     </p>
                 </div>
@@ -79,7 +79,7 @@ export default function EdgeRuntimePage() {
                         size="sm"
                         onClick={handlePingNodes}
                         disabled={isPinging}
-                        className="bg-slate-900 border-slate-700 text-slate-200 text-xs"
+                        className="bg-muted border-border text-foreground text-xs"
                     >
                         <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${isPinging ? "animate-spin" : ""}`} />
                         Ping Fleet
@@ -98,13 +98,13 @@ export default function EdgeRuntimePage() {
             {/* Edge Fleet Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {devices.map((device) => (
-                    <div key={device.id} className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-4">
+                    <div key={device.id} className="p-6 rounded-2xl bg-muted border border-border space-y-4">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
                                 <Cpu className="w-5 h-5 text-cyan-400" />
                                 <div>
-                                    <h2 className="text-base font-bold text-white">{device.name}</h2>
-                                    <p className="text-xs text-slate-400">{device.type}</p>
+                                    <h2 className="text-base font-bold text-foreground">{device.name}</h2>
+                                    <p className="text-xs text-muted-foreground">{device.type}</p>
                                 </div>
                             </div>
                             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -114,21 +114,21 @@ export default function EdgeRuntimePage() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-2 text-xs">
-                            <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/60">
-                                <p className="text-slate-400">Local Model</p>
-                                <p className="text-white font-medium truncate">{device.model}</p>
+                            <div className="p-3 rounded-xl bg-muted border border-border/60">
+                                <p className="text-muted-foreground">Local Model</p>
+                                <p className="text-foreground font-medium truncate">{device.model}</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/60">
-                                <p className="text-slate-400">Inference Speed</p>
+                            <div className="p-3 rounded-xl bg-muted border border-border/60">
+                                <p className="text-muted-foreground">Inference Speed</p>
                                 <p className="text-emerald-400 font-mono font-medium">{device.throughput}</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/60">
-                                <p className="text-slate-400">Node Latency</p>
+                            <div className="p-3 rounded-xl bg-muted border border-border/60">
+                                <p className="text-muted-foreground">Node Latency</p>
                                 <p className="text-cyan-400 font-mono font-medium">{device.latency}</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-800/40 border border-slate-700/60">
-                                <p className="text-slate-400">Heartbeat</p>
-                                <p className="text-slate-300 font-medium">{device.lastSeen}</p>
+                            <div className="p-3 rounded-xl bg-muted border border-border/60">
+                                <p className="text-muted-foreground">Heartbeat</p>
+                                <p className="text-foreground font-medium">{device.lastSeen}</p>
                             </div>
                         </div>
                     </div>
@@ -136,15 +136,15 @@ export default function EdgeRuntimePage() {
             </div>
 
             {/* Quick Install Terminal Box */}
-            <div className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+            <div className="p-6 rounded-2xl bg-muted border border-border space-y-3">
                 <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                         <Terminal className="w-4 h-4 text-cyan-400" />
                         Quick Edge Daemon Installation (Linux / ARM64 / macOS)
                     </h3>
-                    <span className="text-[11px] text-slate-400 font-mono">llama.cpp + FastAPI Edge</span>
+                    <span className="text-[11px] text-muted-foreground font-mono">llama.cpp + FastAPI Edge</span>
                 </div>
-                <div className="p-4 rounded-xl bg-black/60 border border-slate-800 font-mono text-xs text-cyan-300 select-all overflow-x-auto">
+                <div className="p-4 rounded-xl bg-background border border-border font-mono text-xs text-cyan-300 select-all overflow-x-auto">
                     curl -sSL https://craftmyfunnel.live/api/edge/install.sh | bash -s -- --token=edge_tk_live_98a7bc
                 </div>
             </div>

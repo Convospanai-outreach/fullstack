@@ -9,6 +9,7 @@ import { ICPAnalysisUI } from "@/components/dashboard/ICPAnalysisUI";
 import { LinkedInRunMonitor } from "@/components/dashboard/LinkedInRunMonitor";
 import { QuickStartGuide } from "@/components/dashboard/QuickStartGuide";
 import { AnalyticsDashboard } from "@/components/analytics/AnalyticsDashboard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function DashboardPage() {
     const [stats, setStats] = useState<any>(null);
@@ -20,14 +21,14 @@ export default function DashboardPage() {
         async function fetchData() {
             try {
                 // Fetch stats
-                const statsRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/dashboard/stats");
+                const statsRes = await fetch(getBrowserApiBase() + "/dashboard/stats");
                 const statsJson = await statsRes.json();
                 if (statsJson.ok) {
                     setStats(statsJson.stats);
                 }
 
                 // Fetch latest job
-                const jobsRes = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/jobs?limit=1");
+                const jobsRes = await fetch(getBrowserApiBase() + "/jobs?limit=1");
                 const jobsJson = await jobsRes.json();
                 if (jobsJson.jobs && jobsJson.jobs.length > 0) {
                     setLatestJob(jobsJson.jobs[0]);

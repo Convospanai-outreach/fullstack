@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db";
 
+function escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export const playbookService = {
     /**
      * List playbooks for a specific team.
@@ -32,7 +36,7 @@ export const playbookService = {
      * Create a Campaign from a Playbook, filling in the parameters.
      */
     async instantiatePlaybook(playbookId: string, teamId: string, values: Record<string, string>) {
-        const playbook = await prisma.playbook.findUnique({ where: { id: playbookId } });
+        const playbook = await prisma.playbook.findFirst({ where: { id: playbookId, teamId } });
         if (!playbook) throw new Error("Playbook not found");
 
         // 1. Deep clone config
@@ -41,7 +45,13 @@ export const playbookService = {
         // 2. Replacements (Basic string replacement for MVP)
         // In production, use a proper template engine like Handlebars if complex
         Object.entries(values).forEach(([key, val]) => {
-            configStr = configStr.replace(new RegExp(`{{${key}}}`, 'g'), val);
+            // `key` must be regex-escaped (playbook parameter names aren't guaranteed
+            // regex-safe), and `val` must go through a replacer function rather than
+            // the string form of .replace() - the string form treats $&, $$, $1, etc.
+            // in `val` as special patterns, silently corrupting any lead/user data
+            // that happens to contain a literal "$".
+            const pattern = new RegExp(`{{${escapeRegExp(key)}}}`, "g");
+            configStr = configStr.replace(pattern, () => val);
         });
 
         const config = JSON.parse(configStr);

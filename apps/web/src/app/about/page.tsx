@@ -1,14 +1,70 @@
+import Image from "next/image";
 import { Shield, Users, HeartHandshake, Rocket, Globe, Zap, Target, Brain } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-    title: "About CraftMyFunnel - AI-Managed Growth Operations",
-    description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval."
+    title: "About CraftMyFunnel | Governed B2B Outreach",
+    description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/about",
+    },
+    openGraph: {
+        title: "About CraftMyFunnel | Governed B2B Outreach",
+        description: "Learn how CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with managed workflows and human approval.",
+        type: "website",
+        url: "https://craftmyfunnel.live/about",
+        images: [
+            {
+                url: "/images/platform/governed-workflow.webp",
+                width: 820,
+                height: 460,
+                alt: "CraftMyFunnel Governed AI Outreach Architecture",
+            }
+        ],
+    },
 };
 
+
 export default function AboutPage() {
+    const siteUrl = "https://craftmyfunnel.live";
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@graph": [
+            {
+                "@type": "AboutPage",
+                "@id": `${siteUrl}/about#webpage`,
+                "url": `${siteUrl}/about`,
+                "name": "About CraftMyFunnel AI",
+                "description": "CraftMyFunnel helps B2B service companies turn buyer signals into qualified meetings with governed AI workflows and human approval."
+            },
+            {
+                "@type": "BreadcrumbList",
+                "@id": `${siteUrl}/about#breadcrumb`,
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": siteUrl
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "About",
+                        "item": `${siteUrl}/about`
+                    }
+                ]
+            }
+        ]
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-white overflow-hidden">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+
             {/* Background */}
             <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-indigo-600/10 rounded-full blur-[120px] pointer-events-none" />
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/10 rounded-full blur-[120px] pointer-events-none" />
@@ -25,10 +81,23 @@ export default function AboutPage() {
                     <p className="text-xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
                         CraftMyFunnel was born from a simple frustration: B2B service companies see buying signals every week, but too few turn into approved outreach, timely follow-ups, and qualified meetings.
                     </p>
+
+                    {/* Architecture Visual Preview */}
+                    <div className="pt-6 max-w-4xl mx-auto rounded-3xl overflow-hidden border border-slate-800 bg-slate-900/40 p-2 sm:p-4 shadow-2xl">
+                        <Image
+                            src="/images/platform/governed-workflow.webp"
+                            alt="CraftMyFunnel Governed AI Outreach and Human-in-the-Loop Architecture"
+                            width={820}
+                            height={460}
+                            priority
+                            className="w-full h-auto rounded-2xl"
+                        />
+                    </div>
                 </section>
 
                 {/* Mission */}
                 <section className="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
+
                     <div className="space-y-6">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-sm font-medium">
                             <Target className="w-4 h-4" />

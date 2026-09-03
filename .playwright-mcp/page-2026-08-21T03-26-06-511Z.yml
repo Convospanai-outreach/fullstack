@@ -1,0 +1,46 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content":
+    - /url: "#geist-skip-nav"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "Vercel logo":
+        - /url: /home
+        - button "Vercel Logo":
+          - img "Vercel Logo"
+      - navigation [ref=e5]:
+        - navigation [ref=e6]:
+          - link [ref=e7] [cursor=pointer]:
+            - /url: /signup?next=%2Fsso-api%3Furl%3Dhttps%253A%252F%252Ffullstack-web-xkxn-git-feat-dashboar-235b3d-convo2026s-projects.vercel.app%252Flogin%26nonce%3D4acccd94757deab95fdbec277340f191f2a3f029526a39c400faec80c737eefc
+            - paragraph [ref=e9]: Sign Up
+    - main [ref=e10]:
+      - generic [ref=e12]:
+        - heading "Log in to Vercel" [level=1] [ref=e15]
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - textbox "Email Address" [ref=e19]
+            - button "Continue with Email" [ref=e20] [cursor=pointer]
+          - generic [ref=e23]:
+            - button "Continue with Google" [ref=e24] [cursor=pointer]:
+              - generic [ref=e28]:
+                - generic [ref=e29]: Continue with
+                - text: Google
+            - button "Continue with GitHub" [ref=e30] [cursor=pointer]:
+              - generic [ref=e34]:
+                - generic [ref=e35]: Continue with
+                - text: GitHub
+            - button "Continue with ChatGPT" [ref=e36] [cursor=pointer]:
+              - generic [ref=e40]:
+                - generic [ref=e41]: Continue with
+                - text: ChatGPT
+            - button "Continue with SAML SSO" [ref=e43] [cursor=pointer]
+            - button "Continue with Passkey" [ref=e48] [cursor=pointer]
+            - button "Show other options" [ref=e53] [cursor=pointer]
+        - paragraph [ref=e56]:
+          - text: Don't have an account?
+          - link "Sign Up" [ref=e57] [cursor=pointer]:
+            - /url: /signup?next=%2Fsso-api%3Furl%3Dhttps%253A%252F%252Ffullstack-web-xkxn-git-feat-dashboar-235b3d-convo2026s-projects.vercel.app%252Flogin%26nonce%3D4acccd94757deab95fdbec277340f191f2a3f029526a39c400faec80c737eefc
+      - generic [ref=e60]:
+        - link "Terms" [ref=e61] [cursor=pointer]:
+          - /url: /legal/terms
+        - link "Privacy Policy" [ref=e62] [cursor=pointer]:
+          - /url: /legal/privacy-policy

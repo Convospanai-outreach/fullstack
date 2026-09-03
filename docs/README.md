@@ -31,6 +31,12 @@ This folder holds the current architecture, readiness, deployment, QA, and imple
 | [MONITORING.md](./MONITORING.md) | Monitoring guidance |
 | [SCALE_READINESS.md](./SCALE_READINESS.md) | Scale readiness and gaps |
 
+## Playbooks And Implementation Guides
+
+| Document | Focus |
+| --- | --- |
+| [SEO_GEO_IMPLEMENTATION_BLUEPRINT.md](./SEO_GEO_IMPLEMENTATION_BLUEPRINT.md) | B2B Technical SEO & Local Geo-Targeting Implementation Blueprint |
+
 ## Assessments And Audits
 
 | Document | Focus |

@@ -1,7 +1,8 @@
 
 import type { VerificationResult, VerificationViolation, VerificationRecommendation, BatchVerificationResult } from "../types";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 const isServer = typeof window === "undefined";
 
 type VerificationConfig = {

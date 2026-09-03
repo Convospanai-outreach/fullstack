@@ -1,5 +1,7 @@
 
 import { prisma } from "@/lib/db";
+import { ApprovalTier, computeAutoDenyAt, resolveApprovalTier } from "./approvalPolicy";
+import { getBreakerState } from "@/modules/overseer/breakerService";
 
 export enum ApprovalStatus {
     PENDING = "PENDING",
@@ -20,7 +22,7 @@ export class ApprovalService {
         actionType: string,
         payload: any,
         requesterId: string,
-        options: { reason?: string; requestId?: string } = {}
+        options: { reason?: string; requestId?: string; forceHardBlock?: boolean } = {}
     ): Promise<{ id: string; created: boolean }> {
         const existing = await prisma.approvalRequest.findFirst({
             where: {
@@ -36,6 +38,10 @@ export class ApprovalService {
             return { id: existing.id, created: false };
         }
 
+        const tier = resolveApprovalTier(actionType, { forceHardBlock: options.forceHardBlock });
+        const breakerState = await getBreakerState(teamId);
+        const extendedTimeout = breakerState !== "CLOSED";
+
         const request = await prisma.approvalRequest.create({
             data: {
                 id: options.requestId,
@@ -46,12 +52,40 @@ export class ApprovalService {
                 actionType,
                 payload: payload || {},
                 reason: options.reason,
-                status: ApprovalStatus.PENDING
+                status: ApprovalStatus.PENDING,
+                tier,
+                autoDenyAt: computeAutoDenyAt(tier, new Date(), extendedTimeout)
             }
         });
 
-        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType}`);
+        console.log(`[ApprovalService] Request ${request.id} created for ${entityType} ${entityId}: ${actionType} (tier=${tier})`);
+
+        if (tier === ApprovalTier.AUTO) {
+            await this.approve(request.id, "system-auto", teamId);
+        }
+
         return { id: request.id, created: true };
+    }
+
+    /**
+     * Rejects every PENDING, QUEUED-tier request whose autoDenyAt has passed.
+     * HARD_BLOCK requests are never touched here - they have no timeout by design.
+     */
+    static async autoDenyExpiredApprovals(): Promise<number> {
+        const expired = await prisma.approvalRequest.findMany({
+            where: {
+                status: ApprovalStatus.PENDING,
+                tier: ApprovalTier.QUEUED,
+                autoDenyAt: { lte: new Date() }
+            },
+            select: { id: true, teamId: true }
+        });
+
+        for (const { id, teamId } of expired) {
+            await this.reject(id, "system-timeout", teamId, "Auto-denied: no reviewer action within the approval window");
+        }
+
+        return expired.length;
     }
 
     /**
@@ -116,8 +150,11 @@ export class ApprovalService {
     /**
      * Approves a request (callable via UI/API).
      */
-    static async approve(requestId: string, reviewerId: string, revisedPayload?: any) {
-        const request = await prisma.approvalRequest.findUnique({ where: { id: requestId } });
+    static async approve(requestId: string, reviewerId: string, teamId: string, revisedPayload?: any) {
+        // Scoped to teamId - without this, any authenticated user could approve/reject
+        // another team's pending request by guessing its id, including triggering
+        // approve()'s CAMPAIGN_START side-effect on that team's campaign.
+        const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
         if (!request) throw new Error("Request not found");
 
         const updateData: any = { 
@@ -130,31 +167,41 @@ export class ApprovalService {
             updateData.reviewNote = JSON.stringify(revisedPayload);
         }
 
-        // Handle specific action side-effects
+        // Handle specific action side-effects. Scoped by teamId for defense-in-depth,
+        // even though entityId already came from this team-scoped request row above.
         if (request.actionType === "CAMPAIGN_START") {
-            await prisma.campaign.update({
-                where: { id: request.entityId },
+            await prisma.campaign.updateMany({
+                where: { id: request.entityId, teamId },
                 data: { status: "active" }
             });
         }
 
-        return await prisma.approvalRequest.update({
-            where: { id: requestId },
+        // Scoped by teamId here too, not just in the pre-check above - same anti-pattern
+        // already fixed under OPEN-99/109/110/118/120/121/122.
+        await prisma.approvalRequest.updateMany({
+            where: { id: requestId, teamId },
             data: updateData
         });
+        return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 
     /**
      * Rejects a request.
      */
-    static async reject(requestId: string, reviewerId: string, reason?: string) {
+    static async reject(requestId: string, reviewerId: string, teamId: string, reason?: string) {
+        const request = await prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
+        if (!request) throw new Error("Request not found");
+
         const data: any = { status: ApprovalStatus.REJECTED, reviewerId, reviewedAt: new Date() };
         if (reason) {
             data.reviewNote = reason;
         }
-        return await prisma.approvalRequest.update({
-            where: { id: requestId },
+        // Scoped by teamId here too, not just in the pre-check above - same anti-pattern
+        // already fixed under OPEN-99/109/110/118/120/121/122.
+        await prisma.approvalRequest.updateMany({
+            where: { id: requestId, teamId },
             data
         });
+        return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 }

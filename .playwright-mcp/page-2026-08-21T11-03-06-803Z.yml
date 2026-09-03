@@ -1,0 +1,99 @@
+- generic [active] [ref=f2e1]:
+  - link "Skip to main content" [ref=f2e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - region "Notifications alt+T"
+  - main [ref=f2e3]:
+    - generic [ref=f2e4]:
+      - navigation [ref=f2e5]:
+        - generic [ref=f2e6]:
+          - link "CraftMyFunnel logo CraftMyFunnel" [ref=f2e7] [cursor=pointer]:
+            - /url: /
+            - img "CraftMyFunnel logo" [ref=f2e8]
+            - generic [ref=f2e9]: CraftMyFunnel
+          - generic [ref=f2e10]:
+            - button "Product" [ref=f2e12]
+            - button "Use Cases" [ref=f2e16]
+            - button "Platform" [ref=f2e20]
+            - button "Resources" [ref=f2e24]
+          - generic [ref=f2e27]:
+            - link "Sign In" [ref=f2e29] [cursor=pointer]:
+              - /url: /login
+            - link "Get Started" [ref=f2e30] [cursor=pointer]:
+              - /url: /signup
+      - link [ref=f2e34] [cursor=pointer]:
+        - /url: /
+        - img "CraftMyFunnel logo" [ref=f2e35]
+        - text: CraftMyFunnel
+      - generic [ref=f2e37]:
+        - generic [ref=f2e38]:
+          - generic [ref=f2e39]:
+            - link "CraftMyFunnel logo CraftMyFunnel" [ref=f2e40] [cursor=pointer]:
+              - /url: /
+              - img "CraftMyFunnel logo" [ref=f2e41]
+              - generic [ref=f2e42]: CraftMyFunnel
+            - paragraph [ref=f2e43]: Governed funnel workflows for buyer signals, approved outreach, follow-ups, and qualified meeting tracking.
+            - link "contact.us@craftmyfunnel.live" [ref=f2e44] [cursor=pointer]:
+              - /url: mailto:contact.us@craftmyfunnel.live
+          - generic [ref=f2e45]:
+            - heading "Product" [level=4] [ref=f2e46]
+            - list [ref=f2e47]:
+              - listitem [ref=f2e48]:
+                - link "Pricing" [ref=f2e49] [cursor=pointer]:
+                  - /url: /pricing
+              - listitem [ref=f2e50]:
+                - link "Use Cases" [ref=f2e51] [cursor=pointer]:
+                  - /url: /use-cases
+              - listitem [ref=f2e52]:
+                - link "Comparisons" [ref=f2e53] [cursor=pointer]:
+                  - /url: /vs
+              - listitem [ref=f2e54]:
+                - link "Start pilot" [ref=f2e55] [cursor=pointer]:
+                  - /url: /signup
+              - listitem [ref=f2e56]:
+                - link "Sign in" [ref=f2e57] [cursor=pointer]:
+                  - /url: /login
+          - generic [ref=f2e58]:
+            - heading "Resources" [level=4] [ref=f2e59]
+            - list [ref=f2e60]:
+              - listitem [ref=f2e61]:
+                - link "Documentation" [ref=f2e62] [cursor=pointer]:
+                  - /url: /docs
+              - listitem [ref=f2e63]:
+                - link "Help Center" [ref=f2e64] [cursor=pointer]:
+                  - /url: /help
+              - listitem [ref=f2e65]:
+                - link "FAQ" [ref=f2e66] [cursor=pointer]:
+                  - /url: /faq
+              - listitem [ref=f2e67]:
+                - link "Support" [ref=f2e68] [cursor=pointer]:
+                  - /url: /support
+          - generic [ref=f2e69]:
+            - heading "Legal" [level=4] [ref=f2e70]
+            - list [ref=f2e71]:
+              - listitem [ref=f2e72]:
+                - link "Terms & Conditions" [ref=f2e73] [cursor=pointer]:
+                  - /url: /terms
+              - listitem [ref=f2e74]:
+                - link "Privacy" [ref=f2e75] [cursor=pointer]:
+                  - /url: /privacy
+              - listitem [ref=f2e76]:
+                - link "Data Deletion" [ref=f2e77] [cursor=pointer]:
+                  - /url: /data-deletion
+          - generic [ref=f2e78]:
+            - heading "Trust" [level=4] [ref=f2e79]
+            - list [ref=f2e80]:
+              - listitem [ref=f2e81]:
+                - link "Security" [ref=f2e82] [cursor=pointer]:
+                  - /url: /security
+              - listitem [ref=f2e83]:
+                - link "Google API Disclosure" [ref=f2e84] [cursor=pointer]:
+                  - /url: /google-api-disclosure
+              - listitem [ref=f2e85]:
+                - link "Contact" [ref=f2e86] [cursor=pointer]:
+                  - /url: /contact
+        - generic [ref=f2e87]:
+          - paragraph [ref=f2e90]: Governed Funnel Infrastructure
+          - paragraph [ref=f2e91]: © 2026 CraftMyFunnel. Built for operators, not demos.
+  - button "Open help assistant" [ref=f2e92]:
+    - generic [ref=f2e101]: Need help?
+  - alert [ref=f2e102]

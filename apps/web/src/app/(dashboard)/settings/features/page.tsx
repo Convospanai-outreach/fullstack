@@ -133,11 +133,11 @@ export default function HiddenFeaturesPage() {
     }
 
     if (loading) {
-        return <div className="p-8 text-white">Loading feature switches...</div>;
+        return <div className="p-8 text-foreground">Loading feature switches...</div>;
     }
 
     if (!data) {
-        return <div className="p-8 text-white">Unable to load hidden features.</div>;
+        return <div className="p-8 text-foreground">Unable to load hidden features.</div>;
     }
 
     return (
@@ -152,10 +152,10 @@ export default function HiddenFeaturesPage() {
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5" />
                         <div className="space-y-1">
-                            <div className="text-sm font-semibold text-white">
+                            <div className="text-sm font-semibold text-foreground">
                                 {highlightedFeature.label} is still hidden
                             </div>
-                            <p className="text-sm text-gray-300">
+                            <p className="text-sm text-foreground">
                                 You tried to open this area directly. Turn it on here when you want it visible.
                             </p>
                         </div>
@@ -173,17 +173,17 @@ export default function HiddenFeaturesPage() {
                             className={`p-5 transition-all ${
                                 requestedFeature === feature.key
                                     ? "border-blue-500/40 bg-blue-500/5"
-                                    : "border-white/10"
+                                    : "border-border"
                             }`}
                         >
                             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <h2 className="text-lg font-semibold text-white">{feature.label}</h2>
+                                        <h2 className="text-lg font-semibold text-foreground">{feature.label}</h2>
                                         <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
                                             feature.enabled
                                                 ? "bg-emerald-500/15 text-emerald-300"
-                                                : "bg-white/10 text-gray-300"
+                                                : "bg-muted text-foreground"
                                         }`}>
                                             {feature.enabled ? "Visible" : "Hidden"}
                                         </span>
@@ -196,11 +196,11 @@ export default function HiddenFeaturesPage() {
                                         </span>
                                     </div>
 
-                                    <p className="text-sm text-gray-300">{feature.description}</p>
+                                    <p className="text-sm text-foreground">{feature.description}</p>
 
                                     <div className="grid gap-3 md:grid-cols-2">
-                                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                        <div className="rounded-xl border border-border bg-muted p-3">
+                                            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                                 {feature.ready ? (
                                                     <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
                                                 ) : (
@@ -208,19 +208,19 @@ export default function HiddenFeaturesPage() {
                                                 )}
                                                 Readiness
                                             </div>
-                                            <p className="text-sm text-white">{feature.readinessReason}</p>
+                                            <p className="text-sm text-foreground">{feature.readinessReason}</p>
                                         </div>
 
-                                        <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                                            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                                        <div className="rounded-xl border border-border bg-muted p-3">
+                                            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                                 <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                                                 Suggested Action
                                             </div>
-                                            <p className="text-sm text-white">{feature.recommendedAction}</p>
+                                            <p className="text-sm text-foreground">{feature.recommendedAction}</p>
                                         </div>
                                     </div>
 
-                                    <div className="text-xs text-gray-500">
+                                    <div className="text-xs text-muted-foreground">
                                         Route prefixes: {feature.pathPrefixes.join(", ")}
                                     </div>
                                 </div>
@@ -233,7 +233,7 @@ export default function HiddenFeaturesPage() {
                                         className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold transition-all ${
                                             feature.enabled
                                                 ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200 hover:bg-emerald-500/20"
-                                                : "border-white/10 bg-white/5 text-white hover:bg-white/10"
+                                                : "border-border bg-muted text-foreground hover:bg-muted"
                                         } ${isSaving ? "opacity-60 cursor-not-allowed" : ""}`}
                                     >
                                         {feature.enabled ? <ToggleRight className="w-4 h-4" /> : <ToggleLeft className="w-4 h-4" />}
@@ -243,18 +243,18 @@ export default function HiddenFeaturesPage() {
                                     {feature.enabled && feature.built ? (
                                         <Link
                                             href={feature.openPath}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-blue-500"
+                                            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90"
                                         >
                                             Open Surface
                                             <ExternalLink className="w-4 h-4" />
                                         </Link>
                                     ) : feature.enabled && !feature.built ? (
-                                        <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-amber-200">
+                                        <div className="inline-flex items-center gap-2 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-amber-200">
                                             Not built yet
                                             <AlertTriangle className="w-4 h-4" />
                                         </div>
                                     ) : (
-                                        <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm font-medium text-gray-300">
+                                        <div className="inline-flex items-center gap-2 rounded-xl bg-muted px-4 py-2 text-sm font-medium text-foreground">
                                             Hidden Route
                                             <EyeOff className="w-4 h-4" />
                                         </div>

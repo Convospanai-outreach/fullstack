@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_BASE = process.env["NEXT_PUBLIC_API_URL"] || "/api/proxy";
+const API_BASE = getBrowserApiBase();
 
 interface PublicProduct {
     id: string;
