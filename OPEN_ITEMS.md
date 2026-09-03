@@ -1223,6 +1223,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pre-existing, unrelated `services/browser/browser-engine.ts` failure noted
   under OPEN-151).
 
+- **OPEN-153 (Fixed):** `apps/web/src/app/api/admin/invites/route.ts` let a
+  workspace-level `ORG_ADMIN` see and act on every OTHER company's pending
+  signup request. `canInviteUsers()`/`canManageUsers()`
+  (`apps/web/src/lib/auth.ts:374-384`) grant this to `ORG_ADMIN`, which — as
+  already established under OPEN-124 for a different route — is a normal,
+  self-service-assignable per-workspace role (any team owner can invite a
+  teammate as `ORG_ADMIN`), not a platform-level privilege. `InviteRequest`
+  is the platform-wide "request access" waitlist and has no `teamId`, unlike
+  `UserInvitation` in the same file, which the `GET` handler and the
+  existing `revoke` PATCH branch correctly scope via `allowedTeamIds`. The
+  `GET` handler returned ALL `inviteRequests` (name, email, company,
+  linkedinUrl, useCase) unfiltered to any `ORG_ADMIN`; the `PATCH` handler's
+  `reject-request`/`mark-used-request`/`approve-request` actions mutated an
+  arbitrary `InviteRequest` by caller-supplied `id` with no ownership check
+  at all — `approve-request` in particular creates a brand-new `Team`, sends
+  a real invite, and grants "owner". Any customer's self-service-promoted
+  `ORG_ADMIN` could harvest every other prospective customer's PII, or
+  approve/reject/mark-used a competitor's pending signup request. Fixed by
+  gating the `inviteRequests` query in `GET` and all three `InviteRequest`
+  actions in `PATCH` on `isSuperAdminRole()` (returning an empty array /
+  403 respectively for a non-platform-admin caller) instead of the broader
+  `canInviteUsers()`/`canManageUsers()` check — `UserInvitation`
+  invite/revoke behavior for ORG_ADMINs on their own team is unchanged. New
+  tests added to the existing `route.test.ts` (6 new: GET hides the
+  waitlist from a workspace ORG_ADMIN but shows it to a platform admin;
+  each of the three PATCH actions is refused with 403 for a workspace
+  ORG_ADMIN; a platform admin can still reject a request). 357/357 apps/web
+  tests pass (6 new, 7 pre-existing skips unrelated), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockFindOrCreateClerkAppUser, mockPrisma, mockAudit } = vi.hoisted(() => ({
+const { mockFindOrCreateClerkAppUser, mockPrisma, mockAudit, mockIsSuperAdminRole } = vi.hoisted(() => ({
     mockFindOrCreateClerkAppUser: vi.fn(),
     mockAudit: vi.fn(),
+    mockIsSuperAdminRole: vi.fn().mockReturnValue(true),
     mockPrisma: {
-        inviteRequest: { findUnique: vi.fn(), update: vi.fn() },
+        inviteRequest: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
         team: { create: vi.fn() },
-        userInvitation: { create: vi.fn() },
+        userInvitation: { create: vi.fn(), findMany: vi.fn() },
         teamMember: { create: vi.fn(), findFirst: vi.fn() },
         $transaction: vi.fn(),
     },
@@ -17,7 +18,7 @@ vi.mock("@clerk/nextjs/server", () => ({ clerkClient: vi.fn() }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
     canInviteUsers: () => true,
-    isSuperAdminRole: () => true,
+    isSuperAdminRole: mockIsSuperAdminRole,
 }));
 vi.mock("@/lib/clerkAuth", () => ({ findOrCreateClerkAppUser: mockFindOrCreateClerkAppUser }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -42,6 +43,7 @@ function patchRequest(body: unknown) {
 describe("PATCH /api/admin/invites - approve-request", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockIsSuperAdminRole.mockReturnValue(true);
         mockFindOrCreateClerkAppUser.mockResolvedValue({
             id: "admin-1",
             enterpriseRole: "SUPER_ADMIN",
@@ -87,6 +89,68 @@ describe("PATCH /api/admin/invites - approve-request", () => {
 
         expect(mockPrisma.teamMember.create).toHaveBeenCalledWith({
             data: { teamId: "new-team-1", email: "founder@example.com", role: "owner", status: "invited" },
+        });
+    });
+});
+
+describe("/api/admin/invites - InviteRequest actions are platform-admin-only", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockFindOrCreateClerkAppUser.mockResolvedValue({
+            id: "org-admin-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [{ teamId: "org-admins-team", status: "active" }],
+        });
+        mockPrisma.userInvitation.findMany.mockResolvedValue([]);
+    });
+
+    it("does not let a workspace-level ORG_ADMIN see the platform-wide invite-request waitlist", async () => {
+        mockIsSuperAdminRole.mockReturnValue(false);
+        const { GET } = await import("./route");
+
+        const response = await GET();
+        const body = await response.json();
+
+        expect(body.inviteRequests).toEqual([]);
+        expect(mockPrisma.inviteRequest.findMany).not.toHaveBeenCalled();
+    });
+
+    it("lets a genuine platform admin see the invite-request waitlist", async () => {
+        mockIsSuperAdminRole.mockReturnValue(true);
+        mockPrisma.inviteRequest.findMany.mockResolvedValue([{ id: "req-1" }]);
+        const { GET } = await import("./route");
+
+        const response = await GET();
+        const body = await response.json();
+
+        expect(body.inviteRequests).toEqual([{ id: "req-1" }]);
+    });
+
+    it.each(["reject-request", "mark-used-request", "approve-request"])(
+        "refuses a workspace-level ORG_ADMIN's %s on another company's invite request",
+        async (action) => {
+            mockIsSuperAdminRole.mockReturnValue(false);
+            const { PATCH } = await import("./route");
+
+            const response = await PATCH(patchRequest({ action, id: "req-from-another-company" }));
+
+            expect(response.status).toBe(403);
+            expect(mockPrisma.inviteRequest.update).not.toHaveBeenCalled();
+            expect(mockPrisma.inviteRequest.findUnique).not.toHaveBeenCalled();
+        }
+    );
+
+    it("allows a genuine platform admin to reject an invite request", async () => {
+        mockIsSuperAdminRole.mockReturnValue(true);
+        mockPrisma.inviteRequest.update.mockResolvedValue({ id: "req-1", status: "REJECTED" });
+        const { PATCH } = await import("./route");
+
+        const response = await PATCH(patchRequest({ action: "reject-request", id: "req-1" }));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.inviteRequest.update).toHaveBeenCalledWith({
+            where: { id: "req-1" },
+            data: { status: "REJECTED" },
         });
     });
 });
