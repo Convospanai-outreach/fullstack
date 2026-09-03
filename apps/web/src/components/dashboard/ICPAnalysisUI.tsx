@@ -16,20 +16,20 @@ export function ICPAnalysisUI({ leadsCount = 0, campaignsCount = 0 }: ICPAnalysi
             </div>
             <div className="mt-6 space-y-3">
                 <div>
-                    <div className="flex justify-between text-sm text-gray-300 mb-1">
+                    <div className="flex justify-between text-sm text-muted-foreground mb-1">
                         <span>Industry Match</span>
                         <span>92%</span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                         <div className="bg-green-500 h-full rounded-full" style={{ width: "92%" }}></div>
                     </div>
                 </div>
                 <div>
-                    <div className="flex justify-between text-sm text-gray-300 mb-1">
+                    <div className="flex justify-between text-sm text-muted-foreground mb-1">
                         <span>Location Match</span>
                         <span>78%</span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-muted rounded-full h-2">
                         <div className="bg-yellow-500 h-full rounded-full" style={{ width: "78%" }}></div>
                     </div>
                 </div>

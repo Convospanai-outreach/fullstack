@@ -76,10 +76,10 @@ export function QuickActions() {
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="border-b border-white/10 px-4 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">Quick start</p>
-                        <p className="mt-2 text-sm text-gray-300">Choose the next action that best matches where you are in outreach setup.</p>
+                <div className="absolute right-0 z-20 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="border-b border-border px-4 py-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Quick start</p>
+                        <p className="mt-2 text-sm text-muted-foreground">Choose the next action that best matches where you are in outreach setup.</p>
                     </div>
                     <div className="p-2 space-y-1">
                         {actions.map((action) => {
@@ -90,21 +90,21 @@ export function QuickActions() {
                                     key={action.label}
                                     href={action.href}
                                     onClick={() => setIsOpen(false)}
-                                    className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-white/5"
+                                    className="flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-accent"
                                 >
-                                    <div className={`rounded-xl bg-white/5 p-2 transition-colors ${action.color}`}>
+                                    <div className={`rounded-xl bg-muted p-2 transition-colors ${action.color}`}>
                                         <Icon className="h-5 w-5" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-sm font-medium text-white">{action.label}</span>
+                                            <span className="text-sm font-medium text-foreground">{action.label}</span>
                                             {action.ai && (
                                                 <span className="flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/20 px-1.5 py-0.5 text-[10px] text-fuchsia-300">
                                                     <Sparkles className="h-3 w-3" /> AI
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="mt-0.5 text-xs text-gray-400">{action.desc}</p>
+                                        <p className="mt-0.5 text-xs text-muted-foreground">{action.desc}</p>
                                     </div>
                                 </Link>
                             );

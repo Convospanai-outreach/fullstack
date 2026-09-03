@@ -7,6 +7,8 @@ type SupportPayload = {
     email: string;
     subject: string;
     message: string;
+    website_url?: string;
+    ga_client_id?: string;
 };
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,6 +28,43 @@ function validatePayload(payload: SupportPayload): string | null {
     if (!payload.message?.trim()) return "Message is required";
     if (payload.message.trim().length > 4000) return "Message is too long";
     return null;
+}
+
+async function sendGa4MeasurementProtocolEvent(params: {
+    clientId: string;
+    subject: string;
+    formSource?: string;
+}) {
+    const measurementId = process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] || process.env["GA_MEASUREMENT_ID"];
+    const apiSecret = process.env["GA_API_SECRET"];
+    if (!measurementId || !apiSecret) return;
+
+    const url = `https://www.google-analytics.com/mp/collect?measurement_id=${encodeURIComponent(measurementId)}&api_secret=${encodeURIComponent(apiSecret)}`;
+    const body = {
+        client_id: params.clientId || `server.${randomUUID()}`,
+        events: [
+            {
+                name: "generate_lead",
+                params: {
+                    currency: "USD",
+                    value: 49,
+                    service: params.subject,
+                    form_source: params.formSource || "Contact Page (Server-Side Fallback)",
+                    engagement_time_msec: 1000,
+                },
+            },
+        ],
+    };
+
+    try {
+        await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+        });
+    } catch (err) {
+        console.warn("GA4 Measurement Protocol dispatch failed", err);
+    }
 }
 
 function getSmtpConfig() {
@@ -65,6 +104,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
 
+    // Anti-bot honeypot check: silently accept and discard bot submissions
+    if (payload.website_url && payload.website_url.trim().length > 0) {
+        return NextResponse.json({
+            success: true,
+            ticketId: "SUP-BOT-TRAPPED",
+            status: "filtered",
+            delivery: "filtered",
+            message: "Support request processed."
+        });
+    }
+
     const validationError = validatePayload(payload);
     if (validationError) {
         return NextResponse.json({ error: validationError }, { status: 400 });
@@ -76,6 +126,13 @@ export async function POST(req: Request) {
     const safeEmail = sanitize(payload.email.trim());
     const safeSubject = sanitize(payload.subject.trim());
     const safeMessage = sanitize(payload.message.trim()).replaceAll("\n", "<br/>");
+
+    // Fire server-side GA4 Measurement Protocol conversion event if credentials configured
+    sendGa4MeasurementProtocolEvent({
+        clientId: payload.ga_client_id || "",
+        subject: safeSubject,
+    }).catch(() => {});
+
 
     const smtpConfig = getSmtpConfig();
     if (!smtpConfig) {

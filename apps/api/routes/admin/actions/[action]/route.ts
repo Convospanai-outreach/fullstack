@@ -8,6 +8,13 @@ import { getAdminUser } from "@/lib/admin";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { logger } from "@/lib/logger";
+import { UserRole } from "@prisma/client";
+
+// ORG_ADMIN is a normal, self-service-assignable per-workspace role (any team owner
+// can invite a teammate as ORG_ADMIN - see WORKSPACE_ASSIGNABLE_ROLES). Only
+// SYSTEM_ADMIN/SUPER_ADMIN are genuine platform-level operators allowed to act on an
+// arbitrary team; an ORG_ADMIN caller must be a member of whatever teamId is used.
+const PLATFORM_LEVEL_ROLES: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN];
 
 export async function POST(
     req: NextRequest,
@@ -42,6 +49,16 @@ export async function POST(
                 select: { teamId: true }
             });
             teamId = membership?.teamId ?? null;
+        } else if (teamId && !PLATFORM_LEVEL_ROLES.includes(admin.enterpriseRole)) {
+            // A client-supplied teamId must not let a workspace-level ORG_ADMIN act on
+            // another tenant's data - verify membership before honoring it.
+            const membership = await prisma.teamMember.findFirst({
+                where: { userId, teamId },
+                select: { teamId: true }
+            });
+            if (!membership) {
+                return NextResponse.json({ error: "Forbidden: not a member of the given team" }, { status: 403 });
+            }
         }
 
         switch (action) {

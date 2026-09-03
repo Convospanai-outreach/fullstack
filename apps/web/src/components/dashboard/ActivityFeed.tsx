@@ -22,7 +22,7 @@ const ICONS = {
 export function ActivityFeed({ activities = [] }: { activities?: ActivityItem[] }) {
     if (activities.length === 0) {
         return (
-            <div className="flex items-center justify-center p-8 text-sm text-text-muted border border-dashed border-white/10 rounded-xl">
+            <div className="flex items-center justify-center p-8 text-sm text-muted-foreground border border-dashed border-border rounded-xl">
                 No activity yet.
             </div>
         );
@@ -42,10 +42,10 @@ export function ActivityFeed({ activities = [] }: { activities?: ActivityItem[] 
 
                         <div className="flex-1 space-y-1">
                             <div className="flex items-center justify-between">
-                                <p className="text-sm font-semibold text-white group-hover:text-accent-blue transition-colors">{item.title}</p>
-                                <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{item.timestamp}</span>
+                                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">{item.title}</p>
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{item.timestamp}</span>
                             </div>
-                            {item.details && <p className="text-xs text-text-secondary">{item.details}</p>}
+                            {item.details && <p className="text-xs text-muted-foreground">{item.details}</p>}
                             <div className="pt-1">
                                 <Badge variant={item.type === 'error' ? 'danger' : 'default'} className="!text-[8px] opacity-70">
                                     {item.type}
@@ -56,7 +56,7 @@ export function ActivityFeed({ activities = [] }: { activities?: ActivityItem[] 
                 );
             })}
 
-            <button className="w-full py-3 text-xs font-bold uppercase tracking-widest text-text-muted hover:text-white transition-colors border-t border-white/5 pt-6">
+            <button className="w-full py-3 text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors border-t border-border pt-6">
                 View Full System Logs
             </button>
         </div>

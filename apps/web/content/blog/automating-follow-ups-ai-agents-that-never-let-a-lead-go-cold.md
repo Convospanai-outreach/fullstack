@@ -1,7 +1,7 @@
 ---
 title: "Automating Follow-ups: AI Agents That Never Let a Lead Go Cold"
 description: "Discover how AI agents and LLMs are solving the biggest failure point in B2B sales: the follow-up. Learn to automate persistent, context-aware outreach sequences."
-date: "2026-08-23T08:00:00.000Z"
+date: "2026-04-03T02:20:46.153Z"
 ---
 
 It is the most repeated statistic in sales management: 80% of sales require five or more follow-ups after the initial contact, yet 44% of salespeople give up after just one attempt. 

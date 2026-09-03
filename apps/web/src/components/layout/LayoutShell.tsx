@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Header from "@/components/Header";
+import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
 
 // Kept in sync with apps/web/src/app/(dashboard)/* by
@@ -13,19 +13,18 @@ import Footer from "@/components/Footer";
 export const DASHBOARD_PREFIXES = [
     "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
     "/automations", "/billing", "/calendar", "/caller", "/campaigns",
-    "/command-center", "/crm", "/dashboard", "/edge", "/governance",
-    "/icp-builder", "/inbox", "/intel", "/jobs", "/knowledge",
-    "/landing-agent", "/leads", "/marketplace", "/monitoring",
-    "/notifications", "/pipeline", "/playbooks", "/profile", "/runtime",
-    "/settings", "/sovereign", "/studio", "/team", "/templates", "/tools",
+    "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
+    "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",
+    "/jobs", "/knowledge", "/landing-agent", "/leads", "/linkedin-runner",
+    "/marketplace", "/monitoring", "/notifications", "/pipeline",
+    "/playbooks", "/profile", "/runtime", "/scraper-bridge", "/settings",
+    "/sovereign", "/studio", "/team", "/templates", "/tools",
     "/whatsapp", "/workflows"
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
-    // "/setup", "/scraper-bridge", "/onboarding" excluded for the same reason —
-    // none of them are inside the (dashboard) route group. ("/scraper-bridge" and
-    // "/hunter-email-finder" and "/csv-ingestion" are registered in productFlags.ts's
-    // HIDDEN_FEATURES but have no page directory yet - built: false.)
+    // "/setup", "/onboarding" excluded for the same reason — neither is inside
+    // the (dashboard) route group.
 ];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
@@ -60,8 +59,8 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
 
     return (
         <>
-            {showHeader && <Header />}
-            <main id="main-content" className="flex-1 focus:outline-none">{children}</main>
+            {showHeader && <NavBar />}
+            <main id="main-content" className={`flex-1 focus:outline-none ${showHeader ? "pt-20" : ""}`}>{children}</main>
             {showFooter && <Footer />}
         </>
     );

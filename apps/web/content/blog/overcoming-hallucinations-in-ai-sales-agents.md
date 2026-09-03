@@ -1,7 +1,7 @@
 ---
 title: "Overcoming Hallucinations in AI Sales Agents"
 description: "AI hallucinations can destroy your brand's reputation. Learn the technical guardrails and RAG strategies required to keep your autonomous sales agents strictly factual."
-date: "2026-08-23T11:00:00.000Z"
+date: "2026-06-28T15:27:41.538Z"
 ---
 
 The greatest asset of a Large Language Model (LLM) is its creativity. It can synthesize disparate information, adopt unique tones, and generate compelling narratives. 

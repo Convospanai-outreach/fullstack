@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Email Deliverability & Compliance Guardrails | CraftMyFunnel Docs",
     description: "Technical guide on CraftMyFunnel's deliverability architecture: RFC 5322 Message-ID sync, RFC 8058 one-click unsubscribe, and automatic bounce circuit breakers.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/docs/deliverability-guardrails",
+    },
     openGraph: {
         title: "Email Deliverability & Compliance Architecture Guide",
         description: "Learn how CraftMyFunnel protects domain reputation using RFC standards, lease-locked mailbox sync, and circuit breakers.",
@@ -14,14 +17,41 @@ export const metadata: Metadata = {
 export default function DeliverabilityDocPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "TechArticle",
-        "headline": "Email Deliverability & Compliance Architecture in CraftMyFunnel",
-        "description": "Technical specification of RFC 5322 Message-ID threading, RFC 8058 unsubscribe headers, and mailbox warmup guardrails.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "url": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Documentation",
+                        "item": "https://craftmyfunnel.live/docs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "Deliverability Guardrails",
+                        "item": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+                    }
+                ]
+            },
+            {
+                "@type": "TechArticle",
+                "headline": "Email Deliverability & Compliance Architecture in CraftMyFunnel",
+                "description": "Technical specification of RFC 5322 Message-ID threading, RFC 8058 unsubscribe headers, and mailbox warmup guardrails.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "url": "https://craftmyfunnel.live/docs/deliverability-guardrails"
+            }
+        ]
     };
 
     return (

@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Palette, Globe, Upload, ArrowRight } from 'lucide-react';
+import { Palette, Globe, Upload } from 'lucide-react';
+
+interface CustomDomainRecord {
+    id: string;
+    domain: string;
+    status: "pending" | "active" | "invalid";
+    ownershipVerificationName?: string | null;
+    ownershipVerificationValue?: string | null;
+}
 
 // logoUrl is free text a team admin can set to anything, so before handing it
 // to <img src> rebuild it through URL parsing and only keep the result if the
@@ -37,6 +44,16 @@ export default function BrandingSettingsPage() {
     const [uploading, setUploading] = useState(false);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [domains, setDomains] = useState<CustomDomainRecord[]>([]);
+    const [newDomain, setNewDomain] = useState("");
+    const [connecting, setConnecting] = useState(false);
+
+    const loadDomains = () => {
+        fetch("/api/settings/branding/domains")
+            .then((res) => res.json())
+            .then((data) => setDomains(data?.domains || []))
+            .catch(() => {});
+    };
 
     useEffect(() => {
         fetch("/api/settings/branding")
@@ -49,7 +66,33 @@ export default function BrandingSettingsPage() {
                 if (branding.portalTitle) setPortalTitle(branding.portalTitle);
             })
             .catch(() => {});
+        loadDomains();
     }, []);
+
+    const handleConnectDomain = async () => {
+        const domain = newDomain.trim().toLowerCase();
+        if (!domain) return;
+        setConnecting(true);
+        try {
+            const res = await fetch("/api/settings/branding/domains", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ domain }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.ok) {
+                toast.success("Domain added — add the TXT record shown below to verify it");
+                setNewDomain("");
+                loadDomains();
+            } else {
+                toast.error(data?.error || "Failed to connect domain");
+            }
+        } catch (e) {
+            toast.error("Error connecting domain");
+        } finally {
+            setConnecting(false);
+        }
+    };
 
     // Resolved separately (not inline at the <img> sink) so the preview only
     // ever renders a value this effect itself validated and produced.
@@ -194,29 +237,69 @@ export default function BrandingSettingsPage() {
                     </button>
                 </GlassCard>
 
-                <GlassCard className="p-6 space-y-6 flex flex-col justify-between">
+                <GlassCard className="p-6 space-y-6">
                     <div className="space-y-4">
                         <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
                             <Globe className="w-5 h-5 text-purple-600 dark:text-purple-400" aria-hidden="true" /> Custom Domain
                         </h3>
-                        <p className="text-sm text-muted-foreground">Host your client portal and outreach tracking on your own branded domain (e.g., outreach.yourdomain.com).</p>
+                        <p className="text-sm text-muted-foreground">
+                            Connect a domain you already own to host your landing pages under your own brand
+                            (e.g., go.yourdomain.com). Your domain stays with your current DNS provider — you
+                            just add one verification record.
+                        </p>
 
-                        <div className="p-4 bg-muted/40 border border-border rounded-xl space-y-2 text-sm text-muted-foreground">
-                            <div className="font-semibold text-foreground">Enterprise & Dedicated Routing:</div>
-                            <ul className="list-disc pl-5 space-y-1 text-xs text-muted-foreground">
-                                <li>Requires CNAME DNS verification with automatic SSL provisioning.</li>
-                                <li>Available for Enterprise plans and custom domain add-ons.</li>
-                            </ul>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                className="flex-1 bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors"
+                                placeholder="go.yourdomain.com"
+                                value={newDomain}
+                                onChange={(e) => setNewDomain(e.target.value)}
+                            />
+                            <button
+                                onClick={handleConnectDomain}
+                                disabled={connecting || !newDomain.trim()}
+                                className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-semibold text-sm shadow-sm transition-colors disabled:opacity-50"
+                            >
+                                {connecting ? "Connecting..." : "Connect"}
+                            </button>
                         </div>
                     </div>
 
-                    <Link
-                        href="/support"
-                        className="inline-flex items-center justify-center gap-2 px-6 py-2.5 bg-secondary hover:bg-secondary/80 text-secondary-foreground border border-border rounded-xl font-medium text-sm w-full transition-colors"
-                    >
-                        Request Custom Domain Setup
-                        <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    <div className="space-y-3">
+                        {domains.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">No domains connected yet.</p>
+                        ) : (
+                            domains.map((d) => (
+                                <div key={d.id} className="p-4 bg-muted/40 border border-border rounded-xl space-y-2 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <span className="font-semibold text-foreground">{d.domain}</span>
+                                        <span
+                                            className={
+                                                "text-xs font-bold px-2 py-1 rounded-full " +
+                                                (d.status === "active"
+                                                    ? "bg-green-500/15 text-green-600 dark:text-green-400"
+                                                    : d.status === "invalid"
+                                                    ? "bg-red-500/15 text-red-600 dark:text-red-400"
+                                                    : "bg-amber-500/15 text-amber-600 dark:text-amber-400")
+                                            }
+                                        >
+                                            {d.status === "active" ? "Active" : d.status === "invalid" ? "Verification failed" : "Pending verification"}
+                                        </span>
+                                    </div>
+                                    {d.status === "pending" && d.ownershipVerificationName && (
+                                        <div className="text-xs text-muted-foreground space-y-1">
+                                            <p>Add this TXT record at your DNS provider to verify ownership:</p>
+                                            <code className="block bg-background/60 border border-border rounded px-2 py-1 break-all">
+                                                {d.ownershipVerificationName} → {d.ownershipVerificationValue}
+                                            </code>
+                                            <p>This can take a few minutes to propagate after you add it.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </GlassCard>
             </div>
         </div>

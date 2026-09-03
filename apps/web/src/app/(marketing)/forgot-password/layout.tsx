@@ -1,6 +1,6 @@
 export const metadata = {
-    title: "Forgot Password | CraftMyFunnel",
-    description: "Reset your CraftMyFunnel account password.",
+    title: "Forgot Password | CraftMyFunnel AI",
+    description: "Reset your CraftMyFunnel AI account password.",
 };
 
 export default function ForgotPasswordLayout({

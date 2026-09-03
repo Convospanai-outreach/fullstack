@@ -1,6 +1,7 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 // Client-side API wrapper for job operations
 
-const API_BASE = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/jobs";
+const API_BASE = getBrowserApiBase() + "/jobs";
 
 export interface Job {
     id: string;

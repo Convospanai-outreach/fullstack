@@ -34,9 +34,9 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">Tone</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Tone</label>
                     <select
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                         value={config.tone}
                         onChange={(e) => onChange({ ...config, tone: e.target.value })}
                     >
@@ -47,9 +47,9 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm text-gray-400 mb-1">Goal</label>
+                    <label className="block text-sm text-muted-foreground mb-1">Goal</label>
                     <select
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500"
                         value={config.goal}
                         onChange={(e) => onChange({ ...config, goal: e.target.value })}
                     >
@@ -62,9 +62,9 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
             </div>
 
             <div>
-                <label className="block text-sm text-gray-400 mb-1">Context / Details</label>
+                <label className="block text-sm text-muted-foreground mb-1">Context / Details</label>
                 <textarea
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
+                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
                     placeholder="E.g., We are launching a new AI tool for sales teams..."
                     value={config.context}
                     onChange={(e) => onChange({ ...config, context: e.target.value })}
@@ -72,9 +72,9 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
             </div>
 
             <div>
-                <label className="block text-sm text-gray-400 mb-1">Custom Prompt Instructions (Optional)</label>
+                <label className="block text-sm text-muted-foreground mb-1">Custom Prompt Instructions (Optional)</label>
                 <textarea
-                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
+                    className="w-full bg-muted border border-border rounded-lg p-3 text-foreground focus:outline-none focus:ring-2 focus:ring-purple-500 h-24"
                     placeholder="Additional instructions for the AI..."
                     value={config.prompt}
                     onChange={(e) => onChange({ ...config, prompt: e.target.value })}
@@ -93,9 +93,9 @@ export default function SmartCampaignForm({ config, onChange, onGeneratePreview 
             </div>
 
             {preview && (
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                    <h4 className="text-sm font-semibold text-purple-300 mb-2">AI Preview</h4>
-                    <p className="text-gray-300 whitespace-pre-wrap">{preview}</p>
+                <div className="bg-muted border border-border rounded-xl p-4">
+                    <h4 className="text-sm font-semibold text-purple-600 mb-2">AI Preview</h4>
+                    <p className="text-muted-foreground whitespace-pre-wrap">{preview}</p>
                 </div>
             )}
         </div>

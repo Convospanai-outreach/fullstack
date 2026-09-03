@@ -1,5 +1,6 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
-const API_URL = (process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy");
+const API_URL = getBrowserApiBase();
 
 export type TriggerType = "lead.replied" | "email.opened" | "ai.suggestion";
 export type ActionType = "campaign.stop" | "email.reply" | "lead.tag" | "webhook.call";

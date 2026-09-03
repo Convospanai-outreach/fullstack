@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export function UsageCard() {
     const [usage, setUsage] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/usage")
+        fetch(getBrowserApiBase() + "/usage")
             .then(res => res.json())
             .then(data => {
                 if (data.usage) setUsage(data.usage);

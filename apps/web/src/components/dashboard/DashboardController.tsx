@@ -36,8 +36,8 @@ export function DashboardController() {
             <div className="rounded-3xl border border-border/50 bg-card/50 p-5 backdrop-blur-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-300">View context</p>
-                        <h3 className="mt-2 text-xl font-semibold text-white">{activePersona.title}</h3>
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">View context</p>
+                        <h3 className="mt-2 text-xl font-semibold text-foreground">{activePersona.title}</h3>
                         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{activePersona.description}</p>
                         <p className="mt-2 text-sm text-muted-foreground/80">{activePersona.helper}</p>
                     </div>

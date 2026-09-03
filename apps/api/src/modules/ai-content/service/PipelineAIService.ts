@@ -1,50 +1,36 @@
-
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { prisma } from "@/lib/db";
+import { aiService } from "@/lib/aiService";
 
 export class PipelineAIService {
     static async suggestTasks(teamId: string, leadId: string) {
         try {
-            const res = await fetch(`${API_URL}/ai/pipeline/suggest-tasks`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, leadId })
-            });
-            if (!res.ok) throw new Error("Pipeline proxy failure");
-            return await res.json();
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
+            if (!lead) return [];
+            return await aiService.suggestPipelineTasks(lead, teamId);
         } catch (error) {
-            console.error("AI Task Suggestion proxy failed:", error);
+            console.error("AI task suggestion failed:", error);
             return [];
         }
     }
 
-    static async recommendStage(leadId: string) {
+    static async recommendStage(leadId: string, teamId: string) {
         try {
-            const res = await fetch(`${API_URL}/ai/pipeline/recommend-stage`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ leadId })
-            });
-            if (!res.ok) throw new Error("Pipeline proxy failure");
-            const data = await res.json();
-            return data.stage || null;
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
+            if (!lead) return null;
+            return await aiService.recommendPipelineStage(lead, lead.teamId || undefined);
         } catch (error) {
-            console.error("AI Stage Recommendation proxy failed:", error);
+            console.error("AI stage recommendation failed:", error);
             return null;
         }
     }
 
-    static async summarizeLead(leadId: string) {
+    static async summarizeLead(leadId: string, teamId: string) {
         try {
-            const res = await fetch(`${API_URL}/ai/pipeline/summarize-lead`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ leadId })
-            });
-            if (!res.ok) throw new Error("Pipeline proxy failure");
-            const data = await res.json();
-            return data.summary || "Summary unavailable.";
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
+            if (!lead) return "Lead not found.";
+            return await aiService.summarizePipelineLead(lead, lead.teamId || undefined);
         } catch (error) {
-            console.error("AI Lead Summary proxy failed:", error);
+            console.error("AI lead summary failed:", error);
             return "Status analysis unavailable.";
         }
     }

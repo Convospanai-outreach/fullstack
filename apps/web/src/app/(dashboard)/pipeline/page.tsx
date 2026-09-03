@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
     Plus,
-    MoreVertical,
     Sparkles,
     ArrowRight,
     Clock,
@@ -12,16 +12,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 const STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"];
 
 const STAGE_CONFIG: Record<string, { color: string; dot: string; label: string }> = {
-    COLD:             { color: "text-blue-400",    dot: "bg-blue-400",    label: "Cold" },
-    WARM:             { color: "text-amber-400",   dot: "bg-amber-400",   label: "Warm" },
-    HOT:              { color: "text-red-400",     dot: "bg-red-400",     label: "Hot 🔥" },
-    COORDINATING:     { color: "text-purple-400",  dot: "bg-purple-400",  label: "Coordinating" },
-    MEETING_CONFIRMED:{ color: "text-emerald-400", dot: "bg-emerald-400", label: "Meeting Booked" },
-    COMPLETED:        { color: "text-green-400",   dot: "bg-green-400",   label: "Completed ✓" },
+    COLD:             { color: "text-primary",     dot: "bg-primary",     label: "Cold" },
+    WARM:             { color: "text-warning",     dot: "bg-warning",     label: "Warm" },
+    HOT:              { color: "text-destructive", dot: "bg-destructive", label: "Hot 🔥" },
+    COORDINATING:     { color: "text-purple-500",  dot: "bg-purple-500",  label: "Coordinating" },
+    MEETING_CONFIRMED:{ color: "text-success",     dot: "bg-success",     label: "Meeting Booked" },
+    COMPLETED:        { color: "text-success",     dot: "bg-success",     label: "Completed ✓" },
 };
 
 export default function PipelinePage() {
@@ -29,6 +30,8 @@ export default function PipelinePage() {
     const [stats, setStats] = useState<any>({ totalValue: 0 });
     const [loading, setLoading] = useState(true);
     const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
+    const [aiSuggestionsLeadId, setAiSuggestionsLeadId] = useState<string | null>(null);
+    const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
 
     useEffect(() => {
         loadData();
@@ -37,8 +40,8 @@ export default function PipelinePage() {
     const loadData = async () => {
         try {
             const [leadsRes, statsRes] = await Promise.all([
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/leads"),
-                fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/stats")
+                fetch(getBrowserApiUrl("/leads")),
+                fetch(getBrowserApiUrl("/pipeline/stats"))
             ]);
 
             const leadsData = await leadsRes.json();
@@ -55,13 +58,14 @@ export default function PipelinePage() {
 
     const analyzeLead = async (leadId: string) => {
         toast.promise(
-            fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/pipeline/ai/analyze", {
+            fetch(getBrowserApiUrl("/pipeline/ai/analyze"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ leadId, action: "suggestTasks" })
             }).then(async r => {
                 const data = await r.json();
                 setAiSuggestions(data.data || []);
+                setAiSuggestionsLeadId(leadId);
                 return data.data;
             }),
             {
@@ -72,17 +76,41 @@ export default function PipelinePage() {
         );
     };
 
-    if (loading) return <div className="flex p-20 justify-center"><Sparkles className="animate-spin text-blue-500" /></div>;
+    const acceptSuggestion = async (suggestion: any, index: number) => {
+        if (!aiSuggestionsLeadId) return;
+        setAcceptingIndex(index);
+        try {
+            const res = await fetch(getBrowserApiUrl("/pipeline/tasks"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    leadId: aiSuggestionsLeadId,
+                    title: suggestion.title,
+                    description: suggestion.description,
+                    priority: String(suggestion.priority || "medium").toUpperCase(),
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to create task");
+            toast.success("Task created");
+            setAiSuggestions(prev => prev.filter((_, i) => i !== index));
+        } catch (error) {
+            toast.error("Failed to accept suggestion");
+        } finally {
+            setAcceptingIndex(null);
+        }
+    };
+
+    if (loading) return <div className="flex p-20 justify-center"><Sparkles className="animate-spin text-primary" /></div>;
 
     return (
         <div className="max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
             {/* Header / Stats */}
             <div className="flex justify-between items-end">
                 <div>
-                    <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-                        Sales Pipeline <Sparkles className="w-6 h-6 text-purple-400" />
+                    <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                        Sales Pipeline <Sparkles className="w-6 h-6 text-purple-500" />
                     </h1>
-                    <p className="text-gray-400 mt-1">Manage your deals and track conversion across stages.</p>
+                    <p className="text-muted-foreground mt-1">Manage your deals and track conversion across stages.</p>
                 </div>
                 <div className="flex gap-4">
                     <div className="bg-card p-4 rounded-lg flex items-center gap-4 border border-border/50">
@@ -112,7 +140,6 @@ export default function PipelinePage() {
                                     {stageLeads.length}
                                 </span>
                             </div>
-                            <button className="text-muted-foreground hover:text-foreground" title="Stage options"><MoreVertical className="w-4 h-4" /></button>
                         </div>
 
                         <div className="flex-1 flex flex-col gap-3 rounded-lg bg-card/50 p-2 border border-border/50">
@@ -124,59 +151,63 @@ export default function PipelinePage() {
                                 return (
                                 <div
                                     key={lead.id}
-                                    className="glass-panel p-4 rounded-xl border border-white/10 hover:border-white/20 transition-all group relative cursor-pointer active:scale-95"
+                                    className="bg-card p-4 rounded-xl border border-border hover:border-primary/30 transition-all group relative cursor-pointer active:scale-95"
                                 >
                                     <div className="flex justify-between items-start mb-3">
-                                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white text-xs font-bold shadow-lg">
+                                        <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-xs font-bold shadow-lg">
                                             {lead.fullName?.[0] || 'L'}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {scorePct > 0 && (
-                                                <span className={`text-[10px] font-bold ${tierCfg.color} bg-white/5 px-2 py-0.5 rounded`}>
+                                                <span className={`text-[10px] font-bold ${tierCfg.color} bg-muted px-2 py-0.5 rounded`}>
                                                     {scorePct}% intent
                                                 </span>
                                             )}
-                                            <div className="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded">
+                                            <div className="text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded">
                                                 ${lead.value || 0}
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="font-bold text-white text-sm mb-1">{lead.fullName}</div>
-                                    <div className="text-xs text-gray-500 mb-2">{lead.company}</div>
+                                    <div className="font-bold text-foreground text-sm mb-1">{lead.fullName}</div>
+                                    <div className="text-xs text-muted-foreground mb-2">{lead.company}</div>
 
                                     {/* Intent score bar */}
                                     {scorePct > 0 && (
-                                        <div className="w-full bg-white/5 rounded-full h-1 mb-3">
+                                        <div className="w-full bg-muted rounded-full h-1 mb-3">
                                             <div
                                                 className={`h-1 rounded-full transition-all ${
-                                                    scorePct >= 70 ? 'bg-red-400' : scorePct >= 40 ? 'bg-amber-400' : 'bg-blue-400'
+                                                    scorePct >= 70 ? 'bg-destructive' : scorePct >= 40 ? 'bg-warning' : 'bg-primary'
                                                 }`}
                                                 style={{ width: `${scorePct}%` }}
                                             />
                                         </div>
                                     )}
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-white/5">
+                                    <div className="flex items-center justify-between pt-3 border-t border-border">
                                         <div className="flex items-center gap-2">
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); analyzeLead(lead.id); }}
-                                                className="p-1.5 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-all opacity-0 group-hover:opacity-100"
+                                                className="p-1.5 rounded-lg bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 transition-all opacity-0 group-hover:opacity-100"
                                                 title="AI Analyze"
                                             >
                                                 <Zap className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
-                                        <div className="flex items-center gap-1 text-[10px] text-gray-600 font-medium">
+                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
                                             <Clock className="w-3 h-3" /> {formatDistanceToNow(new Date(lead.updatedAt))} ago
                                         </div>
                                     </div>
                                 </div>
                                 );
                             })}
-                            <button className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-gray-600 hover:text-gray-400 uppercase tracking-widest border border-dashed border-white/5 rounded-xl hover:bg-white/[0.02] transition-all" title="Add lead to stage">
+                            <Link
+                                href={`/leads/new?stage=${stage}`}
+                                className="py-3 items-center justify-center flex gap-2 text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-widest border border-dashed border-border rounded-xl hover:bg-accent transition-all"
+                                title="Add lead to stage"
+                            >
                                 <Plus className="w-3 h-3" /> Add Lead
-                            </button>
+                            </Link>
                         </div>
                     </div>
                     );
@@ -185,21 +216,25 @@ export default function PipelinePage() {
 
             {/* AI Assistance Overlay (if suggestions exist) */}
             {aiSuggestions.length > 0 && (
-                <div className="fixed bottom-10 right-10 w-80 glass-panel p-6 border border-purple-500/30 shadow-2xl shadow-purple-900/40 animate-in slide-in-from-right-full duration-500 z-50">
+                <div className="fixed bottom-10 right-10 w-80 bg-card p-6 border border-purple-500/30 rounded-xl shadow-2xl animate-in slide-in-from-right-full duration-500 z-50">
                     <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2 text-purple-400 font-bold text-sm">
+                        <div className="flex items-center gap-2 text-purple-500 font-bold text-sm">
                             <Sparkles className="w-4 h-4" /> AI Recommendations
                         </div>
-                        <button onClick={() => setAiSuggestions([])} className="text-gray-500 hover:text-white" title="Close"><X className="w-4 h-4" /></button>
+                        <button onClick={() => setAiSuggestions([])} className="text-muted-foreground hover:text-foreground" title="Close"><X className="w-4 h-4" /></button>
                     </div>
                     <div className="space-y-4">
                         {aiSuggestions.map((s, i) => (
-                            <div key={i} className="p-3 bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all cursor-pointer">
-                                <div className="text-xs font-bold text-white mb-1">{s.title}</div>
-                                <div className="text-[10px] text-gray-400">{s.description}</div>
+                            <div key={i} className="p-3 bg-muted rounded-xl border border-border hover:bg-accent transition-all cursor-pointer">
+                                <div className="text-xs font-bold text-foreground mb-1">{s.title}</div>
+                                <div className="text-[10px] text-muted-foreground">{s.description}</div>
                                 <div className="mt-2 flex items-center justify-between">
                                     <span className="text-[8px] uppercase font-bold text-purple-500 px-1.5 py-0.5 bg-purple-500/10 rounded">{s.priority}</span>
-                                    <button className="text-[10px] font-bold text-blue-400 flex items-center gap-1 hover:underline">
+                                    <button
+                                        onClick={() => acceptSuggestion(s, i)}
+                                        disabled={acceptingIndex === i}
+                                        className="text-[10px] font-bold text-primary flex items-center gap-1 hover:underline disabled:opacity-50"
+                                    >
                                         Accept <ArrowRight className="w-3 h-3" />
                                     </button>
                                 </div>

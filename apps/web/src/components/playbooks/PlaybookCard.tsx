@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { BookOpen, Play, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface PlaybookCardProps {
     playbook: any
@@ -22,7 +23,7 @@ export function PlaybookCard({ playbook }: PlaybookCardProps) {
     const handleUse = async () => {
         setLoading(true)
         try {
-            const res = await fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/playbooks/${playbook.id}/instantiate`, {
+            const res = await fetch(`${getBrowserApiBase()}/playbooks/${playbook.id}/instantiate`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ values: params })

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import vm from "node:vm";
 
 export interface ValidationResult {
     isSafe: boolean;
@@ -16,6 +17,24 @@ const PII_REGEX = {
     PHONE: /(\+\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/g,
     // SSN, Credit Card could be added here
 };
+
+// Invalid regex, no match, and a timed-out (likely catastrophically-backtracking) pattern
+// all resolve the same way: null, i.e. "no violation from this rule" - mirrors the previous
+// fail-open-on-error behavior for invalid patterns rather than blocking every message from
+// a team whose policy contains one bad rule.
+function matchCustomRegexWithTimeout(pattern: string, content: string, timeoutMs = 250): string | null {
+    try {
+        const context = vm.createContext({ pattern, content, match: null as string | null });
+        vm.runInContext(
+            "match = content.match(new RegExp(pattern, 'i'))?.[0] ?? null;",
+            context,
+            { timeout: timeoutMs }
+        );
+        return context.match;
+    } catch {
+        return null;
+    }
+}
 
 export class GuardrailService {
 
@@ -84,19 +103,19 @@ export class GuardrailService {
         }
 
         // 4. Custom Regex Rules
+        // policy.regexRules is team-authored and can contain a catastrophically-backtracking
+        // pattern (e.g. `(a+)+b`), which would otherwise hang this synchronous, single-threaded
+        // process for every request that doesn't match it. Each pattern gets a bounded time
+        // budget in a throwaway VM context instead of running inline.
         if (policy.regexRules && policy.regexRules.length > 0) {
             for (const pattern of policy.regexRules) {
-                try {
-                    const regex = new RegExp(pattern, 'i');
-                    if (regex.test(content)) {
-                        violations.push({
-                            type: 'REGEX',
-                            reason: `Custom pattern matched: ${pattern}`,
-                            snippet: content.match(regex)?.[0] || pattern || ""
-                        });
-                    }
-                } catch (e) {
-                    console.error("Invalid regex in policy:", pattern);
+                const match = matchCustomRegexWithTimeout(pattern, content);
+                if (match !== null) {
+                    violations.push({
+                        type: 'REGEX',
+                        reason: `Custom pattern matched: ${pattern}`,
+                        snippet: match || pattern || ""
+                    });
                 }
             }
         }

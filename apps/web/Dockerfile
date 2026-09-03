@@ -62,6 +62,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
+# Pull latest patched OS packages (openssl CVEs etc.) before installing anything else
+RUN apk upgrade --no-cache
+
 # Add wget for healthcheck support
 RUN apk add --no-cache wget
 

@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/button";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 // planId slugs match PLAN_ALIASES in apps/api/routes/billing/checkout/route.ts.
 const PLAN_SLUGS: { slug: string; label: string; features: string[]; popular?: boolean }[] = [
@@ -32,7 +33,7 @@ export default function BillingPage() {
     useEffect(() => {
         const fetchBalance = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/usage");
+                const res = await fetch(getBrowserApiBase() + "/billing/usage");
                 if (!res.ok) throw new Error("Failed");
                 const data = await res.json();
                 setBalance(data.balance);
@@ -47,7 +48,7 @@ export default function BillingPage() {
 
     useEffect(() => {
         const resolvedCountry = billingCountry === "OTHER" ? (billingCustomCountry.trim() || "US") : billingCountry;
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + `/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
+        fetch(getBrowserApiBase() + `/billing/plans?country=${encodeURIComponent(resolvedCountry)}`)
             .then((res) => res.json())
             .then((data) => {
                 const byName: Record<string, LivePlan> = {};
@@ -86,7 +87,7 @@ export default function BillingPage() {
 
         try {
             // 1. Create Order / Checkout Session
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/checkout", {
+            const res = await fetch(getBrowserApiBase() + "/billing/checkout", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -155,7 +156,7 @@ export default function BillingPage() {
                 return;
             }
 
-            const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/billing/topup", {
+            const res = await fetch(getBrowserApiBase() + "/billing/topup", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ tierId }),

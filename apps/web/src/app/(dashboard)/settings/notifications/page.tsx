@@ -52,7 +52,7 @@ export default function NotificationsPage() {
             <GlassCard className="p-8 space-y-8">
                 {/* Email Section */}
                 <div>
-                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
                         <span className="mr-2">📧</span> Email Alerts
                     </h3>
                     <div className="space-y-4">
@@ -77,8 +77,8 @@ export default function NotificationsPage() {
                     </div>
                 </div>
 
-                <div className="border-t border-white/10 pt-8">
-                    <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <div className="border-t border-border pt-8">
+                    <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
                         <span className="mr-2">🔔</span> In-App
                     </h3>
                     <Toggle
@@ -97,8 +97,8 @@ function Toggle({ label, desc, checked, onChange }: { label: string, desc: strin
     return (
         <div className="flex items-center justify-between">
             <div>
-                <div className="text-white font-medium">{label}</div>
-                <div className="text-sm text-gray-500">{desc}</div>
+                <div className="text-foreground font-medium">{label}</div>
+                <div className="text-sm text-muted-foreground">{desc}</div>
             </div>
             <button
                 onClick={() => onChange(!checked)}

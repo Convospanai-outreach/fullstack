@@ -7,12 +7,18 @@ import { ConversationState } from "@prisma/client";
 async function testCallerFlow() {
     console.log("Starting Caller System Verification...");
 
-    // Setup: Get a lead
+    // Setup: Get a team and a lead
+    let team = await prisma.team.findFirst({ where: { name: "Caller Flow Test Org" } });
+    if (!team) {
+        team = await prisma.team.create({ data: { name: "Caller Flow Test Org" } });
+    }
+    const teamId = team.id;
+
     let lead = await prisma.lead.findFirst({ where: { email: "test.lead@example.com" } });
     if (!lead) {
         console.log("Re-creating dummy lead...");
         lead = await prisma.lead.create({
-            data: { email: "test.lead@example.com", pipelineState: "COLD" }
+            data: { email: "test.lead@example.com", pipelineState: "COLD", teamId }
         });
     }
 
@@ -43,11 +49,11 @@ async function testCallerFlow() {
     });
 
     // Test Queue Fetching (Mock User ID)
-    const queue = await CallerService.getQueue(userId);
+    const queue = await CallerService.getQueue(userId, teamId);
     console.log(`Queue fetched. Pool size: ${queue.pool.length}, Assigned: ${queue.assigned.length}`);
 
     // Test Claim
-    await CallerService.claimLead(lead.id, userId);
+    await CallerService.claimLead(lead.id, userId, teamId);
     console.log("Lead claimed.");
 
     // Verify State Transition
@@ -59,7 +65,7 @@ async function testCallerFlow() {
     }
 
     // Test Completion
-    await CallerService.completeTask(lead.id, userId, ConversationState.MEETING_CONFIRMED, "Booked it!");
+    await CallerService.completeTask(lead.id, userId, teamId, ConversationState.MEETING_CONFIRMED, "Booked it!");
     console.log("Task completed (MEETING_CONFIRMED).");
 
     const finalQueue = await prisma.meetingCoordinationQueue.findUnique({ where: { leadId: lead.id } });

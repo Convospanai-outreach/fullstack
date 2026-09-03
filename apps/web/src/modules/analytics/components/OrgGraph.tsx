@@ -12,6 +12,7 @@ import ReactFlow, {
     type EdgeChange
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function OrgGraph() {
     const [nodes, setNodes] = useNodesState([]);
@@ -19,7 +20,7 @@ export default function OrgGraph() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/analytics/graph')
+        fetch(getBrowserApiBase() + '/analytics/graph')
             .then(res => res.json())
             .then(data => {
                 if (data.nodes) setNodes(data.nodes);

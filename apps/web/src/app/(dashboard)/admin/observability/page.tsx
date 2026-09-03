@@ -3,13 +3,14 @@
 import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function ObservabilityPage() {
     const [data, setData] = useState<any>(null);
     const [range, setRange] = useState("1h");
 
     useEffect(() => {
-        fetch(`${(process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy")}/admin/observability?range=${range}`)
+        fetch(`${getBrowserApiBase()}/admin/observability?range=${range}`)
             .then((res) => res.json())
             .then((d) => {
                 setData(d);

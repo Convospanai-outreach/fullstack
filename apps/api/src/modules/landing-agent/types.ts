@@ -14,6 +14,9 @@ export interface LandingPageSection {
     body?: string;
     bullets?: string[];
     ctaLabel?: string;
+    imageUrl?: string;
+    imagePrompt?: string;
+    imageAlt?: string;
 }
 
 export interface WireframeOption {

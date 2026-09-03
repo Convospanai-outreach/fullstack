@@ -35,11 +35,16 @@ export class SmtpProvider implements MailProvider {
     const domain = mailbox.email.split("@")[1] || "craftmyfunnel.live";
     const rfcMessageId = `<${crypto.randomUUID()}@${domain}>`;
 
+    const extraHeaders = { ...(input.headers || {}) };
+    delete extraHeaders["Reply-To"];
+    delete extraHeaders["X-Tracking-ID"];
+
     const sendOptions = {
       to: input.to,
       subject: input.subject,
       html: input.html,
       ...(replyTo ? { replyTo } : {}),
+      ...(Object.keys(extraHeaders).length ? { headers: extraHeaders } : {}),
     };
 
     const result = await sendViaSMTP(config, sendOptions);

@@ -13,6 +13,7 @@ import {
     Bar,
     Legend
 } from "recharts";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface AnalyticsStats {
     overview?: {
@@ -43,7 +44,7 @@ export function AnalyticsDashboard() {
 
     useEffect(() => {
         setMounted(true);
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/analytics/stats")
+        fetch(getBrowserApiBase() + "/analytics/stats")
             .then((res) => res.json())
             .then((result) => {
                 setData(result);

@@ -46,6 +46,11 @@ model Lead {
   crmId       String? // External ID in HubSpot/Salesforce
   crmSyncedAt DateTime?
 
+  // Mautic Sync (top-of-funnel capture/segmentation only - Mautic never sends
+  // nurture email for a lead already in this app's own sequence pipeline)
+  mauticContactId String?
+  mauticSyncedAt  DateTime?
+
   // Lead Intent Scoring (Weighted Algorithm)
   intentScore      Float?    @default(0.0) // 0.0 - 1.0 weighted intent score
   leadScore        Int       @default(0) // Integer score based on successful generations
@@ -972,6 +977,71 @@ model ManualReview {
   @@index([severity])
 }
 
+// Overseer v0 (see OVERSEER_ARCHITECTURE_PLAN.md §02): an advisory suggestion for a
+// funnel/sequence enrollment that has stalled past its threshold. Never mutates the
+// enrollment itself - purely a human-facing nudge, no timeout (accumulates TAT instead
+// of expiring, per the plan's failure-mode-5 note).
+model OverseerNudge {
+  id           String    @id @default(uuid())
+  teamId       String
+  leadId       String?
+  sequenceId   String?
+  enrollmentId String?
+  stage        String // e.g. "step 3 of 6"
+  stallDays    Float
+  nudgeType    String // RESEND_STEP, ROUTE_MANUAL, LIKELY_DEAD
+  suggestion   String    @db.Text
+  status       String    @default("OPEN") // OPEN, ACTED, DISMISSED
+  actedAt      DateTime?
+  resumedAt    DateTime? // set once the enrollment produces a new step run after this nudge, for efficacy tracking
+  createdAt    DateTime  @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, status])
+  @@index([enrollmentId])
+  @@index([createdAt])
+}
+
+// Overseer circuit breaker (see OVERSEER_ARCHITECTURE_PLAN.md §04). One row per team,
+// evaluated on every Overseer tick. Never auto-approves or auto-unblocks anything - it
+// only extends QUEUED-tier timeouts and throttles new nudge emission while OPEN/HALF_OPEN.
+// HARD_BLOCK requests are never affected by this table.
+model BreakerState {
+  id                    String    @id @default(uuid())
+  teamId                String    @unique
+  state                 String    @default("CLOSED") // CLOSED, OPEN, HALF_OPEN
+  trippedAt             DateTime?
+  resetConditionsMetSince DateTime?
+  lastEvaluatedAt       DateTime  @default(now())
+  metrics               Json? // last computed {depth, tatP90Hours, denyRate} for observability
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([state])
+}
+
+// Overseer OverseerSignal (see OVERSEER_ARCHITECTURE_PLAN.md §01's secondary function):
+// cross-run anomaly flags, scoped to platform-wide provider health today - not team data,
+// so no teamId. Deliberately does NOT escalate into ApprovalRequest: "provider X is
+// degraded" has no human approve/reject decision behind it (aiService.ts's own
+// retry/fallback chain already reacts automatically) - this is pure observability,
+// surfaced in the existing Sentinel Events panel rather than a fabricated approval gate.
+model OverseerSignal {
+  id         String    @id @default(uuid())
+  category   String // PROVIDER_DEGRADATION
+  subject    String // e.g. a provider name - what this signal is about, for dedup
+  severity   String // WARN, CRITICAL
+  summary    String    @db.Text
+  evidence   Json?
+  status     String    @default("OPEN") // OPEN, RESOLVED
+  resolvedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([status])
+  @@index([category, subject])
+}
+
 model Team {
   id               String              @id @default(uuid())
   name             String
@@ -994,6 +1064,8 @@ model Team {
   transactions     CreditTransaction[]
   auditLogs        AuditLog[]
   memories         AgentMemory[]
+  overseerNudges   OverseerNudge[]
+  breakerState     BreakerState?
   apiKeys          ApiKey[]
   tasks            Task[]
   landingCampaigns LandingCampaign[]
@@ -1020,6 +1092,8 @@ model Team {
   ssoConfiguration           SsoConfiguration?
   userQuotas                 UserQuota[]
   crmIntegrations            CrmIntegration[]
+  facebookLeadSources        FacebookLeadSource[]
+  facebookLeadSyncCursors    FacebookLeadSyncCursor[]
   icps                       ICP[]
   paymentAccounts            PaymentAccount[]
   products                   Product[]
@@ -1070,6 +1144,51 @@ model CrmIntegration {
   team Team @relation(fields: [teamId], references: [id])
 
   @@unique([teamId, provider])
+}
+
+// A team's connected Facebook Page(s) for Lead Ads polling (no Zapier, no
+// realtime webhook - a worker polls each form on an interval, see
+// FacebookLeadSyncCursor). One row per connected Page per team.
+model FacebookLeadSource {
+  id                       String    @id @default(uuid())
+  teamId                   String
+  pageId                   String
+  pageName                 String?
+  encryptedPageAccessToken Json?
+  isActive                 Boolean   @default(true)
+  lastError                String?   @db.Text
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  team        Team                     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  syncCursors FacebookLeadSyncCursor[]
+
+  @@unique([teamId, pageId])
+  @@index([teamId])
+}
+
+// Per-form sync watermark, mirroring MailboxSyncCursor's lock/retry shape so a
+// stuck or crashed poll doesn't wedge future ticks (see worker-manager.ts).
+model FacebookLeadSyncCursor {
+  id                  String    @id @default(uuid())
+  teamId              String
+  sourceId            String
+  formId              String
+  lastCreatedTime     DateTime?
+  status              String    @default("IDLE")
+  consecutiveFailures Int       @default(0)
+  lastError           String?   @db.Text
+  lockedAt            DateTime?
+  lockExpiresAt       DateTime?
+  lockToken           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  team   Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  source FacebookLeadSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, formId])
+  @@index([teamId])
 }
 
 model SsoConfiguration {
@@ -1702,6 +1821,14 @@ model CustomDomain {
   status    String   @default("pending") // pending, active, invalid
   createdAt DateTime @default(now())
 
+  // Cloudflare for SaaS custom hostname tracking (see BrandingService.addDomain
+  // and the poll tick in apps/api/src/workers/worker-manager.ts that advances
+  // status from pending -> active/invalid against Cloudflare's API).
+  cloudflareHostnameId       String?
+  ownershipVerificationName  String?
+  ownershipVerificationValue String?
+  lastCheckedAt              DateTime?
+
   team Team @relation(fields: [teamId], references: [id])
 
   @@index([teamId])
@@ -1761,6 +1888,7 @@ model ApprovalRequest {
   entityType  String // "Campaign"
   entityId    String
   status      String @default("PENDING") // PENDING, APPROVED, REJECTED
+  tier        String @default("QUEUED") // AUTO, QUEUED, HARD_BLOCK - HITL risk tier, see approvalPolicy.ts
 
   reason  String? // Why is this requested?
   payload Json? // Data needed to execute the action
@@ -1768,6 +1896,7 @@ model ApprovalRequest {
   reviewerId String?
   reviewNote String?
   reviewedAt DateTime?
+  autoDenyAt DateTime? // QUEUED tier only - swept and auto-rejected once past this time; null for AUTO/HARD_BLOCK
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1778,6 +1907,7 @@ model ApprovalRequest {
 
   @@index([teamId])
   @@index([status])
+  @@index([tier, autoDenyAt])
 }
 
 model Playbook {

@@ -7,11 +7,22 @@ import { executeCampaign } from "../handlers/campaign-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
+import { leadScoringService } from "@/modules/scoring/service/LeadScoringService";
+import { exportService } from "@/modules/data-export/service/exportService";
+import { crmService } from "@/modules/crm-integration/service/crmService";
+import { webhookService } from "@/modules/webhooks/service/webhookService";
+import { EventStore } from "@/modules/learning/EventStore";
 
 vi.mock("@/lib/db", () => ({
     prisma: {
         job: {
             findFirst: vi.fn(),
+        },
+        crmIntegration: {
+            findUnique: vi.fn(),
+        },
+        lead: {
+            findMany: vi.fn(),
         },
     },
 }));
@@ -43,6 +54,36 @@ vi.mock("@/lib/workflowService", () => ({
 vi.mock("@/modules/audit/auditService", () => ({
     AuditService: {
         log: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
+    leadScoringService: {
+        batchScoreLeads: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/data-export/service/exportService", () => ({
+    exportService: {
+        generateCsv: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/crm-integration/service/crmService", () => ({
+    crmService: {
+        syncLead: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/webhooks/service/webhookService", () => ({
+    webhookService: {
+        processDelivery: vi.fn(),
+    },
+}));
+
+vi.mock("@/modules/learning/EventStore", () => ({
+    EventStore: {
+        processEventJob: vi.fn(),
     },
 }));
 
@@ -274,6 +315,177 @@ describe("job-processor", () => {
             mockJob.payload
         );
         expect(result).toEqual({ acknowledged: true });
+    });
+
+    it("dispatches agent_stop jobs to an acknowledgement without throwing (OPEN-77 regression)", async () => {
+        const mockJob = {
+            id: "job-agent-stop-1",
+            status: "running",
+            version: 1,
+            type: "agent_stop",
+            payload: { agentId: "agent_1", userId: "user_1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+
+        const result = await worker.performJob({ jobId: "job-agent-stop-1", version: 1 });
+
+        expect(result).toEqual({ acknowledged: true, agentId: "agent_1" });
+    });
+
+    it("dispatches data_export jobs to exportService.generateCsv (OPEN-77 regression)", async () => {
+        const mockJob = {
+            id: "job-export-1",
+            status: "running",
+            version: 1,
+            type: "data_export",
+            payload: { teamId: "t1", entity: "leads" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (exportService.generateCsv as Mock).mockResolvedValueOnce("id,fullName\n1,Alice");
+
+        const result = await worker.performJob({ jobId: "job-export-1", version: 1 });
+
+        expect(exportService.generateCsv).toHaveBeenCalledWith("leads", "t1");
+        expect(result).toEqual({ entity: "leads", format: "csv", csv: "id,fullName\n1,Alice" });
+    });
+
+    it("rejects data_export jobs for an unsupported entity type instead of silently no-oping", async () => {
+        const mockJob = {
+            id: "job-export-2",
+            status: "running",
+            version: 1,
+            type: "data_export",
+            payload: { teamId: "t1", entity: "invoices" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+
+        await expect(worker.performJob({ jobId: "job-export-2", version: 1 })).rejects.toThrow(
+            'data_export does not support entity type "invoices"'
+        );
+    });
+
+    it("dispatches CRM_SYNC jobs to crmService.syncLead per lead when HubSpot is configured (OPEN-77 regression)", async () => {
+        const mockJob = {
+            id: "job-crm-1",
+            status: "running",
+            version: 1,
+            type: "CRM_SYNC",
+            payload: { teamId: "t1", provider: "HUBSPOT" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (prisma.crmIntegration.findUnique as Mock).mockResolvedValueOnce({ isActive: true });
+        (prisma.lead.findMany as Mock).mockResolvedValueOnce([{ id: "lead_1" }, { id: "lead_2" }]);
+        (crmService.syncLead as Mock)
+            .mockResolvedValueOnce({ status: "success", crmId: "hs_1" })
+            .mockResolvedValueOnce({ status: "failed", details: "no email" });
+
+        const result = await worker.performJob({ jobId: "job-crm-1", version: 1 });
+
+        expect(crmService.syncLead).toHaveBeenCalledTimes(2);
+        expect(crmService.syncLead).toHaveBeenCalledWith("lead_1", "t1");
+        expect(crmService.syncLead).toHaveBeenCalledWith("lead_2", "t1");
+        expect(result).toEqual({ syncedCount: 2, summary: { success: 1, failed: 1 } });
+    });
+
+    it("skips CRM_SYNC without calling syncLead when HubSpot isn't configured", async () => {
+        const mockJob = {
+            id: "job-crm-2",
+            status: "running",
+            version: 1,
+            type: "CRM_SYNC",
+            payload: { teamId: "t1", provider: "HUBSPOT" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (prisma.crmIntegration.findUnique as Mock).mockResolvedValueOnce(null);
+
+        const result = await worker.performJob({ jobId: "job-crm-2", version: 1 });
+
+        expect(crmService.syncLead).not.toHaveBeenCalled();
+        expect(result).toEqual({ syncedCount: 0, skipped: "HubSpot not configured or inactive" });
+    });
+
+    it("dispatches WEBHOOK_DISPATCH jobs to webhookService.processDelivery (OPEN-77 regression)", async () => {
+        const mockJob = {
+            id: "job-webhook-1",
+            status: "running",
+            version: 1,
+            type: "WEBHOOK_DISPATCH",
+            payload: { webhookId: "wh_1", event: "lead.created", payload: { leadId: "lead_1" } },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (webhookService.processDelivery as Mock).mockResolvedValueOnce({ delivered: true });
+
+        const result = await worker.performJob({ jobId: "job-webhook-1", version: 1 });
+
+        expect(webhookService.processDelivery).toHaveBeenCalledWith("wh_1", "lead.created", { leadId: "lead_1" });
+        expect(result).toEqual({ delivered: true });
+    });
+
+    it("dispatches event_processing jobs with an eventId to EventStore.processEventJob (OPEN-77 regression)", async () => {
+        const mockJob = {
+            id: "job-event-1",
+            status: "running",
+            version: 1,
+            type: "event_processing",
+            payload: { eventId: "evt_1", teamId: "t1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (EventStore.processEventJob as Mock).mockResolvedValueOnce(undefined);
+
+        const result = await worker.performJob({ jobId: "job-event-1", version: 1 });
+
+        expect(EventStore.processEventJob).toHaveBeenCalledWith("evt_1");
+        expect(result).toEqual({ acknowledged: true, eventId: "evt_1" });
+    });
+
+    it("falls back event_processing without an eventId to an audit log (outbox generic-event path)", async () => {
+        const mockJob = {
+            id: "job-event-2",
+            status: "running",
+            version: 1,
+            type: "event_processing",
+            payload: { teamId: "t1", eventType: "SOME_UNMAPPED_EVENT", aggregateId: "agg_1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+
+        const result = await worker.performJob({ jobId: "job-event-2", version: 1 });
+
+        expect(EventStore.processEventJob).not.toHaveBeenCalled();
+        expect(AuditService.log).toHaveBeenCalledWith(
+            "t1",
+            null,
+            "SOME_UNMAPPED_EVENT",
+            "OutboxEvent",
+            "agg_1",
+            mockJob.payload
+        );
+        expect(result).toEqual({ acknowledged: true, eventType: "SOME_UNMAPPED_EVENT" });
+    });
+
+    it("dispatches lead_scoring jobs to the leadScoringService instance, not the class (OPEN-75 regression)", async () => {
+        const mockJob = {
+            id: "job-scoring-1",
+            status: "running",
+            version: 1,
+            type: "lead_scoring",
+            payload: { teamId: "t1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (leadScoringService.batchScoreLeads as Mock).mockResolvedValueOnce({
+            totalProcessed: 3,
+            successful: 3,
+            failed: 0,
+            averageScore: 0.5,
+            tierDistribution: { hot: 1, warm: 1, cold: 1 },
+            errors: [],
+        });
+
+        const result = await worker.performJob({ jobId: "job-scoring-1", version: 1 });
+
+        expect(leadScoringService.batchScoreLeads).toHaveBeenCalledWith("t1");
+        expect(result).toEqual(
+            expect.objectContaining({ totalProcessed: 3, successful: 3 })
+        );
     });
 
     it("propagates a completion claim-loss outcome without calling fail", async () => {

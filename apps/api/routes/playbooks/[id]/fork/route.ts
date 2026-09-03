@@ -8,7 +8,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
 
-    const original = await prisma.playbook.findUnique({ where: { id } });
+    const original = await prisma.playbook.findFirst({ where: { id, teamId } });
     if (!original) return new NextResponse("Playbook not found", { status: 404 });
 
     // Create fork

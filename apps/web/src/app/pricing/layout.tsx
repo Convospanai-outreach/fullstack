@@ -3,12 +3,24 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "Pricing & Plans | CraftMyFunnel",
     description: "Transparent pricing for managed growth execution, campaign operations, and pipeline tracking. Pilot ($49), Growth Autopilot ($99), and Enterprise ($499) tiers.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/pricing",
+    },
     openGraph: {
         title: "CraftMyFunnel Pricing & Plans",
         description: "Transparent pricing for governed B2B outreach: Pilot ($49), Growth ($99), Enterprise ($499).",
         url: "https://craftmyfunnel.live/pricing",
+        images: [
+            {
+                url: "/images/platform/pricing-guarantee.webp",
+                width: 820,
+                height: 460,
+                alt: "CraftMyFunnel Governed Pilot and Pricing Tiers",
+            }
+        ],
     },
 };
+
 
 const pricingSchema = {
     "@context": "https://schema.org",

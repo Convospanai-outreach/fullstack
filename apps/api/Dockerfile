@@ -42,6 +42,9 @@ ENV PORT=3001
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
+# Pull latest patched OS packages (openssl CVEs etc.) before installing anything else
+RUN apk upgrade --no-cache
+
 RUN apk add --no-cache wget chromium nss freetype harfbuzz ca-certificates ttf-freefont
 
 COPY --from=builder /repo/node_modules ./node_modules

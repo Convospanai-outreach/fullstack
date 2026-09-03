@@ -14,9 +14,9 @@ function firstParam(value: string | string[] | undefined) {
 
 function intentTier(intentScore?: number | null) {
     const score = intentScore ?? 0;
-    if (score >= 0.7) return { label: "HOT", className: "text-red-400 border-red-500/25 bg-red-500/5" };
-    if (score >= 0.4) return { label: "WARM", className: "text-amber-400 border-amber-500/25 bg-amber-500/5" };
-    return { label: "COLD", className: "text-blue-400 border-blue-500/25 bg-blue-500/5" };
+    if (score >= 0.7) return { label: "HOT", className: "text-destructive border-destructive/25 bg-destructive/5" };
+    if (score >= 0.4) return { label: "WARM", className: "text-warning border-warning/25 bg-warning/5" };
+    return { label: "COLD", className: "text-primary border-primary/25 bg-primary/5" };
 }
 
 function displayLeadStatus(status?: string | null) {
@@ -106,7 +106,7 @@ export default async function LeadsPage({
                 </div>
             </div>
 
-            <form className="glass-card p-4 space-y-3">
+            <form className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 space-y-3">
                 <div className="flex flex-col md:flex-row gap-3">
                     <div className="flex-1 relative">
                         <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -159,11 +159,11 @@ export default async function LeadsPage({
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-white/10 glass">
+                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : leads.length === 0 ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-white/10 glass flex flex-col items-center justify-center">
+                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card flex flex-col items-center justify-center">
                     <Users className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
                     <h3 className="text-sm font-semibold text-foreground tracking-wide">No Leads Found</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">
@@ -179,7 +179,7 @@ export default async function LeadsPage({
                             key={lead.id}
                             href={`/leads/${lead.id}`}
                             id={`lead-card-${index}`}
-                            className="relative flex flex-col justify-between p-6 glass-card hover:border-primary/50 transition-all duration-200 group min-h-48"
+                            className="relative flex flex-col justify-between p-6 rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-all duration-200 group min-h-48"
                         >
                             <div>
                                 <div className="flex justify-between items-start gap-2 mb-4">
@@ -196,17 +196,17 @@ export default async function LeadsPage({
                                     </div>
                                 </div>
                                 <div className="space-y-1.5">
-                                    <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
+                                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors truncate">
                                         {lead.fullName || "Unnamed Lead"}
                                     </h3>
-                                    <div className="flex items-center gap-1.5 text-xs text-slate-400 font-sans">
+                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
                                         <Globe className="w-3.5 h-3.5 text-muted-foreground" />
                                         <span className="truncate">{lead.company || "Independent"}</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="mt-6 pt-4 border-t border-white/5">
-                                <div className="flex items-center gap-2 text-xs text-slate-400 font-sans">
+                            <div className="mt-6 pt-4 border-t border-border">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
                                     <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                                     <span className="truncate">{lead.email}</span>
                                 </div>

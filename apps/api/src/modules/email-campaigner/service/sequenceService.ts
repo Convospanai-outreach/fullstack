@@ -15,6 +15,7 @@ const STOP_PIPELINE_STATES = new Set(["MEETING_BOOKED", "MEETING_CONFIRMED", "BO
 type SequencePrisma = {
     campaignSequence: any;
     sequenceStep: any;
+    sequenceEdge: any;
     sequenceEnrollment: any;
     sequenceStepRun: any;
     lead: any;
@@ -219,7 +220,7 @@ export class SequenceService {
                 where: { id: run.id },
                 data: { status: passed ? "COMPLETED" : "SKIPPED_CONDITION", completedAt: now },
             });
-            await this.scheduleNextStep(run, now);
+            await this.scheduleNextStep(run, now, passed ? "yes" : "no");
             return { runId: run.id, status: passed ? "COMPLETED" : "SKIPPED_CONDITION" };
         }
 
@@ -276,6 +277,11 @@ export class SequenceService {
                 continue;
             }
 
+            // stepOrder-based lookup, not edge-based: this only ever needs to find the enrollment's
+            // very first step (currentStepOrder starts at 0) or recover a run that failed to get
+            // created after a previous step completed. Every other transition already has its
+            // SequenceStepRun pre-created by scheduleNextStep()/resolveNextStep() via the real
+            // edge graph, so this candidate is only used when no run exists yet at all.
             const step = enrollment.sequence?.steps?.find((candidate: any) => candidate.stepOrder > enrollment.currentStepOrder);
             if (!step) {
                 await client.sequenceEnrollment.update({
@@ -580,21 +586,46 @@ export class SequenceService {
         });
     }
 
-    private static async scheduleNextStep(run: any, now: Date) {
+    // Follows this sequence's SequenceEdge graph from currentStep to find what runs next.
+    // `handle` ("yes"/"no") only applies right after a CONDITION step; every other step type
+    // (and a condition outcome with no matching branch configured) uses the "default" edge.
+    // A sequence with zero edges at all falls back to legacy stepOrder traversal, so
+    // pre-existing sequences keep running unchanged until someone authors real edges for them.
+    private static async resolveNextStep(sequenceId: string, currentStep: any, handle?: "yes" | "no") {
+        const client = db();
+        const hasAnyEdges = (await client.sequenceEdge.count({ where: { sequenceId } })) > 0;
+        if (!hasAnyEdges) {
+            return client.sequenceStep.findFirst({
+                where: { sequenceId, status: "ACTIVE", stepOrder: { gt: currentStep.stepOrder } },
+                orderBy: { stepOrder: "asc" },
+            });
+        }
+
+        let fromStepId = currentStep.id;
+        let preferredHandle = handle;
+        for (let hop = 0; hop < 50; hop++) {
+            const edge =
+                (preferredHandle && await client.sequenceEdge.findFirst({ where: { sourceStepId: fromStepId, sourceHandle: preferredHandle } })) ||
+                (await client.sequenceEdge.findFirst({ where: { sourceStepId: fromStepId, sourceHandle: "default" } }));
+            if (!edge) return null;
+            const step = await client.sequenceStep.findUnique({ where: { id: edge.targetStepId } });
+            if (!step) return null;
+            if (step.status === "ACTIVE") return step;
+            // Target step has been deactivated - skip transparently to whatever follows it.
+            fromStepId = step.id;
+            preferredHandle = undefined;
+        }
+        return null;
+    }
+
+    private static async scheduleNextStep(run: any, now: Date, handle?: "yes" | "no") {
         const client = db();
         const enrollment = run.enrollment || await client.sequenceEnrollment.findUnique({
             where: { id: run.enrollmentId },
             include: { sequence: true },
         });
         const currentStep = run.step || await client.sequenceStep.findUnique({ where: { id: run.sequenceStepId } });
-        const nextStep = await client.sequenceStep.findFirst({
-            where: {
-                sequenceId: enrollment.sequenceId,
-                status: "ACTIVE",
-                stepOrder: { gt: currentStep.stepOrder },
-            },
-            orderBy: { stepOrder: "asc" },
-        });
+        const nextStep = await this.resolveNextStep(enrollment.sequenceId, currentStep, handle);
 
         if (!nextStep) {
             await client.sequenceEnrollment.update({

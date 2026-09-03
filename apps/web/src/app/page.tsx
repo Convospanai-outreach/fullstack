@@ -3,9 +3,12 @@ import { NavBar } from "@/components/NavBar";
 import Footer from "@/components/Footer";
 
 export const metadata = {
-  title: "CraftMyFunnel — Fluid Funnel Engine",
+  title: "CraftMyFunnel AI — Fluid Funnel Engine",
   description:
-    "CraftMyFunnel turns live buyer signals into governed outreach, structured human follow-up, sovereign processing, and qualified revenue.",
+    "CraftMyFunnel AI turns live buyer signals into governed outreach, structured human follow-up, sovereign processing, and qualified revenue.",
+  alternates: {
+    canonical: "https://craftmyfunnel.live",
+  },
 };
 
 export default function Home() {

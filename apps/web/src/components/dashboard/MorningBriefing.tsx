@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Sun, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export function MorningBriefing() {
     const [greeting, setGreeting] = useState("");
@@ -18,7 +19,7 @@ export function MorningBriefing() {
 
         const fetchBriefing = async () => {
             try {
-                const res = await fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + '/dashboard/briefing');
+                const res = await fetch(getBrowserApiBase() + '/dashboard/briefing');
                 const data = await res.json();
                 
                 const fullText = data.narrative || `Your AI agents have been busy. ${data.activeCampaigns} campaigns are currently active with a ${data.improvement}% higher engagement rate than yesterday. Suggested focus: Review the '${data.campaignName}' outreach - ${data.pendingApprovals} replies need your approval.`;
@@ -44,32 +45,32 @@ export function MorningBriefing() {
     }, []);
 
     return (
-        <motion.div 
+        <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass-premium p-10 rounded-[3rem] group relative overflow-hidden"
+            className="bg-primary/[0.04] border border-primary/15 p-10 rounded-[3rem] group relative overflow-hidden"
         >
             {/* Animated Gradient Background */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-30 pointer-events-none">
-                <motion.div 
-                    animate={{ 
+            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                <motion.div
+                    animate={{
                         scale: [1, 1.2, 1],
                         rotate: [0, 90, 0],
                         x: [-20, 20, -20],
                         y: [-20, 20, -20]
                     }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] bg-indigo-500/20 rounded-full blur-[120px]" 
+                    className="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] bg-indigo-500 rounded-full blur-[120px]"
                 />
-                <motion.div 
-                    animate={{ 
+                <motion.div
+                    animate={{
                         scale: [1.2, 1, 1.2],
                         rotate: [90, 0, 90],
                         x: [20, -20, 20],
                         y: [20, -20, 20]
                     }}
                     transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                    className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-purple-500/10 rounded-full blur-[120px]" 
+                    className="absolute -bottom-[20%] -left-[10%] w-[60%] h-[60%] bg-purple-500 rounded-full blur-[120px]"
                 />
             </div>
 
@@ -77,34 +78,34 @@ export function MorningBriefing() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
                         <div className="flex h-3 w-3 rounded-full bg-emerald-500 animate-[pulse_2s_infinite]" />
-                        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]">AI Sync Active</span>
+                        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-emerald-600">AI Sync Active</span>
                     </div>
-                    <div className="p-3 rounded-2xl bg-white/5 border border-white/5 opacity-40 group-hover:opacity-100 transition-opacity">
-                        <Sun className="w-6 h-6 text-indigo-300" />
+                    <div className="p-3 rounded-2xl bg-background border border-border opacity-60 group-hover:opacity-100 transition-opacity">
+                        <Sun className="w-6 h-6 text-indigo-600" />
                     </div>
                 </div>
 
-                <h2 className="text-5xl font-black text-white mb-6 tracking-tight font-outfit leading-tight">
+                <h2 className="text-5xl font-black text-foreground mb-6 tracking-tight font-outfit leading-tight">
                     {greeting}
                 </h2>
-                
+
                 <div className="relative">
-                    <p className="text-slate-300 max-w-2xl leading-relaxed text-xl font-medium min-h-[5rem]">
+                    <p className="text-muted-foreground max-w-2xl leading-relaxed text-xl font-medium min-h-[5rem]">
                         {briefing}
-                        <motion.span 
+                        <motion.span
                             animate={{ opacity: [1, 0, 1] }}
                             transition={{ repeat: Infinity, duration: 1 }}
-                            className="inline-block w-2 h-6 bg-indigo-500 ml-2 translate-y-1 rounded-sm" 
+                            className="inline-block w-2 h-6 bg-indigo-500 ml-2 translate-y-1 rounded-sm"
                         />
                     </p>
                 </div>
 
                 <div className="mt-12 flex items-center gap-8">
-                    <Button className="bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 hover:shadow-2xl hover:shadow-indigo-500/20 px-8 py-7 rounded-[1.5rem] font-bold transition-all active:scale-95 flex items-center gap-3 border-none ring-1 ring-white/10">
+                    <Button className="bg-indigo-600 hover:bg-indigo-500 text-white hover:scale-105 hover:shadow-lg hover:shadow-indigo-500/20 px-8 py-7 rounded-[1.5rem] font-bold transition-all active:scale-95 flex items-center gap-3 border-none">
                         <CheckCircle2 className="w-5 h-5" />
                         Execute Recommendations
                     </Button>
-                    <button className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 hover:text-white transition-all transform hover:translate-x-1">
+                    <button className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground hover:text-foreground transition-all transform hover:translate-x-1">
                         Dismiss Intelligence
                     </button>
                 </div>

@@ -1,0 +1,9 @@
+# Grey-cloud mautic.<domain> in Cloudflare during initial cert issuance (Phase 0
+# decision in TODO_MAUTIC_TWENTY_INTEGRATION.md) - HTTP-01 needs the origin
+# directly reachable, which a bare caddy:2 image (no Cloudflare DNS module) can't
+# do through an orange-clouded/proxied record. Switch back to orange-cloud once
+# certs are issued and renewing on schedule.
+
+mautic.example.com {
+	reverse_proxy mautic-web:80
+}

@@ -1,23 +1,31 @@
 import { NextResponse } from "next/server";
 import { DbFactory } from "@/lib/dbFactory";
 import { IdentityService } from "@/lib/identity/IdentityService";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { teamId } = await getCurrentContextFromRequest(req);
+        if (!teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { id } = await params;
         const prisma = DbFactory.getClient('GLOBAL'); // Start with Global
 
-        // 1. Try finding a Lead first (Standard Flow)
-        let lead = await prisma.lead.findUnique({
-            where: { id },
+        // 1. Try finding a Lead first (Standard Flow) - scoped by the caller's own
+        // teamId, not just id, so a guessed/enumerated id from another team can't
+        // be used to de-mask that team's PII through this endpoint.
+        let lead = await prisma.lead.findFirst({
+            where: { id, teamId },
             select: { id: true, regionId: true, email: true, phone: true }
         });
 
         // Check UAE if not found globally
         if (!lead && process.env['UAE_DATABASE_URL']) {
             const uaeClient = DbFactory.getClient('UAE');
-            lead = await uaeClient.lead.findUnique({
-                where: { id },
+            lead = await uaeClient.lead.findFirst({
+                where: { id, teamId },
                 select: { id: true, regionId: true, email: true, phone: true }
             });
         }
@@ -43,11 +51,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
             });
         }
 
-        // 2. Fallback: Try Finding a ScrapingJob (Draft Flow)
-        let job = await prisma.scrapingJob.findUnique({ where: { id } });
+        // 2. Fallback: Try Finding a ScrapingJob (Draft Flow) - same team scoping.
+        let job = await prisma.scrapingJob.findFirst({ where: { id, teamId } });
         if (!job && process.env['UAE_DATABASE_URL']) {
             const uaeClient = DbFactory.getClient('UAE');
-            job = await uaeClient.scrapingJob.findUnique({ where: { id } });
+            job = await uaeClient.scrapingJob.findFirst({ where: { id, teamId } });
         }
 
         if (job) {

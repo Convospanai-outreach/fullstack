@@ -28,7 +28,7 @@ export class MailProviderError extends Error {
 }
 
 export interface MailProvider {
-  readonly providerKey: "GOOGLE_WORKSPACE" | "MICROSOFT_365" | "SMTP";
+  readonly providerKey: "GOOGLE_WORKSPACE" | "MICROSOFT_365" | "SMTP" | "RESEND";
 
   verifyConnection(mailbox: any): Promise<{ ok: boolean; error?: string }>;
   send(mailbox: any, input: SendEmailInput): Promise<SendEmailResult>;

@@ -5,6 +5,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
     title: "CraftMyFunnel vs Instantly | Governed Outreach vs Cold Email Blaster",
     description: "Compare CraftMyFunnel and Instantly.ai. Learn why revenue teams and B2B service firms switch from volume mass-sending to CraftMyFunnel's governed AI workflows with human approval gates.",
+    alternates: {
+        canonical: "https://craftmyfunnel.live/vs/instantly",
+    },
     openGraph: {
         title: "CraftMyFunnel vs Instantly: Governed AI Outreach vs High-Volume Blaster",
         description: "Compare CraftMyFunnel with Instantly. Prioritize domain reputation, human review queues, and enterprise data security over mass spam.",
@@ -59,22 +62,49 @@ const FEATURE_ROWS = [
 export default function InstantlyComparisonPage() {
     const jsonLd = {
         "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": "CraftMyFunnel vs Instantly: Why Governed Outbound Beats Mass Blasting",
-        "description": "Comparing CraftMyFunnel and Instantly.ai on AI personalization quality, human approval workflows, and deliverability protection.",
-        "author": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel"
-        },
-        "publisher": {
-            "@type": "Organization",
-            "name": "CraftMyFunnel",
-            "logo": {
-                "@type": "ImageObject",
-                "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+        "@graph": [
+            {
+                "@type": "BreadcrumbList",
+                "itemListElement": [
+                    {
+                        "@type": "ListItem",
+                        "position": 1,
+                        "name": "Home",
+                        "item": "https://craftmyfunnel.live"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 2,
+                        "name": "Product Comparisons",
+                        "item": "https://craftmyfunnel.live/vs"
+                    },
+                    {
+                        "@type": "ListItem",
+                        "position": 3,
+                        "name": "CraftMyFunnel vs Instantly",
+                        "item": "https://craftmyfunnel.live/vs/instantly"
+                    }
+                ]
+            },
+            {
+                "@type": "Article",
+                "headline": "CraftMyFunnel vs Instantly: Why Governed Outbound Beats Mass Blasting",
+                "description": "Comparing CraftMyFunnel and Instantly.ai on AI personalization quality, human approval workflows, and deliverability protection.",
+                "author": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel"
+                },
+                "publisher": {
+                    "@type": "Organization",
+                    "name": "CraftMyFunnel",
+                    "logo": {
+                        "@type": "ImageObject",
+                        "url": "https://craftmyfunnel.live/craftmyfunnel-logo.png"
+                    }
+                },
+                "mainEntityOfPage": "https://craftmyfunnel.live/vs/instantly"
             }
-        },
-        "mainEntityOfPage": "https://craftmyfunnel.live/vs/instantly"
+        ]
     };
 
     return (

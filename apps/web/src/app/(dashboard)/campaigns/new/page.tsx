@@ -49,27 +49,27 @@ export default function NewCampaignPage() {
         <div className="max-w-2xl mx-auto py-8 space-y-6">
             <Link
                 href="/campaigns"
-                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-400 hover:text-white transition"
+                className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition"
             >
                 <ArrowLeft className="w-4 h-4" /> Back to Campaigns
             </Link>
 
-            <div className="glass-card p-6">
+            <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
                 <div className="flex items-center gap-3 mb-6">
-                    <div className="p-2 bg-accent-blue/10 rounded-lg text-accent-blue">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
                         <Megaphone className="w-5 h-5" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-white">Create Outreach Campaign</h2>
-                        <p className="text-xs text-text-secondary mt-1">
+                        <h2 className="text-xl font-bold text-foreground">Create Outreach Campaign</h2>
+                        <p className="text-xs text-muted-foreground mt-1">
                             Create a new campaign workflow to organize leads, copy, and human approvals.
                         </p>
                     </div>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                                Campaign Name <span className="text-rose-400">*</span>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Campaign Name <span className="text-destructive">*</span>
                             </label>
                             <input
                                 type="text"
@@ -77,30 +77,30 @@ export default function NewCampaignPage() {
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g. Q3 B2B SaaS Founders - Email Sequence"
-                                className="w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30"
+                                className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
                             />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-400 mb-2">
-                                Description / Objective <span className="text-slate-500">(Optional)</span>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Description / Objective <span className="text-muted-foreground">(Optional)</span>
                             </label>
                             <textarea
                                 rows={3}
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                                 placeholder="Target audience, value proposition summary, or key campaign goals..."
-                                className="w-full rounded-lg border border-white/10 bg-slate-900 px-4 py-2.5 text-sm text-white outline-none transition focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30"
+                                className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
                             />
                         </div>
 
-                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-white/10">
+                        <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
                             <Link href="/campaigns">
-                                <Button type="button" variant="ghost" className="text-slate-400 hover:text-white">
+                                <Button type="button" variant="ghost" className="text-muted-foreground hover:text-foreground">
                                     Cancel
                                 </Button>
                             </Link>
-                            <Button type="submit" disabled={submitting} className="bg-accent-blue hover:bg-accent-blue/90 text-white font-semibold">
+                            <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 text-white font-semibold">
                                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 Create Campaign
                             </Button>

@@ -1,4 +1,5 @@
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+import { getBrowserApiBase } from "@/lib/api/browserBase";
+const API_URL = getBrowserApiBase();
 
 export interface TrainingPipelineConfig {
     baseModel?: string;

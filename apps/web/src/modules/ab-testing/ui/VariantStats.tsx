@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 export default function VariantStats() {
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/ab-testing/track")
+        fetch(getBrowserApiBase() + "/ab-testing/track")
             .then(res => res.json())
             .then(json => {
                 if (json.ok) setStats(json.stats);

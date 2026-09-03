@@ -60,10 +60,7 @@ export default async function CampaignsPage({
     return (
         <div className="space-y-6 max-w-6xl mx-auto pb-12">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <SectionHeader
-                    title="Outreach Campaigns"
-                    subtitle="Deploy customer outreach sequences, monitor execution telemetry, and manage automated workflow configurations."
-                />
+                <SectionHeader title="Campaigns" />
 
                 <div className="flex items-center gap-3">
                     <ExportButton type="campaigns" />
@@ -77,7 +74,7 @@ export default async function CampaignsPage({
                 </div>
             </div>
 
-            <form className="glass-card p-4 flex flex-col md:flex-row gap-3">
+            <form className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 flex flex-col md:flex-row gap-3">
                 <div className="flex-1 relative">
                     <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <input
@@ -110,11 +107,11 @@ export default async function CampaignsPage({
             </form>
 
             {unauthorized ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-white/10 glass">
+                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">Sign In Required</h3>
                 </div>
             ) : campaigns.length === 0 ? (
-                <div className="text-center py-16 rounded-lg border border-dashed border-white/10 glass flex flex-col items-center justify-center">
+                <div className="text-center py-16 rounded-lg border border-dashed border-border bg-card flex flex-col items-center justify-center">
                     <Megaphone className="w-10 h-10 text-muted-foreground mb-4 stroke-[1.5]" />
                     <h3 className="text-sm font-semibold text-foreground tracking-wide">No Campaigns Found</h3>
                     <p className="text-xs text-muted-foreground mt-1 max-w-sm font-sans leading-relaxed">
@@ -132,7 +129,7 @@ export default async function CampaignsPage({
                         return (
                             <div
                                 key={campaign.id}
-                                className="relative flex flex-col justify-between p-6 glass-card hover:border-primary/50 transition-all duration-200 group min-h-56"
+                                className="relative flex flex-col justify-between p-6 rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-all duration-200 group min-h-56"
                             >
                                 <div>
                                     <div className="flex justify-between items-center gap-2 mb-4">
@@ -150,39 +147,39 @@ export default async function CampaignsPage({
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors truncate">
+                                        <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors truncate">
                                             {campaign.name}
                                         </h3>
-                                        <p className="text-xs text-slate-400 font-sans line-clamp-2 leading-relaxed min-h-[36px]">
+                                        <p className="text-xs text-muted-foreground font-sans line-clamp-2 leading-relaxed min-h-[36px]">
                                             {campaign.description || "No description configured."}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="mt-6 pt-4 border-t border-white/5 space-y-4">
+                                <div className="mt-6 pt-4 border-t border-border space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-0.5">
-                                            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Target Size</span>
-                                            <div className="text-base font-bold text-slate-200">{leadCount}</div>
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Target Size</span>
+                                            <div className="text-base font-bold text-foreground">{leadCount}</div>
                                         </div>
                                         <div className="space-y-0.5">
-                                            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Processed</span>
-                                            <div className="text-base font-bold text-slate-200">{completedCount}</div>
+                                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Processed</span>
+                                            <div className="text-base font-bold text-foreground">{completedCount}</div>
                                         </div>
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <div className="flex justify-between text-[10px] text-slate-400 font-semibold uppercase tracking-wider">
+                                        <div className="flex justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
                                             <span>Pipeline Completion</span>
-                                            <span className="text-indigo-400">{completionRate}%</span>
+                                            <span className="text-primary">{completionRate}%</span>
                                         </div>
-                                        <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
-                                            <div className="h-full bg-gradient-to-r from-indigo-500 to-blue-400 rounded-full transition-all duration-500" style={{ width: `${completionRate}%` }} />
+                                        <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                                            <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${completionRate}%` }} />
                                         </div>
                                     </div>
 
                                     <Link href={`/campaigns/${campaign.id}`}>
-                                        <button className="w-full h-9 flex items-center justify-center text-xs font-semibold rounded-xl border border-slate-700 bg-slate-800/60 text-slate-200 hover:text-white hover:bg-slate-700 hover:border-slate-600 transition-all">
+                                        <button className="w-full h-9 flex items-center justify-center text-xs font-semibold rounded-md border border-input text-foreground hover:bg-accent hover:text-accent-foreground transition-colors">
                                             View / Edit Campaign
                                         </button>
                                     </Link>

@@ -32,3 +32,18 @@ export const aiLimiter = rateLimit({
     interval: 60 * 1000, // 1 minute
     uniqueTokenPerInterval: 500
 });
+
+// Swarm launches spawn up to 30 concurrent agent_run jobs (one LLM call each) per request,
+// far more expensive than a single aiLimiter-gated call - keyed by team, since the cost lands
+// on the team's shared AI budget regardless of which member triggers it.
+export const swarmLimiter = rateLimit({
+    interval: 60 * 1000, // 1 minute
+    uniqueTokenPerInterval: 500
+});
+
+// CSV import processes rows sequentially (a findFirst + create/update per row), so a
+// large file can tie up a request for a long time - keyed by team, limit: 3 imports/min.
+export const csvImportLimiter = rateLimit({
+    interval: 60 * 1000, // 1 minute
+    uniqueTokenPerInterval: 500
+});

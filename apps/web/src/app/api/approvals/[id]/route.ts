@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { authorizePermission, Permission } from "@/lib/permissions";
 import { handleEmailSending } from "@/workers/handlers/email-sending-worker";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export async function POST(
         if (!ctx.userId || !ctx.teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
+        await authorizePermission(ctx.userId, ctx.teamId, Permission.RESOLVE_APPROVALS);
 
         const { id } = await params;
         const body = await req.json().catch(() => ({}));
@@ -121,6 +123,6 @@ export async function POST(
         return NextResponse.json({ success: true, approval: updated, sendResult });
     } catch (error: any) {
         console.error("Failed to process approval:", error);
-        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: 500 });
+        return NextResponse.json({ error: error?.message || "Internal Server Error" }, { status: error?.statusCode || 500 });
     }
 }

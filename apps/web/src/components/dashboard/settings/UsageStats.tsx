@@ -6,6 +6,7 @@ import { Card, CardContent, CardTitle, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/Progress";
 import Link from "next/link";
 import { Zap, Database, TrendingUp, PlusCircle } from "lucide-react";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 interface UsageData {
     credits: number;
@@ -35,7 +36,7 @@ export function UsageStats() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch((process.env['NEXT_PUBLIC_API_URL'] || "/api/proxy") + "/usage")
+        fetch(getBrowserApiBase() + "/usage")
             .then((res) => res.json())
             .then((json) => {
                 setData(normalizeUsage(json?.usage));
@@ -45,7 +46,7 @@ export function UsageStats() {
     }, []);
 
     if (loading) {
-        return <div className="p-4 text-sm text-white/50">Loading usage stats...</div>;
+        return <div className="p-4 text-sm text-muted-foreground">Loading usage stats...</div>;
     }
 
     const percentUsed = Math.min((data.currentSpend / data.monthlyLimit) * 100, 100);
@@ -68,8 +69,8 @@ export function UsageStats() {
                 <CardContent>
                     <div className="flex items-center justify-between">
                         <div>
-                            <div className="text-2xl font-bold text-white">{data.credits.toLocaleString()}</div>
-                            <p className="text-xs text-text-secondary mt-1">
+                            <div className="text-2xl font-bold text-foreground">{data.credits.toLocaleString()}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
                                 {lowCredits ? "Low balance - optimization active" : "Sufficient for execution"}
                             </p>
                         </div>
@@ -85,13 +86,13 @@ export function UsageStats() {
                 </CardHeader>
                 <CardContent>
                     <div className="flex items-center justify-between mb-2">
-                        <div className="text-2xl font-bold text-white">
-                            {data.currentSpend.toLocaleString()} <span className="text-sm font-normal text-gray-500">/ {data.monthlyLimit.toLocaleString()}</span>
+                        <div className="text-2xl font-bold text-foreground">
+                            {data.currentSpend.toLocaleString()} <span className="text-sm font-normal text-muted-foreground">/ {data.monthlyLimit.toLocaleString()}</span>
                         </div>
-                        <Database className="h-5 w-5 text-gray-500" />
+                        <Database className="h-5 w-5 text-muted-foreground" />
                     </div>
                     <Progress value={percentUsed} className="mt-2 h-2" />
-                    <p className="text-xs text-text-secondary mt-2">
+                    <p className="text-xs text-muted-foreground mt-2">
                         {percentUsed.toFixed(0)}% used
                     </p>
                 </CardContent>
@@ -105,8 +106,8 @@ export function UsageStats() {
                 <CardContent>
                     <div className="flex items-center justify-between">
                         <div>
-                            <div className="text-2xl font-bold text-white">Active</div>
-                            <p className="text-xs text-text-secondary mt-1">
+                            <div className="text-2xl font-bold text-foreground">Active</div>
+                            <p className="text-xs text-muted-foreground mt-1">
                                 Semantic Cache is enabled
                             </p>
                         </div>

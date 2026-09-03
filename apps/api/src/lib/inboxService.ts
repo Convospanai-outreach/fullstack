@@ -117,7 +117,10 @@ export class InboxService {
     }
 
     // Save a draft message (upsert if draft already exists? simpler to just create new for now, or update last draft)
-    static async saveDraft(leadId: string, content: string, sender: string) {
+    static async saveDraft(leadId: string, content: string, sender: string, teamId: string) {
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+        if (!lead) throw new Error("LEAD_NOT_FOUND");
+
         // Check if there is an existing draft for this lead?
         // For simplicity, we'll assume one draft per lead for now
         const existingDraft = await prisma.message.findFirst({
@@ -149,13 +152,22 @@ export class InboxService {
         }
     }
 
-    static async discardDraft(draftId: string) {
+    static async discardDraft(draftId: string, teamId: string) {
+        const draft = await prisma.message.findFirst({
+            where: { id: draftId, status: 'draft', lead: { teamId } },
+            select: { id: true }
+        });
+        if (!draft) throw new Error("DRAFT_NOT_FOUND");
+
         return await prisma.message.delete({
             where: { id: draftId }
         });
     }
 
-    static async sendMessage(leadId: string, content: string, sender: string) {
+    static async sendMessage(leadId: string, content: string, sender: string, teamId: string) {
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+        if (!lead) throw new Error("LEAD_NOT_FOUND");
+
         // 1. Create the message record
         const message = await prisma.message.create({
             data: {

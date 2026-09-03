@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
 import { UserRole } from "@/types/prisma-safe";
 import { findValidInvitation, isAssignableInviteRole } from "@/lib/invitations";
+import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 
 type AppUserWithMemberships = {
     id: string;
@@ -37,11 +38,23 @@ export async function findOrCreateClerkAppUser(): Promise<AppUserWithMemberships
         where: { clerkUserId },
         include: { memberships: true }
     }) as AppUserWithMemberships | null;
-    if (existingByClerk) return existingByClerk;
+    if (existingByClerk) {
+        // OPEN-113: re-checked on every call (not cached on the session) so a
+        // domain having SSO enforcement turned on takes effect immediately for
+        // already-signed-in Clerk sessions too, not just new sign-ins.
+        if (existingByClerk.email && (await isSsoEnforcedForEmail(existingByClerk.email))) {
+            return null;
+        }
+        return existingByClerk;
+    }
 
     const clerkUser = await currentUser();
     const email = primaryEmail(clerkUser);
     if (!email) return null;
+
+    if (await isSsoEnforcedForEmail(email)) {
+        return null;
+    }
 
     const inviteToken = clerkUser?.unsafeMetadata?.["inviteToken"];
 
@@ -137,11 +150,18 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                     data: { userId: user.id, status: "active" }
                 });
             } else {
-                const teamRole = pendingInvitation.role === UserRole.ORG_ADMIN
-                    ? "admin"
-                    : pendingInvitation.role === UserRole.VIEWER
-                        ? "viewer"
-                        : "member";
+                // inviteRequestId is only ever set on a founder invite created by the
+                // admin/invites "approve-request" action (a brand-new team made just for
+                // this requester) - never on an ordinary teammate invite into an existing
+                // team, so it's a safe signal to grant "owner" here instead of falling
+                // through to the normal role mapping below.
+                const teamRole = pendingInvitation.inviteRequestId
+                    ? "owner"
+                    : pendingInvitation.role === UserRole.ORG_ADMIN
+                        ? "admin"
+                        : pendingInvitation.role === UserRole.VIEWER
+                            ? "viewer"
+                            : "member";
                 await tx.teamMember.create({
                     data: { teamId: pendingInvitation.teamId, userId: user.id, email, role: teamRole, status: "active" }
                 });
@@ -192,7 +212,14 @@ export async function syncClerkUserToApp(input: { clerkUserId: string; email: st
                     create: {
                         userId: user.id,
                         email,
-                        role: "admin",
+                        // This branch creates a brand-new team for its founding member -
+                        // that member must be "owner" (permissions.ts), not "admin", or
+                        // the team permanently has no owner: MANAGE_BILLING is owner-only,
+                        // getSubscriptionStatus() looks up role:"owner" to find who to bill,
+                        // and PATCH /team/members/[id] requires the actor to already be
+                        // OWNER before granting ADMIN/OWNER to anyone - so an "admin"
+                        // founder could never even self-promote to fix this after the fact.
+                        role: "owner",
                         status: "active"
                     }
                 }

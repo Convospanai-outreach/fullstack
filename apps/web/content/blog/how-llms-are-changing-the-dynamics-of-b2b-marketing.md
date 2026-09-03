@@ -1,7 +1,7 @@
 ---
 title: "How LLMs Are Changing the Dynamics of B2B Marketing"
 description: "B2B marketing is undergoing a fundamental transformation. Discover how Large Language Models (LLMs) are moving marketing from static campaigns to real-time, 1-to-1 personalization."
-date: "2026-08-23T07:30:00.000Z"
+date: "2026-05-16T00:09:13.846Z"
 ---
 
 For the last decade, B2B marketing has been defined by the "funnel." Marketers cast a wide net with SEO and paid ads, capture leads with gated content, and slowly nurture them with automated email sequences until they are "qualified" for sales. 

@@ -113,4 +113,31 @@ describe("/billing/topup", () => {
         expect(response.status).toBe(400);
         expect(mockCreateTopUpOrder).not.toHaveBeenCalled();
     });
+
+    it("does not persist the billing address when order creation fails", async () => {
+        mockCreateTopUpOrder.mockRejectedValue(new Error("Razorpay unavailable"));
+
+        const { POST } = await import("./route");
+        const response = await POST(jsonRequest({ tierId: "starter", country: "IN", state: "Karnataka" }) as any);
+
+        expect(response.status).toBe(500);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+
+    it("persists the billing address only after the order is successfully created", async () => {
+        const calls: string[] = [];
+        mockCreateTopUpOrder.mockImplementation(async () => {
+            calls.push("createTopUpOrder");
+            return { id: "order_1", amount: 59000, currency: "INR" };
+        });
+        mockPrisma.team.update.mockImplementation(async () => {
+            calls.push("team.update");
+            return {};
+        });
+
+        const { POST } = await import("./route");
+        await POST(jsonRequest({ tierId: "starter", country: "IN", state: "Karnataka" }) as any);
+
+        expect(calls).toEqual(["createTopUpOrder", "team.update"]);
+    });
 });

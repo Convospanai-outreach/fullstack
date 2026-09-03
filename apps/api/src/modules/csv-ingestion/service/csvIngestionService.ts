@@ -7,6 +7,10 @@ export interface ConsentAttestation {
     hasConsent: boolean;
 }
 
+// Rows are processed sequentially (a findFirst + create/update per row) - an unbounded
+// CSV would tie up the request/worker indefinitely.
+const MAX_ROWS = 5000;
+
 export interface CSVRow {
     email: string;
     fullName?: string;
@@ -55,6 +59,30 @@ class CSVIngestionService {
                     created: 0,
                     skipped: 0,
                     errors: parsed.errors.map(e => ({ message: e.message })),
+                    totalParsed: 0,
+                    inserted: 0
+                };
+            }
+
+            // campaignId is caller-supplied - verify it actually belongs to this team
+            // before linking any imported lead to it, or a caller could attach their
+            // leads to (and pollute the stats of) another tenant's campaign.
+            if (campaignId) {
+                const campaign = await prisma.campaign.findFirst({
+                    where: { id: campaignId, teamId: teamId || undefined },
+                    select: { id: true },
+                });
+                if (!campaign) {
+                    campaignId = undefined;
+                }
+            }
+
+            if ((parsed.data as unknown[]).length > MAX_ROWS) {
+                return {
+                    success: false,
+                    created: 0,
+                    skipped: 0,
+                    errors: [{ message: `CSV has too many rows (${(parsed.data as unknown[]).length}). Maximum is ${MAX_ROWS} - split the file and import in batches.` }],
                     totalParsed: 0,
                     inserted: 0
                 };

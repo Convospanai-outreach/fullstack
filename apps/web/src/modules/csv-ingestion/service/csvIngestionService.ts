@@ -1,11 +1,11 @@
+import { getBrowserApiBase } from "@/lib/api/browserBase";
 function getApiBaseUrl(): string {
     if (typeof window !== "undefined") {
         return "/api/proxy";
     }
     return (
         process.env['API_INTERNAL_ORIGIN'] ||
-        process.env['NEXT_PUBLIC_API_URL'] ||
-        "http://127.0.0.1:3001"
+        getBrowserApiBase()
     );
 }
 
