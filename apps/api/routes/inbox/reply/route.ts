@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: reason, action: "block" }, { status: 403 });
         }
 
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
+        if (!lead) {
+            return new NextResponse("Lead not found", { status: 404 });
+        }
+
         // 1. Save Message to DB
         const message = await prisma.message.create({
             data: {
@@ -45,10 +50,7 @@ export async function POST(req: NextRequest) {
 
         // 2. Queue Job to actually send it via Browser/Email
         if (platform === "LINKEDIN") {
-            // Retrieve Lead to get URL
-            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-
-            if (lead?.linkedIn) {
+            if (lead.linkedIn) {
                 await JobQueue.enqueue("LINKEDIN_ACTION", {
                     action: "SEND_MESSAGE", // We need to implement this in handler
                     profileUrl: lead.linkedIn,

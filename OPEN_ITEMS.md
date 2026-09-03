@@ -719,6 +719,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (pre-existing unrelated `services/browser/browser-engine.ts` error
   only).
 
+- **OPEN-139 (Fixed):** cross-tenant IDOR (read + write) across the
+  inbox draft/reply flow — `apps/api/routes/inbox/drafts/route.ts`
+  (`POST`/`DELETE`), `apps/api/routes/inbox/reply/route.ts` (`POST`),
+  and their shared `apps/api/src/lib/inboxService.ts` (plus the dormant
+  byte-identical `apps/web/src/lib/inboxService.ts` duplicate). `Message`
+  has no `teamId` column — the only tenant boundary is via
+  `Message.leadId -> Lead.teamId`. `drafts/route.ts` called
+  `getCurrentContext()` but never even read `teamId`, only `userId`;
+  `saveDraft(leadId, ...)` and `discardDraft(draftId)` never checked lead
+  ownership at all. `discardDraft` was the worst case: a bare
+  `prisma.message.delete({ where: { id: draftId } })` with **no
+  precondition whatsoever** — not even the usual unscoped-pre-check
+  pattern — letting any authenticated user delete *any* `Message` row in
+  the system (draft, sent, or received, any team) by ID. `saveDraft` let
+  an attacker inject a fabricated draft into another team's lead thread.
+  Separately, `reply/route.ts` *did* have `teamId` in scope (via
+  `getCurrentContextFromRequest`) but never used it before
+  `prisma.message.create({ data: { leadId, ... } })`, and its LinkedIn
+  branch did `prisma.lead.findUnique({ where: { id: leadId } })` with no
+  `teamId` filter — letting an attacker inject a message into another
+  team's lead thread and trigger a real outbound `LINKEDIN_ACTION` send
+  job to that lead's LinkedIn profile using the attacker's own
+  automation/teamId. Confirmed via the correct pattern next door in
+  `routes/inbox/[id]/suggest/route.ts` (`findFirst({ where: { id,
+  teamId } })` before `InboxService.getMessages`), proving these two
+  routes were the outliers. Fixed by threading `teamId` through
+  `saveDraft`/`discardDraft`/`sendMessage` in both `inboxService.ts`
+  copies — `saveDraft`/`sendMessage` now verify
+  `prisma.lead.findFirst({ where: { id: leadId, teamId } })` up front
+  (throw `LEAD_NOT_FOUND`), `discardDraft` now does
+  `prisma.message.findFirst({ where: { id: draftId, status: 'draft',
+  lead: { teamId } } })` before deleting (throw `DRAFT_NOT_FOUND`) — and
+  by having `reply/route.ts` verify `prisma.lead.findFirst({ where: {
+  id: leadId, teamId } })` before creating the message or touching
+  `lead.linkedIn`. Both route handlers now map the "not found" errors to
+  404. Added `inboxService.test.ts` (5 tests),
+  `routes/inbox/drafts/route.test.ts` (5 tests), and
+  `routes/inbox/reply/route.test.ts` (3 tests); all 860 apps/api tests
+  pass, `tsc --noEmit` clean in both apps (pre-existing unrelated
+  `services/browser/browser-engine.ts` error only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
