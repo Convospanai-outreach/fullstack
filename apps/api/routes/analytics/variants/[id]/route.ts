@@ -13,7 +13,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
         await authorizeRole(userId, teamId, TeamRole.VIEWER);
 
-        const stats = await analyticsService.getVariantComparison(id);
+        const stats = await analyticsService.getVariantComparison(id, teamId);
 
         return NextResponse.json(stats);
     } catch (error: any) {

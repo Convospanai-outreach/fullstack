@@ -129,7 +129,7 @@ describe("analyticsService", () => {
                 { id: "v2", subject: "B", sentCount: 0, openCount: 0, replyCount: 0 },
             ]);
 
-            const result = await analyticsService.getVariantComparison("campaign-1");
+            const result = await analyticsService.getVariantComparison("campaign-1", "team-1");
 
             expect(result[0]).toEqual({
                 id: "v1",
@@ -141,6 +141,16 @@ describe("analyticsService", () => {
                 replyRate: 10,
             });
             expect(result[1].openRate).toBe(0);
+        });
+
+        it("scopes the query by the caller's teamId via the campaign relation", async () => {
+            (prisma.campaignVariant.findMany as any).mockResolvedValue([]);
+
+            await analyticsService.getVariantComparison("campaign-1", "team-1");
+
+            expect(prisma.campaignVariant.findMany).toHaveBeenCalledWith({
+                where: { campaignId: "campaign-1", campaign: { teamId: "team-1" } },
+            });
         });
     });
 

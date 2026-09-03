@@ -1198,6 +1198,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `services/browser/browser-engine.ts` confirmed present on `origin/main`
   before this change).
 
+- **OPEN-152 (Fixed):** cross-tenant IDOR in `GET
+  /api/analytics/variants/[id]` — found via sibling-inconsistency hunting
+  across `apps/api/routes/analytics/**` and `campaigns/**`. The route
+  (`apps/api/routes/analytics/variants/[id]/route.ts`) authenticates the
+  caller and checks their own team role via `authorizeRole`, but then calls
+  `analyticsService.getVariantComparison(id)` where `id` is the
+  caller-supplied campaign id, never checked against the caller's `teamId`.
+  `analyticsService.ts`'s `getVariantComparison` did
+  `prisma.campaignVariant.findMany({ where: { campaignId } })` with no team
+  scoping at all. The sibling route
+  `apps/api/routes/campaigns/[id]/variants/route.ts` (`GET`, same
+  `CampaignVariant` model) correctly scopes the identical query via
+  `where: { campaignId, campaign: { teamId } }`. Any authenticated user of
+  any team could pass another team's campaign id and receive that team's
+  A/B test subject lines, body variants, and sent/open/reply counts. Fixed
+  by adding a `teamId` parameter to `getVariantComparison` and scoping the
+  `findMany` via the `campaign: { teamId }` relation filter, matching the
+  sibling's pattern; the route now passes its already-authenticated
+  `teamId` through. New test added to `analyticsService.test.ts` (asserts
+  the relation filter is applied) and a new `route.test.ts` for the route
+  (2 tests: unauthenticated caller rejected, `teamId` passed through to the
+  service). 901/901 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `services/browser/browser-engine.ts` failure noted
+  under OPEN-151).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
