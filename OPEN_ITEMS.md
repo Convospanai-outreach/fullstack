@@ -796,6 +796,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (pre-existing unrelated
   `services/browser/browser-engine.ts` error only).
 
+- **OPEN-141 (Fixed):** `apps/api/src/lib/db.ts` eagerly called
+  `createPrismaClient()` (which reads `DATABASE_URL` and throws if unset)
+  at module-import time — `export const prisma = globalForPrisma.prisma
+  ?? createPrismaClient();`. Found while surveying a stale local worktree
+  (`fix/security-api-key-issuance-auth-integration`, an already-merged
+  PR #110) that had left an uncommitted fix for this in place. Confirmed
+  it's a real, still-live latent bug on `main`: `apps/api/server.ts`
+  statically imports `@/lib/apiAuth` (line 11), which statically imports
+  `@/lib/db` — in ESM, a module's static imports (and their transitive
+  imports) are fully evaluated *before* the importing module's own
+  top-level code runs, so `db.ts`'s `createPrismaClient()` call executes
+  before `server.ts`'s own `dotenv.config()` calls (line 16) have had a
+  chance to populate `process.env.DATABASE_URL` from the `.env` file.
+  Only masked in production because `DATABASE_URL` happens to already be
+  a real OS-level environment variable there (Oracle VM), not solely a
+  dotenv-loaded one — any entry point relying on the `.env` file alone
+  would crash on boot with "DATABASE_URL is not set." Fixed by deferring
+  `createPrismaClient()` behind a `Proxy` so it only runs on first actual
+  property access, not at import time, preserving the exact existing
+  dev-only `globalForPrisma` caching behavior (prod still creates exactly
+  one client per process, dev still reuses one across hot-reloads).
+  Verified via a standalone Node smoke test: importing the module with
+  `DATABASE_URL` unset no longer throws; accessing a property on `prisma`
+  still throws the same clear error. All 865 apps/api tests pass,
+  `tsc --noEmit` clean (pre-existing unrelated
+  `services/browser/browser-engine.ts` error only). **Not brought in from
+  that stale worktree:** a `v1/agents` route comment + `apiAuth.ts`
+  throttle-policy entry documenting that `Agent` has no `teamId` column
+  (a known, explicitly-accepted multi-tenancy gap, not something to fix
+  as a side effect of this bug fix) — left as a separate, optional
+  follow-up if the user wants it recorded.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
