@@ -5,8 +5,8 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
-    if (!userId) {
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
+    if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -18,6 +18,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Jobs are matched by payload->campaignId (see below) rather than
+        // Job.teamId, which enqueuers don't reliably set - so verify the
+        // campaign itself belongs to the caller's team first. Without this, a
+        // guessed/enumerated campaignId from another team would leak that
+        // team's job timeline, including error messages and results.
+        const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId } });
+        if (!campaign) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
         // Fetch jobs related to this campaign
         // Note: We rely on payload->campaignId
         const jobs = await prisma.job.findMany({
