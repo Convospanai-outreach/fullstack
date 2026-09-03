@@ -828,6 +828,109 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   as a side effect of this bug fix) — left as a separate, optional
   follow-up if the user wants it recorded.
 
+- **OPEN-142 (Fixed):** unauthenticated, cross-tenant email-integration
+  takeover in `apps/web/src/app/api/integrations/{resend,smtp}/connect/route.ts`.
+  Neither `POST` handler called `getCurrentContext()` (there is no global
+  `middleware.ts` auth gate in `apps/web`, so routes must check auth
+  individually — every sibling route does, these two didn't), and instead of
+  scoping to the caller's team, they resolved the target team via
+  `prisma.team.findFirst({ select: { id: true } })` — an arbitrary
+  (effectively first-created) team unrelated to the request. Any
+  unauthenticated `POST` with a Resend API key or SMTP credentials the
+  attacker controls (their own key trivially passes the "verify it works"
+  check) would upsert a `ConnectedMailbox` row for that arbitrary team,
+  overwriting `encryptedAccessToken` (the send credential) and, for Resend,
+  `encryptedRefreshToken` (used as the webhook-signing secret in
+  `apps/web/src/app/api/webhooks/resend/route.ts`) with attacker-controlled
+  values — a full takeover of that tenant's outbound email pipeline (their
+  campaigns start sending through the attacker's account, and the attacker
+  can forge inbound webhook events that drive real lead-stage transitions).
+  The matching `.../resend/test/route.ts` and `.../smtp/test/route.ts` had
+  the same missing-auth gap; the SMTP one is additionally an unauthenticated
+  SSRF probe (arbitrary attacker-supplied `host`/`port`, no allowlist).
+  Fixed all four routes by adding the same `getCurrentContext()` check used
+  throughout the rest of `apps/web` (401 if no `userId`/`teamId`) and, for
+  the two `connect` routes, replacing `prisma.team.findFirst()` with the
+  caller's own `teamId` from context. Found via a dispatched investigation
+  of the newly-merged Mautic/Facebook-Lead-Ads/Cloudflare-landing-pages
+  integration work (commit b2e73c28) looking for the same auth-gap pattern
+  already found repeatedly this sweep. New tests added for all four routes
+  (`route.test.ts` alongside each) asserting the unauthenticated request is
+  rejected before any DB write / email send, and that a valid request is
+  correctly scoped to the caller's `teamId`. 351/351 apps/web tests pass
+  (8 new), `tsc --noEmit` clean.
+
+- **OPEN-143 (Fixed):** every published Cloudflare landing page 401'd for
+  every real visitor — a total, silent breakage of the headline feature from
+  the most recently merged commit (b2e73c28). `apps/api/server.ts`'s
+  `nextAdapter` Fastify bridge (the `publicPaths` allowlist, ~line 161) gates
+  every auto-loaded route behind a NextAuth token or internal-header check
+  unless its path matches an explicit public-path prefix or has an
+  `ApiKeyRoutePolicy` entry. The three public-visitor landing-page routes —
+  `apps/api/routes/landing-agent/public/[slug]/{page,lead,event}/route.ts`
+  (→ `getPublicPage`/`postPublicLead`/`postPublicEvent` in
+  `apps/api/src/modules/landing-agent/api/handlers.ts`) — are written for
+  anonymous visitors (resolved entirely by public `slug`, no
+  `getCurrentContextFromRequest` call) but were in neither list, so the gate
+  rejected every request with no session with a 401. `apps/web/src/app/p/
+  [slug]/page.tsx`'s server-side `fetchPublicPage()` calls
+  `/landing-agent/public/${slug}/page` directly with no auth headers (by
+  design, matching the analogous already-whitelisted `/checkout/public-*`
+  pattern for public checkout pages) — every visitor got a thrown "Failed to
+  load page" error; the lead-capture form and event/pixel tracking in
+  `PublishedLandingRenderer.tsx` hit the same 401 the same way. Fixed by
+  adding `/landing-agent/public` to `publicPaths`, mirroring the existing
+  `/checkout/session` / `/checkout/public-products` precedent and comment
+  style for the same "visitor has no session, identity is resolved from a
+  public identifier instead" reasoning. Found via a dispatched investigation
+  extending the OPEN-142 auth-gap hunting method to `apps/api` after the
+  `apps/web` vein (that investigation's suggested next step) was exhausted.
+  No dedicated test added: `nextAdapter`'s `publicPaths` closure is
+  unexported and tightly coupled to the Fastify runtime, with no existing
+  test harness covering it (the same is true of the pre-existing
+  `/checkout/public-products` entry it mirrors) — verified instead via the
+  full apps/api suite (865/865 pass) and `tsc --noEmit` (clean, pre-existing
+  unrelated `browser-engine.ts` error only).
+
+- **OPEN-144 (Fixed):** three bugs in
+  `apps/api/routes/webhooks/scraper-ingest/route.ts`, an internet-reachable
+  webhook (`/webhooks` is a full-prefix match in `server.ts`'s `publicPaths`,
+  so an HMAC check is its only defense — see OPEN-143 above for that gate):
+  (1) **auth-bypass in non-production** — `effectiveSecret` was computed as
+  a fallback (`hmacSecret || "dev-secret-key-..."`) for when `SCRAPER_SECRET`
+  is unset outside production, but the HMAC verification below it used the
+  raw `hmacSecret` instead, so with `SCRAPER_SECRET` unset in any non-prod
+  environment the signing key was `""` — trivially reproducible by anyone,
+  not the intended dev-only fallback; (2) **non-timing-safe comparison** —
+  `complianceHash !== expectedHash` on the hex digest instead of
+  `crypto.timingSafeEqual` (the correct pattern already used in the sibling
+  `webhooks/razorpay/route.ts`); (3) **caller-controlled `jobId` with no
+  ownership check** — `body.jobId` (or a fresh uuid) was used directly as
+  the `upsert`'s unique `where: { id: jobId }` with no `teamId` ever set on
+  `create`, so (a) any two callers colliding on the same `jobId` would
+  silently overwrite each other's `payload`/`tokenMap`, and (b) every job
+  landed with `teamId: null`, permanently breaking the "Draft Flow" fallback
+  in `apps/api/routes/leads/[id]/identity/route.ts` (`scrapingJob.findFirst
+  ({ where: { id, teamId } })` can never match a null `teamId` for any real
+  team) — a fully dead feature for any lead sourced through this webhook.
+  Fixed (1) by using `effectiveSecret` in the HMAC call; (2) by comparing
+  the hash bytes via `crypto.timingSafeEqual` with a length check first
+  (matches the `razorpay` pattern); (3) by accepting an optional
+  `body.teamId`, threading it onto both `create` and `update`, and adding a
+  `findUnique` pre-check that rejects (409) an incoming `teamId` that
+  conflicts with an existing job's already-set `teamId`. Found via a
+  dispatched investigation extending the OPEN-142/OPEN-143 auth-gap hunting
+  method to webhook signature/HMAC correctness across the codebase. New
+  `route.test.ts` added (4 tests: bad-hash rejection, `teamId` threaded onto
+  `create`, cross-team `jobId` collision rejected with 409, same-team
+  re-post allowed). 869/869 apps/api tests pass (4 new), `tsc --noEmit`
+  clean. **Not fixed as part of this change:** the `X-Scraper-Secret` header
+  is read into a `secret` variable but never actually checked anywhere in
+  the route (only the separate `X-Compliance-Hash` HMAC is verified) — this
+  predates this fix and looks like dead/incomplete code from an earlier
+  pass, not a new regression; flagged here as a candidate for a future,
+  narrowly-scoped pass rather than folded into this fix.
+
 - **OPEN-145 (Fixed):** cross-tenant contact conflation in the Mautic sync,
   `apps/api/src/modules/mautic-integration/service/mauticService.ts:74`
   (`MauticService.pushLead`). The platform deliberately runs one shared

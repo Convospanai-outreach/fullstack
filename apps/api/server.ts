@@ -186,6 +186,12 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // session-token check (validateExtensionAuth) - the extension has no
       // NextAuth cookie or Clerk-signed internal header to pass this gate.
       "/extension",
+      // Published landing-page visitors have no CraftMyFunnel session, same
+      // as checkout/session above - the page, lead capture, and event
+      // tracking are all resolved by public slug (see
+      // landing-agent/api/handlers.ts's getPublicPage/postPublicLead/
+      // postPublicEvent), never by caller identity.
+      "/landing-agent/public",
     ];
     const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
     const isV1Route = registeredPath.startsWith('/v1');
