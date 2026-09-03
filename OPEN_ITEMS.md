@@ -1252,6 +1252,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   ORG_ADMIN; a platform admin can still reject a request). 357/357 apps/web
   tests pass (6 new, 7 pre-existing skips unrelated), `tsc --noEmit` clean.
 
+- **OPEN-154 (Fixed):** cross-tenant IDOR in `GET
+  /api/orchestrator/timeline` (`apps/api/routes/orchestrator/timeline/route.ts`).
+  The handler destructured only `userId` from `getCurrentContextFromRequest`,
+  never `teamId`, then queried `prisma.job.findMany({ where: { payload: {
+  path: ["campaignId"], equals: campaignId } } })` using a caller-supplied
+  `campaignId` query param with no team check at all. `Job.teamId`
+  (`apps/api/prisma/schema.prisma:498`) exists but isn't reliably populated
+  by every enqueuer (e.g. the sibling `orchestrator/run/route.ts`'s own
+  `JobQueue.enqueue("campaign_execution", ...)` call doesn't pass a `teamId`
+  option), so scoping by `Job.teamId` directly wasn't a safe fix. Any
+  authenticated user of any team could guess/enumerate another team's
+  `campaignId` and pull that team's full job timeline, including `error`
+  messages and `result`/`meta` payloads (AI content, provider errors,
+  internal execution detail). Fixed by requiring `teamId` (401 if missing,
+  matching sibling orchestrator routes) and adding a
+  `prisma.campaign.findFirst({ where: { id: campaignId, teamId } })`
+  ownership check (404 if not found) before running the `Job` query — since
+  the `Job` query is already scoped to that exact `campaignId`, verifying
+  the campaign belongs to the caller's team is sufficient to scope the
+  whole result set. New `route.test.ts` added (3 tests: unauthenticated
+  caller rejected, cross-team campaignId rejected with 404, own-team
+  campaign returns its timeline). 904/904 apps/api tests pass (3 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts` failure
+  noted under OPEN-151/152).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
