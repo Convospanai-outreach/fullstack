@@ -53,11 +53,29 @@ const createPrismaClient = () => {
     return client;
 };
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+// Deferred behind a Proxy so `createPrismaClient()` (which reads DATABASE_URL and throws
+// if it's unset) only runs on first actual use, not at module-import time. Some entry
+// points (e.g. apps/api/server.ts) statically import modules that transitively import this
+// file before their own dotenv.config() call has run, which would otherwise crash on boot.
+let cachedClient: ReturnType<typeof createPrismaClient> | undefined = globalForPrisma.prisma;
 
-if (process.env['NODE_ENV'] !== "production") {
-    globalForPrisma.prisma = prisma;
+function getPrismaClient() {
+    if (!cachedClient) {
+        cachedClient = createPrismaClient();
+        if (process.env['NODE_ENV'] !== "production") {
+            globalForPrisma.prisma = cachedClient;
+        }
+    }
+    return cachedClient;
 }
+
+export const prisma = new Proxy({} as ReturnType<typeof createPrismaClient>, {
+    get(_target, prop, _receiver) {
+        const client = getPrismaClient() as any;
+        const value = client[prop];
+        return typeof value === "function" ? value.bind(client) : value;
+    },
+}) as ReturnType<typeof createPrismaClient>;
 
 // `prisma` is wrapped in $extends(...) above, so its $transaction callback
 // receives an extended client whose type doesn't structurally match the
