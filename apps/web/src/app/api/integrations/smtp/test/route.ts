@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { host, port, secure, user, password, fromName, email, recipientEmail } = body;
 
