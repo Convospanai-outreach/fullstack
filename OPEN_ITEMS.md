@@ -828,6 +828,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   as a side effect of this bug fix) — left as a separate, optional
   follow-up if the user wants it recorded.
 
+- **OPEN-143 (Fixed):** every published Cloudflare landing page 401'd for
+  every real visitor — a total, silent breakage of the headline feature from
+  the most recently merged commit (b2e73c28). `apps/api/server.ts`'s
+  `nextAdapter` Fastify bridge (the `publicPaths` allowlist, ~line 161) gates
+  every auto-loaded route behind a NextAuth token or internal-header check
+  unless its path matches an explicit public-path prefix or has an
+  `ApiKeyRoutePolicy` entry. The three public-visitor landing-page routes —
+  `apps/api/routes/landing-agent/public/[slug]/{page,lead,event}/route.ts`
+  (→ `getPublicPage`/`postPublicLead`/`postPublicEvent` in
+  `apps/api/src/modules/landing-agent/api/handlers.ts`) — are written for
+  anonymous visitors (resolved entirely by public `slug`, no
+  `getCurrentContextFromRequest` call) but were in neither list, so the gate
+  rejected every request with no session with a 401. `apps/web/src/app/p/
+  [slug]/page.tsx`'s server-side `fetchPublicPage()` calls
+  `/landing-agent/public/${slug}/page` directly with no auth headers (by
+  design, matching the analogous already-whitelisted `/checkout/public-*`
+  pattern for public checkout pages) — every visitor got a thrown "Failed to
+  load page" error; the lead-capture form and event/pixel tracking in
+  `PublishedLandingRenderer.tsx` hit the same 401 the same way. Fixed by
+  adding `/landing-agent/public` to `publicPaths`, mirroring the existing
+  `/checkout/session` / `/checkout/public-products` precedent and comment
+  style for the same "visitor has no session, identity is resolved from a
+  public identifier instead" reasoning. Found via a dispatched investigation
+  extending the OPEN-142 auth-gap hunting method to `apps/api` after the
+  `apps/web` vein (that investigation's suggested next step) was exhausted.
+  No dedicated test added: `nextAdapter`'s `publicPaths` closure is
+  unexported and tightly coupled to the Fastify runtime, with no existing
+  test harness covering it (the same is true of the pre-existing
+  `/checkout/public-products` entry it mirrors) — verified instead via the
+  full apps/api suite (865/865 pass) and `tsc --noEmit` (clean, pre-existing
+  unrelated `browser-engine.ts` error only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
