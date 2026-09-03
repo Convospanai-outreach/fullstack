@@ -34,11 +34,16 @@ export async function POST(req: Request) {
 
         // Fix [HIGH-3]: Real HMAC Validation
         const expectedHash = cryptoNode
-            .createHmac("sha256", hmacSecret)
+            .createHmac("sha256", effectiveSecret)
             .update(`${bodyText}.${timestamp}`)
             .digest("hex");
 
-        if (complianceHash !== expectedHash) {
+        const providedHashBuffer = Buffer.from(complianceHash, "hex");
+        const expectedHashBuffer = Buffer.from(expectedHash, "hex");
+        if (
+            providedHashBuffer.length !== expectedHashBuffer.length ||
+            !cryptoNode.timingSafeEqual(providedHashBuffer, expectedHashBuffer)
+        ) {
             // Log attempt for audit
             console.error(`[Security] HMAC Mismatch for scraper webhook. Expected prefix: ${expectedHash.substring(0, 8)}`);
             return NextResponse.json({ error: "Unauthorized: Invalid Compliance Hash" }, { status: 401 });
@@ -81,6 +86,15 @@ export async function POST(req: Request) {
 
         const targetPrisma = DbFactory.getClient(region);
 
+        // jobId/teamId are caller-supplied (this webhook authenticates via one
+        // shared SCRAPER_SECRET, not a per-team key) - guard against a caller
+        // colliding on an existing jobId that belongs to a different team's job.
+        const bodyTeamId: string | undefined = typeof body.teamId === "string" ? body.teamId : undefined;
+        const existingJob = await targetPrisma.scrapingJob.findUnique({ where: { id: jobId }, select: { teamId: true } });
+        if (existingJob && existingJob.teamId && bodyTeamId && existingJob.teamId !== bodyTeamId) {
+            return NextResponse.json({ error: "jobId belongs to a different team" }, { status: 409 });
+        }
+
         const job = await targetPrisma.scrapingJob.upsert({
             where: { id: jobId },
             update: {
@@ -88,6 +102,7 @@ export async function POST(req: Request) {
                 payload: safePayload,
                 tokenMap: Object.fromEntries(tokenMap),
                 updatedAt: new Date(),
+                ...(bodyTeamId ? { teamId: bodyTeamId } : {}),
             },
             create: {
                 id: jobId,
@@ -96,6 +111,7 @@ export async function POST(req: Request) {
                 region: region,
                 payload: safePayload,
                 tokenMap: Object.fromEntries(tokenMap),
+                teamId: bodyTeamId,
             }
         });
 

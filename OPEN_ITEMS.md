@@ -892,6 +892,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   full apps/api suite (865/865 pass) and `tsc --noEmit` (clean, pre-existing
   unrelated `browser-engine.ts` error only).
 
+- **OPEN-144 (Fixed):** three bugs in
+  `apps/api/routes/webhooks/scraper-ingest/route.ts`, an internet-reachable
+  webhook (`/webhooks` is a full-prefix match in `server.ts`'s `publicPaths`,
+  so an HMAC check is its only defense — see OPEN-143 above for that gate):
+  (1) **auth-bypass in non-production** — `effectiveSecret` was computed as
+  a fallback (`hmacSecret || "dev-secret-key-..."`) for when `SCRAPER_SECRET`
+  is unset outside production, but the HMAC verification below it used the
+  raw `hmacSecret` instead, so with `SCRAPER_SECRET` unset in any non-prod
+  environment the signing key was `""` — trivially reproducible by anyone,
+  not the intended dev-only fallback; (2) **non-timing-safe comparison** —
+  `complianceHash !== expectedHash` on the hex digest instead of
+  `crypto.timingSafeEqual` (the correct pattern already used in the sibling
+  `webhooks/razorpay/route.ts`); (3) **caller-controlled `jobId` with no
+  ownership check** — `body.jobId` (or a fresh uuid) was used directly as
+  the `upsert`'s unique `where: { id: jobId }` with no `teamId` ever set on
+  `create`, so (a) any two callers colliding on the same `jobId` would
+  silently overwrite each other's `payload`/`tokenMap`, and (b) every job
+  landed with `teamId: null`, permanently breaking the "Draft Flow" fallback
+  in `apps/api/routes/leads/[id]/identity/route.ts` (`scrapingJob.findFirst
+  ({ where: { id, teamId } })` can never match a null `teamId` for any real
+  team) — a fully dead feature for any lead sourced through this webhook.
+  Fixed (1) by using `effectiveSecret` in the HMAC call; (2) by comparing
+  the hash bytes via `crypto.timingSafeEqual` with a length check first
+  (matches the `razorpay` pattern); (3) by accepting an optional
+  `body.teamId`, threading it onto both `create` and `update`, and adding a
+  `findUnique` pre-check that rejects (409) an incoming `teamId` that
+  conflicts with an existing job's already-set `teamId`. Found via a
+  dispatched investigation extending the OPEN-142/OPEN-143 auth-gap hunting
+  method to webhook signature/HMAC correctness across the codebase. New
+  `route.test.ts` added (4 tests: bad-hash rejection, `teamId` threaded onto
+  `create`, cross-team `jobId` collision rejected with 409, same-team
+  re-post allowed). 869/869 apps/api tests pass (4 new), `tsc --noEmit`
+  clean. **Not fixed as part of this change:** the `X-Scraper-Secret` header
+  is read into a `secret` variable but never actually checked anywhere in
+  the route (only the separate `X-Compliance-Hash` HMAC is verified) — this
+  predates this fix and looks like dead/incomplete code from an earlier
+  pass, not a new regression; flagged here as a candidate for a future,
+  narrowly-scoped pass rather than folded into this fix.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
