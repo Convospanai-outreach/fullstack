@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySmtpConfig } from "@/lib/email/smtpClient";
 import { encryptCredential } from "@/lib/security/credentialVault";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { host, port, secure, user, password, fromName, email } = body;
 
@@ -28,19 +34,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { prisma } = await import("@/lib/db");
-    const team = await prisma.team.findFirst({ select: { id: true } });
-    if (!team) {
-      return NextResponse.json({ error: "No active team workspace found." }, { status: 400 });
-    }
 
     // 2. Encrypt SMTP password via credentialVault.ts
     const encryptedPassword = await encryptCredential(password);
 
     // 3. Upsert ConnectedMailbox with provider: 'SMTP'
     const mailbox = await prisma.connectedMailbox.upsert({
-      where: { teamId_email: { teamId: team.id, email: smtpConfig.fromEmail } },
+      where: { teamId_email: { teamId, email: smtpConfig.fromEmail } },
       create: {
-        teamId: team.id,
+        teamId,
         provider: "SMTP",
         authType: "BASIC",
         email: smtpConfig.fromEmail,
