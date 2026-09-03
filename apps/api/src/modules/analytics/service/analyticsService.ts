@@ -88,8 +88,11 @@ class AnalyticsService {
         };
     }
 
-    async getVariantComparison(campaignId: string) {
-        const variants = await prisma.campaignVariant.findMany({ where: { campaignId } });
+    async getVariantComparison(campaignId: string, teamId: string) {
+        // Scoped via the campaign relation - campaignId is caller-supplied and
+        // otherwise unverified, so without this a guessed/enumerated id from
+        // another team would leak that team's A/B test content and stats.
+        const variants = await prisma.campaignVariant.findMany({ where: { campaignId, campaign: { teamId } } });
 
         return variants.map((v) => ({
             id: v.id,
