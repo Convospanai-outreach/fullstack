@@ -931,6 +931,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pass, not a new regression; flagged here as a candidate for a future,
   narrowly-scoped pass rather than folded into this fix.
 
+- **OPEN-145 (Fixed):** cross-tenant contact conflation in the Mautic sync,
+  `apps/api/src/modules/mautic-integration/service/mauticService.ts:74`
+  (`MauticService.pushLead`). The platform deliberately runs one shared
+  Mautic instance for all teams, isolated only by a `team-{teamId}` tag (see
+  the file's own header comment) — but the dedup/lookup query that decides
+  whether to create a new Mautic contact or `PATCH` an existing one searched
+  by email only: `search=email:"${lead.email}"`, with no tag filter. If Team
+  A captures a lead with `alice@example.com` (creating Mautic contact #123,
+  tagged `team-A`) and Team B later captures a lead with the *same* email
+  (a realistic scenario — one person expressing interest to two different
+  businesses on this platform), Team B's `pushLead` found Team A's contact
+  #123 via the unscoped email search and `PATCH`ed it with Team B's
+  `firstname`/`lastname`/`company`, silently overwriting Team A's data and
+  adding a `team-B` tag onto the same shared record — both teams' `Lead`
+  rows then point at one mixed-data Mautic contact, with every future
+  re-sync from either team continuing to clobber the other, no error ever
+  raised (treated as a normal "updated" success). Fixed by scoping the
+  search query to `email:"..." and tag:"team-{teamId}"`, so two teams' leads
+  can never resolve to the same Mautic contact. Found via a dispatched
+  investigation specifically auditing the Mautic/Facebook-Lead-Ads half of
+  commit b2e73c28 that OPEN-143 (the landing-page half) hadn't covered. Not
+  a duplicate of OPEN-127 (same function, already-fixed missing `teamId` on
+  the final `Lead.update` write — unrelated to this search-query bug). Two
+  new tests added to the existing `mauticService.test.ts`: asserts the
+  search URL includes the team tag, and a dedicated cross-tenant scenario
+  (same email, different team) confirming a `create` is issued instead of
+  overwriting the other team's contact. 866/866 apps/api tests pass (2 new),
+  `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -71,8 +71,12 @@ class MauticService {
                 tags: [teamSlug(teamId)],
             };
 
+            // Mautic is one shared instance across all teams (see header comment), so a
+            // dedup search on email alone would match a DIFFERENT team's contact with the
+            // same email address and clobber it via the PATCH below. Scope the search to
+            // this team's tag too, so two teams' leads never resolve to one contact.
             const searchRes = await fetch(
-                `${config.baseUrl}/api/contacts?search=${encodeURIComponent(`email:"${lead.email}"`)}&limit=1`,
+                `${config.baseUrl}/api/contacts?search=${encodeURIComponent(`email:"${lead.email}" and tag:"${teamSlug(teamId)}"`)}&limit=1`,
                 { headers }
             );
             if (!searchRes.ok) {
