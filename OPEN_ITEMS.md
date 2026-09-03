@@ -1277,6 +1277,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   --noEmit` clean (same pre-existing, unrelated `browser-engine.ts` failure
   noted under OPEN-151/152).
 
+- **OPEN-155 (Fixed):** cross-tenant IDOR + argument-mismatch bug in `POST
+  /rag/query` (`apps/api/src/modules/rag/api/query.ts`, mounted at
+  `apps/api/routes/rag/query/route.ts`). The handler had no auth check at
+  all (`getCurrentContext()` never called) and called
+  `vectorStore.search(query, limit)` — but `vectorStore.search`'s actual
+  signature (`apps/api/src/modules/rag/service/vectorStore.ts:35`) is
+  `search(query?, teamId?, limit = 5)`, so the client-supplied `limit`
+  field landed in the **teamId** parameter, and no real `teamId` was ever
+  passed. Any authenticated caller who supplied another team's id string in
+  the `limit` field would have `prisma.knowledgeItem.findMany({ where: {
+  knowledgeBase: { teamId } } })` search that team's `KnowledgeItem`
+  records instead of their own. Every other call site in the repo
+  (`ragService.ts`, `KnowledgeIngressService.ts`, `basicAnswerService.ts`)
+  correctly passes `teamId` as the 2nd argument; the sibling route
+  `apps/api/routes/rag/search/route.ts` shows the correct pattern
+  (`getCurrentContext()` + 401 check, then passing `ctx.teamId` through).
+  Fixed by adding the `getCurrentContext()` 401 check and passing the
+  caller's own `teamId` into the correct argument slot, restoring `limit`
+  to its intended 3rd position. New `query.test.ts` added (2 tests:
+  unauthenticated caller rejected, caller's own `teamId` — not the
+  client-supplied `limit` — passed into the `teamId` slot). 906/906
+  apps/api tests pass (2 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted under OPEN-151/152/154).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
