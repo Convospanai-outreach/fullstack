@@ -1091,6 +1091,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rejects a different-length hash instead of throwing). 879/879 apps/api
   tests pass (4 new), `tsc --noEmit` clean.
 
+- **OPEN-150 (Fixed):** cross-tenant IDOR in
+  `apps/api/routes/pipeline/tasks/[id]/route.ts`'s `PATCH` handler — found
+  by applying the same "does every route in this module have the sibling's
+  auth rigor" method that found OPEN-149. It destructured only `userId`
+  from `getCurrentContextFromRequest(req)`, never `teamId`, then fetched via
+  `prisma.task.findUnique({ where: { id } })` (no `teamId` filter) and wrote
+  via `prisma.task.update({ where: { id } })` (same, no filter) — despite a
+  comment on the fetch reading `// Verify task belongs to user's team`, a
+  check that was never actually implemented. `Task.teamId` is a required
+  field (`apps/api/prisma/schema.prisma:170-190`), and the sibling
+  `pipeline/tasks/route.ts` (`GET`/`POST` in the same directory) correctly
+  scopes every call by `ctx.teamId`. Any authenticated user of *any* team
+  could `PATCH` any task in the system by guessing/enumerating its UUID,
+  overwriting another tenant's `status`/`title`/`description`/`priority`/
+  `dueDate` — the outer Fastify gate only requires a valid session, not team
+  membership, same bug class as OPEN-137/138/139/149. Fixed by destructuring
+  `teamId` alongside `userId` (401 if either is missing), changing the
+  pre-check to `findFirst({ where: { id, teamId } })`, and scoping the write
+  itself via `updateMany({ where: { id, teamId } })` — not just the
+  pre-check, same defense-in-depth anti-pattern already fixed under
+  OPEN-99/109/110/118/120/121/122/123 — re-reading the row via a second
+  `findFirst` afterward since `updateMany` doesn't return the updated row.
+  New `route.test.ts` added (3 tests: unauthenticated caller rejected before
+  any DB access, cross-team task-by-id rejected with 404, same-team update
+  succeeds with the write itself scoped by `teamId`). 882/882 apps/api tests
+  pass (3 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
