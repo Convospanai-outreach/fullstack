@@ -192,6 +192,16 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // landing-agent/api/handlers.ts's getPublicPage/postPublicLead/
       // postPublicEvent), never by caller identity.
       "/landing-agent/public",
+      // A physical edge node (Raspberry Pi/Jetson) has no NextAuth cookie or
+      // Clerk-signed internal header either - PUT /edge/nodes (heartbeat) and
+      // POST /edge/attest authenticate the node itself via an RSA signature
+      // or a previously-issued session token (verifyEdgeRequestSignature/
+      // verifyEdgeSessionToken in edgeRuntime.ts), not caller identity. The
+      // admin-driven GET/POST/PATCH methods on /edge/nodes still enforce
+      // their own getCurrentContext()+checkTeamPermission check inside the
+      // handler (requireAdminContext in routes/edge/nodes/route.ts), same as
+      // /extension above - this only skips the redundant outer gate.
+      "/edge",
     ];
     const routePolicy = getApiKeyRoutePolicy(request.method, registeredPath);
     const isV1Route = registeredPath.startsWith('/v1');

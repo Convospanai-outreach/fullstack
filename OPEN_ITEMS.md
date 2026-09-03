@@ -1041,6 +1041,56 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   environment, no real Cloudflare account provisioned here), not on this
   change.
 
+- **OPEN-148 (Fixed):** two bugs found while auditing the Raspberry
+  Pi/Jetson edge-node attestation flow (see OPEN-61 for the full heartbeat
+  feature history): (1) **`/edge` was missing from `apps/api/server.ts`'s
+  `publicPaths` allowlist** (the same gate/bug class as OPEN-143) —
+  `PUT /edge/nodes` (the heartbeat `apps/edge-fastapi`'s
+  `services/cloud_registration.py` actually sends every
+  `EDGE_HEARTBEAT_INTERVAL_SECONDS`) and `POST /edge/attest` both
+  authenticate the caller themselves (an RSA signature or a previously-issued
+  session token via `verifyEdgeRequestSignature`/`verifyEdgeSessionToken` in
+  `edgeRuntime.ts`), not via a NextAuth session — a physical edge node has
+  neither a NextAuth cookie nor the Clerk-signed internal header
+  `verifyInternalAuthHeaders` checks for. With `/edge` absent from
+  `publicPaths`, every real heartbeat from a paired device 401'd at the
+  outer Fastify gate before ever reaching the route handler's own signature
+  check — the entire heartbeat/attestation feature built and reviewed under
+  OPEN-61 was dead on arrival in production. (`/edge/nodes`'s admin-driven
+  `GET`/`POST`/`PATCH` methods are unaffected by this fix: they still
+  enforce their own `getCurrentContext()`+`checkTeamPermission` check inside
+  `requireAdminContext()`, same pattern as `/extension` and `/checkout`
+  already in this list — marking the prefix public only skips the outer
+  gate's redundant check for them.) Fixed by adding `/edge` to `publicPaths`.
+  (2) **Non-timing-safe comparison** in
+  `apps/api/src/modules/security/FirmwareService.ts:39`
+  (`verifyAttestation`) — `measuredBootHash === this.EXPECTED_HASH`, a plain
+  string compare on a caller-supplied hash against a single global
+  `FIRMWARE_EXPECTED_HASH` env var, instead of a constant-time comparison
+  (same bug class as OPEN-144/147). Fixed via `crypto.timingSafeEqual` with
+  a length check first. **Not fixed / flagged as a separate, deeper gap:**
+  `POST /edge/attest` (`FirmwareService`'s only caller) is a vestigial
+  endpoint from an earlier Jetson-based TPM-attestation design (per the
+  class's own header comment) that predates and was superseded by OPEN-61's
+  Raspberry Pi RSA-keypair heartbeat model — confirmed via grep that nothing
+  in `apps/edge-fastapi` or anywhere else in the repo calls it. Unlike
+  `PUT /edge/nodes`'s heartbeat (which requires an RSA signature proving
+  possession of the node's registered `publicKey`, or a session token issued
+  from a prior successful signature check), `/edge/attest` requires no
+  proof of possession at all: knowing a `nodeId` (which leaks via
+  `GET /edge/nodes` responses/audit logs) plus a single hash value shared
+  across every node and team is sufficient to obtain a live session token
+  and set `vaultState: "UNLOCKED"`. Redesigning this endpoint's protocol (to
+  either require the same RSA-signature proof-of-possession as the
+  heartbeat, or be removed as dead code) is a larger architectural decision
+  outside a surgical bug-fix scope, especially since it currently has zero
+  real callers — flagged here for the user to decide, same pattern as
+  OPEN-61's other deferred edge-node decisions. New
+  `FirmwareService.test.ts` added (4 tests: throws when unconfigured,
+  accepts a matching hash, rejects a mismatched hash of the same length,
+  rejects a different-length hash instead of throwing). 879/879 apps/api
+  tests pass (4 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

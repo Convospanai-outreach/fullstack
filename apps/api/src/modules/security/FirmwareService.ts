@@ -36,7 +36,9 @@ export class FirmwareService {
 
         console.log(`[FirmwareService] Verifying Node ${nodeId}. Received: ${measuredBootHash}`);
 
-        if (measuredBootHash === this.EXPECTED_HASH) {
+        const expected = Buffer.from(this.EXPECTED_HASH);
+        const actual = Buffer.from(measuredBootHash);
+        if (expected.length === actual.length && crypto.timingSafeEqual(expected, actual)) {
             return true;
         }
 
