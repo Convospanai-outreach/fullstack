@@ -60,6 +60,8 @@ describe("mauticService.pushLead", () => {
         const result = await mauticService.pushLead("lead-1", "team-1");
 
         expect(result).toEqual({ status: "created", mauticContactId: "42" });
+        const searchCall = fetchMock.mock.calls[0];
+        expect(decodeURIComponent(searchCall[0])).toContain('tag:"team-team-1"');
         const createCall = fetchMock.mock.calls[1];
         expect(createCall[0]).toBe("https://mautic.example.com/api/contacts/new");
         const createBody = JSON.parse(createCall[1].body);
@@ -84,6 +86,27 @@ describe("mauticService.pushLead", () => {
         const editCall = fetchMock.mock.calls[1];
         expect(editCall[0]).toBe("https://mautic.example.com/api/contacts/99/edit");
         expect(editCall[1].method).toBe("PATCH");
+    });
+
+    it("scopes the dedup search by the team tag, so a same-email contact from a different team is not matched/overwritten", async () => {
+        // Mautic is one shared instance across all teams (see mauticService.ts header
+        // comment) - without a tag-scoped search, this would find and clobber a
+        // different team's contact for the same email address.
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", email: "shared@example.com", fullName: "Bob", company: "Team B Co" });
+        mockPrisma.lead.updateMany.mockResolvedValue({ count: 1 });
+        const fetchMock = vi.fn()
+            // Team A's contact for the same email is NOT returned because the search
+            // is scoped to team-team-b's tag.
+            .mockResolvedValueOnce(jsonResponse({ contacts: {} }))
+            .mockResolvedValueOnce(jsonResponse({ contact: { id: 77 } }));
+        global.fetch = fetchMock as any;
+
+        const result = await mauticService.pushLead("lead-1", "team-b");
+
+        expect(result).toEqual({ status: "created", mauticContactId: "77" });
+        const searchUrl = decodeURIComponent(fetchMock.mock.calls[0][0]);
+        expect(searchUrl).toContain('email:"shared@example.com"');
+        expect(searchUrl).toContain('tag:"team-team-b"');
     });
 
     it("scopes the final sync-status write by teamId too, not just the pre-check (defense in depth)", async () => {
