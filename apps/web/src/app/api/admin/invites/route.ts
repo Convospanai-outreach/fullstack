@@ -77,17 +77,24 @@ export async function GET() {
         }
     });
 
-    const inviteRequests = await prisma.inviteRequest.findMany({
-        orderBy: { createdAt: "desc" },
-        include: {
-            approvedBy: { select: { id: true, name: true, email: true } },
-            invitations: {
-                select: { id: true, status: true, expiresAt: true, acceptedAt: true },
-                orderBy: { createdAt: "desc" },
-                take: 1
+    // InviteRequest is the platform-wide "request access" waitlist - it has no
+    // teamId, so unlike `invites` above it can't be scoped to the caller's own
+    // team. ORG_ADMIN is a normal, self-service-assignable per-workspace role
+    // (same reasoning as OPEN-124), not a platform-level privilege, so it must
+    // not see or act on other companies' pending signup requests.
+    const inviteRequests = isSuperAdminRole(actor.enterpriseRole)
+        ? await prisma.inviteRequest.findMany({
+            orderBy: { createdAt: "desc" },
+            include: {
+                approvedBy: { select: { id: true, name: true, email: true } },
+                invitations: {
+                    select: { id: true, status: true, expiresAt: true, acceptedAt: true },
+                    orderBy: { createdAt: "desc" },
+                    take: 1
+                }
             }
-        }
-    });
+        })
+        : [];
 
     return NextResponse.json({ invites, inviteRequests });
 }
@@ -185,6 +192,12 @@ export async function PATCH(req: NextRequest) {
     const status = typeof body.status === "string" ? body.status : "";
 
     if (action === "reject-request" || action === "mark-used-request") {
+        // InviteRequest has no teamId (see the GET handler's comment) - gate on
+        // genuine platform-level operators, not the self-service ORG_ADMIN role.
+        if (!isSuperAdminRole(actor.enterpriseRole)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         if (!id) {
             return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
         }
@@ -201,6 +214,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (action === "approve-request") {
+        if (!isSuperAdminRole(actor.enterpriseRole)) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
         if (!id) {
             return NextResponse.json({ error: "Invite request id is required." }, { status: 400 });
         }
