@@ -682,6 +682,43 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   playbook succeeds; `tsc --noEmit` clean (pre-existing unrelated error
   in `services/browser/browser-engine.ts` only).
 
+- **OPEN-138 (Fixed):** cross-tenant IDOR (read + write) in the human
+  caller handoff queue — `apps/api/routes/caller/queue/route.ts` +
+  `apps/api/src/modules/caller/CallerService.ts` (and dormant
+  `apps/web/src/modules/caller/CallerService.ts` duplicate). The route's
+  `isAllowed()` check only validated the caller's global `enterpriseRole`
+  (`CALLER`/`SALES_MANAGER`/`ORG_ADMIN`/`SYSTEM_ADMIN`) — not team-scoped
+  — and neither the route nor any function in `CallerService.ts` read or
+  filtered by `teamId` anywhere in the call chain (confirmed zero
+  `teamId` references in the file). `MeetingCoordinationQueue` itself has
+  no `teamId` column, only a `lead` relation. Effect: `GET
+  /api/caller/queue` returned every team's unassigned lead-handoff pool
+  (`pool`) — including each lead's PII and full conversation-thread
+  history — to any authenticated user with a CALLER-tier role in *any*
+  team; `POST .../queue` with `{action:"claim", leadId}` let that user
+  claim and mutate (`Lead.pipelineState → COORDINATING`) an arbitrary
+  team's lead by ID with no ownership check; `{action:"complete",
+  leadId, outcome}` let them transition another team's lead all the way
+  to `MEETING_CONFIRMED`/`COMPLETED`/`wonAt` — the one assignment check
+  present (`completeTask`) was a no-op, its enforcing `throw` literally
+  commented out. Not the usual "pre-check exists, mutation isn't scoped"
+  shape — there was no team check anywhere. Fixed by threading `teamId`
+  from `getCurrentContextFromRequest` into `getQueue`/`claimLead`/
+  `completeTask`: `getQueue`'s `assigned`/`pool` queries now filter via
+  the `lead: { teamId }` relation (no schema change needed);
+  `claimLead`/`completeTask` now do `prisma.lead.findFirst({ where: {
+  id: leadId, teamId } })` up front and throw `LEAD_NOT_FOUND` (mapped
+  to 404) on a miss, and the `Lead.pipelineState` writes changed from
+  `update({ where: { id } })` to `updateMany({ where: { id, teamId } })`.
+  Applied the same scoping to the `apps/web` duplicate (referenced only
+  by its own dev scripts, not wired to a route) for consistency, and
+  updated the `teamId`-unaware dev/stress-test scripts in both apps that
+  called these methods. Added `CallerService.test.ts` (new, 5 tests) and
+  `routes/caller/queue/route.test.ts` (new, 6 tests); all 847 apps/api
+  and 343 apps/web tests pass, `tsc --noEmit` clean in both apps
+  (pre-existing unrelated `services/browser/browser-engine.ts` error
+  only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

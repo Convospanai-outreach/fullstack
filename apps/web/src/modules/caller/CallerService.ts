@@ -30,12 +30,13 @@ export class CallerService {
      * 2. If assigned, match assignedUserId
      * 3. If unassigned, show PENDING items
      */
-    static async getQueue(userId: string) {
+    static async getQueue(userId: string, teamId: string) {
         // High priority: Assigned to me
         const assigned = await prisma.meetingCoordinationQueue.findMany({
             where: {
                 assignedUserId: userId,
-                status: { not: "COMPLETED" }
+                status: { not: "COMPLETED" },
+                lead: { teamId }
             },
             include: {
                 lead: {
@@ -56,7 +57,8 @@ export class CallerService {
         const pool = await prisma.meetingCoordinationQueue.findMany({
             where: {
                 assignedUserId: null,
-                status: "PENDING"
+                status: "PENDING",
+                lead: { teamId }
             },
             include: {
                 lead: {
@@ -79,7 +81,10 @@ export class CallerService {
     /**
      * Claims a lead from the pool.
      */
-    static async claimLead(leadId: string, userId: string) {
+    static async claimLead(leadId: string, userId: string, teamId: string) {
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+        if (!lead) throw new Error("LEAD_NOT_FOUND");
+
         // Ensure queue entry exists just in case
         await this.ensureQueueEntry(leadId);
 
@@ -115,7 +120,10 @@ export class CallerService {
     /**
      * Completes the calling task.
      */
-    static async completeTask(leadId: string, userId: string, outcome: ConversationState, notes?: string) {
+    static async completeTask(leadId: string, userId: string, teamId: string, outcome: ConversationState, notes?: string) {
+        const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+        if (!lead) throw new Error("LEAD_NOT_FOUND");
+
         // Verify assignment
         const queueItem = await prisma.meetingCoordinationQueue.findUnique({ where: { leadId } });
         if (queueItem?.assignedUserId !== userId && queueItem?.assignedUserId !== null) {
