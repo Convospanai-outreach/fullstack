@@ -760,6 +760,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pass, `tsc --noEmit` clean in both apps (pre-existing unrelated
   `services/browser/browser-engine.ts` error only).
 
+- **OPEN-140 (Fixed):** mass-assignment `teamId` reassignment in
+  `PATCH /api/schedules/[id]` (`apps/api/routes/schedules/[id]/route.ts`)
+  enabling cross-tenant credit drain and job injection, plus the usual
+  pre-check/unscoped-mutation gap on `DELETE`. The `PATCH` handler did a
+  `teamId`-scoped `findFirst` ownership pre-check, then wrote the
+  **entire raw request body** straight into `prisma.schedule.update({
+  where: { id }, data: body })` — no allow-list, no `teamId` in the
+  write's `where`. Since `Schedule.teamId` is a plain client-writable
+  scalar (and scheduler dispatch never re-validates ownership after the
+  initial `findFirst`), a member of Team A could create a schedule in
+  their own team with an immediate cron and any `campaignId`/`agentId`
+  they choose, then `PATCH` it (ownership check still passes — it's
+  still their own row) to overwrite `teamId` to Team B's id. The next
+  `schedulerService.processDueSchedules()` tick
+  (`apps/api/src/modules/scheduler/schedulerService.ts:42-100`) finds it
+  via `isActive`/`nextRunAt` with no further ownership check, calls
+  `checkCredits(schedule.teamId, 1)`/`deductCredits(...)` — draining
+  Team B's credits — and enqueues a job with `teamId: schedule.teamId`
+  carrying the attacker's chosen `campaignId`/`agentId`/`groundingConfig`
+  — a cross-tenant credit-drain and job-injection primitive, not just an
+  IDOR on the row itself. `DELETE` had the standard shape: `findFirst({
+  id, teamId })` pre-check then a bare `delete({ where: { id } })`.
+  Fixed `PATCH` with an explicit allow-list
+  (`name`/`cron`/`timezone`/`isActive`/`batchSize`/`groundingConfig`/
+  `campaignId`/`agentId` — excluding `id`/`teamId`/system-managed
+  `nextRunAt`/`lastRunAt`) applied via `updateMany({ where: { id,
+  teamId }, data })` + `count === 0 → 404` (re-reading via
+  `findUniqueOrThrow` for the response), and `DELETE` via
+  `deleteMany({ where: { id, teamId } })` + the same count check. No
+  `apps/web` duplicate of this route exists. Added `route.test.ts` (new,
+  5 tests): non-allow-listed fields (including `teamId`) stripped from
+  the update, 404 on another team's schedule for both PATCH and DELETE,
+  success for the caller's own team; all 865 apps/api tests pass,
+  `tsc --noEmit` clean (pre-existing unrelated
+  `services/browser/browser-engine.ts` error only).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
