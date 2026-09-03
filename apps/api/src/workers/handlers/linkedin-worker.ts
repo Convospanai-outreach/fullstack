@@ -34,10 +34,14 @@ export async function handleLinkedInScrape(payload: {
             },
         });
 
-        // Update lead if applicable
-        if (leadId && action === "connect") {
-            await prisma.lead.update({
-                where: { id: leadId },
+        // Update lead if applicable. Scoped by teamId too, not just the
+        // route-level pre-check - same defense-in-depth anti-pattern already
+        // fixed under OPEN-99/109/110/118/120/121/122/123. When teamId isn't
+        // present (an older/direct enqueue with no caller context), skip the
+        // write rather than updating an unscoped lead.
+        if (leadId && action === "connect" && teamId) {
+            await prisma.lead.updateMany({
+                where: { id: leadId, teamId },
                 data: { status: "connection_sent" },
             });
         }
