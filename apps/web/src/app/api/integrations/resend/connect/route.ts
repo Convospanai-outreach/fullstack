@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { encryptCredential } from "@/lib/security/credentialVault";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { apiKey, fromName, email, inboundDomain, webhookSecret } = body;
 
@@ -25,10 +31,6 @@ export async function POST(req: NextRequest) {
     }
 
     const { prisma } = await import("@/lib/db");
-    const team = await prisma.team.findFirst({ select: { id: true } });
-    if (!team) {
-      return NextResponse.json({ error: "No active team workspace found." }, { status: 400 });
-    }
 
     // 2. Encrypt the Resend API key (and reply-webhook secret, if provided) via credentialVault.ts
     const encryptedKey = await encryptCredential(trimmedKey);
@@ -39,9 +41,9 @@ export async function POST(req: NextRequest) {
     // inbound-receiving domain, and pastes back its own webhook signing secret from its Resend
     // dashboard — CraftMyFunnel only relays events for the domain/secret this team registered.
     const mailbox = await prisma.connectedMailbox.upsert({
-      where: { teamId_email: { teamId: team.id, email: fromEmail } },
+      where: { teamId_email: { teamId, email: fromEmail } },
       create: {
-        teamId: team.id,
+        teamId,
         provider: "RESEND",
         authType: "API_KEY",
         email: fromEmail,

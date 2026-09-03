@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   try {
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const { apiKey, fromName, email, recipientEmail } = body;
 

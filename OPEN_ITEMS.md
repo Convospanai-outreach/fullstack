@@ -828,6 +828,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   as a side effect of this bug fix) — left as a separate, optional
   follow-up if the user wants it recorded.
 
+- **OPEN-142 (Fixed):** unauthenticated, cross-tenant email-integration
+  takeover in `apps/web/src/app/api/integrations/{resend,smtp}/connect/route.ts`.
+  Neither `POST` handler called `getCurrentContext()` (there is no global
+  `middleware.ts` auth gate in `apps/web`, so routes must check auth
+  individually — every sibling route does, these two didn't), and instead of
+  scoping to the caller's team, they resolved the target team via
+  `prisma.team.findFirst({ select: { id: true } })` — an arbitrary
+  (effectively first-created) team unrelated to the request. Any
+  unauthenticated `POST` with a Resend API key or SMTP credentials the
+  attacker controls (their own key trivially passes the "verify it works"
+  check) would upsert a `ConnectedMailbox` row for that arbitrary team,
+  overwriting `encryptedAccessToken` (the send credential) and, for Resend,
+  `encryptedRefreshToken` (used as the webhook-signing secret in
+  `apps/web/src/app/api/webhooks/resend/route.ts`) with attacker-controlled
+  values — a full takeover of that tenant's outbound email pipeline (their
+  campaigns start sending through the attacker's account, and the attacker
+  can forge inbound webhook events that drive real lead-stage transitions).
+  The matching `.../resend/test/route.ts` and `.../smtp/test/route.ts` had
+  the same missing-auth gap; the SMTP one is additionally an unauthenticated
+  SSRF probe (arbitrary attacker-supplied `host`/`port`, no allowlist).
+  Fixed all four routes by adding the same `getCurrentContext()` check used
+  throughout the rest of `apps/web` (401 if no `userId`/`teamId`) and, for
+  the two `connect` routes, replacing `prisma.team.findFirst()` with the
+  caller's own `teamId` from context. Found via a dispatched investigation
+  of the newly-merged Mautic/Facebook-Lead-Ads/Cloudflare-landing-pages
+  integration work (commit b2e73c28) looking for the same auth-gap pattern
+  already found repeatedly this sweep. New tests added for all four routes
+  (`route.test.ts` alongside each) asserting the unauthenticated request is
+  rejected before any DB write / email send, and that a valid request is
+  correctly scoped to the caller's `teamId`. 351/351 apps/web tests pass
+  (8 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
