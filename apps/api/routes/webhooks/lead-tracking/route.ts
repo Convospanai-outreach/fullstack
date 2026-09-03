@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { leadScoringService } from "@/modules/scoring";
+import { getCurrentContext } from "@/lib/auth";
 import { z } from "zod";
 
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -47,6 +48,16 @@ const LeadTrackingSchema = z.discriminatedUnion("type", [
 
 export async function POST(req: NextRequest) {
     try {
+        // /webhooks is a public path at the Fastify gate (server.ts's publicPaths),
+        // same as the HMAC-checked webhooks in this tree - but this route has no
+        // per-caller secret to verify, so it must authenticate the caller itself and
+        // scope every lookup by teamId, matching the sibling /scoring/lead-intent route.
+        const ctx = await getCurrentContext();
+        if (!ctx.userId || !ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        const teamId = ctx.teamId;
+
         const rateLimit = checkTrackingRateLimit(req);
         if (rateLimit.limited) {
             return NextResponse.json(
@@ -72,8 +83,8 @@ export async function POST(req: NextRequest) {
         if (data.type === "email_click") {
             const { leadId, emailId } = data;
 
-            // 1. Verify lead exists
-            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            // 1. Verify lead exists and belongs to the caller's team
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId } });
             if (!lead) {
                 return NextResponse.json({ error: "Lead not found" }, { status: 404 });
             }
@@ -90,8 +101,8 @@ export async function POST(req: NextRequest) {
             }
 
             // 3. Increment email clicks on lead
-            await prisma.lead.update({
-                where: { id: leadId },
+            await prisma.lead.updateMany({
+                where: { id: leadId, teamId },
                 data: { emailClicks: { increment: 1 } }
             });
 
@@ -109,9 +120,10 @@ export async function POST(req: NextRequest) {
             const { leadId, email, sessionSeconds } = data;
             let targetLeadId = leadId;
 
-            // 1. Resolve leadId by email if not directly provided
+            // 1. Resolve leadId by email if not directly provided - scoped to the
+            // caller's own team, since email is not globally unique across tenants.
             if (!targetLeadId && email) {
-                const leadRecord = await prisma.lead.findFirst({ where: { email } });
+                const leadRecord = await prisma.lead.findFirst({ where: { email, teamId } });
                 if (!leadRecord) {
                     return NextResponse.json({ error: "Lead not found for specified email" }, { status: 404 });
                 }
@@ -122,9 +134,9 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: "leadId or email required to resolve target" }, { status: 400 });
             }
 
-            // 2. Verify lead exists
-            const lead = await prisma.lead.findUnique({
-                where: { id: targetLeadId },
+            // 2. Verify lead exists and belongs to the caller's team
+            const lead = await prisma.lead.findFirst({
+                where: { id: targetLeadId, teamId },
                 select: { id: true }
             });
 
@@ -132,11 +144,19 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: "Resolved lead not found" }, { status: 404 });
             }
 
-            // 3. Atomic dwell time increment (prevents data loss under concurrency)
+            // 3. Atomic dwell time increment (prevents data loss under concurrency).
+            // Scoped by teamId here too, not just the pre-check above - same
+            // anti-pattern already fixed under OPEN-99/109/110/118/120/121/122/123.
             const additionalDwellMinutes = sessionSeconds / 60;
-            const updated = await prisma.lead.update({
-                where: { id: targetLeadId },
+            const updateResult = await prisma.lead.updateMany({
+                where: { id: targetLeadId, teamId },
                 data: { dwellTimeMinutes: { increment: additionalDwellMinutes } },
+            });
+            if (updateResult.count === 0) {
+                return NextResponse.json({ error: "Resolved lead not found" }, { status: 404 });
+            }
+            const updated = await prisma.lead.findFirst({
+                where: { id: targetLeadId, teamId },
                 select: { dwellTimeMinutes: true }
             });
 
@@ -146,7 +166,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: "Website dwell time recorded and scoring updated",
-                dwellTimeMinutes: updated.dwellTimeMinutes,
+                dwellTimeMinutes: updated?.dwellTimeMinutes,
                 data: scoringResult
             });
         }
