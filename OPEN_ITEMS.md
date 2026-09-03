@@ -1000,6 +1000,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   cross-team dwell-by-id rejected). 870/870 apps/api tests pass (5 new),
   `tsc --noEmit` clean.
 
+- **OPEN-147 (Fixed):** non-constant-time secret comparison on
+  `workers/landing-pages/src/index.ts:65-68` (the `POST /internal/assets/:key`
+  upload route, inside the same Cloudflare Worker `fetch` handler that serves
+  every landing-page hostname — the shared default host and every verified
+  BYOD custom domain). Its only auth was `secret !== env.INTERNAL_UPLOAD_SECRET`,
+  a plain JS `!==` string comparison rather than a constant-time one — despite
+  the "internal" name, this route is fully internet-reachable — it's exposed
+  on the same public Worker that serves every landing page, and is the exact
+  endpoint `apps/api/src/modules/landing-agent/service/imageGenerationService.ts`
+  POSTs generated images to. Plain `!==` short-circuits on the first differing byte, so response
+  timing leaks how many leading bytes of a guessed secret are correct,
+  letting an attacker incrementally brute-force `INTERNAL_UPLOAD_SECRET`
+  byte-by-byte instead of needing the full keyspace; once known, the secret
+  grants unauthenticated write access to the shared R2 bucket
+  (`env.LANDING_ASSETS.put`) at any caller-chosen key, publicly served and
+  cached for a year at `/assets/<key>` on every team's landing-page hostname
+  — a defacement/content-injection vector with no `teamId` scoping on the
+  key namespace at all. Identical bug class to OPEN-144 ("non-timing-safe
+  comparison" in `scraper-ingest/route.ts`, fixed via `crypto.timingSafeEqual`
+  with a length check), but that fix never touched this separate Cloudflare
+  Worker codebase — same commit (b2e73c28) but a different deployable outside
+  `apps/api`. Fixed via a `constantTimeEqual` helper using the Workers
+  runtime's non-standard `crypto.subtle.timingSafeEqual` extension (Node's
+  `crypto.timingSafeEqual` isn't available in the Workers runtime), with a
+  length check first since Workers' `timingSafeEqual` requires equal-length
+  buffers. Found via a dispatched investigation of the Facebook Lead
+  Ads/Cloudflare-BYOD/Stripe-Razorpay-idempotency areas, all three of which
+  were confirmed clean (FB Lead Ads is poll-only with no webhook receiver and
+  properly `teamId`-scoped writes; BYOD domain verification is enforced
+  against Cloudflare's own DV/TXT API before the KV ownership record is
+  written; Stripe/Razorpay webhooks have solid idempotency via early-exit
+  reads plus unique-constraint backstops) — this Worker-side comparison was
+  the one real remaining gap. No dedicated test added: this worker
+  (`workers/landing-pages`) has no test harness at all (no vitest, no test
+  script in `package.json`) — verified instead via `npx tsc --noEmit`
+  (clean) confirming `crypto.subtle.timingSafeEqual` is available in
+  `@cloudflare/workers-types`; `wrangler deploy --dry-run` fails on an
+  unrelated pre-existing placeholder (`kv_namespaces[0].id` is empty in this
+  environment, no real Cloudflare account provisioned here), not on this
+  change.
+
 - **OPEN-148 (Fixed):** two bugs found while auditing the Raspberry
   Pi/Jetson edge-node attestation flow (see OPEN-61 for the full heartbeat
   feature history): (1) **`/edge` was missing from `apps/api/server.ts`'s

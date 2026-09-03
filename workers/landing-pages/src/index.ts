@@ -29,6 +29,19 @@ async function assertHostnameOwnsPage(env: Env, host: string, page: StoredPage):
 	return ownerTeamId !== null && ownerTeamId === page.teamId;
 }
 
+// Plain !== short-circuits on the first differing byte, leaking how many
+// leading bytes of a guessed secret are correct via response timing - this
+// endpoint is internet-reachable (served on every landing-page hostname),
+// so compare with the Workers runtime's constant-time primitive instead
+// (same fix class as OPEN-144's scraper-ingest HMAC comparison).
+function constantTimeEqual(a: string, b: string): boolean {
+	const encoder = new TextEncoder();
+	const aBytes = encoder.encode(a);
+	const bBytes = encoder.encode(b);
+	if (aBytes.byteLength !== bBytes.byteLength) return false;
+	return crypto.subtle.timingSafeEqual(aBytes, bBytes);
+}
+
 async function proxyToApi(env: Env, request: Request, path: string): Promise<Response> {
 	const upstream = new URL(path, env.API_ORIGIN);
 	const clientIp = request.headers.get("CF-Connecting-IP");
@@ -63,7 +76,7 @@ export default {
 
 		if (segments[0] === "internal" && segments[1] === "assets" && segments[2] && request.method === "POST") {
 			const secret = request.headers.get("X-Internal-Secret");
-			if (!secret || secret !== env.INTERNAL_UPLOAD_SECRET) {
+			if (!secret || !constantTimeEqual(secret, env.INTERNAL_UPLOAD_SECRET)) {
 				return new Response("Unauthorized", { status: 401 });
 			}
 			const key = segments.slice(2).join("/");
