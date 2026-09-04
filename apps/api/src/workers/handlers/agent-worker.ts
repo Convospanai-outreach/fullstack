@@ -117,6 +117,21 @@ export async function handleAgentRun(payload: JobPayload) {
         throw new Error("Missing agentId");
     }
 
+    if (taskId && teamId) {
+        // taskId is caller-controlled (reachable via the generic POST
+        // /api/jobs endpoint, OPEN-158) - verify it actually belongs to
+        // this job's team before mutating its status/context/logs, or a
+        // caller could corrupt or fabricate progress on another team's
+        // AgentTask.
+        const ownedTask = await prisma.agentTask.findFirst({
+            where: { id: taskId, teamId },
+            select: { id: true }
+        });
+        if (!ownedTask) {
+            throw new Error(`AgentTask ${taskId} does not belong to team ${teamId}`);
+        }
+    }
+
     let stepNumber = 1;
 
     try {
