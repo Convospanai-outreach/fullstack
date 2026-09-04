@@ -90,7 +90,30 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             expect(res.status).toBe(201);
             expect(mockQueue.JobQueue.enqueue).toHaveBeenCalledWith(
                 "lead_scoring",
-                { leadId: "l1" },
+                { leadId: "l1", teamId: "team-alpha" },
+                expect.objectContaining({ teamId: "team-alpha" })
+            );
+        });
+
+        it("overrides an attacker-supplied payload.teamId with the caller's own session teamId", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    type: "email_sending",
+                    payload: { leadId: "l1", campaignId: "c1", teamId: "victim-team" },
+                    idempotencyKey: "idem-1",
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(201);
+            expect(mockQueue.JobQueue.enqueue).toHaveBeenCalledWith(
+                "email_sending",
+                { leadId: "l1", campaignId: "c1", teamId: "team-alpha" },
                 expect.objectContaining({ teamId: "team-alpha" })
             );
         });
