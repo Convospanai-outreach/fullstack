@@ -41,6 +41,14 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             throw new Error(`Lead ${leadId} not found`);
         }
 
+        // payload.teamId is caller-supplied (from the enqueuing route), not
+        // derived from the lead itself - re-verify it matches the lead's own
+        // team before mutating it or dispatching a webhook about it, in case
+        // some future/direct enqueue path skips the route-level pre-check.
+        if (teamId && lead.teamId && lead.teamId !== teamId) {
+            throw new Error(`Lead ${leadId} does not belong to team ${teamId}`);
+        }
+
         logWorker(leadId, "ENRICHING", { fullName: lead.fullName, teamId });
 
         const enrichmentData: Record<string, any> = {

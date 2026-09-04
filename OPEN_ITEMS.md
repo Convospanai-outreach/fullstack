@@ -1327,6 +1327,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   data). 360/360 apps/web tests pass (3 new, 7 pre-existing unrelated
   skips), `tsc --noEmit` clean.
 
+- **OPEN-157 (Fixed):** cross-tenant IDOR in lead enrichment, spanning both
+  HTTP entry points and the worker that processes the job: `POST
+  /enrichment/lead` (`apps/api/routes/enrichment/lead/route.ts`) and `POST
+  /learning/enrich-lead` (`apps/api/routes/learning/enrich-lead/route.ts`)
+  both accepted a caller-supplied `leadId` and enqueued a `lead_enrichment`
+  job carrying it plus the caller's own `teamId`, with no check that the
+  `leadId` actually belonged to that team — any authenticated caller could
+  have another team's lead enriched (and billed to their own team's
+  credits), with the resulting enrichment data (email/LinkedIn lookup)
+  dispatched to their own webhook. `apps/api/src/workers/handlers
+  /enrichment-worker.ts`'s `handleLeadEnrichment` compounded this by
+  fetching the lead with `prisma.lead.findUnique({ where: { id: leadId }
+  })` (no `teamId` filter at all) and trusting `payload.teamId` unscoped.
+  Fixed by adding a pre-check to both routes (`prisma.lead.findFirst({
+  where: { id: leadId, teamId: ctx.teamId } })`, 404 if not found — matching
+  the pattern in `apps/api/routes/whatsapp/send/route.ts`) before
+  enqueueing, and by adding defense-in-depth to the worker itself: after
+  fetching the lead, it now throws if `lead.teamId` doesn't match the
+  payload's `teamId`, in case a future/direct enqueue path skips the
+  route-level check (mirrors the OPEN-149 dual-layer pattern). The worker's
+  existing outer `catch` correctly triggers `refundCredits` for this new
+  throw since credits are deducted before the lead lookup. New tests: 3 for
+  `enrichment/lead/route.test.ts`, 3 for `learning/enrich-lead
+  /route.test.ts`, 4 for `enrichment-worker.test.ts` (10 new total).
+  916/916 apps/api tests pass, `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted under OPEN-151/152/154/155).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
