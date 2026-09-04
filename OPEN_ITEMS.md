@@ -1518,6 +1518,24 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160).
 
+- **OPEN-163 (Fixed):** missing auth + IDOR in `PATCH
+  /api/notifications/[id]` (`apps/api/routes/notifications/[id]/route.ts`).
+  The handler had no `getCurrentContext()` call at all and updated
+  `prisma.notification.update({ where: { id } })` unconditionally — any
+  caller, including one with no session, could flip `read: true` on any
+  user's `Notification` row by guessing/enumerating its id. The sibling
+  bulk route (`apps/api/routes/notifications/route.ts`'s `PATCH`) shows
+  the correct pattern: it checks `getCurrentContext()` for a 401, then
+  scopes `prisma.notification.updateMany({ where: { userId: ctx.userId,
+  ... } })`. Fixed by adding the same auth check and converting the
+  single-item update to a `userId`-scoped `updateMany`, returning 404 when
+  `count === 0` (foreign or nonexistent id). New `route.test.ts` (3 tests:
+  unauthenticated caller rejected, another user's notification id returns
+  404 without updating it, the caller's own notification is marked read).
+  931/931 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160/161/162).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
