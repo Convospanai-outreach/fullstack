@@ -1354,6 +1354,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   916/916 apps/api tests pass, `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted under OPEN-151/152/154/155).
 
+- **OPEN-158 (Fixed):** cross-tenant IDOR reachable through the generic
+  `POST /api/jobs` endpoint (`apps/api/routes/jobs/route.ts`), which lets
+  any authenticated user enqueue *any* job type with an arbitrary,
+  schema-unvalidated `payload` object (`TaskEnvelopeSchema`/`LegacyJobSchema`
+  only require `payload: z.record(z.string(), z.any())` — no per-field or
+  per-type checks). The route correctly scopes the `Job` row's own `teamId`
+  column to `ctx.teamId`, but passed the client's `payload` straight through
+  to `JobQueue.enqueue()` unmodified, so a caller could set
+  `payload.teamId` to any value they liked, and worker handlers that trust
+  `payload.teamId` for ownership decisions (e.g. `enrichment-worker.ts`'s
+  OPEN-157 defense-in-depth check) could be satisfied by simply setting
+  `payload.teamId` to the victim's real team while the job's true owner
+  (`ctx.teamId`) was the attacker. Concretely demonstrated via the
+  `email_sending` job type: `apps/api/src/workers/handlers
+  /email-worker.ts`'s `handleEmailSend` fetched the caller-supplied
+  `leadId`/`campaignId` with `prisma.lead.findUnique`/`campaign.findUnique`
+  (no `teamId` filter at all) and never checked the fetched rows' `teamId`
+  against anything, so `POST /api/jobs` with
+  `{ type: "email_sending", payload: { leadId: <victim lead>, campaignId:
+  <victim campaign> } }` would send an AI-generated email to another
+  team's lead, bill/charge AI usage against that team's `campaign.teamId`,
+  increment their campaign's `completedCount`, and log an `Activity` row —
+  from any authenticated caller of any team. Fixed at both layers: (1)
+  `apps/api/routes/jobs/route.ts` now overwrites `payload.teamId` with
+  `ctx.teamId` before enqueueing (both the TaskEnvelope and Legacy body
+  shapes), so `payload.teamId` can never diverge from the job's real,
+  session-authenticated owner regardless of what the client sends; (2)
+  `email-worker.ts` gained the same defense-in-depth pattern as
+  `enrichment-worker.ts` (OPEN-157): it now throws if the fetched
+  `lead.teamId` or `campaign.teamId` doesn't match `payload.teamId`, so
+  even a job enqueued through some other, unaudited path can't cross
+  tenants. New tests: 1 added to `routes/jobs/__tests__/route.test.ts`
+  (attacker-supplied `payload.teamId` is overridden), 1 existing test in
+  that file updated to reflect the injected `teamId` field, plus a new
+  `email-worker.test.ts` (4 tests: missing ids, lead/team mismatch,
+  campaign/team mismatch, happy path). 921/921 apps/api tests pass (5 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted under OPEN-151/152/154/155/157).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
