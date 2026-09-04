@@ -1354,6 +1354,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   916/916 apps/api tests pass, `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted under OPEN-151/152/154/155).
 
+- **OPEN-161 (Fixed):** arbitrary file read + delete via the `CSV_IMPORT`
+  job type, reachable through the generic `POST /api/jobs` endpoint
+  (OPEN-158). `apps/api/src/workers/handlers/csv-worker.ts`'s
+  `handleCsvImport` took a caller-supplied `filePath` and passed it
+  directly to `fs.readFile(filePath)` and, on success, `fs.unlink(filePath)`
+  — with no restriction on what path could be supplied. The legitimate
+  route (`apps/api/src/modules/csv-ingestion/api/upload.ts`) always writes
+  the uploaded file to a fixed `tmp/` directory under a
+  server-generated `randomUUID()` filename and validates the resulting
+  path is contained within that directory before enqueueing — but
+  `job-processor.ts`'s `CSV_IMPORT` case passes `payload.filePath` through
+  unchecked, and `CSV_IMPORT` isn't gated by any role/ownership check at
+  the `/api/jobs` route level. Any authenticated user could `POST
+  /api/jobs` with `{ type: "CSV_IMPORT", payload: { filePath:
+  "<any path readable by the node process>" } }` to have the worker read
+  an arbitrary file's contents (parsed as CSV and inserted into their own
+  team's leads, making it retrievable afterward through the normal leads
+  UI — an exfiltration primitive) and then delete that file. Fixed by
+  confining `filePath` to the same `tmp/` directory the upload route
+  writes into, matching that route's own `path.relative(...)` containment
+  check: `handleCsvImport` now resolves the path and throws before doing
+  any file I/O if it isn't contained within that directory. New
+  `csv-worker.test.ts` (3 tests: a path outside the upload directory is
+  rejected before any read/delete, a `..`-based traversal path is
+  rejected, a path inside the directory is processed normally). 923/923
+  apps/api tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
