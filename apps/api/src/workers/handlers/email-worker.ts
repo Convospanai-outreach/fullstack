@@ -30,6 +30,19 @@ export async function handleEmailSend(payload: JobPayload) {
         throw new Error(`Campaign ${campaignId} not found`);
     }
 
+    // payload.teamId is caller-supplied (from whoever enqueued this job -
+    // including the generic POST /api/jobs endpoint, which accepts arbitrary
+    // leadId/campaignId with no ownership check of its own) - re-verify the
+    // lead and campaign actually belong to that team before emailing the
+    // lead or billing/crediting the campaign's team, matching the
+    // enrichment-worker.ts defense-in-depth pattern.
+    if (teamId && lead.teamId && lead.teamId !== teamId) {
+        throw new Error(`Lead ${leadId} does not belong to team ${teamId}`);
+    }
+    if (teamId && campaign.teamId && campaign.teamId !== teamId) {
+        throw new Error(`Campaign ${campaignId} does not belong to team ${teamId}`);
+    }
+
     if (!lead.email) {
         logger.warn(`[Worker] Skipping email: Lead ${leadId} has no email address.`, { leadId, campaignId });
         return;
