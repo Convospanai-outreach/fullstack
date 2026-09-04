@@ -6,7 +6,7 @@ import { logger, logWorker } from "@/lib/logger";
  * Campaign execution worker
  * Orchestrates the entire campaign workflow for all leads
  */
-export async function executeCampaign(campaignId: string, userId?: string) {
+export async function executeCampaign(campaignId: string, userId?: string, teamId?: string) {
     // Fetch campaign with leads
     const campaign = await prisma.campaign.findUnique({
         where: { id: campaignId },
@@ -15,6 +15,15 @@ export async function executeCampaign(campaignId: string, userId?: string) {
 
     if (!campaign) {
         throw new Error(`Campaign ${campaignId} not found`);
+    }
+
+    // teamId is caller-supplied (from whoever enqueued this job - including
+    // the generic POST /api/jobs endpoint, which accepts arbitrary
+    // campaignId with no ownership check of its own) - re-verify the
+    // campaign actually belongs to that team before activating it and
+    // cascading real enrichment jobs/outbound email against its leads.
+    if (teamId && campaign.teamId && campaign.teamId !== teamId) {
+        throw new Error(`Campaign ${campaignId} does not belong to team ${teamId}`);
     }
 
     // Fallback: If userId not passed (e.g. older jobs), use campaign owner
