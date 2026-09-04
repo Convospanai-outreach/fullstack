@@ -11,6 +11,19 @@ export async function GET(
     if (!userId || !teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {
+        // AiTrace has no teamId of its own - it's only reachable via
+        // runId -> WorkflowRun -> Workflow.teamId, so verify that chain
+        // belongs to the caller's team before returning any traces, or a
+        // caller could read another team's full AI reasoning traces by
+        // guessing/enumerating a runId.
+        const run = await prisma.workflowRun.findFirst({
+            where: { id: runId, workflow: { teamId } },
+            select: { id: true }
+        });
+        if (!run) {
+            return NextResponse.json({ error: "Run not found" }, { status: 404 });
+        }
+
         const traces = await prisma.aiTrace.findMany({
             where: { runId },
             orderBy: { createdAt: 'asc' }

@@ -1490,6 +1490,29 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160/161).
 
+- **OPEN-166 (Fixed):** cross-tenant read of AI reasoning traces in `GET
+  /api/traces/[runId]` (`apps/api/routes/traces/[runId]/route.ts`). The
+  route checked auth (`getCurrentContext()` 401) but never scoped
+  `prisma.aiTrace.findMany({ where: { runId } })` by team. `AiTrace` has
+  no `teamId` column of its own — it's reachable only via
+  `AiTrace.runId -> WorkflowRun.id -> WorkflowRun.workflowId ->
+  Workflow.teamId` (`apps/api/prisma/schema.prisma:1689-1745`) — so any
+  authenticated user of any team could read another team's full AI
+  reasoning traces (prompts, chain-of-thought, model output, token
+  counts) for any `runId` by guessing/enumerating it. Fixed by verifying
+  the run's parent `Workflow` belongs to the caller's team
+  (`prisma.workflowRun.findFirst({ where: { id: runId, workflow: {
+  teamId } } })`) before querying `AiTrace`, returning 404 if the chain
+  doesn't resolve to the caller's team — matching the OPEN-154 pattern of
+  verifying ownership through a reliably-scoped parent when the child
+  resource's own tenancy column isn't directly usable. New
+  `route.test.ts` (3 tests: unauthenticated caller rejected, a run
+  belonging to another team's workflow returns 404 without querying
+  traces, a run belonging to the caller's team returns its traces).
+  939/939 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160/161/162).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
