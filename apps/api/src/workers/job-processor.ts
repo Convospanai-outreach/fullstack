@@ -26,7 +26,7 @@ async function runHandler(jobType: string, payload: JobPayload) {
             if (!campaignId) {
                 throw new Error("campaign_execution payload is missing campaignId");
             }
-            return executeCampaign(campaignId, asString(payload.userId));
+            return executeCampaign(campaignId, asString(payload.userId), asString(payload.teamId));
         }
 
         case "lead_enrichment":

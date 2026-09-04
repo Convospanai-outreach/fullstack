@@ -197,7 +197,7 @@ describe("job-processor", () => {
 
         const result = await worker.performJob({ jobId: "job-2", version: 3 });
 
-        expect(executeCampaign).toHaveBeenCalledWith("c1", "u1");
+        expect(executeCampaign).toHaveBeenCalledWith("c1", "u1", undefined);
         expect(JobQueue.complete).toHaveBeenCalledWith("job-2", 3, {
             campaignId: "c1",
             leadsProcessed: 5,
