@@ -1423,6 +1423,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158).
 
+- **OPEN-160 (Fixed):** cross-tenant `Campaign` activation in
+  `apps/api/src/workers/handlers/campaign-worker.ts`'s `executeCampaign`.
+  The legitimate enqueuer (`apps/api/routes/orchestrator/run/route.ts`)
+  derives `teamId` from the fetched `Campaign` row itself (never trusts a
+  client-supplied one) and calls `enforcePolicy`/`checkLimits` against it
+  before enqueueing — but `executeCampaign` itself, and the
+  `job-processor.ts` `campaign_execution` case that calls it, never
+  checked the enqueued `campaignId` against any team at all:
+  `prisma.campaign.findUnique({ where: { id: campaignId } })` (no `teamId`
+  filter), followed unconditionally by `campaign.update({ status: "active"
+  })` and real `lead_enrichment` job fan-out for every lead plus a
+  `campaign.started` webhook. Since the generic `POST /api/jobs` endpoint
+  (OPEN-158) accepts an arbitrary `campaign_execution` payload and forces
+  `payload.teamId` to the caller's own team, any authenticated user could
+  `POST /api/jobs` with `{ type: "campaign_execution", payload: {
+  campaignId: "<victim campaign>" } }` to bypass `orchestrator/run/route.ts`'s
+  policy/limit checks entirely and forcibly activate another tenant's
+  campaign, cascading real enrichment jobs and outbound email against
+  their leads. Fixed by threading `payload.teamId` through
+  `job-processor.ts` into `executeCampaign(campaignId, userId, teamId)`,
+  which now throws if the fetched `campaign.teamId` doesn't match the
+  passed-in `teamId` (same defense-in-depth pattern as OPEN-157/158/159);
+  a request with no `teamId` still runs unscoped for backward
+  compatibility with any other internal callers. New
+  `campaign-worker.test.ts` (4 tests: campaign not found, foreign teamId
+  rejected with no activation, matching teamId proceeds normally, no-teamId
+  payload still runs unscoped). Updated the existing
+  `job-processor.test.ts` assertion to reflect the new
+  `executeCampaign(campaignId, userId, teamId)` call shape. 920/920
+  apps/api tests pass (4 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159).
+
 - **OPEN-161 (Fixed):** arbitrary file read + delete via the `CSV_IMPORT`
   job type, reachable through the generic `POST /api/jobs` endpoint
   (OPEN-158). `apps/api/src/workers/handlers/csv-worker.ts`'s
