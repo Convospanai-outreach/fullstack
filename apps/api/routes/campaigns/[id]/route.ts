@@ -43,14 +43,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        await requireCampaignContext(id, TeamRole.MEMBER);
+        const { teamId } = await requireCampaignContext(id, TeamRole.MEMBER);
         const body = await req.json();
         if (body.action === "start" || body.status === "active") {
             await CampaignService.startCampaign(id);
         } else if (body.action === "pause" || body.status === "paused") {
             await CampaignService.pauseCampaign(id);
         } else if (body.leadIds) {
-            await CampaignService.addLeadsToCampaign(id, body.leadIds);
+            await CampaignService.addLeadsToCampaign(id, body.leadIds, teamId);
         } else {
             const allowedUpdates: Record<string, unknown> = {};
             if (typeof body.name === "string") allowedUpdates.name = body.name;
