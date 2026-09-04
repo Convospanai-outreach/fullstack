@@ -60,7 +60,13 @@ export async function POST(req: NextRequest) {
 
         if (body && typeof body === "object" && "version" in body) {
             const envelope = TaskEnvelopeSchema.parse(body);
-            job = await JobQueue.enqueue(envelope.task_type as any, envelope.payload, {
+            // payload.teamId is read by worker handlers as the authoritative
+            // tenant for ownership checks (e.g. email-worker.ts,
+            // enrichment-worker.ts) - never let the caller set it to a
+            // different team than their own session, or those checks become
+            // trivially bypassable.
+            const scopedPayload = { ...envelope.payload, teamId: ctx.teamId };
+            job = await JobQueue.enqueue(envelope.task_type as any, scopedPayload, {
                 priority: body.priority ?? 0,
                 teamId: ctx.teamId,
                 idempotencyKey: envelope.idempotency_key,
@@ -76,7 +82,8 @@ export async function POST(req: NextRequest) {
             });
         } else {
             const legacy = LegacyJobSchema.parse(body);
-            job = await JobQueue.enqueue(legacy.type as any, legacy.payload, {
+            const scopedPayload = { ...legacy.payload, teamId: ctx.teamId };
+            job = await JobQueue.enqueue(legacy.type as any, scopedPayload, {
                 priority: legacy.priority ?? 0,
                 teamId: ctx.teamId,
                 idempotencyKey: legacy.idempotencyKey,
