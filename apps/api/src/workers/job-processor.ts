@@ -199,7 +199,7 @@ async function runHandler(jobType: string, payload: JobPayload) {
                 throw new Error("WEBHOOK_DISPATCH payload is missing webhookId/event");
             }
             const { webhookService } = await import("@/modules/webhooks/service/webhookService");
-            return webhookService.processDelivery(webhookId, event, (payload as any).payload || {});
+            return webhookService.processDelivery(webhookId, event, (payload as any).payload || {}, asString(payload.teamId));
         }
 
         case "event_processing": {
