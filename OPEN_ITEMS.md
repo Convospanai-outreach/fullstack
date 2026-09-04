@@ -1517,6 +1517,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   929/929 apps/api tests pass (4 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160/161).
+- **OPEN-164 (Fixed):** completely missing auth + cross-tenant IDOR in
+  `POST /leads/[id]/enrich` (`apps/api/routes/leads/[id]/enrich/route.ts`).
+  The handler had no `getCurrentContext()` call at all — not even a
+  `userId` check — and called `EnrichmentService.enrichLead(id)`
+  unconditionally, which itself only used `prisma.lead.findUnique({
+  where: { id: leadId } })` to look up the lead's *own* team (not the
+  caller's) and enqueued a `lead_enrichment` job scoped to that team. Any
+  authenticated caller — or, since there was no auth check whatsoever,
+  potentially an unauthenticated one — could trigger real enrichment
+  (LinkedIn scraping, Hunter.io email lookup, AI scoring) against **any**
+  lead in the system by guessing/enumerating its UUID, consuming and
+  billing that victim team's own enrichment credits for work they never
+  requested. This is a third, previously-missed entry point into the same
+  `lead_enrichment` job type that OPEN-157 fixed for the other two routes
+  (`enrichment/lead/route.ts`, `learning/enrich-lead/route.ts`) — the
+  sibling `leads/[id]/route.ts` in the same directory shows the correct
+  pattern (`getCurrentContext()` 401 check + `prisma.lead.findFirst({
+  where: { id, teamId } })`). Fixed by adding the same auth check to the
+  route and changing `EnrichmentService.enrichLead` to take the caller's
+  `teamId` and verify the lead belongs to it (`prisma.lead.findFirst({
+  where: { id: leadId, teamId } })`) before enqueueing, returning `null`
+  (mapped to 404 by the route) if not found. New tests: 2 added/updated
+  in `EnrichmentService.test.ts` (enqueues only for a matching-team lead,
+  refuses a foreign lead with no enqueue), new `route.test.ts` (3 tests:
+  unauthenticated caller rejected, foreign lead id returns 404, caller's
+  own lead enriched). 932/932 apps/api tests pass, `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160).
 
 - **OPEN-163 (Fixed):** missing auth + IDOR in `PATCH
   /api/notifications/[id]` (`apps/api/routes/notifications/[id]/route.ts`).
