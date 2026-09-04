@@ -1611,6 +1611,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   939/939 apps/api tests pass (3 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160/161/162).
+- **OPEN-167 (Fixed):** cross-tenant read of campaign analytics via `GET
+  /api/campaigns/[id]/analytics/v2` (`apps/web/src/app/api/campaigns/[id]
+  /analytics/v2/route.ts`). The route checked that the caller was
+  authenticated (`ctx.teamId` truthy) but never verified that the
+  `id` route param belonged to that team before computing analytics.
+  `analyticsService.getCampaignFunnel(campaignId)` and
+  `getActivityTimeline(campaignId)`
+  (`apps/web/src/modules/analytics/analyticsService.ts`) both query
+  `prisma.email`/`prisma.message` filtered only by `campaignId`, and the
+  route's own inline `prisma.lead.groupBy` was likewise filtered only by
+  `campaignId` — no `teamId` anywhere in the request path. Any
+  authenticated user of any team could `GET
+  /api/campaigns/{other-team-campaign-id}/analytics/v2` and receive that
+  team's full email funnel (sent/opened/clicked/replied counts), 7-day
+  activity timeline, and lead-status breakdown by guessing/enumerating a
+  campaign UUID. The sibling non-`v2` route in the same directory
+  (`analytics/route.ts`) shows the correct pattern:
+  `prisma.campaign.findFirst({ where: { id, teamId } })` before computing
+  any stats, 404ing otherwise. Fixed by adding the identical ownership
+  check to `v2` before calling into `analyticsService` or querying leads.
+  New `route.test.ts` (3 tests: unauthenticated caller rejected, a
+  foreign-team campaign id returns 404 without querying analytics, the
+  caller's own campaign returns its analytics). 366/366 apps/web tests
+  pass (3 new), `tsc --noEmit` clean.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

@@ -15,6 +15,14 @@ export async function GET(
     const { prisma } = await import("@/lib/db");
 
     try {
+        const campaign = await prisma.campaign.findFirst({
+            where: { id, teamId: ctx.teamId },
+            select: { id: true }
+        });
+        if (!campaign) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
         const [funnel, timeline, leadsStatus] = await Promise.all([
             analyticsService.getCampaignFunnel(id),
             analyticsService.getActivityTimeline(id),
