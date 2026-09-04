@@ -8,6 +8,7 @@ vi.mock("@/lib/db", () => ({
     prisma: {
         webhook: {
             findUnique: vi.fn(),
+            findFirst: vi.fn(),
         },
         webhookLog: {
             create: vi.fn(),
@@ -123,6 +124,59 @@ describe("WebhookService Failure scenarios", () => {
             .rejects.toThrow("aborted");
 
         expect(passedSignal).toBeInstanceOf(AbortSignal);
+    });
+});
+
+describe("WebhookService.processDelivery teamId scoping (OPEN-162)", () => {
+    const webhookId = "wh_123";
+    const event = "lead.created";
+    const payload = { id: "lead_1" };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (lookup as Mock).mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    });
+
+    test("skips delivery when a teamId is supplied and the webhook doesn't belong to it", async () => {
+        (prisma.webhook.findFirst as Mock).mockResolvedValue(null);
+
+        await webhookService.processDelivery(webhookId, event, payload, "team-a");
+
+        expect(prisma.webhook.findFirst).toHaveBeenCalledWith({
+            where: { id: webhookId, teamId: "team-a" },
+        });
+        expect(prisma.webhook.findUnique).not.toHaveBeenCalled();
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    test("delivers when the webhook belongs to the supplied teamId", async () => {
+        (prisma.webhook.findFirst as Mock).mockResolvedValue({
+            id: webhookId,
+            url: "https://example.com/webhook",
+            isActive: true,
+            teamId: "team-a",
+        });
+        (global.fetch as Mock).mockResolvedValue({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve("ok"),
+        });
+
+        await webhookService.processDelivery(webhookId, event, payload, "team-a");
+
+        expect(global.fetch).toHaveBeenCalled();
+    });
+
+    test("falls back to an unscoped lookup when no teamId is supplied", async () => {
+        (prisma.webhook.findUnique as Mock).mockResolvedValue({
+            id: webhookId,
+            isActive: false,
+        });
+
+        await webhookService.processDelivery(webhookId, event, payload);
+
+        expect(prisma.webhook.findUnique).toHaveBeenCalledWith({ where: { id: webhookId } });
+        expect(prisma.webhook.findFirst).not.toHaveBeenCalled();
     });
 });
 

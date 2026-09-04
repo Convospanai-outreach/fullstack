@@ -118,10 +118,16 @@ class WebhookService {
     /**
      * Actual delivery logic (called by worker)
      */
-    async processDelivery(webhookId: string, event: string, payload: Record<string, any>) {
-        const webhook = await prisma.webhook.findUnique({
-            where: { id: webhookId }
-        });
+    async processDelivery(webhookId: string, event: string, payload: Record<string, any>, teamId?: string) {
+        // webhookId is caller-supplied and reachable directly via the
+        // generic POST /api/jobs endpoint (OPEN-158) with no ownership
+        // check of its own - when a teamId is available (the job's real,
+        // server-set owner), verify the webhook actually belongs to it, or
+        // a caller could fire another team's registered webhook with a
+        // forged event/payload, HMAC-signed with that team's own secret.
+        const webhook = teamId
+            ? await prisma.webhook.findFirst({ where: { id: webhookId, teamId } })
+            : await prisma.webhook.findUnique({ where: { id: webhookId } });
 
         if (!webhook || !webhook.isActive) return;
 

@@ -417,8 +417,29 @@ describe("job-processor", () => {
 
         const result = await worker.performJob({ jobId: "job-webhook-1", version: 1 });
 
-        expect(webhookService.processDelivery).toHaveBeenCalledWith("wh_1", "lead.created", { leadId: "lead_1" });
+        expect(webhookService.processDelivery).toHaveBeenCalledWith("wh_1", "lead.created", { leadId: "lead_1" }, undefined);
         expect(result).toEqual({ delivered: true });
+    });
+
+    it("passes payload.teamId through to webhookService.processDelivery so it can scope the webhook lookup", async () => {
+        const mockJob = {
+            id: "job-webhook-2",
+            status: "running",
+            version: 1,
+            type: "WEBHOOK_DISPATCH",
+            payload: { webhookId: "wh_2", event: "lead.created", payload: { leadId: "lead_2" }, teamId: "team-a" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (webhookService.processDelivery as Mock).mockResolvedValueOnce({ delivered: true });
+
+        await worker.performJob({ jobId: "job-webhook-2", version: 1 });
+
+        expect(webhookService.processDelivery).toHaveBeenCalledWith(
+            "wh_2",
+            "lead.created",
+            { leadId: "lead_2" },
+            "team-a"
+        );
     });
 
     it("dispatches event_processing jobs with an eventId to EventStore.processEventJob (OPEN-77 regression)", async () => {

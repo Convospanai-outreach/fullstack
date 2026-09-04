@@ -1456,6 +1456,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159).
 
+- **OPEN-162 (Fixed):** cross-tenant webhook forgery/replay via the
+  `WEBHOOK_DISPATCH` job type, reachable through the generic `POST
+  /api/jobs` endpoint (OPEN-158). `apps/api/src/modules/webhooks/service
+  /webhookService.ts`'s `processDelivery(webhookId, event, payload)`
+  looked up the webhook with `prisma.webhook.findUnique({ where: { id:
+  webhookId } })` — no `teamId` filter at all — then HMAC-signed the
+  caller-supplied `event`/`payload` body with **that webhook's own
+  secret** and POSTed it to the webhook's registered URL.
+  `job-processor.ts`'s `WEBHOOK_DISPATCH` case read `webhookId`/`event`
+  straight from the job payload with no relation to the enqueuing team,
+  and never passed `payload.teamId` through to `processDelivery` even
+  though the route already force-sets it correctly (OPEN-158). Since
+  `WEBHOOK_DISPATCH` isn't gated by any ownership check at the
+  `/api/jobs` route level, any authenticated user who knew or guessed a
+  victim team's `webhookId` could `POST /api/jobs` with `{
+  type: "WEBHOOK_DISPATCH", payload: { webhookId: "<victim webhook>",
+  event: "lead.created", payload: {...attacker-chosen fake data...} } }`
+  and have the server deliver a forged, validly-HMAC-signed event to that
+  team's registered endpoint — the receiving system would trust it
+  because the signature is real. Fixed by threading `payload.teamId`
+  through `job-processor.ts` into `processDelivery(webhookId, event,
+  payload, teamId)`, which now uses `prisma.webhook.findFirst({ where: {
+  id: webhookId, teamId } })` instead of the unscoped `findUnique` when a
+  `teamId` is supplied (falling back to the original unscoped lookup for
+  the one other caller, `settings/webhooks/test/route.ts`, which already
+  verifies ownership itself before calling in). New tests: 3 added to
+  `webhookService.failure.test.ts` (foreign teamId skips delivery,
+  matching teamId delivers, no-teamId falls back to the original
+  unscoped lookup for backward compatibility), plus 1 new and 1 updated
+  in `job-processor.test.ts` for the new `processDelivery` call shape.
+  929/929 apps/api tests pass (4 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160/161).
 - **OPEN-164 (Fixed):** completely missing auth + cross-tenant IDOR in
   `POST /leads/[id]/enrich` (`apps/api/routes/leads/[id]/enrich/route.ts`).
   The handler had no `getCurrentContext()` call at all — not even a
