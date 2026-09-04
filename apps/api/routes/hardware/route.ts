@@ -41,6 +41,12 @@ export async function POST(req: Request) {
                 result = { success: await HardwareService.execute(payload?.actuator || "generic", payload || {}) };
                 break;
             case "SAVE_WORKFLOW":
+                // The edge node stores workflows keyed by the caller-supplied teamId on
+                // the workflow body, not by session - without this check any team could
+                // overwrite/inject a workflow tagged with another team's id.
+                if (!workflow || workflow.teamId !== ctx.teamId) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 await HardwareService.saveWorkflow(workflow);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             case "SET_COMPLIANCE":
@@ -74,8 +80,11 @@ export async function GET() {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
+        // getWorkflows() talks to a single shared edge endpoint that returns every
+        // team's workflows - filter to the caller's own before returning them.
         const workflows = await HardwareService.getWorkflows();
-        return new Response(JSON.stringify(workflows), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        const ownWorkflows = (workflows || []).filter((w: any) => w?.teamId === ctx.teamId);
+        return new Response(JSON.stringify(ownWorkflows), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {
         return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }

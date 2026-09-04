@@ -1635,6 +1635,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   foreign-team campaign id returns 404 without querying analytics, the
   caller's own campaign returns its analytics). 366/366 apps/web tests
   pass (3 new), `tsc --noEmit` clean.
+- **OPEN-168 (Fixed):** cross-tenant workflow read/write in the "sovereign
+  edge" hardware bridge (`apps/api/routes/hardware/route.ts` +
+  `apps/api/src/services/HardwareService.ts`). `HardwareService` talks to a
+  single, deployment-wide edge endpoint (`EDGE_NODE_URI`) that is shared by
+  every team, but the route never scoped its calls by team: `GET
+  /api/hardware` returned `HardwareService.getWorkflows()` unfiltered — any
+  authenticated user of any team could read every other team's saved
+  workflows. `POST /api/hardware` with `action: "SAVE_WORKFLOW"` passed the
+  raw client-supplied `workflow` object straight to
+  `HardwareService.saveWorkflow()` with no check that `workflow.teamId`
+  matched the caller's own team — any authenticated user could overwrite or
+  inject a workflow tagged with another team's id. Fixed by filtering
+  `getWorkflows()`'s response to `w.teamId === ctx.teamId` before returning
+  it, and rejecting `SAVE_WORKFLOW` with 403 when `workflow.teamId !==
+  ctx.teamId`. Both fixes are pure request/response scoping in the route
+  handler and don't touch `HardwareService` or the shared endpoint itself.
+  **Known remaining gap, intentionally not fixed here, flagged for the
+  user:** `RE_IDENTIFY` (`HardwareService.reIdentify(maskedId, purpose)`)
+  posts only `{ token: maskedId }` to the edge node with no team binding at
+  all, so a team with its own edge node online could submit another team's
+  masked PII token and have it resolved via the shared vault. Closing that
+  needs either an edge-node-side change or a new server-side
+  token→team ownership table — out of scope for a route-level fix. Also
+  flagged: the `EdgeNode.ipAddress` per-team pairing field
+  (`apps/api/prisma/schema.prisma`) is never actually used for routing —
+  `HardwareService` always calls the single global `EDGE_NODE_URI` — so the
+  "sovereign edge" per-team hardware model implied by the `EdgeNode`
+  schema/pairing lifecycle (`apps/api/routes/edge/nodes/route.ts`) isn't
+  really in effect; `ipAddress` also looks like it stores LAN addresses
+  (e.g. `192.168.1.50`) which a cloud-hosted `apps/api` couldn't reach
+  directly anyway. This is an architecture question for the team, not
+  something to fix as part of an IDOR sweep. New tests added to the
+  existing `apps/api/routes/hardware/route.test.ts` (2 for SAVE_WORKFLOW
+  ownership, 1 for GET filtering). 953/953 apps/api tests pass (3 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted under OPEN-151/152/154/155/157/158/159/160/161/162/166).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
