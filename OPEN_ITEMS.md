@@ -1393,38 +1393,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted under OPEN-151/152/154/155/157).
 
-- **OPEN-160 (Fixed):** cross-tenant `Campaign` activation in
-  `apps/api/src/workers/handlers/campaign-worker.ts`'s `executeCampaign`.
-  The legitimate enqueuer (`apps/api/routes/orchestrator/run/route.ts`)
-  derives `teamId` from the fetched `Campaign` row itself (never trusts a
-  client-supplied one) and calls `enforcePolicy`/`checkLimits` against it
-  before enqueueing — but `executeCampaign` itself, and the
-  `job-processor.ts` `campaign_execution` case that calls it, never
-  checked the enqueued `campaignId` against any team at all:
-  `prisma.campaign.findUnique({ where: { id: campaignId } })` (no `teamId`
-  filter), followed unconditionally by `campaign.update({ status: "active"
-  })` and real `lead_enrichment` job fan-out for every lead plus a
-  `campaign.started` webhook. Since the generic `POST /api/jobs` endpoint
-  (OPEN-158) accepts an arbitrary `campaign_execution` payload and forces
-  `payload.teamId` to the caller's own team, any authenticated user could
-  `POST /api/jobs` with `{ type: "campaign_execution", payload: {
-  campaignId: "<victim campaign>" } }` to bypass `orchestrator/run/route.ts`'s
-  policy/limit checks entirely and forcibly activate another tenant's
-  campaign, cascading real enrichment jobs and outbound email against
-  their leads. Fixed by threading `payload.teamId` through
-  `job-processor.ts` into `executeCampaign(campaignId, userId, teamId)`,
-  which now throws if the fetched `campaign.teamId` doesn't match the
-  passed-in `teamId` (same defense-in-depth pattern as OPEN-157/158/159);
-  a request with no `teamId` still runs unscoped for backward
-  compatibility with any other internal callers. New
-  `campaign-worker.test.ts` (4 tests: campaign not found, foreign teamId
-  rejected with no activation, matching teamId proceeds normally, no-teamId
-  payload still runs unscoped). Updated the existing
-  `job-processor.test.ts` assertion to reflect the new
-  `executeCampaign(campaignId, userId, teamId)` call shape. 920/920
-  apps/api tests pass (4 new), `tsc --noEmit` clean (same pre-existing,
-  unrelated `browser-engine.ts` failure noted under
-  OPEN-151/152/154/155/157/158/159).
+- **OPEN-159 (Fixed):** cross-tenant `AgentTask`/`AgentLog` corruption in
+  `apps/api/src/workers/handlers/agent-worker.ts`'s `handleAgentRun`.
+  `AgentTask` has a required, indexed `teamId` column
+  (`apps/api/prisma/schema.prisma:2040-2058`), and the legitimate enqueuer
+  (`apps/api/routes/orchestrator/swarm/run/route.ts`) always creates the
+  task itself scoped to the caller's own `teamId` before enqueueing a
+  `taskId` it just created — but `handleAgentRun` itself never checked
+  that the `taskId` it received actually belonged to `payload.teamId`
+  before mutating it: `prisma.agentTask.update({ where: { id: taskId },
+  data: { status: "RUNNING" } })` (and the later `COMPLETED`/`FAILED`
+  updates plus `agentLog.create` calls) all took `taskId` unscoped. Since
+  the generic `POST /api/jobs` endpoint (OPEN-158) accepts an arbitrary
+  `task_type`/payload and `agent_run` isn't gated by its `unsafeTypes`
+  idempotency set, any authenticated caller could `POST /api/jobs` with
+  `{ type: "agent_run", payload: { agentId: "<any-agent-id>", taskId:
+  "<victim's real AgentTask.id>", ... } }` and have the worker overwrite
+  another team's `AgentTask.status`/`context`/`plan` and append fabricated
+  `AgentLog` entries to it. Fixed by verifying ownership up front — before
+  entering the function's try/catch, so a failed check can't be
+  "recovered" into a FAILED-status write on the same foreign task via the
+  catch block — with `prisma.agentTask.findFirst({ where: { id: taskId,
+  teamId }, select: { id: true } })`, throwing if not found (matching the
+  OPEN-157/158 worker-level defense-in-depth pattern). New
+  `agent-worker.test.ts` (4 tests: missing agentId, foreign taskId
+  rejected with no mutation, matching taskId proceeds normally, no-teamId
+  payload still runs unscoped as before for backward compatibility).
+  915/915 apps/api tests pass (4 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
