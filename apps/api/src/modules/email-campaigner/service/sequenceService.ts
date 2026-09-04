@@ -31,6 +31,7 @@ type ProcessDueOptions = {
 type ExecuteRunOptions = {
     runId: string;
     now?: Date;
+    teamId?: string;
 };
 
 type ConditionConfig = {
@@ -189,6 +190,12 @@ export class SequenceService {
         });
 
         if (!run) throw new Error(`Sequence step run ${options.runId} not found`);
+        // options.teamId is caller-supplied (from the enqueuing job payload), not
+        // derived from the run itself - without this check, any team could force-
+        // execute (and re-send) another team's sequence step run by guessing its id.
+        if (options.teamId && run.teamId !== options.teamId) {
+            throw new Error(`Sequence step run ${options.runId} does not belong to team ${options.teamId}`);
+        }
         if (!run.teamId || !run.leadId) {
             await this.failRun(run.id, "VALIDATION_ERROR", "Sequence sends require teamId and leadId.", false, now);
             return { runId: run.id, status: "FAILED", errorCode: "VALIDATION_ERROR" };

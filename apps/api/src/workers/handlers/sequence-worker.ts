@@ -12,7 +12,7 @@ function asLimit(value: unknown) {
 export async function handleSequenceExecution(payload: JobPayload) {
     const runId = asString(payload.runId);
     if (runId) {
-        return SequenceService.executeRun({ runId });
+        return SequenceService.executeRun({ runId, teamId: asString(payload.teamId) });
     }
 
     return SequenceService.processDue({
