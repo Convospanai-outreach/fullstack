@@ -1732,6 +1732,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rejected, delete scoped to caller's team, tag scoped to caller's team).
   958/958 apps/api tests pass (7 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
+- **OPEN-171 (Fixed):** cross-tenant sequence-run hijack via `POST
+  /api/jobs` → `sequence_execution` job type
+  (`apps/api/src/workers/handlers/sequence-worker.ts`,
+  `apps/api/src/modules/email-campaigner/service/sequenceService.ts` — a
+  distinct email/WhatsApp drip-sequence engine from the already-fixed
+  `SEQUENCE_ACTION`/`sequenceHandlers.ts` LinkedIn sequencer, OPEN-169).
+  `handleSequenceExecution`'s `runId`-present branch called
+  `SequenceService.executeRun({ runId })` with **`payload.teamId` dropped
+  entirely**, while its `runId`-absent branch (`processDue`) correctly
+  threaded `teamId` through — the asymmetry was the tell. `executeRun`
+  looked up `sequenceStepRun` by raw id with no team check and, unlike the
+  legitimate `processDue` → `claimRun` path (which atomically requires
+  `status: {in: ["SCHEDULED","RETRY_SCHEDULED"]}, scheduledAt: {lte: now}`
+  before ever calling `executeRun`), no status/due-time gate either. Any
+  authenticated user of any team could `POST /api/jobs` with `{type:
+  "sequence_execution", payload: {runId: "<guessed/leaked team-B run
+  id>"}}` to force-fire Team B's step immediately (sending a real email or
+  WhatsApp message to Team B's lead through Team B's connected mailbox),
+  ahead of schedule and regardless of status, and could re-fire the same
+  `run.id` repeatedly for duplicate sends (the existing duplicate-guard
+  only checks sibling runs, not re-execution of the same run). Fixed by
+  adding an optional `teamId` to `ExecuteRunOptions`, checking
+  `run.teamId !== options.teamId` (when supplied) before proceeding —
+  matching the ownership-check pattern used in `enrichment-worker.ts`
+  (OPEN-160) and `sequenceHandlers.ts` (OPEN-169) — and threading
+  `payload.teamId` through in `sequence-worker.ts`. The internal
+  `processDue` → `executeRun` call path is unaffected (still calls without
+  `teamId`, already claim-gated). New
+  `apps/api/src/modules/email-campaigner/service/__tests__/sequenceService.executeRun.ownership.test.ts`
+  (3 tests) and new
+  `apps/api/src/workers/handlers/__tests__/sequence-worker.test.ts` (2
+  tests, confirms `teamId` forwarding for both branches). 967/967 apps/api
+  tests pass (9 new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
