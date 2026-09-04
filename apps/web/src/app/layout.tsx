@@ -84,6 +84,10 @@ import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const posthogKey = process.env["NEXT_PUBLIC_POSTHOG_KEY"];
   const posthogHost = process.env["NEXT_PUBLIC_POSTHOG_HOST"] || "https://us.i.posthog.com";
+  const gaMeasurementId =
+    process.env["NEXT_PUBLIC_GA_MEASUREMENT_ID"] ||
+    process.env["NEXT_PUBLIC_GA_ID"] ||
+    "G-PJCWLF4HVJ";
   const app = (
     <ErrorBoundary>
       <ThemeProvider>
@@ -109,6 +113,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning
       >
         <head>
+          <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+          <link rel="preconnect" href="https://www.google-analytics.com" crossOrigin="anonymous" />
+          <link rel="dns-prefetch" href="https://www.google-analytics.com" />
           <link rel="preconnect" href="https://us-assets.i.posthog.com" crossOrigin="anonymous" />
           <link rel="dns-prefetch" href="https://us-assets.i.posthog.com" />
           <link rel="alternate" type="text/markdown" href="/llms.txt" title="LLM Summary" />
@@ -116,6 +124,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <link rel="api-catalog" type="application/linkset+json" href="/.well-known/api-catalog" />
           <link rel="service-desc" type="application/json" href="/api/openapi.json" />
           <link rel="service-doc" type="text/html" href="/docs/api" />
+          {/* Google Analytics 4 Script with data-cfasync="false" to prevent Cloudflare Rocket Loader deferral */}
+          <script
+            async
+            src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+            data-cfasync="false"
+          />
+          <script
+            id="google-analytics-init"
+            data-cfasync="false"
+            dangerouslySetInnerHTML={{
+              __html: `
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${gaMeasurementId}', {
+                  send_page_view: true
+                });
+              `,
+            }}
+          />
           <script
             type="application/ld+json"
             dangerouslySetInnerHTML={{
