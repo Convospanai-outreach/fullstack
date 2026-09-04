@@ -103,7 +103,7 @@ export class CampaignService {
                         where: { id: lead.id },
                         data: { status: "QUEUED" }
                     });
-                    await SequenceService.startSequence(lead.id, lead.linkedIn);
+                    await SequenceService.startSequence(lead.id, lead.linkedIn, campaign.teamId ?? undefined);
                 } else if (lead.email) {
                     // Email-only outreach: schedule EMAIL step immediately
                     console.log(`Starting email-only sequence for lead ${lead.id}`);
@@ -111,7 +111,7 @@ export class CampaignService {
                         where: { id: lead.id },
                         data: { status: "QUEUED" }
                     });
-                    await SequenceService.scheduleStep(lead.id, "", "EMAIL", 0);
+                    await SequenceService.scheduleStep(lead.id, "", "EMAIL", 0, campaign.teamId ?? undefined);
                 }
             }
         }

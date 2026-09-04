@@ -1671,6 +1671,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   ownership, 1 for GET filtering). 953/953 apps/api tests pass (3 new),
   `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted under OPEN-151/152/154/155/157/158/159/160/161/162/166).
+- **OPEN-169 (Fixed):** cross-tenant lead read/write and unauthorized email
+  send via `SEQUENCE_ACTION` jobs
+  (`apps/api/src/workers/handlers/sequenceHandlers.ts`,
+  `apps/api/src/lib/sequenceService.ts`). `POST /api/jobs`
+  (`apps/api/routes/jobs/route.ts`) force-sets `payload.teamId = ctx.teamId`
+  so the caller can't lie about their own team, but never validated any
+  other field of the free-form job payload — including `leadId`. A Team A
+  user could `POST /api/jobs` with `{type: "SEQUENCE_ACTION", payload:
+  {leadId: "<team-B-lead-id>", action: "EMAIL"}, idempotencyKey: "x"}` and
+  `handleSequenceAction` would fetch Team B's lead with **no comparison to
+  the job's own (forced-correct) teamId anywhere**, then: (1) read Team B's
+  `enrichedData`/campaign `aiConfig`/team name into an AI prompt and
+  generate + send a real outbound email to Team B's actual lead, billed and
+  attributed as Team B (`sendEmail(..., { teamId: lead.campaign.teamId,
+  ... })`); (2) on success, unscopedly overwrite Team B's lead `status`;
+  (3) re-enqueue further `SEQUENCE_ACTION` jobs against the same foreign
+  lead, driving it through VISIT→CONNECT→MESSAGE→EMAIL repeatedly. The
+  VISIT/CONNECT/MESSAGE branches had the same gap. Fixed by adding the same
+  `payloadTeamId` vs. the lead's own `campaign.teamId` ownership check
+  already used in `enrichment-worker.ts` (OPEN-160) to every branch,
+  including a new lookup for VISIT (which previously fetched no lead data
+  at all). To keep the check effective across the whole auto-scheduled
+  chain (not just the first, directly-enqueued hop), `SequenceService`'s
+  `startSequence`/`scheduleStep`/`scheduleNextStep` now take an optional
+  `teamId` that gets forwarded into each subsequently-enqueued job's
+  payload, seeded from the verified/resolved team at each step; internal
+  callers (`campaignService.ts`'s `startCampaign`) now pass the campaign's
+  own `teamId` in. New tests added to
+  `apps/api/src/workers/handlers/__tests__/sequenceHandlers.test.ts` (cross-
+  tenant VISIT/CONNECT/EMAIL rejected, same-team EMAIL still sends). 955/955
+  apps/api tests pass (5 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
