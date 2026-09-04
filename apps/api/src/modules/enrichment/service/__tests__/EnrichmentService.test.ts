@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/db", () => ({
     prisma: {
         lead: {
-            findUnique: vi.fn(),
+            findFirst: vi.fn(),
         },
     },
 }));
@@ -24,14 +24,14 @@ describe("EnrichmentService", () => {
     });
 
     describe("enrichLead", () => {
-        it("enqueues a lead_enrichment job scoped to the lead's team", async () => {
-            (prisma.lead.findUnique as any).mockResolvedValue({ teamId: "team-1" });
+        it("enqueues a lead_enrichment job when the lead belongs to the caller's team", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ teamId: "team-1" });
             (JobQueue.enqueue as any).mockResolvedValue({ id: "job-1" });
 
-            const result = await EnrichmentService.enrichLead("lead-1");
+            const result = await EnrichmentService.enrichLead("lead-1", "team-1");
 
-            expect(prisma.lead.findUnique).toHaveBeenCalledWith({
-                where: { id: "lead-1" },
+            expect(prisma.lead.findFirst).toHaveBeenCalledWith({
+                where: { id: "lead-1", teamId: "team-1" },
                 select: { teamId: true },
             });
             expect(JobQueue.enqueue).toHaveBeenCalledWith("lead_enrichment", {
@@ -41,17 +41,13 @@ describe("EnrichmentService", () => {
             expect(result).toEqual({ success: true, jobId: "job-1" });
         });
 
-        it("enqueues without a teamId when the lead has none or isn't found", async () => {
-            (prisma.lead.findUnique as any).mockResolvedValue(null);
-            (JobQueue.enqueue as any).mockResolvedValue({ id: "job-2" });
+        it("refuses to enrich a lead that doesn't belong to the caller's team", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
 
-            const result = await EnrichmentService.enrichLead("lead-missing");
+            const result = await EnrichmentService.enrichLead("lead-from-team-b", "team-a");
 
-            expect(JobQueue.enqueue).toHaveBeenCalledWith("lead_enrichment", {
-                leadId: "lead-missing",
-                teamId: undefined,
-            });
-            expect(result).toEqual({ success: true, jobId: "job-2" });
+            expect(JobQueue.enqueue).not.toHaveBeenCalled();
+            expect(result).toBeNull();
         });
     });
 });
