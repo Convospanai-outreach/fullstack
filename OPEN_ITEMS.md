@@ -1535,6 +1535,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   931/931 apps/api tests pass (3 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160/161/162).
+- **OPEN-165 (Fixed):** cross-tenant lead hijacking via `PATCH
+  /api/campaigns/[id]` with a `leadIds` body (`apps/api/routes/campaigns
+  /[id]/route.ts`). The route correctly scopes its primary resource (the
+  campaign itself, via `requireCampaignContext`'s `prisma.campaign.findFirst({
+  where: { id, teamId } })`), but the secondary caller-supplied
+  `body.leadIds` array was passed straight through unchecked to
+  `CampaignService.addLeadsToCampaign(id, leadIds)`
+  (`apps/api/src/lib/campaignService.ts`), which did
+  `prisma.lead.updateMany({ where: { id: { in: leadIds } }, data: {
+  campaignId } })` — no `teamId` filter at all. Any authenticated user
+  could `PATCH /api/campaigns/{their-own-campaign-id}` with `{ leadIds:
+  ["<victim-team-lead-id>"] }` to reassign another tenant's lead into
+  their own campaign, after which a `GET` on that campaign returns the
+  hijacked lead via `leadList` — a full cross-tenant read+write. The
+  `apps/web` copy of this same service/route pair was already fixed with
+  exactly this scoping (`apps/web/src/lib/campaignService.ts`'s
+  `addLeadsToCampaign(campaignId, leadIds, teamId)`), but the `apps/api`
+  copy never received it. Fixed by adding the same `teamId` parameter and
+  `where` clause to the `apps/api` copy, and threading the already-scoped
+  `teamId` from `requireCampaignContext` through the route's call site.
+  New tests: `campaignService.addLeadsToCampaign.test.ts` (asserts the
+  `teamId`-scoped `where` clause) and `campaigns/[id]/route.test.ts` (2
+  tests: `teamId` passed through correctly, foreign campaign id rejected
+  before any lead mutation). 936/936 apps/api tests pass (3 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted under OPEN-151/152/154/155/157/158/159/160/161/162).
 - **OPEN-166 (Fixed):** cross-tenant read of AI reasoning traces in `GET
   /api/traces/[runId]` (`apps/api/routes/traces/[runId]/route.ts`). The
   route checked auth (`getCurrentContext()` 401) but never scoped
