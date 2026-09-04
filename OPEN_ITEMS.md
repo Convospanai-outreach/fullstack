@@ -1703,6 +1703,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tenant VISIT/CONNECT/EMAIL rejected, same-team EMAIL still sends). 955/955
   apps/api tests pass (5 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
+- **OPEN-170 (Fixed):** cross-tenant bulk delete/tag IDOR in `POST
+  /api/bulk/action` (`apps/api/routes/bulk/action/route.ts` +
+  `apps/api/src/modules/bulk/service/BulkService.ts`). The route only
+  checked that `userId` existed — it never even fetched `teamId` from
+  `getCurrentContext()` — and `BulkService.deleteResources`/`tagResources`
+  performed the mutation with zero tenant scoping:
+  `prisma.lead.deleteMany({ where: { id: { in: ids } } })` /
+  `prisma.campaign.deleteMany({ where: { id: { in: ids } } })` /
+  `prisma.lead.update({ where: { id }, ... })` in a loop, none scoped by
+  team. Any authenticated user of any team could `POST /api/bulk/action`
+  with `{ action: "delete", type: "lead"|"campaign", ids: [<guessed/
+  enumerated victim ids>] }` to permanently delete another team's leads or
+  campaigns, or `{ action: "tag", type: "lead", ids: [...], payload: {
+  tags: [...] } }` to inject tags into another team's leads — wired up and
+  reachable from the UI via `BulkActionBar.tsx`. The identical service
+  class in `apps/web/src/modules/bulk/service/BulkService.ts` already had
+  the correct fix (scoped `deleteMany` by `teamId`; for `tagResources`,
+  which can't scope `updateMany`'s array `push` directly, pre-verifies
+  ownership via `prisma.lead.findMany({ where: { id: { in: ids }, teamId }
+  })` and only updates the IDs actually owned) — the apps/api copy of this
+  same service/route was never given that fix. Fixed by porting the
+  identical pattern: route now also requires `teamId` (401 otherwise) and
+  passes it into both service methods. New
+  `apps/api/src/modules/bulk/service/BulkService.test.ts` (mirrors the
+  existing `apps/web` test 1:1: 4 tests) and new
+  `apps/api/routes/bulk/action/route.test.ts` (3 tests: no-team-context
+  rejected, delete scoped to caller's team, tag scoped to caller's team).
+  958/958 apps/api tests pass (7 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

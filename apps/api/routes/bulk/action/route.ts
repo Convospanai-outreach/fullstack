@@ -4,8 +4,8 @@ import { bulkService } from "@/modules/bulk/service/BulkService";
 import { getCurrentContext } from "@/lib/auth";
 
 export async function POST(req: Request) {
-    const { userId } = await getCurrentContext();
-    if (!userId) return new NextResponse("Unauthorized", { status: 401 });
+    const { userId, teamId } = await getCurrentContext();
+    if (!userId || !teamId) return new NextResponse("Unauthorized", { status: 401 });
 
     const { action, type, ids, payload } = await req.json();
 
@@ -16,9 +16,9 @@ export async function POST(req: Request) {
     try {
         let result;
         if (action === "delete") {
-            result = await bulkService.deleteResources(type, ids);
+            result = await bulkService.deleteResources(type, ids, teamId);
         } else if (action === "tag") {
-            result = await bulkService.tagResources(type, ids, payload?.tags || []);
+            result = await bulkService.tagResources(type, ids, payload?.tags || [], teamId);
         } else {
             return new NextResponse("Invalid action", { status: 400 });
         }
