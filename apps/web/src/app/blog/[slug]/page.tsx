@@ -44,6 +44,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
       type: 'article',
       publishedTime: post.date,
       url: canonicalUrl,
+      authors: ['CraftMyFunnel Editorial Team'],
     },
     twitter: {
       card: 'summary_large_image',
