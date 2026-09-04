@@ -1301,6 +1301,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (2 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted under OPEN-151/152/154).
 
+- **OPEN-156 (Fixed):** cross-tenant write in `POST /api/upload/csv`
+  (`apps/web/src/app/api/upload/csv/route.ts`). The route authenticates the
+  caller and scopes `Lead` reads/writes by `teamId` correctly, but the
+  request-body `campaignId` was used completely unchecked: it was written
+  onto every imported/updated `Lead`'s `campaignId` FK, and (when at least
+  one lead was created) used directly in `prisma.campaign.update({ where:
+  { id: campaignId }, data: { targetCount: ... } })` — no verification the
+  campaign belonged to the caller's team. Any authenticated user of any
+  team could pass another team's `campaignId` to attach their own imported
+  leads to that team's campaign and overwrite its `targetCount` field. The
+  sibling `apps/api/src/modules/csv-ingestion/service/csvIngestionService.ts`
+  already guards this exact scenario with an inline comment explaining why
+  ("campaignId is caller-supplied - verify it actually belongs to this team
+  before linking any imported lead to it, or a caller could attach their
+  leads to (and pollute the stats of) another tenant's campaign"). Fixed by
+  adding the identical `prisma.campaign.findFirst({ where: { id:
+  campaignId, teamId }, select: { id: true } })` guard, dropping
+  `campaignId` to `undefined` when it doesn't belong to the caller's team —
+  which also makes the downstream `campaign.update()` safe, since it only
+  runs when `campaignId` survived the guard. New `route.test.ts` added (3
+  tests: a foreign `campaignId` is dropped and the campaign is never
+  updated, a caller's own `campaignId` is linked and its `targetCount`
+  updated, an unauthenticated caller is rejected before touching any lead
+  data). 360/360 apps/web tests pass (3 new, 7 pre-existing unrelated
+  skips), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

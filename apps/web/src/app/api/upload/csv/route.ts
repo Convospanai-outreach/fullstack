@@ -45,6 +45,20 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "CSV content is required" }, { status: 400 });
         }
 
+        // campaignId is caller-supplied - verify it actually belongs to this team
+        // before linking any imported lead to it, or a caller could attach their
+        // leads to (and pollute the stats of) another tenant's campaign, matching
+        // the guard already applied in csvIngestionService.ts.
+        if (campaignId) {
+            const campaign = await prisma.campaign.findFirst({
+                where: { id: campaignId, teamId },
+                select: { id: true },
+            });
+            if (!campaign) {
+                campaignId = undefined;
+            }
+        }
+
         const parsed = Papa.parse(csvText, {
             header: true,
             skipEmptyLines: true,
