@@ -79,6 +79,29 @@ describe("/hardware", () => {
         });
     });
 
+    describe("POST - SAVE_WORKFLOW ownership", () => {
+        it("rejects saving a workflow tagged with another team's id", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "SAVE_WORKFLOW", workflow: { id: "wf-1", teamId: "other-team" } }));
+
+            expect(response.status).toBe(403);
+            expect(mockHardwareService.saveWorkflow).not.toHaveBeenCalled();
+        });
+
+        it("saves a workflow tagged with the caller's own team id", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockHardwareService.saveWorkflow.mockResolvedValue(undefined);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "SAVE_WORKFLOW", workflow: { id: "wf-1", teamId: "team-1" } }));
+
+            expect(response.status).toBe(200);
+            expect(mockHardwareService.saveWorkflow).toHaveBeenCalledWith({ id: "wf-1", teamId: "team-1" });
+        });
+    });
+
     describe("GET - requires a real session", () => {
         it("rejects with no session", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
@@ -98,6 +121,21 @@ describe("/hardware", () => {
             const response = await GET();
 
             expect(response.status).toBe(200);
+        });
+
+        it("filters out other teams' workflows returned by the shared edge endpoint", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockHardwareService.getWorkflows.mockResolvedValue([
+                { id: "wf-1", teamId: "team-1" },
+                { id: "wf-2", teamId: "other-team" },
+            ]);
+            const { GET } = await import("./route");
+
+            const response = await GET();
+            const body = await response.json();
+
+            expect(response.status).toBe(200);
+            expect(body).toEqual([{ id: "wf-1", teamId: "team-1" }]);
         });
     });
 });
