@@ -1490,6 +1490,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pre-existing, unrelated `browser-engine.ts` failure noted under
   OPEN-151/152/154/155/157/158/159/160/161).
 
+- **OPEN-163 (Fixed):** missing auth + IDOR in `PATCH
+  /api/notifications/[id]` (`apps/api/routes/notifications/[id]/route.ts`).
+  The handler had no `getCurrentContext()` call at all and updated
+  `prisma.notification.update({ where: { id } })` unconditionally — any
+  caller, including one with no session, could flip `read: true` on any
+  user's `Notification` row by guessing/enumerating its id. The sibling
+  bulk route (`apps/api/routes/notifications/route.ts`'s `PATCH`) shows
+  the correct pattern: it checks `getCurrentContext()` for a 401, then
+  scopes `prisma.notification.updateMany({ where: { userId: ctx.userId,
+  ... } })`. Fixed by adding the same auth check and converting the
+  single-item update to a `userId`-scoped `updateMany`, returning 404 when
+  `count === 0` (foreign or nonexistent id). New `route.test.ts` (3 tests:
+  unauthenticated caller rejected, another user's notification id returns
+  404 without updating it, the caller's own notification is marked read).
+  931/931 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted under
+  OPEN-151/152/154/155/157/158/159/160/161/162).
 - **OPEN-165 (Fixed):** cross-tenant lead hijacking via `PATCH
   /api/campaigns/[id]` with a `leadIds` body (`apps/api/routes/campaigns
   /[id]/route.ts`). The route correctly scopes its primary resource (the
