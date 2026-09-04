@@ -39,15 +39,29 @@ export async function handleSequenceAction(payload: JobPayload) {
     console.log(`Executing sequence action ${action} for lead ${leadId}`);
 
     let result;
+    // Forwarded to the next scheduled step so a chain that started with a
+    // verified teamId (or resolved one from the lead's own campaign) stays
+    // checkable at every hop, instead of only the directly-enqueued action.
+    let resolvedTeamId = payloadTeamId;
 
     switch (action as SequenceStep) {
-        case "VISIT":
+        case "VISIT": {
+            const visitLead = leadId ? await prisma.lead.findUnique({
+                where: { id: leadId },
+                select: { campaign: { select: { teamId: true } } }
+            }) : null;
+            if (payloadTeamId && visitLead?.campaign?.teamId && visitLead.campaign.teamId !== payloadTeamId) {
+                throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
+            }
+            resolvedTeamId = payloadTeamId || visitLead?.campaign?.teamId;
+
             // Just go to the URL
             result = await runLinkedInAction({
                 action: "scrape", // Reusing scrape to visit
                 profileUrl: url
             });
             break;
+        }
 
         case "CONNECT":
             // Generate smart message based on lead context
@@ -55,7 +69,14 @@ export async function handleSequenceAction(payload: JobPayload) {
                 where: { id: leadId },
                 select: { enrichedData: true, campaign: { select: { teamId: true } } }
             }) : null;
+            // payload.teamId is caller-supplied (from the enqueuing route), not
+            // derived from the lead itself - re-verify it matches the lead's own
+            // team before using its data, same as enrichment-worker.ts.
+            if (payloadTeamId && connectLead?.campaign?.teamId && connectLead.campaign.teamId !== payloadTeamId) {
+                throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
+            }
             const connectTeamId = payloadTeamId || connectLead?.campaign?.teamId;
+            resolvedTeamId = connectTeamId;
             const connectContext = connectLead?.enrichedData ? JSON.stringify(connectLead.enrichedData) : `Connect with lead at ${url}`;
             const message = await aiService.generateConnectionMessage(connectContext, connectTeamId);
 
@@ -73,7 +94,11 @@ export async function handleSequenceAction(payload: JobPayload) {
                 where: { id: leadId },
                 select: { enrichedData: true, campaign: { select: { teamId: true } } }
             }) : null;
+            if (payloadTeamId && followUpLead?.campaign?.teamId && followUpLead.campaign.teamId !== payloadTeamId) {
+                throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
+            }
             const followUpTeamId = payloadTeamId || followUpLead?.campaign?.teamId;
+            resolvedTeamId = followUpTeamId;
             const followUpContext = followUpLead?.enrichedData ? JSON.stringify(followUpLead.enrichedData) : `Follow up with lead at ${url}`;
             const followUpMessage = await aiService.askAI(
                 `Write a short, professional LinkedIn follow-up message. Context: ${followUpContext}`,
@@ -91,10 +116,14 @@ export async function handleSequenceAction(payload: JobPayload) {
         case "EMAIL":
             // Send email
             // We need to fetch the lead's email from DB first
-            const lead = await prisma.lead.findUnique({ 
+            const lead = await prisma.lead.findUnique({
                 where: { id: leadId },
                 include: { campaign: { include: { team: true } } }
             });
+
+            if (payloadTeamId && lead?.campaign?.teamId && lead.campaign.teamId !== payloadTeamId) {
+                throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
+            }
 
             if (lead && lead.email && lead.campaign) {
                 const campaign = lead.campaign;
@@ -174,7 +203,7 @@ export async function handleSequenceAction(payload: JobPayload) {
         }).catch(e => console.error("Failed to update lead status", e));
 
         // Schedule next step
-        await SequenceService.scheduleNextStep(leadId, url, action as SequenceStep);
+        await SequenceService.scheduleNextStep(leadId, url, action as SequenceStep, resolvedTeamId);
     }
 
     return result;
