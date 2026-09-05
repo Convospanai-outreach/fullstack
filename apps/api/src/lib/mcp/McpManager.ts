@@ -233,30 +233,44 @@ class McpManager {
 
     private enforceTeamScopedArgs(name: string, args: any, context: McpExecutionContext): Record<string, any> {
         const input = args && typeof args === "object" && !Array.isArray(args) ? { ...args } : {};
-        const teamScopedTools = new Set([
-            "read_app_learning_summary",
-            "read_app_learning_memories",
-            "search_app_learning_events",
-            "share_app_learning_memory",
-            "read_app_learning_toon"
+        // Field casing varies per server's own inputSchema, and several of these
+        // schemas set additionalProperties: false, so the enforced field must match
+        // exactly what that tool declares - writing both casings unconditionally
+        // would make a strict schema reject the "unsupported" one.
+        const teamScopedTools = new Map<string, "team_id" | "teamId">([
+            ["read_app_learning_summary", "team_id"],
+            ["read_app_learning_memories", "team_id"],
+            ["search_app_learning_events", "team_id"],
+            ["share_app_learning_memory", "team_id"],
+            ["read_app_learning_toon", "team_id"],
+            // LinkedIn MCP tools (apps/api/src/modules/integration/mcp/linkedin-server.ts)
+            // take an LLM-fillable teamId and use it directly in Prisma calls with no
+            // cross-check of their own - without this, a prompt-injected or misbehaving
+            // agent could queue/read/cancel LinkedIn automation jobs for a team it isn't
+            // actually running on behalf of.
+            ["queue_linkedin_action", "teamId"],
+            ["get_linkedin_task_status", "teamId"],
+            ["get_linkedin_daily_cap", "teamId"],
+            ["report_linkedin_stop", "teamId"],
         ]);
 
-        if (!teamScopedTools.has(name)) {
+        const key = teamScopedTools.get(name);
+        if (!key) {
             return input;
         }
 
         const contextTeamId = typeof context.teamId === "string" ? context.teamId.trim() : "";
-        const argTeamId = typeof input["team_id"] === "string" ? String(input["team_id"]).trim() : "";
+        const argTeamId = typeof input[key] === "string" ? String(input[key]).trim() : "";
 
         if (!contextTeamId) {
             throw new Error(`Tool ${name} requires context.teamId for tenant-safe execution.`);
         }
 
         if (argTeamId && argTeamId !== contextTeamId) {
-            throw new Error(`Tool ${name} team_id must match context.teamId.`);
+            throw new Error(`Tool ${name} ${key} must match context.teamId.`);
         }
 
-        input["team_id"] = contextTeamId;
+        input[key] = contextTeamId;
         return input;
     }
 
