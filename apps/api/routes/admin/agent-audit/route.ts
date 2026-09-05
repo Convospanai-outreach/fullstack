@@ -3,28 +3,53 @@ import { prisma } from "@/lib/db";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { UserRole } from "@prisma/client";
 
-async function getAgentAuditRole(req: NextRequest): Promise<UserRole | null> {
+// See admin/audit/route.ts - ORG_ADMIN/COMPLIANCE_OFFICER are self-service
+// per-workspace roles, not platform-level operators.
+const PLATFORM_LEVEL_ROLES: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN];
+
+async function getAgentAuditContext(req: NextRequest): Promise<{ userId: string; role: UserRole } | null> {
     const { userId } = await getCurrentContextFromRequest(req);
     if (!userId) return null;
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } });
-    return user?.enterpriseRole ?? null;
+    if (!user) return null;
+    return { userId, role: user.enterpriseRole };
+}
+
+// Resolves the teamId filter to enforce: platform-level roles may query any team
+// (or all teams, if none is specified); a workspace-level ORG_ADMIN/COMPLIANCE_OFFICER
+// is restricted to their own team regardless of what teamId they pass.
+async function resolveScopedTeamId(userId: string, role: UserRole, requestedTeamId: string | null): Promise<string | null | { forbidden: true }> {
+    if (PLATFORM_LEVEL_ROLES.includes(role)) {
+        return requestedTeamId;
+    }
+    const membership = await prisma.teamMember.findFirst({ where: { userId }, select: { teamId: true } });
+    if (!membership) return { forbidden: true };
+    if (requestedTeamId && requestedTeamId !== membership.teamId) {
+        return { forbidden: true };
+    }
+    return membership.teamId;
 }
 
 export async function GET(req: NextRequest) {
     // Verify admin access
-    const role = await getAgentAuditRole(req);
-    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
-    if (!role || !allowedRoles.includes(role)) {
+    const ctx = await getAgentAuditContext(req);
+    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
+    if (!ctx || !allowedRoles.includes(ctx.role)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const params = req.nextUrl.searchParams;
-    const teamId = params.get("teamId");
+    const requestedTeamId = params.get("teamId");
     const taskId = params.get("taskId");
     const eventType = params.get("eventType");
     const fromDate = params.get("fromDate");
     const toDate = params.get("toDate");
     const limit = parseInt(params.get("limit") || "100");
+
+    const scopedTeamId = await resolveScopedTeamId(ctx.userId, ctx.role, requestedTeamId);
+    if (scopedTeamId && typeof scopedTeamId === "object") {
+        return NextResponse.json({ error: "Forbidden - not a member of the given team" }, { status: 403 });
+    }
 
     try {
         // Build filter
@@ -32,7 +57,7 @@ export async function GET(req: NextRequest) {
             type: "AGENT" // Only agent events
         };
 
-        if (teamId) where.teamId = teamId;
+        if (scopedTeamId) where.teamId = scopedTeamId;
         if (taskId) where.payload = { path: ["taskId"], equals: taskId };
         if (eventType) where.name = eventType;
         if (fromDate) where.timestamp = { ...where.timestamp, gte: new Date(fromDate) };
@@ -69,21 +94,26 @@ export async function GET(req: NextRequest) {
 
 // Export audit logs for compliance reporting
 export async function POST(req: NextRequest) {
-    const role = await getAgentAuditRole(req);
-    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
-    if (!role || !allowedRoles.includes(role)) {
+    const ctx = await getAgentAuditContext(req);
+    const allowedRoles: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN, UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER];
+    if (!ctx || !allowedRoles.includes(ctx.role)) {
         return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }
 
     const body = await req.json();
-    const { teamId, fromDate, toDate, format = "json" } = body;
+    const { teamId: requestedTeamId, fromDate, toDate, format = "json" } = body;
+
+    const scopedTeamId = await resolveScopedTeamId(ctx.userId, ctx.role, requestedTeamId ?? null);
+    if (scopedTeamId && typeof scopedTeamId === "object") {
+        return NextResponse.json({ error: "Forbidden - not a member of the given team" }, { status: 403 });
+    }
 
     try {
         const where: any = {
             type: "AGENT"
         };
 
-        if (teamId) where.teamId = teamId;
+        if (scopedTeamId) where.teamId = scopedTeamId;
         if (fromDate) where.timestamp = { ...where.timestamp, gte: new Date(fromDate) };
         if (toDate) where.timestamp = { ...where.timestamp, lte: new Date(toDate) };
 

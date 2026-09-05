@@ -2298,6 +2298,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   caller-supplied `campaignId` stripped, known-safe fields pass through).
   Full apps/web suite (366 tests, 2 new) passes, `tsc --noEmit` clean.
 
+- **OPEN-186 (Fixed):** platform-wide audit-log disclosure via self-service
+  `ORG_ADMIN`/`COMPLIANCE_OFFICER` roles in `apps/api/routes/admin/audit/route.ts`
+  (GET) and its sibling `apps/api/routes/admin/agent-audit/route.ts`
+  (GET/POST). Both routes gated only on `enterpriseRole` (`ORG_ADMIN`,
+  `COMPLIANCE_OFFICER`, or `SYSTEM_ADMIN`) with **no tenant boundary in the
+  query at all**: `admin/audit`'s `where` clause never referenced `orgId`
+  (the `AuditLog` model's teamId column — schema: `orgId String @map
+  ("teamId")`), so any workspace's `ORG_ADMIN` could `GET
+  /api/admin/audit?limit=1000` and receive every team's audit rows platform-
+  wide (action, entity, acting user's name/email via the `include: { user:
+  ... } }`); `admin/agent-audit`'s `teamId` filter was opt-in
+  (`if (teamId) where.teamId = teamId`), so simply omitting the query
+  param on GET, or the body field on POST's CSV-export endpoint, returned
+  every team's `SystemEvent`/agent-execution rows platform-wide. This is
+  the same underlying flaw as OPEN-174/175/176: `ORG_ADMIN` is explicitly
+  documented elsewhere in this codebase (`admin/actions/[action]/route.ts`'s
+  comment, `apps/web/src/app/api/admin/invites/route.ts`) as "a normal,
+  self-service-assignable per-workspace role," yet these two audit-viewer
+  routes treated it as sufficient for platform-wide data access. **Fixed**
+  by following the exact reference pattern already established in
+  `admin/actions/[action]/route.ts` (a `PLATFORM_LEVEL_ROLES =
+  [SYSTEM_ADMIN, SUPER_ADMIN]` check plus `TeamMember` membership
+  resolution/verification) rather than OPEN-174/175/176's simpler
+  "require SYSTEM_ADMIN outright" approach — audit-log viewing is a
+  legitimate per-workspace admin/compliance need, so `ORG_ADMIN`/
+  `COMPLIANCE_OFFICER` now get their own team's logs only (resolved via
+  `TeamMember` lookup, with any explicitly-requested foreign `teamId`
+  rejected as 403), while `SYSTEM_ADMIN`/`SUPER_ADMIN` retain unrestricted
+  platform-wide access for legitimate cross-tenant operations support. New
+  `apps/api/routes/admin/audit/route.test.ts` (3 tests) and
+  `apps/api/routes/admin/agent-audit/route.test.ts` (5 tests): ORG_ADMIN
+  scoped to own team / rejected with no membership / rejected requesting a
+  foreign team, SYSTEM_ADMIN gets unrestricted/platform-wide access in both
+  routes. 1013 apps/api tests pass (8 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
