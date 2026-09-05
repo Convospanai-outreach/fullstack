@@ -1766,6 +1766,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests, confirms `teamId` forwarding for both branches). 967/967 apps/api
   tests pass (9 new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
+- **OPEN-172 (Fixed):** cross-tenant lead PII disclosure via unverified
+  `leadId` in `POST /api/meetings` (`apps/api/routes/meetings/route.ts`).
+  `Meeting.leadId` is a bare FK to `Lead.id` with no relation to
+  `Meeting.teamId` in the schema, and the route took `leadId` straight from
+  the request body and wrote it into a new `Meeting` row with no ownership
+  check. `GET /api/meetings` then reads back the caller's own team's
+  meetings joined to whatever lead is attached
+  (`include: { lead: { select: { fullName, email, phone, company } } } }`),
+  regardless of which team that lead actually belongs to. Any authenticated
+  user of Team A could `POST /api/meetings` with `leadId` set to a
+  guessed/enumerated Team B lead id, then `GET /api/meetings` to receive
+  Team B's lead's full name, email, phone, and company — a direct,
+  single-request cross-tenant PII leak, no race condition needed. Correct
+  sibling pattern already in the same domain:
+  `apps/api/src/modules/caller/CallerService.ts`'s `claimLead` does
+  `prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id:
+  true } })` and throws if not found. Fixed by adding the identical check
+  before creating the meeting when `leadId` is provided (404 otherwise).
+  New `apps/api/routes/meetings/route.test.ts` (3 tests: foreign-team
+  leadId rejected, own-team leadId allowed, no-leadId case unaffected).
+  970/970 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+  **Related, lower-severity, not fixed here:** the same investigation
+  flagged `apps/api/routes/learning/feedback/route.ts` (`messageId`) and
+  `apps/api/routes/learning/record-feedback/route.ts` (`generationId`) as
+  having the same shape of bare unscoped `findUnique` lookup, but the
+  looked-up data isn't read back to the caller the way `meetings` is, so
+  they're lower-confidence/lower-severity — worth a follow-up pass. Also
+  flagged: `ComplianceGuard.enforceOptOut`
+  (`apps/api/src/modules/governance/ComplianceGuard.ts`) has an unscoped
+  cross-team `updateMany`, but currently has zero callers (dead code) — not
+  a live vulnerability today; flag again if it ever gets wired up.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

@@ -56,6 +56,17 @@ export async function POST(_req: NextRequest) {
 
         const { title, startTime, endTime, leadId, notes } = validation.data;
 
+        // leadId is caller-supplied and has no relation to Meeting.teamId in the
+        // schema - without this check, a meeting could be created pointing at
+        // another team's lead, and GET would then leak that lead's PII
+        // (fullName/email/phone/company) back to the caller's own team.
+        if (leadId) {
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+            if (!lead) {
+                throw new APIError("Lead not found", 404, "LEAD_NOT_FOUND");
+            }
+        }
+
         const meeting = await prisma.meeting.create({
             data: {
                 title,
