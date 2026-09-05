@@ -12,6 +12,22 @@ vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
 import { enforcePolicy } from "./guard";
 
+describe("enforcePolicy - membership check ordering", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.organizationPolicy.findUnique.mockResolvedValue(null);
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+    });
+
+    it("rejects a non-member without ever creating a policy row for that org", async () => {
+        await expect(
+            enforcePolicy({ orgId: "victim-team", userId: "attacker", action: "CAMPAIGN_RUN" })
+        ).rejects.toThrow("NOT_A_TEAM_MEMBER");
+
+        expect(mockPrisma.organizationPolicy.create).not.toHaveBeenCalled();
+    });
+});
+
 describe("enforcePolicy - CAMPAIGN_RUN approval scoping", () => {
     beforeEach(() => {
         vi.clearAllMocks();

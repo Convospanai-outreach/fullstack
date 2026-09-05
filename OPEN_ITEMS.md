@@ -2616,6 +2616,51 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `email`/`teamId`. 379/379 apps/web tests pass (net +3: 5 new replacing
   2 old none of which exercised real behavior), `tsc --noEmit` clean.
 
+- **OPEN-193 (Fixed):** unauthorized write to another team's governance
+  policy via a write-before-check ordering bug in
+  `enforcePolicy` (`apps/api/src/lib/governance/guard.ts:16-29`), reachable
+  by any authenticated user through `POST /api/orchestrator/run`
+  (`apps/api/routes/orchestrator/run/route.ts`). `enforcePolicy` resolved
+  `existingPolicy`/`membership` in parallel, then did
+  `prisma.organizationPolicy.create({ data: { organizationId: orgId } })`
+  as a fallback **before** checking `if (!membership) throw
+  new Error("NOT_A_TEAM_MEMBER")` — every field on `OrganizationPolicy`
+  has a schema default, so the bare create always succeeds regardless of
+  whether the caller belongs to `orgId` at all. Compounding this,
+  `orchestrator/run/route.ts` derived `orgId`/`teamId` straight from
+  `prisma.campaign.findUnique({ where: { id: campaignId } })` — unscoped
+  by the caller's own team — rather than from the caller's session, so
+  any authenticated user of any team could `POST
+  {"campaignId": "<any other team's campaign id>"}` and have
+  `enforcePolicy` materialize a brand-new `OrganizationPolicy` row
+  (`maxDailyActions: 200`, `allowUploads: true`, etc. — a real, unrequested
+  governance-posture change) for a completely unrelated tenant before
+  ever throwing `NOT_A_TEAM_MEMBER`, with the write never rolled back.
+  Same reachable through `POST /api/orchestrator/swarm/run` for the same
+  underlying `enforcePolicy` ordering bug (that route's own `AGENT_RUN`
+  checks are correctly scoped to the caller's own team already, but still
+  passed through the vulnerable function). **Fixed** in two parts: (1)
+  root-cause fix in `guard.ts` — moved the `NOT_A_TEAM_MEMBER` membership
+  check before the `organizationPolicy.create` fallback, so a non-member
+  is rejected before any write happens, closing this for every one of
+  `enforcePolicy`'s twelve call sites at once; (2) defense-in-depth in
+  `orchestrator/run/route.ts` — switched to `prisma.campaign.findFirst({
+  where: { id: campaignId, teamId: callerTeamId } })` using the caller's
+  own session team (matching the established pattern from every prior
+  fix this sweep), so a foreign-team campaign id now 404s immediately
+  rather than ever reaching the governance checks — also closing a
+  secondary campaign-existence oracle (404 vs. 403 previously
+  distinguished a real campaign id from a fake one regardless of team)
+  and a `checkLimits` daily-action-count oracle that ran before
+  `enforcePolicy` on the victim team's own audit volume. New test in the
+  existing `apps/api/src/lib/governance/guard.test.ts` (1 test: a
+  non-member is rejected without `organizationPolicy.create` ever being
+  called) and two new tests in `apps/api/routes/orchestrator/run/route.test.ts`
+  (401 with no session team, 404 for a foreign-team campaign id with
+  neither `checkLimits` nor `enforcePolicy` ever called). 1026/1026
+  apps/api tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
