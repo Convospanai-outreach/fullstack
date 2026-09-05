@@ -91,6 +91,7 @@ describe("PipelineService", () => {
 
     describe("createTask", () => {
         it("creates a task scoped to the team and user", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
             (prisma.task.create as any).mockResolvedValue({ id: "task-1" });
 
             await PipelineService.createTask({
@@ -103,6 +104,10 @@ describe("PipelineService", () => {
                 dueDate: "2026-08-20T00:00:00.000Z",
             });
 
+            expect(prisma.lead.findFirst).toHaveBeenCalledWith({
+                where: { id: "lead-1", teamId: "team-1" },
+                select: { id: true },
+            });
             expect(prisma.task.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
                     teamId: "team-1",
@@ -112,6 +117,33 @@ describe("PipelineService", () => {
                     dueDate: new Date("2026-08-20T00:00:00.000Z"),
                 }),
             });
+        });
+
+        it("creates a task with no leadId without checking lead ownership", async () => {
+            (prisma.task.create as any).mockResolvedValue({ id: "task-1" });
+
+            await PipelineService.createTask({
+                teamId: "team-1",
+                userId: "user-1",
+                title: "Generic follow-up",
+            });
+
+            expect(prisma.lead.findFirst).not.toHaveBeenCalled();
+            expect(prisma.task.create).toHaveBeenCalled();
+        });
+
+        it("rejects a leadId that belongs to a different team", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue(null);
+
+            await expect(
+                PipelineService.createTask({
+                    teamId: "team-1",
+                    userId: "user-1",
+                    leadId: "lead-from-team-2",
+                    title: "Steal a lead",
+                })
+            ).rejects.toThrow("Lead not found");
+            expect(prisma.task.create).not.toHaveBeenCalled();
         });
     });
 

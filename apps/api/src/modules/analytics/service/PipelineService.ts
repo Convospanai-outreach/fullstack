@@ -41,6 +41,12 @@ export class PipelineService {
 
     static async createTask(data: any) {
         const { teamId, userId, leadId, title, description, priority, dueDate } = data;
+        if (leadId) {
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
+            if (!lead) {
+                throw new Error("Lead not found");
+            }
+        }
         return prisma.task.create({
             data: {
                 teamId,
