@@ -2571,6 +2571,51 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-192 (Fixed):** unauthenticated cross-tenant PII disclosure +
+  arbitrary lead opt-out DoS via the Facebook feedback-loop complaint
+  webhook (`apps/web/src/app/api/integrations/fbl/complaint/route.ts`).
+  This route had **zero authentication and zero provenance verification**
+  — no session check, no HMAC, nothing — unlike the platform's other
+  internal-producer webhook,
+  `apps/api/routes/webhooks/scraper-ingest/route.ts`, which requires a
+  shared-secret HMAC over the body plus a timestamp replay window.
+  Any unauthenticated caller could POST a `feedbackId` of the form
+  `<campaignId>:<leadId>:<teamId>:craftmyfunnel` (or a raw
+  `recipientEmail`): (1) **PII/tenant-disclosure oracle** — supplying a
+  guessed/enumerated `leadId` with no `teamId` made the route do
+  `prisma.lead.findUnique({ where: { id: leadId } })` with **no team
+  check at all** and echo that lead's real email and owning `teamId`
+  directly back in the response (`{ ..., email: resolvedEmail, teamId:
+  resolvedTeamId }`); (2) **cross-tenant opt-out DoS** — supplying any
+  known/guessed victim `teamId` plus a lead's email silently created a
+  `SuppressionEntry` and ran `prisma.lead.updateMany({ where: { teamId,
+  email }, data: { status: "OPT_OUT" } })`, permanently killing outreach
+  to that lead for a team the caller has no relationship to, with no
+  audit trail distinguishing it from a real spam complaint. No producer
+  anywhere in the codebase actually emits this `Feedback-ID` format
+  (confirmed via repo-wide grep), so this endpoint was reachable with no
+  legitimate traffic depending on its current unauthenticated shape.
+  **Fixed** by requiring the same shared-secret + HMAC-over-body +
+  5-minute replay window already established for `scraper-ingest`
+  (`X-FBL-Secret`/`X-FBL-Timestamp` headers, `FBL_WEBHOOK_SECRET` env var,
+  `crypto.timingSafeEqual` comparison) — the route now fails closed with
+  503 if the secret isn't configured and 401 on a missing/invalid/stale
+  signature, before any body parsing or database access. Also stopped
+  echoing the resolved `email`/`teamId` in the success response (a
+  webhook ack has no legitimate need to return PII back to its own
+  caller) as defense in depth on top of the auth fix. Rewrote the
+  pre-existing `apps/web/tests/unit/fbl-idempotency.test.ts` — its
+  second test previously constructed two requests and asserted only that
+  they were object-defined, never actually invoking the handler or
+  checking any behavior — into 5 real tests: no signature headers
+  rejected before any DB call, invalid signature rejected, missing
+  `FBL_WEBHOOK_SECRET` fails closed (503, never falls back to
+  unauthenticated), a correctly-signed request missing both
+  `feedbackId`/email still 400s, and a correctly-signed complaint
+  suppresses the lead and confirms the response no longer contains
+  `email`/`teamId`. 379/379 apps/web tests pass (net +3: 5 new replacing
+  2 old none of which exercised real behavior), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
