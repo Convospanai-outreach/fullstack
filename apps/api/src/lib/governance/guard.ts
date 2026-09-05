@@ -22,11 +22,16 @@ export async function enforcePolicy({
         }),
     ]);
 
+    // Membership must be verified before any write to this org's policy -
+    // the auto-create below runs unconditionally otherwise, letting a
+    // non-member materialize an OrganizationPolicy row for a team they have
+    // no relationship to just by calling with that team's id as orgId.
+    if (!membership) throw new Error("NOT_A_TEAM_MEMBER");
+
     // Auto-create a permissive default policy if none exists (new teams)
     const policy = existingPolicy ?? await prisma.organizationPolicy.create({
         data: { organizationId: orgId },
     });
-    if (!membership) throw new Error("NOT_A_TEAM_MEMBER");
 
     const role = membership.role.toUpperCase() as GovernanceRole;
 

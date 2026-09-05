@@ -7,8 +7,8 @@ import { audit } from "@/lib/governance/audit";
 import { checkLimits } from "@/lib/governance/limits";
 
 export async function POST(req: NextRequest) {
-  const { userId } = await getCurrentContextFromRequest(req);
-  if (!userId) {
+  const { userId, teamId: callerTeamId } = await getCurrentContextFromRequest(req);
+  if (!userId || !callerTeamId) {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
@@ -25,11 +25,13 @@ export async function POST(req: NextRequest) {
   const { startDate } = body;
   const processAt = startDate ? new Date(startDate) : null;
 
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+  // Scoped by the caller's own team, not just any campaign id - otherwise any
+  // authenticated user could run/schedule another team's campaign by guessing
+  // its id, since governance checks below were keyed off the campaign's own
+  // teamId rather than the caller's.
+  const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId: callerTeamId } });
   if (!campaign) return new NextResponse("Campaign not found", { status: 404 });
-  const teamId = campaign.teamId;
-
-  if (!teamId) return new NextResponse("Team ID not found for campaign", { status: 400 });
+  const teamId = callerTeamId;
 
   // GOVERNANCE CHECKS
   try {

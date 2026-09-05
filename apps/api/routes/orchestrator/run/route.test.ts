@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockGetCurrentContextFromRequest, mockPrisma, mockEnqueue, mockEnforcePolicy, mockCheckLimits, mockAudit } = vi.hoisted(() => ({
     mockGetCurrentContextFromRequest: vi.fn(),
     mockPrisma: {
-        campaign: { findUnique: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
+        campaign: { findFirst: vi.fn(), update: vi.fn(), updateMany: vi.fn() },
     },
     mockEnqueue: vi.fn(),
     mockEnforcePolicy: vi.fn(),
@@ -30,11 +30,31 @@ function postRequest(body: unknown) {
 describe("POST /orchestrator/run - governance ordering and team scoping", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
-        mockPrisma.campaign.findUnique.mockResolvedValue({ id: "campaign-1", teamId: "team-1" });
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1", teamId: "team-1" });
         mockCheckLimits.mockResolvedValue(undefined);
         mockEnqueue.mockResolvedValue({ id: "job-1" });
         mockAudit.mockResolvedValue(undefined);
+    });
+
+    it("returns 401 when the caller has no session team", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: null });
+
+        const res = await POST(postRequest({ campaignId: "campaign-1" }));
+
+        expect(res.status).toBe(401);
+        expect(mockPrisma.campaign.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("404s a campaign belonging to another team instead of deriving governance checks from it", async () => {
+        mockPrisma.campaign.findFirst.mockResolvedValue(null);
+
+        const res = await POST(postRequest({ campaignId: "campaign-foreign" }));
+
+        expect(res.status).toBe(404);
+        expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({ where: { id: "campaign-foreign", teamId: "team-1" } });
+        expect(mockCheckLimits).not.toHaveBeenCalled();
+        expect(mockEnforcePolicy).not.toHaveBeenCalled();
     });
 
     it("does not schedule the campaign when governance rejects the request (this used to run unconditionally before any check)", async () => {
