@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { checkAdmin } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 
-
-
+// System admin only — aggregates users/credits/LLM usage platform-wide, unscoped by team.
 export async function GET(req: Request) {
     try {
-        const isAdmin = await checkAdmin();
+        const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
         if (!isAdmin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
