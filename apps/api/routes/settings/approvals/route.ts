@@ -8,6 +8,7 @@ export async function GET() {
 
     try {
         const requests = await prisma.approvalRequest.findMany({
+            where: { teamId },
             orderBy: { createdAt: 'desc' },
             take: 50
         });

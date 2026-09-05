@@ -2162,6 +2162,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-182 (Fixed):** cross-tenant disclosure via `GET
+  /api/settings/approvals` (`apps/api/routes/settings/approvals/route.ts`).
+  The handler authenticated the caller and resolved `teamId` from
+  `getCurrentContext()`, but then never used it: `prisma.approvalRequest.
+  findMany({ orderBy: { createdAt: 'desc' }, take: 50 })` had no `where`
+  clause at all, so it returned the 50 most-recently-created
+  `ApprovalRequest` rows **across every team on the platform** to any
+  authenticated user of any team. `ApprovalRequest` carries sensitive
+  per-tenant data (schema: `requesterId`, `actionType`, `payload` Json,
+  `reviewerId`, `reviewNote`), so this leaked other tenants' requester
+  identities, action payloads (e.g. campaign-start details, limit-increase
+  amounts), and reviewer notes to any logged-in user — this is the same
+  route the `/settings/approvals` dashboard page calls, so the leak was
+  live on first load. The correct sibling pattern for the same model,
+  `apps/api/src/modules/governance/ApprovalService.ts`'s
+  `getPendingRequests(teamId)`/`approve`/`reject`, already scopes every
+  query by `teamId` — `approve`'s comment states exactly why: "Scoped to
+  teamId - without this, any authenticated user could approve/reject
+  another team's pending request." **Fixed** with the minimal change —
+  added `where: { teamId }` to the existing query, preserving the
+  all-statuses/`take: 50` behavior the web page's client-side pending/
+  resolved split depends on (didn't switch to `getPendingRequests`, which
+  would have changed behavior by filtering to `PENDING` only). New
+  `apps/api/routes/settings/approvals/route.test.ts` (2 tests: query scoped
+  to caller's team, 401 with no team context). 1002 apps/api tests pass (2
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
