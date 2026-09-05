@@ -2065,6 +2065,66 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-180 (Fixed):** two related bugs in the external, API-key-authenticated
+  v1 Leads API — `apps/api/routes/v1/leads/route.ts` (`POST`) and
+  `apps/api/routes/v1/leads/[id]/route.ts` (`PATCH`):
+  1. **System-field mass-assignment / policy bypass.** `PATCH` used a weak
+     two-field deny-list (`delete body.id; delete body.teamId;`) then passed
+     the rest of the raw body straight into `prisma.lead.update`. Every
+     other scalar on `Lead` — `leadScore`, `intentScore`, `isEnriched`,
+     `pipelineState`, `wonAt`/`lostAt`, `consentObtained`, `campaignId`,
+     etc. — passed through unfiltered. `apps/api/routes/leads/[id]/route.ts`
+     (the internal, session-authenticated sibling for the same model)
+     already documents and enforces the opposite policy via a
+     `ALLOWED_PATCH_FIELDS` allowlist with the comment "System-managed
+     fields ... must be updated through their dedicated service methods,
+     not via direct PATCH" — the v1 API-key route bypassed that stated
+     policy entirely, letting any `leads:write` API key forge DPDP consent
+     status, lead/intent scores, enrichment state, and pipeline stage on
+     its own leads. `POST` (create) had the same gap: `data: { ...body,
+     teamId: auth.teamId, status: body.status || "NEW" }` never filtered
+     the system fields either.
+  2. **Cross-tenant campaign disclosure via unverified `campaignId`.**
+     Neither route checked that a caller-supplied `campaignId` belongs to
+     `auth.teamId` before writing it onto a `Lead`. Once written, the
+     lead's own team can view it via `include: { campaign: true }` in
+     `apps/api/routes/leads/[id]/route.ts` GET and
+     `apps/api/routes/leads/[id]/journey/route.ts`, both of which return
+     the full joined `Campaign` row (name, description, audience,
+     `aiConfig` prompt/tone/goal, targetCount, ownerId) — so a Team A
+     caller who guesses/enumerates a Team B `campaignId`, attaches it to
+     their own lead via the v1 API, then reads that lead back through the
+     web UI, gets Team B's campaign content disclosed. This mirrors the
+     exact threat model already fixed under OPEN-152
+     (`analyticsService.ts`'s comment: "campaignId is caller-supplied and
+     otherwise unverified, so ... a guessed/enumerated id from another team
+     would leak that team's ... content"). **Fixed:** `PATCH` now uses the
+     identical `ALLOWED_PATCH_FIELDS` allowlist as the internal sibling
+     route (which also excludes `campaignId` — re-parenting a lead to a
+     different campaign isn't a supported PATCH operation there either);
+     `POST` now uses an `ALLOWED_CREATE_FIELDS` allowlist and, when
+     `campaignId` is supplied, verifies it via `prisma.campaign.findFirst({
+     where: { id: campaignId, teamId: auth.teamId } })` before create,
+     rejecting with 400 "Invalid campaignId" on a mismatch — the same
+     ownership-check pattern OPEN-152 established. New
+     `apps/api/routes/v1/leads/route.test.ts` (3 tests: system fields
+     stripped from create, foreign-team `campaignId` rejected, own-team
+     `campaignId` allowed) and
+     `apps/api/routes/v1/leads/[id]/route.test.ts` (2 tests: system/ownership
+     fields stripped from update, known-safe fields pass through). 997
+     apps/api tests pass (5 new), `tsc --noEmit` clean (same pre-existing,
+     unrelated `browser-engine.ts` failure noted above). **Related, not
+     fixed here** (same `campaignId`-unverified shape, but on the internal,
+     session-authenticated create path rather than the external API-key
+     surface actually reported, so left for a future pass rather than
+     folded in): `apps/api/src/services/LeadService.ts`'s `upsert` (used by
+     `apps/api/routes/leads/route.ts` POST) also sets
+     `campaignId: data.campaignId ?? ...` with no team-ownership check, and
+     `apps/api/src/lib/campaignService.ts`'s `targetCount` recompute
+     (`prisma.lead.count({ where: { campaignId } })`) has no `teamId`
+     filter either, so a foreign lead parked on a campaign inflates that
+     campaign's counts.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

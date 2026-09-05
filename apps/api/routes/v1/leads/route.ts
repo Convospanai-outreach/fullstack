@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
+// System-managed fields (pipelineState, intentScore, leadScore, isEnriched,
+// wonAt/lostAt, etc.) must not be settable from a caller-supplied body -
+// see the identical allowlist in routes/leads/[id]/route.ts.
+const ALLOWED_CREATE_FIELDS = new Set([
+    "fullName", "email", "phone", "linkedIn",
+    "company", "jobTitle", "location",
+    "status", "tags", "crmId", "value", "campaignId",
+    "consentObtained",
+    "whatsappConsent", "whatsappNumber",
+    "preferredMeetingType", "meetingLocation",
+]);
+
 export async function GET(req: NextRequest) {
     const authResult = await authorizeApiKey(req, "leads:read");
     if (!authResult.ok) return authResult.response;
@@ -71,11 +83,28 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Email or LinkedIn required" }, { status: 400 });
         }
 
+        if (body.campaignId) {
+            const campaign = await prisma.campaign.findFirst({
+                where: { id: body.campaignId, teamId: auth.teamId },
+                select: { id: true },
+            });
+            if (!campaign) {
+                return NextResponse.json({ error: "Invalid campaignId" }, { status: 400 });
+            }
+        }
+
+        const data: Record<string, any> = {};
+        for (const [key, val] of Object.entries(body ?? {})) {
+            if (ALLOWED_CREATE_FIELDS.has(key)) {
+                data[key] = val;
+            }
+        }
+
         const lead = await prisma.lead.create({
             data: {
-                ...body,
+                ...data,
                 teamId: auth.teamId,
-                status: body.status || "NEW"
+                status: data.status || "NEW"
             }
         });
 

@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiKey } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
+// Same allowlist as routes/leads/[id]/route.ts - system-managed fields
+// (pipelineState, intentScore, leadScore, isEnriched, wonAt/lostAt,
+// campaignId, etc.) must not be settable via a direct PATCH body.
+const ALLOWED_PATCH_FIELDS = new Set([
+    "fullName", "email", "phone", "linkedIn",
+    "company", "jobTitle", "location",
+    "status", "tags", "crmId", "value",
+    "consentObtained",
+    "whatsappConsent", "whatsappConsentAt", "whatsappConsentBy", "whatsappNumber",
+    "preferredMeetingType", "meetingLocation",
+]);
+
 export async function GET(
     req: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -50,13 +62,16 @@ export async function PATCH(
     try {
         const body = await req.json();
 
-        // Prevent changing teamId or ID
-        delete body.id;
-        delete body.teamId;
+        const data: Record<string, any> = {};
+        for (const [key, val] of Object.entries(body ?? {})) {
+            if (ALLOWED_PATCH_FIELDS.has(key)) {
+                data[key] = val;
+            }
+        }
 
         const lead = await prisma.lead.update({
             where: { id, teamId: auth.teamId },
-            data: body
+            data
         });
 
         return NextResponse.json(lead);
