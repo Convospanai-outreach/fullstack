@@ -51,6 +51,16 @@ export class LeadService {
             });
         }
 
+        if (data.campaignId) {
+            const campaign = await db.campaign.findFirst({
+                where: { id: data.campaignId, teamId },
+                select: { id: true },
+            });
+            if (!campaign) {
+                throw new Error("Invalid campaignId");
+            }
+        }
+
         const leadData: any = {
             fullName: data.fullName ?? (existing ? existing.fullName : null),
             email: data.email ?? (existing ? existing.email : null),
