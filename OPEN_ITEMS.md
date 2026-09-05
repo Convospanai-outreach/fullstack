@@ -2530,6 +2530,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rows). 1017/1017 apps/api tests pass (2 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-191 (Fixed):** cross-tenant read/write of another team's inbox
+  messages via a check-after-act ordering bug in two sibling routes.
+  `apps/api/routes/inbox/[id]/route.ts` (GET) called
+  `InboxService.markAsRead(leadId)` — which has no `teamId` scope of its
+  own (`prisma.message.updateMany({ where: { leadId, isRead: false,
+  direction: 'INBOUND' }, ... })`) — **before** verifying
+  `prisma.lead.findUnique({ where: { id: leadId, teamId } })` succeeded.
+  Any authenticated user of any team could `GET
+  /api/inbox/<victim-team-leadId>` and unconditionally flip `isRead: true`
+  on every unread inbound message for that lead — corrupting the victim
+  team's inbox unread-state/notification badges (potentially masking that
+  a lead genuinely replied) — before the route discovered the lead wasn't
+  theirs and returned 404. The sibling
+  `apps/api/routes/inbox/suggest/route.ts` (POST) had the same ordering
+  bug one step further: it called the equally-unscoped
+  `InboxService.getMessages(leadId)` and built the *content* of another
+  team's messages into an AI prompt context, checking a `context.length >
+  5000` bound (a coarse read side-channel: 400 vs. proceeding leaks
+  something about the length of a conversation the caller doesn't own)
+  before ever checking `prisma.lead.findFirst({ id: leadId, teamId })`.
+  Both `InboxService.saveDraft`/`discardDraft` in the same file already
+  take a `teamId` parameter and scope correctly — `markAsRead`/
+  `getMessages` were evidently missed in that earlier hardening pass, and
+  the sibling `apps/api/routes/inbox/[id]/suggest/route.ts` already does
+  the ownership check first, showing the correct order was already
+  established elsewhere in the same directory. **Fixed** by reordering
+  both routes to perform the team-ownership `lead` lookup first and
+  return 404 before calling into either unscoped `InboxService` method —
+  a pure statement-reordering fix, no service-layer signature change,
+  matching the pattern already used correctly by
+  `inbox/[id]/suggest/route.ts`. New
+  `apps/api/routes/inbox/[id]/route.test.ts` (3 tests: unauthenticated
+  caller rejected, a foreign-team lead 404s with `markAsRead` never
+  called, the caller's own lead is marked read only after ownership is
+  confirmed) and `apps/api/routes/inbox/suggest/route.test.ts` (3 tests:
+  unauthenticated caller rejected, a foreign-team lead 404s with
+  `getMessages` never called, the caller's own lead's messages are read
+  only after ownership is confirmed). 1023/1023 apps/api tests pass (6
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
