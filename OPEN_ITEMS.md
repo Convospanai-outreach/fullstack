@@ -1920,6 +1920,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-176 (Fixed):** platform-wide financial/PII exposure via
+  `apps/api/routes/admin/usage/route.ts` (`GET`) — the third confirmed
+  instance of the OPEN-174/OPEN-175 pattern (`checkAdmin()`/`getAdminUser()`
+  called with no argument, defaulting to the self-service-assignable
+  `ORG_ADMIN` level, gating a query that is actually platform-wide). The
+  route ran `prisma.user.findMany()` with no `where` clause at all, then
+  built every downstream aggregate (`creditLedger`, `creditTransaction`
+  `groupBy`, `lLMUsageLog.groupBy`) from that unrestricted user/team list —
+  returning, for **every team on the platform**, every user's email, name,
+  role, and per-user/per-team credit balances, credit spend/topup/bonus
+  history, and LLM token usage + dollar cost, to any `ORG_ADMIN` of any
+  single workspace. This is more severe than OPEN-174/175 in one respect:
+  it leaks financial/billing data and PII across all tenants, not just
+  internal job/account metadata. **Fixed** the same way as its two
+  predecessors: `checkAdmin(UserRole.SYSTEM_ADMIN)`. New
+  `apps/api/routes/admin/usage/route.test.ts` (2 tests: non-platform-admin
+  rejected with zero `prisma.user/creditLedger/creditTransaction/lLMUsageLog`
+  calls, platform-admin succeeds). Full apps/api suite (985 tests, 2 new)
+  passes, `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above). **Also swept and cleared in the
+  same pass** (all `checkAdmin()`/`getAdminUser()`-with-no-argument call
+  sites under `apps/api/routes/admin/**`): `stats/route.ts` returns
+  aggregate-only counts, no per-tenant breakdown — acceptable at ORG_ADMIN
+  level; `service-health`, `runtime-overview`, `ai-config`, `llm-stats`
+  routes are aggregate-only; `actions/[action]/route.ts` already correctly
+  team-scopes a client-supplied `teamId` before acting. **Flagged, not
+  fixed here** (secondary, lower-confidence, different bug shape — no
+  `teamId` column to scope by, so it doesn't fit this fix pattern and
+  wants its own decision): `admin/client-errors/route.ts` and
+  `admin/client-errors/export/route.ts` return every `ClientError` row
+  platform-wide (frontend telemetry keyed only by optional `userId`, no
+  team relation in the schema) to any `ORG_ADMIN` — leaks other users'
+  error details/IPs across tenants; worth a follow-up look at whether it
+  should also require `SYSTEM_ADMIN` or be scoped via the reporting user's
+  team membership.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
