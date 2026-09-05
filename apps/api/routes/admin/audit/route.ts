@@ -3,14 +3,20 @@ import { prisma } from "@/lib/db";
 import { UserRole } from "@prisma/client";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 
+// ORG_ADMIN/COMPLIANCE_OFFICER are normal, self-service-assignable per-workspace
+// roles (see the identical framing in admin/actions/[action]/route.ts) - only
+// SYSTEM_ADMIN/SUPER_ADMIN are genuine platform-level operators allowed to see
+// audit logs across every team.
+const PLATFORM_LEVEL_ROLES: UserRole[] = [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN];
+
 /**
  * Audit Log Viewer API
  * GET /api/admin/audit
- * 
+ *
  * Only accessible by:
- * - ORG_ADMIN
- * - COMPLIANCE_OFFICER
- * - SYSTEM_ADMIN
+ * - ORG_ADMIN (own team only)
+ * - COMPLIANCE_OFFICER (own team only)
+ * - SYSTEM_ADMIN / SUPER_ADMIN (platform-wide)
  */
 export async function GET(req: NextRequest) {
     const { userId } = await getCurrentContextFromRequest(req);
@@ -19,7 +25,7 @@ export async function GET(req: NextRequest) {
         : null;
 
     // Authorization check
-    const allowedRoles: UserRole[] = [UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER, UserRole.SYSTEM_ADMIN];
+    const allowedRoles: UserRole[] = [UserRole.ORG_ADMIN, UserRole.COMPLIANCE_OFFICER, UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN];
     if (!user || !allowedRoles.includes(user.enterpriseRole)) {
         return NextResponse.json({ error: "Forbidden - Requires admin access" }, { status: 403 });
     }
@@ -37,6 +43,19 @@ export async function GET(req: NextRequest) {
         const limit = parseInt(searchParams.get("limit") || "50");
 
         const where: any = {};
+
+        if (!PLATFORM_LEVEL_ROLES.includes(user.enterpriseRole)) {
+            // A workspace-level ORG_ADMIN/COMPLIANCE_OFFICER may only see their own
+            // team's logs, never the whole platform's.
+            const membership = await prisma.teamMember.findFirst({
+                where: { userId: userId as string },
+                select: { teamId: true }
+            });
+            if (!membership) {
+                return NextResponse.json({ error: "Forbidden - No team membership" }, { status: 403 });
+            }
+            where.orgId = membership.teamId;
+        }
 
         if (action) where.action = action;
         if (entityType) where.entityType = entityType;
