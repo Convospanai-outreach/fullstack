@@ -1832,6 +1832,61 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   back cross-tenant) — genuinely lower severity, left as a future
   follow-up.
 
+- **OPEN-174 (Fixed):** platform-wide privilege escalation and PII exposure
+  via `apps/api/routes/admin/users/route.ts` (`GET`/`POST`/`PATCH`). All three
+  handlers called `getAdminUser()` with no argument, which defaults to
+  `requiredRole = UserRole.ORG_ADMIN` — the lowest level in
+  `ADMIN_LEVEL = { ORG_ADMIN: 1, SYSTEM_ADMIN: 2, SUPER_ADMIN: 2 }`
+  (`apps/api/src/lib/admin.ts`). `ORG_ADMIN` is already established elsewhere
+  in this codebase (OPEN-153's fix comment on
+  `apps/web/src/app/api/admin/invites/route.ts`) as "a normal,
+  self-service-assignable per-workspace role, not a platform-level
+  privilege." This route applied **zero team-relationship check of any
+  kind**: `GET` returned `prisma.user.findMany()` with no `where` clause at
+  all — the full platform user list, every team's membership, to any
+  ORG_ADMIN of any single team anywhere — and `PATCH` let that same actor set
+  any user's global `User.enterpriseRole` field (schema: it lives on `User`,
+  not `TeamMember` — a genuinely cross-team field) to `ORG_ADMIN` for anyone
+  on the platform (`assertCanAssignRole` only blocked granting
+  `SYSTEM_ADMIN`/`role: "admin"`). An investigation agent had flagged a
+  related, narrower bug in the web-side sibling
+  (`apps/web/src/app/api/admin/users/route.ts`'s `PATCH`, which does check
+  shared-team membership but is still exploitable because the field it
+  writes is global, not per-team) and cited this apps/api route as "the
+  correct pattern" — that citation was **wrong**: independent verification
+  read `getAdminUser`'s implementation directly and found this route is not
+  a correct reference, it is a broader, more severe instance of the same
+  underlying flaw (global `enterpriseRole` field treated as safe to gate on
+  a low, self-service admin level) with no team check at all, layered on
+  top. **Fixed** by requiring true platform-admin level —
+  `getAdminUser(UserRole.SYSTEM_ADMIN)` — on all three handlers, following
+  the exact OPEN-153 precedent (gate on `isSuperAdminRole`-equivalent, not
+  ORG_ADMIN, for anything touching platform-wide user data or the global
+  `enterpriseRole` field). Confirmed via grep that no other code path calls
+  this route through the app's `/api/proxy/admin/*` forwarding convention —
+  the web admin UI (`UserManagementPage.tsx`) calls its own
+  `/api/admin/users` directly — so this was an unused-but-reachable,
+  unauthenticated-by-team API surface, not a change that breaks an
+  in-product workflow. New `apps/api/routes/admin/users/route.test.ts` (6
+  tests: GET/POST/PATCH each asserting a rejected non-platform-admin never
+  reaches `prisma.user.*`, plus a platform-admin success case for each). 957
+  pre-existing apps/api tests + 6 new pass, `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+  **Still open, deliberately not fixed here (separate, smaller-blast-radius
+  design question, flagged for the user rather than folded in):**
+  `apps/web/src/app/api/admin/users/route.ts`'s `PATCH` still lets an
+  ORG_ADMIN who shares *any* team with a target user set that target's
+  global `enterpriseRole` to `ORG_ADMIN`, which then applies across all of
+  that target's *other*, unrelated team memberships too — narrower (requires
+  a second colluding/compromised account already sharing a team) than the
+  apps/api hole just closed, but the same root cause: `enterpriseRole` is a
+  global `User` field, not a per-`TeamMember` one. Properly fixing it means
+  deciding whether workspace-level admin actions should move off the global
+  `enterpriseRole` field onto the genuinely per-team `TeamMember.role` (the
+  pattern `apps/web/src/app/api/settings/branding/domains/route.ts`'s
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` already uses) — an
+  authorization-model decision out of scope for a surgical fix.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
