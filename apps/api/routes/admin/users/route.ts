@@ -21,10 +21,10 @@ function assertCanAssignRole(actorEnterpriseRole: UserRole, nextRole?: string, n
     }
 }
 
-// GET: List all users (Admin only)
+// GET: List all users (System admin only — this lists every user platform-wide, unscoped by team)
 export async function GET() {
     try {
-        const admin = await getAdminUser();
+        const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
         if (!admin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
@@ -44,10 +44,10 @@ export async function GET() {
     }
 }
 
-// POST: Create a new user (Admin only)
+// POST: Create a new user (System admin only — creates a user with no team relationship check)
 export async function POST(req: Request) {
     try {
-        const admin = await getAdminUser();
+        const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
         if (!admin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
@@ -100,10 +100,10 @@ export async function POST(req: Request) {
     }
 }
 
-// PATCH: Update user roles (Admin only)
+// PATCH: Update user roles (System admin only — mutates the global enterpriseRole field with no team relationship check)
 export async function PATCH(req: Request) {
     try {
-        const admin = await getAdminUser();
+        const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
         if (!admin) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
