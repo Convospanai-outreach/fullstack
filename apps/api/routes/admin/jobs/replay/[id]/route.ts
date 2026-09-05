@@ -1,14 +1,16 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 
+// System admin only — replays a dead-lettered job by bare id with no team-ownership check.
 export async function POST(
     _req: NextRequest,
     context: { params: Promise<{ id: string }> }
 ) {
     try {
-        const isAdmin = await checkAdmin();
+        const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
         if (!isAdmin) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
