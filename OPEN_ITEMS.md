@@ -1956,6 +1956,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   should also require `SYSTEM_ADMIN` or be scoped via the reporting user's
   team membership.
 
+- **OPEN-177 (Fixed):** cross-tenant PII disclosure via unscoped `leadId` on
+  `POST /api/pipeline/tasks` (`apps/api/routes/pipeline/tasks/route.ts` →
+  `PipelineService.createTask`,
+  `apps/api/src/modules/analytics/service/PipelineService.ts`). The route
+  spread the caller's raw request body (including an attacker-supplied
+  `leadId`) straight into `PipelineService.createTask`, which wrote
+  `prisma.task.create({ data: { teamId, userId, leadId, ... } })` with no
+  check that `leadId` belongs to `teamId` — `Task.leadId` is a bare optional
+  FK (schema: `leadId String?`, `lead Lead? @relation(...)`) with no
+  team-membership constraint. The disclosure surfaces one hop later: `PATCH
+  /api/pipeline/tasks/[id]` (`apps/api/routes/pipeline/tasks/[id]/route.ts`)
+  correctly scopes the *task* lookup by `{ id, teamId }`, but its
+  `include: { lead: { select: { id, fullName, email } } }` blindly follows
+  the FK to whatever lead it points at regardless of that lead's team — so
+  a Team A member who creates a task with a guessed/leaked Team B `leadId`
+  and then PATCHes their own (Team-A-owned) task gets Team B's lead's name
+  and email back in the response, plus pollutes Team B's lead with an
+  attacker-controlled task row. **Fixed** by adding the same ownership
+  check `PipelineService.moveLead` already uses a few lines above in the
+  same file (`prisma.lead.findFirst({ where: { id: leadId, teamId } })`,
+  throw "Lead not found" if absent) to `createTask`, gated on `leadId` being
+  present so the no-lead task-creation path and the one other internal
+  caller (`sequenceService.ts`'s WhatsApp-fallback task, whose `leadId`
+  already legitimately belongs to `run.teamId`) are unaffected. Updated
+  `PipelineService.test.ts`'s existing `createTask` test to mock the new
+  lookup, plus 2 new tests (no-leadId path skips the lookup, foreign-team
+  leadId rejected with no `task.create` call). 987 apps/api tests pass (2
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
