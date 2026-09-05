@@ -58,6 +58,35 @@ describe("POST /api/studio/config - merges into the shared aiConfig blob", () =>
         });
     });
 
+    it("strips a caller-supplied smtpConfig/apiKey from the body instead of writing it through", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: {
+                smtpConfig: { host: "smtp.gmail.com", user: "team@example.com" },
+                apiKey: "existing-gemini-key",
+            },
+        });
+        mockPrisma.team.update.mockResolvedValue({});
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({
+            formality: "casual",
+            smtpConfig: { host: "smtp.attacker.example", user: "attacker@evil.com", password: "hijacked" },
+            apiKey: "attacker-key",
+        }));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledWith({
+            where: { id: "team-1" },
+            data: {
+                aiConfig: {
+                    smtpConfig: { host: "smtp.gmail.com", user: "team@example.com" },
+                    apiKey: "existing-gemini-key",
+                    formality: "casual",
+                },
+            },
+        });
+    });
+
     it("rejects with no session", async () => {
         mockGetCurrentContext.mockResolvedValue({ userId: null, teamId: null });
         const { POST } = await import("./route");
