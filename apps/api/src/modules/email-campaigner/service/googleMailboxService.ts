@@ -556,7 +556,20 @@ export async function listConnectedMailboxes(teamId: string) {
     });
 }
 
-export async function updateMailboxControls(teamId: string, mailboxId: string, data: {
+// Client-editable controls only - notably excludes teamId/id (ownership must
+// not be reassignable) and system-managed OAuth/sync fields
+// (encryptedAccessToken, encryptedRefreshToken, scopes, historyId, counters).
+const MAILBOX_PATCHABLE_FIELDS = [
+    "assignedUserId",
+    "displayName",
+    "dailyLimit",
+    "minDelaySeconds",
+    "isWarmingUp",
+    "warmupDay",
+    "status",
+] as const;
+
+export async function updateMailboxControls(teamId: string, mailboxId: string, rawData: {
     assignedUserId?: string | null;
     displayName?: string | null;
     dailyLimit?: number;
@@ -565,9 +578,14 @@ export async function updateMailboxControls(teamId: string, mailboxId: string, d
     warmupDay?: number;
     status?: string;
 }) {
+    const data: Record<string, unknown> = {};
+    for (const key of MAILBOX_PATCHABLE_FIELDS) {
+        if (key in rawData) data[key] = (rawData as Record<string, unknown>)[key];
+    }
+
     if (data.assignedUserId) {
         const member = await prisma.teamMember.findFirst({
-            where: { teamId, userId: data.assignedUserId },
+            where: { teamId, userId: data.assignedUserId as string },
             select: { id: true },
         });
         if (!member) {

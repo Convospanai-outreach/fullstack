@@ -17,6 +17,7 @@ import {
     renewDueGoogleMailboxWatches,
     advanceMailboxWarmup,
     resolveGoogleMailbox,
+    updateMailboxControls,
     assertGmailMailboxLeaseInTransaction,
     GmailMailboxLeaseContendedError,
     GmailMailboxLeaseLostError,
@@ -59,6 +60,7 @@ const { mockDb } = vi.hoisted(() => {
         message: { create: vi.fn() },
         lead: { findUnique: vi.fn(), findFirst: vi.fn().mockResolvedValue({ id: "lead-1", status: "NEW", pipelineState: "COLD" }), update: vi.fn() },
         suppressionEntry: { upsert: vi.fn() },
+        teamMember: { findFirst: vi.fn() },
     };
     db.$queryRaw = vi.fn().mockResolvedValue([{ id: "cursor-1" }]);
     db.$transaction = vi.fn(async (callback: (tx: any) => unknown) => callback(db));
@@ -1980,6 +1982,50 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
             bounces: 0,
             error: "GMAIL_SYNC_FAILED",
         }]);
+    });
+
+    describe("updateMailboxControls", () => {
+        beforeEach(() => {
+            (prisma.connectedMailbox.updateMany as Mock).mockResolvedValue({ count: 1 });
+            (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({ id: "mailbox-1", teamId: "team-1" });
+        });
+
+        it("strips a caller-supplied teamId from the update payload", async () => {
+            await updateMailboxControls("team-1", "mailbox-1", {
+                dailyLimit: 100,
+                // @ts-expect-error - simulating an attacker-controlled raw body
+                teamId: "team-victim",
+            } as any);
+
+            expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith({
+                where: { id: "mailbox-1", teamId: "team-1" },
+                data: { dailyLimit: 100 },
+            });
+        });
+
+        it("strips system-managed OAuth/sync fields from the update payload", async () => {
+            await updateMailboxControls("team-1", "mailbox-1", {
+                status: "PAUSED",
+                // @ts-expect-error - simulating an attacker-controlled raw body
+                encryptedAccessToken: { v: 1 },
+                // @ts-expect-error - simulating an attacker-controlled raw body
+                scopes: ["https://mail.google.com/"],
+            } as any);
+
+            expect(prisma.connectedMailbox.updateMany).toHaveBeenCalledWith({
+                where: { id: "mailbox-1", teamId: "team-1" },
+                data: { status: "PAUSED" },
+            });
+        });
+
+        it("verifies assignedUserId belongs to the team before applying it", async () => {
+            (prisma.teamMember.findFirst as Mock).mockResolvedValue(null);
+
+            await expect(
+                updateMailboxControls("team-1", "mailbox-1", { assignedUserId: "user-from-other-team" })
+            ).rejects.toThrow("Assigned user must belong to this team.");
+            expect(prisma.connectedMailbox.updateMany).not.toHaveBeenCalled();
+        });
     });
 });
 

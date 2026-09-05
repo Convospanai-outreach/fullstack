@@ -2125,6 +2125,43 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
      filter either, so a foreign lead parked on a campaign inflates that
      campaign's counts.
 
+- **OPEN-181 (Fixed):** cross-tenant mailbox hijack + OAuth-secret
+  mass-assignment via `PATCH /api/mailboxes`
+  (`apps/api/routes/mailboxes/route.ts` →
+  `apps/api/src/modules/email-campaigner/service/googleMailboxService.ts`'s
+  `updateMailboxControls`). The route destructured `{ mailboxId, ...controls
+  }` from the raw, unvalidated request body and passed `controls` straight
+  through; `updateMailboxControls`'s `data` parameter had a TypeScript
+  shape but no runtime filtering, so `controls` reached
+  `prisma.connectedMailbox.updateMany({ where: { id: mailboxId, teamId },
+  data })` unfiltered. `ConnectedMailbox.teamId` is a plain scalar column
+  (schema line 599), so a caller could include `"teamId": "<team-B-id>"` in
+  the body: the `where` clause authorizes the update using the caller's
+  *own current* `teamId`, but the attacker-supplied `data.teamId`
+  overwrites the matched row's tenant column — reparenting a live Gmail
+  mailbox integration (including its `encryptedAccessToken`/
+  `encryptedRefreshToken`, OAuth `scopes`, sync `historyId`, and
+  sent/bounce/reply counters) onto Team B. The same unfiltered `data` also
+  let a caller directly set `encryptedAccessToken`, `encryptedRefreshToken`,
+  `scopes`, `historyId`, or `sentTodayDate` — fields that should only ever
+  be system-written during the OAuth/sync flow, never client-settable.
+  Confirmed the sibling route `apps/api/routes/integrations/google/mailboxes/route.ts`
+  PATCH is NOT vulnerable — it already Zod-validates the body to exactly
+  the 7 legitimate control fields before calling the same service function
+  — so this was specifically the `/mailboxes` route's raw-body path.
+  **Fixed** in the shared service (`updateMailboxControls`) rather than
+  only the vulnerable route, so both callers are protected going forward:
+  added `MAILBOX_PATCHABLE_FIELDS`
+  (`assignedUserId`/`displayName`/`dailyLimit`/`minDelaySeconds`/`isWarmingUp`/`warmupDay`/`status`)
+  and filter the incoming data to that allowlist before the existing
+  `assignedUserId`-belongs-to-team check and the `updateMany` call — the
+  same pattern already used for OPEN-179/180. New tests in
+  `googleMailboxService.test.ts`'s `updateMailboxControls` describe block
+  (3 tests: caller-supplied `teamId` stripped, system-managed OAuth/sync
+  fields stripped, `assignedUserId` ownership check still enforced). 1000
+  apps/api tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
