@@ -2264,6 +2264,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   of `Lead.campaignId` would still need its own ownership check rather than
   relying on these counts to be safe.
 
+- **OPEN-185 (Fixed):** cross-tenant PII leak + campaign-metrics corruption
+  via unscoped `campaignId` reassignment on `PATCH /api/leads/[id]`
+  (`apps/web/src/app/api/leads/[id]/route.ts`) — the "different live
+  writer" of `Lead.campaignId` flagged as still-possible when OPEN-184
+  closed `LeadService.upsert`. The route correctly scoped the *lead* being
+  modified (`prisma.lead.updateMany({ where: { id, teamId } })`), but wrote
+  a caller-supplied `campaignId` straight into that lead's row with zero
+  check that the campaign belongs to the same team:
+  `...(campaignId !== undefined && { campaignId })`. Chained exploit: a
+  Team A member `PATCH`es their own lead with `{ campaignId: <Team B's
+  campaign id> }`; the lead's `teamId` stays `A` but its `campaignId` now
+  points at Team B's campaign. `Campaign.leadList` (schema: `Lead[]`, a
+  plain FK join on `campaignId` with no compound `teamId` component) means
+  Team B's own `GET /api/campaigns/[id]` (both the `apps/api` and
+  `apps/web` variants, both doing `include: { leadList: true }` after
+  scoping the *campaign* by `teamId`) then returns Team A's lead —
+  `fullName`/`email`/`phone`/`linkedIn`/`company`/`jobTitle` — embedded in
+  Team B's own campaign response, a direct cross-tenant PII leak.
+  Independently, `CampaignService.getCampaignStats`'s `connected`/`replied`
+  counts (`prisma.lead.count({ where: { campaignId, status } })`, no
+  `teamId` filter) would count the planted lead into Team B's own campaign
+  analytics — data-integrity corruption on top of the leak. The correct
+  sibling pattern, `apps/api/routes/leads/[id]/route.ts`'s
+  `ALLOWED_PATCH_FIELDS` allowlist (already fixed/established, see OPEN-180's
+  ledger entry), deliberately excludes `campaignId` for exactly this
+  reason — the `apps/web` sibling route had never received that policy.
+  **Fixed** by removing `campaignId` from the set of fields this route
+  will ever write, matching the `apps/api` policy exactly (confirmed via
+  grep that no `apps/web` UI caller of this route ever sends `campaignId`,
+  so this is a pure vulnerability-surface reduction with no feature loss).
+  New `apps/web/src/app/api/leads/[id]/route.test.ts` (2 tests:
+  caller-supplied `campaignId` stripped, known-safe fields pass through).
+  Full apps/web suite (366 tests, 2 new) passes, `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
