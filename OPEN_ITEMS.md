@@ -1986,6 +1986,46 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-178 (Fixed):** cross-tenant data-integrity corruption via unverified
+  `leadId`/`campaignId` on `POST /api/email/send`
+  (`apps/api/routes/email/send/route.ts` →
+  `apps/api/src/modules/email-campaigner/service/emailService.ts`'s
+  `sendEmail`). The route accepted raw `leadId`/`campaignId` from the
+  request body; it did run a `prisma.campaign.findFirst({ where: { id:
+  campaignId, teamId: ctx.teamId } })` lookup, but the result was **only
+  used to pick a fallback `ownerId`** — if the caller-supplied `campaignId`
+  belonged to a different team the lookup just returned `null` and the
+  route fell back to `ctx.userId` and sent anyway, still passing the raw,
+  unverified `leadId`/`campaignId` into `sendEmail`. Inside `sendEmail`,
+  `metadata.leadId` was looked up via a bare `prisma.lead.findUnique({
+  where: { id } })` (no team check, only used to gate a "paused" status),
+  and both ids were written verbatim into `prisma.email.create(...)` via
+  `persistDeliveredEmail` — `Email` has no `teamId` column, so this was the
+  only enforcement point. A Team A user could send `{ leadId: <Team B's
+  lead>, campaignId: <Team B's campaign> }` and get a real `Email` row
+  fabricated into Team B's campaign/lead history (with a live
+  `trackingId`, so later open/click/reply tracking events could flip
+  `openedAt`/`repliedAt` on that row and, via existing
+  advance-lead-after-reply logic elsewhere, mutate Team B's `Lead.status`)
+  — a cross-tenant data-integrity corruption, not just a read leak; the
+  unscoped `lead.findUnique` also let a caller probe another team's lead
+  status as a minor side-channel. **Fixed** in the shared service
+  (`sendEmail`) rather than only the one route, so every current and
+  future caller is protected: the `lead` lookup now also selects `teamId`
+  and returns `{ success: false, error: "LEAD_TEAM_MISMATCH" }` if it
+  doesn't match `metadata.teamId`; a new equivalent check does the same for
+  `campaignId` (`CAMPAIGN_TEAM_MISMATCH`). Verified all other internal
+  callers of `sendEmail` (`sequenceService.ts`, `sequenceHandlers.ts`,
+  `email-worker.ts`, `meetings/ready-reckoner/route.ts`) already derive
+  `leadId`/`campaignId` from team-scoped records, so the new checks are
+  pure defense-in-depth for them and don't change their behavior. Updated
+  `emailService.test.ts`'s existing paused-lead tests to include a matching
+  `teamId` (the new check runs before the pause check and would otherwise
+  short-circuit them), plus 2 new tests (foreign-team `leadId` and
+  foreign-team `campaignId` each rejected with no `email.create` call). 989
+  apps/api tests pass (2 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

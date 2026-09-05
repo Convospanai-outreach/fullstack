@@ -145,11 +145,23 @@ class EmailService {
         if (metadata?.leadId) {
             const lead = await prisma.lead.findUnique({
                 where: { id: metadata.leadId },
-                select: { status: true },
+                select: { status: true, teamId: true },
             });
+            if (teamId && lead && lead.teamId !== teamId) {
+                return { success: false, error: "LEAD_TEAM_MISMATCH" };
+            }
             const pausedStatuses = new Set(["replied", "stopped", "bounced", "unsubscribed", "do_not_contact"]);
             if (lead?.status && pausedStatuses.has(lead.status.toLowerCase())) {
                 return { success: false, error: "LEAD_SEQUENCE_PAUSED" };
+            }
+        }
+        if (metadata?.campaignId && teamId) {
+            const campaign = await prisma.campaign.findUnique({
+                where: { id: metadata.campaignId },
+                select: { teamId: true },
+            });
+            if (campaign && campaign.teamId !== teamId) {
+                return { success: false, error: "CAMPAIGN_TEAM_MISMATCH" };
             }
         }
 
