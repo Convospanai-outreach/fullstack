@@ -136,6 +136,23 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
         });
 
+        it("rejects workflow_step as a client-enqueueable job type (cross-tenant workflow-run hijack)", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    type: "workflow_step",
+                    payload: { runId: "victim-team-run-1", nodeId: "email-node-1" },
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
         it("overrides an attacker-supplied payload.teamId with the caller's own session teamId", async () => {
             mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
             mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });

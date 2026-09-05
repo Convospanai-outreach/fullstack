@@ -2661,6 +2661,61 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-194 (Fixed):** cross-tenant workflow-run hijack via `POST
+  /api/jobs` enqueuing the internal-only `workflow_step` job type
+  (`apps/api/routes/jobs/route.ts` + `apps/api/src/workers/job-processor.ts:91-119`
+  + `apps/api/src/lib/workflowService.ts`'s `processNode`). Like OPEN-188's
+  `warmup_seed_reply`, `workflow_step` has no team scope of its own and is
+  meant to be self-produced only —
+  `WorkflowService.enqueueNodeProcessing(runId, nodeId)` (the real
+  workflow-builder's own scheduler) and `OutboxService.mapEventToJob`'s
+  `PAYMENT_CAPTURED` case are its only legitimate producers, neither of
+  which sets `payload.teamId`. But `job-processor.ts`'s `workflow_step`
+  case reads only `payload.runId`/`payload.nodeId` and calls
+  `WorkflowService.processNode(runId, nodeId)` — a function whose
+  signature carries no caller/team parameter at all: it looks up
+  `WorkflowRun` purely by `id` and does everything downstream keyed off
+  `run.workflow.teamId` (the *real* owner), but never checks that against
+  the job's submitter. Since `POST /api/jobs` accepted any `task_type`
+  string with no allowlist before OPEN-188/here, any authenticated user
+  of any team could `POST {"type": "workflow_step", "payload": {"runId":
+  "<victim team's running WorkflowRun id>", "nodeId":
+  "<an email-action node id>"}}` and drive a victim team's automation
+  directly: forcing an `"action"`-type EMAIL node enqueues a real
+  `email_sending` job scoped to the *victim's* team, sending an actual
+  email from the victim's mailbox/AI credits to the victim's own lead —
+  completely bypassing the victim's own schedule/delay/condition logic,
+  repeatable for duplicate sends since nothing marks a node consumed;
+  targeting a `"condition"` node's id lets the attacker force-select
+  which branch executes next, skipping the real lead-status check; and
+  targeting nodes past a `"delay"` node lets the attacker replay/
+  accelerate another team's automation. This requires knowing/guessing a
+  `WorkflowRun` UUID (the same knowledge bar as this codebase's other
+  confirmed id-based reachability bugs), but zero ownership check exists
+  at any layer for this job type. **Fixed** the same way as OPEN-188:
+  added `"workflow_step"` to `apps/api/routes/jobs/route.ts`'s
+  `clientBlockedTypes` set, rejecting it with 403 before it ever reaches
+  `JobQueue.enqueue` — chosen over adding a `teamId` check inside
+  `processNode`/`job-processor.ts` because neither legitimate producer
+  puts `teamId` in the payload at all, so an equality check there would
+  either break real internal jobs (undefined teamId never matching the
+  real owner) or require plumbing the job row's own `teamId` column
+  through `runHandler`'s signature — blocking the job type at the one
+  actual public entry point is simpler and fully closes the exploit,
+  matching precedent. New test in the existing
+  `apps/api/routes/jobs/__tests__/route.test.ts` (1 test: `workflow_step`
+  with a caller-supplied victim `runId`/`nodeId` rejected with 403,
+  `JobQueue.enqueue` never called). 1024/1024 apps/api tests pass (1
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+  **Also noted, not fixed here:** an investigation agent flagged that
+  `apps/web/src/lib/governance/guard.ts` is a stale duplicate of
+  `apps/api/src/lib/governance/guard.ts` that never received the
+  `approvalId`-scoping fix from an earlier round and still throws
+  `ORG_POLICY_MISSING` instead of auto-creating a default policy — the
+  two copies have drifted and should be reconciled or deduplicated;
+  flagging for a future pass rather than fixing opportunistically here.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -61,8 +61,14 @@ export async function POST(req: NextRequest) {
         // shared, non-tenant-owned WarmupSeedMailbox with a caller-controlled
         // toEmail/subject - see OPEN-188). Reject them here rather than in
         // the handler, since by the time job-processor.ts runs there's no
-        // caller identity left to check against.
-        const clientBlockedTypes = new Set(["warmup_seed_reply"]);
+        // caller identity left to check against. workflow_step is the same
+        // shape: WorkflowService.processNode(runId, nodeId) resolves the run
+        // purely by id with no team check of its own, so a client-submitted
+        // job referencing another team's runId can hijack their workflow -
+        // triggering real email sends or skipping delay/condition nodes -
+        // see OPEN-194. Its only legitimate producers (WorkflowService's own
+        // scheduler, OutboxService) never go through this route.
+        const clientBlockedTypes = new Set(["warmup_seed_reply", "workflow_step"]);
 
         let job;
 
