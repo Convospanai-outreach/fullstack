@@ -21,8 +21,17 @@ export async function POST(req: Request) {
         if (event.type === "checkout.session.completed") {
             const session = event.data.object as any;
             const orderId = session.client_reference_id || session.metadata?.orderId;
+            // This endpoint is a platform-wide Connect webhook: it receives
+            // checkout.session.completed events from every team's connected
+            // Stripe account, not just the one that owns `orderId`. Without
+            // pinning the claim to the connected account the event actually
+            // came from (event.account), a caller with their own connected
+            // account could complete a session referencing another team's
+            // order id and get that order marked CAPTURED without the
+            // victim ever being paid.
+            const connectedAccountId = (event as any).account;
 
-            if (orderId) {
+            if (orderId && connectedAccountId) {
                 // Order-capture and outbox-publish run in one transaction: if the
                 // publish fails, the order is not left stranded as CAPTURED with
                 // no event - a Stripe retry then finds it still PENDING and
@@ -31,7 +40,12 @@ export async function POST(req: Request) {
                 // a genuine retry a no-op).
                 await prisma.$transaction(async (tx) => {
                     const claim = await tx.order.updateMany({
-                        where: { id: orderId, status: "PENDING" },
+                        where: {
+                            id: orderId,
+                            status: "PENDING",
+                            gateway: "STRIPE",
+                            gatewayAccountId: connectedAccountId,
+                        },
                         data: {
                             status: "CAPTURED",
                             gatewayPaymentId: session.payment_intent || session.id,
