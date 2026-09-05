@@ -48,6 +48,7 @@ describe("/webhooks/stripe-connect", () => {
     it("captures the order and publishes ORDER_CAPTURED on checkout.session.completed", async () => {
         mockConstructEvent.mockReturnValue({
             type: "checkout.session.completed",
+            account: "acct_seller",
             data: { object: { client_reference_id: "order-1", payment_intent: "pi_1" } },
         });
         mockTx.order.updateMany.mockResolvedValue({ count: 1 });
@@ -60,7 +61,7 @@ describe("/webhooks/stripe-connect", () => {
 
         expect(response.status).toBe(200);
         expect(mockTx.order.updateMany).toHaveBeenCalledWith({
-            where: { id: "order-1", status: "PENDING" },
+            where: { id: "order-1", status: "PENDING", gateway: "STRIPE", gatewayAccountId: "acct_seller" },
             data: { status: "CAPTURED", gatewayPaymentId: "pi_1" },
         });
         expect(mockTx.outboxEvent.create).toHaveBeenCalledWith(expect.objectContaining({
@@ -71,6 +72,7 @@ describe("/webhooks/stripe-connect", () => {
     it("does not re-publish when the order is no longer PENDING (retry no-op)", async () => {
         mockConstructEvent.mockReturnValue({
             type: "checkout.session.completed",
+            account: "acct_seller",
             data: { object: { client_reference_id: "order-2", payment_intent: "pi_2" } },
         });
         mockTx.order.updateMany.mockResolvedValue({ count: 0 });
@@ -79,6 +81,42 @@ describe("/webhooks/stripe-connect", () => {
         const response = await POST(webhookRequest("{}"));
 
         expect(response.status).toBe(200);
+        expect(mockTx.order.findUnique).not.toHaveBeenCalled();
+        expect(mockTx.outboxEvent.create).not.toHaveBeenCalled();
+    });
+
+    it("never claims an order when the event carries no connected account (cross-tenant capture guard)", async () => {
+        mockConstructEvent.mockReturnValue({
+            type: "checkout.session.completed",
+            data: { object: { client_reference_id: "order-victim", payment_intent: "pi_attacker" } },
+        });
+
+        const { POST } = await import("../stripeWebhook");
+        const response = await POST(webhookRequest("{}"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("scopes the capture to the connected account the event actually came from", async () => {
+        mockConstructEvent.mockReturnValue({
+            type: "checkout.session.completed",
+            account: "acct_attacker",
+            data: { object: { client_reference_id: "order-victim", payment_intent: "pi_attacker" } },
+        });
+        mockTx.order.updateMany.mockResolvedValue({ count: 0 });
+
+        const { POST } = await import("../stripeWebhook");
+        const response = await POST(webhookRequest("{}"));
+
+        expect(response.status).toBe(200);
+        expect(mockTx.order.updateMany).toHaveBeenCalledWith({
+            where: { id: "order-victim", status: "PENDING", gateway: "STRIPE", gatewayAccountId: "acct_attacker" },
+            data: expect.objectContaining({ status: "CAPTURED" }),
+        });
+        // A victim order's gatewayAccountId is the seller's own account, never
+        // the attacker's - so this updateMany matches zero rows and the order
+        // is never claimed, exactly like the existing retry no-op path.
         expect(mockTx.order.findUnique).not.toHaveBeenCalled();
         expect(mockTx.outboxEvent.create).not.toHaveBeenCalled();
     });

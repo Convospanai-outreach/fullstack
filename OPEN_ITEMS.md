@@ -2484,6 +2484,52 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   mailbox). 376/376 apps/web tests pass (10 new), `tsc --noEmit` clean
   (same pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-190 (Fixed):** cross-tenant order-capture forgery via the Stripe
+  Connect webhook (`apps/api/src/modules/checkout/api/stripeWebhook.ts`,
+  wired live at `apps/api/routes/webhooks/stripe-connect/route.ts`). This
+  is a **platform-wide** Connect webhook endpoint: because checkout
+  sessions are created per-seller with `{ stripeAccount:
+  connectedAccountId }` (`stripeConnect.ts`'s `createStripeCheckoutSession`),
+  Stripe delivers `checkout.session.completed` events here from *every*
+  team's connected account, distinguishable only by the event's top-level
+  `account` field. The handler verified the Stripe signature correctly
+  (`verifyStripeConnectWebhook`) but never checked `event.account` at
+  all — it captured any `PENDING` order whose id matched
+  `session.client_reference_id`/`metadata.orderId`, regardless of which
+  connected account the event actually came from. Both
+  `POST /checkout/session` (`checkout/api/session.ts`) and product listing
+  (`checkout/api/publicProduct.ts`) are deliberately public/unauthenticated
+  by design (a checkout page has no dashboard session), and
+  `checkoutService.createSession` returns the new `orderId` directly in
+  its response and deterministically records the seller's own connected
+  account as `order.gatewayAccountId`. That combination let any user
+  complete Stripe's own OAuth Connect flow for their own team (itself
+  correctly signed/scoped, no bug there), obtain read/write API access to
+  their own connected Stripe account, call `POST /checkout/session` with a
+  **victim team's** public `productId` to mint a real `PENDING` order for
+  the victim, then drive a Checkout Session to completion on their own
+  connected account with `client_reference_id` set to that victim order
+  id and pay themselves a trivial amount. Stripe's resulting
+  `checkout.session.completed` webhook (`event.account = <attacker's
+  connected account>`) was legitimately signed, so the handler flipped the
+  victim's order to `CAPTURED` and published `ORDER_CAPTURED` — the
+  platform then treats a real customer's order as paid/fulfilled even
+  though the victim's team received no funds (money went to the
+  attacker's own Stripe account instead). **Fixed** by requiring
+  `event.account` to be present and matching it against
+  `order.gatewayAccountId` (already recorded at order-creation time) plus
+  `order.gateway === "STRIPE"` in the same `updateMany` that claims the
+  order — an event with no connected account, or from the wrong one, now
+  matches zero rows and is silently ignored exactly like the existing
+  already-`CAPTURED` retry no-op path, rather than trusting attacker-
+  controlled `client_reference_id`/`metadata` alone. New tests in the
+  existing `stripeWebhook.test.ts` (2 tests: an event with no
+  `event.account` never opens a transaction at all; an event whose
+  `event.account` doesn't match the order's own `gatewayAccountId` is
+  scoped into the `updateMany` where-clause and therefore claims zero
+  rows). 1017/1017 apps/api tests pass (2 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
