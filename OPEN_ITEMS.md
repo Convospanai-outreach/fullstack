@@ -2225,6 +2225,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   rather than written through. Full apps/web suite (364 tests, 1 new)
   passes, `tsc --noEmit` clean.
 
+- **OPEN-184 (Fixed):** cross-tenant campaign-metrics corruption via unverified
+  `campaignId` in `apps/api/src/services/LeadService.ts`'s `upsert`, used by
+  `POST /api/leads` (`apps/api/routes/leads/route.ts`). This was already
+  flagged in this ledger as a known candidate (same shape as OPEN-180's
+  v1-API-key fix, but on the internal/session-authenticated create path);
+  a fresh investigation sweep re-confirmed it independently after
+  exhaustively checking `settings/{agent,keys,webhooks,sso,notifications}`,
+  `crm`, `templates`, `workflows`, `automations`, and a dozen apps/web
+  routes with nothing newer turning up, so it was picked up and fixed this
+  round. `upsert` wrote `campaignId: data.campaignId ?? (existing ?
+  existing.campaignId : null)` onto the `Lead` row with no check that the
+  campaign belongs to `teamId` — the lead itself is correctly scoped
+  (`teamId` is forced, not caller-controlled), but the `campaignId` link
+  was not. Confirmed two unscoped downstream consumers that trust this
+  link and would visibly corrupt another team's data:
+  `apps/api/src/lib/campaignService.ts`'s `addLeadsToCampaign` (`targetCount`
+  recompute: `prisma.lead.count({ where: { campaignId } })`, no `teamId`)
+  and `getCampaignStats` (connected/replied counts, same shape) — so a
+  Team A member could `POST /api/leads` with a guessed/enumerated Team B
+  `campaignId` and inflate/corrupt Team B's own campaign metrics with a
+  planted, invisible-to-Team-B lead, from any team, with no special
+  privilege beyond ordinary MEMBER access to their own team. **Fixed** with
+  the same pattern as OPEN-180: added `db.campaign.findFirst({ where: {
+  id: data.campaignId, teamId }, select: { id: true } })` before accepting
+  `campaignId`, throwing `"Invalid campaignId"` on a mismatch — using the
+  same sharded `db` client (`DbFactory.getClient(region)`) the rest of the
+  function already uses, so region routing stays consistent. New
+  `apps/api/src/services/LeadService.test.ts` (3 tests: foreign-team
+  `campaignId` rejected, own-team `campaignId` allowed, no-campaignId path
+  skips the check). 1005 apps/api tests pass (3 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted above).
+  **Related, not fixed here** (lower priority per the original flag, and a
+  broader defense-in-depth change rather than the specific vulnerability
+  fixed): `campaignService.ts`'s `addLeadsToCampaign`/`getCampaignStats`
+  counts are still unscoped by `teamId` — now unreachable via the
+  `LeadService.upsert` path this fix closes, but any *other* future writer
+  of `Lead.campaignId` would still need its own ownership check rather than
+  relying on these counts to be safe.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
