@@ -95,6 +95,47 @@ describe("/api/jobs route handlers (SEC-02)", () => {
             );
         });
 
+        it("rejects warmup_seed_reply as a client-enqueueable job type (legacy shape)", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    type: "warmup_seed_reply",
+                    payload: { seedMailboxId: "seed-1", toEmail: "victim@external.com", subject: "hijacked" },
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
+        it("rejects warmup_seed_reply as a client-enqueueable job type (envelope shape)", async () => {
+            mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
+            const { POST } = await import("../route");
+
+            const req = new NextRequest("http://localhost/api/jobs", {
+                method: "POST",
+                body: JSON.stringify({
+                    version: 1,
+                    task_type: "warmup_seed_reply",
+                    tenant_id: "team-alpha",
+                    execution_mode: "saas_only",
+                    target_runtime: "saas_only",
+                    task_id: "task-1",
+                    idempotency_key: "idem-1",
+                    created_at: new Date().toISOString(),
+                    payload: { seedMailboxId: "seed-1", toEmail: "victim@external.com", subject: "hijacked" },
+                }),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(403);
+            expect(mockQueue.JobQueue.enqueue).not.toHaveBeenCalled();
+        });
+
         it("overrides an attacker-supplied payload.teamId with the caller's own session teamId", async () => {
             mockAuth.getCurrentContext.mockResolvedValue({ userId: "u1", teamId: "team-alpha" });
             mockQueue.JobQueue.enqueue.mockResolvedValue({ id: "j-created" });

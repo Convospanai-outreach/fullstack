@@ -2379,6 +2379,56 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   agents-listing routes. Flagging for the user to choose a direction
   before any code changes are made.
 
+- **OPEN-188 (Fixed):** platform email-relay abuse via the generic job
+  queue (`apps/api/routes/jobs/route.ts` POST, both the `TaskEnvelopeSchema`
+  and `LegacyJobSchema` paths). `task_type`/`type` is validated only as a
+  non-empty string with no allowlist, and `JobQueue.enqueue` performs no
+  runtime check against `JobType`'s declared union either — so any
+  authenticated user of any team could enqueue **any** job type, including
+  ones meant only to be self-produced by internal workers.
+  `job-processor.ts`'s `case "warmup_seed_reply"` calls
+  `sendWarmupSeedReply(payload)`
+  (`apps/api/src/modules/email-campaigner/service/warmupSeedService.ts:170`),
+  which sends a real SMTP email from a shared `WarmupSeedMailbox` (a
+  platform-wide sending-reputation-warming mailbox pool — the model has no
+  `teamId` column at all) to `payload.toEmail` with `payload.subject`, both
+  taken verbatim from the caller. The only legitimate producer
+  (`warmupSeedService.ts`'s own scheduling loop, ~L159-163) always hardcodes
+  `toEmail: mailbox.email` (the warming mailbox's own address) and a fixed
+  subject template — the handler itself enforces nothing. Because
+  `WarmupSeedMailbox` isn't a tenant resource, the route's existing
+  protection (forcing `payload.teamId` to the caller's own team before
+  enqueueing) doesn't apply here; there was no `teamId` to force. Any
+  authenticated user, from any team, could `POST /api/jobs` with
+  `{ type: "warmup_seed_reply", payload: { seedMailboxId: "<any active seed
+  id>", toEmail: "victim@external.com", subject: "<attacker text>" } }` and
+  make the platform's live, reputation-warmed sending infrastructure email
+  an arbitrary external address with an attacker-chosen subject — usable
+  for spam/phishing-adjacent abuse and for burning the seed mailbox's
+  sender reputation, with no cross-tenant data exposure but a real
+  platform-abuse vector. Distinct from the OPEN-151-through-187 IDOR
+  pattern (no tenant boundary was crossed — there's no tenant boundary on
+  this resource to begin with) but the same root cause as those: a
+  caller-facing endpoint trusting caller-supplied identifiers into a
+  privileged operation with no validation. **Fixed** by adding an explicit
+  `clientBlockedTypes` rejection in `POST /api/jobs` (403 before the type
+  ever reaches `JobQueue.enqueue`) for `warmup_seed_reply`, checked against
+  both the envelope and legacy payload shapes — this is a route-level
+  allowlist-of-what's-forbidden rather than a service-level fix, since
+  `job-processor.ts`'s `runHandler` has no caller identity left to check
+  against by the time a job executes. Other job types reachable through
+  this same generic endpoint were reviewed and found safe: they either
+  require and act only on a `teamId` the route already forces to the
+  caller's own session (`CRM_SYNC`, `data_export`, `lead_scoring`,
+  `CSV_IMPORT`, etc.), or are inert no-ops/audit-log writes when triggered
+  out of band (`agent_stop`, `order_captured`, `workflow_step`'s
+  event-tagged branch). New tests in the existing
+  `apps/api/routes/jobs/__tests__/route.test.ts` (2 tests: `warmup_seed_reply`
+  rejected via both the legacy and envelope request shapes, with
+  `JobQueue.enqueue` never called). 1015/1015 apps/api tests pass (2 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
