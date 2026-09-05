@@ -10,15 +10,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     try {
         const { id: leadId } = await params;
 
-        // Mark messages as read
-        await InboxService.markAsRead(leadId);
-
         const lead = await prisma.lead.findUnique({
             where: { id: leadId, teamId: ctx.teamId },
             select: { fullName: true, company: true, linkedIn: true, jobTitle: true }
         });
 
         if (!lead) return new NextResponse("Lead not found", { status: 404 });
+
+        // Mark messages as read - only after ownership is confirmed above, since
+        // markAsRead has no teamId scope of its own.
+        await InboxService.markAsRead(leadId);
 
         const messages = await prisma.message.findMany({
             where: { leadId },

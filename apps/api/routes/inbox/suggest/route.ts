@@ -19,7 +19,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Missing leadId" }, { status: 400 });
         }
 
-        // 1. Get Conversation Context
+        // 1. Verify ownership before reading any of this lead's message content -
+        // InboxService.getMessages has no teamId scope of its own.
+        const lead = await prisma.lead.findFirst({
+            where: { id: leadId, teamId },
+            select: { teamId: true }
+        });
+        if (!lead?.teamId) {
+            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+        }
+
+        // 2. Get Conversation Context
         const messages = await InboxService.getMessages(leadId);
         const context = messages.slice(-10).map(m => {
             return `${m.sender === 'them' ? 'Lead' : 'Me'}: ${m.content}`;
@@ -32,20 +42,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ suggestions: ["Hello! How can I help you today?", "Thanks for reaching out.", "Let's schedule a call."] });
         }
 
-        // 2. Get Team ID for credits & memories
-        const lead = await prisma.lead.findFirst({
-            where: { id: leadId, teamId },
-            select: { teamId: true }
-        });
-        if (!lead?.teamId) {
-            return NextResponse.json({ error: "Lead not found" }, { status: 404 });
-        }
-
         // 3. Get Memories
-        let memories: string[] = [];
-        if (lead?.teamId) {
-            memories = await LearningService.getMemories(lead.teamId);
-        }
+        const memories: string[] = await LearningService.getMemories(lead.teamId);
 
         // 4. Generate Suggestions
         const normalizedTone = typeof tone === "string" ? tone.slice(0, 40) : "professional";
