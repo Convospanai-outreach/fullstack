@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
     const ctx = await getCurrentContext();
-    if (!ctx.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!ctx.userId || !ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const { messageId, rating, comment } = body;
@@ -13,7 +13,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "messageId and rating required" }, { status: 400 });
     }
 
-    const message = await prisma.message.findUnique({ where: { id: messageId } });
+    // Message has no teamId of its own - it's only reachable via lead.teamId, the
+    // same path app-learnings-server.ts's read side already scopes by. Without this,
+    // any authenticated user could forge AgentFeedback against another team's
+    // message, poisoning that team's own feedback metrics.
+    const message = await prisma.message.findFirst({ where: { id: messageId, lead: { teamId: ctx.teamId } } });
     if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
     const feedback = await prisma.agentFeedback.create({
