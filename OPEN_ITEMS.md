@@ -2026,6 +2026,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (2 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-179 (Fixed):** cross-tenant ownership hijack via mass-assignment on
+  `POST /api/governance/guardrails`
+  (`apps/api/routes/governance/guardrails/route.ts`). The handler upserted
+  `GuardrailPolicy` with the raw, unvalidated request body passed straight
+  through: `create: { teamId, ...body }` (body spread *after* the explicit
+  `teamId`, so a `body.teamId` wins) and `update: body` (no field filtering
+  at all). `GuardrailPolicy.teamId` is a plain `@unique` scalar column
+  (schema line 1749), so a caller-supplied `teamId` in the JSON body is a
+  real, Prisma-accepted field on both the create and update input shapes —
+  not just a theoretical type hole. Any team ADMIN (checked only against
+  their *own* team via `checkTeamPermission(userId, teamId, TeamRole.ADMIN)`,
+  no cross-team relationship implied) could `POST` with `{ "teamId":
+  "<team-B-id>", "detectPII": false, "blocklist": [] }` and have Prisma
+  rewrite their own policy row's `teamId` column to Team B's id — silently
+  reassigning Team A's now-attacker-controlled policy to Team B (or, if
+  Team B has no policy yet, planting one directly via the `create` branch's
+  same body-spread). Because `GuardrailService.evaluate`
+  (`apps/api/src/modules/governance/service/guardrailService.ts`) has no
+  fallback-to-default when a policy row exists, every subsequent message
+  Team B sends through the guardrail check (e.g.
+  `apps/api/routes/inbox/reply/route.ts`) would silently run against the
+  attacker-planted, deliberately-weakened policy — disabling Team B's
+  PII/spam/competitor-mention protection without their knowledge, while
+  Team A's own next `GET` silently self-heals a fresh default policy,
+  hiding the tampering. **Fixed** using the exact allowlist pattern already
+  established in this codebase's `apps/api/routes/schedules/[id]/route.ts`
+  (`SCHEDULE_PATCHABLE_FIELDS`/`pickPatchableFields`, whose comment already
+  states the same principle: "ownership must not be reassignable"): added
+  `GUARDRAIL_PATCHABLE_FIELDS`
+  (`blocklist`/`allowlist`/`regexRules`/`competitorMentions`/`maxDailyMsgs`/`detectPII`/`strictness`)
+  and `pickPatchableFields()`, and the route now upserts only that filtered
+  `data`, never the raw body — `id`/`teamId`/`createdAt`/`updatedAt` can no
+  longer come from the request. New
+  `apps/api/routes/governance/guardrails/route.test.ts` (3 tests: a
+  caller-supplied `teamId` is stripped, a caller-supplied `id` is stripped,
+  only the known-safe fields pass through). 992 apps/api tests pass (3
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

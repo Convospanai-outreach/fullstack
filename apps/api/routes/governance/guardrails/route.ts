@@ -4,6 +4,27 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
+// Client-editable fields only - notably excludes id/teamId (ownership must not
+// be reassignable via the request body, matching the pattern in
+// routes/schedules/[id]/route.ts) and createdAt/updatedAt.
+const GUARDRAIL_PATCHABLE_FIELDS = [
+    "blocklist",
+    "allowlist",
+    "regexRules",
+    "competitorMentions",
+    "maxDailyMsgs",
+    "detectPII",
+    "strictness",
+] as const;
+
+function pickPatchableFields(body: Record<string, unknown>) {
+    const data: Record<string, unknown> = {};
+    for (const key of GUARDRAIL_PATCHABLE_FIELDS) {
+        if (key in body) data[key] = body[key];
+    }
+    return data;
+}
+
 export async function GET() {
     try {
         const { userId, teamId } = await getCurrentContext();
@@ -54,13 +75,15 @@ export async function POST(req: Request) {
             return new NextResponse("Forbidden", { status: 403 });
         }
 
+        const data = pickPatchableFields(body);
+
         const policy = await prisma.guardrailPolicy.upsert({
             where: { teamId },
             create: {
                 teamId,
-                ...body
+                ...data
             },
-            update: body
+            update: data
         });
 
         return NextResponse.json({ success: true, policy });
