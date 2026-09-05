@@ -2429,6 +2429,61 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-189 (Fixed):** unauthenticated cross-tenant Microsoft mailbox
+  hijack via the OAuth connect flow
+  (`apps/web/src/app/api/integrations/microsoft/oauth/start/route.ts` +
+  `.../callback/route.ts`). Unlike the sibling Google/Facebook OAuth flows
+  (`apps/web/src/app/api/integrations/google/oauth/start/route.ts` requires
+  `getCurrentContext()` + `checkTeamPermission(ADMIN)` and signs `{ teamId,
+  userId, nonce, ts }` into `state` via an HMAC in
+  `googleMailboxService.ts`'s `signState`/`verifyState`; Facebook's flow
+  does the same in `facebookLeadsService.ts`), the Microsoft `start` route
+  had **no auth check at all** and its `state` param was a plain,
+  attacker-controlled redirect-path string with no signature. The
+  `callback` route likewise never called `getCurrentContext()` — instead
+  of resolving the connecting team from a signed state or session, it did
+  `const team = await prisma.team.findFirst({ select: { id: true } })`
+  and attached the resulting OAuth tokens to whatever team that
+  deterministically returns (effectively "team zero," the platform's
+  first-ever tenant), then `prisma.connectedMailbox.upsert()`'d the
+  encrypted access/refresh tokens onto it. Because `start` requires no
+  login, **an anonymous visitor** could open
+  `GET /api/integrations/microsoft/oauth/start`, complete Microsoft's
+  consent screen with any Microsoft account (`offline_access Mail.Send
+  openid profile`), and have that account's live, Mail.Send-scoped OAuth
+  credentials silently wired into an unrelated, fixed tenant's
+  `connectedMailbox` table — which that tenant's outreach campaigns could
+  then use to send email as the hijacked identity (spam/phishing via a
+  hijacked sender, reputation damage to the victim, exposure of the
+  victim's OAuth tokens to a stranger's tenant), while a legitimate
+  customer trying to connect their own team's Microsoft mailbox would
+  instead get it attached to someone else's team with no error. **Fixed**
+  by mirroring the Google OAuth pattern exactly: added
+  `apps/web/src/modules/email-campaigner/service/microsoftMailboxService.ts`
+  with its own `signState`/`verifyState` HMAC (same construction as
+  `googleMailboxService.ts`, keyed off `NEXTAUTH_SECRET`/`ENCRYPTION_KEY`)
+  and `buildMicrosoftMailboxAuthUrl`/`connectMicrosoftMailbox`; `start`
+  now requires `getCurrentContext()` + `checkTeamPermission(ADMIN)` and
+  signs the caller's own `teamId`/`userId` into `state`; `callback` now
+  verifies that signature via `connectMicrosoftMailbox` and scopes the
+  upsert to the signed `teamId` — the unscoped `prisma.team.findFirst()`
+  is gone entirely. Also carried over Google's existing-mailbox
+  cross-team guard (`existingMailbox.teamId !== statePayload.teamId` →
+  reject) so a mailbox already connected to one team can't be silently
+  re-attached to another via a forged flow either. New
+  `apps/web/src/modules/email-campaigner/service/__tests__/microsoftMailboxService.test.ts`
+  (4 tests: state carries the caller's own teamId/userId, tampered state
+  rejected, mailbox scoped to the signed team regardless of any other
+  team reference, cross-team existing-mailbox conflict rejected) and new
+  `route.test.ts` for both `start` (3 tests: unauthenticated caller
+  rejected, non-admin caller rejected, admin caller's own session scoped
+  into the built URL) and `callback` (3 tests: missing state rejected
+  before ever resolving a mailbox, valid flow delegates to
+  `connectMicrosoftMailbox` with the caller's own code/state, state
+  verification failure redirects with an error and never attaches a
+  mailbox). 376/376 apps/web tests pass (10 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
