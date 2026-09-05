@@ -53,7 +53,10 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const { fullName, email, linkedIn, company, status, campaignId } = body;
+        // campaignId is deliberately excluded - it must not be reassignable via a
+        // direct PATCH with no ownership check (see the identical policy/comment in
+        // apps/api/routes/leads/[id]/route.ts's ALLOWED_PATCH_FIELDS).
+        const { fullName, email, linkedIn, company, status } = body;
 
         const updated = await prisma.lead.updateMany({
             where: { id, teamId },
@@ -63,7 +66,6 @@ export async function PATCH(
                 ...(linkedIn !== undefined && { linkedIn }),
                 ...(company !== undefined && { company }),
                 ...(status !== undefined && { status }),
-                ...(campaignId !== undefined && { campaignId }),
             },
         });
 
