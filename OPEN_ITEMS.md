@@ -1798,6 +1798,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (`apps/api/src/modules/governance/ComplianceGuard.ts`) has an unscoped
   cross-team `updateMany`, but currently has zero callers (dead code) — not
   a live vulnerability today; flag again if it ever gets wired up.
+- **OPEN-173 (Fixed):** cross-tenant `AgentFeedback` forgery/data-poisoning
+  via `POST /api/learning/feedback` (`apps/api/routes/learning/feedback/route.ts`,
+  follow-up on OPEN-172's flagged sibling). The route only checked that
+  `ctx.userId` was truthy — not even `ctx.teamId` — and looked up `messageId`
+  via a bare `prisma.message.findUnique({ where: { id: messageId } })` with
+  no ownership check. `Message` has no `teamId` of its own; it's only
+  reachable via `Message.lead.teamId` (schema: `Message.leadId` is a
+  required FK to `Lead`). This is worse than a simple leak: the read side
+  of the same feature, `app-learnings-server.ts`'s `read_app_learning_summary`
+  MCP tool, aggregates `agentFeedback.findMany({ where: { message: { lead:
+  { teamId } } } })` scoped to a *target* team — i.e. every `AgentFeedback`
+  row whose message belongs to that team feeds that team's own
+  average/positive/negative feedback counters, regardless of who created
+  the row. Any authenticated user of Team A could `POST
+  /api/learning/feedback` with a guessed/enumerated Team B `messageId` and
+  a hostile `rating`, and it would be persisted and silently skew Team B's
+  own learning-feedback signal — a cross-tenant data-poisoning attack, not
+  just a privacy leak. (`LearningService.recordFeedback` is confirmed dead
+  code per an existing comment in `learningService.ts`; this raw route is
+  the actually-reachable path.) Fixed by requiring `ctx.teamId` too and
+  changing the lookup to `prisma.message.findFirst({ where: { id:
+  messageId, lead: { teamId: ctx.teamId } } })`, matching the exact scoping
+  path the read side already uses. New
+  `apps/api/routes/learning/feedback/route.test.ts` (3 tests: no-team-context
+  rejected, foreign-team message rejected, own-team message recorded).
+  973/973 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+  **Still open, deliberately not fixed:** `apps/api/routes/learning/record-feedback/route.ts`
+  (`generationId`) has the identical bare-`findUnique` shape, but only
+  writes an `EventStore` row tagged with the caller's own `teamId` (the
+  foreign `generationId` is stored as an opaque payload field, never read
+  back cross-tenant) — genuinely lower severity, left as a future
+  follow-up.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
