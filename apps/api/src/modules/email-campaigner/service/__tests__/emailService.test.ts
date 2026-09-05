@@ -8,6 +8,7 @@ import { isSuppressed, selectMailboxForSend, sendViaGmailMailbox } from "../goog
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findUnique: vi.fn() },
+        campaign: { findUnique: vi.fn() },
         email: { create: vi.fn() },
         team: { findUnique: vi.fn().mockResolvedValue({ mailingAddress: null }) },
     },
@@ -57,6 +58,7 @@ describe("emailService Gmail fallback policy", () => {
         vi.clearAllMocks();
         (isSuppressed as Mock).mockResolvedValue(false);
         (prisma.lead.findUnique as Mock).mockResolvedValue(null);
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
         (selectMailboxForSend as Mock).mockResolvedValue(null);
         (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
         (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
@@ -176,11 +178,31 @@ describe("emailService Gmail fallback policy", () => {
     });
 
     it.each(["STOPPED", "REPLIED"])("keeps a %s lead paused without sending", async (status) => {
-        (prisma.lead.findUnique as Mock).mockResolvedValue({ status });
+        (prisma.lead.findUnique as Mock).mockResolvedValue({ status, teamId: metadata.teamId });
 
         await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
             .resolves.toEqual({ success: false, error: "LEAD_SEQUENCE_PAUSED" });
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
+    });
+
+    it("rejects a leadId that belongs to a different team", async () => {
+        (prisma.lead.findUnique as Mock).mockResolvedValue({ status: "new", teamId: "team-other" });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: false, error: "LEAD_TEAM_MISMATCH" });
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(prisma.email.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a campaignId that belongs to a different team", async () => {
+        (prisma.campaign.findUnique as Mock).mockResolvedValue({ teamId: "team-other" });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: false, error: "CAMPAIGN_TEAM_MISMATCH" });
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(prisma.email.create).not.toHaveBeenCalled();
     });
 });
