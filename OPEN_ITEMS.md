@@ -1887,6 +1887,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` already uses) — an
   authorization-model decision out of scope for a surgical fix.
 
+- **OPEN-175 (Fixed):** cross-tenant IDOR in the admin dead-letter job
+  tooling — `apps/api/routes/admin/jobs/replay/[id]/route.ts` (`POST`) and
+  its companion `apps/api/routes/admin/jobs/dead-letters/route.ts` (`GET`).
+  Both only called `checkAdmin()` with no argument, which (like OPEN-174)
+  defaults to the lowest `ORG_ADMIN` level via `getAdminUser`'s default
+  parameter, and neither did any `teamId` scoping on the `Job` rows they
+  touch even though `Job.teamId` is a real, populated column (schema:
+  `Job.teamId String?` with a `Team` relation). `dead-letters` GET returned
+  `prisma.job.findMany({ where: { status: "dead_lettered" } })` — every
+  team's dead-lettered jobs, payloads included — to any `ORG_ADMIN`
+  platform-wide; `replay/[id]` POST then fetched and mutated
+  (`status: "queued", attempts: 0, processAt: new Date()`) any job purely by
+  its bare id (`prisma.job.findUnique({ where: { id } })` /
+  `prisma.job.update({ where: { id }, ... })`), with no ownership check at
+  all. Chained together: an `ORG_ADMIN` of Team A could list Team B's
+  dead-lettered jobs (leaking Team B's job payloads/errors) and then replay
+  any of them, forcing Team B's job to re-execute (e.g. re-sending
+  outreach/enrichment side effects) under Team A's triggering — both a
+  disclosure and an unauthorized-action/data-integrity issue. The correct
+  sibling for the same `Job` model, `apps/api/routes/jobs/[id]/retry/route.ts`,
+  already does this right: `prisma.job.findFirst({ where: { id, teamId:
+  ctx.teamId } })` before allowing the retry. Since dead-letter tooling is
+  genuinely meant to operate across teams (an ops/support surface, not
+  self-service), the fix follows the OPEN-174 precedent rather than
+  team-scoping: both routes now require `checkAdmin(UserRole.SYSTEM_ADMIN)`
+  instead of the `ORG_ADMIN` default. New
+  `apps/api/routes/admin/jobs/dead-letters/route.test.ts` and
+  `apps/api/routes/admin/jobs/replay/[id]/route.test.ts` (2 tests each: a
+  non-platform-admin is rejected with no `prisma.job.*` call, a
+  `SYSTEM_ADMIN` succeeds). Full apps/api suite (955 tests, 4 new) passes,
+  `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

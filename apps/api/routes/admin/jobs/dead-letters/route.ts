@@ -1,11 +1,13 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 
+// System admin only — lists dead-lettered jobs platform-wide, unscoped by team.
 export async function GET(req: NextRequest) {
     try {
-        const isAdmin = await checkAdmin();
+        const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
         if (!isAdmin) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
