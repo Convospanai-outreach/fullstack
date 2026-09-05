@@ -55,11 +55,22 @@ export async function POST(req: NextRequest) {
             "SEQUENCE_ACTION",
             "WEBHOOK_DISPATCH"
         ]);
+        // Job types with no legitimate direct-client trigger: their sole
+        // producer is another worker/service, and their payload carries no
+        // teamId to scope against (e.g. warmup_seed_reply sends through a
+        // shared, non-tenant-owned WarmupSeedMailbox with a caller-controlled
+        // toEmail/subject - see OPEN-188). Reject them here rather than in
+        // the handler, since by the time job-processor.ts runs there's no
+        // caller identity left to check against.
+        const clientBlockedTypes = new Set(["warmup_seed_reply"]);
 
         let job;
 
         if (body && typeof body === "object" && "version" in body) {
             const envelope = TaskEnvelopeSchema.parse(body);
+            if (clientBlockedTypes.has(envelope.task_type)) {
+                return NextResponse.json({ error: "Job type cannot be enqueued directly" }, { status: 403 });
+            }
             // payload.teamId is read by worker handlers as the authoritative
             // tenant for ownership checks (e.g. email-worker.ts,
             // enrichment-worker.ts) - never let the caller set it to a
@@ -82,6 +93,9 @@ export async function POST(req: NextRequest) {
             });
         } else {
             const legacy = LegacyJobSchema.parse(body);
+            if (clientBlockedTypes.has(legacy.type)) {
+                return NextResponse.json({ error: "Job type cannot be enqueued directly" }, { status: 403 });
+            }
             const scopedPayload = { ...legacy.payload, teamId: ctx.teamId };
             job = await JobQueue.enqueue(legacy.type as any, scopedPayload, {
                 priority: legacy.priority ?? 0,
