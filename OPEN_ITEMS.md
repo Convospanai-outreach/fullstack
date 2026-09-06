@@ -2716,6 +2716,58 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   two copies have drifted and should be reconciled or deduplicated;
   flagging for a future pass rather than fixing opportunistically here.
 
+- **OPEN-195 (Fixed):** cross-tenant LinkedIn-automation hijack via
+  LLM-fillable `teamId` args on the LinkedIn MCP tool server
+  (`apps/api/src/modules/integration/mcp/linkedin-server.ts`), reachable
+  through `AgentExecutor.ts`'s `mcpManager.callTool(tool, args, {
+  teamId: task.teamId, ... })` where `args` are the LLM's own
+  `tool_call.args` output. All four tools this server exposes
+  (`queue_linkedin_action`, `get_linkedin_task_status`,
+  `get_linkedin_daily_cap`, `report_linkedin_stop`) declare `teamId` as a
+  plain model-fillable input-schema field and use it directly in Prisma
+  calls with **no cross-check against the actual authenticated agent's
+  team** — `queue_linkedin_action` creates a real `Job` row
+  (`VIEW_PROFILE`/`LIKE_POST`/`CONNECT`/`SEND_INMAIL`) tagged with
+  whatever `teamId` the tool call carries; `get_linkedin_task_status`/
+  `get_linkedin_daily_cap` read another team's job status or daily
+  automation-usage counts by supplying their `teamId`; `report_linkedin_stop`
+  marks another team's in-flight job `failed` and injects a forged
+  `LINKEDIN_EMERGENCY_STOP` `SystemEvent` into that team's audit log.
+  `McpManager.enforceTeamScopedArgs`
+  (`apps/api/src/lib/mcp/McpManager.ts`) already exists specifically to
+  close this exact class of bug — it forcibly overwrites a tool-call's
+  team field with the trusted `context.teamId` — but its allowlist only
+  covered 5 "app-learning" tool names; the four LinkedIn tools were never
+  added. **Exploit:** an agent task running for Team A (or any path that
+  can influence the LLM's function-call arguments, e.g. prompt-injected
+  content the agent processes from a lead reply or a scraped page) calls
+  `queue_linkedin_action` with `teamId: "<team-B-id>"`. If Team B's
+  LinkedIn browser-extension worker polls jobs by its own `teamId`, it
+  picks up and executes an action chosen by Team A's agent using Team B's
+  real LinkedIn account — a cross-tenant resource-hijack with real
+  account-ban/spam-complaint risk to the victim, not just data leakage.
+  **Fixed** by adding all four LinkedIn tool names to
+  `enforceTeamScopedArgs`'s enforcement table. This surfaced a second,
+  more subtle gap while fixing it: the existing mechanism hardcoded the
+  field name `team_id` (matching the app-learning tools' snake_case
+  schema), but the LinkedIn tools' schemas declare camelCase `teamId` —
+  naively adding them to the same flat check-one-key logic would have
+  left the real vulnerable field untouched. Rewrote
+  `enforceTeamScopedArgs` to use a per-tool key map (`team_id` for the
+  app-learning tools, `teamId` for the LinkedIn tools) instead of a single
+  hardcoded field name, since several of these tool schemas also set
+  `additionalProperties: false` — unconditionally writing both casings
+  onto every scoped tool's args would have made `validateToolArgs` reject
+  the app-learning tools' calls as carrying an "unsupported argument
+  'teamId'". New `apps/api/src/lib/mcp/McpManager.test.ts` (first test
+  file for this module; 9 tests: non-scoped tools pass through untouched,
+  app-learning `team_id` is filled in from context without ever adding a
+  `teamId` key, all four LinkedIn tools reject a caller-supplied `teamId`
+  that conflicts with the real context team, missing context team throws,
+  LinkedIn tools never gain an unsupported `team_id` key). 1036/1036
+  apps/api tests pass (9 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
