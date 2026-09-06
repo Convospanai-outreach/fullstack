@@ -2768,6 +2768,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (9 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-196 (Fixed):** cross-tenant `campaignId` pollution via `POST
+  /api/leads` (`apps/web/src/app/api/leads/route.ts`). The route
+  authenticates the caller and scopes the duplicate-lookup and the final
+  write by `teamId` correctly, but the request-body `campaignId` (from
+  `createLeadSchema`) was written straight onto the upserted `Lead`'s
+  `campaignId` FK with no verification it belonged to the caller's team —
+  the same bug class already fixed twice elsewhere (OPEN-156's CSV
+  upload, OPEN-184's `apps/api` `LeadService.upsert`) but this third,
+  independent writer of `Lead.campaignId` in `apps/web` was never
+  patched. **Exploit:** any authenticated user could POST a lead with
+  another team's `campaignId`, creating/updating a lead tagged with a
+  foreign campaign under their own `teamId`; since `Campaign.leadList` has
+  no `teamId` component of its own, the victim team's own `GET
+  /api/campaigns/[id]` (`include: { leadList: true }`) and its analytics
+  route then return the attacker's planted lead — leaking the attacker's
+  lead data into the victim's response and polluting the victim
+  campaign's lead-count/analytics. **Fixed** by adding the same
+  `prisma.campaign.findFirst({ where: { id: campaignId, teamId }, select:
+  { id: true } })` ownership guard used by OPEN-156/OPEN-184, dropping
+  `campaignId` to `null` when it doesn't belong to the caller's team
+  before it reaches the upsert. New `route.test.ts` added (first test
+  file for this route; 3 tests: a foreign `campaignId` is dropped and
+  never linked, a caller's own `campaignId` is linked, an unauthenticated
+  caller is rejected before any campaign/lead lookup). 382/389 apps/web
+  tests pass (3 new, 7 pre-existing unrelated skips), `tsc --noEmit`
+  clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -83,6 +83,15 @@ export async function POST(req: NextRequest) {
             },
         });
 
+        // campaignId is caller-supplied - verify it actually belongs to this team
+        // before linking any lead to it, or a caller could attach their leads to
+        // (and pollute the stats/leadList of) another tenant's campaign.
+        let campaignId = data.campaignId ?? null;
+        if (campaignId) {
+            const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId }, select: { id: true } });
+            if (!campaign) campaignId = null;
+        }
+
         const leadData: any = {
             fullName: data.fullName ?? existing?.fullName ?? null,
             email: data.email ?? existing?.email ?? null,
@@ -96,7 +105,7 @@ export async function POST(req: NextRequest) {
             tags: data.tags || existing?.tags || [],
             crmId: data.crmId ?? existing?.crmId ?? null,
             value: data.value ?? existing?.value ?? 0,
-            campaignId: data.campaignId ?? existing?.campaignId ?? null,
+            campaignId: campaignId ?? existing?.campaignId ?? null,
             teamId,
             updatedAt: new Date(),
         };
