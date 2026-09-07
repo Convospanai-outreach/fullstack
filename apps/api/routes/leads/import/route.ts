@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { csvIngestionService } from "@/modules/csv-ingestion/service/csvIngestionService";
 import { getCurrentContext } from "@/lib/auth";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { csvImportLimiter } from "@/lib/rate-limit";
 
@@ -8,6 +9,9 @@ export async function POST(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        // Every sibling leads/* route requires at least MEMBER before mutating -
+        // without this, a read-only VIEWER could bulk-create/overwrite leads via CSV import.
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const { isRateLimited } = csvImportLimiter.check(3, teamId);
         if (isRateLimited) {

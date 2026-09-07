@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { z } from "zod";
 
@@ -10,10 +11,13 @@ const BulkDeleteSchema = z.object({
 
 export async function DELETE(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { teamId, userId } = await getCurrentContext();
+        if (!teamId || !userId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        // Every sibling leads/* route requires at least MEMBER before mutating -
+        // without this, a read-only VIEWER could mass-delete the team's leads.
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const body = await req.json();
         const validation = BulkDeleteSchema.safeParse(body);
