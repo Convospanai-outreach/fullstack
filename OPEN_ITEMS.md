@@ -3536,6 +3536,51 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (2 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-221 (Fixed):** cross-tenant PII de-anonymization —
+  `apps/api/routes/hardware/route.ts`'s `RE_IDENTIFY` action passed a
+  caller-supplied `maskedId` straight into
+  `HardwareService.reIdentify(maskedId, purpose)`, which forwards
+  `{ token: maskedId }` to the shared edge vault's `/v1/reidentify`
+  and returns the plaintext original PII. The only gate was
+  `requireEdgePiiAvailable(ctx.teamId, prisma)`, which verifies the
+  *caller's own team* has a paired/online edge node — it does nothing
+  to verify the `maskedId` token itself belongs to a record owned by
+  that team, and the edge vault performs no team-scoping of its own
+  (the token is its entire authorization surface). Two sibling
+  actions in this exact same route already enforce per-team ownership
+  on caller-supplied identifiers (`SAVE_WORKFLOW`'s
+  `workflow.teamId !== ctx.teamId` check, and `GET`'s workflow
+  filter), and the correct pattern for this exact operation already
+  exists at `apps/api/routes/leads/[id]/identity/route.ts`, which
+  scopes its Lead/ScrapingJob lookup by `(id, teamId)` before calling
+  `IdentityService.reidentify` — `RE_IDENTIFY` skipped this entirely.
+  Found via a file/object-access-control sweep after two consecutive
+  broad sweeps (round-19, round-22) found nothing further in the
+  missing-role-check and mass-assignment territories. A member of one
+  team who obtained another team's masked token string (e.g.
+  `[EMAIL_ab12cd34ef56]`, deterministically derived and stored
+  directly as the value of `lead.email`/`lead.phone` — so it can leak
+  through any secondary channel: a shared screenshot, log line, cached
+  UI state, support ticket) could `POST /api/hardware { "action":
+  "RE_IDENTIFY", "maskedId": "<victim token>", "purpose": "support" }`
+  and get back the victim team's plaintext email/phone, with only the
+  attacker's own team's edge-node status ever checked. **Fixed** by
+  adding `HardwareService.tokenBelongsToTeam(maskedId, teamId,
+  prisma)` — checking whether the token matches a `Lead.email`/
+  `Lead.phone` value or appears as a key in any `ScrapingJob.tokenMap`
+  scoped to the caller's `teamId` — and returning 403 before calling
+  `reIdentify` if it doesn't. A full-route removal wasn't viable
+  because, unlike the OPEN-219 fix, this action has a genuine live
+  caller (`apps/web/src/lib/ai/SovereignFirewall.ts`'s
+  `unmaskAsync`/`IdentityService.resolveIdentity`, used to de-mask
+  edge-vault tokens surfacing in LLM output), so the ownership check
+  had to be added rather than the endpoint deleted. New tests: a
+  `maskedId` not owned by the caller's team is refused (403) before
+  `reIdentify` is called; a token belonging to the caller's own team
+  still resolves. 1081/1081 apps/api tests pass (2 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
