@@ -3700,6 +3700,49 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-225 (Fixed):** privilege escalation — a plain team `ADMIN`
+  could demote or remove a team `OWNER`, or a fellow `ADMIN`, via
+  `apps/api/routes/team/members/[memberId]/route.ts`'s `PATCH`/
+  `DELETE` and `apps/api/src/modules/team/service/teamService.ts`'s
+  `updateRole`/`removeMember`. Both handlers gated only on the
+  *caller's own* absolute role (`ADMIN`+) and, for `PATCH` only, on
+  the *destination* role being `ADMIN`/`OWNER` — neither ever
+  inspected the *target member's current role* before acting on
+  them. `teamService.ts`'s only safeguard was a narrower "cannot
+  remove/demote the last owner" `ownerCount <= 1` check, which does
+  nothing to stop an `ADMIN` from removing a co-`OWNER` on a team
+  with 2+ owners, or from removing/demoting a fellow `ADMIN`
+  outright (zero guard at all in that case). The sibling route
+  `apps/api/routes/team/[id]/route.ts`'s `DELETE` already shows the
+  correct pattern: it requires the caller to hold `OWNER` before
+  acting on any target whose role is `ADMIN` or `OWNER` — this was
+  never mirrored onto `team/members/[memberId]/route.ts` or pushed
+  down into the shared service both routes call. Found via a sweep
+  of role-management endpoints for target-role-blindness (checking
+  the caller's rank without checking the target's). An `ADMIN`
+  could `PATCH /api/team/members/<owner-id> { "role": "member" }` or
+  `DELETE /api/team/members/<owner-id>` to demote/remove any
+  `OWNER` (given a second owner existed), or do the same to a rival
+  `ADMIN` unconditionally, escalating their own relative standing on
+  the team. **Fixed** at the shared service layer — the actual
+  enforcement point both routes call — rather than only at the one
+  route: `removeMember`/`updateRole` now take the acting user's id,
+  look up the caller's own current role via `getTeamRole`, and
+  require `getRoleRank(callerRole) > getRoleRank(target.role)`
+  before proceeding, unless the caller is `OWNER` (owner-on-owner
+  stays governed by the existing last-owner check). Added
+  `getRoleRank` as a small exported helper on top of `apps/api/src/
+  lib/permissions.ts`'s existing `ROLE_HIERARCHY` map rather than
+  duplicating the rank table. Updated both call sites
+  (`team/members/[memberId]/route.ts` and `team/[id]/route.ts`) to
+  pass the caller's id and map the new "Insufficient permissions"
+  error to 403. New tests: an `ADMIN` acting on a fellow `ADMIN` or
+  an `OWNER` is refused for both `removeMember` and `updateRole`,
+  with the underlying `deleteMany`/`updateMany`/`count` calls never
+  invoked; existing outranking/last-owner cases unaffected.
+  1091/1091 apps/api tests pass (4 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
