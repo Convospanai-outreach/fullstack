@@ -64,7 +64,7 @@ describe("agent.ts server actions - identity/tenancy cannot be spoofed by the ca
 
         await approveTask("req-1", "attacker-supplied-user");
 
-        expect(mockApprovalService.approve).toHaveBeenCalledWith("req-1", "real-user", undefined);
+        expect(mockApprovalService.approve).toHaveBeenCalledWith("req-1", "real-user", "real-team", undefined);
     });
 
     it("approveTask requires RESOLVE_APPROVALS permission", async () => {

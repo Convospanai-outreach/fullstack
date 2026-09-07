@@ -3026,6 +3026,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `mailboxId` passed through) and same-team ids still flow through
   normally. 389/389 apps/web tests pass (3 new), `tsc --noEmit` clean.
 
+- **OPEN-204 (Fixed):** apps/web twin of OPEN-97, never ported.
+  `apps/web/src/modules/governance/ApprovalService.ts`'s `approve()`/
+  `reject()` took no `teamId` parameter at all and did an unscoped
+  `prisma.approvalRequest.findUnique({ id })` / bare `update({ id })` —
+  including `approve()`'s `CAMPAIGN_START` side effect, an unscoped
+  `prisma.campaign.update({ id: request.entityId })`. The apps/api
+  sibling (`apps/api/src/modules/governance/ApprovalService.ts`) was
+  fixed under **OPEN-97** to require `teamId`, scope the lookup with
+  `findFirst({ id, teamId })`, and scope both the `ApprovalRequest`
+  update and the `CAMPAIGN_START` `Campaign` update with `updateMany({
+  id, teamId })` — that fix was never ported to apps/web. The Server
+  Action callers (`apps/web/src/app/actions/agent.ts`'s `approveTask`/
+  `rejectTask`, directly callable by any authenticated client per that
+  file's own header comment) do a redundant `findFirst({ id, teamId })`
+  pre-check before calling, which mitigates the plain
+  guess-another-team's-requestId path today, but `approve()`'s
+  `CAMPAIGN_START` branch re-derives `request.entityId` from its own
+  unscoped lookup and writes to `Campaign` with no team filter at all —
+  the exact anti-pattern OPEN-97 exists to close, and a straight
+  functional regression relative to the already-fixed apps/api copy
+  (missing the `teamId` parameter/scoping entirely, not just an entity
+  re-check). **Fixed** by porting the apps/api pattern verbatim: added a
+  required `teamId` parameter to `approve()`/`reject()`, scoped their
+  initial lookup and the `ApprovalRequest`/`Campaign` mutations with
+  `teamId`, and updated every internal caller
+  (`requestApproval`/`requestEntityApproval`'s auto-approve path,
+  `autoDenyExpiredApprovals`, and `agent.ts`'s `approveTask`/
+  `rejectTask`) to pass the `teamId` already available in each of their
+  scopes. New tests ported from the apps/api sibling's own
+  `ApprovalService.test.ts`: cross-tenant `approve`/`reject` calls are
+  refused, and the `CAMPAIGN_START`/`ApprovalRequest` mutations are
+  scoped by `teamId`, not just the pre-check. 393/393 apps/web tests
+  pass (5 new/updated), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
