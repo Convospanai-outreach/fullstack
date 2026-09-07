@@ -3184,6 +3184,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests pass (2 new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-209 (Fixed):** privilege escalation — a read-only `VIEWER`
+  could mass-delete and replace a campaign's A/B test variants via
+  `apps/api/routes/campaigns/[id]/variants/route.ts`'s `POST`. The
+  handler correctly scoped campaign ownership by `teamId` (`findFirst({
+  id: campaignId, teamId })`) before running `campaignVariant.deleteMany`
+  + `create`, but called no role check at all — `getCurrentContext()`
+  only confirms an active `TeamMember` row, not role. Every other
+  mutating route in this same directory tree requires at least
+  `TeamRole.MEMBER`: `campaigns/route.ts` POST, `campaigns/[id]/route.ts`
+  PATCH/DELETE, and `campaigns/[id]/leads/route.ts` POST/DELETE (via
+  `checkTeamPermission`) — `variants/route.ts`'s `POST` was the one
+  outlier, found via the same "sibling-pattern outlier" technique as
+  OPEN-207/208. A `VIEWER` teammate — who has no create/edit rights
+  anywhere else in the campaigns UI — could `POST
+  /api/campaigns/{id}/variants` with a crafted array to wipe every
+  existing variant and inject attacker-chosen subject/body content into
+  the campaign's outbound A/B test templates. (The `GET` handler in the
+  same file was deliberately left unchanged — read access needs no role
+  beyond team membership, consistent with `campaigns/route.ts`'s own
+  `GET`.) **Fixed** by adding `authorizeRole(userId, teamId,
+  TeamRole.MEMBER)` to the `POST` handler, mirroring the sibling routes.
+  New tests: a caller failing the `MEMBER` check is refused (403)
+  before any delete/create call; a `MEMBER`-or-above caller still
+  succeeds. 1059/1059 apps/api tests pass (2 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted
+  above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

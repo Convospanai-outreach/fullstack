@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { z } from "zod";
 
@@ -14,10 +15,14 @@ const VariantsArraySchema = z.array(VariantSchema);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        // Every sibling mutating campaigns/* route requires at least MEMBER -
+        // without this, a read-only VIEWER could mass-delete and replace a
+        // campaign's A/B test variants.
+        await authorizeRole(userId, teamId, TeamRole.MEMBER);
 
         const { id: campaignId } = await params;
         const body = await req.json();
