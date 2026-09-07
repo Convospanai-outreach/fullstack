@@ -3611,6 +3611,52 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1083/1083 apps/api tests pass (2 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-223 (Fixed):** cross-tenant device-identity hijack —
+  `apps/api/routes/edge/attest/route.ts`'s `POST` authenticated an
+  edge-device attestation using only a caller-supplied `nodeId` and
+  `bootHash`, with no verification that the caller's own team owns
+  that node. `FirmwareService.verifyAttestation` (`apps/api/src/
+  modules/security/FirmwareService.ts`) never even uses its `nodeId`
+  argument — it just compares `bootHash` against a single, fleet-wide
+  `FIRMWARE_EXPECTED_HASH` env var identical for every tenant's node,
+  proving "genuine firmware" but nothing node-specific. Reached
+  through `apps/api/src/middleware.ts`'s generic authenticated-tier
+  check (any logged-in user of any team, since `/api/edge/attest`
+  isn't in the public-paths allowlist) with no team/role gate at this
+  route. The sibling `PUT /edge/nodes` (`apps/api/routes/edge/nodes/
+  route.ts`) already implements the correct two-factor model for
+  device heartbeats: a valid session token hashed against that
+  specific node's stored hash, OR a request signature verified
+  against that node's own registered `publicKey` (set at
+  admin-driven pairing via `POST /edge/nodes`) — `edge/attest` had
+  neither factor. Found via a continuation of the shared-resource/
+  proxy-action sweep that found OPEN-219/221/222, applied this time to
+  other routes proxying to shared external/device infrastructure. Any
+  authenticated user of any team who learned or guessed another
+  team's `EdgeNode.id` could `POST /api/edge/attest { "nodeId":
+  "<team B's node id>", "bootHash": "<the shared expected hash every
+  legitimate device already knows>", "vaultUnlocked": true }` to: (1)
+  forge Team B's node into `status: "ONLINE"`, `attestationStatus:
+  "TRUSTED"`, `vaultState: "UNLOCKED"` — ground truth meant to come
+  only from the physical device, and the exact precondition
+  `requireEdgePiiAvailable` checks before allowing PII-sensitive
+  hardware operations for that team; (2) receive a plaintext
+  `sessionToken` for Team B's node directly in the response, then
+  replay it against `PUT /edge/nodes` as `x-edge-session-token` to
+  impersonate that node indefinitely. **Fixed** by requiring the
+  attest request to also carry a valid per-node signature
+  (`x-edge-timestamp`/`x-edge-nonce`/`x-edge-signature` headers,
+  verified via `verifyEdgeRequestSignature` against the node's own
+  `publicKey`) before the boot-hash check runs, mirroring `PUT
+  /edge/nodes`'s signature-verification factor exactly — an
+  unsigned or wrongly-signed request is now refused (403) before
+  `FirmwareService.verifyAttestation` or any `EdgeNode` mutation.
+  New tests: an attestation with no node signature is refused even
+  with a correct `bootHash`; an invalid signature is refused; a
+  correctly node-signed request still succeeds. 1084/1084 apps/api
+  tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

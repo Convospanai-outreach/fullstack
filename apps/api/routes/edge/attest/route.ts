@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { FirmwareService } from "@/modules/security/FirmwareService";
 import { prisma } from "@/lib/db";
 import { AuditService } from "@/modules/audit/auditService";
-import { hashEdgeSessionToken } from "@/lib/edgeRuntime";
+import { hashEdgeSessionToken, verifyEdgeRequestSignature } from "@/lib/edgeRuntime";
 
 const EDGE_SESSION_TTL_MS = 15 * 60 * 1000;
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const rawBody = await req.text();
+        const body = rawBody ? JSON.parse(rawBody) : {};
         const { nodeId, bootHash, runtimeVersion, buildHash, capabilities, vaultUnlocked } = body;
 
         if (!nodeId || !bootHash) {
@@ -21,6 +22,30 @@ export async function POST(req: Request) {
         }
         if (node.revokedAt || node.status === "REVOKED") {
             return NextResponse.json({ error: "EDGE_NODE_REVOKED" }, { status: 403 });
+        }
+
+        // FirmwareService.verifyAttestation only proves "genuine signed firmware fleet-wide" -
+        // it checks bootHash against one shared constant, not anything specific to this node.
+        // Without also verifying the request was signed by THIS node's own registered
+        // publicKey (set at pairing time via POST /edge/nodes), any authenticated user who
+        // learns another team's nodeId could attest as that node, forge its ONLINE/TRUSTED/
+        // UNLOCKED state, and receive a fresh session token for it - mirrors the two-factor
+        // model PUT /edge/nodes already requires for node heartbeats.
+        const timestamp = req.headers.get("x-edge-timestamp") || "";
+        const nonce = req.headers.get("x-edge-nonce") || "";
+        const signature = req.headers.get("x-edge-signature") || "";
+        const signed = Boolean(node.publicKey && timestamp && nonce && signature) && verifyEdgeRequestSignature({
+            publicKeyPem: node.publicKey!,
+            rawBody,
+            timestamp,
+            nonce,
+            signatureHex: signature,
+        });
+        if (!signed) {
+            await AuditService.log(node.teamId, null, "edge_attestation_failed", "EdgeNode", node.id, {
+                reason: "missing_or_invalid_node_signature",
+            });
+            return NextResponse.json({ error: "EDGE_ATTESTATION_FAILED" }, { status: 403 });
         }
 
         // Verify the node is running authorized software
