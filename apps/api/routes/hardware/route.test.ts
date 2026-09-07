@@ -108,6 +108,31 @@ describe("/hardware", () => {
         });
     });
 
+    describe("POST - EXECUTE requires a platform admin (OPEN-222)", () => {
+        it("rejects a regular authenticated user - this drives the single shared physical edge device, not per-team data", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue(null);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "EXECUTE", payload: { actuator: "arm" } }));
+
+            expect(response.status).toBe(403);
+            expect(mockHardwareService.execute).not.toHaveBeenCalled();
+        });
+
+        it("allows a genuine platform admin", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "admin-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue({ id: "admin-1", enterpriseRole: "SYSTEM_ADMIN" });
+            mockHardwareService.execute.mockResolvedValue(true);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "EXECUTE", payload: { actuator: "arm" } }));
+
+            expect(response.status).toBe(200);
+            expect(mockHardwareService.execute).toHaveBeenCalledWith("arm", { actuator: "arm" });
+        });
+    });
+
     describe("POST - SAVE_WORKFLOW ownership", () => {
         it("rejects saving a workflow tagged with another team's id", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });

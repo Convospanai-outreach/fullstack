@@ -39,9 +39,18 @@ export async function POST(req: Request) {
             case "SEARCH":
                 result = { results: await HardwareService.search(query) };
                 break;
-            case "EXECUTE":
+            case "EXECUTE": {
+                // Drives the single, platform-wide shared physical edge device used by
+                // every tenant - same hazard as SET_COMPLIANCE, no per-team scope exists
+                // to check, so it must be restricted to a genuine platform operator
+                // instead of any logged-in user.
+                const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+                if (!admin) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 result = { success: await HardwareService.execute(payload?.actuator || "generic", payload || {}) };
                 break;
+            }
             case "SAVE_WORKFLOW":
                 // The edge node stores workflows keyed by the caller-supplied teamId on
                 // the workflow body, not by session - without this check any team could

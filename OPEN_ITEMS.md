@@ -3581,6 +3581,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-222 (Fixed):** privilege escalation — any authenticated team
+  member with PII-edge access could drive the platform's single,
+  shared physical edge device via `apps/api/routes/hardware/route.ts`'s
+  `EXECUTE` action, which forwards a caller-supplied
+  `payload.actuator`/`payload` straight to `HardwareService.execute`
+  → the one shared `EDGE_NODE_URI`/`EDGE_API_KEY` for the entire
+  deployment (confirmed by reading every other `HardwareService`
+  method — none take a team parameter). The only check was the
+  unrelated `requireEdgePiiAvailable(ctx.teamId, ...)` PII-availability
+  probe, which establishes nothing about authorization to issue
+  physical-actuator commands. The sibling action `SET_COMPLIANCE`,
+  twelve lines below in the same switch, already carries the correct
+  pattern with an explicit comment: "this flips ... the single,
+  platform-wide shared edge node used by every tenant ... there is no
+  per-team scope to check, so it must be restricted to a genuine
+  platform operator" — that reasoning applies identically (arguably
+  more urgently, given `EXECUTE` drives a physical actuator) but
+  `EXECUTE` had no such gate. Found via a continuation of the
+  token/identifier-ownership sweep that found OPEN-221, by re-reading
+  the same route end-to-end for other unguarded actions. Any team
+  member could `POST /api/hardware { "action": "EXECUTE", "payload":
+  { "actuator": "<anything>" } }` to trigger arbitrary physical
+  actuation on the shared device that every tenant depends on.
+  **Fixed** by requiring `getAdminUser(UserRole.SYSTEM_ADMIN)` before
+  forwarding to `HardwareService.execute`, mirroring `SET_COMPLIANCE`
+  exactly. New tests: a regular authenticated user is refused (403)
+  before `execute` is called; a genuine `SYSTEM_ADMIN` still succeeds.
+  1083/1083 apps/api tests pass (2 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
