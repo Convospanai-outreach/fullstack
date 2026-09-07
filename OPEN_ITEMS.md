@@ -3211,6 +3211,41 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted
   above).
 
+- **OPEN-210 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could read or overwrite the
+  team's WhatsApp Business API (WABA) sending credentials via
+  `apps/api/routes/whatsapp/settings/route.ts`'s `GET`/`POST`. Neither
+  handler called `checkTeamPermission`/`authorizeRole` at all — only
+  `userId`/`teamId` truthiness. Every comparable credential-bearing
+  integration route in this codebase gates both read and write at
+  `TeamRole.ADMIN` — `smtp/config/route.ts` (the closest analog: another
+  team-wide outbound-messaging credential) does `checkTeamPermission(...,
+  TeamRole.ADMIN)` on both `GET` and `POST`, as does
+  `integrations/google/oauth/start/route.ts` and every route under
+  `settings/keys`, `settings/webhooks`, `settings/crm`,
+  `settings/branding` — `whatsapp/settings/route.ts` was the one
+  outlier with zero role enforcement, found via the same
+  "sibling-pattern outlier" technique as OPEN-207/208/209. A `VIEWER`
+  could `POST /whatsapp/settings` with their own attacker-controlled
+  WABA `phoneNumberId`/`accessToken`; `verifyWabaCredentials` passes
+  (the credentials are validly the attacker's own), and
+  `setTeamWaba(teamId, ...)` persists them as the team's WABA — from
+  then on every automated WhatsApp send in
+  `sequenceService.ts::executeWhatsAppRun` goes out through the
+  attacker's own Meta number to the victim team's leads, with any
+  inbound replies/PII landing in the attacker's Meta Business account.
+  A `VIEWER` could also `POST { hasWaba: false }` to silently wipe the
+  team's real WABA config, downgrading every WhatsApp sequence step to
+  human-in-the-loop `Task`s — sabotage available to the
+  lowest-privileged role. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` to both `GET`
+  and `POST`, mirroring `smtp/config/route.ts` exactly. New tests: a
+  caller below `ADMIN` is refused (403) on both `GET` (before reading
+  the config) and `POST` (before verifying/setting/clearing
+  credentials); an `ADMIN` caller still succeeds on both. 1063/1063
+  apps/api tests pass (4 new), `tsc --noEmit` clean (same pre-existing,
+  unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
