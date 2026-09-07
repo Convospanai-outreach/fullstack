@@ -2821,6 +2821,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   any query). 1040/1040 apps/api tests pass (3 new), `tsc --noEmit` clean
   (same pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-198 (Fixed):** cross-tenant IDOR in `GET /api/orchestrator/timeline`
+  (`apps/web/src/app/api/orchestrator/timeline/route.ts`) — a fix that had
+  already landed for the `apps/api` sibling route (OPEN-154, PR #402,
+  commit `e9255bab`) but was never applied to this separate, parallel
+  `apps/web` copy of the identical logic. The handler destructured
+  `teamId` from `getCurrentContext()` and checked it was non-null, but
+  then never used it: `prisma.job.findMany({ where: { payload: { path:
+  ["campaignId"], equals: campaignId } }, ... })` matches `Job` rows
+  purely by JSON payload equality against a caller-supplied `campaignId`
+  query param, with no `teamId` filter anywhere. **Exploit:** any
+  authenticated user of any team could call `GET
+  /api/orchestrator/timeline?campaignId=<victim campaignId>` and receive
+  up to 100 of that campaign's `Job` records — including `error` (internal
+  error/stack detail) and `result` (AI-generated content, provider
+  responses) — with zero ownership check, for any guessed/enumerated
+  campaign id. The `apps/api` route's fix comment already explains why:
+  `Job.teamId` isn't reliably set by enqueuers, so the campaign itself
+  must be verified to belong to the caller's team before trusting the
+  payload-based job lookup. **Fixed** by porting the identical guard —
+  `prisma.campaign.findFirst({ where: { id: campaignId, teamId } })`,
+  404-ing when it doesn't match — into the `apps/web` copy. New
+  `route.test.ts` added (first test file for this route; 3 tests:
+  unauthenticated caller rejected before any query, another team's
+  campaign 404s before the job query runs, caller's own campaign returns
+  its timeline). 385/392 apps/web tests pass (3 new, 7 pre-existing
+  unrelated skips), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
