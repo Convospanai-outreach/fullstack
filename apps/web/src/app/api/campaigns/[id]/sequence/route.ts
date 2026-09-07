@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -79,9 +80,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // Every sibling mutating campaigns/* route requires at least MEMBER -
+        // without this, a read-only VIEWER could rewrite a live sequence's
+        // steps/content and reassign its sending mailboxes.
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const { prisma } = await import("@/lib/db");
