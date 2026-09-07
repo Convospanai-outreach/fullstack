@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { authorizeRole, TeamRole } from "@/lib/permissions";
 import { handleAPIError, successResponse, APIError } from "@/lib/apiResponse";
 import { z } from "zod";
 
@@ -11,10 +12,13 @@ const WebhookSchema = z.object({
 
 export async function GET(_req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        // Every other webhook-management route (settings/webhooks/*, webhooks/[id])
+        // requires ADMIN; this was a second unguarded path to the same resource.
+        await authorizeRole(userId, teamId, TeamRole.ADMIN);
 
         const webhooks = await prisma.webhook.findMany({
             where: { teamId },
@@ -29,10 +33,11 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
         }
+        await authorizeRole(userId, teamId, TeamRole.ADMIN);
 
         const body = await req.json();
 

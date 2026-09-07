@@ -3298,6 +3298,33 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1071/1071 apps/api tests pass (2 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-213 (Fixed):** privilege escalation / secret disclosure — any
+  team member, including the lowest role (`VIEWER`), could read every
+  webhook `secret` for the team and register a brand-new outbound
+  webhook to an attacker-controlled URL via
+  `apps/api/routes/webhooks/route.ts`'s `GET`/`POST`. Neither handler
+  called `authorizeRole`/`checkTeamPermission` — only `teamId`
+  truthiness. The canonical webhook-management route touching the same
+  `prisma.webhook` model (`apps/api/routes/settings/webhooks/route.ts`)
+  requires `TeamRole.ADMIN` on `GET`, `POST`, and `DELETE`; the sibling
+  `apps/api/routes/webhooks/[id]/route.ts`'s `DELETE` was already fixed
+  under OPEN-104 with the same ADMIN gate, but that fix's own comment
+  ("every other webhook-management route requires ADMIN") was
+  incorrect — `webhooks/route.ts`'s `GET`/`POST` in the same directory
+  remained unguarded. Found via the same "sibling-pattern outlier"
+  technique as OPEN-207 through OPEN-212. A `VIEWER` could `GET
+  /api/webhooks` to steal the HMAC `secret` used to verify webhook
+  payload signatures (enabling forged deliveries), or `POST
+  /api/webhooks` with an attacker's `url` to silently register a
+  persistent exfiltration channel for every subsequent event of the
+  chosen type. **Fixed** by adding
+  `authorizeRole(userId, teamId, TeamRole.ADMIN)` to both `GET` and
+  `POST`, mirroring `settings/webhooks/route.ts` exactly. New tests: a
+  caller below `ADMIN` is refused (403) on both handlers before
+  touching `prisma.webhook`; an `ADMIN` caller still succeeds on both.
+  1075/1075 apps/api tests pass (4 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
