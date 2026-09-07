@@ -2,6 +2,8 @@ import { HardwareService } from "@/services/HardwareService";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { EdgeRuntimeError, requireEdgePiiAvailable } from "@/lib/edgeRuntime";
+import { getAdminUser } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 
 const PII_EDGE_ACTIONS = new Set(["SANITIZE", "RE_IDENTIFY", "CRITIQUE", "SEARCH", "EXECUTE"]);
 
@@ -49,9 +51,18 @@ export async function POST(req: Request) {
                 }
                 await HardwareService.saveWorkflow(workflow);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-            case "SET_COMPLIANCE":
+            case "SET_COMPLIANCE": {
+                // This flips the compliance mode on the single, platform-wide shared edge
+                // node used by every tenant, not just the caller's own team - unlike every
+                // other action here, there is no per-team scope to check, so it must be
+                // restricted to a genuine platform operator instead of any logged-in user.
+                const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+                if (!admin) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 await HardwareService.setComplianceMode(region);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+            }
             case "RE_IDENTIFY":
                 result = await HardwareService.reIdentify(maskedId, purpose);
                 break;

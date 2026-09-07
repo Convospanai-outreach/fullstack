@@ -3102,6 +3102,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   both were accepted). 394/394 apps/web tests pass (1 new), `tsc
   --noEmit` clean.
 
+- **OPEN-206 (Fixed):** `POST /api/hardware` with `action: "SET_COMPLIANCE"`
+  (`apps/api/routes/hardware/route.ts`) had no role check at all — the
+  only gate was `ctx.teamId` being truthy, i.e. any authenticated user of
+  any tenant. `HardwareService.setComplianceMode(region)` posts `{
+  region }` to the single, deployment-wide `EDGE_NODE_URI/compliance/mode`
+  — one shared edge node used by every tenant, with no per-team routing
+  at all (unlike `SAVE_WORKFLOW`/`GET`'s `getWorkflows()` on this same
+  route, already team-scoped/filtered under **OPEN-168**). Any logged-in
+  user from any team could call `POST /api/hardware {"action":
+  "SET_COMPLIANCE","region":"EU"}` (or `"INDIA"`) and flip the compliance
+  mode of the platform's one shared edge node — affecting every other
+  tenant's traffic through it, not just the caller's own team. Distinct
+  from OPEN-168 (which is a teamId-scoping fix for genuinely per-team
+  data) and from OPEN-124/153/174/205 (self-service `ORG_ADMIN` treated
+  as a platform privilege) — this required no role at all, not even
+  `ORG_ADMIN`. **Fixed** by gating the `SET_COMPLIANCE` case on
+  `getAdminUser(UserRole.SYSTEM_ADMIN)` (`apps/api/src/lib/admin.ts`),
+  the same platform-operator check already used by other genuinely
+  platform-wide admin actions (e.g. `admin/observability/route.ts`),
+  returning 403 for anything less. New tests: a regular authenticated
+  user is refused (403, `setComplianceMode` not called); a genuine
+  `SYSTEM_ADMIN` still succeeds. 1052/1052 apps/api tests pass (2 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

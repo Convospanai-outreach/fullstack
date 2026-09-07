@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContext, mockRequireEdgePiiAvailable, mockHardwareService } = vi.hoisted(() => ({
+const { mockGetCurrentContext, mockRequireEdgePiiAvailable, mockHardwareService, mockGetAdminUser } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockRequireEdgePiiAvailable: vi.fn(),
+    mockGetAdminUser: vi.fn(),
     mockHardwareService: {
         verifyHardwareIdentity: vi.fn(),
         sanitize: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock("@/lib/edgeRuntime", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/lib/edgeRuntime")>();
     return { ...actual, requireEdgePiiAvailable: mockRequireEdgePiiAvailable };
 });
+vi.mock("@/lib/admin", () => ({ getAdminUser: mockGetAdminUser }));
 
 function postRequest(body: unknown) {
     return new Request("http://localhost/hardware", { method: "POST", body: JSON.stringify(body) });
@@ -34,6 +36,7 @@ describe("/hardware", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockRequireEdgePiiAvailable.mockResolvedValue({ status: "online", online: true });
+        mockGetAdminUser.mockResolvedValue(null);
     });
 
     describe("POST - every action requires a real session", () => {
@@ -57,12 +60,12 @@ describe("/hardware", () => {
             expect(mockHardwareService.getStatus).not.toHaveBeenCalled();
         });
 
-        it("allows a non-PII action with a real session, without requiring an edge node", async () => {
+        it("allows a non-PII action (STATUS) with a real session, without requiring an edge node", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
-            mockHardwareService.setComplianceMode.mockResolvedValue(undefined);
+            mockHardwareService.getStatus.mockResolvedValue({ ok: true });
             const { POST } = await import("./route");
 
-            const response = await POST(postRequest({ action: "SET_COMPLIANCE", region: "EU" }));
+            const response = await POST(postRequest({ action: "STATUS" }));
 
             expect(response.status).toBe(200);
             expect(mockRequireEdgePiiAvailable).not.toHaveBeenCalled();
@@ -76,6 +79,31 @@ describe("/hardware", () => {
             await POST(postRequest({ action: "SANITIZE", text: "hello" }));
 
             expect(mockRequireEdgePiiAvailable).toHaveBeenCalledWith("team-1", {});
+        });
+    });
+
+    describe("POST - SET_COMPLIANCE requires a platform admin (OPEN-206)", () => {
+        it("rejects a regular authenticated user - this flips a platform-wide shared setting, not per-team data", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue(null);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "SET_COMPLIANCE", region: "EU" }));
+
+            expect(response.status).toBe(403);
+            expect(mockHardwareService.setComplianceMode).not.toHaveBeenCalled();
+        });
+
+        it("allows a genuine platform admin", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "admin-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue({ id: "admin-1", enterpriseRole: "SYSTEM_ADMIN" });
+            mockHardwareService.setComplianceMode.mockResolvedValue(undefined);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "SET_COMPLIANCE", region: "EU" }));
+
+            expect(response.status).toBe(200);
+            expect(mockHardwareService.setComplianceMode).toHaveBeenCalledWith("EU");
         });
     });
 
