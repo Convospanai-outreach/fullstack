@@ -47,10 +47,14 @@ class ICPService {
     }
 
     async update(teamId: string, id: string, input: Partial<ICPInput>) {
-        const existing = await this.getById(teamId, id);
-        if (!existing) return null;
-        const icp = await prisma.iCP.update({
-            where: { id },
+        // Scoped by teamId here too, not just via getById's pre-check - the
+        // mutation's own safety must not depend solely on a separate
+        // pre-check holding true (see OPEN-99/109/110/118/120/121/122/123/
+        // 127/128/150/166 for the same anti-pattern). ICP has no compound
+        // unique on (id, teamId), so update() can't take teamId directly -
+        // updateMany() is used instead.
+        const result = await prisma.iCP.updateMany({
+            where: { id, teamId },
             data: {
                 ...(input.name && { name: input.name }),
                 ...(input.description !== undefined && { description: input.description }),
@@ -58,16 +62,18 @@ class ICPService {
                 ...(input.status && { status: input.status }),
             },
         });
-        return icp;
+        if (result.count === 0) return null;
+        return this.getById(teamId, id);
     }
 
     async delete(teamId: string, id: string) {
-        const existing = await this.getById(teamId, id);
-        if (!existing) return false;
-        await prisma.iCP.delete({
-            where: { id },
+        // Scoped by teamId here too, not just via getById's pre-check - same
+        // reasoning as update(). deleteMany() is used since delete() can't
+        // take teamId without a compound unique on (id, teamId).
+        const result = await prisma.iCP.deleteMany({
+            where: { id, teamId },
         });
-        return true;
+        return result.count > 0;
     }
 
     // Helper: Match a lead against ICP criteria
