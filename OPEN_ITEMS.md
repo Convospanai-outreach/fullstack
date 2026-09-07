@@ -3127,6 +3127,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-207 (Fixed):** `GET /api/governance` (`apps/api/routes/governance/route.ts`)
+  returned every team's `Experiment` rows (with `ExperimentVariant`
+  configs — AI-generation overrides like tone/length used in a team's
+  outreach experiments) to any authenticated user, regardless of which
+  team they belong to. The handler checked only `userId` truthiness —
+  never read `teamId` at all — and ran `prisma.experiment.findMany({
+  include: { variants: true }, orderBy: ..., take: 20 })` with no
+  `where` clause whatsoever, i.e. the 20 most-recently-created
+  experiments platform-wide. `Experiment` is a per-tenant model
+  (`teamId String`, `team Team @relation(...)`,
+  `apps/api/prisma/schema.prisma:2219-2230`). Every sibling route in
+  `apps/api/routes/governance/*` (`members`, `audit`, `guardrails`,
+  `keys`) already does `const { userId, teamId } = await
+  getCurrentContext(); if (!teamId) return 404; if (!await
+  checkTeamPermission(userId, teamId, TeamRole.ADMIN)) return 403; ...
+  where: { teamId }` — this route was the one outlier with neither the
+  `teamId` scoping nor the `ADMIN`-role check. Same class as the
+  already-fixed OPEN-198 (`GET /api/orchestrator/timeline`). **Fixed**
+  by adding the identical `teamId`/`checkTeamPermission(ADMIN)` guard
+  used by every sibling and scoping the `experiment.findMany` call with
+  `where: { teamId }`. `TrainingDataset` (the second half of the
+  response) has no `teamId` column at all — genuinely platform-wide by
+  design, left unchanged. New tests: experiments are scoped to the
+  caller's own team; a caller without `ADMIN` permission on their team
+  is refused (403); no session is refused (401). 1055/1055 apps/api
+  tests pass (3 new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
