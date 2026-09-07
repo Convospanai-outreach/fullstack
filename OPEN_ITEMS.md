@@ -2795,6 +2795,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests pass (3 new, 7 pre-existing unrelated skips), `tsc --noEmit`
   clean on both apps.
 
+- **OPEN-197 (Fixed):** unauthenticated-scope cross-tenant PII/financial
+  data leak in `GET /api/analytics/export`
+  (`apps/api/routes/analytics/export/route.ts`). The handler destructured
+  only `userId` from `getCurrentContext()` — never checked or used
+  `teamId` — and its `prisma.lead.findMany` call carried **no `where`
+  clause at all**, making it a platform-wide, unfiltered scan of the
+  entire `Lead` table. The code even contained its own admission of the
+  bug: `// Ideally should be scoped to team`. **Exploit:** any
+  authenticated user of any team, no special role required, could hit
+  this endpoint and receive a CSV dump of every lead across every tenant
+  on the platform — full names, emails, companies, deal values, won-deal
+  dates, and campaign names belonging to every other team — a full
+  cross-tenant PII/revenue-data exfiltration primitive requiring nothing
+  more than a valid session. Not previously covered: OPEN-56 touched this
+  same file but only fixed an unrelated `next/headers`-in-Fastify crash
+  (switching `getServerSession` to `getCurrentContext()`); it never
+  addressed the missing `teamId` filter. **Fixed** by destructuring
+  `teamId` alongside `userId`, 401-ing when either is missing, and adding
+  `where: { teamId }` to the `lead.findMany` call — the same pattern
+  already used by the sibling `apps/api/routes/leads/export/route.ts`.
+  New `route.test.ts` added (first test file for this route; 3 tests: the
+  query is scoped to the caller's own `teamId`, a caller with no team is
+  rejected before any query, an unauthenticated caller is rejected before
+  any query). 1040/1040 apps/api tests pass (3 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
