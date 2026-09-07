@@ -19,12 +19,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { leadId, leadIds, config } = body;
-
-        // Update config if provided
-        if (config) {
-            verificationAgent.updateConfig(config);
-        }
+        const { leadId, leadIds } = body;
 
         // Single lead verification
         if (leadId) {

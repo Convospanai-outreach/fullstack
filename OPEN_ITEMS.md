@@ -3457,6 +3457,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `MEMBER`-or-above caller still succeeds. 400/400 apps/web tests pass
   (2 new), `tsc --noEmit` clean.
 
+- **OPEN-219 (Fixed):** cross-tenant configuration tampering — any
+  authenticated team member, regardless of role, could permanently
+  (until process restart) corrupt lead-verification outcomes for
+  **every team** on the instance via
+  `apps/api/routes/scoring/verify/route.ts`'s `POST`. The handler
+  passed a request-body `config` object straight into
+  `verificationAgent.updateConfig(config)` with no role check and no
+  field validation; `verificationAgent`
+  (`apps/api/src/modules/scoring/service/VerificationAgent.ts`) is a
+  process-wide singleton (`export const verificationAgent = new
+  VerificationAgent()`), not per-team state, and its
+  `updateConfig` does an unchecked `{ ...this.config, ...config }`
+  merge whose `threshold` field gates every subsequent team's
+  `LOW_SCORE` violation, `passed` boolean, and DPDP-relevant
+  `recommendation` (PROCESS/REVIEW/REJECT). The sibling route
+  `apps/api/routes/scoring/lead-intent/route.ts` mutates the
+  analogous `leadScoringService` singleton and already carries an
+  explicit in-code warning about this exact hazard, gating it behind
+  `SCORING_CONFIG_ROLES` (`ORG_ADMIN`/`SYSTEM_ADMIN`/`SUPER_ADMIN`)
+  plus a `validateWeights()` allowlist — `scoring/verify`'s POST had
+  neither. Found via a broadened sweep (mass-assignment /
+  shared-singleton-mutation angle) after the "sibling-pattern
+  outlier" technique that found OPEN-207 through OPEN-218 had
+  exhausted its territory. A `VIEWER` on any team could `POST
+  /api/scoring/verify { "config": { "threshold": 999 } }` to force
+  every other tenant's subsequent verifications to
+  `REJECT`/`REVIEW` regardless of actual score, or `{ "threshold": -1
+  }` to force every tenant's verifications to silently `PROCESS`,
+  defeating their DPDP compliance gate. **Fixed** by deleting the
+  `config`-mutation block entirely — no legitimate caller sends this
+  field (confirmed by reading `apps/web/src/modules/
+  scoring/service/VerificationAgent.ts`, the only caller of this
+  endpoint, which only ever sends `leadId`/`leadIds`); runtime tuning
+  of scoring config, if ever needed, belongs behind the already
+  admin-gated `lead-intent` PUT pattern, not a general-purpose verify
+  endpoint. New tests: an attacker-supplied `config` is silently
+  ignored and `updateConfig` is never called; normal single-lead
+  verification still succeeds. 1077/1077 apps/api tests pass (2 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
