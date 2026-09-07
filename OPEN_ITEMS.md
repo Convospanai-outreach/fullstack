@@ -3498,6 +3498,44 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-220 (Fixed):** cross-user account hijack via mass assignment —
+  any authenticated user could re-key their own `Settings`/
+  `NotificationSettings` row onto another user's identity via `POST
+  /api/settings` or `POST /api/settings/notifications`. Both
+  `apps/api/src/modules/settings/service/settingsService.ts`'s
+  `updateSettings`/`updateNotifications` passed the entire raw request
+  body straight into `prisma.settings.update`/
+  `prisma.notificationSettings.update` as `data`, with no field
+  allowlist. `Settings.userId` is a unique FK to `User` and
+  `NotificationSettings.settingsId` is a unique FK to `Settings` —
+  neither model is scoped by `teamId` at all, so this wasn't even
+  cross-tenant-contained, it was global. The sibling route
+  `apps/api/routes/settings/keys/route.ts` shows the correct pattern
+  for this same `settings/` family: explicit field
+  extraction/validation before building the Prisma `data` object;
+  `settings/route.ts` and `settings/notifications/route.ts` skipped
+  this entirely. Found via a broadened sweep (mass-assignment /
+  shared-singleton angle, same round that found OPEN-219). An
+  attacker could `POST /api/settings { "userId": "<victimUserId>",
+  "liCookie": "<attacker value>", "apiKeyOpenAI": "attacker-key" }` to
+  re-key their own settings row onto a victim's `userId` (learnable
+  from any team-member listing, working best against a newly invited
+  teammate whose row hasn't been lazily created yet), silently
+  attributing attacker-controlled API keys/LinkedIn session cookie to
+  the victim's account on their next load; the identical pattern via
+  `settingsId` applied to `updateNotifications`. **Fixed** by
+  destructuring only the caller-writable fields (`name`, `email`,
+  `theme`, `apiKeyOpenAI`, `apiKeyGemini`, `hubspotApiKey`,
+  `crmConfig`, `liCookie` for settings; the four notification
+  booleans for notifications) before building each Prisma `data`
+  object, mirroring `settings/keys/route.ts`'s allowlist approach;
+  `id`/`userId`/`settingsId` are now always dropped from the request
+  body regardless of what it contains. New tests: an attacker-supplied
+  `userId`/`id`/`settingsId` never reaches the Prisma `data` object on
+  either method; legitimate fields still pass through. 1077/1077
+  apps/api tests pass (2 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
