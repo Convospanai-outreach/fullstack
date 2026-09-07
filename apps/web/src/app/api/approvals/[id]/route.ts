@@ -63,17 +63,40 @@ export async function POST(
             }
         }
 
-        const emailId =
+        let emailId =
             payload.emailId ||
             payload.email_id ||
             (approval.entityType?.toLowerCase() === "email" ? approval.entityId : null);
 
-        const leadId =
+        let leadId =
             payload.leadId ||
             payload.lead_id ||
             (approval.entityType?.toLowerCase() === "lead" ? approval.entityId : null);
 
-        const campaignId = payload.campaignId;
+        let campaignId = payload.campaignId;
+        let mailboxId = payload.mailboxId;
+
+        // This payload can originate from an LLM tool call (see AgentExecutor.ts's
+        // MCP_TOOL_EXECUTION approvals), so the emailId/leadId/campaignId/mailboxId embedded
+        // in it aren't guaranteed to belong to this approval's own team even though the
+        // ApprovalRequest row itself passed the teamId check above. Re-verify each entity
+        // against ctx.teamId before mutating it or sending mail through it.
+        if (campaignId) {
+            const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId: ctx.teamId }, select: { id: true } });
+            if (!campaign) campaignId = null;
+        }
+        if (leadId) {
+            const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId: ctx.teamId }, select: { id: true } });
+            if (!lead) leadId = null;
+        }
+        if (emailId) {
+            const email = await prisma.email.findFirst({ where: { id: emailId, campaign: { teamId: ctx.teamId } }, select: { id: true } });
+            if (!email) emailId = null;
+        }
+        if (mailboxId) {
+            const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId: ctx.teamId }, select: { id: true } });
+            if (!mailbox) mailboxId = null;
+        }
 
         // Update Email status from draft_ready to queued so dashboard summary reflects approval immediately
         if (emailId) {
@@ -109,7 +132,7 @@ export async function POST(
                     leadId,
                     campaignId,
                     teamId: ctx.teamId,
-                    mailboxId: payload.mailboxId,
+                    mailboxId,
                     subject: payload.subject,
                     body: payload.body,
                 });

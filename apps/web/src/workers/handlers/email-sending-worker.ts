@@ -49,10 +49,11 @@ export async function handleEmailSending(payload: JobPayload) {
   }
 
   // 3. Find active connected mailbox for team
+  const resolvedMailboxTeamId = (teamId || campaign.teamId) as string;
   const mailbox = mailboxId
-    ? await prisma.connectedMailbox.findUnique({ where: { id: mailboxId } })
+    ? await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId: resolvedMailboxTeamId } })
     : await prisma.connectedMailbox.findFirst({
-        where: { teamId: (teamId || campaign.teamId) as string, status: "CONNECTED" },
+        where: { teamId: resolvedMailboxTeamId, status: "CONNECTED" },
       });
 
   if (!mailbox) {

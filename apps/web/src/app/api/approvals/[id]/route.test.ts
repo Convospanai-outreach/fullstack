@@ -5,8 +5,10 @@ const { mockGetCurrentContext, mockAuthorizePermission, mockPrisma, mockHandleEm
     mockAuthorizePermission: vi.fn(),
     mockPrisma: {
         approvalRequest: { findUnique: vi.fn(), update: vi.fn() },
-        email: { update: vi.fn() },
-        lead: { update: vi.fn() },
+        email: { update: vi.fn(), findFirst: vi.fn() },
+        lead: { update: vi.fn(), findFirst: vi.fn() },
+        campaign: { findFirst: vi.fn() },
+        connectedMailbox: { findFirst: vi.fn() },
     },
     mockHandleEmailSending: vi.fn(),
 }));
@@ -79,5 +81,78 @@ describe("POST /api/approvals/[id] - requires RESOLVE_APPROVALS permission", () 
 
         expect(response.status).toBe(404);
         expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+
+    it("OPEN-203: ignores a leadId/campaignId in the payload that belongs to another team instead of mutating or emailing through it", async () => {
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            teamId: "team-1",
+            entityType: "MCP_TOOL_EXECUTION",
+            actionType: "SEND_EMAIL",
+            payload: { leadId: "victim-lead", campaignId: "victim-campaign", emailId: "victim-email" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+        // Every ownership lookup fails: none of these entities belong to team-1
+        mockPrisma.campaign.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.email.findFirst.mockResolvedValue(null);
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.campaign.findFirst).toHaveBeenCalledWith({ where: { id: "victim-campaign", teamId: "team-1" }, select: { id: true } });
+        expect(mockPrisma.lead.findFirst).toHaveBeenCalledWith({ where: { id: "victim-lead", teamId: "team-1" }, select: { id: true } });
+        expect(mockPrisma.email.update).not.toHaveBeenCalled();
+        expect(mockPrisma.lead.update).not.toHaveBeenCalled();
+        expect(mockHandleEmailSending).not.toHaveBeenCalled();
+    });
+
+    it("proceeds with the email/lead side effects when the payload's ids do belong to the caller's own team", async () => {
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            teamId: "team-1",
+            entityType: "lead",
+            actionType: "SEND_EMAIL",
+            payload: { leadId: "lead-1", campaignId: "campaign-1" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+        mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1" });
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.lead.update.mockResolvedValue({ id: "lead-1" });
+        mockHandleEmailSending.mockResolvedValue({ status: "sent" });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { status: "SENT" } });
+        expect(mockHandleEmailSending).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-1" }));
+    });
+
+    it("OPEN-203: ignores a mailboxId in the payload that belongs to another team instead of sending through it", async () => {
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            teamId: "team-1",
+            entityType: "lead",
+            actionType: "SEND_EMAIL",
+            payload: { leadId: "lead-1", campaignId: "campaign-1", mailboxId: "victim-mailbox" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+        mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1" });
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.lead.update.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.connectedMailbox.findFirst.mockResolvedValue(null);
+        mockHandleEmailSending.mockResolvedValue({ status: "sent" });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.connectedMailbox.findFirst).toHaveBeenCalledWith({ where: { id: "victim-mailbox", teamId: "team-1" }, select: { id: true } });
+        expect(mockHandleEmailSending).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: null }));
     });
 });
