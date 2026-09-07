@@ -3246,6 +3246,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (4 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-211 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could sabotage or hijack the
+  team's connected sending mailboxes via
+  `apps/api/routes/mailboxes/route.ts`'s `POST`/`PATCH`/`DELETE`. None
+  of the three called `checkTeamPermission`/`authorizeRole` — only
+  `userId`/`teamId` truthiness. The sibling route touching the exact
+  same resource and shared service function
+  (`apps/api/routes/integrations/google/mailboxes/route.ts`, which
+  calls the same `updateMailboxControls`) requires `TeamRole.MEMBER` on
+  `GET` and `TeamRole.ADMIN` on `PATCH` — `mailboxes/route.ts` was the
+  under-protected twin, missing role enforcement entirely on every
+  mutation, found via the same "sibling-pattern outlier" technique as
+  OPEN-207/208/209/210. A `VIEWER` could `DELETE /api/mailboxes` with
+  any teammate's `mailboxId` to permanently disconnect the team's
+  connected Gmail sending mailbox (killing all outbound campaign/
+  sequence sending), `PATCH /api/mailboxes` to flip `status` to
+  `"DISABLED"`/`"PAUSED"`, zero out `dailyLimit`, or reassign
+  `assignedUserId`, or `POST /api/mailboxes` to kick off a brand-new
+  Google OAuth mailbox-connection flow — all integration-management
+  actions that should be `ADMIN`-only, consistent with every other
+  credential-bearing integration route fixed this session (OPEN-210)
+  and already-correct sibling. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` to `POST`,
+  `PATCH`, and `DELETE`, mirroring the sibling's `PATCH` gate exactly;
+  `GET` is unchanged, consistent with the established convention that
+  read access needs no role beyond team membership. New tests: a
+  caller below `ADMIN` is refused (403) on all three mutating handlers
+  before touching any mailbox; an `ADMIN` caller still succeeds on all
+  three. 1069/1069 apps/api tests pass (6 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted
+  above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
