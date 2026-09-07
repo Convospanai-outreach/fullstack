@@ -220,6 +220,11 @@ export default function AgentSwarmPage() {
                             Use <strong className="text-foreground">User Behavior Test</strong> mode to simulate signup,
                             onboarding, lead capture, email, LinkedIn, and funnel update behavior.
                         </p>
+                        <p className="mt-2 max-w-3xl text-xs leading-6 text-muted-foreground">
+                            Each role runs a deterministic, rule-based check against your live workspace counts
+                            (campaigns, leads, approvals) — no LLM call is made, so identical workspace data
+                            produces identical findings regardless of role or goal text.
+                        </p>
                     </div>
                     <div className="flex gap-3">
                         <Link href="/agents/builder">

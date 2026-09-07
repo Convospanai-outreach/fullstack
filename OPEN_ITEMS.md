@@ -2881,6 +2881,41 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1043/1043 apps/api tests pass (3 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-200 (Fixed, disclosure only):** the "Agent Swarm" feature
+  (`apps/web/src/app/(dashboard)/agents/swarm/page.tsx`, backed by
+  `apps/api/src/workers/handlers/agent-worker.ts`'s `handleAgentRun` and
+  `user-behavior-swarm.ts`'s `buildUserBehaviorReport`) markets itself as
+  launching real specialist AI agents ("Parallel Subagent System",
+  "Launch all specialist agents at once") that "simulate" user personas
+  and produce a numeric `Friction Score X/100` with prioritized findings —
+  but no LLM call is made anywhere in this path. `getRoleSpecificChecks`
+  (`agent-worker.ts:8-85`) is pure `if (role.includes("ceo"))`-style
+  string matching returning two hardcoded sentences per keyword bucket,
+  and `buildUserBehaviorReport` computes the friction score from a literal
+  formula (`highFindings*35 + mediumFindings*18 + ...`) driven only by 4
+  DB counts (`campaigns`, `activeCampaigns`, `leads`, `pendingApprovals`);
+  every "finding," its recommendation text, and its `testNeeded` string
+  are static objects gated by simple `if (metrics.leads === 0)` branches,
+  independent of the role selected or the freeform goal text typed. Two
+  teams with identical lead/campaign counts get byte-identical output
+  regardless of which of the 16 specialist roles they picked. Notably,
+  this session's own `OPEN-111` entry above mischaracterizes this same
+  code path as launching "LLM-backed `agent_run` jobs" — even that prior
+  audit didn't catch that no LLM is actually invoked. This is the same
+  bug class OPEN-39 fixed for simulated ML training ("now say so
+  explicitly in the response/changelog rather than reading as a real
+  training pipeline") — the deterministic heuristic-checklist engine
+  itself is a legitimate, working feature (it does read live workspace
+  data and surface genuinely relevant empty-state findings), the bug is
+  that it's presented as AI-agent output rather than disclosed as
+  rule-based. **Fixed** by adding an explicit, honest disclosure line to
+  the page's intro copy: "Each role runs a deterministic, rule-based
+  check against your live workspace counts ... no LLM call is made, so
+  identical workspace data produces identical findings regardless of role
+  or goal text." No backend logic changed — this is a labeling-accuracy
+  fix only, per the OPEN-39 precedent of disclosing rather than removing
+  a working-but-mislabeled feature. `tsc --noEmit` clean on `apps/web`.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
