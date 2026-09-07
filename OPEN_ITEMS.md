@@ -2972,6 +2972,48 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   called with `teamId` in both positions. 386/386 apps/web tests pass (1
   new), `tsc --noEmit` clean.
 
+- **OPEN-203 (Fixed):** cross-tenant IDOR via unscoped `leadId`/
+  `emailId`/`campaignId` embedded in an approval's payload —
+  `apps/web/src/app/api/approvals/[id]/route.ts`. The route correctly
+  scopes the `ApprovalRequest` row itself to `ctx.teamId` (line 28), but
+  then pulled `emailId`/`leadId`/`campaignId` out of the approval's own
+  JSON `payload` field and used them directly against `Lead`/`Email`/
+  `Campaign` — and against `handleEmailSending`
+  (`apps/web/src/workers/handlers/email-sending-worker.ts`, itself doing
+  unscoped `prisma.lead.findUnique`/`campaign.findUnique`) — with no
+  re-check that those entities belong to the approver's own team. That
+  payload isn't always server-derived from trusted lookups:
+  `AgentExecutor.ts` creates an `MCP_TOOL_EXECUTION` approval whose
+  payload is the raw LLM tool-call JSON, driven by a user-supplied
+  `goal` string (`apps/web/src/app/actions/agent.ts`). A goal crafted to
+  make the agent emit a tool call containing another tenant's
+  `leadId`/`campaignId` becomes the payload of an approval that
+  legitimately belongs to the attacker's own team (passes the
+  teamId check), so approving it would have: flipped a victim lead's
+  `status` to `SENT` and a victim email's `status` to `queued` with no
+  ownership check; sent a live email — composed from
+  attacker-controlled `payload.subject`/`payload.body` — to the victim
+  lead's real address using the attacker's own mailbox/credits, bypassing
+  the victim team's suppression list (`handleEmailSending`'s suppression
+  check uses the attacker's `teamId`, not the lead's real team); and
+  reassigned the victim lead's `campaignId` to the attacker's campaign.
+  The apps/api sibling (`ApprovalService.approve` in
+  `apps/api/src/modules/governance/ApprovalService.ts`) doesn't have this
+  email-send code path at all — it only has a `CAMPAIGN_START` side
+  effect, which it explicitly re-scopes by `teamId`
+  ("without this, any authenticated user could approve/reject another
+  team's pending request..."), so that's the anti-pattern being ported
+  here. **Fixed** by re-verifying each of `campaignId`/`leadId`/`emailId`
+  against `ctx.teamId` (via `Campaign.teamId`, `Lead.teamId`, and
+  `Email.campaign.teamId` respectively) right after extracting them from
+  the payload, nulling out any id that doesn't belong to the caller's
+  team — the existing `isEmailApproval && leadId && campaignId` guard
+  then naturally skips the email send once either id is nulled, and the
+  `Email`/`Lead` status updates are skipped the same way. New tests:
+  cross-tenant ids are ignored (no mutation, no `handleEmailSending`
+  call) and same-team ids still flow through normally. 388/388 apps/web
+  tests pass (2 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
