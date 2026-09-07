@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import {
     buildGoogleMailboxAuthUrl,
@@ -31,6 +32,12 @@ export async function POST(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        // Connecting a mailbox is an integration action, ADMIN-only like every other
+        // credential-bearing integration route (see integrations/google/mailboxes,
+        // smtp/config, whatsapp/settings).
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            throw new APIError("Insufficient permissions", 403, "FORBIDDEN");
+        }
 
         const body = await req.json().catch(() => ({}));
         const nextPath = typeof body.nextPath === "string" ? body.nextPath : "/settings/mailboxes";
@@ -50,6 +57,12 @@ export async function PATCH(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        // Matches integrations/google/mailboxes/route.ts's PATCH gate exactly - without
+        // this, any team member (even a read-only VIEWER) could disable/repoint a
+        // mailbox or zero out its sending limits.
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            throw new APIError("Insufficient permissions", 403, "FORBIDDEN");
+        }
 
         const body = await req.json();
         const { mailboxId, ...controls } = body || {};
@@ -72,6 +85,11 @@ export async function DELETE(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        // Disconnecting a mailbox kills all outbound sending through it - ADMIN-only,
+        // same gate as PATCH above.
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            throw new APIError("Insufficient permissions", 403, "FORBIDDEN");
+        }
 
         const { mailboxId } = await req.json();
         if (!mailboxId) throw new APIError("mailboxId is required", 400, "VALIDATION_ERROR");
