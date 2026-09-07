@@ -3374,6 +3374,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   unaffected. 395/395 apps/web tests pass (1 new), `tsc --noEmit`
   clean.
 
+- **OPEN-216 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could mass-delete and replace
+  any campaign's A/B test variants via
+  `apps/web/src/app/api/campaigns/[id]/variants/route.ts`'s `POST`.
+  The handler checked only `teamId` truthiness (not even `userId`) and
+  correctly scoped the campaign lookup by `teamId`, but called no
+  `authorizeRole`/`checkTeamPermission` at all — a regression relative
+  to its own exact apps/api twin, `apps/api/routes/campaigns/[id]/
+  variants/route.ts`, which was already hardened under OPEN-209 to
+  require `TeamRole.MEMBER`, with an in-code comment explaining why;
+  that fix was never mirrored onto this apps/web copy of the same
+  route. Found via the same "sibling-pattern outlier" technique as
+  OPEN-207 through OPEN-215. A `VIEWER` could `POST
+  /api/campaigns/{id}/variants` with attacker-supplied subject/body/
+  weight content to wipe and replace a live A/B-tested outbound
+  campaign's email content and traffic-split weights. **Fixed** by
+  adding `checkTeamPermission(userId, teamId, TeamRole.MEMBER)` right
+  after the existing unauthorized guard (also now requiring `userId`,
+  matching the sibling); used the boolean-returning
+  `checkTeamPermission` rather than `authorizeRole` because this file's
+  existing generic `catch` returns a flat 500 for any thrown error,
+  which would have silently turned a permission denial into a 500
+  instead of 403. New tests: a caller below `MEMBER` is refused (403)
+  before any variant is deleted or created; a `MEMBER`-or-above caller
+  still succeeds. 397/397 apps/web tests pass (2 new), `tsc --noEmit`
+  clean.
+  clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

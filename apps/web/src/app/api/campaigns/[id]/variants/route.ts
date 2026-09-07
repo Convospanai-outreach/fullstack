@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,15 @@ const VariantsArraySchema = z.array(VariantSchema);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { teamId } = await getCurrentContext();
-        if (!teamId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        // Every sibling mutating campaigns/* route requires at least MEMBER -
+        // without this, a read-only VIEWER could mass-delete and replace a
+        // campaign's A/B test variants.
+        if (!(await checkTeamPermission(userId, teamId, TeamRole.MEMBER))) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
         }
 
         const { prisma } = await import("@/lib/db");
