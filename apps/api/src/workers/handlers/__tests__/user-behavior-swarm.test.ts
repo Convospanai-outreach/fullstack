@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { buildUserBehaviorReport } from "../user-behavior-swarm";
+import { describe, expect, it, vi } from "vitest";
+import { buildDeterministicUserBehaviorReport, generateUserBehaviorReport } from "../user-behavior-swarm";
 
 describe("user behavior swarm", () => {
     it("flags empty workspace blockers for first-time users", () => {
-        const report = buildUserBehaviorReport("First-time Founder User", "Test onboarding", {
+        const report = buildDeterministicUserBehaviorReport("First-time Founder User", "Test onboarding", {
             campaigns: 0,
             activeCampaigns: 0,
             leads: 0,
@@ -19,7 +19,7 @@ describe("user behavior swarm", () => {
     });
 
     it("maps operator roles to outreach journey checks", () => {
-        const report = buildUserBehaviorReport("Sales Operator User", "Test lead journey", {
+        const report = buildDeterministicUserBehaviorReport("Sales Operator User", "Test lead journey", {
             campaigns: 2,
             activeCampaigns: 0,
             leads: 25,
@@ -33,7 +33,7 @@ describe("user behavior swarm", () => {
     });
 
     it("adds lead journey continuity checks in lead journey mode", () => {
-        const report = buildUserBehaviorReport("RevOps Manager User", "Test multichannel status", {
+        const report = buildDeterministicUserBehaviorReport("RevOps Manager User", "Test multichannel status", {
             campaigns: 1,
             activeCampaigns: 1,
             leads: 3,
@@ -48,7 +48,7 @@ describe("user behavior swarm", () => {
     });
 
     it("adds admin readiness checks in launch readiness mode", () => {
-        const report = buildUserBehaviorReport("Workspace Admin User", "Test launch setup", {
+        const report = buildDeterministicUserBehaviorReport("Workspace Admin User", "Test launch setup", {
             campaigns: 1,
             activeCampaigns: 0,
             leads: 1,
@@ -59,5 +59,95 @@ describe("user behavior swarm", () => {
         expect(report.persona).toBe("Workspace admin");
         expect(report.findings.some((finding) => finding.scenario === "Auth and configuration confidence")).toBe(true);
         expect(report.findings.some((finding) => finding.ownerArea === "deploy")).toBe(true);
+    });
+});
+
+describe("generateUserBehaviorReport (LLM-backed)", () => {
+    const metrics = { campaigns: 2, activeCampaigns: 1, leads: 10, pendingApprovals: 1 };
+
+    it("returns the validated LLM report when the model responds with well-formed JSON", async () => {
+        const askAI = vi.fn().mockResolvedValue(JSON.stringify({
+            persona: "First-time founder",
+            scenario: "Simulated a founder's first session.",
+            journey: ["Signup", "Dashboard"],
+            frictionScore: 42,
+            confidence: "high",
+            findings: [
+                {
+                    scenario: "Confusing empty state",
+                    priority: "P1",
+                    severity: "medium",
+                    affectedSurface: "/dashboard",
+                    ownerArea: "web",
+                    friction: "The dashboard doesn't explain what to do next.",
+                    recommendation: "Add a setup checklist.",
+                    testNeeded: "Snapshot test for empty dashboard state.",
+                },
+            ],
+            nextBestTests: ["Run a smoke test for signup -> dashboard"],
+        }));
+
+        const report = await generateUserBehaviorReport(
+            "First-time Founder User",
+            "Test onboarding",
+            metrics,
+            "USER_BEHAVIOR",
+            "team-1",
+            askAI
+        );
+
+        expect(askAI).toHaveBeenCalledWith(
+            expect.stringContaining("First-time founder"),
+            "team-1",
+            expect.objectContaining({ expectsJson: true })
+        );
+        expect(report.frictionScore).toBe(42);
+        expect(report.findings).toHaveLength(1);
+        expect(report.findings[0]?.scenario).toBe("Confusing empty state");
+    });
+
+    it("falls back to the deterministic report when the LLM call throws", async () => {
+        const askAI = vi.fn().mockRejectedValue(new Error("provider unavailable"));
+
+        const report = await generateUserBehaviorReport(
+            "First-time Founder User",
+            "Test onboarding",
+            { campaigns: 0, activeCampaigns: 0, leads: 0, pendingApprovals: 0 },
+            "USER_BEHAVIOR",
+            "team-1",
+            askAI
+        );
+
+        expect(report.findings.some((finding) => finding.scenario === "First campaign activation")).toBe(true);
+    });
+
+    it("falls back to the deterministic report when the LLM returns malformed JSON", async () => {
+        const askAI = vi.fn().mockResolvedValue("not json at all");
+
+        const report = await generateUserBehaviorReport(
+            "First-time Founder User",
+            "Test onboarding",
+            { campaigns: 0, activeCampaigns: 0, leads: 0, pendingApprovals: 0 },
+            "USER_BEHAVIOR",
+            "team-1",
+            askAI
+        );
+
+        expect(report.findings.some((finding) => finding.scenario === "First campaign activation")).toBe(true);
+    });
+
+    it("falls back to the deterministic report when the LLM omits every required field", async () => {
+        const askAI = vi.fn().mockResolvedValue(JSON.stringify({ findings: [] }));
+
+        const report = await generateUserBehaviorReport(
+            "First-time Founder User",
+            "Test onboarding",
+            { campaigns: 0, activeCampaigns: 0, leads: 0, pendingApprovals: 0 },
+            "USER_BEHAVIOR",
+            "team-1",
+            askAI
+        );
+
+        expect(report.findings.some((finding) => finding.scenario === "First campaign activation")).toBe(true);
     });
 });

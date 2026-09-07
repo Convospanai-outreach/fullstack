@@ -16,6 +16,11 @@ vi.mock("@/lib/logger", () => ({
     logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+const mockAskAI = vi.fn();
+vi.mock("@/lib/aiService", () => ({
+    aiService: { askAI: (...args: any[]) => mockAskAI(...args) },
+}));
+
 import { prisma } from "@/lib/db";
 import { handleAgentRun } from "../agent-worker";
 
@@ -30,6 +35,7 @@ describe("agent-worker handleAgentRun", () => {
         (prisma.agentLog.create as any).mockResolvedValue({});
         (prisma.agentTask.update as any).mockResolvedValue({});
         (prisma.agentTask.findUnique as any).mockResolvedValue({ context: {}, plan: [] });
+        mockAskAI.mockRejectedValue(new Error("no provider configured in test"));
     });
 
     it("throws when agentId is missing", async () => {
@@ -79,5 +85,45 @@ describe("agent-worker handleAgentRun", () => {
         expect(prisma.agentTask.findFirst).not.toHaveBeenCalled();
         expect(prisma.agentTask.update).toHaveBeenCalled();
         expect(result).toMatchObject({ success: true });
+    });
+
+    it("uses the LLM-authored review and summary for a general-review role", async () => {
+        mockAskAI.mockResolvedValue(JSON.stringify({
+            checks: ["Reviewed the live campaign queue.", "Flagged a stale approval backlog."],
+            summary: "Found one stale approval backlog worth clearing before launch.",
+        }));
+
+        const result = await handleAgentRun({
+            agentId: "agent-1",
+            taskId: "task-1",
+            teamId: "team-a",
+            role: "CTO Architect",
+            goal: "Check readiness",
+        } as any);
+
+        expect(mockAskAI).toHaveBeenCalledWith(
+            expect.stringContaining("CTO Architect"),
+            "team-a",
+            expect.objectContaining({ expectsJson: true })
+        );
+        expect(result).toMatchObject({
+            success: true,
+            summary: "Found one stale approval backlog worth clearing before launch.",
+        });
+    });
+
+    it("falls back to the deterministic checks when the LLM call fails", async () => {
+        mockAskAI.mockRejectedValue(new Error("provider unavailable"));
+
+        const result = await handleAgentRun({
+            agentId: "agent-1",
+            taskId: "task-1",
+            teamId: "team-a",
+            role: "CEO Advisor",
+            goal: "Check readiness",
+        } as any);
+
+        expect(result).toMatchObject({ success: true });
+        expect((result as any).summary).toContain('completed checks for goal "Check readiness"');
     });
 });

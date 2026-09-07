@@ -1,9 +1,65 @@
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { logger } from "@/lib/logger";
-import { buildUserBehaviorReport } from "./user-behavior-swarm";
+import { aiService } from "@/lib/aiService";
+import { generateUserBehaviorReport, SwarmMetrics } from "./user-behavior-swarm";
 
 type AgentTaskContext = Record<string, any>;
+
+function parseJsonResponse<T>(raw: string): T {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    return JSON.parse(cleaned) as T;
+}
+
+/**
+ * LLM-backed specialist review. Falls back to the static, deterministic
+ * getRoleSpecificChecks() below on any LLM failure or malformed
+ * response, so a provider outage never breaks the swarm run.
+ */
+async function generateRoleChecks(
+    role: string,
+    goal: string,
+    metrics: SwarmMetrics,
+    teamId: string | null
+): Promise<{ checks: [string, string]; summary?: string }> {
+    try {
+        const prompt = `You are "${role}", a specialist reviewer auditing a live B2B outreach SaaS workspace.
+
+Operator's stated goal for this review: "${goal}"
+
+Live workspace data for the team being audited (ground your review in this, do not invent data):
+- Campaigns: ${metrics.campaigns} (${metrics.activeCampaigns} active)
+- Leads: ${metrics.leads}
+- Pending approvals: ${metrics.pendingApprovals}
+
+Perform your specialist review for this role and goal, using the live data above. Respond with ONLY a single JSON object, no markdown fences, no commentary:
+{
+  "checks": ["<first concrete action/observation you took>", "<second concrete action/observation you took>"],
+  "summary": "<one to two sentence summary of what you found for this role and goal, grounded in the data above>"
+}`;
+
+        const raw = await aiService.askAI(prompt, teamId || undefined, {
+            taskType: "AGENT_SWARM_REVIEW",
+            surface: "HELPER",
+            expectsJson: true,
+            disableGuardrails: true
+        });
+        const parsed = parseJsonResponse<{ checks?: unknown; summary?: unknown }>(raw);
+        const checks = Array.isArray(parsed.checks) && parsed.checks.length >= 2
+            && typeof parsed.checks[0] === "string" && typeof parsed.checks[1] === "string"
+            ? [String(parsed.checks[0]).slice(0, 400), String(parsed.checks[1]).slice(0, 400)] as [string, string]
+            : null;
+        if (!checks) throw new Error("Malformed specialist review response");
+
+        const summary = typeof parsed.summary === "string" && parsed.summary.trim().length > 0
+            ? parsed.summary.trim().slice(0, 600)
+            : undefined;
+
+        return { checks, summary };
+    } catch (error) {
+        return { checks: getRoleSpecificChecks(role) as [string, string] };
+    }
+}
 
 function getRoleSpecificChecks(role: string): string[] {
     const normalized = role.trim().toLowerCase();
@@ -174,15 +230,17 @@ export async function handleAgentRun(payload: JobPayload) {
             leads: leadCount,
             pendingApprovals: approvalCount
         };
-        const behaviorReport = ["USER_BEHAVIOR", "LAUNCH_READINESS", "LEAD_JOURNEY", "ADMIN_SETUP"].includes(swarmType)
-            ? buildUserBehaviorReport(role, goal, metrics, swarmType)
+        const isBehaviorSwarm = ["USER_BEHAVIOR", "LAUNCH_READINESS", "LEAD_JOURNEY", "ADMIN_SETUP"].includes(swarmType);
+        const behaviorReport = isBehaviorSwarm
+            ? await generateUserBehaviorReport(role, goal, metrics, swarmType, teamId, (prompt, tid, opts) => aiService.askAI(prompt, tid, opts))
             : null;
+        const roleReview = !isBehaviorSwarm ? await generateRoleChecks(role, goal, metrics, teamId) : null;
         const checks = behaviorReport
             ? [
                 `Simulated ${behaviorReport.persona}: ${behaviorReport.scenario}`,
                 `Friction score ${behaviorReport.frictionScore}/100 with ${behaviorReport.findings.length} finding(s).`
             ]
-            : getRoleSpecificChecks(role);
+            : roleReview!.checks;
 
         if (taskId) {
             await appendTaskLog(taskId, stepNumber++, "ACTION", checks[0], {
@@ -201,7 +259,8 @@ export async function handleAgentRun(payload: JobPayload) {
 
         const summary = behaviorReport
             ? `${role} simulated ${behaviorReport.persona}. Friction score: ${behaviorReport.frictionScore}/100. Top issue: ${behaviorReport.findings[0]?.friction ?? "No major behavior blocker detected."}`
-            : `${role} completed checks for goal "${goal}". Campaigns: ${campaignCount}, active: ${activeCampaignCount}, leads: ${leadCount}, pending approvals: ${approvalCount}.`;
+            : roleReview!.summary
+                ?? `${role} completed checks for goal "${goal}". Campaigns: ${campaignCount}, active: ${activeCampaignCount}, leads: ${leadCount}, pending approvals: ${approvalCount}.`;
 
         if (taskId) {
             const task = await prisma.agentTask.findUnique({
