@@ -3431,6 +3431,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `MEMBER`-or-above caller still succeeds on both. 400/400 apps/web
   tests pass (4 new), `tsc --noEmit` clean.
 
+- **OPEN-218 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could unilaterally launch a
+  live outbound campaign via
+  `apps/web/src/app/api/campaigns/[id]/run/route.ts`'s `POST`. The
+  handler checked only `userId`/`teamId` truthiness and correctly
+  scoped the campaign lookup by `teamId`, but called no
+  `authorizeRole`/`checkTeamPermission` at all before flipping the
+  campaign's `status` to `"active"` and invoking
+  `handleCampaignExecution` (which enqueues real sends/LinkedIn
+  actions). Every other mutating `campaigns/[id]/*` route requires at
+  least `TeamRole.MEMBER` — the equivalent "start campaign" action in
+  `apps/web/src/app/api/campaigns/[id]/route.ts`'s `PATCH` already goes
+  through a `TeamRole.MEMBER` gate, and the freshly-fixed
+  `variants`/`sequence`/`sequence/enroll` siblings (OPEN-216, OPEN-217)
+  all require the same. Found via the same "sibling-pattern outlier"
+  technique as OPEN-207 through OPEN-217. A `VIEWER` — who cannot edit
+  the campaign, its sequence, or its variants — could `POST
+  /api/campaigns/{id}/run` to immediately activate and launch a
+  campaign belonging to their own team. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.MEMBER)` right after
+  the existing unauthorized guard, mirroring the sibling routes
+  exactly. New tests: a caller below `MEMBER` is refused (403) before
+  the campaign is activated or execution is enqueued; a
+  `MEMBER`-or-above caller still succeeds. 400/400 apps/web tests pass
+  (2 new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
