@@ -3743,6 +3743,45 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1091/1091 apps/api tests pass (4 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-226 (Fixed):** privilege escalation — `apps/api/routes/admin/
+  rate-limits/route.ts`'s `GET`/`POST` gated on `userRole ===
+  'SYSTEM_ADMIN' || userRole === 'ORG_ADMIN'`, but `ORG_ADMIN` is a
+  normal, self-service-assignable per-workspace `User.enterpriseRole`
+  value (any team owner can invite a teammate as `ORG_ADMIN`), not a
+  platform-level privilege — the exact anti-pattern already fixed
+  under **OPEN-124/153/174/205**, just never swept onto this route
+  (no test file, no prior `OPEN-` marker). The rate-limit state these
+  handlers manage (`apps/api/src/lib/rateLimit.ts`'s
+  `getRateLimitStats`/`resetRateLimit`/`clearAllRateLimits`/
+  `getRateLimitStatus`) is a single process-wide, platform-shared
+  in-memory/Redis cache with zero `teamId` scoping, so any
+  self-service `ORG_ADMIN` could `POST /api/admin/rate-limits
+  { "action": "clear" }` to instantly wipe every team's rate-limit
+  state platform-wide (login-attempt throttles, AI-cost limiters,
+  webhook throttles — everything `rateLimit.ts` protects), or
+  `{ "action": "reset", identifier, endpoint }` to reset any
+  identifier's counter on any endpoint (e.g. bypass their own
+  brute-force lockout on `/api/auth/*`, or bypass an AI-cost
+  throttle to run unlimited expensive LLM calls). The correct
+  pattern is already used by every genuinely platform-wide admin
+  surface in this codebase, e.g. `apps/api/routes/admin/users/
+  route.ts` and `apps/api/routes/hardware/route.ts`'s
+  `SET_COMPLIANCE`/`EXECUTE` cases: `getAdminUser(UserRole
+  .SYSTEM_ADMIN)`, a strictly higher bar than `ORG_ADMIN`. Found via
+  a continuation of the self-service-role sweep that found
+  OPEN-124/153/174/205, applied this time outside `apps/web`'s admin
+  surface to `apps/api`'s own admin routes. **Fixed** by replacing
+  the route's ad hoc `getRateLimitAdminRole` + `ORG_ADMIN`-inclusive
+  check in both `GET` and `POST` with `getAdminUser(UserRole
+  .SYSTEM_ADMIN)`, matching the sibling routes exactly. New test
+  file (none existed): an `ORG_ADMIN` (`getAdminUser` resolving
+  `null`) is refused 403 on `GET`, on `POST { action: "clear" }`,
+  and on `POST { action: "reset", ... }`, with the underlying
+  `getRateLimitStats`/`clearAllRateLimits`/`resetRateLimit` never
+  invoked; a genuine `SYSTEM_ADMIN` still succeeds on both. 1092/1092
+  apps/api tests pass (5 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
