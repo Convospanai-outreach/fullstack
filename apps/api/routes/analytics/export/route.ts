@@ -5,14 +5,13 @@ import Papa from "papaparse";
 
 export async function GET(_req: NextRequest) {
     try {
-        const { userId } = await getCurrentContext();
-        if (!userId) {
+        const { userId, teamId } = await getCurrentContext();
+        if (!userId || !teamId) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Fetch all leads (can add filters from query params)
-        // Ideally should be scoped to team
         const leads = await prisma.lead.findMany({
+            where: { teamId },
             orderBy: { createdAt: "desc" },
             select: {
                 fullName: true,
