@@ -2881,40 +2881,53 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1043/1043 apps/api tests pass (3 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
-- **OPEN-200 (Fixed, disclosure only):** the "Agent Swarm" feature
-  (`apps/web/src/app/(dashboard)/agents/swarm/page.tsx`, backed by
-  `apps/api/src/workers/handlers/agent-worker.ts`'s `handleAgentRun` and
-  `user-behavior-swarm.ts`'s `buildUserBehaviorReport`) markets itself as
-  launching real specialist AI agents ("Parallel Subagent System",
-  "Launch all specialist agents at once") that "simulate" user personas
-  and produce a numeric `Friction Score X/100` with prioritized findings —
-  but no LLM call is made anywhere in this path. `getRoleSpecificChecks`
-  (`agent-worker.ts:8-85`) is pure `if (role.includes("ceo"))`-style
+- **OPEN-200 (Fixed — real implementation, not disclosure):** the "Agent
+  Swarm" feature (`apps/web/src/app/(dashboard)/agents/swarm/page.tsx`,
+  backed by `apps/api/src/workers/handlers/agent-worker.ts`'s
+  `handleAgentRun` and `user-behavior-swarm.ts`) marketed itself as
+  launching real specialist AI agents ("Parallel Subagent System") that
+  "simulate" user personas and produce a numeric `Friction Score X/100`
+  with prioritized findings, but no LLM call was made anywhere in this
+  path: `getRoleSpecificChecks` was pure `if (role.includes("ceo"))`-style
   string matching returning two hardcoded sentences per keyword bucket,
-  and `buildUserBehaviorReport` computes the friction score from a literal
-  formula (`highFindings*35 + mediumFindings*18 + ...`) driven only by 4
-  DB counts (`campaigns`, `activeCampaigns`, `leads`, `pendingApprovals`);
-  every "finding," its recommendation text, and its `testNeeded` string
-  are static objects gated by simple `if (metrics.leads === 0)` branches,
-  independent of the role selected or the freeform goal text typed. Two
-  teams with identical lead/campaign counts get byte-identical output
-  regardless of which of the 16 specialist roles they picked. Notably,
-  this session's own `OPEN-111` entry above mischaracterizes this same
-  code path as launching "LLM-backed `agent_run` jobs" — even that prior
-  audit didn't catch that no LLM is actually invoked. This is the same
-  bug class OPEN-39 fixed for simulated ML training ("now say so
-  explicitly in the response/changelog rather than reading as a real
-  training pipeline") — the deterministic heuristic-checklist engine
-  itself is a legitimate, working feature (it does read live workspace
-  data and surface genuinely relevant empty-state findings), the bug is
-  that it's presented as AI-agent output rather than disclosed as
-  rule-based. **Fixed** by adding an explicit, honest disclosure line to
-  the page's intro copy: "Each role runs a deterministic, rule-based
-  check against your live workspace counts ... no LLM call is made, so
-  identical workspace data produces identical findings regardless of role
-  or goal text." No backend logic changed — this is a labeling-accuracy
-  fix only, per the OPEN-39 precedent of disclosing rather than removing
-  a working-but-mislabeled feature. `tsc --noEmit` clean on `apps/web`.
+  and `buildUserBehaviorReport` computed the friction score from a
+  literal formula driven only by 4 DB counts, with every finding a static
+  object gated by simple `if (metrics.leads === 0)` branches — two teams
+  with identical lead/campaign counts got byte-identical output
+  regardless of which of the 16 specialist roles they picked. This
+  session's own `OPEN-111` entry above even mischaracterizes this same
+  code path as launching "LLM-backed `agent_run` jobs." **First attempt
+  wrongly treated this as a labeling issue and only added a disclosure
+  line — user explicitly rejected that ("i need this to work not a
+  disclosure of not working", "rectify such half baked haf coded
+  features, dont just flag ands add in ledger") — corrected to a real
+  fix below.** **Fixed for real:** added `generateRoleChecks()`
+  (`agent-worker.ts`) and `generateUserBehaviorReport()`
+  (`user-behavior-swarm.ts`), both of which build a prompt grounded in
+  the team's live workspace counts (campaigns, active campaigns, leads,
+  pending approvals) plus the selected role/persona/goal, call
+  `aiService.askAI(..., { expectsJson: true, disableGuardrails: true })`,
+  and validate the returned JSON (clamping enums, string lengths, array
+  sizes) before using it — genuinely per-role, per-goal, per-workspace
+  output instead of a fixed lookup table. Both gracefully fall back to
+  the original deterministic logic (renamed
+  `buildDeterministicUserBehaviorReport`, `getRoleSpecificChecks` kept
+  as-is) on any LLM error or malformed/unvalidatable response, so a
+  provider outage degrades the feature instead of breaking the swarm run
+  — the same fallback discipline already used by `composeNodeA`/
+  `composeNodeB`'s self-correction loop. The UI's intro copy was updated
+  to match reality ("Each role runs a live AI review grounded in your
+  current workspace data... If the AI provider is unavailable, that role
+  falls back to a rule-based check.") instead of the earlier
+  disclosure-of-limitation wording. New tests: 4 added to
+  `user-behavior-swarm.test.ts` covering the LLM-success path (validated
+  fields flow through) and 3 fallback paths (LLM throws, malformed JSON,
+  JSON missing required fields); 2 added to `agent-worker.test.ts`
+  covering the LLM-authored summary flowing through `handleAgentRun` and
+  the fallback-to-deterministic path on LLM failure. 1049/1049 apps/api
+  tests pass (7 new), apps/web 385/392 pass (unchanged), `tsc --noEmit`
+  clean on both apps (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

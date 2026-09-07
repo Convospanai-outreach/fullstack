@@ -103,7 +103,7 @@ function createFinding(input: Omit<UserBehaviorFinding, "persona">, persona: str
     return { ...input, persona };
 }
 
-export function buildUserBehaviorReport(role: string, goal: string, metrics: SwarmMetrics, inputSwarmType?: string): UserBehaviorReport {
+export function buildDeterministicUserBehaviorReport(role: string, goal: string, metrics: SwarmMetrics, inputSwarmType?: string): UserBehaviorReport {
     const swarmType = normalizeSwarmType(inputSwarmType);
     const persona = pickPersona(role, swarmType);
     const modeFocus = MODE_FOCUS[swarmType];
@@ -218,4 +218,145 @@ export function buildUserBehaviorReport(role: string, goal: string, metrics: Swa
             "Confirm the user can recover without support when a field or channel status is missing.",
         ],
     };
+}
+
+const PRIORITIES = new Set(["P0", "P1", "P2"]);
+const SEVERITIES = new Set(["high", "medium", "low"]);
+const OWNER_AREAS = new Set(["web", "api", "extension", "docs", "deploy"]);
+const CONFIDENCES = new Set(["high", "medium", "low"]);
+
+function parseJsonResponse<T>(raw: string): T {
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    return JSON.parse(cleaned) as T;
+}
+
+function clampString(value: unknown, maxLen: number, fallback: string): string {
+    if (typeof value !== "string" || value.trim().length === 0) return fallback;
+    return value.trim().slice(0, maxLen);
+}
+
+function validateFinding(raw: unknown, personaName: string): UserBehaviorFinding | null {
+    if (!raw || typeof raw !== "object") return null;
+    const f = raw as Record<string, unknown>;
+    const priority = PRIORITIES.has(f.priority as string) ? (f.priority as UserBehaviorFinding["priority"]) : "P1";
+    const severity = SEVERITIES.has(f.severity as string) ? (f.severity as UserBehaviorFinding["severity"]) : "medium";
+    const ownerArea = OWNER_AREAS.has(f.ownerArea as string) ? (f.ownerArea as UserBehaviorFinding["ownerArea"]) : "web";
+    const friction = clampString(f.friction, 400, "");
+    if (!friction) return null;
+
+    return {
+        scenario: clampString(f.scenario, 160, "Observed friction point"),
+        priority,
+        severity,
+        affectedSurface: clampString(f.affectedSurface, 160, "Unspecified surface"),
+        ownerArea,
+        friction,
+        recommendation: clampString(f.recommendation, 400, "Investigate and address this friction point."),
+        testNeeded: clampString(f.testNeeded, 200, "Add coverage for this scenario."),
+        persona: personaName,
+    };
+}
+
+function validateBehaviorReport(raw: unknown, swarmType: BehaviorSwarmType, fallbackPersona: string, fallbackJourney: string[]): UserBehaviorReport | null {
+    if (!raw || typeof raw !== "object") return null;
+    const r = raw as Record<string, unknown>;
+
+    const persona = clampString(r.persona, 80, fallbackPersona);
+    const scenario = clampString(r.scenario, 400, "Simulated persona journey through the current workspace state.");
+    const journey = Array.isArray(r.journey) && r.journey.every((step) => typeof step === "string")
+        ? (r.journey as string[]).slice(0, 10).map((step) => step.slice(0, 60))
+        : fallbackJourney;
+
+    const rawFindings = Array.isArray(r.findings) ? r.findings : [];
+    const findings = rawFindings
+        .map((f) => validateFinding(f, persona))
+        .filter((f): f is UserBehaviorFinding => f !== null)
+        .slice(0, 8);
+    if (findings.length === 0) return null;
+
+    const frictionScore = typeof r.frictionScore === "number" && Number.isFinite(r.frictionScore)
+        ? Math.max(0, Math.min(100, Math.round(r.frictionScore)))
+        : Math.min(100, findings.filter((f) => f.severity === "high").length * 35 + findings.filter((f) => f.severity === "medium").length * 18);
+
+    const confidence = CONFIDENCES.has(r.confidence as string) ? (r.confidence as UserBehaviorReport["confidence"]) : "medium";
+
+    const nextBestTests = Array.isArray(r.nextBestTests) && r.nextBestTests.every((t) => typeof t === "string")
+        ? (r.nextBestTests as string[]).slice(0, 5).map((t) => t.slice(0, 200))
+        : [`Run a browser smoke test for: ${journey.join(" -> ")}`];
+
+    return { swarmType, persona, scenario, journey, frictionScore, confidence, findings, nextBestTests };
+}
+
+function buildBehaviorPrompt(role: string, goal: string, metrics: SwarmMetrics, swarmType: BehaviorSwarmType, persona: PersonaDefinition, modeFocus: { scenario: string; journey: string[] }): string {
+    return `You are "${role}", a specialist agent simulating a real user's experience inside a B2B outreach SaaS product, for the purpose of finding genuine UX friction before launch.
+
+Persona to simulate: ${persona.persona} — ${persona.scenario}
+Mode focus: ${modeFocus.scenario}
+Typical journey steps for this mode: ${modeFocus.journey.join(" -> ")}
+Operator's stated goal for this run: "${goal}"
+
+Live workspace data for the team being audited (use this to ground your findings — do not invent unrelated data):
+- Campaigns: ${metrics.campaigns} (${metrics.activeCampaigns} active)
+- Leads: ${metrics.leads}
+- Pending approvals: ${metrics.pendingApprovals}
+
+Simulate this persona walking through their journey against a workspace in this exact data state. Identify 2-5 concrete, specific friction points a real person in this persona would hit — not generic SaaS advice, but friction grounded in the actual counts above (e.g. an empty-state, a stuck queue, a confusing next step).
+
+Respond with ONLY a single JSON object, no markdown fences, no commentary, matching exactly this shape:
+{
+  "persona": "<persona name>",
+  "scenario": "<one sentence describing what this run simulated>",
+  "journey": ["<step 1>", "<step 2>", ...],
+  "frictionScore": <integer 0-100, higher = more friction>,
+  "confidence": "high" | "medium" | "low",
+  "findings": [
+    {
+      "scenario": "<short name for this friction point>",
+      "priority": "P0" | "P1" | "P2",
+      "severity": "high" | "medium" | "low",
+      "affectedSurface": "<route(s) or UI area affected>",
+      "ownerArea": "web" | "api" | "extension" | "docs" | "deploy",
+      "friction": "<what specifically goes wrong for this persona>",
+      "recommendation": "<concrete fix>",
+      "testNeeded": "<what test would catch a regression here>"
+    }
+  ],
+  "nextBestTests": ["<test 1>", "<test 2>"]
+}`;
+}
+
+/**
+ * LLM-backed persona simulation. Falls back to the deterministic
+ * heuristic report (buildDeterministicUserBehaviorReport) on any LLM
+ * failure or malformed response, so a provider outage never breaks the
+ * swarm run - it just degrades to the rule-based version.
+ */
+export async function generateUserBehaviorReport(
+    role: string,
+    goal: string,
+    metrics: SwarmMetrics,
+    inputSwarmType: string | undefined,
+    teamId: string | null,
+    askAI: (prompt: string, teamId?: string, opts?: { expectsJson?: boolean; disableGuardrails?: boolean; taskType?: string; surface?: "CHAT" | "HELPER" | "EMAIL" | "LANDING" | "GENERIC" }) => Promise<string>
+): Promise<UserBehaviorReport> {
+    const swarmType = normalizeSwarmType(inputSwarmType);
+    const persona = pickPersona(role, swarmType);
+    const modeFocus = MODE_FOCUS[swarmType];
+
+    try {
+        const prompt = buildBehaviorPrompt(role, goal, metrics, swarmType, persona, modeFocus);
+        const raw = await askAI(prompt, teamId || undefined, {
+            taskType: "AGENT_SWARM_BEHAVIOR",
+            surface: "HELPER",
+            expectsJson: true,
+            disableGuardrails: true
+        });
+        const parsed = parseJsonResponse<unknown>(raw);
+        const validated = validateBehaviorReport(parsed, swarmType, persona.persona, modeFocus.journey);
+        if (validated) return validated;
+    } catch (error) {
+        // Fall through to the deterministic report below.
+    }
+
+    return buildDeterministicUserBehaviorReport(role, goal, metrics, inputSwarmType);
 }
