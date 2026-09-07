@@ -74,10 +74,11 @@ export async function POST(
             (approval.entityType?.toLowerCase() === "lead" ? approval.entityId : null);
 
         let campaignId = payload.campaignId;
+        let mailboxId = payload.mailboxId;
 
         // This payload can originate from an LLM tool call (see AgentExecutor.ts's
-        // MCP_TOOL_EXECUTION approvals), so the emailId/leadId/campaignId embedded in it
-        // aren't guaranteed to belong to this approval's own team even though the
+        // MCP_TOOL_EXECUTION approvals), so the emailId/leadId/campaignId/mailboxId embedded
+        // in it aren't guaranteed to belong to this approval's own team even though the
         // ApprovalRequest row itself passed the teamId check above. Re-verify each entity
         // against ctx.teamId before mutating it or sending mail through it.
         if (campaignId) {
@@ -91,6 +92,10 @@ export async function POST(
         if (emailId) {
             const email = await prisma.email.findFirst({ where: { id: emailId, campaign: { teamId: ctx.teamId } }, select: { id: true } });
             if (!email) emailId = null;
+        }
+        if (mailboxId) {
+            const mailbox = await prisma.connectedMailbox.findFirst({ where: { id: mailboxId, teamId: ctx.teamId }, select: { id: true } });
+            if (!mailbox) mailboxId = null;
         }
 
         // Update Email status from draft_ready to queued so dashboard summary reflects approval immediately
@@ -127,7 +132,7 @@ export async function POST(
                     leadId,
                     campaignId,
                     teamId: ctx.teamId,
-                    mailboxId: payload.mailboxId,
+                    mailboxId,
                     subject: payload.subject,
                     body: payload.body,
                 });

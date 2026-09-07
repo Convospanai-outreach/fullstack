@@ -3009,10 +3009,22 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   the payload, nulling out any id that doesn't belong to the caller's
   team — the existing `isEmailApproval && leadId && campaignId` guard
   then naturally skips the email send once either id is nulled, and the
-  `Email`/`Lead` status updates are skipped the same way. New tests:
-  cross-tenant ids are ignored (no mutation, no `handleEmailSending`
-  call) and same-team ids still flow through normally. 388/388 apps/web
-  tests pass (2 new), `tsc --noEmit` clean.
+  `Email`/`Lead` status updates are skipped the same way. **A follow-up
+  sweep of this same fix caught one more id missed from the
+  re-verification block: `payload.mailboxId` was still forwarded
+  unchecked into `handleEmailSending`, whose own mailbox lookup
+  (`prisma.connectedMailbox.findUnique({ where: { id: mailboxId } })`)
+  had no `teamId` filter at all — letting an attacker route a live send
+  through a victim team's connected mailbox (burning its daily quota,
+  exposing its `mailbox.email` as sender/reply-to, risking its sender
+  reputation), same trigger as above.** Fixed by adding `mailboxId` to
+  the re-verification block (against `ConnectedMailbox.teamId`) and, as
+  defense-in-depth, scoping `handleEmailSending`'s own mailbox lookup to
+  `teamId` too (`findFirst({ id, teamId })` instead of an unscoped
+  `findUnique`). New tests: cross-tenant ids (including `mailboxId`) are
+  ignored (no mutation, no `handleEmailSending` call, or a nulled
+  `mailboxId` passed through) and same-team ids still flow through
+  normally. 389/389 apps/web tests pass (3 new), `tsc --noEmit` clean.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

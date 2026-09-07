@@ -8,6 +8,7 @@ const { mockGetCurrentContext, mockAuthorizePermission, mockPrisma, mockHandleEm
         email: { update: vi.fn(), findFirst: vi.fn() },
         lead: { update: vi.fn(), findFirst: vi.fn() },
         campaign: { findFirst: vi.fn() },
+        connectedMailbox: { findFirst: vi.fn() },
     },
     mockHandleEmailSending: vi.fn(),
 }));
@@ -129,5 +130,29 @@ describe("POST /api/approvals/[id] - requires RESOLVE_APPROVALS permission", () 
         expect(response.status).toBe(200);
         expect(mockPrisma.lead.update).toHaveBeenCalledWith({ where: { id: "lead-1" }, data: { status: "SENT" } });
         expect(mockHandleEmailSending).toHaveBeenCalledWith(expect.objectContaining({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-1" }));
+    });
+
+    it("OPEN-203: ignores a mailboxId in the payload that belongs to another team instead of sending through it", async () => {
+        mockAuthorizePermission.mockResolvedValue(undefined);
+        mockPrisma.approvalRequest.findUnique.mockResolvedValue({
+            id: "req-1",
+            teamId: "team-1",
+            entityType: "lead",
+            actionType: "SEND_EMAIL",
+            payload: { leadId: "lead-1", campaignId: "campaign-1", mailboxId: "victim-mailbox" },
+        });
+        mockPrisma.approvalRequest.update.mockResolvedValue({ id: "req-1", status: "APPROVED" });
+        mockPrisma.campaign.findFirst.mockResolvedValue({ id: "campaign-1" });
+        mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.lead.update.mockResolvedValue({ id: "lead-1" });
+        mockPrisma.connectedMailbox.findFirst.mockResolvedValue(null);
+        mockHandleEmailSending.mockResolvedValue({ status: "sent" });
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ action: "APPROVE" }), paramsFor("req-1"));
+
+        expect(response.status).toBe(200);
+        expect(mockPrisma.connectedMailbox.findFirst).toHaveBeenCalledWith({ where: { id: "victim-mailbox", teamId: "team-1" }, select: { id: true } });
+        expect(mockHandleEmailSending).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: null }));
     });
 });
