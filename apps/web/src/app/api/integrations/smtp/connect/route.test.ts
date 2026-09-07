@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockGetCurrentContext, mockEncryptCredential, mockVerifySmtpConfig } = vi.hoisted(() => ({
+const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockEncryptCredential, mockVerifySmtpConfig } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { upsert: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
+    mockCheckTeamPermission: vi.fn(),
     mockEncryptCredential: vi.fn(async (value: string) => `encrypted:${value}`),
     mockVerifySmtpConfig: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
+vi.mock("@/lib/permissions", () => ({
+    checkTeamPermission: mockCheckTeamPermission,
+    TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
+}));
 vi.mock("@/lib/security/credentialVault", () => ({ encryptCredential: mockEncryptCredential }));
 vi.mock("@/lib/email/smtpClient", () => ({ verifySmtpConfig: mockVerifySmtpConfig }));
 
@@ -26,6 +31,7 @@ function postRequest(body: unknown) {
 describe("POST /api/integrations/smtp/connect", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockCheckTeamPermission.mockResolvedValue(true);
         mockEncryptCredential.mockImplementation(async (value: string) => `encrypted:${value}`);
         mockVerifySmtpConfig.mockResolvedValue({ ok: true });
     });
@@ -38,6 +44,19 @@ describe("POST /api/integrations/smtp/connect", () => {
         );
 
         expect(res.status).toBe(401);
+        expect(mockPrisma.connectedMailbox.upsert).not.toHaveBeenCalled();
+    });
+
+    it("rejects a caller below ADMIN role before verifying/persisting SMTP credentials (OPEN-214)", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(false);
+
+        const res = await POST(
+            postRequest({ host: "smtp.evil.com", port: 587, user: "u", password: "p", email: "attacker@evil.com" })
+        );
+
+        expect(res.status).toBe(403);
+        expect(mockVerifySmtpConfig).not.toHaveBeenCalled();
         expect(mockPrisma.connectedMailbox.upsert).not.toHaveBeenCalled();
     });
 
