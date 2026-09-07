@@ -3155,6 +3155,35 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests pass (3 new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-208 (Fixed):** privilege escalation — a read-only `VIEWER`
+  could mass-delete a team's leads or bulk-import/overwrite them via
+  CSV, both destructive/mutating actions well above their role.
+  `apps/api/routes/leads/bulk/route.ts`'s `DELETE` and
+  `apps/api/routes/leads/import/route.ts`'s `POST` both correctly
+  scoped their mutation to `teamId` (via `getCurrentContext()`) but
+  called no role check at all — `getCurrentContext()` only confirms an
+  active `TeamMember` row for that team, it does not check role
+  (`TeamRole` is `OWNER > ADMIN > MEMBER > VIEWER`,
+  `apps/api/src/lib/permissions.ts`). Every other `leads/*` route
+  (`leads/route.ts`, `leads/[id]/route.ts`,
+  `leads/[id]/journey/route.ts` and its `suggestions` sibling,
+  `leads/export/route.ts`) already requires `await
+  authorizeRole(userId, teamId, TeamRole.MEMBER)` before touching lead
+  data — `bulk` and `import` were the two outliers missing it, same
+  "find the sibling-pattern outlier" technique that surfaced OPEN-207.
+  A team member invited as a read-only `VIEWER` — who cannot create or
+  edit a single lead through any other endpoint — could call `DELETE
+  /api/leads/bulk` with every lead id in the pipeline and permanently
+  wipe them, or `POST /api/leads/import` to bulk-inject/overwrite leads
+  via CSV, entirely server-side-unenforced. **Fixed** by adding the
+  identical `authorizeRole(userId, teamId, TeamRole.MEMBER)` guard used
+  by every sibling to both routes, right after the existing
+  unauthorized check. New tests: a caller whose role fails the
+  `MEMBER` check (e.g. a `VIEWER`) is refused (403) before any
+  count/delete/CSV-processing call in both routes. 1057/1057 apps/api
+  tests pass (2 new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
