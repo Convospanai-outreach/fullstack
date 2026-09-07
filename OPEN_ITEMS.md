@@ -3278,6 +3278,26 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted
   above).
 
+- **OPEN-212 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could trigger an outbound CRM
+  push for any lead in the team via `apps/api/routes/crm/sync/route.ts`'s
+  `POST`. The handler correctly scoped the lead lookup by `teamId` but
+  called no `checkTeamPermission`/`authorizeRole` check at all — only
+  `userId`/`teamId` truthiness. The sibling route touching the exact
+  same underlying call (`apps/api/routes/settings/crm/route.ts`, which
+  also calls `crmService.syncLead(leadId, teamId)`) requires
+  `TeamRole.ADMIN` on `GET`, `PUT`, and `POST` — `crm/sync/route.ts` was
+  the under-protected twin, found via the same "sibling-pattern
+  outlier" technique as OPEN-207 through OPEN-211. A `VIEWER` could
+  `POST /api/crm/sync` with any lead's id to force a sync using the
+  team's connected CRM credentials at will. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` right after the
+  existing unauthorized guard, mirroring the sibling route's gate
+  exactly. New tests: a caller below `ADMIN` is refused (403) before
+  `crmService.syncLead` is called; an `ADMIN` caller still succeeds.
+  1071/1071 apps/api tests pass (2 new), `tsc --noEmit` clean (same
+  pre-existing, unrelated `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

@@ -2,12 +2,19 @@ import { NextResponse } from "next/server";
 import { crmService } from "@/modules/crm-integration/service/crmService";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 
 export async function POST(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
         if (!userId || !teamId) throw new APIError("Unauthorized", 401, "UNAUTHORIZED");
+        // Matches settings/crm/route.ts's POST gate exactly - same underlying
+        // crmService.syncLead call, same ADMIN-only intent for triggering an
+        // outbound CRM push using the team's connected credentials.
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            throw new APIError("Insufficient permissions", 403, "FORBIDDEN");
+        }
 
         const body = await req.json();
         const { leadId } = body;
