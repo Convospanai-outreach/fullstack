@@ -2929,6 +2929,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   clean on both apps (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-201 (Fixed):** `POST /api/orchestrator/agents/[id]/run`
+  (`apps/api/routes/orchestrator/agents/[id]/run/route.ts`, triggered from
+  `apps/web/src/components/dashboard/AgentControl.tsx`) enqueued its
+  `agent_run` job as `{ agentId, userId }` — omitting `teamId` even though
+  it was already available from `getCurrentContext()` and used earlier in
+  the same handler for `checkLimits`/`enforcePolicy`/`audit`. The sibling
+  route `orchestrator/swarm/run/route.ts` shows the correct pattern:
+  `teamId` in both the job payload and the enqueue options. Because
+  `Agent` has no `teamId` column (any authenticated user can run any
+  agent id, cross-tenant), and `handleAgentRun`
+  (`apps/api/src/workers/handlers/agent-worker.ts`) treats a null
+  `teamId` as "run unscoped," the omission had two effects: (1) its
+  metrics queries (`prisma.campaign.count`, `lead.count`,
+  `approvalRequest.count`) fell back to an unscoped `{}` where-clause,
+  aggregating every team's campaign/lead/approval counts into the prompt
+  sent to the LLM and back into that requester's own task log/summary —
+  a cross-tenant business-metrics leak; and (2) `aiService.askAI`'s
+  `isChargeableTeamId()` returns `false` for a falsy `teamId`, so
+  `reserveCreditsForGeneration` no-ops and the LLM call bypassed
+  per-team credit billing entirely. **Fixed** by passing `teamId` in
+  both the enqueue payload and options, mirroring `swarm/run/route.ts`.
+  New test asserts `JobQueue.enqueue` is called with `teamId` in both
+  positions. 1051/1051 apps/api tests pass (1 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted
+  above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

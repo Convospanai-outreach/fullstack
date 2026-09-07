@@ -42,7 +42,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         },
     });
 
-    await JobQueue.enqueue("agent_run", { agentId: id, userId });
+    await JobQueue.enqueue(
+        "agent_run",
+        { agentId: id, userId, teamId },
+        { teamId, auditContext: { source: "orchestrator/agents/[id]/run" } }
+    );
 
     // MANDATORY AUDIT LOG
     await audit({

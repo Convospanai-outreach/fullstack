@@ -57,4 +57,16 @@ describe("POST /orchestrator/agents/[id]/run - double-run guard", () => {
         expect(res.status).toBe(409);
         expect(mockEnqueue).not.toHaveBeenCalled();
     });
+
+    it("passes teamId in both the job payload and options (OPEN-201: omitting it let the worker fall back to an unscoped cross-tenant query and skip credit billing)", async () => {
+        mockPrisma.agent.updateMany.mockResolvedValue({ count: 1 });
+
+        await POST(new Request("http://localhost") as any, paramsFor("agent-1"));
+
+        expect(mockEnqueue).toHaveBeenCalledWith(
+            "agent_run",
+            expect.objectContaining({ agentId: "agent-1", userId: "user-1", teamId: "team-1" }),
+            expect.objectContaining({ teamId: "team-1" })
+        );
+    });
 });
