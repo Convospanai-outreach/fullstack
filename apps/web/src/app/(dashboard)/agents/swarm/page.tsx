@@ -221,9 +221,8 @@ export default function AgentSwarmPage() {
                             onboarding, lead capture, email, LinkedIn, and funnel update behavior.
                         </p>
                         <p className="mt-2 max-w-3xl text-xs leading-6 text-muted-foreground">
-                            Each role runs a deterministic, rule-based check against your live workspace counts
-                            (campaigns, leads, approvals) — no LLM call is made, so identical workspace data
-                            produces identical findings regardless of role or goal text.
+                            Each role runs a live AI review grounded in your current workspace data (campaigns, leads,
+                            approvals). If the AI provider is unavailable, that role falls back to a rule-based check.
                         </p>
                     </div>
                     <div className="flex gap-3">
