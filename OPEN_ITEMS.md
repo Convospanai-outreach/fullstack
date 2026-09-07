@@ -3400,7 +3400,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   before any variant is deleted or created; a `MEMBER`-or-above caller
   still succeeds. 397/397 apps/web tests pass (2 new), `tsc --noEmit`
   clean.
-  clean.
+
+- **OPEN-217 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could rewrite a live campaign
+  sequence's steps/content and activate outreach to every lead in a
+  campaign via `apps/web/src/app/api/campaigns/[id]/sequence/route.ts`'s
+  `PUT` and `apps/web/src/app/api/campaigns/[id]/sequence/enroll/route.ts`'s
+  `POST`. Both handlers checked only `teamId` truthiness (not even
+  `userId`) and correctly scoped all reads/writes by `teamId`, but
+  called no `authorizeRole`/`checkTeamPermission` at all — an
+  intra-directory sibling outlier next to
+  `apps/web/src/app/api/campaigns/[id]/variants/route.ts` (OPEN-216),
+  `campaigns/[id]/route.ts`, and `campaigns/[id]/leads/route.ts`, all
+  of which require `TeamRole.MEMBER` for the equivalent mutating
+  action. Found via the same "sibling-pattern outlier" technique as
+  OPEN-207 through OPEN-216. A `VIEWER` — who cannot edit the campaign
+  record, its leads, or its A/B variants (all blocked at `MEMBER`) —
+  could `PUT /api/campaigns/{id}/sequence` to delete existing sequence
+  steps and replace every automated email/LinkedIn step's
+  subject/body with attacker-chosen content (e.g. phishing text
+  injected into live automated outreach) and reassign
+  `senderMailboxIds` to reroute the campaign's send identity, or
+  `POST /api/campaigns/{id}/sequence/enroll` to activate live outreach
+  to every lead in the campaign. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.MEMBER)` to both
+  handlers right after the existing unauthorized guard (also now
+  requiring `userId`), mirroring `variants/route.ts` (OPEN-216)
+  exactly. New tests: a caller below `MEMBER` is refused (403) before
+  any sequence/step/enrollment mutation on both routes; a
+  `MEMBER`-or-above caller still succeeds on both. 400/400 apps/web
+  tests pass (4 new), `tsc --noEmit` clean.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
