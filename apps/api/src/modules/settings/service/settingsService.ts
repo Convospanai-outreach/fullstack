@@ -41,9 +41,13 @@ class SettingsService {
      * Update top-level settings (API Keys, Theme, etc)
      */
     async updateSettings(userId: string, data: any) {
+        // Explicit allowlist - `data` is untrusted request-body input, and Settings.userId
+        // is a unique FK to User: passing it through unchecked would let a caller re-key
+        // their own Settings row to another user's userId, hijacking that account's settings.
+        const { name, email, theme, apiKeyOpenAI, apiKeyGemini, hubspotApiKey, crmConfig, liCookie } = data ?? {};
         return prisma.settings.update({
             where: { userId },
-            data
+            data: { name, email, theme, apiKeyOpenAI, apiKeyGemini, hubspotApiKey, crmConfig, liCookie }
         });
     }
 
@@ -60,9 +64,11 @@ class SettingsService {
             });
         }
 
+        // Explicit allowlist - see updateSettings for why `data` must not be passed through raw.
+        const { emailGlobal, emailCampaign, emailLeads, inAppGlobal } = data ?? {};
         return prisma.notificationSettings.update({
             where: { settingsId: settings.id },
-            data
+            data: { emailGlobal, emailCampaign, emailLeads, inAppGlobal }
         });
     }
 }
