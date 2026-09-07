@@ -2955,6 +2955,23 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted
   above).
 
+- **OPEN-202 (Fixed):** apps/web twin of OPEN-201, missed by that fix.
+  `apps/web/src/app/api/orchestrator/agents/[id]/run/route.ts` is a
+  separately-reachable Next.js route (not dead code — it's a live POST
+  endpoint distinct from the dashboard's own call path through
+  `AgentControl.tsx` → `/api/proxy/...` → the already-fixed apps/api
+  route) that enqueued `agent_run` as `{ agentId, userId }` with no
+  `teamId`, identical to OPEN-201's bug and identical impact: an
+  attacker could POST directly to this apps/web route, bypassing the
+  apps/api fix entirely, to trigger `handleAgentRun`'s unscoped `{}`
+  metrics fallback (cross-tenant campaign/lead/approval count leak into
+  the LLM prompt and task summary) and skip per-team credit billing
+  (`isChargeableTeamId` returns `false` for a falsy `teamId`). **Fixed**
+  by passing `teamId` in both the job payload and enqueue options,
+  mirroring the apps/api fix. New test asserts `JobQueue.enqueue` is
+  called with `teamId` in both positions. 386/386 apps/web tests pass (1
+  new), `tsc --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
