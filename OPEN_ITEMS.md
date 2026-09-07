@@ -3657,6 +3657,49 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests pass (3 new), `tsc --noEmit` clean (same pre-existing,
   unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-224 (Fixed):** cross-tenant data poisoning — a caller holding
+  the shared `SCRAPER_SECRET` HMAC could overwrite another team's
+  `ScrapingJob` record via `apps/api/routes/webhooks/scraper-ingest/
+  route.ts`'s `POST`, simply by omitting `teamId` from the request
+  body. The route's own ownership guard (added to protect against a
+  `jobId` collision, since this webhook authenticates via one
+  fleet-wide `SCRAPER_SECRET`, not a per-team key — same "right type
+  of caller, not right specific instance" shape as OPEN-223) only
+  fired when `bodyTeamId` was present *and* mismatched:
+  `if (existingJob.teamId && bodyTeamId && existingJob.teamId !==
+  bodyTeamId)`. Omitting `teamId` entirely — the unremarkable,
+  no-guessing-required case, not a spoofed value — made `bodyTeamId`
+  `undefined`, short-circuiting the guard, and the code fell straight
+  through to `upsert({ where: { id: jobId }, ... })`, scoped only by
+  `id`. The sibling route `apps/api/routes/agent/outreach/approve/
+  route.ts` shows the correct pattern for this same `ScrapingJob`/
+  outreach-draft flow: it always includes `teamId` in the mutation's
+  `where` clause, never treating the ownership check as optional
+  based on what the caller chose to send. Found via a continuation of
+  the credential-binding sweep that found OPEN-223, applied to other
+  shared-secret-authenticated webhooks. A caller with the shared
+  secret and a leaked `jobId` (UUIDs that flow through logs and are
+  returned to the owning team's frontend as `originalId`/`id` in
+  `agent/outreach/drafts/route.ts`) could `POST
+  /api/webhooks/scraper-ingest { "jobId": "<victim job id>", "url":
+  "...", ...attacker fields... }` with no `teamId` field to overwrite
+  that job's `payload`/`status`/`tokenMap` while it stayed attributed
+  to the victim team — poisoning content that
+  `GET /api/agent/outreach/drafts` surfaces directly into the victim
+  team's outreach-approval UI, so an approved draft would dispatch
+  attacker-authored message content as that team's outbound outreach.
+  **Fixed** by making the ownership check unconditional on the
+  *existing* record's `teamId` rather than on whether the caller
+  supplied one: `if (existingJob.teamId && existingJob.teamId !==
+  bodyTeamId)`, so a job already owned by a team can only be updated
+  by a request that supplies the matching `teamId`, not merely one
+  that avoids an explicit mismatch. New test: overwriting another
+  team's existing job with no `teamId` field is refused (409) before
+  `upsert` is called; existing collision/re-post/create-with-teamId
+  tests unaffected. 1084/1084 apps/api tests pass (1 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

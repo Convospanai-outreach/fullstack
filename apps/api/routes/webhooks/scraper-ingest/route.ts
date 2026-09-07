@@ -89,9 +89,12 @@ export async function POST(req: Request) {
         // jobId/teamId are caller-supplied (this webhook authenticates via one
         // shared SCRAPER_SECRET, not a per-team key) - guard against a caller
         // colliding on an existing jobId that belongs to a different team's job.
+        // This must trigger on a MISMATCHING or MISSING bodyTeamId alike: a caller
+        // who simply omits teamId (the unremarkable, no-guessing-required case)
+        // must not be able to silently overwrite another team's job content.
         const bodyTeamId: string | undefined = typeof body.teamId === "string" ? body.teamId : undefined;
         const existingJob = await targetPrisma.scrapingJob.findUnique({ where: { id: jobId }, select: { teamId: true } });
-        if (existingJob && existingJob.teamId && bodyTeamId && existingJob.teamId !== bodyTeamId) {
+        if (existingJob && existingJob.teamId && existingJob.teamId !== bodyTeamId) {
             return NextResponse.json({ error: "jobId belongs to a different team" }, { status: 409 });
         }
 
