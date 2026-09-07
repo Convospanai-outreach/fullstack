@@ -63,9 +63,20 @@ export async function POST(req: Request) {
                 await HardwareService.setComplianceMode(region);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             }
-            case "RE_IDENTIFY":
+            case "RE_IDENTIFY": {
+                // The edge vault's /v1/reidentify has no team scoping of its own - the
+                // token IS the entire authorization surface. Without this check, any
+                // team with PII-edge access could de-mask another team's PII by
+                // supplying a maskedId they obtained through any secondary channel.
+                // Mirrors leads/[id]/identity/route.ts's ownership check, but by token
+                // value since this route only receives the token, not a record id.
+                const ownsToken = await HardwareService.tokenBelongsToTeam(maskedId, ctx.teamId, prisma);
+                if (!ownsToken) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 result = await HardwareService.reIdentify(maskedId, purpose);
                 break;
+            }
             case "STATUS":
                 result = await HardwareService.getStatus();
                 break;

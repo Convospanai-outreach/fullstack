@@ -14,6 +14,7 @@ const { mockGetCurrentContext, mockRequireEdgePiiAvailable, mockHardwareService,
         getWorkflows: vi.fn(),
         setComplianceMode: vi.fn(),
         reIdentify: vi.fn(),
+        tokenBelongsToTeam: vi.fn(),
         getStatus: vi.fn(),
         getActivity: vi.fn(),
     },
@@ -127,6 +128,31 @@ describe("/hardware", () => {
 
             expect(response.status).toBe(200);
             expect(mockHardwareService.saveWorkflow).toHaveBeenCalledWith({ id: "wf-1", teamId: "team-1" });
+        });
+    });
+
+    describe("POST - RE_IDENTIFY requires token ownership (OPEN-221)", () => {
+        it("rejects re-identifying a maskedId that does not belong to the caller's team", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockHardwareService.tokenBelongsToTeam.mockResolvedValue(false);
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "RE_IDENTIFY", maskedId: "[EMAIL_other]", purpose: "support" }));
+
+            expect(response.status).toBe(403);
+            expect(mockHardwareService.reIdentify).not.toHaveBeenCalled();
+        });
+
+        it("re-identifies a maskedId that belongs to the caller's own team", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockHardwareService.tokenBelongsToTeam.mockResolvedValue(true);
+            mockHardwareService.reIdentify.mockResolvedValue({ original: "real@example.com" });
+            const { POST } = await import("./route");
+
+            const response = await POST(postRequest({ action: "RE_IDENTIFY", maskedId: "[EMAIL_mine]", purpose: "support" }));
+
+            expect(response.status).toBe(200);
+            expect(mockHardwareService.reIdentify).toHaveBeenCalledWith("[EMAIL_mine]", "support");
         });
     });
 
