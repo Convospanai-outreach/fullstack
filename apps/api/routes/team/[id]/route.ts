@@ -28,7 +28,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
             throw new APIError("Only owners can remove admin or owner members", 403, "FORBIDDEN");
         }
 
-        await teamService.removeMember(teamId, id);
+        await teamService.removeMember(teamId, id, userId);
 
         return NextResponse.json({ success: true });
     } catch (error: any) {

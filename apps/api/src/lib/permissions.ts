@@ -22,6 +22,10 @@ export async function getTeamRole(userId: string, teamId: string): Promise<TeamR
     return (member?.role as TeamRole) || null;
 }
 
+export function getRoleRank(role: TeamRole): number {
+    return ROLE_HIERARCHY[role] || 0;
+}
+
 export async function checkTeamPermission(userId: string, teamId: string, requiredRole: TeamRole): Promise<boolean> {
     const role = await getTeamRole(userId, teamId);
     if (!role) return false;

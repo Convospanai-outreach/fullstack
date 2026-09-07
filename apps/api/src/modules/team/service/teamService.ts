@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { TeamRole } from "@/lib/permissions";
+import { TeamRole, getTeamRole, getRoleRank } from "@/lib/permissions";
 
 class TeamService {
 
@@ -35,13 +35,22 @@ class TeamService {
         });
     }
 
-    async removeMember(teamId: string, memberId: string) {
-        // Prevent removing the last owner? 
+    async removeMember(teamId: string, memberId: string, actingUserId: string) {
+        // Prevent removing the last owner?
         // Logic: fetch member, check role. If owner, check if other owners exist.
         // For now, allow simple removal for non-owners, strict for owners.
 
         const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
         if (!member) throw new Error("Member not found");
+
+        // Caller must outrank the target - otherwise an ADMIN could remove a
+        // fellow ADMIN or (given 2+ owners) an OWNER, despite holding no
+        // higher privilege than the target. Owners may still act on owners,
+        // guarded by the last-owner check below.
+        const callerRole = await getTeamRole(actingUserId, teamId);
+        if (callerRole !== TeamRole.OWNER && getRoleRank(callerRole || TeamRole.VIEWER) <= getRoleRank(member.role as TeamRole)) {
+            throw new Error("Insufficient permissions: cannot remove a member with an equal or higher role");
+        }
 
         if (member.role === TeamRole.OWNER) {
             const ownerCount = await prisma.teamMember.count({
@@ -64,9 +73,17 @@ class TeamService {
         return member;
     }
 
-    async updateRole(teamId: string, memberId: string, newRole: TeamRole) {
+    async updateRole(teamId: string, memberId: string, newRole: TeamRole, actingUserId: string) {
         const member = await prisma.teamMember.findFirst({ where: { id: memberId, teamId } });
         if (!member) throw new Error("Member not found");
+
+        // Caller must outrank the target's current role - otherwise an ADMIN
+        // could demote a fellow ADMIN or (given 2+ owners) an OWNER. Owners
+        // may still act on owners, guarded by the last-owner check below.
+        const callerRole = await getTeamRole(actingUserId, teamId);
+        if (callerRole !== TeamRole.OWNER && getRoleRank(callerRole || TeamRole.VIEWER) <= getRoleRank(member.role as TeamRole)) {
+            throw new Error("Insufficient permissions: cannot change the role of a member with an equal or higher role");
+        }
 
         if (member.role === TeamRole.OWNER && newRole !== TeamRole.OWNER) {
             const ownerCount = await prisma.teamMember.count({

@@ -36,7 +36,7 @@ export async function PATCH(
             return NextResponse.json({ success: false, error: "Only owners can promote to Admin/Owner" }, { status: 403 });
         }
 
-        const member = await teamService.updateRole(ctx.teamId, memberId, role as TeamRole);
+        const member = await teamService.updateRole(ctx.teamId, memberId, role as TeamRole, ctx.userId);
 
         // Audit
         await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_ROLE_UPDATED", "TeamMember", memberId, { newRole: role });
@@ -49,6 +49,9 @@ export async function PATCH(
         }
         if (error.message?.includes("last owner")) {
             return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
+        if (error.message?.includes("Insufficient permissions")) {
+            return NextResponse.json({ success: false, error: error.message }, { status: 403 });
         }
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
@@ -70,7 +73,7 @@ export async function DELETE(
     }
 
     try {
-        await teamService.removeMember(ctx.teamId, memberId);
+        await teamService.removeMember(ctx.teamId, memberId, ctx.userId);
 
         // Audit
         await AuditService.log(ctx.teamId, ctx.userId, "MEMBER_REMOVED", "TeamMember", memberId);
@@ -83,6 +86,9 @@ export async function DELETE(
         }
         if (error.message?.includes("last owner")) {
             return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+        }
+        if (error.message?.includes("Insufficient permissions")) {
+            return NextResponse.json({ success: false, error: error.message }, { status: 403 });
         }
         return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
