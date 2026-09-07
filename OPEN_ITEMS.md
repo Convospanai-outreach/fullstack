@@ -3350,6 +3350,30 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   unaffected. 395/395 apps/web tests pass (1 new), `tsc --noEmit`
   clean.
 
+- **OPEN-215 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could hijack the team's
+  outbound Resend email pipeline and forge inbound webhook events via
+  `apps/web/src/app/api/integrations/resend/connect/route.ts`'s `POST`.
+  The handler checked only `userId`/`teamId` truthiness before
+  verifying an attacker-supplied Resend `apiKey` and upserting the
+  team's `ConnectedMailbox` record — the exact twin of `smtp/connect`
+  (OPEN-214), writing to the same model for the same purpose, missed
+  when that fix was applied. Found via the same "sibling-pattern
+  outlier" technique as OPEN-207 through OPEN-214. A `VIEWER` could
+  `POST /api/integrations/resend/connect` with their own Resend API
+  key to reroute all outbound campaign email through an
+  attacker-controlled Resend account, and could also overwrite the
+  `encryptedRefreshToken` used as the inbound webhook-signing secret by
+  `apps/web/src/app/api/webhooks/resend/route.ts`, forging
+  `email.opened`/`clicked`/`received` events that drive real lead-stage
+  transitions. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` right after the
+  existing unauthorized guard, mirroring `smtp/connect` exactly. New
+  test: a caller below `ADMIN` is refused (403) before API-key
+  verification or persistence; existing unauth/team-scoping tests
+  unaffected. 395/395 apps/web tests pass (1 new), `tsc --noEmit`
+  clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
