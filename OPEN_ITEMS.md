@@ -3782,6 +3782,56 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apps/api tests pass (5 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-227 (Fixed):** cross-tenant IDOR (defense-in-depth gap) —
+  `apps/api/src/modules/icp-builder/service/icpService.ts`'s
+  `update()` and `delete()` looked up the target `ICP` scoped by
+  `teamId` via `getById()` as a pre-check, but then performed the
+  actual mutation with `prisma.iCP.update({ where: { id } })` /
+  `prisma.iCP.delete({ where: { id } })` — scoped only by `id`, not
+  `teamId`. This is the exact "scope the read pre-check but not the
+  write itself" anti-pattern already fixed roughly a dozen times in
+  this codebase (OPEN-99/109/110/118/120/121/122/123/127/128/150/
+  166): the mutation's own safety must not depend solely on a
+  separate pre-check holding true. `ICP` didn't even have a `teamId`
+  column until **OPEN-49** added it (cross-tenant IDOR fix,
+  2026-08-20) — that fix wired `teamId` into the pre-check
+  (`getById`) but never threaded it into the `update`/`delete`
+  `where` clauses themselves, reintroducing the narrower
+  defense-in-depth version of the very bug class it was closing. Not
+  independently exploitable today (both routes,
+  `apps/api/src/modules/icp-builder/api/[id]/update.ts`'s `PUT` and
+  `delete.ts`'s `DELETE`, correctly derive `teamId` from the
+  authenticated session and the `getById` pre-check still blocks a
+  foreign-team `id`), but one refactor away from a real hole — e.g.
+  a caching layer added to `getById`, a field-selection change that
+  drops the `teamId` filter, or a future rewrite of the pre-check
+  that doesn't re-verify ownership. The correct pattern is already
+  established elsewhere in this exact codebase, e.g.
+  `teamService.ts`'s `removeMember`/`updateRole` (OPEN-225's fix,
+  just above) and `apps/api/src/services/LeadService.ts`: scope the
+  mutation itself via `updateMany`/`deleteMany` with `{ id, teamId }`
+  in the `where` clause, not just the pre-check. Found via a
+  continuation of the check-then-act sweep that found OPEN-99
+  through OPEN-166, applied to a module (`icp-builder`) not
+  previously covered. **Fixed** by replacing `prisma.iCP.update`/
+  `prisma.iCP.delete` (which can't take a compound `{ id, teamId }`
+  `where` without a unique constraint on that pair) with
+  `updateMany`/`deleteMany` scoped by `{ id, teamId }`, checking
+  `result.count === 0` to detect a no-op cross-tenant attempt and
+  re-reading the row via `getById` for `update`'s return value
+  (`updateMany` doesn't return the updated row). The byte-identical
+  duplicate at `apps/web/src/modules/icp-builder/service/
+  icpService.ts` is confirmed dead code (no route exists under
+  `apps/web/src/app/api/icp*`) and was left as-is, consistent with
+  the same call made for `apps/web`'s dead-code `settingsService.ts`
+  under OPEN-220. New test file (none existed): `update`/`delete`
+  scope the underlying `updateMany`/`deleteMany` call by `{ id,
+  teamId }`; a cross-tenant `id` (simulated via `count: 0`) returns
+  `null`/`false` without ever calling `getById`/`findFirst`
+  redundantly. 1100/1100 apps/api tests pass (4 new), `tsc --noEmit`
+  clean (same pre-existing, unrelated `browser-engine.ts` failure
+  noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
