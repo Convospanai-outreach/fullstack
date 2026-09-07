@@ -18,6 +18,16 @@ export async function GET(req: NextRequest) {
     }
 
     try {
+        // Jobs are matched by payload->campaignId (see below) rather than
+        // Job.teamId, which enqueuers don't reliably set - so verify the
+        // campaign itself belongs to the caller's team first. Without this, a
+        // guessed/enumerated campaignId from another team would leak that
+        // team's job timeline, including error messages and results.
+        const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, teamId } });
+        if (!campaign) {
+            return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
+        }
+
         const jobs = await prisma.job.findMany({
             where: {
                 payload: {
