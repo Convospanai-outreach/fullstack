@@ -3325,6 +3325,31 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   1075/1075 apps/api tests pass (4 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
+- **OPEN-214 (Fixed):** privilege escalation — any team member,
+  including the lowest role (`VIEWER`), could hijack or silently
+  overwrite the team's outbound-sending mailbox identity via
+  `apps/web/src/app/api/integrations/smtp/connect/route.ts`'s `POST`.
+  The handler checked only `userId`/`teamId` truthiness before
+  verifying attacker-supplied SMTP credentials and upserting the
+  team's `ConnectedMailbox` record. Every other credential-bearing
+  integration-connect route requires `TeamRole.ADMIN` — the in-app
+  sibling `apps/web/src/app/api/integrations/google/oauth/start/route.ts`
+  (same "connect a mailbox integration" action) and the cross-app twin
+  `apps/api/routes/smtp/config/route.ts` both gate on ADMIN, and
+  `apps/api/routes/mailboxes/route.ts` (OPEN-211) states the rule
+  explicitly in-code. Found via the same "sibling-pattern outlier"
+  technique as OPEN-207 through OPEN-213. A `VIEWER` could `POST
+  /api/integrations/smtp/connect` with an attacker-controlled SMTP
+  relay's credentials to hijack the team's outbound campaign/sequence
+  sending identity, or overwrite a legitimate admin-configured
+  mailbox's stored credentials. **Fixed** by adding
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)` right after the
+  existing unauthorized guard, mirroring the sibling routes exactly.
+  New tests: a caller below `ADMIN` is refused (403) before SMTP
+  verification or persistence; existing unauth/team-scoping tests
+  unaffected. 395/395 apps/web tests pass (1 new), `tsc --noEmit`
+  clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
