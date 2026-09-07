@@ -1,5 +1,5 @@
 import { redirect as nextRedirect } from "next/navigation";
-import { canAccessCMS, requireAuth } from "@/lib/auth";
+import { isSuperAdminRole, requireAuth } from "@/lib/auth";
 import Link from "next/link";
 import { FileText, Plus, ArrowLeft, RefreshCw, Edit3, Globe } from "lucide-react";
 import GlassCard from "@/components/GlassCard";
@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export default async function CMSDashboard() {
     const user = await requireAuth();
-    if (!canAccessCMS(user.enterpriseRole)) {
+    // Platform-wide content dir, not per-tenant data - same OPEN-205 fix as the API route.
+    if (!isSuperAdminRole(user.enterpriseRole)) {
         nextRedirect("/");
     }
 

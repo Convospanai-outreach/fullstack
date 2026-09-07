@@ -3060,6 +3060,48 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   scoped by `teamId`, not just the pre-check. 393/393 apps/web tests
   pass (5 new/updated), `tsc --noEmit` clean.
 
+- **OPEN-205 (Fixed):** self-service `ORG_ADMIN`/`CMS_EDITOR` got
+  platform-wide file-write + `git push` via
+  `apps/web/src/app/api/admin/cms/route.ts` (and its UI at
+  `apps/web/src/app/(dashboard)/admin/cms/page.tsx`). All three handlers
+  (`GET`/`POST`/`PUT`) gated solely on `canAccessCMS()` — `canManageUsers()
+  || role === CMS_EDITOR`, i.e. true for `SUPER_ADMIN`/`SYSTEM_ADMIN`,
+  `ORG_ADMIN`, or `CMS_EDITOR`. The route has no `teamId` anywhere: it
+  reads/lists/writes markdown files in a single shared, platform-wide
+  `content/` directory, and `PUT` runs `git add`/`git commit`/`git push
+  origin HEAD` against the server's own repo checkout. `ORG_ADMIN` and
+  `CMS_EDITOR` are both in `WORKSPACE_ASSIGNABLE_ROLES`
+  (`apps/web/src/lib/invitations.ts`) — a normal, self-service,
+  per-workspace role any team owner can grant a teammate via a plain
+  invite, exactly the "self-service role treated as a platform-level
+  privilege" anti-pattern already fixed under **OPEN-124/153/174**
+  (`enterpriseRole` is a single global field on `User`, not
+  per-team/per-tenant). Concretely: any customer signs up, becomes owner
+  of their own throwaway team, invites a teammate (or themself) as
+  `ORG_ADMIN` or `CMS_EDITOR` with zero platform-level review, then calls
+  `POST /api/admin/cms` to deface arbitrary shared site content or
+  `PUT /api/admin/cms` to force a `git push` to the app's own source
+  repo — worse than a typical cross-tenant IDOR since it's a
+  platform-wide compromise, not just another tenant's data.
+  `CMS_EDITOR`'s only use anywhere in the codebase is this one feature
+  (confirmed via repo-wide grep), so it functioned as a de facto
+  platform-operator role that happened to be self-service-grantable.
+  **Fixed** by gating all three route handlers, and the CMS dashboard
+  page's server-side `listContentFiles()` call, on `isSuperAdminRole()`
+  instead of `canAccessCMS()`/`canManageUsers()` — the same "gate
+  platform-wide-only actions on a genuine platform operator role, not a
+  self-service one" fix already applied under OPEN-153. The CMS
+  edit page (`admin/cms/edit/page.tsx`) needed no change: it's a client
+  component that only ever talks to the now-fixed API route, with no
+  server-side file access of its own. `proxy.ts`'s middleware-level
+  `CMS_EDITOR` navigation redirect was deliberately left alone — it only
+  affects which pages a role can navigate to, not data access, and both
+  actual data-exposing surfaces (the API route and the dashboard page)
+  are now fixed. New test: a self-service `ORG_ADMIN` and a
+  self-service `CMS_EDITOR` are both refused by the route (previously
+  both were accepted). 394/394 apps/web tests pass (1 new), `tsc
+  --noEmit` clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
