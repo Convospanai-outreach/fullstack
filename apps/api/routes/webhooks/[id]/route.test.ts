@@ -45,6 +45,19 @@ describe("DELETE /webhooks/[id] - requires ADMIN role", () => {
         const response = await DELETE(new Request("http://localhost") as any, paramsFor("webhook-1"));
 
         expect(response.status).toBe(200);
-        expect(mockPrisma.webhook.delete).toHaveBeenCalledWith({ where: { id: "webhook-1" } });
+        expect(mockPrisma.webhook.delete).toHaveBeenCalledWith({ where: { id: "webhook-1", teamId: "team-1" } });
+    });
+
+    it("scopes the actual delete by teamId too, not just id (OPEN-232)", async () => {
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.webhook.findUnique.mockResolvedValue({ id: "webhook-1", teamId: "team-1" });
+        mockPrisma.webhook.delete.mockResolvedValue({ id: "webhook-1" });
+        const { DELETE } = await import("./route");
+
+        await DELETE(new Request("http://localhost") as any, paramsFor("webhook-1"));
+
+        expect(mockPrisma.webhook.delete).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ teamId: "team-1" }) })
+        );
     });
 });

@@ -25,8 +25,12 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
             throw new APIError("Webhook not found", 404, "NOT_FOUND");
         }
 
+        // Scoped by teamId here too, not just via the pre-check above - the
+        // mutation's own safety must not depend solely on a separate
+        // pre-check holding true (see OPEN-99/109/110/118/120/121/122/123/
+        // 127/128/150/166/227 for the same anti-pattern).
         await prisma.webhook.delete({
-            where: { id }
+            where: { id, teamId }
         });
 
         return successResponse({ success: true });
