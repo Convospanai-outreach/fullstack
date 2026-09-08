@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { setTeamWaba, clearTeamWaba, verifyWabaCredentials } from "@/modules/whatsapp/wabaCredentials";
 
 // Setup-time WABA (WhatsApp Business API) ownership for a team. Configuring
@@ -11,6 +12,12 @@ export async function GET(req: NextRequest) {
     const { userId, teamId } = await getCurrentContextFromRequest(req);
     if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Credential-bearing integration settings are ADMIN-only across this
+    // codebase (see smtp/config/route.ts) - without this, any team member
+    // could read or, worse, overwrite the team's WhatsApp sending credentials.
+    if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
     const team = await prisma.team.findUnique({
@@ -29,6 +36,9 @@ export async function POST(req: NextRequest) {
     const { userId, teamId } = await getCurrentContextFromRequest(req);
     if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
     let body: any;

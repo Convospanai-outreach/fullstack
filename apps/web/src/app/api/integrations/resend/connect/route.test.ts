@@ -1,16 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockGetCurrentContext, mockEncryptCredential, mockResendApiKeysList } = vi.hoisted(() => ({
+const { mockPrisma, mockGetCurrentContext, mockCheckTeamPermission, mockEncryptCredential, mockResendApiKeysList } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { upsert: vi.fn() },
     },
     mockGetCurrentContext: vi.fn(),
+    mockCheckTeamPermission: vi.fn(),
     mockEncryptCredential: vi.fn(async (value: string) => `encrypted:${value}`),
     mockResendApiKeysList: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
+vi.mock("@/lib/permissions", () => ({
+    checkTeamPermission: mockCheckTeamPermission,
+    TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
+}));
 vi.mock("@/lib/security/credentialVault", () => ({ encryptCredential: mockEncryptCredential }));
 vi.mock("resend", () => ({
     Resend: function Resend() {
@@ -30,6 +35,7 @@ function postRequest(body: unknown) {
 describe("POST /api/integrations/resend/connect", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockCheckTeamPermission.mockResolvedValue(true);
         mockEncryptCredential.mockImplementation(async (value: string) => `encrypted:${value}`);
         mockResendApiKeysList.mockResolvedValue({ error: null });
     });
@@ -40,6 +46,17 @@ describe("POST /api/integrations/resend/connect", () => {
         const res = await POST(postRequest({ apiKey: "re_attacker_key", email: "attacker@evil.com" }));
 
         expect(res.status).toBe(401);
+        expect(mockPrisma.connectedMailbox.upsert).not.toHaveBeenCalled();
+    });
+
+    it("rejects a caller below ADMIN role before verifying/persisting Resend credentials (OPEN-215)", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(false);
+
+        const res = await POST(postRequest({ apiKey: "re_attacker_key", email: "attacker@evil.com" }));
+
+        expect(res.status).toBe(403);
+        expect(mockResendApiKeysList).not.toHaveBeenCalled();
         expect(mockPrisma.connectedMailbox.upsert).not.toHaveBeenCalled();
     });
 

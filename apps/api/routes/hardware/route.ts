@@ -2,6 +2,8 @@ import { HardwareService } from "@/services/HardwareService";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { EdgeRuntimeError, requireEdgePiiAvailable } from "@/lib/edgeRuntime";
+import { getAdminUser } from "@/lib/admin";
+import { UserRole } from "@prisma/client";
 
 const PII_EDGE_ACTIONS = new Set(["SANITIZE", "RE_IDENTIFY", "CRITIQUE", "SEARCH", "EXECUTE"]);
 
@@ -37,9 +39,18 @@ export async function POST(req: Request) {
             case "SEARCH":
                 result = { results: await HardwareService.search(query) };
                 break;
-            case "EXECUTE":
+            case "EXECUTE": {
+                // Drives the single, platform-wide shared physical edge device used by
+                // every tenant - same hazard as SET_COMPLIANCE, no per-team scope exists
+                // to check, so it must be restricted to a genuine platform operator
+                // instead of any logged-in user.
+                const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+                if (!admin) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 result = { success: await HardwareService.execute(payload?.actuator || "generic", payload || {}) };
                 break;
+            }
             case "SAVE_WORKFLOW":
                 // The edge node stores workflows keyed by the caller-supplied teamId on
                 // the workflow body, not by session - without this check any team could
@@ -49,12 +60,32 @@ export async function POST(req: Request) {
                 }
                 await HardwareService.saveWorkflow(workflow);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-            case "SET_COMPLIANCE":
+            case "SET_COMPLIANCE": {
+                // This flips the compliance mode on the single, platform-wide shared edge
+                // node used by every tenant, not just the caller's own team - unlike every
+                // other action here, there is no per-team scope to check, so it must be
+                // restricted to a genuine platform operator instead of any logged-in user.
+                const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+                if (!admin) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 await HardwareService.setComplianceMode(region);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-            case "RE_IDENTIFY":
+            }
+            case "RE_IDENTIFY": {
+                // The edge vault's /v1/reidentify has no team scoping of its own - the
+                // token IS the entire authorization surface. Without this check, any
+                // team with PII-edge access could de-mask another team's PII by
+                // supplying a maskedId they obtained through any secondary channel.
+                // Mirrors leads/[id]/identity/route.ts's ownership check, but by token
+                // value since this route only receives the token, not a record id.
+                const ownsToken = await HardwareService.tokenBelongsToTeam(maskedId, ctx.teamId, prisma);
+                if (!ownsToken) {
+                    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+                }
                 result = await HardwareService.reIdentify(maskedId, purpose);
                 break;
+            }
             case "STATUS":
                 result = await HardwareService.getStatus();
                 break;

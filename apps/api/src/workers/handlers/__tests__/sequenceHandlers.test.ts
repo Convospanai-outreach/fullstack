@@ -8,7 +8,7 @@ vi.mock("@/lib/db", () => ({
     prisma: {
         lead: {
             findUnique: vi.fn(),
-            update: vi.fn().mockResolvedValue({}),
+            updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
     },
 }));
@@ -67,6 +67,22 @@ describe("handleSequenceAction VISIT", () => {
 
         expect(runLinkedInAction).not.toHaveBeenCalled();
     });
+
+    it("rejects a VISIT for a campaign-less lead belonging to another team (OPEN-231)", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce({
+            teamId: "other-team",
+            campaign: null,
+        } as any);
+
+        await expect(handleSequenceAction({
+            leadId: "lead-foreign-no-campaign",
+            url: "https://linkedin.com/in/foreign",
+            action: "VISIT",
+            teamId: "team-1",
+        })).rejects.toThrow(/does not belong to team/);
+
+        expect(runLinkedInAction).not.toHaveBeenCalled();
+    });
 });
 
 describe("handleSequenceAction CONNECT", () => {
@@ -85,6 +101,25 @@ describe("handleSequenceAction CONNECT", () => {
 
         expect(aiService.generateConnectionMessage).not.toHaveBeenCalled();
         expect(runLinkedInAction).not.toHaveBeenCalled();
+    });
+
+    it("rejects a CONNECT for a campaign-less lead belonging to another team (OPEN-231)", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce({
+            enrichedData: null,
+            teamId: "other-team",
+            campaign: null,
+        } as any);
+
+        await expect(handleSequenceAction({
+            leadId: "lead-foreign-no-campaign",
+            url: "https://linkedin.com/in/foreign",
+            action: "CONNECT",
+            teamId: "team-1",
+        })).rejects.toThrow(/does not belong to team/);
+
+        expect(aiService.generateConnectionMessage).not.toHaveBeenCalled();
+        expect(runLinkedInAction).not.toHaveBeenCalled();
+        expect(prisma.lead.updateMany).not.toHaveBeenCalled();
     });
 });
 
@@ -128,5 +163,9 @@ describe("handleSequenceAction EMAIL", () => {
             expect.objectContaining({ teamId: "team-1", campaignId: "campaign-1", leadId: "lead-own" })
         );
         expect(result).toEqual({ ok: true });
+        expect(prisma.lead.updateMany).toHaveBeenCalledWith({
+            where: { id: "lead-own", teamId: "team-1" },
+            data: { status: "EMAIL" },
+        });
     });
 });

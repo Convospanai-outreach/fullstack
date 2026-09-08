@@ -37,7 +37,7 @@ export async function approveTask(requestId: string, _approverId: string, revise
     if (!request) throw new Error("Request not found");
 
     console.log("[Action] Approving Request:", requestId, revisedPayload ? "(with edits)" : "");
-    await ApprovalService.approve(requestId, userId, revisedPayload);
+    await ApprovalService.approve(requestId, userId, teamId, revisedPayload);
     revalidatePath("/dashboard");
     return { success: true };
 }
@@ -51,7 +51,7 @@ export async function rejectTask(requestId: string, _approverId: string) {
     if (!request) throw new Error("Request not found");
 
     console.log("[Action] Rejecting Request:", requestId);
-    await ApprovalService.reject(requestId, userId);
+    await ApprovalService.reject(requestId, userId, teamId);
     revalidatePath("/dashboard");
     return { success: true };
 }

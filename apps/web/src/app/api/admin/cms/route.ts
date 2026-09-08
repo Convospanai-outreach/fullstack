@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, canAccessCMS } from "@/lib/auth";
+import { authOptions, isSuperAdminRole } from "@/lib/auth";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { execFileSync } from "child_process";
 import fs from "fs";
@@ -27,7 +27,13 @@ function getSafePath(file: string): string {
 
 export async function GET(req: NextRequest) {
     const enterpriseRole = await getActorEnterpriseRole();
-    if (!canAccessCMS(enterpriseRole)) {
+    // This route touches a single platform-wide content directory and pushes to the
+    // app's own git repo, not per-tenant data. ORG_ADMIN/CMS_EDITOR (canAccessCMS) are
+    // self-service-assignable per-workspace roles (WORKSPACE_ASSIGNABLE_ROLES), so any
+    // customer who invites a teammate as ORG_ADMIN or CMS_EDITOR of their own workspace
+    // could otherwise deface shared content or force a git push - the same self-service
+    // role anti-pattern already fixed under OPEN-124/153/174.
+    if (!isSuperAdminRole(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -60,7 +66,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     const enterpriseRole = await getActorEnterpriseRole();
-    if (!canAccessCMS(enterpriseRole)) {
+    // This route touches a single platform-wide content directory and pushes to the
+    // app's own git repo, not per-tenant data. ORG_ADMIN/CMS_EDITOR (canAccessCMS) are
+    // self-service-assignable per-workspace roles (WORKSPACE_ASSIGNABLE_ROLES), so any
+    // customer who invites a teammate as ORG_ADMIN or CMS_EDITOR of their own workspace
+    // could otherwise deface shared content or force a git push - the same self-service
+    // role anti-pattern already fixed under OPEN-124/153/174.
+    if (!isSuperAdminRole(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -83,7 +95,13 @@ export async function POST(req: NextRequest) {
 // Git Commit & Sync
 export async function PUT(req: NextRequest) {
     const enterpriseRole = await getActorEnterpriseRole();
-    if (!canAccessCMS(enterpriseRole)) {
+    // This route touches a single platform-wide content directory and pushes to the
+    // app's own git repo, not per-tenant data. ORG_ADMIN/CMS_EDITOR (canAccessCMS) are
+    // self-service-assignable per-workspace roles (WORKSPACE_ASSIGNABLE_ROLES), so any
+    // customer who invites a teammate as ORG_ADMIN or CMS_EDITOR of their own workspace
+    // could otherwise deface shared content or force a git push - the same self-service
+    // role anti-pattern already fixed under OPEN-124/153/174.
+    if (!isSuperAdminRole(enterpriseRole)) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

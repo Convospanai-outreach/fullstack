@@ -9,8 +9,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentContextFromRequest } from '@/lib/auth';
-import { prisma } from '@/lib/db';
+import { getAdminUser } from '@/lib/admin';
+import { UserRole } from '@prisma/client';
 import {
   getRateLimitStats,
   getRateLimitStatus,
@@ -18,30 +18,22 @@ import {
   clearAllRateLimits
 } from '@/lib/rateLimit';
 
-async function getRateLimitAdminRole(req: NextRequest): Promise<string | null | undefined> {
-  const { userId } = await getCurrentContextFromRequest(req);
-  if (!userId) return undefined;
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { enterpriseRole: true } });
-  return user?.enterpriseRole ?? null;
-}
-
 /**
  * GET /api/admin/rate-limits
  * Get overall rate limit statistics
  */
 export async function GET(req: NextRequest) {
   try {
-    const userRole = await getRateLimitAdminRole(req);
-
-    if (userRole === undefined) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user has admin role
-    if (userRole !== 'SYSTEM_ADMIN' && userRole !== 'ORG_ADMIN') {
+    // Rate-limit state is a single process-wide, platform-shared cache with
+    // no teamId scoping - ORG_ADMIN is a normal, self-service-assignable
+    // per-workspace role (any team owner can invite a teammate as ORG_ADMIN),
+    // not a platform-level privilege (see OPEN-124/153/174/205). Only a
+    // genuine platform operator (SYSTEM_ADMIN/SUPER_ADMIN) may touch this.
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+    if (!admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    
+
     const stats = getRateLimitStats();
     
     return NextResponse.json({
@@ -63,17 +55,11 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const userRole = await getRateLimitAdminRole(req);
-
-    if (userRole === undefined) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Check if user has admin role
-    if (userRole !== 'SYSTEM_ADMIN' && userRole !== 'ORG_ADMIN') {
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
+    if (!admin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
-    
+
     const body = await req.json();
     const { action, identifier, endpoint } = body;
     

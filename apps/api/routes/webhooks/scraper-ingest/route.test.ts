@@ -99,4 +99,13 @@ describe("POST /webhooks/scraper-ingest", () => {
         expect(res.status).toBe(200);
         expect(mockScrapingJob.upsert).toHaveBeenCalled();
     });
+
+    it("rejects overwriting another team's existing job when the caller simply omits teamId (OPEN-224)", async () => {
+        mockScrapingJob.findUnique.mockResolvedValue({ teamId: "team-a" });
+
+        const res = await POST(signedRequest({ jobId: "job-1", url: "https://example.com" }));
+
+        expect(res.status).toBe(409);
+        expect(mockScrapingJob.upsert).not.toHaveBeenCalled();
+    });
 });

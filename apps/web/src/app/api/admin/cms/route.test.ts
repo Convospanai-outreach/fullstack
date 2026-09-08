@@ -9,7 +9,7 @@ const { mockFindOrCreateClerkAppUser, mockExecFileSync } = vi.hoisted(() => ({
 vi.mock("next-auth", () => ({ getServerSession: vi.fn().mockResolvedValue(null) }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
-    canAccessCMS: (role: unknown) => role === "ORG_ADMIN" || role === "SUPER_ADMIN" || role === "CMS_EDITOR",
+    isSuperAdminRole: (role: unknown) => role === "SUPER_ADMIN" || role === "SYSTEM_ADMIN",
 }));
 vi.mock("@/lib/clerkAuth", () => ({ findOrCreateClerkAppUser: mockFindOrCreateClerkAppUser }));
 vi.mock("child_process", () => ({ execFileSync: mockExecFileSync }));
@@ -24,7 +24,7 @@ function putRequest(body: unknown) {
 describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
+        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "SUPER_ADMIN" });
     });
 
     it("passes git arguments as an argv array, never a shell command string built by interpolation", async () => {
@@ -61,6 +61,20 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
         const response = await PUT(putRequest({ file: "safe.md" }));
 
         expect(response.status).toBe(401);
+        expect(mockExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it("OPEN-205: rejects a self-service ORG_ADMIN/CMS_EDITOR - this route touches a platform-wide content dir and pushes to the app's own repo, not per-tenant data", async () => {
+        const { PUT } = await import("./route");
+
+        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
+        const orgAdminResponse = await PUT(putRequest({ file: "safe.md" }));
+        expect(orgAdminResponse.status).toBe(401);
+
+        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "CMS_EDITOR" });
+        const cmsEditorResponse = await PUT(putRequest({ file: "safe.md" }));
+        expect(cmsEditorResponse.status).toBe(401);
+
         expect(mockExecFileSync).not.toHaveBeenCalled();
     });
 });

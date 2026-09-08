@@ -302,6 +302,24 @@ export class HardwareService {
         }
     }
 
+    static async tokenBelongsToTeam(
+        maskedId: string,
+        teamId: string,
+        prismaClient: {
+            lead: { findFirst(args: { where: { teamId: string; OR: Array<{ email?: string; phone?: string }> }; select: { id: true } }): Promise<{ id: string } | null> };
+            scrapingJob: { findMany(args: { where: { teamId: string }; select: { tokenMap: true } }): Promise<Array<{ tokenMap: unknown }>> };
+        },
+    ): Promise<boolean> {
+        const lead = await prismaClient.lead.findFirst({
+            where: { teamId, OR: [{ email: maskedId }, { phone: maskedId }] },
+            select: { id: true },
+        });
+        if (lead) return true;
+
+        const jobs = await prismaClient.scrapingJob.findMany({ where: { teamId }, select: { tokenMap: true } });
+        return jobs.some((job) => job.tokenMap && typeof job.tokenMap === "object" && Object.prototype.hasOwnProperty.call(job.tokenMap, maskedId));
+    }
+
     static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
         try {
             logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);

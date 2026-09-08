@@ -43,7 +43,11 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
 
     try {
         const { JobQueue } = await import("@/lib/queue");
-        await JobQueue.enqueue("agent_run", { agentId: id, userId });
+        await JobQueue.enqueue(
+            "agent_run",
+            { agentId: id, userId, teamId },
+            { teamId, auditContext: { source: "orchestrator/agents/[id]/run" } }
+        );
     } catch (_e) {
         // Enqueue fallback if queue not provisioned locally
     }

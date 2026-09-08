@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifySmtpConfig } from "@/lib/email/smtpClient";
 import { encryptCredential } from "@/lib/security/credentialVault";
 import { getCurrentContext } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 
 export async function POST(req: NextRequest) {
   try {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // Connecting/overwriting a mailbox's credentials is an integration action,
+    // ADMIN-only like every other credential-bearing integration route (see
+    // integrations/google/oauth/start, smtp/config, whatsapp/settings).
+    if (!(await checkTeamPermission(userId, teamId, TeamRole.ADMIN))) {
+      return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
     const body = await req.json();

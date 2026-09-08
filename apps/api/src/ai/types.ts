@@ -11,6 +11,7 @@ export enum LLMProvider {
 }
 
 export enum TaskComplexity {
+    TRIVIAL = "TRIVIAL",    // Single-value classification/scoring with no prose output
     ROUTINE = "ROUTINE",    // Extraction, Classification, Simple Drafting
     STRATEGIC = "STRATEGIC" // Creative Drafting, Complex Reasoning, Strategy
 }

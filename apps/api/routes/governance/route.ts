@@ -1,17 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentContext } from '@/lib/auth';
+import { checkTeamPermission, TeamRole } from '@/lib/permissions';
 
 export async function GET() {
     try {
-        const { userId } = await getCurrentContext();
+        const { userId, teamId } = await getCurrentContext();
 
         if (!userId) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+        if (!teamId) {
+            return NextResponse.json({ error: 'Workspace Not Found' }, { status: 404 });
+        }
+        if (!await checkTeamPermission(userId, teamId, TeamRole.ADMIN)) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
 
         // Fetch experiments with variants
         const experiments = await prisma.experiment.findMany({
+            where: { teamId },
             include: {
                 variants: true,
             },
