@@ -180,11 +180,15 @@ export class CallerService {
         const lead = await prisma.lead.findFirst({ where: { id: leadId, teamId }, select: { id: true } });
         if (!lead) throw new Error("LEAD_NOT_FOUND");
 
-        // Verify assignment
+        // Verify assignment - only the caller this lead is assigned to (or an
+        // unclaimed lead) may complete it. This check previously computed the
+        // condition but never enforced it (the throw below was commented out),
+        // letting any caller-tier user hijack and complete a colleague's
+        // already-claimed handoff task (OPEN-233; OPEN-138 fixed this file's
+        // cross-tenant teamId scoping but left this dead code in place).
         const queueItem = await prisma.meetingCoordinationQueue.findUnique({ where: { leadId } });
-        if (queueItem?.assignedUserId !== userId && queueItem?.assignedUserId !== null) {
-            // Force override could be allowed for admins, but restricting for now
-            // throw new Error("Not assigned to this caller");
+        if (queueItem?.assignedUserId && queueItem.assignedUserId !== userId) {
+            throw new Error("NOT_ASSIGNED_TO_CALLER");
         }
 
         const thread = await prisma.conversationThread.findFirst({

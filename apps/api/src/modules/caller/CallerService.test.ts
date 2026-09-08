@@ -99,5 +99,32 @@ describe("CallerService", () => {
                 data: expect.objectContaining({ pipelineState: "COMPLETED" }),
             });
         });
+
+        it("refuses to let a caller complete a colleague's already-claimed task (OPEN-233)", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: "other-user" });
+
+            await expect(
+                CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.CLOSED)
+            ).rejects.toThrow("NOT_ASSIGNED_TO_CALLER");
+
+            expect(prisma.meetingCoordinationQueue.update).not.toHaveBeenCalled();
+            expect(prisma.lead.updateMany).not.toHaveBeenCalled();
+        });
+
+        it("allows completing an unclaimed (unassigned) task", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1" });
+            (prisma.meetingCoordinationQueue.findUnique as any).mockResolvedValue({ assignedUserId: null });
+            (prisma.conversationThread.findFirst as any).mockResolvedValue(null);
+            (prisma.meetingCoordinationQueue.update as any).mockResolvedValue({});
+            (prisma.lead.updateMany as any).mockResolvedValue({ count: 1 });
+
+            await CallerService.completeTask("lead-1", "user-1", "team-a", ConversationState.CLOSED);
+
+            expect(prisma.lead.updateMany).toHaveBeenCalledWith({
+                where: { id: "lead-1", teamId: "team-a" },
+                data: expect.objectContaining({ pipelineState: "COMPLETED" }),
+            });
+        });
     });
 });
