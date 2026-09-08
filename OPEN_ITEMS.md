@@ -3907,6 +3907,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-230 (Fixed):** cross-tenant mass campaign mutation / platform-
+  wide DoS — `apps/api/routes/admin/actions/[action]/route.ts`'s
+  `POST` resolves `teamId` from the request body, falling back to
+  the caller's first `TeamMember` row when omitted. If that fallback
+  lookup finds no membership (an `ORG_ADMIN` whose `TeamMember` row
+  was later removed, or a genuine platform operator who isn't a
+  member of any specific team), `teamId` stays `null`, and the
+  `pause-outreach` case's `prisma.campaign.updateMany({ where:
+  { teamId: teamId ?? undefined, status: "active" }, ... })`
+  silently drops the `teamId` filter entirely — Prisma treats
+  `undefined` in a `where` clause as "omit this filter," not "match
+  nothing." The switch never re-checked whether the fallback
+  actually resolved before proceeding. **Distinct from OPEN-124**
+  (fixed in this same file): OPEN-124 closed the *explicit*
+  client-supplied-`teamId` path by verifying membership before
+  honoring it; this is the *fallback* path, which never got the
+  same "did this actually resolve to something real" check.
+  `curl -X POST /api/admin/actions/pause-outreach -d '{}'` from any
+  caller who clears `getAdminUser()`'s default `ORG_ADMIN` bar but
+  has no `TeamMember` row would pause **every active campaign for
+  every team on the platform** in one call. Every sibling route that
+  scopes a destructive `updateMany`/`deleteMany` by `teamId`
+  elsewhere in this codebase (`apps/api/routes/leads/bulk/route.ts`,
+  `apps/api/routes/v1/campaigns/route.ts`) treats a missing/
+  unresolved team as a hard failure, never as "no filter." Found via
+  a continuation of the credential/session-validation sweep that
+  found OPEN-229, applied this time to a team-resolution fallback
+  rather than a token-expiry check. **Fixed** by adding an explicit
+  guard right after the fallback resolution: if `teamId` is still
+  unset and the caller is not a genuine platform-level operator
+  (`SYSTEM_ADMIN`/`SUPER_ADMIN`), return 400 before the switch runs
+  — a platform-level operator legitimately triggering a deliberate
+  platform-wide action with no `teamId` at all is still allowed
+  through unchanged. New tests: an `ORG_ADMIN` with no team
+  membership and no supplied `teamId` gets 400 with
+  `campaign.updateMany` never invoked; a `SYSTEM_ADMIN` in the same
+  no-membership situation still succeeds with the intentionally
+  unscoped call. 1108/1108 apps/api tests pass (2 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

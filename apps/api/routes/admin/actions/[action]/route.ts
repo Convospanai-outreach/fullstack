@@ -61,6 +61,14 @@ export async function POST(
             }
         }
 
+        // A team-scoped action must fail closed, not silently become platform-wide:
+        // Prisma treats `teamId: undefined` in a where clause as "omit this filter",
+        // not "match nothing" - if teamId is still unresolved here (no membership row
+        // for a non-platform-level admin), the switch below must not run at all.
+        if (!teamId && !PLATFORM_LEVEL_ROLES.includes(admin.enterpriseRole)) {
+            return NextResponse.json({ error: "No team context available for this action" }, { status: 400 });
+        }
+
         switch (action) {
             case "start-scrapers":
                 logger.info("[Admin] Starting all scrapers...");

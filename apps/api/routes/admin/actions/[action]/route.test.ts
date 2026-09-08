@@ -86,6 +86,30 @@ describe("POST /admin/actions/[action] - cross-tenant scoping", () => {
         });
     });
 
+    it("fails closed instead of pausing every tenant's campaigns when an ORG_ADMIN has no team membership (OPEN-230)", async () => {
+        mockGetAdminUser.mockResolvedValue({ id: "user-1", role: "ADMIN", enterpriseRole: "ORG_ADMIN" });
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+
+        const res = await POST(jsonRequest({}) as any, params("pause-outreach"));
+
+        expect(res.status).toBe(400);
+        expect(mockPrisma.campaign.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("still allows a platform-level SYSTEM_ADMIN with no teamId at all to run a genuinely platform-wide action", async () => {
+        mockGetAdminUser.mockResolvedValue({ id: "user-1", role: "ADMIN", enterpriseRole: "SYSTEM_ADMIN" });
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+        mockPrisma.campaign.updateMany.mockResolvedValue({ count: 5 });
+
+        const res = await POST(jsonRequest({}) as any, params("pause-outreach"));
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.campaign.updateMany).toHaveBeenCalledWith({
+            where: { teamId: undefined, status: "active" },
+            data: { status: "paused" },
+        });
+    });
+
     it("401s when there is no admin", async () => {
         mockGetAdminUser.mockResolvedValue(null);
 
