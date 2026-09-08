@@ -6,6 +6,10 @@ vi.mock("@/lib/db", () => ({
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        campaign: {
+            findUnique: vi.fn(),
+            update: vi.fn(),
+        },
     },
 }));
 
@@ -40,6 +44,7 @@ vi.mock("@/modules/webhooks/service/webhookService", () => ({
 }));
 
 import { prisma } from "@/lib/db";
+import { JobQueue } from "@/lib/queue";
 import { deductCredits, refundCredits } from "@/lib/credits";
 import { handleLeadEnrichment } from "../enrichment-worker";
 
@@ -97,5 +102,72 @@ describe("enrichment-worker", () => {
         });
         expect(refundCredits).not.toHaveBeenCalled();
         expect(result).toMatchObject({ leadId: "lead-1" });
+    });
+
+    it("enqueues an immediate email_sending job for a REALTIME-mode campaign (unchanged default behavior)", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({
+            id: "lead-1",
+            teamId: "team-a",
+            fullName: "Jane Doe",
+            linkedIn: null,
+            email: "jane@example.com",
+            company: null,
+        });
+        (prisma.lead.update as any).mockResolvedValue({});
+        (prisma.campaign.findUnique as any).mockResolvedValue({ draftGenerationMode: "REALTIME" });
+
+        await handleLeadEnrichment({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any);
+
+        expect(JobQueue.enqueue).toHaveBeenCalledWith(
+            "email_sending",
+            expect.objectContaining({ leadId: "lead-1", campaignId: "campaign-1" })
+        );
+        expect(prisma.campaign.update).not.toHaveBeenCalled();
+    });
+
+    it("BATCH mode: decrements enrichmentPending and does not enqueue an email_sending job directly", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({
+            id: "lead-1",
+            teamId: "team-a",
+            fullName: "Jane Doe",
+            linkedIn: null,
+            email: "jane@example.com",
+            company: null,
+        });
+        (prisma.lead.update as any).mockResolvedValue({});
+        (prisma.campaign.findUnique as any).mockResolvedValue({ draftGenerationMode: "BATCH" });
+        (prisma.campaign.update as any).mockResolvedValue({ enrichmentPending: 1, teamId: "team-a" });
+
+        await handleLeadEnrichment({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any);
+
+        expect(prisma.campaign.update).toHaveBeenCalledWith({
+            where: { id: "campaign-1" },
+            data: { enrichmentPending: { decrement: 1 } },
+            select: { enrichmentPending: true, teamId: true },
+        });
+        expect(JobQueue.enqueue).not.toHaveBeenCalledWith("email_sending", expect.anything());
+        expect(JobQueue.enqueue).not.toHaveBeenCalledWith("EMAIL_DRAFT_BATCH_SUBMIT", expect.anything(), expect.anything());
+    });
+
+    it("BATCH mode: the enrichment job that brings enrichmentPending to 0 submits the campaign's draft batch", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({
+            id: "lead-2",
+            teamId: "team-a",
+            fullName: "John Doe",
+            linkedIn: null,
+            email: "john@example.com",
+            company: null,
+        });
+        (prisma.lead.update as any).mockResolvedValue({});
+        (prisma.campaign.findUnique as any).mockResolvedValue({ draftGenerationMode: "BATCH" });
+        (prisma.campaign.update as any).mockResolvedValue({ enrichmentPending: 0, teamId: "team-a" });
+
+        await handleLeadEnrichment({ leadId: "lead-2", campaignId: "campaign-1", teamId: "team-a" } as any);
+
+        expect(JobQueue.enqueue).toHaveBeenCalledWith(
+            "EMAIL_DRAFT_BATCH_SUBMIT",
+            { campaignId: "campaign-1", teamId: "team-a" },
+            expect.objectContaining({ idempotencyKey: "batch_submit_campaign-1" })
+        );
     });
 });

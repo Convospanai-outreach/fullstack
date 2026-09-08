@@ -48,14 +48,22 @@ export async function handleEmailSend(payload: JobPayload) {
         return;
     }
 
-    logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
-
-    // Generate personalized email content using the NEW AI Sales Agent logic
-    const emailContent = await aiService.generateEmailDraft(
-        lead,
-        null, // Could pass campaign.icpId if related
-        campaign.teamId || undefined
-    );
+    // BATCH-mode campaigns generate drafts up front via the Anthropic Message
+    // Batches API (apps/api/src/lib/ai/batchDraftService.ts) and attach the
+    // result here instead of paying for a second live generation call.
+    const precomputedDraft = (payload as any).precomputedDraft as { subject?: string; body?: string } | undefined;
+    let emailContent: { subject: string; body: string };
+    if (precomputedDraft?.subject && precomputedDraft?.body) {
+        logWorker(leadId, "USING_PRECOMPUTED_AI_EMAIL", { campaignId, teamId });
+        emailContent = { subject: precomputedDraft.subject, body: precomputedDraft.body };
+    } else {
+        logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
+        emailContent = await aiService.generateEmailDraft(
+            lead,
+            null, // Could pass campaign.icpId if related
+            campaign.teamId || undefined
+        );
+    }
 
     // Send email via Email Service
     try {

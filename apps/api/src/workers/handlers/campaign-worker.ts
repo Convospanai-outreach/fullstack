@@ -55,10 +55,13 @@ export async function executeCampaign(campaignId: string, userId?: string, teamI
         enrichmentJobs.push(job.id);
     }
 
-    // Update campaign status to active
+    // Update campaign status to active. enrichmentPending seeds the BATCH-mode
+    // draft-generation fan-in (see enrichment-worker.ts) - the enrichment job
+    // that decrements it to zero is the one that submits the campaign's
+    // email-draft batch.
     await prisma.campaign.update({
         where: { id: campaignId },
-        data: { status: "active" },
+        data: { status: "active", enrichmentPending: campaign.leadList.length },
     });
 
     // Trigger Webhook
