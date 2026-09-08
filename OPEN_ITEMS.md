@@ -3879,6 +3879,34 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted
   above).
 
+- **OPEN-229 (Fixed):** broken credential lifetime / auth bypass —
+  `apps/api/routes/extension/auth/token/route.ts`'s `POST` mints a
+  fresh, renewable 60-second extension token from a caller-supplied
+  bearer token, gating solely on `!session || !session.user` —
+  never checking `session.expires`. Prisma doesn't purge expired
+  `Session` rows, so an already-expired token (whose entire design
+  intent is a 60-second usable window) was still accepted, and each
+  use minted a brand-new 60-second token with the same defect. A
+  caller who captured one extension token once (leaked via logs, a
+  compromised extension, etc.) could feed it back into this endpoint
+  indefinitely to keep renewing a valid credential forever — with no
+  re-authentication and no re-check of account/membership status —
+  completely defeating the point of a short-lived token. Every other
+  route under `apps/api/routes/extension/**` funnels through
+  `_lib/auth.ts`'s `resolveUserId`, which correctly checks
+  `session.expires > new Date()` — `auth/token/route.ts` is the one
+  outlier that reimplements its own session lookup from scratch and
+  drops that check in the process. Found via a continuation of the
+  credential-binding/missing-auth sweep that found OPEN-223/224.
+  **Fixed** by adding the same `session.expires > new Date()`
+  condition (as `session.expires <= new Date()` in the rejection
+  branch) to match `_lib/auth.ts`'s convention exactly. New test
+  file (none existed): an expired session is refused 401 and never
+  reaches `prisma.session.create`; a still-valid session still mints
+  a fresh token successfully. 1106/1106 apps/api tests pass (2 new),
+  `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
