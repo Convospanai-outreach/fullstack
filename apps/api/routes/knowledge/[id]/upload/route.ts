@@ -47,7 +47,7 @@ export async function GET(
     if (!query) return NextResponse.json({ error: "Query required" }, { status: 400 });
 
     try {
-        const results = await knowledgeService.search(id, query);
+        const results = await knowledgeService.search(id, query, 5, ctx.teamId);
         return NextResponse.json({ success: true, data: results });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });

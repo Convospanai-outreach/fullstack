@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ suggestions: ["Hello! How can I help you today?", "Thanks for reaching out.", "Let's schedule a call."] });
         }
 
-        // 3. Get Memories
-        const memories: string[] = await LearningService.getMemories(lead.teamId);
+        // 3. Get Memories relevant to this conversation
+        const memories: string[] = await LearningService.getMemories(lead.teamId, context);
 
         // 4. Generate Suggestions
         const normalizedTone = typeof tone === "string" ? tone.slice(0, 40) : "professional";

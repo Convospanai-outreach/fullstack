@@ -353,8 +353,11 @@ export async function composeNodeA(
     leadId?: string
 ): Promise<NodeAOutput> {
     enforceInputBudget("Node A", input, 7000);
-    // 1. SELF-LEARNING: Fetch past team successes/lessons
-    input.memories = await LearningService.getMemories(teamId);
+    // 1. SELF-LEARNING: Fetch past team successes/lessons relevant to this lead's situation
+    input.memories = await LearningService.getMemories(
+        teamId,
+        `${input.prospect_company} ${input.pain_context} ${input.hypothesis}`
+    );
 
     if (campaignId && leadId) {
         input.knowledge_context = await knowledgeOrchestrator.getCampaignContext(campaignId, leadId);
@@ -392,8 +395,11 @@ export async function composeNodeB(
     teamId: string
 ): Promise<NodeBOutput> {
     enforceInputBudget("Node B", input, 6500);
-    // 1. SELF-LEARNING
-    input.memories = await LearningService.getMemories(teamId);
+    // 1. SELF-LEARNING: Fetch past team successes/lessons relevant to this lead's situation
+    input.memories = await LearningService.getMemories(
+        teamId,
+        `${input.prospect_company} ${input.pain_context} ${input.hypothesis}`
+    );
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeBPrompt(input);
@@ -425,8 +431,11 @@ export async function composeNodeC(
     teamId: string
 ): Promise<NodeCOutput> {
     enforceInputBudget("Node C", input, 6000);
-    // 1. SELF-LEARNING
-    input.memories = await LearningService.getMemories(teamId);
+    // 1. SELF-LEARNING: Fetch past team successes/lessons relevant to this lead's situation
+    input.memories = await LearningService.getMemories(
+        teamId,
+        `${input.prospect_company} ${input.signal_type} ${input.hypothesis}`
+    );
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeCPrompt(input);

@@ -88,7 +88,7 @@ describe("knowledge/[id]/upload - cross-tenant scoping", () => {
             const res = await GET(req as any, paramsFor("kb-1"));
 
             expect(res.status).toBe(200);
-            expect(mockSearch).toHaveBeenCalledWith("kb-1", "test");
+            expect(mockSearch).toHaveBeenCalledWith("kb-1", "test", 5, "team-a");
         });
     });
 });

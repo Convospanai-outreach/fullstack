@@ -1870,6 +1870,7 @@ model AgentMemory {
   value      String // e.g. "Always use emojis", "Never mention 'cheap'"
   confidence Float    @default(1.0)
   createdAt  DateTime @default(now())
+  embedding  Unsupported("vector(1536)")?
 
   team Team @relation(fields: [teamId], references: [id])
 
@@ -1909,8 +1910,8 @@ model KnowledgeBase {
 model KnowledgeItem {
   id              String   @id @default(uuid())
   content         String   @db.Text
-  embedding       String? // Temporarily String
-  embeddingModel  String?  @default("gemini-1.5-flash")
+  embedding       Unsupported("vector(1536)")?
+  embeddingModel  String?  @default("text-embedding-3-small")
   version         Int?     @default(1)
   metadata        Json? // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
   knowledgeBaseId String

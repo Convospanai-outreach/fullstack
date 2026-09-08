@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { aiService } from "@/lib/aiService";
+import { toVectorLiteral } from "@/lib/ai/vectorLiteral";
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
+
+const MEMORY_RELEVANCE_LIMIT = 8;
 
 export class LearningService {
     // NOT FIXED: self-fetches /learning/feedback, and has zero callers anywhere in the
@@ -43,8 +48,32 @@ export class LearningService {
     // propagate rather than silently render "no memories" into every AI prompt, which the
     // caller couldn't distinguish from "this team genuinely has none yet." Matches the
     // analyticsService precedent (no try/catch; callers already have their own 500 handling).
-    static async getMemories(teamId: string) {
+    static async getMemories(teamId: string, queryText?: string) {
         if (!teamId) return [];
+
+        if (queryText?.trim()) {
+            try {
+                const embedding = await aiService.getRagEmbedding(queryText, teamId);
+                const results = await prisma.$queryRawUnsafe<Array<{ key: string; value: string }>>(
+                    `SELECT key, value
+                     FROM "AgentMemory"
+                     WHERE "teamId" = $1 AND embedding IS NOT NULL
+                     ORDER BY embedding <=> $2::vector
+                     LIMIT $3`,
+                    teamId,
+                    toVectorLiteral(embedding),
+                    MEMORY_RELEVANCE_LIMIT
+                );
+                if (results.length > 0) {
+                    return results.map((m) => `${m.key}: ${m.value}`);
+                }
+            } catch (error: any) {
+                logger.warn("[LearningService] Relevance-ranked memory lookup unavailable, falling back to all memories", {
+                    teamId,
+                    error: error?.message ?? String(error),
+                });
+            }
+        }
 
         const memories = await prisma.agentMemory.findMany({
             where: { teamId },
@@ -52,5 +81,34 @@ export class LearningService {
         });
 
         return memories.map((m) => `${m.key}: ${m.value}`);
+    }
+
+    /**
+     * Single write path for AgentMemory so embedding population (for
+     * getMemories' relevance ranking) happens exactly once, instead of each
+     * caller duplicating a raw prisma.agentMemory.create and forgetting it.
+     * Best-effort: an embedding failure must not block the memory being saved.
+     */
+    static async saveMemory(teamId: string, key: string, value: string, confidence = 1.0) {
+        const memory = await prisma.agentMemory.create({
+            data: { teamId, key, value, confidence }
+        });
+
+        try {
+            const embedding = await aiService.getRagEmbedding(`${key}: ${value}`, teamId);
+            await prisma.$executeRawUnsafe(
+                `UPDATE "AgentMemory" SET embedding = $1::vector WHERE id = $2`,
+                toVectorLiteral(embedding),
+                memory.id
+            );
+        } catch (error: any) {
+            logger.warn("[LearningService] Failed to embed new memory, it will only surface via the recency fallback", {
+                teamId,
+                memoryId: memory.id,
+                error: error?.message ?? String(error),
+            });
+        }
+
+        return memory;
     }
 }
