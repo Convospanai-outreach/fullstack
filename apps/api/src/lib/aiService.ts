@@ -346,10 +346,22 @@ async function escalateGenerationFailureToHuman(params: {
     }
 }
 
-async function callProvider(candidate: ProviderCandidate, prompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
+async function callProvider(
+    candidate: ProviderCandidate,
+    prompt: string,
+    systemPrompt?: string
+): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
     if (candidate.provider === LLMProvider.GEMINI) {
         const genAI = new GoogleGenerativeAI(candidate.apiKey);
-        const model = genAI.getGenerativeModel({ model: candidate.model });
+        // Gemini has no lightweight prompt-caching flag like Anthropic's
+        // cache_control (its context-caching API is a separate, heavier
+        // resource-lifecycle call) - systemInstruction at least keeps static
+        // instructions out of the per-call prompt for parity with the other
+        // providers' request shape.
+        const model = genAI.getGenerativeModel({
+            model: candidate.model,
+            ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
+        });
         const result = await model.generateContent(prompt);
         const response = result.response;
         const usage = (response as any).usageMetadata || {};
@@ -362,9 +374,16 @@ async function callProvider(candidate: ProviderCandidate, prompt: string): Promi
 
     if (candidate.provider === LLMProvider.OPENAI) {
         const client = new OpenAI({ apiKey: candidate.apiKey });
+        // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
+        // no explicit cache_control needed, just put the stable instructions
+        // in their own leading message so the prefix is byte-identical
+        // across calls that share it.
+        const messages: OpenAI.Chat.ChatCompletionMessageParam[] = systemPrompt
+            ? [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
+            : [{ role: "user", content: prompt }];
         const response = await client.chat.completions.create({
             model: candidate.model,
-            messages: [{ role: "user", content: prompt }],
+            messages,
             temperature: 0.4
         });
         return {
@@ -378,6 +397,13 @@ async function callProvider(candidate: ProviderCandidate, prompt: string): Promi
     const message = await client.messages.create({
         model: candidate.model,
         max_tokens: 800,
+        // Anthropic prompt caching: marking a stable system block ephemeral
+        // lets a repeated prefix (e.g. the same style/persona instructions
+        // sent on every campaign email) be served from cache instead of
+        // re-billed as fresh input tokens on every call that reuses it.
+        ...(systemPrompt
+            ? { system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }] }
+            : {}),
         messages: [{ role: "user", content: prompt }]
     });
     return {
@@ -395,6 +421,7 @@ async function callLLM(
         taskTypeLabel?: string;
         creditDescription?: string;
         actorId?: string;
+        systemPrompt?: string;
     }
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
@@ -419,7 +446,7 @@ async function callLLM(
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
-                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt), LLM_TIMEOUT_MS);
+                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, options.systemPrompt), LLM_TIMEOUT_MS);
                 recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
@@ -520,6 +547,15 @@ export class AIService {
             taskType?: string;
             surface?: AISurface;
             actorId?: string;
+            /**
+             * Stable, repeated instructions (persona/style/rules) separated
+             * from the per-call dynamic prompt. When set, Anthropic marks it
+             * as an ephemeral prompt-cache block and OpenAI's automatic
+             * prefix caching can reuse it across calls that share the exact
+             * same system text - real cost savings on high-repeat callers
+             * like per-team email-composer style guidance.
+             */
+            systemPrompt?: string;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
@@ -527,12 +563,16 @@ export class AIService {
             surface,
             label: "AI prompt"
         });
+        const safeSystemPrompt = taskContext?.systemPrompt
+            ? enforceAIPromptPolicy(taskContext.systemPrompt, { surface, label: "AI system prompt" })
+            : undefined;
         const result = await callLLM(safePrompt, {
             teamId,
             complexity: TaskComplexity.STRATEGIC,
             taskTypeLabel: taskContext?.taskType || surface,
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
-            actorId: taskContext?.actorId
+            actorId: taskContext?.actorId,
+            systemPrompt: safeSystemPrompt
         });
 
         const expectsJson = !!taskContext?.expectsJson;
