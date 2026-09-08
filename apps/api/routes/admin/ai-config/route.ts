@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
-import { checkAdmin } from "@/lib/admin";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { audit } from "@/lib/governance/audit";
 
 
@@ -15,9 +15,13 @@ const maskKey = (value?: string | null) => {
 
 export async function GET() {
     try {
-        const { teamId } = await getCurrentContext();
-        const isAdmin = await checkAdmin();
-        if (!teamId || !isAdmin) {
+        const { userId, teamId } = await getCurrentContext();
+        // This manages one specific team's own AI provider keys, not a
+        // platform-wide resource - authorize against the caller's TeamRole
+        // for THIS team, not their global User.enterpriseRole (which any
+        // team admin can grant a teammate self-service via an invite, for
+        // an entirely unrelated team - see OPEN-124/153/174/175/176).
+        if (!userId || !teamId || !(await checkTeamPermission(userId, teamId, TeamRole.ADMIN))) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
@@ -53,8 +57,7 @@ export async function GET() {
 export async function POST(req: Request) {
     try {
         const { userId, teamId } = await getCurrentContext();
-        const isAdmin = await checkAdmin();
-        if (!userId || !teamId || !isAdmin) {
+        if (!userId || !teamId || !(await checkTeamPermission(userId, teamId, TeamRole.ADMIN))) {
             throw new APIError("Forbidden: Admin access required", 403, "FORBIDDEN");
         }
 
