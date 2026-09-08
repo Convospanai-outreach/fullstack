@@ -36,7 +36,10 @@ export async function POST(req: NextRequest) {
             include: { user: { include: { memberships: true } } }
         });
 
-        if (!session || !session.user) {
+        // Expiry must be checked explicitly - Prisma doesn't purge expired
+        // Session rows, and an already-expired token must not be usable to
+        // mint a fresh one (matches ../../_lib/auth.ts's resolveUserId check).
+        if (!session || !session.user || session.expires <= new Date()) {
             return NextResponse.json({ ok: false, error: "Invalid session" }, { status: 401 });
         }
 
