@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { aiService } from "@/lib/aiService";
 import { NotificationDispatcher } from "@/lib/notifications";
+import { TaskComplexity } from "@/ai/types";
 
 export class IntentScoringService {
     async processWebhookData(data: any): Promise<void> {
@@ -43,7 +44,12 @@ export class IntentScoringService {
             TEXT: "${textContent}"
             Return ONLY the number.`;
             
-            const aiScoreStr = await aiService.askAI(prompt, undefined, { taskType: "ANALYSIS" });
+            // Output is a bare number - no prose - so this is TRIVIAL-tier work,
+            // not the default STRATEGIC model askAI otherwise reaches for.
+            const aiScoreStr = await aiService.askAI(prompt, undefined, {
+                taskType: "ANALYSIS",
+                complexity: TaskComplexity.TRIVIAL
+            });
             const aiScore = parseFloat(aiScoreStr.trim());
             if (!isNaN(aiScore)) {
                 console.log(`[IntentScoring] AI Fallback Score: ${aiScore}`);

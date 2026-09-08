@@ -27,18 +27,27 @@ type ProviderKeySet = {
 
 const DEFAULT_MODELS = {
     gemini: {
+        trivial: "gemini-1.5-flash",
         routine: "gemini-1.5-flash",
         strategic: "gemini-1.5-pro"
     },
     openai: {
+        trivial: "gpt-4o-mini",
         routine: "gpt-4o-mini",
         strategic: "gpt-4o"
     },
     anthropic: {
+        trivial: "claude-3-5-haiku",
         routine: "claude-3-5-sonnet",
         strategic: "claude-3-5-sonnet"
     }
 };
+
+function resolveModelTier(complexity: TaskComplexity): "trivial" | "routine" | "strategic" {
+    if (complexity === TaskComplexity.TRIVIAL) return "trivial";
+    if (complexity === TaskComplexity.STRATEGIC) return "strategic";
+    return "routine";
+}
 
 const COST_PER_1K_TOKENS: Record<string, number> = {
     "gpt-4o": 0.015,
@@ -72,7 +81,9 @@ function isChargeableTeamId(teamId?: string): teamId is string {
 
 function estimateCreditsForPrompt(prompt: string, complexity?: TaskComplexity): number {
     const inputTokens = Math.ceil(prompt.length / 4);
-    const estimatedOutputTokens = complexity === TaskComplexity.STRATEGIC ? 900 : 500;
+    const estimatedOutputTokens =
+        complexity === TaskComplexity.STRATEGIC ? 900 :
+        complexity === TaskComplexity.TRIVIAL ? 150 : 500;
     return Math.max(1, Math.ceil((inputTokens + estimatedOutputTokens) / 1000));
 }
 
@@ -120,15 +131,15 @@ function resolveProvider(
     complexity: TaskComplexity = TaskComplexity.ROUTINE
 ): { provider: LLMProvider; apiKey: string; model: string } {
     if (providers.gemini?.apiKey) {
-        const model = providers.gemini.model || DEFAULT_MODELS.gemini[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.gemini.model || DEFAULT_MODELS.gemini[resolveModelTier(complexity)];
         return { provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model };
     }
     if (providers.openai?.apiKey) {
-        const model = providers.openai.model || DEFAULT_MODELS.openai[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.openai.model || DEFAULT_MODELS.openai[resolveModelTier(complexity)];
         return { provider: LLMProvider.OPENAI, apiKey: providers.openai.apiKey, model };
     }
     if (providers.anthropic?.apiKey) {
-        const model = providers.anthropic.model || DEFAULT_MODELS.anthropic[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.anthropic.model || DEFAULT_MODELS.anthropic[resolveModelTier(complexity)];
         return { provider: LLMProvider.ANTHROPIC, apiKey: providers.anthropic.apiKey, model };
     }
     throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
@@ -300,7 +311,7 @@ function recordProviderSuccess(provider: LLMProvider): void {
 type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string };
 
 function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexity = TaskComplexity.ROUTINE): ProviderCandidate[] {
-    const tier = complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine";
+    const tier = resolveModelTier(complexity);
     const chain: ProviderCandidate[] = [];
     if (providers.gemini?.apiKey) {
         chain.push({ provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model: providers.gemini.model || DEFAULT_MODELS.gemini[tier] });
@@ -556,6 +567,13 @@ export class AIService {
              * like per-team email-composer style guidance.
              */
             systemPrompt?: string;
+            /**
+             * Defaults to STRATEGIC. Pass TRIVIAL for calls whose entire
+             * output is a single classification label/score with no prose
+             * (e.g. intent scoring) - routes to each provider's cheapest
+             * model tier instead of the default strategic one.
+             */
+            complexity?: TaskComplexity;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
@@ -568,7 +586,7 @@ export class AIService {
             : undefined;
         const result = await callLLM(safePrompt, {
             teamId,
-            complexity: TaskComplexity.STRATEGIC,
+            complexity: taskContext?.complexity || TaskComplexity.STRATEGIC,
             taskTypeLabel: taskContext?.taskType || surface,
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
             actorId: taskContext?.actorId,
