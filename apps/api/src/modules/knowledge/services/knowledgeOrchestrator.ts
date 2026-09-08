@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { knowledgeService } from "@/modules/knowledge/knowledgeService";
+import { vectorStore } from "@/modules/rag/service/vectorStore";
 
 function toRecord(value: unknown) {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
@@ -58,6 +58,12 @@ export class KnowledgeOrchestrator {
     // campaignId and leadId together, so this covers the real usage; if leadId is ever omitted,
     // team scope can't be determined and this returns "" (same as the route's own early-return
     // for the "neither id given" case).
+    //
+    // Previously hardcoded to only the "Netjana Intelligence" buyer-signal KB (mirrored
+    // verbatim from the live route), which meant any other knowledge base a team uploaded
+    // (pricing sheets, case studies, product docs) was invisible to email drafting no matter
+    // how relevant. Now searches across all of the team's knowledge bases via vectorStore's
+    // real embedding similarity - relevance ranking replaces the need for a curated single KB.
     async getCampaignContext(campaignId: string, leadId: string) {
         try {
             if (!leadId) return "";
@@ -70,21 +76,10 @@ export class KnowledgeOrchestrator {
             if (!teamId) return "";
 
             const effectiveCampaignId = campaignId || lead?.campaignId || null;
-
-            // Hardcoded KB name mirrored verbatim from the live route, not generalized.
-            const knowledgeBase = await prisma.knowledgeBase.findFirst({
-                where: { teamId, name: "Netjana Intelligence" },
-                select: { id: true }
-            });
-            if (!knowledgeBase) return "";
-
-            // Semantic (embedding) ranking when available, falling back to
-            // knowledgeService's own lexical path when it isn't - replaces the
-            // previous "last 40 rows + manual campaign/company point score"
-            // heuristic with retrieval actually driven by relevance to this
-            // lead's situation. Scoped to this one KB, matching prior behavior.
             const query = [lead?.company, effectiveCampaignId].filter(Boolean).join(" ") || lead?.company || "";
-            const results = await knowledgeService.search(knowledgeBase.id, query, 3, teamId);
+            if (!query) return "";
+
+            const results = await vectorStore.search(query, teamId, 3);
 
             return results
                 .map((item) => {
