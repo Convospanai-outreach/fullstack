@@ -88,6 +88,9 @@ describe("NurtureService", () => {
             const result = await NurtureService.generateNurtureTasks("team-1", 7);
 
             expect(result).toEqual({ tasksCreated: 1 });
+            expect(calendarNurtureFlow.run).toHaveBeenCalledWith(
+                expect.objectContaining({ teamId: "team-1" })
+            );
             expect(prisma.task.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({
                     teamId: "team-1",
@@ -111,7 +114,7 @@ describe("NurtureService", () => {
             expect(prisma.task.create).not.toHaveBeenCalled();
         });
 
-        it("returns zero when there is no eligible lead (idempotency filter excludes them all)", async () => {
+        it("queries leads with the idempotency filter excluding those already tasked for this event's due date", async () => {
             (prisma.calendarEvent.findFirst as any).mockResolvedValue(event);
             (prisma.lead.findMany as any).mockResolvedValue([]);
 
@@ -119,6 +122,13 @@ describe("NurtureService", () => {
 
             expect(result).toEqual({ tasksCreated: 0 });
             expect(calendarNurtureFlow.run).not.toHaveBeenCalled();
+            expect(prisma.lead.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        tasks: { none: { dueDate: event.eventDate } },
+                    }),
+                })
+            );
         });
 
         it("returns zero when the team has no assignable member", async () => {

@@ -6,9 +6,9 @@ import { logger } from "@/lib/logger";
  * Uses AI to determine the best follow-up action for a calendar event or lead.
  */
 export const calendarNurtureFlow = {
-    run: async (input: { leadContext: string; eventDetails: string; pastInteractions: string }) => {
+    run: async (input: { leadContext: string; eventDetails: string; pastInteractions: string; teamId?: string }) => {
         logger.info("[Genkit] Running calendar nurture flow", { input });
-        
+
         try {
             const prompt = `
                 You are an expert sales development representative.
@@ -27,7 +27,7 @@ export const calendarNurtureFlow = {
                 }
             `;
             
-            const response = await aiService.askAI(prompt, undefined, { 
+            const response = await aiService.askAI(prompt, input.teamId, {
                 taskType: "ANALYSIS", 
                 expectsJson: true 
             });

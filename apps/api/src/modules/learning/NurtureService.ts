@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { calendarNurtureFlow } from "@/lib/ai/flows/calendar_nurture_flow";
 
-const CANDIDATE_LEAD_LIMIT = 20;
+// Kept small since the caller (routes/nurture/trigger) is a synchronous,
+// session-authed request making one sequential AI call per candidate lead.
+const CANDIDATE_LEAD_LIMIT = 5;
 
 export class NurtureService {
     // Was self-fetching POST /nurture/sync-events, which doesn't exist as a route (a hard
@@ -77,7 +79,7 @@ export class NurtureService {
             const leadContext = `${lead.fullName || "Unknown"} at ${lead.company || "unknown company"}, title: ${lead.jobTitle || "unknown"}, pipeline stage: ${lead.pipelineState}`;
             const pastInteractions = lead.enrichedData ? JSON.stringify(lead.enrichedData) : "No prior interaction data recorded.";
 
-            const decision = await calendarNurtureFlow.run({ leadContext, eventDetails, pastInteractions });
+            const decision = await calendarNurtureFlow.run({ leadContext, eventDetails, pastInteractions, teamId });
             if (decision.nextAction === "DROP" || decision.nextAction === "WAIT") {
                 continue;
             }
