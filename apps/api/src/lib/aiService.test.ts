@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate } = vi.hoisted(() => ({
+const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findUnique: vi.fn() },
         lLMUsageLog: { create: vi.fn().mockResolvedValue({}) },
@@ -9,6 +9,7 @@ const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mock
     mockRefundCredits: vi.fn().mockResolvedValue(undefined),
     mockOpenAICreate: vi.fn(),
     mockAnthropicCreate: vi.fn(),
+    mockOpenAIEmbeddingsCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -20,6 +21,7 @@ vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: 
 vi.mock("openai", () => ({
     default: class MockOpenAI {
         chat = { completions: { create: mockOpenAICreate } };
+        embeddings = { create: mockOpenAIEmbeddingsCreate };
     },
 }));
 vi.mock("@anthropic-ai/sdk", () => ({
@@ -92,5 +94,39 @@ describe("AIService.askAI - TRIVIAL complexity tier (AI cost optimization)", () 
 
         expect(mockAnthropicCreate).toHaveBeenCalled();
         expect(mockAnthropicCreate.mock.calls[0][0].model).toBe("claude-3-5-sonnet");
+    });
+});
+
+describe("AIService.getRagEmbedding (RAG vector search)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("throws a clear, catchable error when no OpenAI key is configured for the team", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { anthropic: { apiKey: "test-key" } } },
+        });
+
+        await expect(aiService.getRagEmbedding("some text", "team-1")).rejects.toThrow(
+            "RAG embeddings require a configured OpenAI API key"
+        );
+        expect(mockOpenAIEmbeddingsCreate).not.toHaveBeenCalled();
+    });
+
+    it("always uses text-embedding-3-small, never the team's configured chat model", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o" } } },
+        });
+        mockOpenAIEmbeddingsCreate.mockResolvedValue({
+            data: [{ embedding: [0.1, 0.2, 0.3] }],
+            usage: { prompt_tokens: 5 },
+        });
+
+        const embedding = await aiService.getRagEmbedding("some text", "team-1");
+
+        expect(mockOpenAIEmbeddingsCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ model: "text-embedding-3-small" })
+        );
+        expect(embedding).toEqual([0.1, 0.2, 0.3]);
     });
 });
