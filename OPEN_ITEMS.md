@@ -4036,6 +4036,49 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (same pre-existing, unrelated `browser-engine.ts` failure noted
   above).
 
+- **OPEN-233 (Fixed):** intra-team task hijack — `apps/api/src/
+  modules/caller/CallerService.ts`'s `completeTask` computed an
+  assignment-ownership check but never enforced it: `if
+  (queueItem?.assignedUserId !== userId && queueItem?.assignedUserId
+  !== null) { /* throw new Error("Not assigned to this caller"); */
+  }` had its only enforcing `throw` commented out, leaving the `if`
+  block empty. **OPEN-138's own writeup explicitly flagged this
+  exact dead code** while fixing this file's cross-tenant `teamId`
+  scoping, but that fix never re-enabled or repaired the assignment
+  check itself — it remained live and unfixed in the tree verbatim.
+  Any authenticated user whose global `enterpriseRole` passes
+  `apps/api/routes/caller/queue/route.ts`'s `isAllowed()` gate
+  (`CALLER`/`SALES_MANAGER`/`ORG_ADMIN`/`SYSTEM_ADMIN`) could call
+  `POST /api/caller/queue { action: "complete", leadId, outcome }`
+  for any lead in their own team, including one already claimed and
+  assigned to a *different* colleague — the call proceeded to
+  transition the conversation thread to the attacker-chosen outcome
+  and, for `MEETING_CONFIRMED`/`CLOSED`, marked the
+  `MeetingCoordinationQueue` item `COMPLETED` and force-advanced
+  `Lead.pipelineState` (including setting `wonAt`), stealing or
+  overwriting a colleague's in-progress sales handoff without ever
+  having claimed it. The sibling function in the same file,
+  `claimLead`, shows the correct enforcement shape right next to the
+  broken one: an atomic conditional `update({ where: { leadId,
+  assignedUserId: null } })` that throws `LEAD_ALREADY_CLAIMED` on a
+  mismatch, rather than a read-then-branch check that can be
+  silently disabled. Found via a continuation of the target-
+  role/ownership-blindness sweep that found OPEN-225, applied this
+  time to a check that was already present in the code but never
+  actually wired to a `throw`. **Fixed** by restoring the
+  enforcement: `if (queueItem?.assignedUserId && queueItem
+  .assignedUserId !== userId) { throw new Error
+  ("NOT_ASSIGNED_TO_CALLER"); }` — a lead assigned to someone else is
+  now rejected before any conversation-state transition or queue/
+  pipeline mutation runs; an unclaimed lead (`assignedUserId ===
+  null`) remains completable directly, matching the original
+  (intended, just unenforced) behavior. New tests: completing a
+  colleague's claimed task throws and never reaches
+  `meetingCoordinationQueue.update`/`lead.updateMany`; completing an
+  unclaimed task still succeeds. 1113/1113 apps/api tests pass (2
+  new), `tsc --noEmit` clean (same pre-existing, unrelated
+  `browser-engine.ts` failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
