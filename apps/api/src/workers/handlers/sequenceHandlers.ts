@@ -48,12 +48,17 @@ export async function handleSequenceAction(payload: JobPayload) {
         case "VISIT": {
             const visitLead = leadId ? await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { campaign: { select: { teamId: true } } }
+                select: { teamId: true, campaign: { select: { teamId: true } } }
             }) : null;
-            if (payloadTeamId && visitLead?.campaign?.teamId && visitLead.campaign.teamId !== payloadTeamId) {
+            // Check the lead's own teamId column, not just via the nullable
+            // campaign relation - campaignId is optional (e.g. leads captured
+            // via the browser extension have none), so campaign?.teamId alone
+            // silently skips this check for a large class of leads (OPEN-231).
+            const visitLeadTeamId = visitLead?.teamId ?? visitLead?.campaign?.teamId;
+            if (payloadTeamId && visitLeadTeamId && visitLeadTeamId !== payloadTeamId) {
                 throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
             }
-            resolvedTeamId = payloadTeamId || visitLead?.campaign?.teamId;
+            resolvedTeamId = payloadTeamId || visitLeadTeamId;
 
             // Just go to the URL
             result = await runLinkedInAction({
@@ -67,15 +72,18 @@ export async function handleSequenceAction(payload: JobPayload) {
             // Generate smart message based on lead context
             const connectLead = leadId ? await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { enrichedData: true, campaign: { select: { teamId: true } } }
+                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true } } }
             }) : null;
             // payload.teamId is caller-supplied (from the enqueuing route), not
             // derived from the lead itself - re-verify it matches the lead's own
-            // team before using its data, same as enrichment-worker.ts.
-            if (payloadTeamId && connectLead?.campaign?.teamId && connectLead.campaign.teamId !== payloadTeamId) {
+            // team before using its data, same as enrichment-worker.ts. Checks
+            // the lead's own teamId column first, not just the nullable
+            // campaign relation (OPEN-231 - campaign-less leads bypassed this).
+            const connectLeadTeamId = connectLead?.teamId ?? connectLead?.campaign?.teamId;
+            if (payloadTeamId && connectLeadTeamId && connectLeadTeamId !== payloadTeamId) {
                 throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
             }
-            const connectTeamId = payloadTeamId || connectLead?.campaign?.teamId;
+            const connectTeamId = payloadTeamId || connectLeadTeamId;
             resolvedTeamId = connectTeamId;
             const connectContext = connectLead?.enrichedData ? JSON.stringify(connectLead.enrichedData) : `Connect with lead at ${url}`;
             const message = await aiService.generateConnectionMessage(connectContext, connectTeamId);
@@ -92,12 +100,13 @@ export async function handleSequenceAction(payload: JobPayload) {
             // Follow up message - Personalized via lead context
             const followUpLead = leadId ? await prisma.lead.findUnique({
                 where: { id: leadId },
-                select: { enrichedData: true, campaign: { select: { teamId: true } } }
+                select: { enrichedData: true, teamId: true, campaign: { select: { teamId: true } } }
             }) : null;
-            if (payloadTeamId && followUpLead?.campaign?.teamId && followUpLead.campaign.teamId !== payloadTeamId) {
+            const followUpLeadTeamId = followUpLead?.teamId ?? followUpLead?.campaign?.teamId;
+            if (payloadTeamId && followUpLeadTeamId && followUpLeadTeamId !== payloadTeamId) {
                 throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
             }
-            const followUpTeamId = payloadTeamId || followUpLead?.campaign?.teamId;
+            const followUpTeamId = payloadTeamId || followUpLeadTeamId;
             resolvedTeamId = followUpTeamId;
             const followUpContext = followUpLead?.enrichedData ? JSON.stringify(followUpLead.enrichedData) : `Follow up with lead at ${url}`;
             const followUpMessage = await aiService.askAI(
@@ -121,7 +130,8 @@ export async function handleSequenceAction(payload: JobPayload) {
                 include: { campaign: { include: { team: true } } }
             });
 
-            if (payloadTeamId && lead?.campaign?.teamId && lead.campaign.teamId !== payloadTeamId) {
+            const emailLeadTeamId = lead?.teamId ?? lead?.campaign?.teamId;
+            if (payloadTeamId && emailLeadTeamId && emailLeadTeamId !== payloadTeamId) {
                 throw new Error(`Lead ${leadId} does not belong to team ${payloadTeamId}`);
             }
 
@@ -196,9 +206,13 @@ export async function handleSequenceAction(payload: JobPayload) {
     const success = result && ((result as any).ok || (result as any).success);
 
     if (success) {
-        // Update DB status
-        await prisma.lead.update({
-            where: { id: leadId },
+        // Update DB status - scoped by resolvedTeamId too, not just id, so
+        // this mutation's own safety doesn't depend solely on the per-branch
+        // ownership checks above holding true (OPEN-231).
+        const updateWhere: { id: string; teamId?: string } = { id: leadId };
+        if (resolvedTeamId) updateWhere.teamId = resolvedTeamId;
+        await prisma.lead.updateMany({
+            where: updateWhere,
             data: { status: action } // e.g., "VISIT", "CONNECT"
         }).catch(e => console.error("Failed to update lead status", e));
 

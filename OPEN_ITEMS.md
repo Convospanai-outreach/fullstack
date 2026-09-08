@@ -3948,6 +3948,57 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-231 (Fixed):** cross-tenant lead read/write for campaign-less
+  leads — `apps/api/src/workers/handlers/sequenceHandlers.ts`'s
+  `handleSequenceAction` (`VISIT`/`CONNECT`/`MESSAGE`/`EMAIL`
+  branches) re-verifies the caller-supplied `payload.teamId` against
+  the target lead's team before acting on it (added under
+  **OPEN-169**), but checked it only via `lead.campaign.teamId` — a
+  nullable relation, since `Lead.campaignId` is optional
+  (`apps/api/prisma/schema.prisma:42-43`: `campaignId String?` and
+  `teamId String?` exist as independent columns). For any lead with
+  no campaign — e.g. every lead captured via the browser extension
+  (`extension/leads/route.ts` → `LeadService.upsert` with no
+  `campaignId`) — `lead.campaign` is `null`, so
+  `lead?.campaign?.teamId` is `undefined`, and the `&&`-chained
+  ownership guard silently short-circuited to a no-op: not because
+  the caller omitted `teamId` (`POST /api/jobs` force-sets
+  `payload.teamId` from the caller's own session), but because the
+  *target lead's* foreign-key shape happened to lack a campaign
+  link. An attacker on Team A could enqueue `SEQUENCE_ACTION` with a
+  guessed/leaked campaign-less lead id belonging to Team B; the
+  check never fired, so Team B's `lead.enrichedData` (PII) got
+  stuffed into an AI prompt whose output the attacker could read
+  back via their own `GET /api/jobs`, Team B's lead `status` was
+  overwritten via an unscoped `prisma.lead.update({ where: { id:
+  leadId } })`, and `SequenceService.scheduleNextStep` re-enqueued
+  the same victim leadId under the attacker's own `resolvedTeamId`
+  — repeatedly walking a cross-tenant lead through
+  `VISIT → CONNECT → MESSAGE` under Team A's control. OPEN-169's own
+  writeup claims to mirror the sibling `enrichment-worker.ts`
+  pattern, but the implementation diverged: `enrichment-worker.ts`
+  (line 48) correctly checks `lead.teamId` — the lead's own direct,
+  always-populated column — while `sequenceHandlers.ts` checked only
+  the relation-derived field. OPEN-169's own regression tests never
+  covered a campaign-less foreign lead, so the gap went unnoticed.
+  Found via a continuation of the "fallback resolves to a gap"
+  family of sweeps that found OPEN-230, applied this time to a
+  guard that silently no-ops on missing relation data rather than a
+  missing fallback value. **Fixed** by checking `lead.teamId` first
+  (falling back to `lead.campaign?.teamId` only if the lead's own
+  column is genuinely also null) in all four branches, and scoping
+  the final lead-status mutation by `{ id: leadId, teamId:
+  resolvedTeamId }` via `updateMany` instead of a bare `update({
+  where: { id: leadId } })` — matching this ledger's established
+  "scope the mutation, not just a pre-check" discipline (OPEN-99
+  family) as defense-in-depth on top of the branch-level guards.
+  New tests: `VISIT`/`CONNECT` for a campaign-less foreign-team lead
+  are refused with no `runLinkedInAction`/`updateMany` call; a
+  same-team `EMAIL` send still scopes its status update by the
+  resolved `teamId`. 1110/1110 apps/api tests pass (2 new), `tsc
+  --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
+  failure noted above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
