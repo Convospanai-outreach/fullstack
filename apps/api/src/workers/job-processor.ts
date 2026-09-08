@@ -9,6 +9,7 @@ import { handleCsvImport } from "./handlers/csv-worker";
 import { handleIntelFollowupRefresh } from "./handlers/intel-followup-worker";
 import { handleSequenceExecution } from "./handlers/sequence-worker";
 import { handleSequenceAction } from "./handlers/sequenceHandlers";
+import { handleEmailDraftBatchSubmit, handleEmailDraftBatchPoll } from "./handlers/emailDraftBatchHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 import { handleLandingLeadIntake } from "./handlers/landing-lead-intake-worker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
@@ -137,6 +138,12 @@ async function runHandler(jobType: string, payload: JobPayload) {
             );
             return { acknowledged: true };
         }
+
+        case "EMAIL_DRAFT_BATCH_SUBMIT":
+            return handleEmailDraftBatchSubmit(payload);
+
+        case "EMAIL_DRAFT_BATCH_POLL":
+            return handleEmailDraftBatchPoll(payload);
 
         case "warmup_seed_reply": {
             const { sendWarmupSeedReply } = await import("@/modules/email-campaigner/service/warmupSeedService");

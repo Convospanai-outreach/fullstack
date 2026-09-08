@@ -224,11 +224,49 @@ model Campaign {
   activities           Activity[]
   landingCampaignLinks LandingCampaign[] @relation("LandingCampaignLinkedCampaign")
 
+  // Batch email-draft generation (AI cost optimization) — opt-in per campaign,
+  // "REALTIME" preserves today's per-lead live-generation behavior.
+  draftGenerationMode String       @default("REALTIME")
+  enrichmentPending   Int          @default(0)
+  aiDraftBatches      AiDraftBatch[]
+
   @@index([status])
   @@index([teamId])
   @@index([createdAt])
   // Optimization for multi-tenant campaign lists
   @@index([teamId, status])
+}
+
+model AiDraftBatch {
+  id              String   @id @default(uuid())
+  campaignId      String
+  teamId          String
+  provider        String // "anthropic" | "openai"
+  providerBatchId String
+  status          String   @default("submitted") // submitted | polling | completed | failed
+  itemCount       Int
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+  pollAttempts    Int      @default(0)
+  campaign        Campaign           @relation(fields: [campaignId], references: [id])
+  items           AiDraftBatchItem[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+model AiDraftBatchItem {
+  id       String       @id @default(uuid())
+  batchId  String
+  leadId   String
+  customId String       @unique // provider's per-request id, == leadId
+  status   String       @default("pending") // pending | succeeded | failed
+  subject  String?
+  body     String?
+  error    String?
+  batch    AiDraftBatch @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
 }
 
 model CampaignVariant {

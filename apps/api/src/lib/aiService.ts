@@ -18,7 +18,7 @@ import {
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
 
-type ProviderKeySet = {
+export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
     openai?: { apiKey: string; model?: string };
     anthropic?: { apiKey: string; model?: string };
@@ -80,7 +80,7 @@ function calculateCreditsFromUsage(tokensIn: number, tokensOut: number): number 
     return Math.max(1, Math.ceil((Math.max(0, tokensIn) + Math.max(0, tokensOut)) / 1000));
 }
 
-async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
+export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
     const fromEnv: ProviderKeySet = {
         gemini: process.env["GEMINI_API_KEY"]
             ? { apiKey: process.env["GEMINI_API_KEY"], model: process.env["GEMINI_MODEL"] }
@@ -133,7 +133,7 @@ function resolveProvider(
     throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
 }
 
-function extractJsonBlock(text: string): string {
+export function extractJsonBlock(text: string): string {
     const trimmed = text.trim();
     if (trimmed.startsWith("{") || trimmed.startsWith("[")) return trimmed;
     const start = Math.min(

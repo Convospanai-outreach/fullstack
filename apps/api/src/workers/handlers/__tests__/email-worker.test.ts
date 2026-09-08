@@ -82,4 +82,29 @@ describe("email-worker", () => {
         expect(emailService.sendEmail).toHaveBeenCalled();
         expect(result).toMatchObject({ leadId: "lead-1", sent: true });
     });
+
+    it("uses a precomputed draft (BATCH mode) instead of calling generateEmailDraft", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({
+            id: "campaign-1",
+            teamId: "team-a",
+            ownerId: "user-1",
+        });
+
+        const result = await handleEmailSend({
+            leadId: "lead-1",
+            campaignId: "campaign-1",
+            teamId: "team-a",
+            precomputedDraft: { subject: "Batch subject", body: "Batch body" },
+        } as any);
+
+        expect(aiService.generateEmailDraft).not.toHaveBeenCalled();
+        expect(emailService.sendEmail).toHaveBeenCalledWith(
+            "a@b.com",
+            "Batch subject",
+            "Batch body",
+            expect.anything()
+        );
+        expect(result).toMatchObject({ leadId: "lead-1", sent: true });
+    });
 });
