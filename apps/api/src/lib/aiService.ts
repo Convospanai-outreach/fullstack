@@ -17,6 +17,7 @@ import {
     resolveSurfaceFromTaskType
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
+import { TOON } from "@/lib/ai/TOON";
 
 export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -26,18 +27,27 @@ export type ProviderKeySet = {
 
 const DEFAULT_MODELS = {
     gemini: {
+        trivial: "gemini-1.5-flash",
         routine: "gemini-1.5-flash",
         strategic: "gemini-1.5-pro"
     },
     openai: {
+        trivial: "gpt-4o-mini",
         routine: "gpt-4o-mini",
         strategic: "gpt-4o"
     },
     anthropic: {
+        trivial: "claude-3-5-haiku",
         routine: "claude-3-5-sonnet",
         strategic: "claude-3-5-sonnet"
     }
 };
+
+function resolveModelTier(complexity: TaskComplexity): "trivial" | "routine" | "strategic" {
+    if (complexity === TaskComplexity.TRIVIAL) return "trivial";
+    if (complexity === TaskComplexity.STRATEGIC) return "strategic";
+    return "routine";
+}
 
 const COST_PER_1K_TOKENS: Record<string, number> = {
     "gpt-4o": 0.015,
@@ -71,7 +81,9 @@ function isChargeableTeamId(teamId?: string): teamId is string {
 
 function estimateCreditsForPrompt(prompt: string, complexity?: TaskComplexity): number {
     const inputTokens = Math.ceil(prompt.length / 4);
-    const estimatedOutputTokens = complexity === TaskComplexity.STRATEGIC ? 900 : 500;
+    const estimatedOutputTokens =
+        complexity === TaskComplexity.STRATEGIC ? 900 :
+        complexity === TaskComplexity.TRIVIAL ? 150 : 500;
     return Math.max(1, Math.ceil((inputTokens + estimatedOutputTokens) / 1000));
 }
 
@@ -119,15 +131,15 @@ function resolveProvider(
     complexity: TaskComplexity = TaskComplexity.ROUTINE
 ): { provider: LLMProvider; apiKey: string; model: string } {
     if (providers.gemini?.apiKey) {
-        const model = providers.gemini.model || DEFAULT_MODELS.gemini[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.gemini.model || DEFAULT_MODELS.gemini[resolveModelTier(complexity)];
         return { provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model };
     }
     if (providers.openai?.apiKey) {
-        const model = providers.openai.model || DEFAULT_MODELS.openai[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.openai.model || DEFAULT_MODELS.openai[resolveModelTier(complexity)];
         return { provider: LLMProvider.OPENAI, apiKey: providers.openai.apiKey, model };
     }
     if (providers.anthropic?.apiKey) {
-        const model = providers.anthropic.model || DEFAULT_MODELS.anthropic[complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine"];
+        const model = providers.anthropic.model || DEFAULT_MODELS.anthropic[resolveModelTier(complexity)];
         return { provider: LLMProvider.ANTHROPIC, apiKey: providers.anthropic.apiKey, model };
     }
     throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
@@ -299,7 +311,7 @@ function recordProviderSuccess(provider: LLMProvider): void {
 type ProviderCandidate = { provider: LLMProvider; apiKey: string; model: string };
 
 function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexity = TaskComplexity.ROUTINE): ProviderCandidate[] {
-    const tier = complexity === TaskComplexity.STRATEGIC ? "strategic" : "routine";
+    const tier = resolveModelTier(complexity);
     const chain: ProviderCandidate[] = [];
     if (providers.gemini?.apiKey) {
         chain.push({ provider: LLMProvider.GEMINI, apiKey: providers.gemini.apiKey, model: providers.gemini.model || DEFAULT_MODELS.gemini[tier] });
@@ -345,10 +357,22 @@ async function escalateGenerationFailureToHuman(params: {
     }
 }
 
-async function callProvider(candidate: ProviderCandidate, prompt: string): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
+async function callProvider(
+    candidate: ProviderCandidate,
+    prompt: string,
+    systemPrompt?: string
+): Promise<{ text: string; tokensIn: number; tokensOut: number }> {
     if (candidate.provider === LLMProvider.GEMINI) {
         const genAI = new GoogleGenerativeAI(candidate.apiKey);
-        const model = genAI.getGenerativeModel({ model: candidate.model });
+        // Gemini has no lightweight prompt-caching flag like Anthropic's
+        // cache_control (its context-caching API is a separate, heavier
+        // resource-lifecycle call) - systemInstruction at least keeps static
+        // instructions out of the per-call prompt for parity with the other
+        // providers' request shape.
+        const model = genAI.getGenerativeModel({
+            model: candidate.model,
+            ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
+        });
         const result = await model.generateContent(prompt);
         const response = result.response;
         const usage = (response as any).usageMetadata || {};
@@ -361,9 +385,16 @@ async function callProvider(candidate: ProviderCandidate, prompt: string): Promi
 
     if (candidate.provider === LLMProvider.OPENAI) {
         const client = new OpenAI({ apiKey: candidate.apiKey });
+        // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
+        // no explicit cache_control needed, just put the stable instructions
+        // in their own leading message so the prefix is byte-identical
+        // across calls that share it.
+        const messages: OpenAI.Chat.ChatCompletionMessageParam[] = systemPrompt
+            ? [{ role: "system", content: systemPrompt }, { role: "user", content: prompt }]
+            : [{ role: "user", content: prompt }];
         const response = await client.chat.completions.create({
             model: candidate.model,
-            messages: [{ role: "user", content: prompt }],
+            messages,
             temperature: 0.4
         });
         return {
@@ -377,6 +408,13 @@ async function callProvider(candidate: ProviderCandidate, prompt: string): Promi
     const message = await client.messages.create({
         model: candidate.model,
         max_tokens: 800,
+        // Anthropic prompt caching: marking a stable system block ephemeral
+        // lets a repeated prefix (e.g. the same style/persona instructions
+        // sent on every campaign email) be served from cache instead of
+        // re-billed as fresh input tokens on every call that reuses it.
+        ...(systemPrompt
+            ? { system: [{ type: "text" as const, text: systemPrompt, cache_control: { type: "ephemeral" as const } }] }
+            : {}),
         messages: [{ role: "user", content: prompt }]
     });
     return {
@@ -394,6 +432,7 @@ async function callLLM(
         taskTypeLabel?: string;
         creditDescription?: string;
         actorId?: string;
+        systemPrompt?: string;
     }
 ) {
     const actorId = options.actorId || RequestContext.get()?.userId;
@@ -418,7 +457,7 @@ async function callLLM(
         for (let attempt = 0; attempt <= MAX_RETRIES_PER_PROVIDER; attempt++) {
             lastCandidate = candidate;
             try {
-                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt), LLM_TIMEOUT_MS);
+                const { text, tokensIn, tokensOut } = await withTimeout(callProvider(candidate, prompt, options.systemPrompt), LLM_TIMEOUT_MS);
                 recordProviderSuccess(candidate.provider);
                 await logUsage({
                     teamId: options.teamId,
@@ -519,6 +558,22 @@ export class AIService {
             taskType?: string;
             surface?: AISurface;
             actorId?: string;
+            /**
+             * Stable, repeated instructions (persona/style/rules) separated
+             * from the per-call dynamic prompt. When set, Anthropic marks it
+             * as an ephemeral prompt-cache block and OpenAI's automatic
+             * prefix caching can reuse it across calls that share the exact
+             * same system text - real cost savings on high-repeat callers
+             * like per-team email-composer style guidance.
+             */
+            systemPrompt?: string;
+            /**
+             * Defaults to STRATEGIC. Pass TRIVIAL for calls whose entire
+             * output is a single classification label/score with no prose
+             * (e.g. intent scoring) - routes to each provider's cheapest
+             * model tier instead of the default strategic one.
+             */
+            complexity?: TaskComplexity;
         }
     ) {
         const surface = taskContext?.surface || resolveSurfaceFromTaskType(taskContext?.taskType);
@@ -526,12 +581,16 @@ export class AIService {
             surface,
             label: "AI prompt"
         });
+        const safeSystemPrompt = taskContext?.systemPrompt
+            ? enforceAIPromptPolicy(taskContext.systemPrompt, { surface, label: "AI system prompt" })
+            : undefined;
         const result = await callLLM(safePrompt, {
             teamId,
-            complexity: TaskComplexity.STRATEGIC,
+            complexity: taskContext?.complexity || TaskComplexity.STRATEGIC,
             taskTypeLabel: taskContext?.taskType || surface,
             creditDescription: `AI ${taskContext?.taskType || "GENERATION"}`,
-            actorId: taskContext?.actorId
+            actorId: taskContext?.actorId,
+            systemPrompt: safeSystemPrompt
         });
 
         const expectsJson = !!taskContext?.expectsJson;
@@ -794,14 +853,17 @@ export class AIService {
     }
 
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
+        // TOON's compact tabular serialization instead of JSON.stringify -
+        // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
+        // cutting prompt tokens on every email-draft call.
         const prompt = `
 You are a B2B outreach expert. Draft a cold email.
 
 Lead:
-${JSON.stringify(lead)}
+${TOON.serializeTabular(lead)}
 
 ICP:
-${JSON.stringify(icp)}
+${TOON.serializeTabular(icp)}
 
 Return JSON with keys: subject, body.
         `.trim();
