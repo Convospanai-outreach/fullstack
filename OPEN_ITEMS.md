@@ -3832,6 +3832,53 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   clean (same pre-existing, unrelated `browser-engine.ts` failure
   noted above).
 
+- **OPEN-228 (Fixed):** cross-tenant AI-provider-key takeover —
+  `apps/api/routes/admin/ai-config/route.ts`'s `GET`/`POST` manage a
+  **team-scoped** resource (`Team.aiConfig`, read/written for
+  `teamId` from `getCurrentContext()`) but authorized the caller
+  with `checkAdmin()`, which checks only the caller's **global**
+  `User.enterpriseRole` field — never the caller's actual
+  `TeamMember.role` for the specific team being mutated.
+  `enterpriseRole` is explicitly established elsewhere in this
+  ledger (OPEN-124/153/174/175/176) as a normal, self-service-
+  assignable per-workspace role: any existing team admin can invite
+  a teammate as `ORG_ADMIN`, permanently setting that global field
+  on the invitee's `User` row. Combined, this meant a user who
+  earned `ORG_ADMIN` from being invited into Team A (self-service,
+  zero real trust implied) but held only an ordinary `member`/
+  `viewer` role in unrelated Team B could switch their active-team
+  context to Team B and call `GET`/`POST /admin/ai-config` to read
+  Team B's masked AI-provider key fragments and — more seriously —
+  overwrite Team B's `aiConfig.providers.*.apiKey`/`model` with
+  attacker-controlled values, hijacking Team B's outbound AI calls
+  (billing/data exfiltration via an attacker-controlled key, or
+  denial of service by corrupting the config) despite holding no
+  admin privilege whatsoever inside Team B. OPEN-176's earlier sweep
+  of `checkAdmin()`-with-no-argument call sites under `apps/api/
+  routes/admin/**` had classified `ai-config` alongside genuinely
+  platform-wide aggregates (`service-health`/`runtime-overview`/
+  `llm-stats`) and left it as-is — that classification doesn't hold
+  for `ai-config`, since unlike those it reads/writes one specific
+  team's row, not aggregate/global data, so the "gate on
+  `SYSTEM_ADMIN`" fix applied to true aggregates is the wrong
+  compare-point here; this needed the *per-team* role check instead.
+  The sibling `apps/api/routes/settings/agent/route.ts` — also a
+  team-settings resource — already shows the correct pattern:
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)`, which looks
+  up `TeamMember.role` for that specific `(userId, teamId)` pair.
+  Found via a continuation of the ORG_ADMIN-as-platform-privilege
+  sweep that found OPEN-124/153/174/205/226, applied this time to a
+  route that manages team-scoped (not platform-wide) data. **Fixed**
+  by replacing `checkAdmin()` in both `GET` and `POST` with
+  `checkTeamPermission(userId, teamId, TeamRole.ADMIN)`, matching
+  `settings/agent/route.ts` exactly. New test file (none existed): a
+  caller who is `ADMIN`-elsewhere-but-not-on-this-team is refused
+  403 on both `GET` and `POST`, with the underlying `prisma.team.
+  update` never invoked; a genuine team `ADMIN` still succeeds on
+  both. 1104/1104 apps/api tests pass (4 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted
+  above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
