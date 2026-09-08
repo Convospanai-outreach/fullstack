@@ -124,7 +124,12 @@ function buildStyleGuidance(input: {
     return guidance.join("\n");
 }
 
-function buildNodeAPrompt(input: NodeAInput): string {
+// Static instructions + this team's style settings - identical across every
+// lead in a campaign (style only changes when the team edits it), so this is
+// sent as a cacheable system prompt rather than baked into the per-lead
+// prompt: Anthropic serves repeat calls from its ephemeral prompt cache
+// instead of rebilling these ~20 lines as fresh input tokens every time.
+function buildNodeASystemPrompt(input: NodeAInput): string {
     return `You write B2B cold emails that feel like they came from a brilliant peer, not a vendor.
 
 ## THE ONE RULE THAT OVERRIDES EVERYTHING
@@ -147,9 +152,11 @@ The prospect must feel, within the first sentence, that you read something *spec
 Peer-to-peer. No: "I hope this finds you well", "I came across your profile", "I'd love to", "just wanted to". No feature lists. Plain language.
 
 ## STYLE SETTINGS
-${buildStyleGuidance(input)}
+${buildStyleGuidance(input)}`;
+}
 
-## AVOID TOPICS
+function buildNodeAPrompt(input: NodeAInput): string {
+    return `## AVOID TOPICS
 Do not reference or imply: ${input.avoid_topics.join(", ") || "none specified"}
 
 ## INPUT
@@ -355,7 +362,7 @@ export async function composeNodeA(
 
     // 2. INITIAL GENERATION
     const prompt = buildNodeAPrompt(input);
-    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true });
+    const raw = await aiService.askAI(prompt, teamId, { taskType: "EMAIL_DRAFT", surface: "EMAIL", expectsJson: true, disableGuardrails: true, systemPrompt: buildNodeASystemPrompt(input) });
     const draft = parseJsonResponse<NodeAOutput>(raw);
 
     // 3. SELF-CHECKING & SELF-CORRECTING LOOP
