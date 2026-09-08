@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-function normalizeCompanyName(value: string | null | undefined) {
-    return (value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
+import { vectorStore } from "@/modules/rag/service/vectorStore";
 
 function toRecord(value: unknown) {
     return typeof value === "object" && value !== null ? value as Record<string, unknown> : {};
@@ -44,59 +41,32 @@ export async function POST(req: NextRequest) {
             : null;
 
         const effectiveCampaignId = campaignId || lead?.campaignId || null;
-        const companyKey = normalizeCompanyName(lead?.company);
 
-        const knowledgeBase = await prisma.knowledgeBase.findFirst({
-            where: {
-                teamId,
-                name: "Netjana Intelligence",
-            },
-            select: { id: true },
-        });
-
-        if (!knowledgeBase) {
+        // Previously restricted to only the "Netjana Intelligence" buyer-signal KB, so any
+        // other knowledge base a team uploaded (pricing sheets, case studies, product docs)
+        // was invisible here no matter how relevant. teamId is the session's own (never
+        // derived from the lead), so this stays scoped to the caller's tenant regardless of
+        // whether leadId turned out to belong to them.
+        const query = [lead?.company, effectiveCampaignId].filter(Boolean).join(" ") || lead?.company || "";
+        if (!query) {
             return NextResponse.json({ context: "", items: [] });
         }
 
-        const knowledgeItems = await prisma.knowledgeItem.findMany({
-            where: {
-                knowledgeBaseId: knowledgeBase.id,
-            },
-            orderBy: { createdAt: "desc" },
-            take: 40,
-            select: {
-                id: true,
-                content: true,
-                metadata: true,
-                createdAt: true,
-            },
+        const results = await vectorStore.search(query, teamId, 3);
+
+        const prioritizedItems = results.map((item) => {
+            const metadata = toRecord(item.metadata);
+            return {
+                id: item.id,
+                content: item.content,
+                companyName: typeof metadata.companyName === "string" ? metadata.companyName : null,
+                receivedAt: typeof metadata.receivedAt === "string" ? metadata.receivedAt : null,
+            };
         });
-
-        const prioritizedItems = knowledgeItems
-            .map((item) => {
-                const metadata = toRecord(item.metadata);
-                const metadataCompany = normalizeCompanyName(typeof metadata.companyName === "string" ? metadata.companyName : "");
-                const metadataCampaignId = typeof metadata.campaignId === "string" ? metadata.campaignId : null;
-                const directCompanyMatch = Boolean(companyKey) && metadataCompany === companyKey;
-                const directCampaignMatch = Boolean(effectiveCampaignId) && metadataCampaignId === effectiveCampaignId;
-                const score = (directCampaignMatch ? 3 : 0) + (directCompanyMatch ? 2 : 0) + 1;
-
-                return {
-                    id: item.id,
-                    content: item.content,
-                    createdAt: item.createdAt,
-                    score,
-                    companyName: typeof metadata.companyName === "string" ? metadata.companyName : null,
-                    receivedAt: typeof metadata.receivedAt === "string" ? metadata.receivedAt : item.createdAt.toISOString(),
-                };
-            })
-            .filter((item) => item.score > 1 || !companyKey)
-            .sort((a, b) => b.score - a.score || b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, 3);
 
         const context = prioritizedItems.map((item) => {
             const label = item.companyName || "Buyer signal";
-            return `- ${label} (${item.receivedAt}): ${excerptContent(item.content)}`;
+            return `- ${label}${item.receivedAt ? ` (${item.receivedAt})` : ""}: ${excerptContent(item.content)}`;
         }).join("\n");
 
         return NextResponse.json({
