@@ -17,6 +17,7 @@ import {
     resolveSurfaceFromTaskType
 } from "@/lib/aiInputGuardrails";
 import { RequestContext } from "@/lib/requestContext";
+import { TOON } from "@/lib/ai/TOON";
 
 type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
@@ -794,14 +795,17 @@ export class AIService {
     }
 
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
+        // TOON's compact tabular serialization instead of JSON.stringify -
+        // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
+        // cutting prompt tokens on every email-draft call.
         const prompt = `
 You are a B2B outreach expert. Draft a cold email.
 
 Lead:
-${JSON.stringify(lead)}
+${TOON.serializeTabular(lead)}
 
 ICP:
-${JSON.stringify(icp)}
+${TOON.serializeTabular(icp)}
 
 Return JSON with keys: subject, body.
         `.trim();
