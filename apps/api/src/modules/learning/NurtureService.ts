@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { calendarNurtureFlow } from "@/lib/ai/flows/calendar_nurture_flow";
+
+const CANDIDATE_LEAD_LIMIT = 20;
 
 export class NurtureService {
     // Was self-fetching POST /nurture/sync-events, which doesn't exist as a route (a hard
@@ -26,17 +29,73 @@ export class NurtureService {
         return { calendarEvents };
     }
 
-    // Was self-fetching POST /nurture/generate-tasks, which doesn't exist as a route.
-    // NOT FIXED (computation, not just the fetch): generating real nurture tasks would mean
-    // matching leads to upcoming calendar events and deciding a next action per lead - the
-    // only related code in the repo, calendarNurtureFlow
-    // (apps/api/src/lib/ai/flows/calendar_nurture_flow.ts), is itself an orphaned, zero-caller
-    // AI flow that was never wired to any lead/event matching logic. There is no existing
-    // computation to mirror here; inventing the matching rules and AI orchestration would mean
-    // designing a new feature inside a self-fetch bug fix, not fixing one. Removed the broken
-    // self-fetch and return the same honest zero the original catch-block fallback already
-    // used, rather than fabricate a task-generation algorithm.
-    static async generateNurtureTasks(_teamId: string, _daysForward: number = 7) {
-        return { tasksCreated: 0 };
+    // Matches the team's active leads against the nearest upcoming calendar event and asks
+    // calendarNurtureFlow (previously an orphaned, unwired AI flow) to decide a next action per
+    // lead, creating a Task for anything that isn't DROP/WAIT. Bounded to one event and
+    // CANDIDATE_LEAD_LIMIT leads per call since the caller (routes/nurture/trigger) is a
+    // synchronous, session-authed request.
+    static async generateNurtureTasks(teamId: string, daysForward: number = 7) {
+        const start = new Date();
+        const end = new Date(Date.now() + daysForward * 24 * 60 * 60 * 1000);
+
+        const nextEvent = await prisma.calendarEvent.findFirst({
+            where: { eventDate: { gte: start, lte: end } },
+            orderBy: { eventDate: "asc" },
+        });
+        if (!nextEvent) {
+            return { tasksCreated: 0 };
+        }
+
+        const candidateLeads = await prisma.lead.findMany({
+            where: {
+                teamId,
+                pipelineState: { notIn: ["WON", "LOST"] },
+                tasks: { none: { dueDate: nextEvent.eventDate } },
+            },
+            take: CANDIDATE_LEAD_LIMIT,
+        });
+        if (candidateLeads.length === 0) {
+            return { tasksCreated: 0 };
+        }
+
+        const assignee = await prisma.teamMember.findFirst({
+            where: { teamId, role: "owner", userId: { not: null } },
+            orderBy: { createdAt: "asc" },
+        }) ?? await prisma.teamMember.findFirst({
+            where: { teamId, userId: { not: null } },
+            orderBy: { createdAt: "asc" },
+        });
+        if (!assignee?.userId) {
+            // No user to assign nurture tasks to for this team - nothing to create.
+            return { tasksCreated: 0 };
+        }
+
+        const eventDetails = `${nextEvent.eventName} on ${nextEvent.eventDate.toDateString()} - ${nextEvent.leadGenAngle}`;
+
+        let tasksCreated = 0;
+        for (const lead of candidateLeads) {
+            const leadContext = `${lead.fullName || "Unknown"} at ${lead.company || "unknown company"}, title: ${lead.jobTitle || "unknown"}, pipeline stage: ${lead.pipelineState}`;
+            const pastInteractions = lead.enrichedData ? JSON.stringify(lead.enrichedData) : "No prior interaction data recorded.";
+
+            const decision = await calendarNurtureFlow.run({ leadContext, eventDetails, pastInteractions });
+            if (decision.nextAction === "DROP" || decision.nextAction === "WAIT") {
+                continue;
+            }
+
+            await prisma.task.create({
+                data: {
+                    teamId,
+                    userId: assignee.userId,
+                    leadId: lead.id,
+                    title: `${nextEvent.eventName}: ${decision.nextAction === "SEND_MATERIAL" ? "Send material" : "Follow up"} with ${lead.fullName || "lead"}`,
+                    description: decision.message,
+                    dueDate: nextEvent.eventDate,
+                    priority: decision.nextAction === "SEND_MATERIAL" ? "MEDIUM" : "HIGH",
+                },
+            });
+            tasksCreated += 1;
+        }
+
+        return { tasksCreated };
     }
 }

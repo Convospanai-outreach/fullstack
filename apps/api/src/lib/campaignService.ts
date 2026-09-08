@@ -1,6 +1,17 @@
 import { prisma } from "@/lib/db";
 import { SequenceService } from "@/lib/sequenceService";
 
+function pickWeightedVariant<T extends { weight: number }>(variants: T[]): T | null {
+    if (variants.length === 0) return null;
+    const totalWeight = variants.reduce((sum, v) => sum + v.weight, 0);
+    let random = Math.random() * totalWeight;
+    for (const variant of variants) {
+        random -= variant.weight;
+        if (random <= 0) return variant;
+    }
+    return variants[0];
+}
+
 export class CampaignService {
     static async createCampaign(data: {
         name: string;
@@ -81,29 +92,15 @@ export class CampaignService {
         // Trigger sequence for all leads in campaign
         for (const lead of campaign.leadList) {
             if (lead.status === "NEW") {
-                if (lead.linkedIn) {
-                    // Determine variant
-                    let selectedVariant = null;
-                    if (campaign.variants.length > 0) {
-                        const totalWeight = campaign.variants.reduce((sum, v) => sum + v.weight, 0);
-                        let random = Math.random() * totalWeight;
-                        for (const variant of campaign.variants) {
-                            random -= variant.weight;
-                            if (random <= 0) {
-                                selectedVariant = variant;
-                                break;
-                            }
-                        }
-                        if (!selectedVariant) selectedVariant = campaign.variants[0];
-                    }
+                const selectedVariant = pickWeightedVariant(campaign.variants);
 
-                    // In a real implementation, pass selectedVariant.id to SequenceService
+                if (lead.linkedIn) {
                     console.log(`Starting sequence for lead ${lead.id} with variant ${selectedVariant?.id || 'default'}`);
                     await prisma.lead.update({
                         where: { id: lead.id },
                         data: { status: "QUEUED" }
                     });
-                    await SequenceService.startSequence(lead.id, lead.linkedIn, campaign.teamId ?? undefined);
+                    await SequenceService.startSequence(lead.id, lead.linkedIn, campaign.teamId ?? undefined, selectedVariant?.id);
                 } else if (lead.email) {
                     // Email-only outreach: schedule EMAIL step immediately
                     console.log(`Starting email-only sequence for lead ${lead.id}`);
@@ -111,7 +108,7 @@ export class CampaignService {
                         where: { id: lead.id },
                         data: { status: "QUEUED" }
                     });
-                    await SequenceService.scheduleStep(lead.id, "", "EMAIL", 0, campaign.teamId ?? undefined);
+                    await SequenceService.scheduleStep(lead.id, "", "EMAIL", 0, campaign.teamId ?? undefined, selectedVariant?.id);
                 }
             }
         }

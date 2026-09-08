@@ -10,6 +10,10 @@ vi.mock("@/lib/db", () => ({
             findUnique: vi.fn(),
             updateMany: vi.fn().mockResolvedValue({ count: 1 }),
         },
+        campaignVariant: {
+            findFirst: vi.fn().mockResolvedValue(null),
+            update: vi.fn().mockResolvedValue({}),
+        },
     },
 }));
 
@@ -167,5 +171,41 @@ describe("handleSequenceAction EMAIL", () => {
             where: { id: "lead-own", teamId: "team-1" },
             data: { status: "EMAIL" },
         });
+    });
+
+    it("sends the selected A/B variant's own subject/body instead of composeNodeA's draft, and increments its sentCount", async () => {
+        vi.mocked(prisma.lead.findUnique).mockResolvedValueOnce({
+            id: "lead-own",
+            email: "own@example.com",
+            campaignId: "campaign-1",
+            fullName: "Own Lead",
+            campaign: { id: "campaign-1", teamId: "team-1", team: {}, aiConfig: {} },
+        } as any);
+        vi.mocked(prisma.campaignVariant.findFirst).mockResolvedValueOnce({
+            id: "variant-1",
+            campaignId: "campaign-1",
+            subject: "Variant subject",
+            body: "Variant body",
+        } as any);
+        vi.mocked(emailService.sendEmail).mockResolvedValueOnce({ ok: true } as any);
+
+        const result = await handleSequenceAction({
+            leadId: "lead-own",
+            action: "EMAIL",
+            teamId: "team-1",
+            variantId: "variant-1",
+        });
+
+        expect(emailService.sendEmail).toHaveBeenCalledWith(
+            "own@example.com",
+            "Variant subject",
+            "Variant body",
+            expect.objectContaining({ teamId: "team-1", campaignId: "campaign-1", leadId: "lead-own" })
+        );
+        expect(prisma.campaignVariant.update).toHaveBeenCalledWith({
+            where: { id: "variant-1" },
+            data: { sentCount: { increment: 1 } },
+        });
+        expect(result).toEqual({ ok: true });
     });
 });

@@ -48,6 +48,14 @@ export async function POST(req: Request) {
                 result = { embeddings };
                 break;
 
+            case "getRagEmbedding":
+                if (typeof params.text !== "string" || !params.text.trim()) {
+                    return NextResponse.json({ error: "Text is required" }, { status: 400 });
+                }
+                const ragEmbedding = await aiService.getRagEmbedding(params.text, params.teamId, ctx.userId);
+                result = { embedding: ragEmbedding };
+                break;
+
             case "generateEmailDraft":
                 result = await aiService.generateEmailDraft(params.lead, params.icp, params.teamId);
                 break;

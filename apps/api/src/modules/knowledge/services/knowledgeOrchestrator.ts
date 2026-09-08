@@ -9,44 +9,7 @@ function excerptContent(value: string, maxLength = 420) {
     return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
-const API_URL =
-    process.env["API_INTERNAL_ORIGIN"]
-    || process.env["API_BASE_URL"]
-    || process.env["NEXT_PUBLIC_API_URL"]
-    || "http://localhost:3001";
-
 export class KnowledgeOrchestrator {
-    // NOT FIXED: self-fetches /knowledge/search, which doesn't exist as a route, and has
-    // zero callers anywhere in the codebase. Left untouched rather than guessed at.
-    static async search(teamId: string, query: string) {
-        try {
-            const res = await fetch(`${API_URL}/knowledge/search`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, query })
-            });
-            return await res.json();
-        } catch {
-            return [];
-        }
-    }
-
-    // NOT FIXED: self-fetches /knowledge/ingest, which doesn't exist as a route, and has
-    // zero callers anywhere in the codebase. Left untouched rather than guessed at.
-    static async ingest(teamId: string, content: string, source: string) {
-        try {
-            const res = await fetch(`${API_URL}/knowledge/ingest`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, content, source })
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Knowledge ingestion proxy failed:", error);
-            throw error;
-        }
-    }
-
     // Was self-fetching POST /knowledge/campaign-context - a real, live route that runs this
     // exact same lookup - but never forwarded the caller's session, so it always failed auth
     // and silently fell back to "". Replicated that route's Prisma logic directly here.

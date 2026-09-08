@@ -4,8 +4,6 @@ import { aiService } from "@/lib/aiService";
 import { vectorStore } from "@/modules/rag/service/vectorStore";
 import { toVectorLiteral } from "@/lib/ai/vectorLiteral";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
-
 // Same lexical-overlap approach as vectorStore.ts's search (tokenize + token-overlap ratio),
 // duplicated here because it's scoped to a single knowledgeBaseId rather than a whole team's
 // knowledge bases, which vectorStore.search doesn't support.
@@ -96,18 +94,4 @@ export const knowledgeService = {
             .sort((a, b) => b.score - a.score)
             .slice(0, limit);
     },
-
-    // NOT FIXED: self-fetches /knowledge/delete, which doesn't exist as a route, and has
-    // zero callers anywhere in the codebase - the real KB-delete route
-    // (DELETE /knowledge/[id]) bypasses this service entirely with its own direct
-    // prisma.knowledgeBase.delete call. Left untouched rather than guessed at, matching
-    // how 121721a left PipelineService.updateTask untouched for the same reason.
-    async deleteDocument(id: string) {
-        const res = await fetch(`${API_URL}/knowledge/delete`, {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id })
-        });
-        return await res.json();
-    }
 };

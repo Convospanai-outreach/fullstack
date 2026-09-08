@@ -1,7 +1,5 @@
 import { prisma } from "@/lib/db";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
-
 export enum PipelineStage {
     NEW = "NEW",
     QUALIFIED = "QUALIFIED",
@@ -58,25 +56,6 @@ export class PipelineService {
                 dueDate: dueDate ? new Date(dueDate) : undefined,
             },
         });
-    }
-
-    // NOTE: unreachable in current production traffic - the only route that updates a
-    // task (/pipeline/tasks/[id], PATCH) does it inline via direct Prisma calls and
-    // never calls this method. Left as the pre-existing self-fetch stub (same
-    // nonexistent-route bug as the other methods here) rather than fixed, since there's
-    // no live caller to verify against. Flagged for whoever picks this up next.
-    static async updateTask(teamId: string, taskId: string, data: any) {
-        try {
-            const res = await fetch(`${API_URL}/pipeline/task`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, taskId, data })
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Task update proxy failed:", error);
-            throw error;
-        }
     }
 
     static async getTasks(teamId: string, leadId?: string) {

@@ -103,9 +103,8 @@ export class CampaignService {
                     if (!selectedVariant) selectedVariant = campaign.variants[0];
                 }
 
-                // In a real implementation, pass selectedVariant.id to SequenceService
                 console.log(`Starting sequence for lead ${lead.id} with variant ${selectedVariant?.id || 'default'}`);
-                await SequenceService.startSequence(lead.id, lead.linkedIn);
+                await SequenceService.startSequence(lead.id, lead.linkedIn, campaign.teamId ?? undefined, selectedVariant?.id);
             }
         }
     }

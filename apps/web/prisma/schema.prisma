@@ -1869,10 +1869,13 @@ model KnowledgeBase {
 }
 
 model KnowledgeItem {
-  id              String   @id @default(uuid())
-  content         String   @db.Text
-  embedding       String? // Temporarily String
-  embeddingModel  String?  @default("gemini-1.5-flash")
+  id              String                       @id @default(uuid())
+  content         String                       @db.Text
+  // Real pgvector column - already applied to the shared DB by apps/api's
+  // migration (apps/api/prisma/migrations/20260908130000_add_vector_embeddings).
+  // Schema-only change here to match; no new migration needed in this app.
+  embedding       Unsupported("vector(1536)")?
+  embeddingModel  String?                      @default("text-embedding-3-small")
   version         Int?     @default(1)
   metadata        Json? // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
   knowledgeBaseId String
