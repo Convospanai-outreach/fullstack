@@ -3999,6 +3999,43 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   --noEmit` clean (same pre-existing, unrelated `browser-engine.ts`
   failure noted above).
 
+- **OPEN-232 (Fixed):** cross-tenant IDOR (defense-in-depth gap) —
+  `apps/api/routes/webhooks/[id]/route.ts`'s `DELETE` correctly
+  derives `teamId` from the session and correctly gates on
+  `TeamRole.ADMIN` (role check added under OPEN-104, hardened by
+  OPEN-213), and its ownership pre-check (`prisma.webhook.findUnique
+  ({ where: { id, teamId } })`) is properly scoped — but the actual
+  mutating call, `prisma.webhook.delete({ where: { id } })`, dropped
+  the `teamId` filter entirely, trusting the pre-check alone. The
+  exact "scope the read pre-check but not the write itself"
+  anti-pattern already fixed roughly a dozen times in this ledger
+  (OPEN-99/109/110/118/120/121/122/123/127/128/150/166/227): the
+  mutation's own safety must not depend solely on a separate
+  pre-check holding true. Not independently exploitable today (the
+  immediately-preceding `findUnique` still blocks a foreign-team
+  `id` from reaching `delete` in the current code path — same
+  "one refactor away from a real hole" classification as OPEN-227),
+  but a future cache on the pre-check, a narrowed `select`, or any
+  refactor that separates the check from the act would turn this
+  into a live cross-tenant webhook delete. Every other mutating
+  route on this exact `Webhook` model already scopes its write
+  correctly: `apps/api/routes/settings/webhooks/route.ts`'s `DELETE`
+  (`prisma.webhook.delete({ where: { id, teamId } })`) and
+  `settings/webhooks/secret/route.ts`'s `update` — `webhooks/[id]/
+  route.ts` was the one outlier in the module still trusting its
+  pre-check alone on the final write. Found via a systematic diff of
+  every mutating handler touching `prisma.webhook` against each
+  other, in a continuation of the check-then-act sweep that found
+  OPEN-227. **Fixed** by scoping the delete identically to the
+  sibling: `prisma.webhook.delete({ where: { id, teamId } })` (no
+  compound unique constraint needed - Prisma accepts a unique field
+  plus additional non-unique filter fields in `where`, confirmed
+  already working in the sibling route). New test: the delete call
+  is asserted to include `teamId` in its `where` clause, not just
+  `id`. 1111/1111 apps/api tests pass (1 new), `tsc --noEmit` clean
+  (same pre-existing, unrelated `browser-engine.ts` failure noted
+  above).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
