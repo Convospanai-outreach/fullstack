@@ -82,6 +82,32 @@ const ALLOWLIST = new Map([
         "Same unreachable dependency chain and override conflict as " +
         "GHSA-5jgf-p345-68v8 above. See OPEN_ITEMS.md OPEN-125.",
     ],
+    [
+        "GHSA-92pp-h63x-v22m",
+        "@hono/node-server (via prisma -> @prisma/dev, Prisma Studio's bundled " +
+        "dev server, <1.19.13): middleware bypass via repeated slashes in " +
+        "serveStatic. Confirmed via repo-wide search that no app source imports " +
+        "@hono/node-server or @prisma/dev directly - the only @hono/node-server " +
+        "this repo's own server.ts actually runs is the top-level dependency at " +
+        "2.x, pinned safe by the existing overrides. This vulnerable copy is " +
+        "only ever invoked by the `prisma` CLI (e.g. `prisma studio`), never by " +
+        "the running api/web server processes. See OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-frvp-7c67-39w9",
+        "@hono/node-server (via prisma -> @prisma/dev, <1.19.15): path traversal " +
+        "in serve-static on Windows via an encoded backslash. Same unreachable " +
+        "Prisma-Studio-only dependency as GHSA-92pp-h63x-v22m above. See " +
+        "OPEN_ITEMS.md OPEN-125.",
+    ],
+    [
+        "GHSA-5qjj-4xww-7phc",
+        "valibot (via prisma -> @prisma/dev, <=1.4.1): record() issue paths can " +
+        "make flatten() throw for inherited Object property names. Confirmed no " +
+        "app source imports valibot directly - bundled solely by Prisma Studio's " +
+        "dev tooling, never invoked by the running api/web server processes. See " +
+        "OPEN_ITEMS.md OPEN-125.",
+    ],
 ]);
 
 function runAudit() {
