@@ -2,6 +2,7 @@ import { aiService } from "@/lib/aiService";
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { SovereignFirewall } from "@/lib/ai/SovereignFirewall";
+import { LearningService } from "@/modules/learning/learningService";
 
 export interface ReplyAnalysisResult {
     classification: 'INTERESTED' | 'NOT_INTERESTED' | 'OOO' | 'QUESTION' | 'DNC';
@@ -154,14 +155,7 @@ export class ReplyAnalyzerAgent {
                     Outcome: Lead expressed interest. 
                     Lesson learned: Continue using this pitch angle.`;
 
-                    await prisma.agentMemory.create({
-                        data: {
-                            teamId: leadWithTeam.teamId,
-                            key: "outcome_success",
-                            value: lesson,
-                            confidence: 1.0
-                        }
-                    });
+                    await LearningService.saveMemory(leadWithTeam.teamId, "outcome_success", lesson, 1.0);
                     logger.info(`[Self-Learning] Success memory synthesized for team ${leadWithTeam.teamId}`);
                 }
             }

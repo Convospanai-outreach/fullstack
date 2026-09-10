@@ -19,7 +19,7 @@ import {
 import { RequestContext } from "@/lib/requestContext";
 import { TOON } from "@/lib/ai/TOON";
 
-type ProviderKeySet = {
+export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
     openai?: { apiKey: string; model?: string };
     anthropic?: { apiKey: string; model?: string };
@@ -92,7 +92,7 @@ function calculateCreditsFromUsage(tokensIn: number, tokensOut: number): number 
     return Math.max(1, Math.ceil((Math.max(0, tokensIn) + Math.max(0, tokensOut)) / 1000));
 }
 
-async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
+export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet> {
     const fromEnv: ProviderKeySet = {
         gemini: process.env["GEMINI_API_KEY"]
             ? { apiKey: process.env["GEMINI_API_KEY"], model: process.env["GEMINI_MODEL"] }
@@ -145,7 +145,7 @@ function resolveProvider(
     throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
 }
 
-function extractJsonBlock(text: string): string {
+export function extractJsonBlock(text: string): string {
     const trimmed = text.trim();
     if (trimmed.startsWith("{") || trimmed.startsWith("[")) return trimmed;
     const start = Math.min(
@@ -648,7 +648,10 @@ export class AIService {
         try {
         if (providers.openai?.apiKey) {
             const client = new OpenAI({ apiKey: providers.openai.apiKey });
-            const model = providers.openai.model || "text-embedding-3-small";
+            // providers.openai.model is the team's chat-completion model override
+            // (e.g. "gpt-4o") - never a valid embeddings model, so it must not be
+            // reused here the way it is for chat calls elsewhere in this file.
+            const model = process.env["OPENAI_EMBEDDING_MODEL"] || "text-embedding-3-small";
             const response = await client.embeddings.create({
                 model,
                 input: safeText
@@ -757,6 +760,25 @@ export class AIService {
             });
             throw error;
         }
+    }
+
+    /**
+     * Embeddings for retrieval (RAG), not general-purpose embedding use.
+     * getEmbeddings() picks whichever provider a team has configured
+     * (OpenAI 1536-dim or Gemini 768-dim) - fine for one-off use, but a
+     * vector column needs one fixed dimension, and cosine similarity between
+     * embeddings from different models is meaningless. This forces OpenAI
+     * specifically (team key or the platform env-var fallback loadTeamProviders
+     * already merges in) and throws a clear, catchable error otherwise, so
+     * every RAG write/read path can degrade to lexical search instead of
+     * silently mixing embedding spaces.
+     */
+    async getRagEmbedding(text: string, teamId?: string, actorId?: string): Promise<number[]> {
+        const providers = await loadTeamProviders(teamId);
+        if (!providers.openai?.apiKey) {
+            throw new Error("RAG embeddings require a configured OpenAI API key for consistent vector dimensionality.");
+        }
+        return this.getEmbeddings(text, teamId, actorId);
     }
 
     async generateImage(prompt: string, teamId?: string): Promise<Buffer> {

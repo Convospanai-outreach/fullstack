@@ -52,7 +52,9 @@ export type JobType =
     | "lead_scoring"
     | "landing_lead_intake"
     | "order_captured"
-    | "warmup_seed_reply";
+    | "warmup_seed_reply"
+    | "EMAIL_DRAFT_BATCH_SUBMIT"
+    | "EMAIL_DRAFT_BATCH_POLL";
 
 export interface JobPayload {
     leadId?: string | undefined;

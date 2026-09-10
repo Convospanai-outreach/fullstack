@@ -63,7 +63,7 @@ describe("campaign-worker executeCampaign", () => {
 
         expect(prisma.campaign.update).toHaveBeenCalledWith({
             where: { id: "campaign-1" },
-            data: { status: "active" },
+            data: { status: "active", enrichmentPending: 1 },
         });
         expect(JobQueue.enqueue).toHaveBeenCalled();
         expect(result).toMatchObject({ campaignId: "campaign-1", leadsProcessed: 1 });

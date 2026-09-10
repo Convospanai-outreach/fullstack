@@ -5,6 +5,7 @@
 
 import { prisma } from "@/lib/db";
 import { PIIScrubber } from "@/lib/governance/PIIScrubber";
+import { LearningService } from "@/modules/learning/learningService";
 
 export interface HelperTool {
     name: string;
@@ -429,14 +430,7 @@ export class AppLearningsMCPServer {
                     ? clamp(Number(confidence), 0, 1)
                     : 1;
 
-                const memory = await prisma.agentMemory.create({
-                    data: {
-                        teamId,
-                        key: safeKey,
-                        value: safeValue,
-                        confidence: safeConfidence
-                    }
-                });
+                const memory = await LearningService.saveMemory(teamId, safeKey, safeValue, safeConfidence);
 
                 await prisma.systemEvent.create({
                     data: {

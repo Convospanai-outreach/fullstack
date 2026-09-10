@@ -121,15 +121,40 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             },
         });
 
-        // If part of a campaign, enqueue email job
+        // If part of a campaign, enqueue email job (REALTIME mode) or fold
+        // into the campaign's batch email-draft generation (BATCH mode).
         if (campaignId && (lead.email || enrichmentData.email)) {
-            await JobQueue.enqueue("email_sending", {
-                leadId,
-                campaignId,
-                enrichmentData,
-                userId,
-                teamId,
+            const campaign = await prisma.campaign.findUnique({
+                where: { id: campaignId },
+                select: { draftGenerationMode: true },
             });
+
+            if (campaign?.draftGenerationMode === "BATCH") {
+                // Fan-in: decrement the counter seeded by campaign-worker.ts at
+                // campaign start. Whichever enrichment job observes it reach 0
+                // is the one that submits the campaign-wide batch - the
+                // idempotency key guards the race where two jobs both see 0.
+                const updated = await prisma.campaign.update({
+                    where: { id: campaignId },
+                    data: { enrichmentPending: { decrement: 1 } },
+                    select: { enrichmentPending: true, teamId: true },
+                });
+                if (updated.enrichmentPending <= 0 && updated.teamId) {
+                    await JobQueue.enqueue(
+                        "EMAIL_DRAFT_BATCH_SUBMIT",
+                        { campaignId, teamId: updated.teamId },
+                        { teamId: updated.teamId, idempotencyKey: `batch_submit_${campaignId}` }
+                    );
+                }
+            } else {
+                await JobQueue.enqueue("email_sending", {
+                    leadId,
+                    campaignId,
+                    enrichmentData,
+                    userId,
+                    teamId,
+                });
+            }
         }
 
         // Trigger webhook

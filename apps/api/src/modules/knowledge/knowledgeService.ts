@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
+import { logger } from "@/lib/logger";
+import { aiService } from "@/lib/aiService";
 import { vectorStore } from "@/modules/rag/service/vectorStore";
+import { toVectorLiteral } from "@/lib/ai/vectorLiteral";
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
 
@@ -48,8 +51,29 @@ export const knowledgeService = {
 
     // Scoped to knowledgeBaseId only, matching the original self-fetch call's scoping
     // (the real caller - GET /knowledge/[id]/upload - performs no separate team check either).
-    async search(knowledgeBaseId: string, query: string, limit = 5) {
+    async search(knowledgeBaseId: string, query: string, limit = 5, teamId?: string) {
         if (!knowledgeBaseId || !query) return [];
+
+        try {
+            const embedding = await aiService.getRagEmbedding(query, teamId);
+            const results = await prisma.$queryRawUnsafe<Array<{ id: string; content: string; metadata: any; score: number }>>(
+                `SELECT id, content, metadata,
+                        1 - (embedding <=> $1::vector) AS score
+                 FROM "KnowledgeItem"
+                 WHERE "knowledgeBaseId" = $2 AND embedding IS NOT NULL
+                 ORDER BY embedding <=> $1::vector
+                 LIMIT $3`,
+                toVectorLiteral(embedding),
+                knowledgeBaseId,
+                limit
+            );
+            if (results.length > 0) return results;
+        } catch (error: any) {
+            logger.warn("[knowledgeService] Vector search unavailable, falling back to lexical search", {
+                knowledgeBaseId,
+                error: error?.message ?? String(error),
+            });
+        }
 
         const items = await prisma.knowledgeItem.findMany({
             where: { knowledgeBaseId },
