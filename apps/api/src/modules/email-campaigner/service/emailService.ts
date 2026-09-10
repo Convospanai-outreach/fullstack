@@ -141,6 +141,7 @@ class EmailService {
             fromName?: string;
             fromEmail?: string;
             variantId?: string;
+            mailboxId?: string;
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;
@@ -182,7 +183,16 @@ class EmailService {
 
         if (teamId) {
             try {
-                const mailbox = await selectMailboxForSend(teamId, metadata?.userId);
+                // A drip-sequence run assigns a specific sender mailbox up front (from the
+                // sequence's configured senderMailboxIds) and already re-validated it can
+                // send right before calling in — honor that exact mailbox instead of letting
+                // selectMailboxForSend re-pick across every connected mailbox on the team,
+                // which would silently ignore the sender the operator chose (including Resend).
+                const mailbox = metadata?.mailboxId
+                    ? await prisma.connectedMailbox.findFirst({
+                          where: { id: metadata.mailboxId, teamId, status: "CONNECTED" },
+                      })
+                    : await selectMailboxForSend(teamId, metadata?.userId);
                 if (mailbox?.provider === "RESEND") {
                     resendOutcome = await sendViaResendMailbox({
                         teamId,

@@ -406,6 +406,7 @@ export class SequenceService {
             leadId: run.leadId,
             campaignId: run.campaignId,
             userId: run.enrollment?.campaign?.ownerId,
+            mailboxId: run.mailboxId || undefined,
         });
 
         if (!result.success) {
