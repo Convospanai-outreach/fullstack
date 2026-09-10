@@ -133,7 +133,7 @@ export async function checkRateLimit(
 
   // 1. Try Redis First
   const redisClient = await getRedisClient();
-  if (redisClient && redisClient.isOpen) {
+  if (redisClient && redisClient.status === "ready") {
     try {
       const data = await redisClient.get(key);
       let entry: RateLimitEntry;
@@ -164,7 +164,7 @@ export async function checkRateLimit(
       // Calculate TTL in seconds
       const ttl = Math.ceil((entry.resetTime - now) / 1000);
       if (ttl > 0) {
-        await redisClient.set(key, JSON.stringify(entry), { EX: ttl });
+        await redisClient.set(key, JSON.stringify(entry), "EX", ttl);
       }
 
       return {
@@ -322,7 +322,7 @@ export async function clearAllRateLimits(): Promise<void> {
   // Redis clear is tricky/dangerous to do globally, so we log a warning
   // Ideally, use SCAN to find keys with prefix 'ratelimit:*'
   const client = await getRedisClient();
-  if (client && client.isOpen) {
+  if (client && client.status === "ready") {
     // Allow dangerous flushDB for dev environments only?
     // For now, we only clear memory cache for immediate relief
     logger.info("[RateLimit] Cleared in-memory cache. Redis keys remain until TTL expires.");

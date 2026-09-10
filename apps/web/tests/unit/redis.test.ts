@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const createClientMock = vi.hoisted(() => vi.fn());
+const RedisMock = vi.hoisted(() => vi.fn());
 
-vi.mock("redis", () => ({
-    createClient: createClientMock,
+vi.mock("ioredis", () => ({
+    Redis: RedisMock,
 }));
 
 async function loadRedisModule(env: Record<string, string | undefined> = {}) {
@@ -22,25 +22,25 @@ async function loadRedisModule(env: Record<string, string | undefined> = {}) {
 }
 
 function makeClient(overrides: Partial<{
-    isOpen: boolean;
+    status: string;
     connect: ReturnType<typeof vi.fn>;
     quit: ReturnType<typeof vi.fn>;
-    destroy: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
     get: ReturnType<typeof vi.fn>;
     set: ReturnType<typeof vi.fn>;
     del: ReturnType<typeof vi.fn>;
     on: ReturnType<typeof vi.fn>;
 }> = {}) {
-    return {
-        isOpen: false,
-        connect: vi.fn(async function connect(this: { isOpen: boolean }) {
-            this.isOpen = true;
+    const client: any = {
+        status: "wait",
+        connect: vi.fn(async function connect(this: any) {
+            this.status = "ready";
         }),
-        quit: vi.fn(async function quit(this: { isOpen: boolean }) {
-            this.isOpen = false;
+        quit: vi.fn(async function quit(this: any) {
+            this.status = "end";
         }),
-        destroy: vi.fn(function destroy(this: { isOpen: boolean }) {
-            this.isOpen = false;
+        disconnect: vi.fn(function disconnect(this: any) {
+            this.status = "end";
         }),
         get: vi.fn(async () => "value"),
         set: vi.fn(async () => "OK"),
@@ -48,6 +48,7 @@ function makeClient(overrides: Partial<{
         on: vi.fn(),
         ...overrides,
     };
+    return client;
 }
 
 describe("redis helpers", () => {
@@ -68,7 +69,7 @@ describe("redis helpers", () => {
         const redis = await loadRedisModule({ NEXT_RUNTIME: "edge" });
 
         await expect(redis.getRedisClient()).resolves.toBeNull();
-        expect(createClientMock).not.toHaveBeenCalled();
+        expect(RedisMock).not.toHaveBeenCalled();
     });
 
     it("does not create a client when redis is disabled or unavailable in CI", async () => {
@@ -81,13 +82,15 @@ describe("redis helpers", () => {
 
     it("connects, reuses, and closes an explicit redis client", async () => {
         const client = makeClient();
-        createClientMock.mockReturnValue(client);
+        RedisMock.mockImplementation(function (this: any) {
+            return client;
+        });
         const redis = await loadRedisModule({ REDIS_URL: "redis://localhost:6379" });
 
         await expect(redis.getRedisClient()).resolves.toBe(client);
         await expect(redis.getRedisClient()).resolves.toBe(client);
-        expect(createClientMock).toHaveBeenCalledTimes(1);
-        expect(createClientMock).toHaveBeenCalledWith(expect.objectContaining({ url: "redis://127.0.0.1:6379" }));
+        expect(RedisMock).toHaveBeenCalledTimes(1);
+        expect(RedisMock).toHaveBeenCalledWith("redis://127.0.0.1:6379", expect.any(Object));
 
         await redis.closeRedis();
         expect(client.quit).toHaveBeenCalled();
@@ -99,19 +102,23 @@ describe("redis helpers", () => {
                 throw new Error("boom");
             }),
         });
-        createClientMock.mockReturnValue(client);
+        RedisMock.mockImplementation(function (this: any) {
+            return client;
+        });
         const redis = await loadRedisModule({ REDIS_URL: "redis://127.0.0.1:6379" });
 
         await expect(redis.getRedisClient()).resolves.toBeNull();
-        expect(client.destroy).toHaveBeenCalled();
+        expect(client.disconnect).toHaveBeenCalled();
         await expect(redis.safeGet("missing")).resolves.toBeNull();
         await expect(redis.safeSet("key", "value")).resolves.toBe(false);
         await expect(redis.safeDel("key")).resolves.toBe(false);
     });
 
     it("runs safe get/set/del against an open client", async () => {
-        const client = makeClient({ isOpen: true });
-        createClientMock.mockReturnValue(client);
+        const client = makeClient({ status: "ready" });
+        RedisMock.mockImplementation(function (this: any) {
+            return client;
+        });
         const redis = await loadRedisModule({ REDIS_URL: "redis://cache:6379" });
 
         await expect(redis.safeGet("key")).resolves.toBe("value");
@@ -119,18 +126,20 @@ describe("redis helpers", () => {
         await expect(redis.safeSet("key", "value")).resolves.toBe(true);
         await expect(redis.safeDel("key")).resolves.toBe(true);
 
-        expect(client.set).toHaveBeenCalledWith("key", "value", { EX: 30 });
+        expect(client.set).toHaveBeenCalledWith("key", "value", "EX", 30);
         expect(client.set).toHaveBeenCalledWith("key", "value");
         expect(client.del).toHaveBeenCalledWith("key");
     });
 
     it("catches errors in safeSet and safeDel when operations throw", async () => {
         const client = makeClient({
-            isOpen: true,
+            status: "ready",
             set: vi.fn(async () => { throw new Error("set error"); }),
             del: vi.fn(async () => { throw new Error("del error"); }),
         });
-        createClientMock.mockReturnValue(client);
+        RedisMock.mockImplementation(function (this: any) {
+            return client;
+        });
         const redis = await loadRedisModule({ REDIS_URL: "redis://cache:6379" });
 
         await expect(redis.safeSet("key", "val")).resolves.toBe(false);
