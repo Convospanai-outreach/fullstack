@@ -54,13 +54,25 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             currentStepOrder: true,
             lastRunAt: true,
             startedAt: true,
-            sequence: { select: { name: true, _count: { select: { steps: true } } } }
+            sequence: { select: { name: true, _count: { select: { steps: true } } } },
+            lead: { select: { phone: true, whatsappConsent: true } }
         }
     });
 
     if (stalled.length === 0) {
         return { candidates: 0, nudgesCreated: 0 };
     }
+
+    // Batched, not per-candidate: same shape as the throttle/dedup lookups above,
+    // one query for every team in this tick's batch rather than N. Filtered in JS
+    // (not the where clause) to match teamHasWaba()'s own truthiness check exactly
+    // rather than juggling Prisma's DbNull-vs-JsonNull semantics for this Json field.
+    const teamIds = [...new Set(stalled.map((e) => e.teamId))];
+    const teams = await prisma.team.findMany({
+        where: { id: { in: teamIds } },
+        select: { id: true, whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true }
+    });
+    const wabaTeamIds = new Set(teams.filter((t) => !!t.whatsappPhoneNumberId && !!t.whatsappAccessTokenEnc).map((t) => t.id));
 
     const now = Date.now();
     const candidates: StallCandidate[] = stalled.map((enrollment) => {
@@ -71,7 +83,8 @@ export async function runOverseerTick(): Promise<{ candidates: number; nudgesCre
             enrollmentId: enrollment.id,
             sequenceName: enrollment.sequence.name,
             stage: totalSteps > 0 ? `step ${enrollment.currentStepOrder + 1} of ${totalSteps}` : `step ${enrollment.currentStepOrder + 1}`,
-            stallDays
+            stallDays,
+            whatsappEligible: wabaTeamIds.has(enrollment.teamId) && !!enrollment.lead?.phone && enrollment.lead?.whatsappConsent === true
         };
     });
 
