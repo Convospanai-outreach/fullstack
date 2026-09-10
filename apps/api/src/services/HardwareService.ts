@@ -1,13 +1,44 @@
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/db";
 
 const EDGE_NODE_URI = process.env['EDGE_NODE_URL'] || process.env['EDGE_NODE_URI'] || 'http://localhost:8000';
 
 function edgeHeaders(extra: Record<string, string> = {}) {
+    // NOTE: still a single shared secret across every physical node, unlike the
+    // per-node signed heartbeats in edgeRuntime.ts. Per-node data-plane auth
+    // (e.g. a per-team API key or the node's own signing key) is a separate,
+    // larger change - not attempted here. This fix only resolves *which* node a
+    // team's data-plane calls are routed to.
     const apiKey = process.env['EDGE_API_KEY'];
     return {
         ...extra,
         ...(apiKey ? { 'x-api-key': apiKey } : {}),
     };
+}
+
+/**
+ * Resolves which physical edge node a data-plane call should target.
+ * A team's own paired EdgeNode.ipAddress wins when one exists and isn't
+ * revoked; otherwise falls back to the single global EDGE_NODE_URI env var,
+ * preserving today's single-node behavior for teams that haven't paired a
+ * device (and for every call site that doesn't have a teamId in scope yet,
+ * e.g. the boot-time verification in instrumentation.ts).
+ */
+async function resolveEdgeBaseUrl(teamId?: string): Promise<string> {
+    if (teamId) {
+        try {
+            const node = await prisma.edgeNode.findUnique({
+                where: { teamId },
+                select: { ipAddress: true, revokedAt: true },
+            });
+            if (node?.ipAddress && !node.revokedAt) {
+                return node.ipAddress.replace(/\/+$/, "");
+            }
+        } catch (error) {
+            logger.error("[HardwareService] Failed to resolve team edge node, falling back to global endpoint", error);
+        }
+    }
+    return EDGE_NODE_URI;
 }
 
 export interface SanitizeResponse {
@@ -65,14 +96,15 @@ export class HardwareService {
      * Verifies that the physical hardware is present and matches the signature.
      * Throws an error if verification fails.
      */
-    static async verifyHardwareIdentity(): Promise<void> {
+    static async verifyHardwareIdentity(teamId?: string): Promise<void> {
         try {
             // detailed connection log removed for security
 
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
-            
-            const response = await fetch(`${EDGE_NODE_URI}/health`, {
+
+            const response = await fetch(`${baseUrl}/health`, {
                 headers: edgeHeaders(),
                 signal: controller.signal,
             });
@@ -114,12 +146,13 @@ export class HardwareService {
      * verifyHardwareIdentity(), this never throws - it reports the
      * connection state so the UI can show "disconnected" instead of erroring.
      */
-    static async getStatus(): Promise<EdgeNodeStatus> {
+    static async getStatus(teamId?: string): Promise<EdgeNodeStatus> {
         const startedAt = Date.now();
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
-            const response = await fetch(`${EDGE_NODE_URI}/health`, {
+            const response = await fetch(`${baseUrl}/health`, {
                 headers: edgeHeaders(),
                 signal: controller.signal,
             });
@@ -147,11 +180,12 @@ export class HardwareService {
      * Recent node activity feed - function name, entity types/counts touched,
      * timestamps. The edge node never includes plaintext PII in this response.
      */
-    static async getActivity(limit = 50): Promise<ActivityEntry[]> {
+    static async getActivity(limit = 50, teamId?: string): Promise<ActivityEntry[]> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
-            const response = await fetch(`${EDGE_NODE_URI}/activity?limit=${limit}`, {
+            const response = await fetch(`${baseUrl}/activity?limit=${limit}`, {
                 headers: edgeHeaders(),
                 signal: controller.signal,
             });
@@ -172,11 +206,12 @@ export class HardwareService {
         }
     }
 
-    static async sanitize(text: string): Promise<SanitizeResponse> {
+    static async sanitize(text: string, teamId?: string): Promise<SanitizeResponse> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/v1/sanitize`, { 
+            const response = await fetch(`${baseUrl}/v1/sanitize`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text }),
@@ -190,11 +225,12 @@ export class HardwareService {
         }
     }
 
-    static async critique(text: string, context?: string): Promise<CritiqueResponse> {
+    static async critique(text: string, context?: string, teamId?: string): Promise<CritiqueResponse> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/v1/critique`, { 
+            const response = await fetch(`${baseUrl}/v1/critique`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ text, context }),
@@ -209,11 +245,12 @@ export class HardwareService {
         }
     }
 
-    static async search(query: string): Promise<SearchResult[]> {
+    static async search(query: string, teamId?: string): Promise<SearchResult[]> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/search`, { 
+            const response = await fetch(`${baseUrl}/search`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ query, limit: 3 }),
@@ -230,11 +267,12 @@ export class HardwareService {
         }
     }
 
-    static async execute(action: string, payload: Record<string, any>): Promise<boolean> {
+    static async execute(action: string, payload: Record<string, any>, teamId?: string): Promise<boolean> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/execute`, { 
+            const response = await fetch(`${baseUrl}/execute`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ action, payload }),
@@ -251,12 +289,13 @@ export class HardwareService {
 
     // --- NIDHI-PRAYAS ADDITIONS ---
 
-    static async saveWorkflow(workflow: Workflow): Promise<void> {
+    static async saveWorkflow(workflow: Workflow, teamId?: string): Promise<void> {
         try {
             logger.info("[HardwareService] Saving Workflow to Sovereign Edge Storage...");
+            const baseUrl = await resolveEdgeBaseUrl(teamId ?? workflow.teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/workflows/save`, { 
+            const response = await fetch(`${baseUrl}/workflows/save`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ workflow }),
@@ -271,11 +310,12 @@ export class HardwareService {
         }
     }
 
-    static async getWorkflows(): Promise<Workflow[]> {
+    static async getWorkflows(teamId?: string): Promise<Workflow[]> {
         try {
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const res = await fetch(`${EDGE_NODE_URI}/workflows`, { headers: edgeHeaders(), signal: controller.signal });
+            const res = await fetch(`${baseUrl}/workflows`, { headers: edgeHeaders(), signal: controller.signal });
             clearTimeout(timeoutId);
             if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
             return await res.json();
@@ -284,12 +324,13 @@ export class HardwareService {
         }
     }
 
-    static async setComplianceMode(region: 'INDIA' | 'EU'): Promise<void> {
+    static async setComplianceMode(region: 'INDIA' | 'EU', teamId?: string): Promise<void> {
         try {
             logger.info(`[HardwareService] Enforcing Region Compliance: ${region}`);
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/compliance/mode`, { 
+            const response = await fetch(`${baseUrl}/compliance/mode`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ region }),
@@ -320,12 +361,13 @@ export class HardwareService {
         return jobs.some((job) => job.tokenMap && typeof job.tokenMap === "object" && Object.prototype.hasOwnProperty.call(job.tokenMap, maskedId));
     }
 
-    static async reIdentify(maskedId: string, purpose: string): Promise<IdentityResponse> {
+    static async reIdentify(maskedId: string, purpose: string, teamId?: string): Promise<IdentityResponse> {
         try {
             logger.info(`[HardwareService] Re-identifying ${maskedId} for purpose: ${purpose}`);
+            const baseUrl = await resolveEdgeBaseUrl(teamId);
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000);
-            const response = await fetch(`${EDGE_NODE_URI}/v1/reidentify`, { 
+            const response = await fetch(`${baseUrl}/v1/reidentify`, {
                 method: 'POST',
                 headers: edgeHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify({ token: maskedId }),

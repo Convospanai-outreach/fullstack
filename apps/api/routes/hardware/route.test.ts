@@ -83,6 +83,38 @@ describe("/hardware", () => {
         });
     });
 
+    describe("POST - routes data-plane calls to the caller's own team (multi-tenant routing)", () => {
+        it("passes the caller's teamId to HardwareService for every data-plane action", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+            mockHardwareService.sanitize.mockResolvedValue({ sanitized_text: "x", token_map_id: "t", stats: {} });
+            mockHardwareService.critique.mockResolvedValue({ status: "APPROVED", score: 1 });
+            mockHardwareService.search.mockResolvedValue([]);
+            mockHardwareService.getStatus.mockResolvedValue({ connected: true });
+            mockHardwareService.getActivity.mockResolvedValue([]);
+            mockHardwareService.tokenBelongsToTeam.mockResolvedValue(true);
+            mockHardwareService.reIdentify.mockResolvedValue({ original: "x" });
+            const { POST } = await import("./route");
+
+            await POST(postRequest({ action: "SANITIZE", text: "hello" }));
+            expect(mockHardwareService.sanitize).toHaveBeenCalledWith("hello", "team-1");
+
+            await POST(postRequest({ action: "CRITIQUE", text: "hello", context: "ctx" }));
+            expect(mockHardwareService.critique).toHaveBeenCalledWith("hello", "ctx", "team-1");
+
+            await POST(postRequest({ action: "SEARCH", query: "q" }));
+            expect(mockHardwareService.search).toHaveBeenCalledWith("q", "team-1");
+
+            await POST(postRequest({ action: "STATUS" }));
+            expect(mockHardwareService.getStatus).toHaveBeenCalledWith("team-1");
+
+            await POST(postRequest({ action: "ACTIVITY", limit: 10 }));
+            expect(mockHardwareService.getActivity).toHaveBeenCalledWith(10, "team-1");
+
+            await POST(postRequest({ action: "VERIFY" }));
+            expect(mockHardwareService.verifyHardwareIdentity).toHaveBeenCalledWith("team-1");
+        });
+    });
+
     describe("POST - SET_COMPLIANCE requires a platform admin (OPEN-206)", () => {
         it("rejects a regular authenticated user - this flips a platform-wide shared setting, not per-team data", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
@@ -104,7 +136,18 @@ describe("/hardware", () => {
             const response = await POST(postRequest({ action: "SET_COMPLIANCE", region: "EU" }));
 
             expect(response.status).toBe(200);
-            expect(mockHardwareService.setComplianceMode).toHaveBeenCalledWith("EU");
+            expect(mockHardwareService.setComplianceMode).toHaveBeenCalledWith("EU", undefined);
+        });
+
+        it("routes to a specific team's edge node when the admin supplies targetTeamId", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "admin-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue({ id: "admin-1", enterpriseRole: "SYSTEM_ADMIN" });
+            mockHardwareService.setComplianceMode.mockResolvedValue(undefined);
+            const { POST } = await import("./route");
+
+            await POST(postRequest({ action: "SET_COMPLIANCE", region: "EU", targetTeamId: "team-9" }));
+
+            expect(mockHardwareService.setComplianceMode).toHaveBeenCalledWith("EU", "team-9");
         });
     });
 
@@ -129,7 +172,18 @@ describe("/hardware", () => {
             const response = await POST(postRequest({ action: "EXECUTE", payload: { actuator: "arm" } }));
 
             expect(response.status).toBe(200);
-            expect(mockHardwareService.execute).toHaveBeenCalledWith("arm", { actuator: "arm" });
+            expect(mockHardwareService.execute).toHaveBeenCalledWith("arm", { actuator: "arm" }, undefined);
+        });
+
+        it("routes to a specific team's edge node when the admin supplies targetTeamId", async () => {
+            mockGetCurrentContext.mockResolvedValue({ userId: "admin-1", teamId: "team-1" });
+            mockGetAdminUser.mockResolvedValue({ id: "admin-1", enterpriseRole: "SYSTEM_ADMIN" });
+            mockHardwareService.execute.mockResolvedValue(true);
+            const { POST } = await import("./route");
+
+            await POST(postRequest({ action: "EXECUTE", payload: { actuator: "arm" }, targetTeamId: "team-9" }));
+
+            expect(mockHardwareService.execute).toHaveBeenCalledWith("arm", { actuator: "arm" }, "team-9");
         });
     });
 
@@ -152,7 +206,7 @@ describe("/hardware", () => {
             const response = await POST(postRequest({ action: "SAVE_WORKFLOW", workflow: { id: "wf-1", teamId: "team-1" } }));
 
             expect(response.status).toBe(200);
-            expect(mockHardwareService.saveWorkflow).toHaveBeenCalledWith({ id: "wf-1", teamId: "team-1" });
+            expect(mockHardwareService.saveWorkflow).toHaveBeenCalledWith({ id: "wf-1", teamId: "team-1" }, "team-1");
         });
     });
 
@@ -177,7 +231,7 @@ describe("/hardware", () => {
             const response = await POST(postRequest({ action: "RE_IDENTIFY", maskedId: "[EMAIL_mine]", purpose: "support" }));
 
             expect(response.status).toBe(200);
-            expect(mockHardwareService.reIdentify).toHaveBeenCalledWith("[EMAIL_mine]", "support");
+            expect(mockHardwareService.reIdentify).toHaveBeenCalledWith("[EMAIL_mine]", "support", "team-1");
         });
     });
 
@@ -192,7 +246,7 @@ describe("/hardware", () => {
             expect(mockHardwareService.getWorkflows).not.toHaveBeenCalled();
         });
 
-        it("returns workflows with a real session", async () => {
+        it("returns workflows with a real session, routed to the caller's own team", async () => {
             mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
             mockHardwareService.getWorkflows.mockResolvedValue([]);
             const { GET } = await import("./route");
@@ -200,6 +254,7 @@ describe("/hardware", () => {
             const response = await GET();
 
             expect(response.status).toBe(200);
+            expect(mockHardwareService.getWorkflows).toHaveBeenCalledWith("team-1");
         });
 
         it("filters out other teams' workflows returned by the shared edge endpoint", async () => {

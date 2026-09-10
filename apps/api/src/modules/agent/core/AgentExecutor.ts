@@ -144,14 +144,14 @@ export class AgentExecutor {
 
         try {
             // HARDENING: Identify & Fail-Closed check at every step
-            await HardwareService.verifyHardwareIdentity();
+            await HardwareService.verifyHardwareIdentity(task.teamId);
 
             // --- CYBER-PHYSICAL DFA ---
 
             // 1. HARDWARE_HANDSHAKE
             if (currentState === AgentState.HARDWARE_HANDSHAKE) {
                 // ... existing handshake logic ...
-                await HardwareService.verifyHardwareIdentity();
+                await HardwareService.verifyHardwareIdentity(task.teamId);
                 await this.log(taskId, "OBSERVATION", "Hardware Handshake Verified. Physical Node Online.");
                 return await this.transition(taskId, AgentState.DATA_INGESTION);
             }
@@ -574,7 +574,7 @@ RESPONSE:
 
                 // FALLBACK TO LEGACY HARDWARE EXECUTION
                 await this.log(taskId, "ACTION", "Executing Outreach via Physical Browser Node...");
-                await HardwareService.execute("NAVIGATE", { url: "https://linkedin.com/in/target" });
+                await HardwareService.execute("NAVIGATE", { url: "https://linkedin.com/in/target" }, task.teamId);
                 await this.log(taskId, "OBSERVATION", "Outreach Dispatched successfully.");
 
                 // AUDIT: Task completed
