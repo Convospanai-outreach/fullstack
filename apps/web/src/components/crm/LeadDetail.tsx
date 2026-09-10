@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { WorkflowEngine } from "@/modules/workflow/workflowEngine";
 
 interface Lead {
     id: string;
@@ -75,6 +76,12 @@ type TimelineItem = {
     status?: string;
     campaignName?: string;
     createdAt: string | Date;
+};
+
+type WorkflowSummary = {
+    id: string;
+    name: string;
+    isActive: boolean;
 };
 
 type JourneySuggestion = {
@@ -130,6 +137,10 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [suggestionsOpen, setSuggestionsOpen] = useState(false);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
     const [suggestions, setSuggestions] = useState<JourneySuggestion[]>([]);
+    const [workflowsOpen, setWorkflowsOpen] = useState(false);
+    const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
+    const [workflowsLoading, setWorkflowsLoading] = useState(false);
+    const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
 
     const refreshTimeline = async () => {
         try {
@@ -201,6 +212,39 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             notes: prev.notes || suggestion.recommendation,
         }));
         setSuggestionsOpen(false);
+    };
+
+    const loadWorkflows = async () => {
+        setWorkflowsOpen(true);
+        setWorkflowsLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/workflows`, { cache: "no-store" });
+            const data = await res.json().catch(() => []);
+            setWorkflows(Array.isArray(data) ? data.filter((wf: WorkflowSummary) => wf.isActive) : []);
+        } catch (error) {
+            console.error("Failed to load workflows", error);
+            setWorkflows([]);
+        } finally {
+            setWorkflowsLoading(false);
+        }
+    };
+
+    const handleRunWorkflow = async (workflowId: string) => {
+        setRunningWorkflowId(workflowId);
+        try {
+            const result = await WorkflowEngine.execute(workflowId, { leadId: lead.id });
+            if (result?.status === "RUNNING") {
+                alert("Workflow started for this lead.");
+                setWorkflowsOpen(false);
+            } else {
+                alert(result?.error || "Failed to start workflow");
+            }
+        } catch (error) {
+            console.error("Failed to run workflow", error);
+            alert("Failed to run workflow");
+        } finally {
+            setRunningWorkflowId(null);
+        }
     };
 
     const handleAction = async (action: string) => {
@@ -345,6 +389,15 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     >
                         <Sparkles className={`w-4 h-4 ${suggestionsLoading ? "animate-pulse" : ""}`} />
                         Assistant Suggestions
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="gap-1.5 hover:bg-white/5"
+                        onClick={loadWorkflows}
+                        disabled={workflowsLoading || loading || isOffline}
+                    >
+                        <Activity className={`w-4 h-4 ${workflowsLoading ? "animate-pulse" : ""}`} />
+                        Run Workflow
                     </Button>
                     {lead.linkedIn && (
                         <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
@@ -823,6 +876,59 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                     </GlassCard>
                 </div>
             </div>
+
+            {workflowsOpen && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
+                    <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-950 shadow-2xl shadow-black/40">
+                        <div className="flex items-start justify-between gap-4 border-b border-white/10 p-5">
+                            <div>
+                                <h3 className="flex items-center gap-2 text-lg font-semibold text-white">
+                                    <Activity className="h-5 w-5 text-brand-300" />
+                                    Run Workflow on This Lead
+                                </h3>
+                                <p className="mt-1 text-sm text-white/50">
+                                    Pick an active workflow to start for {lead.fullName || "this lead"}.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setWorkflowsOpen(false)}
+                                className="rounded-lg border border-white/10 p-2 text-white/60 transition hover:bg-white/5 hover:text-white"
+                                aria-label="Close workflow picker"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="max-h-[60vh] space-y-2 overflow-y-auto p-5">
+                            {workflowsLoading ? (
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                    Loading workflows...
+                                </div>
+                            ) : workflows.length === 0 ? (
+                                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/60">
+                                    No active workflows found. Activate one from the Workflows page first.
+                                </div>
+                            ) : (
+                                workflows.map((workflow) => (
+                                    <div key={workflow.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+                                        <span className="text-sm font-medium text-white">{workflow.name}</span>
+                                        <Button
+                                            type="button"
+                                            variant="default"
+                                            className="h-8 text-xs"
+                                            onClick={() => handleRunWorkflow(workflow.id)}
+                                            disabled={runningWorkflowId === workflow.id}
+                                        >
+                                            {runningWorkflowId === workflow.id ? "Starting..." : "Run"}
+                                        </Button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {suggestionsOpen && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/45 px-4 py-5 backdrop-blur-sm sm:items-center">
