@@ -14,12 +14,13 @@ import {
     signTrackedUrl,
     type GmailSendOutcome,
 } from "./googleMailboxService";
+import { sendViaResendMailbox, type ResendSendOutcome } from "./resendMailboxService";
 import * as crypto from "crypto";
 
 export type EmailSendResult = {
     success: boolean;
     providerId?: string;
-    deliveryProvider?: "GMAIL_API" | "SMTP";
+    deliveryProvider?: "GMAIL_API" | "SMTP" | "RESEND";
     error?: string;
 };
 
@@ -60,7 +61,7 @@ class EmailService {
         subject: string;
         body: string;
         trackingId: string;
-        deliveryProvider: "GMAIL_API" | "SMTP";
+        deliveryProvider: "GMAIL_API" | "SMTP" | "RESEND";
         mailboxId?: string;
         providerId?: string;
         threadId?: string;
@@ -76,7 +77,7 @@ class EmailService {
                 status: "sent",
                 trackingId: input.trackingId,
                 deliveryProvider: input.deliveryProvider,
-                mailboxId: input.deliveryProvider === "GMAIL_API" ? input.mailboxId : null,
+                mailboxId: input.deliveryProvider === "GMAIL_API" || input.deliveryProvider === "RESEND" ? input.mailboxId : null,
                 ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
@@ -177,11 +178,21 @@ class EmailService {
         const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress);
 
         let gmailOutcome: GmailSendOutcome | undefined;
+        let resendOutcome: ResendSendOutcome | undefined;
 
         if (teamId) {
             try {
                 const mailbox = await selectMailboxForSend(teamId, metadata?.userId);
-                if (mailbox) {
+                if (mailbox?.provider === "RESEND") {
+                    resendOutcome = await sendViaResendMailbox({
+                        teamId,
+                        mailboxId: mailbox.id,
+                        to,
+                        subject,
+                        html: trackedBody,
+                        trackingId,
+                    });
+                } else if (mailbox) {
                     gmailOutcome = await sendViaGmailMailbox({
                         teamId,
                         mailboxId: mailbox.id,
@@ -198,6 +209,27 @@ class EmailService {
                     fallbackAllowed: true,
                 };
             }
+        }
+
+        if (resendOutcome?.success) {
+            await this.persistDeliveredEmail({
+                metadata,
+                subject,
+                body: trackedBody,
+                trackingId,
+                deliveryProvider: "RESEND",
+                mailboxId: resendOutcome.mailboxId,
+                providerId: resendOutcome.messageId,
+            });
+            return {
+                success: true,
+                providerId: resendOutcome.messageId,
+                deliveryProvider: "RESEND",
+            };
+        }
+
+        if (resendOutcome && !resendOutcome.fallbackAllowed) {
+            return { success: false, error: resendOutcome.error };
         }
 
         if (gmailOutcome?.success) {
