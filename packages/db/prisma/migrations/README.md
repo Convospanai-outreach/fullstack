@@ -1,14 +1,34 @@
 # Migration Ownership
 
-This directory is the planned home for canonical Prisma migrations once the shared DB package is approved as the source of truth.
+`packages/db/prisma/schema.prisma` is the canonical schema (2026-09-11: reconciled
+onto `apps/api`'s copy, which matched production; `apps/web` and `packages/db`
+were previously stale — see `node scripts/db/compare-prisma-schemas.mjs`). This
+directory is kept as a full, up-to-date mirror of both apps' migration history.
 
 Current status:
 
-- `packages/db/prisma/schema.prisma` is a starting snapshot copied from `apps/web/prisma/schema.prisma`.
-- App-local schemas remain in place.
-- App-local migrations remain in place.
-- No services are wired to this package yet.
-- No production migrations should be run from this directory yet.
+- `packages/db/prisma/schema.prisma` and `prisma/migrations/` mirror `apps/api`'s
+  (the ones actually applied to the shared production DB).
+- App-local schemas (`apps/web`, `apps/api`) remain in place and must stay
+  byte-identical to this one — verified by `node scripts/db/compare-prisma-schemas.mjs`,
+  which is a CI gate (`.github/workflows/ci.yml`).
+- No app generates its Prisma Client from this package directly yet; each app
+  still runs its own `prisma generate` from its own (now-synced) local schema.
+- Production migrations are still applied per-app (apps/web via the
+  `Web Prisma Migrate` workflow, apps/api via `docker compose run --rm api
+  npx prisma migrate deploy` on the Oracle VMs, per
+  `docs/deployment/oracle-vm-deployment.md`) — this package is the source you
+  edit, not a new deploy target.
+
+**Workflow for any future schema change:**
+
+1. Edit `packages/db/prisma/schema.prisma`.
+2. Add the matching migration folder here, AND copy it (same folder name) into
+   both `apps/web/prisma/migrations/` and `apps/api/prisma/migrations/`.
+3. Run `node scripts/db/sync-prisma-schema.mjs` to propagate the schema file to
+   both apps.
+4. Run `node scripts/db/compare-prisma-schemas.mjs` and confirm all three MATCH
+   before committing — CI will reject a mismatch either way.
 
 Guardrails:
 
@@ -24,4 +44,4 @@ Future migration PRs should include:
 - reviewed migration SQL under this directory
 - migration manifest evidence
 - read-only schema verifier output
-- explicit note that app-local schema drift has been checked
+- explicit note that app-local schema drift has been checked (`node scripts/db/compare-prisma-schemas.mjs`)

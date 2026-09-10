@@ -121,6 +121,9 @@ jobs:
     - name: Runtime Files Preflight
       run: node scripts/check-critical-runtime-files.mjs
 
+    - name: Prisma Schema Drift Gate
+      run: node scripts/db/compare-prisma-schemas.mjs
+
     - name: Web Import Guards
       run: |
         node scripts/check-web-prisma-imports.mjs
