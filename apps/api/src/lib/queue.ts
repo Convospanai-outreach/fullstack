@@ -50,6 +50,7 @@ export type JobType =
     | "sequence_execution"
     | "INTEL_FOLLOWUP_REFRESH"
     | "lead_scoring"
+    | "lead_rescore"
     | "landing_lead_intake"
     | "order_captured"
     | "warmup_seed_reply"

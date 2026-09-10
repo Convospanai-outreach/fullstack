@@ -60,6 +60,7 @@ vi.mock("@/modules/audit/auditService", () => ({
 vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
     leadScoringService: {
         batchScoreLeads: vi.fn(),
+        scoreAndPersist: vi.fn(),
     },
 }));
 
@@ -507,6 +508,27 @@ describe("job-processor", () => {
         expect(result).toEqual(
             expect.objectContaining({ totalProcessed: 3, successful: 3 })
         );
+    });
+
+    it("dispatches lead_rescore jobs to leadScoringService.scoreAndPersist for a single lead", async () => {
+        const mockJob = {
+            id: "job-rescore-1",
+            status: "running",
+            version: 1,
+            type: "lead_rescore",
+            payload: { leadId: "lead-1", teamId: "t1" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (leadScoringService.scoreAndPersist as Mock).mockResolvedValueOnce({
+            leadId: "lead-1",
+            finalScore: 0.6,
+            tier: "WARM",
+        });
+
+        const result = await worker.performJob({ jobId: "job-rescore-1", version: 1 });
+
+        expect(leadScoringService.scoreAndPersist).toHaveBeenCalledWith("lead-1");
+        expect(result).toEqual(expect.objectContaining({ leadId: "lead-1", tier: "WARM" }));
     });
 
     it("propagates a completion claim-loss outcome without calling fail", async () => {
