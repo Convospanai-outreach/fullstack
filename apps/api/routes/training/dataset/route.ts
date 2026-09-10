@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { datasetService } from "@/modules/training/DatasetService";
 
 export async function POST(req: NextRequest) {
     const { userId } = await getCurrentContextFromRequest(req);
@@ -8,19 +8,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const name = body.name || body.version;
+    const teamId = body.teamId;
     const taskType = body.taskType || "TONE_NORMALIZATION";
     if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
-    const dataset = await prisma.trainingDataset.create({
-        data: {
-            version: name,
-            taskType,
-            recordCount: 0,
-            datasetHash: `${name}-${Date.now()}`,
-            configHash: `config-${Date.now()}`,
-            status: "DRAFT"
-        }
-    });
+    const dataset = await datasetService.createDataset(teamId, name, taskType);
 
     return NextResponse.json(dataset);
 }

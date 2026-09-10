@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { datasetService } from "@/modules/training/DatasetService";
 
 export async function POST(req: NextRequest) {
     const { userId } = await getCurrentContextFromRequest(req);
@@ -12,17 +12,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "datasetId and record required" }, { status: 400 });
     }
 
-    const created = await prisma.trainingRecord.create({
-        data: {
-            datasetId,
-            taskType: record.task_type,
-            inputText: record.input_text,
-            brandRules: record.brand_rules,
-            policyRules: record.policy_rules,
-            expectedOutput: record.expected_output,
-            rejectionConditions: record.rejection_conditions
-        }
-    });
+    const result = await datasetService.addRecord(datasetId, record);
 
-    return NextResponse.json({ success: true, record: created });
+    return NextResponse.json(result);
 }
