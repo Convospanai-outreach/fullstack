@@ -55,6 +55,7 @@ class EmailService {
         metadata?: {
             leadId?: string;
             campaignId?: string;
+            variantId?: string;
         };
         subject: string;
         body: string;
@@ -76,6 +77,7 @@ class EmailService {
                 trackingId: input.trackingId,
                 deliveryProvider: input.deliveryProvider,
                 mailboxId: input.deliveryProvider === "GMAIL_API" ? input.mailboxId : null,
+                ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
             } as any,
@@ -91,6 +93,7 @@ class EmailService {
         metadata?: {
             leadId?: string;
             campaignId?: string;
+            variantId?: string;
         };
     }): Promise<EmailSendResult> {
         let config: any;
@@ -136,6 +139,7 @@ class EmailService {
             userId?: string;
             fromName?: string;
             fromEmail?: string;
+            variantId?: string;
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;

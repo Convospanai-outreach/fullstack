@@ -51,7 +51,7 @@ export class NurtureService {
         const candidateLeads = await prisma.lead.findMany({
             where: {
                 teamId,
-                pipelineState: { notIn: ["WON", "LOST"] },
+                pipelineState: { notIn: ["CLOSED_WON", "CLOSED_LOST"] },
                 tasks: { none: { dueDate: nextEvent.eventDate } },
             },
             take: CANDIDATE_LEAD_LIMIT,
@@ -80,7 +80,7 @@ export class NurtureService {
             const pastInteractions = lead.enrichedData ? JSON.stringify(lead.enrichedData) : "No prior interaction data recorded.";
 
             const decision = await calendarNurtureFlow.run({ leadContext, eventDetails, pastInteractions, teamId });
-            if (decision.nextAction === "DROP" || decision.nextAction === "WAIT") {
+            if (!decision.success || decision.nextAction === "DROP" || decision.nextAction === "WAIT") {
                 continue;
             }
 

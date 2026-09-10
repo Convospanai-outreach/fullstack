@@ -164,7 +164,7 @@ export async function handleSequenceAction(payload: JobPayload) {
                     emailSubject = variant.subject;
                     emailBody = variant.body;
                     sentVariantId = variant.id;
-                } else try {
+                } else { try {
                     const style = resolveEmailStyle(campaign);
                     // 1. Prepare Node A Input
                     const nodeAInput = {
@@ -201,12 +201,13 @@ export async function handleSequenceAction(payload: JobPayload) {
 
                 } catch (error) {
                     console.warn("[Sequence] Autonomous generation failed, using fallback.", error);
-                }
+                } }
 
                 result = await emailService.sendEmail(lead.email, emailSubject, emailBody, {
                     teamId: lead.campaign.teamId || undefined,
                     campaignId: lead.campaignId || undefined,
-                    leadId: lead.id
+                    leadId: lead.id,
+                    variantId: sentVariantId || undefined
                 });
 
                 const emailSendSucceeded = result && ((result as any).ok || (result as any).success);
