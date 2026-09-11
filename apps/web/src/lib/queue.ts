@@ -35,7 +35,8 @@ export type JobType =
     | "workflow_step"
     | "event_processing"
     | "CSV_IMPORT"
-    | "SEQUENCE_ACTION";
+    | "SEQUENCE_ACTION"
+    | "lead_rescore";
 
 export interface JobPayload {
     leadId?: string | undefined;

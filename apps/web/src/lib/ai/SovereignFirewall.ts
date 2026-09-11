@@ -248,16 +248,4 @@ export class SovereignFirewall {
             }
         }
     }
-
-    /**
-     * Evaluate a prompt for safety (used by BullsEyeRAG)
-     */
-    static async evaluate(prompt: string, overrideEndpoint?: string): Promise<{ safe: boolean; reason?: string | undefined }> {
-        try {
-            const verdict = await this.critique(prompt, overrideEndpoint);
-            return { safe: verdict.approved, reason: verdict.reason };
-        } catch {
-            return { safe: false, reason: 'Evaluation failed' };
-        }
-    }
 }

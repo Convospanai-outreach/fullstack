@@ -5,6 +5,17 @@ type CampaignVariantWeight = {
     weight?: number | string | null;
 };
 
+function pickWeightedVariant<T extends CampaignVariantWeight>(variants: T[]): T | null {
+    if (variants.length === 0) return null;
+    const totalWeight = variants.reduce((sum, v) => sum + Number(v.weight ?? 0), 0);
+    let random = Math.random() * totalWeight;
+    for (const variant of variants) {
+        random -= Number(variant.weight ?? 0);
+        if (random <= 0) return variant;
+    }
+    return variants[0];
+}
+
 export class CampaignService {
     static async createCampaign(data: {
         name: string;
@@ -86,26 +97,10 @@ export class CampaignService {
         for (const lead of campaign.leadList) {
             if (lead.linkedIn && lead.status === "NEW") {
                 // Determine variant
-                let selectedVariant = null;
-                if (campaign.variants.length > 0) {
-                    const totalWeight = campaign.variants.reduce(
-                        (sum: number, v: CampaignVariantWeight) => sum + Number(v.weight ?? 0),
-                        0
-                    );
-                    let random = Math.random() * totalWeight;
-                    for (const variant of campaign.variants) {
-                        random -= Number(variant.weight ?? 0);
-                        if (random <= 0) {
-                            selectedVariant = variant;
-                            break;
-                        }
-                    }
-                    if (!selectedVariant) selectedVariant = campaign.variants[0];
-                }
+                const selectedVariant = pickWeightedVariant(campaign.variants);
 
-                // In a real implementation, pass selectedVariant.id to SequenceService
                 console.log(`Starting sequence for lead ${lead.id} with variant ${selectedVariant?.id || 'default'}`);
-                await SequenceService.startSequence(lead.id, lead.linkedIn);
+                await SequenceService.startSequence(lead.id, lead.linkedIn, campaign.teamId ?? undefined, selectedVariant?.id);
             }
         }
     }

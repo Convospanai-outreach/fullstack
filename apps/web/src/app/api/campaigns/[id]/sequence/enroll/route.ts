@@ -68,11 +68,24 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
             return NextResponse.json({ success: true, candidates: 0, enrolled: 0, message: "No leads are assigned to this campaign" });
         }
 
+        // The builder's "Select senders" step (SenderScheduleNode) persists sequence.senderMailboxIds,
+        // but nothing downstream read it until now - executeEmailRun() always fell back to whichever
+        // connected mailbox selectMailboxForSend rotated to next, silently ignoring an operator's
+        // choice to send this sequence through a specific (e.g. Resend) mailbox. Re-validate the
+        // selection against currently-connected mailboxes and distribute leads round-robin across it.
+        const senderMailboxIds = sequence.senderMailboxIds || [];
+        const selectedMailboxes = senderMailboxIds.length > 0
+            ? await prisma.connectedMailbox.findMany({
+                  where: { id: { in: senderMailboxIds }, teamId, status: "CONNECTED" },
+                  select: { id: true },
+              })
+            : [];
+
         const now = new Date();
         const firstStep = sequence.steps[0]!;
         const nextRunAt = new Date(now.getTime() + firstStepDelayMs(firstStep));
         const result = await prisma.sequenceEnrollment.createMany({
-            data: leads.map((lead) => ({
+            data: leads.map((lead, index) => ({
                 teamId,
                 sequenceId: sequence.id,
                 leadId: lead.id,
@@ -80,6 +93,9 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
                 status: "ACTIVE",
                 currentStepOrder: 0,
                 nextRunAt,
+                ...(selectedMailboxes.length > 0
+                    ? { mailboxId: selectedMailboxes[index % selectedMailboxes.length]!.id }
+                    : {}),
             })),
             skipDuplicates: true,
         });

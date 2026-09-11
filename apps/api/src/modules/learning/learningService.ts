@@ -3,36 +3,9 @@ import { logger } from "@/lib/logger";
 import { aiService } from "@/lib/aiService";
 import { toVectorLiteral } from "@/lib/ai/vectorLiteral";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
-
 const MEMORY_RELEVANCE_LIMIT = 8;
 
 export class LearningService {
-    // NOT FIXED: self-fetches /learning/feedback, and has zero callers anywhere in the
-    // codebase - the real route (POST /learning/feedback) bypasses this service entirely
-    // with its own direct prisma.agentFeedback.create call. Left untouched rather than
-    // guessed at, matching how 121721a left PipelineService.updateTask untouched for the
-    // same reason.
-    static async recordFeedback(
-        teamId: string,
-        userId: string,
-        messageId: string,
-        rating: number,
-        comment?: string
-    ) {
-        try {
-            const res = await fetch(`${API_URL}/learning/feedback`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, userId, messageId, rating, comment })
-            });
-            if (!res.ok) throw new Error("Learning feedback failure");
-            return await res.json();
-        } catch (e) {
-            console.error("Learning feedback proxy failed:", e);
-        }
-    }
-
     // Was self-fetching POST /learning/memories, which self-referentially calls this exact
     // service's route. Replaced with the same prisma.agentMemory query the live route
     // (GET /learning/memories) already runs.

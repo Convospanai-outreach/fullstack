@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { getSmtpConfig } from "../smtpConfigService";
 import { isSuppressed, selectMailboxForSend, sendViaGmailMailbox } from "../googleMailboxService";
+import { sendViaResendMailbox } from "../resendMailboxService";
 
 const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
@@ -11,6 +12,7 @@ const { mockPrisma } = vi.hoisted(() => ({
         campaign: { findUnique: vi.fn() },
         email: { create: vi.fn() },
         team: { findUnique: vi.fn().mockResolvedValue({ mailingAddress: null }) },
+        connectedMailbox: { findFirst: vi.fn() },
     },
 }));
 
@@ -23,6 +25,7 @@ vi.mock("../googleMailboxService", () => ({
     sendViaGmailMailbox: vi.fn(),
     signTrackedUrl: vi.fn(() => "tracking-signature"),
 }));
+vi.mock("../resendMailboxService", () => ({ sendViaResendMailbox: vi.fn() }));
 
 const metadata = {
     teamId: "team-1",
@@ -204,5 +207,134 @@ describe("emailService Gmail fallback policy", () => {
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(prisma.email.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("emailService Resend routing", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSuppressed as Mock).mockResolvedValue(false);
+        (prisma.lead.findUnique as Mock).mockResolvedValue(null);
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
+        (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(null);
+    });
+
+    it("sends via Resend when the selected mailbox's provider is RESEND, and never touches Gmail or SMTP", async () => {
+        (selectMailboxForSend as Mock).mockResolvedValue({ id: "resend-mailbox-1", provider: "RESEND" });
+        (sendViaResendMailbox as Mock).mockResolvedValue({
+            success: true,
+            deliveryProvider: "RESEND",
+            mailboxId: "resend-mailbox-1",
+            messageId: "resend-message-1",
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: true, providerId: "resend-message-1", deliveryProvider: "RESEND" });
+
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(sentEmailData()).toEqual(expect.objectContaining({
+            deliveryProvider: "RESEND",
+            mailboxId: "resend-mailbox-1",
+            providerId: "resend-message-1",
+        }));
+    });
+
+    it("falls back to SMTP when the Resend send fails and fallback is allowed", async () => {
+        (selectMailboxForSend as Mock).mockResolvedValue({ id: "resend-mailbox-1", provider: "RESEND" });
+        (sendViaResendMailbox as Mock).mockResolvedValue({
+            success: false,
+            error: "RESEND_SEND_FAILED",
+            fallbackAllowed: true,
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
+
+        expect(sendViaSMTP).toHaveBeenCalledTimes(1);
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+    });
+
+    it("does not fall back to SMTP when a Resend failure disallows fallback", async () => {
+        (selectMailboxForSend as Mock).mockResolvedValue({ id: "resend-mailbox-1", provider: "RESEND" });
+        (sendViaResendMailbox as Mock).mockResolvedValue({
+            success: false,
+            error: "RESEND_SEND_PRE_DISPATCH_FAILED",
+            fallbackAllowed: false,
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: false, error: "RESEND_SEND_PRE_DISPATCH_FAILED" });
+
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(prisma.email.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("emailService explicit mailboxId (drip-sequence sender assignment)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSuppressed as Mock).mockResolvedValue(false);
+        (prisma.lead.findUnique as Mock).mockResolvedValue(null);
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
+        (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+    });
+
+    it("sends through the exact mailbox a sequence run assigned, via Resend, without consulting selectMailboxForSend's rotation", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({ id: "resend-mailbox-1", provider: "RESEND" });
+        (sendViaResendMailbox as Mock).mockResolvedValue({
+            success: true,
+            deliveryProvider: "RESEND",
+            mailboxId: "resend-mailbox-1",
+            messageId: "resend-message-1",
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", {
+            ...metadata,
+            mailboxId: "resend-mailbox-1",
+        })).resolves.toEqual({ success: true, providerId: "resend-message-1", deliveryProvider: "RESEND" });
+
+        expect(prisma.connectedMailbox.findFirst).toHaveBeenCalledWith({
+            where: { id: "resend-mailbox-1", teamId: "team-1", status: "CONNECTED" },
+        });
+        expect(selectMailboxForSend).not.toHaveBeenCalled();
+        expect(sendViaResendMailbox).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: "resend-mailbox-1" }));
+    });
+
+    it("sends through the exact assigned mailbox via Gmail when its provider isn't Resend", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({ id: "gmail-mailbox-1", provider: "GOOGLE_WORKSPACE" });
+        (sendViaGmailMailbox as Mock).mockResolvedValue({
+            success: true,
+            deliveryProvider: "GMAIL_API",
+            mailboxId: "gmail-mailbox-1",
+            messageId: "gmail-message-1",
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", {
+            ...metadata,
+            mailboxId: "gmail-mailbox-1",
+        })).resolves.toEqual({ success: true, providerId: "gmail-message-1", deliveryProvider: "GMAIL_API" });
+
+        expect(selectMailboxForSend).not.toHaveBeenCalled();
+        expect(sendViaGmailMailbox).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: "gmail-mailbox-1" }));
+    });
+
+    it("falls back to SMTP when the assigned mailbox id no longer resolves to a connected mailbox", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(null);
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", {
+            ...metadata,
+            mailboxId: "stale-mailbox-1",
+        })).resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
+
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(sendViaResendMailbox).not.toHaveBeenCalled();
+        expect(sendViaSMTP).toHaveBeenCalledTimes(1);
     });
 });

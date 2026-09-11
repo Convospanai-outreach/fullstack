@@ -224,11 +224,49 @@ model Campaign {
   activities           Activity[]
   landingCampaignLinks LandingCampaign[] @relation("LandingCampaignLinkedCampaign")
 
+  // Batch email-draft generation (AI cost optimization) — opt-in per campaign,
+  // "REALTIME" preserves today's per-lead live-generation behavior.
+  draftGenerationMode String       @default("REALTIME")
+  enrichmentPending   Int          @default(0)
+  aiDraftBatches      AiDraftBatch[]
+
   @@index([status])
   @@index([teamId])
   @@index([createdAt])
   // Optimization for multi-tenant campaign lists
   @@index([teamId, status])
+}
+
+model AiDraftBatch {
+  id              String   @id @default(uuid())
+  campaignId      String
+  teamId          String
+  provider        String // "anthropic" | "openai"
+  providerBatchId String
+  status          String   @default("submitted") // submitted | polling | completed | failed
+  itemCount       Int
+  createdAt       DateTime @default(now())
+  completedAt     DateTime?
+  pollAttempts    Int      @default(0)
+  campaign        Campaign           @relation(fields: [campaignId], references: [id])
+  items           AiDraftBatchItem[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+model AiDraftBatchItem {
+  id       String       @id @default(uuid())
+  batchId  String
+  leadId   String
+  customId String       @unique // provider's per-request id, == leadId
+  status   String       @default("pending") // pending | succeeded | failed
+  subject  String?
+  body     String?
+  error    String?
+  batch    AiDraftBatch @relation(fields: [batchId], references: [id])
+
+  @@index([batchId])
 }
 
 model CampaignVariant {
@@ -717,8 +755,8 @@ model TrackedLink {
   lead     Lead?             @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@unique([teamId, trackingKey])
-  @@index([trackingKey])
   @@index([teamId])
+  @@index([trackingKey])
   @@index([emailId])
   @@index([mailboxId])
   @@index([campaignId])
@@ -1832,6 +1870,7 @@ model AgentMemory {
   value      String // e.g. "Always use emojis", "Never mention 'cheap'"
   confidence Float    @default(1.0)
   createdAt  DateTime @default(now())
+  embedding  Unsupported("vector(1536)")?
 
   team Team @relation(fields: [teamId], references: [id])
 
@@ -1871,8 +1910,8 @@ model KnowledgeBase {
 model KnowledgeItem {
   id              String   @id @default(uuid())
   content         String   @db.Text
-  embedding       String? // Temporarily String
-  embeddingModel  String?  @default("gemini-1.5-flash")
+  embedding       Unsupported("vector(1536)")?
+  embeddingModel  String?  @default("text-embedding-3-small")
   version         Int?     @default(1)
   metadata        Json? // e.g., { source: "URL", type: "PDF", originalName: "pricing.pdf" }
   knowledgeBaseId String

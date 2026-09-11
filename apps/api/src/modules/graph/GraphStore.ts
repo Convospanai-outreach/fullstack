@@ -37,12 +37,12 @@ export class GraphStore {
     /**
      * HYBRID QUERY: Combines Graph Traversal with Semantic Search
      */
-    async getHybridContext(entityId: string, query: string): Promise<string> {
+    async getHybridContext(entityId: string, query: string, teamId?: string): Promise<string> {
         // 1. Graph Retrieval (Structured)
         const graphDocs = this.getGraphContext(entityId);
 
         // 2. Vector Retrieval (Unstructured - Edge Search)
-        const vectorDocs = await this.vectorSearch(query);
+        const vectorDocs = await this.vectorSearch(query, teamId);
 
         // 3. Re-ranking (Freshness + Relevance)
         const allDocs = [...graphDocs, ...vectorDocs];
@@ -78,11 +78,11 @@ export class GraphStore {
         return docs;
     }
 
-    private async vectorSearch(query: string) {
+    private async vectorSearch(query: string, teamId?: string) {
         // Real implementation: Gateway to physical edge node
         // Queries the local 'GoldenRecords' via pgvector on the device.
         try {
-            const results = await HardwareService.search(query);
+            const results = await HardwareService.search(query, teamId);
             return results.map(r => ({
                 content: r.content,
                 score: r.score,

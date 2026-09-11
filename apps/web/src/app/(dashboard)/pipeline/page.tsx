@@ -32,6 +32,7 @@ export default function PipelinePage() {
     const [aiSuggestions, setAiSuggestions] = useState<any[]>([]);
     const [aiSuggestionsLeadId, setAiSuggestionsLeadId] = useState<string | null>(null);
     const [acceptingIndex, setAcceptingIndex] = useState<number | null>(null);
+    const [movingLeadId, setMovingLeadId] = useState<string | null>(null);
 
     useEffect(() => {
         loadData();
@@ -97,6 +98,25 @@ export default function PipelinePage() {
             toast.error("Failed to accept suggestion");
         } finally {
             setAcceptingIndex(null);
+        }
+    };
+
+    const moveLead = async (leadId: string, newStage: string) => {
+        setMovingLeadId(leadId);
+        try {
+            const res = await fetch(getBrowserApiUrl(`/pipeline/leads/${leadId}`), {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: newStage })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data?.error || "Failed to move lead");
+            toast.success(`Moved to ${STAGE_CONFIG[newStage]?.label || newStage}`);
+            await loadData();
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to move lead");
+        } finally {
+            setMovingLeadId(null);
         }
     };
 
@@ -193,6 +213,21 @@ export default function PipelinePage() {
                                             >
                                                 <Zap className="w-3.5 h-3.5" />
                                             </button>
+                                            {STAGES.indexOf(tier) < STAGES.length - 1 && (
+                                                <select
+                                                    value=""
+                                                    disabled={movingLeadId === lead.id}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    onChange={(e) => { if (e.target.value) moveLead(lead.id, e.target.value); }}
+                                                    className="text-[10px] font-bold bg-muted text-muted-foreground hover:text-foreground border border-border rounded px-1.5 py-1 disabled:opacity-50"
+                                                    title="Move to stage"
+                                                >
+                                                    <option value="" disabled>Move to…</option>
+                                                    {STAGES.slice(STAGES.indexOf(tier) + 1).map(s => (
+                                                        <option key={s} value={s}>{STAGE_CONFIG[s]?.label || s}</option>
+                                                    ))}
+                                                </select>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
                                             <Clock className="w-3 h-3" /> {formatDistanceToNow(new Date(lead.updatedAt))} ago

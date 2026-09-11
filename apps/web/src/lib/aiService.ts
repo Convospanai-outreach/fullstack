@@ -51,6 +51,11 @@ export class AIService {
         return result.embeddings;
     }
 
+    async getRagEmbedding(text: string, teamId?: string): Promise<number[]> {
+        const result = await this.callBackend("getRagEmbedding", { text, teamId });
+        return result.embedding;
+    }
+
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
         return await this.callBackend("generateEmailDraft", { lead, icp, teamId });
     }

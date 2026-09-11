@@ -24,6 +24,14 @@ export default function PrivacyPolicyPage() {
             Google mailbox data is used only to provide requested product functionality such as connecting a sender mailbox, sending approved emails, detecting replies to sent campaign emails, checking mailbox connection status, and displaying relevant sending and reply activity. Google user data is not used for advertising.
           </p>
 
+          <h2 className="pt-4 text-2xl font-semibold text-white">CraftMyFunnel Chrome extension</h2>
+          <p>
+            The CraftMyFunnel Chrome extension helps you prepare LinkedIn outreach. When you open a LinkedIn profile page and choose to capture it, the extension reads only the details visible on that page &mdash; profile URL, name, headline, current company, and location &mdash; along with any notes, qualification fields, and message drafts you enter yourself. The extension does not collect your LinkedIn credentials, cookies, session tokens, private messages, or any data from pages you have not chosen to capture, and it does not automate connecting, messaging, liking, or following on LinkedIn.
+          </p>
+          <p>
+            Captured data is stored locally in your browser. If you configure and trigger a workspace sync, that data is sent to your CraftMyFunnel workspace to prepare a lead record; sync only happens when you explicitly enable and initiate it. You can clear the extension&apos;s local data at any time from its settings, and you can request deletion of any synced lead data the same way as other account data &mdash; see &quot;Data retention and deletion&quot; below or visit our <a className="text-cyan-300 underline" href="/data-deletion">data deletion page</a>.
+          </p>
+
           <h2 className="pt-4 text-2xl font-semibold text-white">How we use information</h2>
           <p>
             We use information to provide the product, authenticate users, prepare and send user-approved outreach, maintain campaign records, support approval workflows, improve reliability, prevent misuse, and respond to customer requests.

@@ -15,7 +15,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import { prisma } from "@/lib/db";
-import { PipelineService, PipelineStage } from "../PipelineService";
+import { PipelineService } from "../PipelineService";
 
 describe("PipelineService", () => {
     beforeEach(() => {
@@ -27,43 +27,57 @@ describe("PipelineService", () => {
             (prisma.lead.findFirst as any).mockResolvedValue(null);
 
             await expect(
-                PipelineService.moveLead("team-1", "lead-1", PipelineStage.QUALIFIED)
+                PipelineService.moveLead("team-1", "lead-1", "WARM")
             ).rejects.toThrow("Lead not found");
             expect(prisma.lead.update).not.toHaveBeenCalled();
         });
 
-        it("updates pipelineState and stamps pipelineStateChangedAt", async () => {
-            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1" });
+        it("rejects an unrecognized stage", async () => {
+            await expect(
+                PipelineService.moveLead("team-1", "lead-1", "QUALIFIED" as any)
+            ).rejects.toThrow("Invalid pipeline stage");
+            expect(prisma.lead.findFirst).not.toHaveBeenCalled();
+        });
+
+        it("updates pipelineState and stamps pipelineStateChangedAt on a forward move", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1", pipelineState: "COLD" });
             (prisma.lead.update as any).mockResolvedValue({ id: "lead-1" });
 
-            await PipelineService.moveLead("team-1", "lead-1", PipelineStage.CONTACTED);
+            await PipelineService.moveLead("team-1", "lead-1", "WARM");
 
             expect(prisma.lead.update).toHaveBeenCalledWith({
                 where: { id: "lead-1" },
-                data: expect.objectContaining({ pipelineState: "CONTACTED" }),
+                data: expect.objectContaining({ pipelineState: "WARM" }),
             });
         });
 
-        it("sets wonAt when moved to WON and applies dealValue", async () => {
-            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1" });
+        it("applies dealValue on a forward move", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1", pipelineState: "HOT" });
             (prisma.lead.update as any).mockResolvedValue({ id: "lead-1" });
 
-            await PipelineService.moveLead("team-1", "lead-1", PipelineStage.WON, 5000);
+            await PipelineService.moveLead("team-1", "lead-1", "COORDINATING", 5000);
 
             const data = (prisma.lead.update as any).mock.calls[0][0].data;
-            expect(data.pipelineState).toBe("WON");
+            expect(data.pipelineState).toBe("COORDINATING");
             expect(data.value).toBe(5000);
-            expect(data.wonAt).toBeInstanceOf(Date);
         });
 
-        it("sets lostAt when moved to LOST", async () => {
-            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1" });
-            (prisma.lead.update as any).mockResolvedValue({ id: "lead-1" });
+        it("rejects a backward move", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1", pipelineState: "HOT" });
 
-            await PipelineService.moveLead("team-1", "lead-1", PipelineStage.LOST);
+            await expect(
+                PipelineService.moveLead("team-1", "lead-1", "WARM")
+            ).rejects.toThrow("forward-only");
+            expect(prisma.lead.update).not.toHaveBeenCalled();
+        });
 
-            const data = (prisma.lead.update as any).mock.calls[0][0].data;
-            expect(data.lostAt).toBeInstanceOf(Date);
+        it("rejects moving a lead already at the terminal COMPLETED stage", async () => {
+            (prisma.lead.findFirst as any).mockResolvedValue({ id: "lead-1", teamId: "team-1", pipelineState: "COMPLETED" });
+
+            await expect(
+                PipelineService.moveLead("team-1", "lead-1", "COMPLETED")
+            ).rejects.toThrow("forward-only");
+            expect(prisma.lead.update).not.toHaveBeenCalled();
         });
     });
 

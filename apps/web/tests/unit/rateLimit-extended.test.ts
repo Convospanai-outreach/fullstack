@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const redisState = vi.hoisted(() => ({
     client: null as null | {
-        isOpen: boolean;
+        status: string;
         get: ReturnType<typeof vi.fn>;
         set: ReturnType<typeof vi.fn>;
         del: ReturnType<typeof vi.fn>;
@@ -70,7 +70,7 @@ describe("rateLimit extended behavior", () => {
         let stored: string | null = JSON.stringify({ count: 1, resetTime: 2000 });
         vi.spyOn(Date, "now").mockReturnValue(1000);
         redisState.client = {
-            isOpen: true,
+            status: "ready",
             get: vi.fn(async () => stored),
             set: vi.fn(async (_key, value) => {
                 stored = value;
@@ -87,13 +87,14 @@ describe("rateLimit extended behavior", () => {
         expect(redisState.client.set).toHaveBeenCalledWith(
             "ratelimit:endpoint:user",
             JSON.stringify({ count: 2, resetTime: 2000 }),
-            { EX: 1 }
+            "EX",
+            1
         );
     });
 
     it("falls back to LRU when Redis throws", async () => {
         redisState.client = {
-            isOpen: true,
+            status: "ready",
             get: vi.fn(async () => {
                 throw new Error("redis unavailable");
             }),

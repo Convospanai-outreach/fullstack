@@ -28,27 +28,28 @@ export async function POST(req: Request) {
         let result;
         switch (action) {
             case "VERIFY":
-                await HardwareService.verifyHardwareIdentity();
+                await HardwareService.verifyHardwareIdentity(ctx.teamId);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             case "SANITIZE":
-                result = await HardwareService.sanitize(text);
+                result = await HardwareService.sanitize(text, ctx.teamId);
                 break;
             case "CRITIQUE":
-                result = await HardwareService.critique(text, body.context);
+                result = await HardwareService.critique(text, body.context, ctx.teamId);
                 break;
             case "SEARCH":
-                result = { results: await HardwareService.search(query) };
+                result = { results: await HardwareService.search(query, ctx.teamId) };
                 break;
             case "EXECUTE": {
-                // Drives the single, platform-wide shared physical edge device used by
-                // every tenant - same hazard as SET_COMPLIANCE, no per-team scope exists
-                // to check, so it must be restricted to a genuine platform operator
-                // instead of any logged-in user.
+                // Restricted to a genuine platform operator, since this drives a physical
+                // actuator. targetTeamId (admin-supplied, never trusted from a non-admin
+                // caller) routes to that team's own paired edge node; omitted, it falls
+                // back to the single global EDGE_NODE_URI, matching pre-multi-tenant
+                // behavior for deployments with only one shared device.
                 const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
                 if (!admin) {
                     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
                 }
-                result = { success: await HardwareService.execute(payload?.actuator || "generic", payload || {}) };
+                result = { success: await HardwareService.execute(payload?.actuator || "generic", payload || {}, body.targetTeamId) };
                 break;
             }
             case "SAVE_WORKFLOW":
@@ -58,18 +59,17 @@ export async function POST(req: Request) {
                 if (!workflow || workflow.teamId !== ctx.teamId) {
                     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
                 }
-                await HardwareService.saveWorkflow(workflow);
+                await HardwareService.saveWorkflow(workflow, ctx.teamId);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             case "SET_COMPLIANCE": {
-                // This flips the compliance mode on the single, platform-wide shared edge
-                // node used by every tenant, not just the caller's own team - unlike every
-                // other action here, there is no per-team scope to check, so it must be
-                // restricted to a genuine platform operator instead of any logged-in user.
+                // Restricted to a genuine platform operator. targetTeamId (admin-supplied)
+                // routes to that team's own paired edge node; omitted, it falls back to
+                // the single global EDGE_NODE_URI, matching pre-multi-tenant behavior.
                 const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
                 if (!admin) {
                     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
                 }
-                await HardwareService.setComplianceMode(region);
+                await HardwareService.setComplianceMode(region, body.targetTeamId);
                 return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
             }
             case "RE_IDENTIFY": {
@@ -83,14 +83,14 @@ export async function POST(req: Request) {
                 if (!ownsToken) {
                     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { 'Content-Type': 'application/json' } });
                 }
-                result = await HardwareService.reIdentify(maskedId, purpose);
+                result = await HardwareService.reIdentify(maskedId, purpose, ctx.teamId);
                 break;
             }
             case "STATUS":
-                result = await HardwareService.getStatus();
+                result = await HardwareService.getStatus(ctx.teamId);
                 break;
             case "ACTIVITY":
-                result = { activity: await HardwareService.getActivity(body.limit) };
+                result = { activity: await HardwareService.getActivity(body.limit, ctx.teamId) };
                 break;
             default:
                 return new Response(JSON.stringify({ error: "Unknown action" }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -111,9 +111,10 @@ export async function GET() {
             return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { 'Content-Type': 'application/json' } });
         }
 
-        // getWorkflows() talks to a single shared edge endpoint that returns every
-        // team's workflows - filter to the caller's own before returning them.
-        const workflows = await HardwareService.getWorkflows();
+        // getWorkflows() now routes to the caller's own paired edge node when one
+        // exists (falling back to the shared global endpoint otherwise); keep the
+        // filter as defense-in-depth in case the global fallback is shared.
+        const workflows = await HardwareService.getWorkflows(ctx.teamId);
         const ownWorkflows = (workflows || []).filter((w: any) => w?.teamId === ctx.teamId);
         return new Response(JSON.stringify(ownWorkflows), { status: 200, headers: { 'Content-Type': 'application/json' } });
     } catch (e: any) {

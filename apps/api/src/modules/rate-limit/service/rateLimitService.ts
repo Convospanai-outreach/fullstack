@@ -25,6 +25,9 @@ export class RateLimitService {
 
         try {
             const redis = await getRedisClient();
+            if (!redis) {
+                throw new Error("Redis unavailable");
+            }
             const windowKey = `ratelimit:${identifier}:${Math.floor(now / windowMs)}`;
 
             // Increment counter
@@ -32,7 +35,7 @@ export class RateLimitService {
 
             // Set expiry on first request
             if (count === 1) {
-                await redis.pExpire(windowKey, windowMs);
+                await redis.pexpire(windowKey, windowMs);
             }
 
             const reset = now + windowMs;
@@ -91,6 +94,9 @@ export class RateLimitService {
     async getStats() {
         try {
             const redis = await getRedisClient();
+            if (!redis) {
+                throw new Error("Redis unavailable");
+            }
             const keys = await redis.keys("ratelimit:*");
             const stats = [];
 

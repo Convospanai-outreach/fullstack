@@ -62,6 +62,15 @@ async function runHandler(jobType: string, payload: JobPayload) {
             return leadScoringService.batchScoreLeads(teamId);
         }
 
+        case "lead_rescore": {
+            const leadId = asString(payload.leadId);
+            if (!leadId) {
+                throw new Error("lead_rescore payload is missing leadId");
+            }
+            const { leadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
+            return leadScoringService.scoreAndPersist(leadId);
+        }
+
         case "landing_lead_intake":
             return handleLandingLeadIntake(payload);
 

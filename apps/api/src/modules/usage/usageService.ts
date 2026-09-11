@@ -1,24 +1,7 @@
 
 import { prisma } from "@/lib/db";
 
-const API_URL = process.env['NEXT_PUBLIC_API_URL'] || '';
-
 export class UsageService {
-    // Self-fetches a route (/usage/record) that doesn't exist, and has zero callers
-    // anywhere in the app - left untouched rather than guessed at, matching how the
-    // PipelineService precedent (121721a) left the equally-uncalled updateTask alone.
-    static async recordUsage(teamId: string, type: string, amount: number) {
-        try {
-            await fetch(`${API_URL}/usage/record`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, type, amount })
-            });
-        } catch (error) {
-            console.error("Usage record proxy failed:", error);
-        }
-    }
-
     static async getUsageStats(teamId: string) {
         const quotas = await prisma.userQuota.findMany({ where: { teamId } });
 
@@ -41,7 +24,5 @@ export class UsageService {
 }
 
 export const usageService = {
-    getTeamUsage: (teamId: string) => UsageService.getUsageStats(teamId),
-    recordUsage: (teamId: string, type: string, amount: number) =>
-        UsageService.recordUsage(teamId, type, amount)
+    getTeamUsage: (teamId: string) => UsageService.getUsageStats(teamId)
 };

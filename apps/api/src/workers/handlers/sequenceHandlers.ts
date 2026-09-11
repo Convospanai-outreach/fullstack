@@ -30,6 +30,7 @@ export async function handleSequenceAction(payload: JobPayload) {
     const url = payload['url'];
     const action = payload['action'];
     const payloadTeamId = typeof payload['teamId'] === "string" ? payload['teamId'] : undefined;
+    const variantId = typeof payload['variantId'] === "string" ? payload['variantId'] : undefined;
 
     const requiresUrl = action !== "EMAIL";
     if (!leadId || !action || (requiresUrl && !url)) {
@@ -151,8 +152,19 @@ export async function handleSequenceAction(payload: JobPayload) {
 
                 let emailSubject = "Checking in";
                 let emailBody = "Hi, I'm following up on our LinkedIn connection request. Would love to chat about your sales motion.";
+                let sentVariantId: string | undefined;
 
-                try {
+                const variant = variantId
+                    ? await prisma.campaignVariant.findFirst({ where: { id: variantId, campaignId: campaign.id } })
+                    : null;
+
+                if (variant) {
+                    // The selected A/B variant's own template IS the drafted content -
+                    // composeNodeA would silently overwrite the operator's chosen copy.
+                    emailSubject = variant.subject;
+                    emailBody = variant.body;
+                    sentVariantId = variant.id;
+                } else { try {
                     const style = resolveEmailStyle(campaign);
                     // 1. Prepare Node A Input
                     const nodeAInput = {
@@ -189,13 +201,22 @@ export async function handleSequenceAction(payload: JobPayload) {
 
                 } catch (error) {
                     console.warn("[Sequence] Autonomous generation failed, using fallback.", error);
-                }
+                } }
 
                 result = await emailService.sendEmail(lead.email, emailSubject, emailBody, {
                     teamId: lead.campaign.teamId || undefined,
                     campaignId: lead.campaignId || undefined,
-                    leadId: lead.id
+                    leadId: lead.id,
+                    variantId: sentVariantId || undefined
                 });
+
+                const emailSendSucceeded = result && ((result as any).ok || (result as any).success);
+                if (emailSendSucceeded && sentVariantId) {
+                    await prisma.campaignVariant.update({
+                        where: { id: sentVariantId },
+                        data: { sentCount: { increment: 1 } }
+                    }).catch(e => console.error("Failed to increment variant sentCount", e));
+                }
             } else {
                 console.log(`No email found for lead ${leadId}, skipping email step.`);
                 result = { ok: true, skipped: true };
@@ -217,7 +238,7 @@ export async function handleSequenceAction(payload: JobPayload) {
         }).catch(e => console.error("Failed to update lead status", e));
 
         // Schedule next step
-        await SequenceService.scheduleNextStep(leadId, url, action as SequenceStep, resolvedTeamId);
+        await SequenceService.scheduleNextStep(leadId, url, action as SequenceStep, resolvedTeamId, variantId);
     }
 
     return result;

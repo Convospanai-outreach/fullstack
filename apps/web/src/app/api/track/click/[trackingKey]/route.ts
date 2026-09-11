@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { advanceLeadAfterEmailClicked } from "@/lib/crm/leadStageTransitions";
+import { JobQueue } from "@/lib/queue";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ trackingKey: string }> }) {
   const { trackingKey } = await params;
@@ -34,6 +35,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ trac
           campaignId: email.campaignId,
           emailId: link.emailId,
         }).catch(() => undefined);
+        // Rescore intent now that a real engagement signal exists - LeadScoringService
+        // derives emailClicks from Email.clickedAt rows itself (OPEN-68), so this only
+        // needs to trigger the recompute, not touch a counter.
+        if (email.leadId) {
+          await JobQueue.enqueue("lead_rescore", { leadId: email.leadId, teamId: link.teamId }).catch(() => undefined);
+        }
       }
     }
 

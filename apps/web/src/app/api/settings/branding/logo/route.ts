@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { uploadPublicFile } from "@/lib/supabaseStorage";
 import { getCurrentContext } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -46,12 +46,9 @@ export async function POST(req: NextRequest) {
         };
         const ext = MIME_TO_EXT[file.type] || ".png";
         const sanitizedTeamId = teamId.replace(/[^a-zA-Z0-9_-]/g, "");
-        const blob = await put(`branding/${sanitizedTeamId}/logo-${Date.now()}${ext}`, file, {
-            access: "public",
-            addRandomSuffix: false,
-        });
+        const { url } = await uploadPublicFile("branding", `${sanitizedTeamId}/logo-${Date.now()}${ext}`, file);
 
-        return NextResponse.json({ ok: true, url: blob.url });
+        return NextResponse.json({ ok: true, url });
     } catch (error: any) {
         console.error("[settings:branding:logo:post]", error);
         return NextResponse.json({ error: error?.message || "Upload failed" }, { status: 500 });

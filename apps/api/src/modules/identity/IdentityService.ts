@@ -14,7 +14,7 @@ export class IdentityService {
 
         // 2. Hardware Enclave Call
         try {
-            const pii = await HardwareService.reIdentify(maskedId, purpose);
+            const pii = await HardwareService.reIdentify(maskedId, purpose, teamId);
 
             // 3. Audit Log (Success)
             logger.info(`[IdentityVault] Access Granted.`);

@@ -2,34 +2,26 @@ import { getBrowserApiBase } from "@/lib/api/browserBase";
 
 const API_URL = getBrowserApiBase();
 
-export enum PipelineStage {
-    NEW = "NEW",
-    QUALIFIED = "QUALIFIED",
-    CONTACTED = "CONTACTED",
-    MEETING = "MEETING",
-    PROPOSAL = "PROPOSAL",
-    WON = "WON",
-    LOST = "LOST"
-}
+export const PIPELINE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED"] as const;
+export type PipelineStage = (typeof PIPELINE_STAGES)[number];
 
 export class PipelineService {
-    static async moveLead(teamId: string, leadId: string, newStage: PipelineStage, dealValue?: number) {
-        try {
-            const res = await fetch(`${API_URL}/pipeline/move`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, leadId, newStage, dealValue })
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Pipeline move proxy failed:", error);
-            throw error;
+    static async moveLead(leadId: string, newStage: PipelineStage, dealValue?: number) {
+        const res = await fetch(`${API_URL}/pipeline/leads/${leadId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStage, dealValue })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data?.error || "Failed to move lead");
         }
+        return data;
     }
 
-    static async getPipelineStats(teamId: string) {
+    static async getPipelineStats() {
         try {
-            const res = await fetch(`${API_URL}/pipeline/stats?teamId=${teamId}`);
+            const res = await fetch(`${API_URL}/pipeline/stats`);
             return await res.json();
         } catch {
             return { totalValue: 0 };
@@ -37,36 +29,26 @@ export class PipelineService {
     }
 
     static async createTask(data: any) {
-        try {
-            const res = await fetch(`${API_URL}/pipeline/task`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data)
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Task creation proxy failed:", error);
-            throw error;
-        }
+        const res = await fetch(`${API_URL}/pipeline/tasks`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        return await res.json();
     }
 
-    static async updateTask(teamId: string, taskId: string, data: any) {
-        try {
-            const res = await fetch(`${API_URL}/pipeline/task`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, taskId, data })
-            });
-            return await res.json();
-        } catch (error) {
-            console.error("Task update proxy failed:", error);
-            throw error;
-        }
+    static async updateTask(taskId: string, data: any) {
+        const res = await fetch(`${API_URL}/pipeline/tasks/${taskId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+        return await res.json();
     }
 
-    static async getTasks(teamId: string, leadId?: string) {
+    static async getTasks(leadId?: string) {
         try {
-            const res = await fetch(`${API_URL}/pipeline/tasks?teamId=${teamId}&leadId=${leadId || ''}`);
+            const res = await fetch(`${API_URL}/pipeline/tasks${leadId ? `?leadId=${leadId}` : ""}`);
             return await res.json();
         } catch {
             return [];

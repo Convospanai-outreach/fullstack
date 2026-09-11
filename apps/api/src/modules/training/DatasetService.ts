@@ -12,13 +12,13 @@ export type TrainingRecordData = {
 };
 
 export class DatasetService {
-    static async createDataset(teamId: string, name: string) {
+    static async createDataset(teamId: string, name: string, taskType: string = "TONE_NORMALIZATION") {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
             const dataset = await prisma.trainingDataset.create({
                 data: {
                     version: name,
-                    taskType: "TONE_NORMALIZATION",
+                    taskType: taskType as any,
                     recordCount: 0,
                     datasetHash: `${name}-${Date.now()}`,
                     configHash: `config-${Date.now()}`,
@@ -31,7 +31,7 @@ export class DatasetService {
             const res = await fetch(`${API_URL}/training/dataset`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ teamId, name })
+                body: JSON.stringify({ teamId, name, taskType })
             });
             return await res.json();
         } catch (error) {
@@ -59,7 +59,7 @@ export class DatasetService {
     static async addRecord(datasetId: string, record: TrainingRecordData) {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
-            await prisma.trainingRecord.create({
+            const created = await prisma.trainingRecord.create({
                 data: {
                     datasetId,
                     taskType: record.task_type as any,
@@ -70,7 +70,7 @@ export class DatasetService {
                     rejectionConditions: record.rejection_conditions as any
                 }
             });
-            return { success: true };
+            return { success: true, record: created };
         }
         const res = await fetch(`${API_URL}/training/record`, {
             method: "POST",
@@ -96,6 +96,10 @@ export class DatasetService {
                     realism: scores.realism,
                     approved: true
                 }
+            });
+            await prisma.trainingDataset.update({
+                where: { id: datasetId },
+                data: { status: "REVIEWED" }
             });
             return { ...review, approved: true };
         }

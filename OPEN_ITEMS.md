@@ -405,6 +405,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   CI runs of identical code with zero diff — expect to keep revisiting this
   list as new advisories land on existing transitive deps.
 
+  **Extended again (dependency-bump session):** bumping `next`/`fast-uri`/
+  `sharp`/`js-yaml`/`hono`/`fastify` to their patched versions (fixing two
+  critical Next.js unauthenticated-RCE CVEs plus the rest of a September
+  Dependabot batch) shifted the resolved tree enough to surface 3 more
+  advisories on the very next PR run, in the exact "new advisories land on
+  existing transitive deps" way predicted above: `GHSA-92pp-h63x-v22m` and
+  `GHSA-frvp-7c67-39w9` (`@hono/node-server@1.19.11`, bundled by
+  `prisma -> @prisma/dev`, i.e. Prisma Studio's own dev server — a serveStatic
+  middleware bypass and a Windows encoded-backslash path traversal,
+  respectively) and `GHSA-5qjj-4xww-7phc` (`valibot@<=1.4.1`, same
+  `@prisma/dev` bundle — a `flatten()` edge case on inherited property
+  names). Confirmed via repo-wide search that no app source imports
+  `@hono/node-server` or `valibot` directly in either app — the only
+  `@hono/node-server` this repo's own `server.ts` actually runs is the
+  top-level dependency at 2.x, safely pinned by the existing overrides.
+  All three are reachable only via the `prisma` CLI (e.g. `prisma studio`),
+  never by the running api/web server processes. Allowlisted alongside the
+  existing Prisma-tooling entries above (same unreachable-dependency
+  reasoning as the mysql2/deepmerge-ts pair).
+
+  Separately confirmed this run: the fast-uri "Conflicting override sets"
+  failure documented above (root override edits not taking effect via plain
+  `npm install`) was specific to that command — `npm update fast-uri` (and
+  the other bumped packages) *did* force a fresh resolution, landing on
+  `fast-uri@3.1.7` (verified outside the `3.0.0–3.1.5` vulnerable range),
+  clearing those 4 fast-uri allowlist entries from `npm audit`'s live
+  findings going forward. Left the allowlist entries themselves in place
+  rather than deleting them, since the advisories are still valid should the
+  resolution ever regress.
+
 - **OPEN-126 (Fixed):** `apps/web/src/app/api/email/unsubscribe/[trackingId]/route.ts`'s
   `GET` handler interpolated the raw, attacker-controlled `trackingId` URL
   path segment directly into an HTML `<form action="...">` attribute with no

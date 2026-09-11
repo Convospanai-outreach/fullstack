@@ -299,6 +299,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         "/favicon.ico",
         "/favicon.svg",
         "/craftmyfunnel-logo.png",
+        "/manifest.webmanifest",
         "/about",
         "/blog",
         "/use-cases",
@@ -467,8 +468,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
     const cspValues = [
         "default-src 'self'",
-        // Scripts: Allow self, Clerk, Google Auth, Razorpay, and Cloudflare Turnstile (Clerk bot protection)
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com`,
+        // Scripts: Allow self, Clerk, Google Auth, Razorpay, Cloudflare Turnstile (Clerk bot
+        // protection), Google Tag Manager/Analytics, and Cloudflare's own Web Analytics beacon
+        // (auto-injected by the Cloudflare proxy in front of this site)
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com`,
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         // Images: Allow self, Clerk avatars, Google placeholders, and data URLs for icons
@@ -476,7 +479,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
         // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
+        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
         // Frames: Clerk, Google Auth, Razorpay & Cloudflare Turnstile (Clerk bot protection)
         `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com`,
         // Media/Workers: Stricter constraints
