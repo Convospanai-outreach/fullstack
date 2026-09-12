@@ -38,7 +38,7 @@ export function isAssignableInviteRole(role: string): role is UserRole {
 export async function maybeSendInviteEmail(email: string, inviteLink: string) {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
-    const password = process.env["SMTP_PASSWORD"];
+    const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
     const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
 
     if (!host || !user || !password || !fromEmail) {

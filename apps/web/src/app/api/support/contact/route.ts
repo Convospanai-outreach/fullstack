@@ -70,7 +70,7 @@ async function sendGa4MeasurementProtocolEvent(params: {
 function getSmtpConfig() {
     const host = process.env["SMTP_HOST"];
     const user = process.env["SMTP_USER"];
-    const password = process.env["SMTP_PASSWORD"];
+    const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"];
     const fromEmail = process.env["SMTP_FROM_EMAIL"] || user;
 
     if (!host || !user || !password || !fromEmail) {
