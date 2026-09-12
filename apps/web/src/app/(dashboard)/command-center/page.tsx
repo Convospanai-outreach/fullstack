@@ -27,13 +27,25 @@ export default function CommandCenterPage() {
         outboxQueueDepth: 5,
         healthyDaemons: 3,
     });
+    const [deliverability, setDeliverability] = useState<{
+        score: number;
+        sentCount: number;
+        bounceRate: number;
+        complaintRate: number;
+        openRate: number;
+        windowDays: number;
+        oneClickUnsubscribeActive: boolean;
+        mailingAddressConfigured: boolean;
+        domains: Array<{ domain: string; mx: boolean; spf: boolean; dkim: boolean; dmarc: boolean }>;
+    } | null>(null);
 
     const refreshData = async () => {
         setLoading(true);
         try {
-            const [leadsRes, mailboxesRes] = await Promise.all([
+            const [leadsRes, mailboxesRes, deliverabilityRes] = await Promise.all([
                 fetch("/api/proxy/leads?limit=5").catch(() => null),
-                fetch("/api/proxy/mailboxes").catch(() => null)
+                fetch("/api/proxy/mailboxes").catch(() => null),
+                fetch("/api/proxy/dashboard/deliverability").catch(() => null),
             ]);
 
             if (leadsRes?.ok) {
@@ -48,6 +60,11 @@ export default function CommandCenterPage() {
                 const mailboxes = data.mailboxes || [];
                 const active = mailboxes.filter((m: any) => m.status === "CONNECTED").length;
                 setMetrics(prev => ({ ...prev, mailboxesActive: active || prev.mailboxesActive }));
+            }
+
+            if (deliverabilityRes?.ok) {
+                const data = await deliverabilityRes.json();
+                if (data.ok) setDeliverability(data.stats);
             }
         } finally {
             setLoading(false);
@@ -188,38 +205,93 @@ export default function CommandCenterPage() {
                     </div>
                 </div>
 
-                {/* Deliverability & Circuit Breakers */}
+                {/* Deliverability Health */}
                 <div className="p-6 rounded-2xl bg-muted border border-border space-y-4">
-                    <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-emerald-400" />
-                        Reputation Guardrails
-                    </h2>
-
-                    <div className="space-y-3.5 text-xs text-foreground">
-                        <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
-                            <div className="flex justify-between font-semibold text-foreground">
-                                <span>Bounce Circuit Breaker</span>
-                                <span className="text-emerald-400">Armed (5.0% Limit)</span>
-                            </div>
-                            <p className="text-muted-foreground">Auto-pauses sending if mailbox hits delivery friction.</p>
-                        </div>
-
-                        <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
-                            <div className="flex justify-between font-semibold text-foreground">
-                                <span>RFC 8058 One-Click Header</span>
-                                <span className="text-emerald-400">Active</span>
-                            </div>
-                            <p className="text-muted-foreground">Compliant unsubscribe headers prevent spam classification.</p>
-                        </div>
-
-                        <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
-                            <div className="flex justify-between font-semibold text-foreground">
-                                <span>RFC 5322 Message-ID Sync</span>
-                                <span className="text-emerald-400">Synced</span>
-                            </div>
-                            <p className="text-muted-foreground">Post-send wire headers captured for authoritative threading.</p>
-                        </div>
+                    <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                            <Shield className="w-5 h-5 text-emerald-400" />
+                            Deliverability Health
+                        </h2>
+                        {deliverability && (
+                            <span
+                                className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+                                    deliverability.score >= 80
+                                        ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                        : deliverability.score >= 50
+                                        ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                        : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                }`}
+                            >
+                                {deliverability.score}/100
+                            </span>
+                        )}
                     </div>
+
+                    {!deliverability ? (
+                        <p className="text-xs text-muted-foreground">Loading deliverability signals...</p>
+                    ) : (
+                        <div className="space-y-3.5 text-xs text-foreground">
+                            <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
+                                <div className="flex justify-between font-semibold text-foreground">
+                                    <span>Bounce Rate ({deliverability.windowDays}d)</span>
+                                    <span className={deliverability.bounceRate > 0.02 ? "text-amber-400" : "text-emerald-400"}>
+                                        {(deliverability.bounceRate * 100).toFixed(1)}%
+                                    </span>
+                                </div>
+                                <p className="text-muted-foreground">Based on {deliverability.sentCount} email(s) sent in the last {deliverability.windowDays} days.</p>
+                            </div>
+
+                            <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
+                                <div className="flex justify-between font-semibold text-foreground">
+                                    <span>Complaint Rate</span>
+                                    <span className={deliverability.complaintRate > 0.0005 ? "text-rose-400" : "text-emerald-400"}>
+                                        {(deliverability.complaintRate * 100).toFixed(2)}%
+                                    </span>
+                                </div>
+                                <p className="text-muted-foreground">Recipients who marked a campaign email as spam.</p>
+                            </div>
+
+                            <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-1.5">
+                                <div className="flex justify-between font-semibold text-foreground">
+                                    <span>RFC 8058 One-Click Unsubscribe</span>
+                                    <span className="text-emerald-400">Active</span>
+                                </div>
+                                <p className="text-muted-foreground">List-Unsubscribe headers are attached to every send.</p>
+                            </div>
+
+                            {deliverability.domains.length > 0 && (
+                                <div className="p-3.5 rounded-xl bg-muted border border-border/60 space-y-2">
+                                    <p className="font-semibold text-foreground">Sending Domain Authentication</p>
+                                    {deliverability.domains.map((d) => (
+                                        <div key={d.domain} className="flex items-center justify-between">
+                                            <span className="text-muted-foreground truncate">{d.domain}</span>
+                                            <div className="flex gap-1.5">
+                                                {(["mx", "spf", "dkim", "dmarc"] as const).map((k) => (
+                                                    <span
+                                                        key={k}
+                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                                                            d[k]
+                                                                ? "bg-emerald-500/10 text-emerald-400"
+                                                                : "bg-rose-500/10 text-rose-400"
+                                                        }`}
+                                                    >
+                                                        {k}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {!deliverability.mailingAddressConfigured && (
+                                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
+                                    <p className="font-semibold text-amber-400">No mailing address set</p>
+                                    <p className="text-muted-foreground">CAN-SPAM requires a physical address in every marketing email — add one in Settings.</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

@@ -63,6 +63,39 @@ function statusFrom(found: boolean): CheckStatus {
     return found ? "VERIFIED" : "MISSING";
 }
 
+export type GenericDomainAuthResult = {
+    domain: string;
+    mx: boolean;
+    spf: boolean;
+    dmarc: boolean;
+    dkim: boolean;
+};
+
+// Provider-agnostic presence check (unlike checkGoogleWorkspaceDomainAuth, which only
+// verifies Google Workspace's specific SPF include/MX hosts) — used for dashboard
+// deliverability signals where a connected domain may be Resend, Gmail, or SMTP.
+// Checks common DKIM selectors since the actual selector isn't known generically.
+const COMMON_DKIM_SELECTORS = ["google", "resend", "default", "selector1", "selector2", "k1", "s1"];
+
+export async function checkDomainDeliverabilitySignals(domainInput: string): Promise<GenericDomainAuthResult> {
+    const domain = normalizeDomain(domainInput);
+    const dmarcHost = `_dmarc.${domain}`;
+
+    const [mxValues, rootTxt, dmarcTxt, dkimResults] = await Promise.all([
+        safeResolveMx(domain),
+        safeResolveTxt(domain),
+        safeResolveTxt(dmarcHost),
+        Promise.all(COMMON_DKIM_SELECTORS.map((selector) => safeResolveTxt(`${selector}._domainkey.${domain}`))),
+    ]);
+
+    const mx = mxValues.length > 0;
+    const spf = rootTxt.some((value) => /^v=spf1\b/i.test(value));
+    const dmarc = dmarcTxt.some((value) => /^v=DMARC1\b/i.test(value));
+    const dkim = dkimResults.some((values) => values.some((value) => /(v=DKIM1|p=)/i.test(value)));
+
+    return { domain, mx, spf, dmarc, dkim };
+}
+
 export async function checkGoogleWorkspaceDomainAuth(input: {
     teamId: string;
     domain: string;
