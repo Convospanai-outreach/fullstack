@@ -73,6 +73,53 @@ describe("api key auth", () => {
     });
   });
 
+  it("accepts the key via an Authorization: Bearer header when x-api-key is absent (e.g. Netjana)", async () => {
+    const raw = newKey("c");
+    const stored = createStoredApiKeyValue(raw);
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-3",
+      teamId: "team-3",
+      scopes: ["leads:write"],
+      isActive: true,
+    });
+
+    const bearerRequest = new Request("http://localhost/webhooks/netjana-intel", {
+      headers: {
+        [API_KEY_REQUEST_SOURCE_HEADER]: "server-source-1",
+        authorization: `Bearer ${raw}`,
+      },
+    }) as any;
+
+    const auth = await validateApiKey(bearerRequest, "leads:write");
+
+    expect(auth).toEqual({ keyId: "key-3", teamId: "team-3", scopes: ["leads:write"] });
+    expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledWith({ where: { key: { in: [stored] } } });
+  });
+
+  it("prefers x-api-key over Authorization when both are present", async () => {
+    const xApiKeyRaw = newKey("d");
+    mockPrisma.apiKey.findFirst.mockResolvedValue({
+      id: "key-4",
+      teamId: "team-4",
+      scopes: ["leads:write"],
+      isActive: true,
+    });
+
+    const bothHeadersRequest = new Request("http://localhost/webhooks/netjana-intel", {
+      headers: {
+        [API_KEY_REQUEST_SOURCE_HEADER]: "server-source-1",
+        "x-api-key": xApiKeyRaw,
+        authorization: `Bearer ${newKey("e")}`,
+      },
+    }) as any;
+
+    await validateApiKey(bothHeadersRequest, "leads:write");
+
+    expect(mockPrisma.apiKey.findFirst).toHaveBeenCalledWith({
+      where: { key: { in: [createStoredApiKeyValue(xApiKeyRaw)] } },
+    });
+  });
+
   it("keeps legacy raw-key lookup explicit during the transition", async () => {
     const raw = legacyKey("sk_live_");
     mockPrisma.apiKey.findFirst.mockResolvedValue({
