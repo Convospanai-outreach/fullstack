@@ -224,8 +224,21 @@ function rejectFailedApiKeyAttempt(req: NextRequest): NextResponse {
     return getFailedApiKeyAuthThrottleResponse(req) || recordFailedApiKeyAuth(req);
 }
 
+function extractPresentedApiKey(req: NextRequest): string | null {
+    const headerKey = req.headers.get("x-api-key");
+    if (headerKey) return headerKey;
+
+    // Some external callers (e.g. Netjana) send the key as a Bearer token instead of x-api-key.
+    const authHeader = req.headers.get("authorization");
+    if (authHeader?.toLowerCase().startsWith("bearer ")) {
+        return authHeader.slice(7).trim() || null;
+    }
+
+    return null;
+}
+
 export async function authorizeApiKey(req: NextRequest, requiredScope?: string): Promise<ApiKeyAuthResult> {
-    const apiKey = req.headers.get("x-api-key");
+    const apiKey = extractPresentedApiKey(req);
 
     if (!apiKey) {
         return { ok: false, response: rejectFailedApiKeyAttempt(req) };
