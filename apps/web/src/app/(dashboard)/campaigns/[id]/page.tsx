@@ -46,12 +46,83 @@ export default function CampaignDetailPage({
     const [activities, setActivities] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState("overview");
     const [is3DMode, setIs3DMode] = useState(false);
+    const [attachments, setAttachments] = useState<any[]>([]);
+    const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
     useEffect(() => {
         loadCampaign();
         loadAnalytics();
         loadActivities();
+        loadAttachments();
     }, [campaignId]);
+
+    const loadAttachments = async () => {
+        if (!campaignId || campaignId === "undefined") return;
+        try {
+            const res = await fetch(getBrowserApiUrl(`/campaigns/${campaignId}/attachments`));
+            if (!res.ok) return;
+            const data = await res.json();
+            setAttachments(data.attachments || []);
+        } catch (err) {
+            console.error("Failed to load attachments:", err);
+        }
+    };
+
+    const handleAttachmentUpload = async (file: File) => {
+        const ALLOWED = new Set([
+            "application/pdf",
+            "application/vnd.ms-powerpoint",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+        ]);
+        if (!ALLOWED.has(file.type)) {
+            toast.error("Only PDF or PowerPoint files are allowed");
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            toast.error("Attachment must be 10MB or smaller");
+            return;
+        }
+
+        setUploadingAttachment(true);
+        try {
+            const content = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve((reader.result as string).split(",")[1] || "");
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+
+            const res = await fetch(getBrowserApiUrl(`/campaigns/${campaignId}/attachments`), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: file.name, mimeType: file.type, content }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Upload failed");
+            }
+            toast.success("Attachment added — it will be included on every email sent from this campaign");
+            loadAttachments();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to upload attachment");
+        } finally {
+            setUploadingAttachment(false);
+        }
+    };
+
+    const handleAttachmentDelete = async (attachmentId: string) => {
+        try {
+            const res = await fetch(
+                getBrowserApiUrl(`/campaigns/${campaignId}/attachments?attachmentId=${attachmentId}`),
+                { method: "DELETE" }
+            );
+            if (!res.ok) throw new Error("Failed to remove attachment");
+            loadAttachments();
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to remove attachment");
+        }
+    };
 
     const loadCampaign = async () => {
         if (!campaignId || campaignId === "undefined") {
@@ -336,6 +407,52 @@ export default function CampaignDetailPage({
                                             Import Leads
                                         </button>
                                     </div>
+                                </div>
+
+                                <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+                                    <h2 className="text-xl font-semibold mb-1 text-foreground">Email Attachments</h2>
+                                    <p className="text-sm text-muted-foreground mb-4">
+                                        PDF or PowerPoint files attached here are sent with every email from this campaign.
+                                    </p>
+                                    <div className="space-y-2 mb-4">
+                                        {attachments.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No attachments yet.</p>
+                                        ) : (
+                                            attachments.map((a) => (
+                                                <div
+                                                    key={a.id}
+                                                    className="flex items-center justify-between rounded-lg border border-border bg-muted px-3 py-2"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <p className="text-sm font-medium text-foreground truncate">{a.filename}</p>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {(a.sizeBytes / 1024).toFixed(0)} KB
+                                                        </p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleAttachmentDelete(a.id)}
+                                                        className="text-rose-500 hover:text-rose-400 text-sm font-medium ml-3 shrink-0"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                    <label className="inline-flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg hover:bg-accent transition cursor-pointer text-sm font-medium">
+                                        {uploadingAttachment ? "Uploading..." : "Add PDF/PPT attachment"}
+                                        <input
+                                            type="file"
+                                            accept=".pdf,.ppt,.pptx"
+                                            className="hidden"
+                                            disabled={uploadingAttachment}
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleAttachmentUpload(file);
+                                                e.target.value = "";
+                                            }}
+                                        />
+                                    </label>
                                 </div>
                             </div>
 

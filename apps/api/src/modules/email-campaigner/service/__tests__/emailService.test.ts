@@ -13,6 +13,7 @@ const { mockPrisma } = vi.hoisted(() => ({
         email: { create: vi.fn() },
         team: { findUnique: vi.fn().mockResolvedValue({ mailingAddress: null }) },
         connectedMailbox: { findFirst: vi.fn() },
+        campaignAttachment: { findMany: vi.fn().mockResolvedValue([]) },
     },
 }));
 

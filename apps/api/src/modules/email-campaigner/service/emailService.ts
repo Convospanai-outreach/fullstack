@@ -15,6 +15,7 @@ import {
     type GmailSendOutcome,
 } from "./googleMailboxService";
 import { sendViaResendMailbox, type ResendSendOutcome } from "./resendMailboxService";
+import type { EmailAttachment } from "./emailAttachment";
 import * as crypto from "crypto";
 
 export type EmailSendResult = {
@@ -35,20 +36,49 @@ function escapeHtml(value: string): string {
 
 class EmailService {
     private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null) {
-        if (!publicBaseUrl) return body;
+        // CAN-SPAM requires a physical postal address in every marketing email; omitted when the team hasn't set one.
+        const addressLine = mailingAddress
+            ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
+            : "";
+        const unsubscribeUrl = publicBaseUrl
+            ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
+            : undefined;
+        // Mandatory, prominent anti-spam footer on every send (unconditional — must NOT depend on
+        // publicBaseUrl/tracking being configured): steers recipients to unsubscribe or forward
+        // rather than hitting "report spam", which is what actually hurts sender reputation.
+        const unsubscribeInstruction = unsubscribeUrl
+            ? `instead click <a href="${unsubscribeUrl}" style="color:#0f172a;text-decoration:underline">UNSUBSCRIBE</a> and we will ensure you never receive another email from us.`
+            : `instead reply to this email with "UNSUBSCRIBE" and we will ensure you never receive another email from us.`;
+        const antiSpamFooter = `
+                <table role="presentation" width="100%" style="margin-top:20px;border-top:2px solid #1e293b">
+                    <tr><td style="padding-top:14px">
+                        <p style="font-size:13px;line-height:1.5;color:#0f172a;font-weight:700;margin:0 0 8px 0">
+                            If you don't want to receive emails from us, please do NOT mark this as SPAM &mdash;
+                            ${unsubscribeInstruction}
+                        </p>
+                        <p style="font-size:13px;line-height:1.5;color:#0f172a;font-weight:700;margin:0">
+                            If this isn't relevant to you, please forward it to the right person at your company instead of deleting it or marking it as spam.
+                            Our intent is professional partnership &mdash; not to bother you.
+                        </p>
+                    </td></tr>
+                </table>`;
+
+        if (!publicBaseUrl) {
+            return `${body}
+                ${antiSpamFooter}
+                ${addressLine}`;
+        }
+
         const baseUrl = publicBaseUrl.replace(/\/$/, "");
         const tracked = body.replace(/href=(["'])(https?:\/\/[^"']+)\1/gi, (_match, quote, href) => {
             const sig = signTrackedUrl(trackingId, href);
             const trackedHref = `${baseUrl}/api/proxy/email/track/click/${trackingId}?url=${encodeURIComponent(href)}&sig=${encodeURIComponent(sig)}`;
             return `href=${quote}${trackedHref}${quote}`;
         });
-        // CAN-SPAM requires a physical postal address in every marketing email; omitted when the team hasn't set one.
-        const addressLine = mailingAddress
-            ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
-            : "";
         return `${tracked}
                 <img src="${baseUrl}/api/proxy/email/track/open/${trackingId}" width="1" height="1" alt="" style="display:none" />
-                <p style="font-size:12px;color:#64748b"><a href="${baseUrl}/api/proxy/email/unsubscribe/${trackingId}">Unsubscribe</a></p>
+                <p style="font-size:12px;color:#64748b"><a href="${unsubscribeUrl}">Unsubscribe</a></p>
+                ${antiSpamFooter}
                 ${addressLine}`;
     }
 
@@ -96,6 +126,7 @@ class EmailService {
             campaignId?: string;
             variantId?: string;
         };
+        attachments?: EmailAttachment[];
     }): Promise<EmailSendResult> {
         let config: any;
         try {
@@ -109,7 +140,12 @@ class EmailService {
             return { success: false, error: "SMTP_CONFIG_UNAVAILABLE" };
         }
 
-        const result = await sendViaSMTP(config, { to: input.to, subject: input.subject, html: input.body });
+        const result = await sendViaSMTP(config, {
+            to: input.to,
+            subject: input.subject,
+            html: input.body,
+            ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+        });
         if (!result.success) {
             return { success: false, error: "SMTP_SEND_FAILED" };
         }
@@ -177,6 +213,15 @@ class EmailService {
             ? (await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }))?.mailingAddress
             : undefined;
         const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress);
+        const unsubscribeUrl = publicBaseUrl
+            ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
+            : undefined;
+        const attachments: EmailAttachment[] = metadata?.campaignId
+            ? await prisma.campaignAttachment.findMany({
+                  where: { campaignId: metadata.campaignId },
+                  select: { filename: true, mimeType: true, content: true },
+              })
+            : [];
 
         let gmailOutcome: GmailSendOutcome | undefined;
         let resendOutcome: ResendSendOutcome | undefined;
@@ -201,6 +246,8 @@ class EmailService {
                         subject,
                         html: trackedBody,
                         trackingId,
+                        unsubscribeUrl,
+                        attachments,
                     });
                 } else if (mailbox) {
                     gmailOutcome = await sendViaGmailMailbox({
@@ -209,6 +256,8 @@ class EmailService {
                         to,
                         subject,
                         html: trackedBody,
+                        unsubscribeUrl,
+                        attachments,
                     });
                 }
             } catch {
@@ -271,6 +320,7 @@ class EmailService {
             body: trackedBody,
             trackingId,
             metadata,
+            attachments,
         });
     }
 }

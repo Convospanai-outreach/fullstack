@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
+import type { EmailAttachment } from "./emailAttachment";
 
 const db = prisma;
 
@@ -781,6 +782,38 @@ function base64Url(input: string) {
         .replace(/=+$/g, "");
 }
 
+// Wraps base64 to 76-char lines per RFC 2045 — some MTAs/spam filters are strict about this.
+function wrapBase64(content: string) {
+    return content.replace(/[\r\n]/g, "").replace(/(.{76})/g, "$1\r\n");
+}
+
+function buildMimeBody(headers: string[], html: string, attachments?: EmailAttachment[]) {
+    if (!attachments?.length) {
+        const singlePartHeaders = [...headers, "Content-Type: text/html; charset=UTF-8"];
+        return `${singlePartHeaders.join("\r\n")}\r\n\r\n${html}`;
+    }
+    const boundary = `boundary_${crypto.randomUUID().replace(/-/g, "")}`;
+    const parts = [
+        `--${boundary}`,
+        "Content-Type: text/html; charset=UTF-8",
+        "",
+        html,
+    ];
+    for (const a of attachments) {
+        parts.push(
+            `--${boundary}`,
+            `Content-Type: ${a.mimeType}; name="${a.filename}"`,
+            "Content-Transfer-Encoding: base64",
+            `Content-Disposition: attachment; filename="${a.filename}"`,
+            "",
+            wrapBase64(a.content)
+        );
+    }
+    parts.push(`--${boundary}--`);
+    const mimeHeaders = [...headers, `Content-Type: multipart/mixed; boundary="${boundary}"`];
+    return `${mimeHeaders.join("\r\n")}\r\n\r\n${parts.join("\r\n")}`;
+}
+
 export type GmailSendSuccess = {
     success: true;
     deliveryProvider: "GMAIL_API";
@@ -832,6 +865,8 @@ export async function sendViaGmailMailbox(input: {
     subject: string;
     html: string;
     replyTo?: string;
+    unsubscribeUrl?: string;
+    attachments?: EmailAttachment[];
 }): Promise<GmailSendOutcome> {
     let mailbox: any;
     let accessToken: string | undefined;
@@ -858,10 +893,16 @@ export async function sendViaGmailMailbox(input: {
             `Subject: ${encodeMimeHeader(input.subject)}`,
             `Message-ID: ${rfcMessageId}`,
             "MIME-Version: 1.0",
-            "Content-Type: text/html; charset=UTF-8",
             ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
+            // RFC 8058 one-click unsubscribe: recognized by Gmail/Outlook/Yahoo as a real
+            // "unsubscribe" affordance, which materially reduces spam-complaint rates.
+            ...(input.unsubscribeUrl
+                ? [`List-Unsubscribe: <${input.unsubscribeUrl}>`, "List-Unsubscribe-Post: List-Unsubscribe=One-Click"]
+                : []),
         ];
-        raw = base64Url(`${headers.join("\r\n")}\r\n\r\n${input.html}`);
+        // buildMimeBody adds the Content-Type header itself (single-part text/html, or
+        // multipart/mixed with a boundary when attachments are present).
+        raw = base64Url(buildMimeBody(headers, input.html, input.attachments));
     } catch {
         return gmailPreDispatchFailure();
     }
