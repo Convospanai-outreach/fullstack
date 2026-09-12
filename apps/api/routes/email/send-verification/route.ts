@@ -4,7 +4,7 @@ import { sendViaSMTP } from "@/lib/email/smtpClient";
 function getSystemSmtpConfig() {
     const host = process.env.SMTP_HOST;
     const user = process.env.SMTP_USER;
-    const password = process.env.SMTP_PASSWORD;
+    const password = process.env.SMTP_PASSWORD || process.env.SMTP_PASS;
     if (!host || !user || !password) return null;
 
     const port = Number(process.env.SMTP_PORT || 587);

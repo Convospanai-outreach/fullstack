@@ -45,7 +45,7 @@ Do not run destructive migration commands against production. Use `prisma migrat
 | `SMTP_PORT` | D | Required only for SMTP send. |
 | `SMTP_SECURE` | D | Required only for SMTP send. |
 | `SMTP_USER` | D | Required only for SMTP send. |
-| `SMTP_PASSWORD` | D | Required only for SMTP send. |
+| `SMTP_PASSWORD` | D | Required only for SMTP send. `SMTP_PASS` is also accepted as a fallback alias. |
 | `SMTP_FROM_NAME` | D | Required only for SMTP send. |
 | `SMTP_FROM_EMAIL` | D | Required only for SMTP send. |
 | `GOOGLE_CLIENT_ID` | D | Required only for Google Workspace OAuth. |
@@ -56,12 +56,11 @@ Do not run destructive migration commands against production. Use `prisma migrat
 | Variable | Class | Notes |
 | --- | --- | --- |
 | `WHATSAPP_ENABLED` | D | Keep `false` until provider is selected and verified. |
-| `WHATSAPP_ACCESS_TOKEN` | D | Appears intended for Meta Cloud API. |
-| `WHATSAPP_PHONE_NUMBER_ID` | D | Appears intended for Meta Cloud API. |
-| `WHATSAPP_API_TOKEN` | D | Appears provider-specific or inconsistent with Meta Cloud API naming. |
-| `WHATSAPP_WABA_ID` | D | Appears provider-specific or inconsistent with send path naming. |
+| `WHATSAPP_ACCESS_TOKEN` | D | Meta Cloud API system access token — used for both message sending (`WhatsAppService`) and template listing (`TemplateGuard`). |
+| `WHATSAPP_PHONE_NUMBER_ID` | D | Meta Cloud API phone number ID, used for sending messages. |
+| `WHATSAPP_WABA_ID` | D | Meta Cloud API WhatsApp Business Account ID — a distinct resource ID from the phone number ID, used only for template listing. |
 
-Follow-up required: choose one WhatsApp provider contract and normalize variable names. Do not remove existing code variables during smoke deployment unless provider ownership is confirmed.
+Normalized on 2026-09-12: both `WhatsAppService.ts` and `TemplateGuard.ts` now read `WHATSAPP_ACCESS_TOKEN` for the token (previously `TemplateGuard.ts` read `WHATSAPP_API_TOKEN`). `WHATSAPP_WABA_ID` is kept as its own variable since it identifies a different Meta resource than `WHATSAPP_PHONE_NUMBER_ID`.
 
 ## Billing
 

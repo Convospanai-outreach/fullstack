@@ -115,8 +115,8 @@ export class TemplateGuard {
      * Fetches from WhatsApp Business API using the configured system access token
      */
     static async getApprovedTemplates(_teamId: string): Promise<string[]> {
-        const token = process.env['WHATSAPP_API_TOKEN'];
-        const wabaId = process.env['WHATSAPP_WABA_ID']; // WhatsApp Business Account ID
+        const token = process.env['WHATSAPP_ACCESS_TOKEN'];
+        const wabaId = process.env['WHATSAPP_WABA_ID']; // WhatsApp Business Account ID (distinct from WHATSAPP_PHONE_NUMBER_ID)
         
         if (!token || !wabaId) {
             throw new Error("WhatsApp API credentials are not configured");

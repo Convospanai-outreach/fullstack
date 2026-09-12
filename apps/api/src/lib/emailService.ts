@@ -22,7 +22,7 @@ export class EmailService {
         if (isServer || !API_URL) {
             const host = process.env["SMTP_HOST"] || "localhost";
             const user = process.env["SMTP_USER"] || "noreply@localhost";
-            const password = process.env["SMTP_PASSWORD"] || "local";
+            const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"] || "local";
             const port = Number(process.env["SMTP_PORT"] || 587);
             const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
             const resolvedFromName = fromName || process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
@@ -94,7 +94,7 @@ export class EmailService {
         if (isServer || !API_URL) {
             const host = process.env["SMTP_HOST"] || "localhost";
             const user = process.env["SMTP_USER"] || "noreply@localhost";
-            const password = process.env["SMTP_PASSWORD"] || "local";
+            const password = process.env["SMTP_PASSWORD"] || process.env["SMTP_PASS"] || "local";
             const port = Number(process.env["SMTP_PORT"] || 587);
             const secure = (process.env["SMTP_SECURE"] || "").toLowerCase() === "true" || port === 465;
             const fromName = process.env["SMTP_FROM_NAME"] || "CraftMyFunnel";
