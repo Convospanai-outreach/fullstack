@@ -110,6 +110,27 @@ describe("sendViaResendMailbox", () => {
         expect(reserveMailboxSend).not.toHaveBeenCalled();
     });
 
+    it("passes attachments and RFC 8058 unsubscribe headers through to Resend", async () => {
+        await sendViaResendMailbox({
+            teamId: "team-1",
+            mailboxId: "resend-mailbox-1",
+            to: "lead@example.test",
+            subject: "Subject",
+            html: "<p>Body</p>",
+            trackingId: "track-1",
+            unsubscribeUrl: "https://app.test/api/proxy/email/unsubscribe/track-1",
+            attachments: [{ filename: "deck.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", content: "YmFzZTY0" }],
+        });
+
+        expect(mockResendSend).toHaveBeenCalledWith(expect.objectContaining({
+            attachments: [{ filename: "deck.pptx", content: "YmFzZTY0" }],
+            headers: {
+                "List-Unsubscribe": "<https://app.test/api/proxy/email/unsubscribe/track-1>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
+        }));
+    });
+
     it("fails pre-dispatch without a send attempt when the mailbox's send-slot reservation is denied", async () => {
         (reserveMailboxSend as Mock).mockResolvedValue({ ok: false, reason: "Daily send limit reached." });
 

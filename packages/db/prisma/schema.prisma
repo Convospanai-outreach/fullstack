@@ -230,11 +230,30 @@ model Campaign {
   enrichmentPending   Int          @default(0)
   aiDraftBatches      AiDraftBatch[]
 
+  attachments CampaignAttachment[]
+
   @@index([status])
   @@index([teamId])
   @@index([createdAt])
   // Optimization for multi-tenant campaign lists
   @@index([teamId, status])
+}
+
+// Kept in its own table (not columns on Campaign) so the base64 blob is only
+// loaded when explicitly queried at send time, not dragged along on every
+// campaign list/detail read that does a bare findMany/findFirst.
+model CampaignAttachment {
+  id         String   @id @default(uuid())
+  campaignId String
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  content    String // base64-encoded file content
+  createdAt  DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
 }
 
 model AiDraftBatch {

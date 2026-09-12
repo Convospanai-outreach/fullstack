@@ -1652,6 +1652,32 @@ describe("GoogleMailboxService - Phase 2C leases, recovery, and transactions", (
         expect(mockFetch.mock.calls[0][1]?.signal).toBeInstanceOf(AbortSignal);
     });
 
+    it("builds a multipart/mixed MIME message carrying the attachment as a base64 part", async () => {
+        mockFetch
+            .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))
+            .mockResolvedValueOnce(response({ payload: { headers: [{ name: "Message-ID", value: "<wire-id@gmail.com>" }] } }));
+
+        await sendViaGmailMailbox({
+            teamId: "team-1",
+            mailboxId: "mailbox-1",
+            to: "recipient@example.com",
+            subject: "Hello",
+            html: "<p>content</p>",
+            attachments: [
+                { filename: "brochure.pdf", mimeType: "application/pdf", content: Buffer.from("pdf-bytes").toString("base64") },
+            ],
+        });
+
+        const body = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+        const raw = Buffer.from(body.raw.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8");
+
+        expect(raw).toContain("Content-Type: multipart/mixed; boundary=");
+        expect(raw).toContain('Content-Disposition: attachment; filename="brochure.pdf"');
+        expect(raw).toContain("Content-Type: application/pdf");
+        expect(raw).toContain(Buffer.from("pdf-bytes").toString("base64"));
+        expect(raw).toContain("<p>content</p>");
+    });
+
     it("falls back to the client-generated RFC Message-ID when the post-send wire fetch fails", async () => {
         mockFetch
             .mockResolvedValueOnce(response({ id: "gmail-message-1", threadId: "gmail-thread-1" }))

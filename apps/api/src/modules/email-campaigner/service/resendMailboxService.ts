@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { Resend } from "resend";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { reserveMailboxSend, releaseMailboxSend } from "./googleMailboxService";
+import type { EmailAttachment } from "./emailAttachment";
 
 export type ResendSendOutcome =
     | { success: true; deliveryProvider: "RESEND"; messageId: string; mailboxId: string }
@@ -19,6 +20,8 @@ export async function sendViaResendMailbox(input: {
     subject: string;
     html: string;
     trackingId: string;
+    unsubscribeUrl?: string;
+    attachments?: EmailAttachment[];
 }): Promise<ResendSendOutcome> {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
@@ -49,6 +52,24 @@ export async function sendViaResendMailbox(input: {
             subject: input.subject,
             html: input.html,
             ...(replyTo ? { replyTo } : {}),
+            // RFC 8058 one-click unsubscribe: recognized by Gmail/Outlook/Yahoo as a real
+            // "unsubscribe" affordance, which materially reduces spam-complaint rates.
+            ...(input.unsubscribeUrl
+                ? {
+                      headers: {
+                          "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
+                          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                      },
+                  }
+                : {}),
+            ...(input.attachments?.length
+                ? {
+                      attachments: input.attachments.map((a) => ({
+                          filename: a.filename,
+                          content: a.content,
+                      })),
+                  }
+                : {}),
         });
         if (error || !data?.id) {
             await releaseMailboxSend(input.teamId, mailbox.id);
