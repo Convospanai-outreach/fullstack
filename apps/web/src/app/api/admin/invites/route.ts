@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { clerkClient } from "@clerk/nextjs/server";
 import { authOptions, canInviteUsers, isSuperAdminRole } from "@/lib/auth";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { AuditService } from "@/modules/audit/auditService";
 import { UserRole } from "@/types/prisma-safe";
 import {
     createInviteToken,
     getInviteLink,
-    getAppBaseUrl,
     hashInviteToken,
     INVITE_TTL_MS,
     isAssignableInviteRole,
@@ -27,9 +24,6 @@ async function loadPrisma() {
 }
 
 async function getActor(): Promise<AdminActor | null> {
-    const clerkActor = await findOrCreateClerkAppUser();
-    if (clerkActor) return clerkActor as AdminActor;
-
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
     if (!userId) return null;
@@ -44,19 +38,6 @@ async function getActor(): Promise<AdminActor | null> {
 function getAllowedTeamIds(actor: AdminActor) {
     if (isSuperAdminRole(actor.enterpriseRole)) return null;
     return actor.memberships.filter((member) => member.status === "active").map((member) => member.teamId);
-}
-
-async function maybeSendClerkInvite(email: string, inviteRequestId: string) {
-    if (!process.env["CLERK_SECRET_KEY"]) return false;
-
-    const client = await clerkClient();
-    await client.invitations.createInvitation({
-        emailAddress: email,
-        redirectUrl: `${getAppBaseUrl()}/signup`,
-        publicMetadata: { inviteRequestId }
-    });
-
-    return true;
 }
 
 export async function GET() {
@@ -242,9 +223,9 @@ export async function PATCH(req: NextRequest) {
         // the approving admin's existing team as a plain member. (That reuse-existing-team
         // behavior previously here was the actual bug: every approved requester silently
         // became a "member" of whichever team happened to approve them, and the codebase's
-        // real "new team" path in clerkAuth.ts's syncClerkUserToApp was unreachable because
-        // this route always created a matching UserInvitation, which that function checks
-        // first.) See clerkAuth.ts's pendingInvitation branch for the accept-side half of
+        // real "new team" path in googleOnboarding.ts's syncGoogleUserToApp was unreachable
+        // because this route always created a matching UserInvitation, which that function
+        // checks first.) See googleOnboarding.ts's pendingInvitation branch for the accept-side half of
         // this: it grants "owner" specifically when inviteRequestId is set, since that only
         // happens for a founder invite created here, never for an ordinary teammate invite.
         const companyName = (inviteRequest.company || "My Team").trim();
@@ -277,8 +258,8 @@ export async function PATCH(req: NextRequest) {
             });
 
             // Placeholder membership for the founding member, pending acceptance - the
-            // real role grant on accept happens in clerkAuth.ts, this just reserves the
-            // row (same pattern the regular teammate-invite POST above already uses).
+            // real role grant on accept happens in googleOnboarding.ts, this just reserves
+            // the row (same pattern the regular teammate-invite POST above already uses).
             await tx.teamMember.create({
                 data: { teamId: team.id, email: inviteRequest.email, role: "owner", status: "invited" }
             });
@@ -287,12 +268,8 @@ export async function PATCH(req: NextRequest) {
         });
 
         let emailed = false;
-        let clerkInvited = false;
         try {
-            clerkInvited = await maybeSendClerkInvite(inviteRequest.email, inviteRequest.id);
-            if (!clerkInvited) {
-                emailed = await maybeSendInviteEmail(inviteRequest.email, inviteLink);
-            }
+            emailed = await maybeSendInviteEmail(inviteRequest.email, inviteLink);
         } catch (error) {
             console.error("[Invitations] Failed to email approved invite request:", error);
         }
@@ -300,11 +277,10 @@ export async function PATCH(req: NextRequest) {
         await AuditService.log(invitation.team.id, actor.id, "invite_request_approved", "InviteRequest", inviteRequest.id, {
             email: inviteRequest.email,
             invitationId: invitation.id,
-            emailed,
-            clerkInvited
+            emailed
         });
 
-        return NextResponse.json({ invitation, inviteLink, emailed, clerkInvited });
+        return NextResponse.json({ invitation, inviteLink, emailed });
     }
 
     if (!id || status !== "revoked") {

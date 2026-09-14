@@ -65,7 +65,7 @@ async function resolveUserId(req: NextRequest): Promise<string | null> {
   }
 
   // Production accepts only opaque, expiring tokens minted via
-  // POST /api/extension/token (apps/web, Clerk-authenticated), stored as Session rows.
+  // POST /api/extension/token (apps/web, NextAuth-authenticated), stored as Session rows.
   const session = await prisma.session.findUnique({
     where: { sessionToken: token },
     select: { userId: true, expires: true },

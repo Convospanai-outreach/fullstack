@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { clerkMiddleware } from '@clerk/nextjs/server';
 import { applyRateLimit, RATE_LIMITS } from './lib/rateLimit.edge';
 import {
     getDefaultEnabledHiddenFeatureKeys,
@@ -25,7 +24,7 @@ import {
     getAgentSkillContent,
 } from './lib/agentSkills';
 
-async function appProxy(req: NextRequest, clerkAuth?: any) {
+async function appProxy(req: NextRequest) {
     const path = req.nextUrl.pathname;
 
     // Health checks must stay outside auth/proxy/rate-limit work so they can
@@ -173,7 +172,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const adminApiPrefixes = ["/api/admin", "/api/proxy/admin"];
     const publicApiPrefixes = [
         "/api/health", "/api/test-auth", "/api/contact", "/api/help", "/api/support/contact",
-        "/api/invite-requests", "/api/invitations/accept", "/api/webhooks/clerk",
+        "/api/invite-requests", "/api/invitations/accept",
         "/api/proxy/landing-agent/public", "/api/landing-agent/public", "/api/email/unsubscribe",
         // Anonymous funnel-visitor checkout - see apps/api/server.ts's own publicPaths for the
         // same routes (they carry no CraftMyFunnel session by design; security boundary is the
@@ -219,22 +218,10 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         return NextResponse.redirect(url);
     }
 
-    let clerkUserId: string | undefined;
-    let clerkClaims: Record<string, unknown> | undefined;
-    if (clerkAuth) {
-        try {
-            const authState = await clerkAuth();
-            clerkUserId = authState?.userId || undefined;
-            clerkClaims = authState?.sessionClaims as Record<string, unknown> | undefined;
-        } catch {
-            clerkUserId = undefined;
-        }
-    }
-
     const { getToken } = await import("next-auth/jwt");
     const secret = process.env['NEXTAUTH_SECRET'] || "";
     token = (await getToken({ req, secret })) as Record<string, unknown> | null;
-    userId = clerkUserId || (typeof token?.['sub'] === "string" ? token['sub'] : undefined);
+    userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
 
     // === RATE LIMITING (Before all other checks) ===
     if (path.startsWith("/api")) {
@@ -361,7 +348,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         // Token already fetched at the top for rate limiting
 
 
-        if (!token && !clerkUserId) {
+        if (!token) {
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
                 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -373,7 +360,7 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         }
 
         // 3. Caller Page Protection (RBAC)
-        const role = (token?.['enterpriseRole'] || clerkClaims?.['enterpriseRole']) as string;
+        const role = token?.['enterpriseRole'] as string;
         const superAdminRoles = ["SUPER_ADMIN", "SYSTEM_ADMIN"];
         const canManageUsers = superAdminRoles.includes(role) || role === "ORG_ADMIN";
         const canAccessCMS = canManageUsers || role === "CMS_EDITOR";
@@ -392,7 +379,6 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         }
 
         if (
-            !clerkUserId &&
             (path.startsWith("/admin/users") || path.startsWith("/admin/invites") || path.startsWith("/api/admin/users") || path.startsWith("/api/admin/invites")) &&
             !canManageUsers
         ) {
@@ -462,10 +448,6 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     // === Content Security Policy (Enterprise Grade) ===
     const edgeNodeUri = process.env['EDGE_NODE_URI'] || '';
     const onPremAI = process.env['ON_PREM_AI_ENDPOINT'] || '';
-    const clerkFrontendApi = process.env['NEXT_PUBLIC_CLERK_FRONTEND_API'] || 'clerk.craftmyfunnel.live';
-    const clerkFrontendHost = clerkFrontendApi.startsWith('http')
-        ? clerkFrontendApi
-        : `https://${clerkFrontendApi}`;
 
     // NEXT_PUBLIC_API_URL is baked into client bundles and may point at a
     // cross-origin API host (e.g. during the Oracle VM migration) instead of
@@ -483,20 +465,20 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
 
     const cspValues = [
         "default-src 'self'",
-        // Scripts: Allow self, Clerk, Google Auth, Razorpay, Cloudflare Turnstile (Clerk bot
-        // protection), Google Tag Manager/Analytics, and Cloudflare's own Web Analytics beacon
-        // (auto-injected by the Cloudflare proxy in front of this site)
-        `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com`,
+        // Scripts: Allow self, Google Auth, Razorpay, Cloudflare Turnstile, Google Tag
+        // Manager/Analytics, and Cloudflare's own Web Analytics beacon (auto-injected by
+        // the Cloudflare proxy in front of this site)
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://accounts.google.com https://checkout.razorpay.com https://challenges.cloudflare.com https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com",
         // Styles: Allow self and Google Fonts
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-        // Images: Allow self, Clerk avatars, Google placeholders, and data URLs for icons
-        `img-src 'self' data: blob: ${clerkFrontendHost} https://*.clerk.accounts.dev https://img.clerk.com https://lh3.googleusercontent.com https://*.google.com`,
+        // Images: Allow self, Google placeholders, and data URLs for icons
+        "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.google.com",
         // Fonts: Allow self and Google Fonts
         "font-src 'self' https://fonts.gstatic.com",
-        // Connect: Self, Clerk, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
-        `connect-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://api.clerk.com https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
-        // Frames: Clerk, Google Auth, Razorpay & Cloudflare Turnstile (Clerk bot protection)
-        `frame-src 'self' ${clerkFrontendHost} https://*.clerk.accounts.dev https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com`,
+        // Connect: Self, Analytics, Razorpay, plus Sovereign AI nodes & WebSockets
+        `connect-src 'self' https://api.razorpay.com https://*.google-analytics.com https://www.googletagmanager.com https://cloudflareinsights.com wss://* ${edgeNodeUri} ${onPremAI} ${publicApiOrigin}`,
+        // Frames: Google Auth, Razorpay & Cloudflare Turnstile
+        "frame-src 'self' https://accounts.google.com https://api.razorpay.com https://challenges.cloudflare.com",
         // Media/Workers: Stricter constraints
         "worker-src 'self' blob:",
         "object-src 'none'",
@@ -542,7 +524,5 @@ export const config = {
     ],
 };
 
-const clerkProxy = clerkMiddleware(async (auth, req) => appProxy(req as NextRequest, auth));
-
-export default clerkProxy;
-export const proxy = clerkProxy;
+export default appProxy;
+export const proxy = appProxy;

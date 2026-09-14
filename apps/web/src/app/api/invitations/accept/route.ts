@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const redirectTo = token ? `/signup?token=${encodeURIComponent(token)}` : "/signup";
 
     return NextResponse.json({
-        error: "Password-based invitation acceptance is disabled. Use Clerk signup to accept the invitation.",
+        error: "Password-based invitation acceptance is disabled. Use Google signup to accept the invitation.",
         redirectTo
     }, { status: 410 });
 }

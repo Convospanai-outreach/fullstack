@@ -6,7 +6,6 @@ import { LayoutShell } from "@/components/layout/LayoutShell";
 import { ClientOverlays } from "@/components/layout/ClientOverlays";
 import { StrictQualityBoundary } from "@/components/StrictQualityBoundary";
 import Script from "next/script";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 
 const inter = Inter({
@@ -105,7 +104,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   );
 
   return (
-    <ClerkProvider>
       <html
         lang="en"
         className={`${inter.variable} ${plusJakarta.variable} ${jetbrainsMono.variable}`}
@@ -259,6 +257,5 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {app}
         </body>
       </html>
-    </ClerkProvider>
   );
 }

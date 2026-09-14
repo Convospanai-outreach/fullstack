@@ -11,10 +11,9 @@ type AppUserWithMemberships = {
     memberships: Array<{ teamId: string; status: string }>;
 };
 
-// Invite-gating logic for brand-new Google sign-ins, ported from
-// clerkAuth.ts's syncClerkUserToApp (minus clerkUserId - see PR context).
-// Keep this and syncClerkUserToApp in sync until Clerk is removed and they
-// collapse into one shared function.
+// Invite/onboarding logic for Google sign-ins. Signup is open: a brand-new
+// email with no matching invite or inviteRequest gets its own new team
+// rather than being denied (see the fallback below).
 export async function syncGoogleUserToApp(input: { email: string; name?: string | null; inviteToken?: string | undefined }): Promise<AppUserWithMemberships | null> {
     const email = input.email.toLowerCase();
     if (!email) return null;
@@ -122,11 +121,16 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
         orderBy: { approvedAt: "desc" }
     });
 
-    if (!approvedInvite) {
-        return null;
-    }
-
-    const displayName = input.name || approvedInvite.name || email;
+    const displayName = input.name || approvedInvite?.name || email;
+    // Signup is open: no matching invite/inviteRequest just means this person
+    // is starting their own team, not a denial - mirrors setupUser()'s
+    // default-team pattern in apps/web/src/lib/auth.ts.
+    const teamName = approvedInvite
+        ? (() => {
+            const companyName = (approvedInvite.company || "My Team").trim();
+            return companyName.toLowerCase().endsWith("workspace") ? companyName : `${companyName} Workspace`;
+        })()
+        : (input.name ? `${input.name}'s Team` : "My Team");
 
     return prisma.$transaction(async (tx: any) => {
         const user = await tx.user.create({
@@ -138,11 +142,6 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
             },
             include: { memberships: true }
         });
-
-        const companyName = (approvedInvite.company || "My Team").trim();
-        const teamName = companyName.toLowerCase().endsWith("workspace")
-            ? companyName
-            : `${companyName} Workspace`;
 
         await tx.team.create({
             data: {
@@ -165,10 +164,12 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
             }
         });
 
-        await tx.inviteRequest.update({
-            where: { id: approvedInvite.id },
-            data: { status: "USED", usedAt: now }
-        });
+        if (approvedInvite) {
+            await tx.inviteRequest.update({
+                where: { id: approvedInvite.id },
+                data: { status: "USED", usedAt: now }
+            });
+        }
 
         return tx.user.findUnique({
             where: { id: user.id },

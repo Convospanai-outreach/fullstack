@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
+import { getCurrentContext } from "@/lib/auth";
 
 // background.js has no re-mint/refresh flow, so this is a standing credential, not a copy-paste window.
 const TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
 export async function POST() {
-    const user = await findOrCreateClerkAppUser();
-    if (!user) {
+    const { userId } = await getCurrentContext();
+    if (!userId) {
         return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
     }
 
@@ -20,7 +20,7 @@ export async function POST() {
     // and never reads the Session table today. If that strategy is ever switched to
     // "database", this token would also become a valid NextAuth web session.
     await prisma.session.create({
-        data: { sessionToken: token, userId: user.id, expires }
+        data: { sessionToken: token, userId, expires }
     });
 
     return NextResponse.json({ ok: true, token, expiresAt: expires.toISOString() });

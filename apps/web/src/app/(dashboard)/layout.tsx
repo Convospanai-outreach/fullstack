@@ -10,11 +10,13 @@
  * - Removed: bannerOffset prop on DashboardHeader
  * - Updated: main content margin-top now fixed mt-12 (48px header, no banner offset)
  * - Updated: sidebar offset updated to lg:pl-48 (192px, matching new sidebar width)
- * - Kept: clerk-sync auth check, Omnibox, ConnectionStatusBar
+ * - Kept: Omnibox, ConnectionStatusBar
+ * - Removed: clerk-sync auth gate - proxy.ts's own session check (token-based,
+ *   provider-agnostic) already covers unauthenticated access; the extra gate
+ *   here only ever guarded a Clerk-specific async-webhook race.
  */
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { Omnibox } from "@/components/dashboard/Omnibox";
@@ -25,25 +27,7 @@ export default function DashboardLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const router = useRouter();
     const [sidebarOpen, setSidebarOpen] = useState(false);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        // Auth gate: redirect to invite wall if user not authorized
-        fetch("/api/auth/clerk-sync", { cache: "no-store" })
-            .then((res) => {
-                if (!cancelled && res.status === 403) {
-                    router.replace("/login?invite=required");
-                }
-            })
-            .catch(() => {});
-
-        return () => {
-            cancelled = true;
-        };
-    }, [router]);
 
     return (
         <div className="flex min-h-screen bg-background text-foreground selection:bg-primary/30 relative">

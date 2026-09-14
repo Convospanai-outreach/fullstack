@@ -9,14 +9,15 @@ function read(relPath) {
 
 const checks = [
   {
-    name: "ClerkProvider is mounted in app layout",
+    name: "ClerkProvider is not mounted in app layout",
     file: "apps/web/src/app/layout.tsx",
-    test: (text) => text.includes("<ClerkProvider"),
+    test: (text) => !text.includes("ClerkProvider"),
   },
   {
-    name: "Clerk user sync endpoint exists",
+    name: "Clerk user sync endpoint has been removed",
     file: "apps/web/src/app/api/auth/clerk-sync/route.ts",
-    test: (text) => text.includes("findOrCreateClerkAppUser"),
+    test: () => false,
+    invert: true,
   },
   {
     name: "Password signup endpoint is disabled",
@@ -24,11 +25,9 @@ const checks = [
     test: (text) => text.includes("status: 410") && text.includes("Password signup is disabled"),
   },
   {
-    name: "NextAuth exposes only the Google provider alongside Clerk",
+    name: "NextAuth exposes the Google provider",
     file: "apps/web/src/lib/auth.ts",
-    test: (text) =>
-      text.includes("Clerk remains the primary signup/sign-in provider") &&
-      text.includes("GoogleProvider("),
+    test: (text) => text.includes("GoogleProvider("),
   },
 ];
 
@@ -36,7 +35,18 @@ const failures = [];
 
 for (const check of checks) {
   const fullPath = path.join(root, check.file);
-  if (!fs.existsSync(fullPath)) {
+  const exists = fs.existsSync(fullPath);
+
+  if (check.invert) {
+    // This file is expected to be gone - Clerk's user-sync endpoint has no
+    // NextAuth/Google equivalent, it was deleted outright.
+    if (exists) {
+      failures.push(`${check.name}: ${check.file} still exists`);
+    }
+    continue;
+  }
+
+  if (!exists) {
     failures.push(`${check.name}: missing ${check.file}`);
     continue;
   }
@@ -52,8 +62,8 @@ if (failures.length) {
   console.error("Web auth mode guard failed:");
   for (const failure of failures) console.error(`- ${failure}`);
   console.error("");
-  console.error("Expected mode: Clerk handles signup/sign-in; Google OAuth (invite-gated) runs alongside it via NextAuth; password signup is disabled.");
+  console.error("Expected mode: Google OAuth via NextAuth is the sole sign-in path (open signup, no Clerk); password signup is disabled.");
   process.exit(1);
 }
 
-console.log("Web auth mode guard passed: Clerk + Google dual-mode auth is explicit and password signup is disabled.");
+console.log("Web auth mode guard passed: Google-only auth is explicit and password signup is disabled.");

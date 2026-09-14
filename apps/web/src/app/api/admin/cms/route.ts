@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isSuperAdminRole } from "@/lib/auth";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
@@ -9,9 +8,6 @@ import path from "path";
 const CONTENT_DIR = path.join(process.cwd(), "content");
 
 async function getActorEnterpriseRole() {
-    const clerkActor = await findOrCreateClerkAppUser();
-    if (clerkActor) return clerkActor.enterpriseRole;
-
     const session = await getServerSession(authOptions);
     return session?.user?.enterpriseRole;
 }

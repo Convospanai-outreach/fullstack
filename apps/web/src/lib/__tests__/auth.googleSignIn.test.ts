@@ -12,7 +12,6 @@ const { mockPrisma, mockIsSsoEnforcedForEmail, mockSyncGoogleUserToApp, mockCook
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/sso/oidc", () => ({ isSsoEnforcedForEmail: mockIsSsoEnforcedForEmail }));
 vi.mock("@/lib/googleOnboarding", () => ({ syncGoogleUserToApp: mockSyncGoogleUserToApp }));
-vi.mock("@/lib/clerkAuth", () => ({ findOrCreateClerkAppUser: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: mockCookies }));
 vi.mock("next-auth/providers/google", () => ({ default: vi.fn(() => ({ id: "google" })) }));
 vi.mock("@next-auth/prisma-adapter", () => ({ PrismaAdapter: vi.fn(() => ({})) }));
@@ -41,7 +40,7 @@ describe("authOptions.callbacks.signIn - Google branch", () => {
 
         const result = await signIn({ user: { email: "user@enterprise.com" }, account, profile: verifiedProfile });
 
-        expect(result).toBe("/login?invite=required");
+        expect(result).toBe("/login?error=sso-required");
     });
 
     it("attaches the existing user's id and allows sign-in when no SSO enforcement applies", async () => {
@@ -56,7 +55,7 @@ describe("authOptions.callbacks.signIn - Google branch", () => {
         expect(mockSyncGoogleUserToApp).not.toHaveBeenCalled();
     });
 
-    it("creates a new user via syncGoogleUserToApp and attaches the id when an invite matches", async () => {
+    it("creates a new user via syncGoogleUserToApp and attaches the id (signup is open, invite optional)", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(null);
         mockCookies.mockResolvedValue({ get: vi.fn().mockReturnValue({ value: "invite-token-123" }) });
         mockSyncGoogleUserToApp.mockResolvedValue({ id: "new-user-1" });
@@ -73,12 +72,12 @@ describe("authOptions.callbacks.signIn - Google branch", () => {
         expect(user.id).toBe("new-user-1");
     });
 
-    it("denies a new user with no matching invite", async () => {
+    it("denies a new user only when syncGoogleUserToApp returns null (SSO enforced on their domain)", async () => {
         mockPrisma.user.findUnique.mockResolvedValue(null);
         mockSyncGoogleUserToApp.mockResolvedValue(null);
 
-        const result = await signIn({ user: { email: "uninvited@example.com" }, account, profile: verifiedProfile });
+        const result = await signIn({ user: { email: "enterprise@example.com" }, account, profile: verifiedProfile });
 
-        expect(result).toBe("/login?invite=required");
+        expect(result).toBe("/login?error=sso-required");
     });
 });

@@ -1,36 +1,73 @@
 import { chromium, FullConfig } from '@playwright/test';
+import { encode } from 'next-auth/jwt';
+import { prisma } from '../src/lib/db';
 
+// There is no headless way to complete a real Google OAuth consent screen in
+// CI, so this seeds a test user/team directly in the DB and mints a NextAuth
+// session token with the same secret the app verifies against - equivalent
+// to what a completed Google sign-in would produce, without a browser ever
+// touching accounts.google.com.
 async function globalSetup(config: FullConfig) {
   const { baseURL } = config.projects[0].use;
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
-  const email = process.env.TEST_USER_EMAIL || process.env.E2E_USER_EMAIL || 'audit_user@example.com';
-  const password = process.env.TEST_USER_PASSWORD || process.env.E2E_USER_PASSWORD || 'AuditPassword123!';
-  
-  await page.goto(`${baseURL}/login`);
-  await page.waitForSelector('#clerk-sign-in-root[data-clerk-mounted="true"]', { timeout: 45000 });
-  await page.locator('#identifier-field').waitFor({ state: 'visible', timeout: 15000 });
-  await page.locator('#identifier-field').fill(email);
-  await page.locator('#password-field').fill(password);
-  await page.getByRole('button', { name: 'Continue', exact: true }).click();
+  const secret = process.env.NEXTAUTH_SECRET || 'mock-nextauth-secret-for-playwright-32chars';
+  const email = (process.env.TEST_USER_EMAIL || process.env.E2E_USER_EMAIL || 'e2e-test-user@example-test.invalid').toLowerCase();
+  const name = 'E2E Test User';
 
-  // Clerk dev instances challenge new devices with an email OTP step. The fixed
-  // test code (424242) only auto-verifies for "+clerk_test" addresses.
-  const otpInput = page.locator('input[name="code"], input[autocomplete="one-time-code"]').first();
-  const otpAppeared = await otpInput.waitFor({ state: 'visible', timeout: 8000 }).then(() => true).catch(() => false);
-  if (otpAppeared) {
-    await otpInput.fill('424242');
-    const continueButton = page.getByRole('button', { name: 'Continue', exact: true });
-    if (await continueButton.isVisible().catch(() => false)) {
-      await continueButton.click();
-    }
+  let user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    user = await prisma.user.create({
+      data: { email, name, emailVerified: new Date(), settings: { create: { theme: 'dark' } } },
+    });
   }
 
-  await page.waitForURL('**/dashboard', { timeout: 120000, waitUntil: 'domcontentloaded' });
-  
-  // Save auth state
-  await page.context().storageState({ path: 'e2e/.auth/user.json' });
+  const membership = await prisma.teamMember.findFirst({ where: { userId: user.id, status: 'active' } });
+  if (!membership) {
+    await prisma.team.create({
+      data: {
+        name: `${name}'s Team`,
+        members: { create: { userId: user.id, email, role: 'owner', status: 'active' } },
+      },
+    });
+  }
+
+  const sessionToken = await encode({
+    secret,
+    token: {
+      id: user.id,
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      picture: null,
+      plan: 'free',
+      productMode: 'ENTERPRISE_CORE',
+      productSurface: 'outreach',
+      enterpriseRole: user.enterpriseRole || 'SALES_USER',
+      claimsRefreshedAt: Date.now(),
+    },
+  });
+
+  const url = new URL(baseURL || 'http://localhost:3000');
+  const isSecure = url.protocol === 'https:';
+  const cookieName = isSecure ? '__Secure-next-auth.session-token' : 'next-auth.session-token';
+
+  const browser = await chromium.launch();
+  const context = await browser.newContext();
+  await context.addCookies([{
+    name: cookieName,
+    value: sessionToken,
+    domain: url.hostname,
+    path: '/',
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: 'Lax',
+  }]);
+
+  const page = await context.newPage();
+  await page.goto(`${baseURL}/dashboard`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+  await context.storageState({ path: 'e2e/.auth/user.json' });
   await browser.close();
+  await prisma.$disconnect();
 }
 
 export default globalSetup;

@@ -11,8 +11,8 @@ export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
     // No sign-in providers are declared here. `NextAuth()` is never constructed
     // in apps/api: `routes/auth/[...nextauth]/route.ts` proxies every auth
-    // request to apps/web, which is Clerk-only. These options exist solely so
-    // `getServerSession`/`getToken` can decode the JWT issued by apps/web.
+    // request to apps/web, which owns the Google provider. These options exist
+    // solely so `getServerSession`/`getToken` can decode the JWT issued by apps/web.
     providers: [],
     callbacks: {
         session: async ({ session, token }) => {

@@ -74,7 +74,7 @@ const MODE_FOCUS: Record<BehaviorSwarmType, { scenario: string; journey: string[
     },
     ADMIN_SETUP: {
         scenario: "Simulates admin setup of auth, team access, feature exposure, and deployment readiness.",
-        journey: ["Clerk access", "Invite approval", "Team settings", "Feature readiness", "Governance", "Launch checklist"],
+        journey: ["Google access", "Invite approval", "Team settings", "Feature readiness", "Governance", "Launch checklist"],
     },
 };
 
@@ -166,11 +166,11 @@ export function buildDeterministicUserBehaviorReport(role: string, goal: string,
             scenario: "Auth and configuration confidence",
             priority: "P1",
             severity: "medium",
-            affectedSurface: "Clerk sync, setup checklist, deploy env",
+            affectedSurface: "Google sync, setup checklist, deploy env",
             ownerArea: "deploy",
-            friction: "Admin confidence depends on knowing Clerk auth, Postgres sync, and required environment variables are all ready.",
-            recommendation: "Show a launch readiness checklist for Clerk, DATABASE_URL, DIRECT_URL, email provider, and optional channels.",
-            testNeeded: "Guard or integration test proving Clerk sync plus disabled password signup.",
+            friction: "Admin confidence depends on knowing Google auth, Postgres sync, and required environment variables are all ready.",
+            recommendation: "Show a launch readiness checklist for Google OAuth, DATABASE_URL, DIRECT_URL, email provider, and optional channels.",
+            testNeeded: "Guard or integration test proving Google sync plus disabled password signup.",
         }, persona.persona));
     }
 

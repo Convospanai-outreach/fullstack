@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { getToken } from "next-auth/jwt";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
 const INTERNAL_API_ORIGIN =
     process.env["API_INTERNAL_ORIGIN"] ||
@@ -69,7 +68,6 @@ const WEB_OWNED_API_ROOTS = new Set([
     "register",
     "studio",
     "support",
-    // "webhooks" removed: only webhooks/clerk is web-owned — see isWebOwnedPath below.
 ]);
 
 // `settings`, `admin`, `dashboard`, `upload`, `integrations`, `email`, `leads`, and
@@ -137,11 +135,8 @@ export function isWebOwnedPath(pathParts: string[]): boolean {
         return false; // /leads/[id]/{action,enrich,identity,journey,...} - apps/api-only
     }
 
-    if (root === "webhooks") {
-        // Only apps/web/src/app/api/webhooks/clerk exists; all other webhook receivers
-        // (razorpay, stripe, etc.) should forward to apps/api.
-        return second === "clerk";
-    }
+    // "webhooks" has zero apps/web routes now (Clerk's webhook was the only one) - all
+    // webhook receivers (razorpay, stripe, etc.) forward to apps/api, same as "workflows".
 
     return false;
 }
@@ -175,22 +170,6 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
 async function addInternalAuthHeaders(req: NextRequest, headers: Headers) {
     const secret = process.env["NEXTAUTH_SECRET"];
     if (!secret) return;
-
-    const clerkUser = await findOrCreateClerkAppUser();
-    if (clerkUser?.id) {
-        const timestamp = String(Date.now());
-        const email = clerkUser.email || "";
-        const role = typeof clerkUser.enterpriseRole === "string" ? clerkUser.enterpriseRole : "";
-        const payload = `v1.${timestamp}.${clerkUser.id}.${email}.${role}`;
-        const signature = createHmac("sha256", secret).update(payload).digest("hex");
-
-        headers.set("x-craftmyfunnel-user-id", clerkUser.id);
-        headers.set("x-craftmyfunnel-user-email", email);
-        headers.set("x-craftmyfunnel-user-role", role);
-        headers.set("x-craftmyfunnel-auth-ts", timestamp);
-        headers.set("x-craftmyfunnel-auth-signature", signature);
-        return;
-    }
 
     const token = await getToken({ req, secret });
     const userId = typeof token?.sub === "string"

@@ -41,7 +41,7 @@ describe("/setup/save", () => {
 
     it("lets a plain team member (not admin/owner) save a setup step", async () => {
         // An invited teammate who isn't ORG_ADMIN lands on team role "member" (see
-        // clerkAuth.ts) - this must not 403 them out of the setup wizard's Save button.
+        // googleOnboarding.ts) - this must not 403 them out of the setup wizard's Save button.
         mockCheckTeamPermission.mockImplementation(async (_userId, _teamId, role) => role === "member");
         const { POST } = await import("./route");
 

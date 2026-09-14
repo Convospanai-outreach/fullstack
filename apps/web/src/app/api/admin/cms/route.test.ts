@@ -1,18 +1,21 @@
 import path from "path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockFindOrCreateClerkAppUser, mockExecFileSync } = vi.hoisted(() => ({
-    mockFindOrCreateClerkAppUser: vi.fn(),
+const { mockGetServerSession, mockExecFileSync } = vi.hoisted(() => ({
+    mockGetServerSession: vi.fn(),
     mockExecFileSync: vi.fn(),
 }));
 
-vi.mock("next-auth", () => ({ getServerSession: vi.fn().mockResolvedValue(null) }));
+vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
     isSuperAdminRole: (role: unknown) => role === "SUPER_ADMIN" || role === "SYSTEM_ADMIN",
 }));
-vi.mock("@/lib/clerkAuth", () => ({ findOrCreateClerkAppUser: mockFindOrCreateClerkAppUser }));
 vi.mock("child_process", () => ({ execFileSync: mockExecFileSync }));
+
+function sessionWithRole(enterpriseRole: string) {
+    return { user: { enterpriseRole } };
+}
 
 function putRequest(body: unknown) {
     return new Request("http://localhost/api/admin/cms", {
@@ -24,7 +27,7 @@ function putRequest(body: unknown) {
 describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "SUPER_ADMIN" });
+        mockGetServerSession.mockResolvedValue(sessionWithRole("SUPER_ADMIN"));
     });
 
     it("passes git arguments as an argv array, never a shell command string built by interpolation", async () => {
@@ -55,7 +58,7 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
     });
 
     it("rejects a caller without CMS access", async () => {
-        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "SALES_USER" });
+        mockGetServerSession.mockResolvedValue(sessionWithRole("SALES_USER"));
         const { PUT } = await import("./route");
 
         const response = await PUT(putRequest({ file: "safe.md" }));
@@ -67,11 +70,11 @@ describe("PUT /api/admin/cms - git sync never goes through a shell", () => {
     it("OPEN-205: rejects a self-service ORG_ADMIN/CMS_EDITOR - this route touches a platform-wide content dir and pushes to the app's own repo, not per-tenant data", async () => {
         const { PUT } = await import("./route");
 
-        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "ORG_ADMIN" });
+        mockGetServerSession.mockResolvedValue(sessionWithRole("ORG_ADMIN"));
         const orgAdminResponse = await PUT(putRequest({ file: "safe.md" }));
         expect(orgAdminResponse.status).toBe(401);
 
-        mockFindOrCreateClerkAppUser.mockResolvedValue({ enterpriseRole: "CMS_EDITOR" });
+        mockGetServerSession.mockResolvedValue(sessionWithRole("CMS_EDITOR"));
         const cmsEditorResponse = await PUT(putRequest({ file: "safe.md" }));
         expect(cmsEditorResponse.status).toBe(401);
 

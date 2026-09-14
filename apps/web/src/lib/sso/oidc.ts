@@ -71,8 +71,8 @@ export async function isOidcSignInAllowed(params: {
     return Boolean(membership);
 }
 
-// OPEN-113: `SsoConfiguration.enforced` must only ever block Clerk/password
-// login (see clerkAuth.ts's findOrCreateClerkAppUser) once OIDC is actually
+// OPEN-113: `SsoConfiguration.enforced` must only ever block Google/password
+// login (see googleOnboarding.ts's syncGoogleUserToApp) once OIDC is actually
 // fully wired up for the domain - an admin flipping `enforced` on before
 // clientId/wellKnownUrl/clientSecret are all set must not lock everyone
 // (including themselves) out of the app with no working sign-in path left.

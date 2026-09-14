@@ -17,7 +17,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import {
   LayoutDashboard,
@@ -197,7 +197,7 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const { user } = useUser();
+  const { data: session } = useSession();
 
   const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher, { refreshInterval: 30000 });
   const pendingActionCount = approvals?.requests?.length ?? 0;
@@ -206,7 +206,7 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     (toolsData?.features ?? []).filter((f) => f.built && f.enabled).map((f) => f.key)
   );
   const navGroups = buildNavGroups(liveFeatureKeys, pendingActionCount);
-  const userName = user?.fullName ?? user?.firstName ?? 'User';
+  const userName = session?.user?.name ?? 'User';
   const userInitials = userName
     .split(' ')
     .filter(Boolean)
@@ -214,8 +214,6 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
     .map((n) => n[0])
     .join('')
     .toUpperCase() || 'U';
-
-  // Org name from Clerk org, or fallback
 
   const planLabel = PRODUCT_FLAGS.emailFirstBeta ? 'Enterprise · Beta' : 'Pro plan';
 

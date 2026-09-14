@@ -9,7 +9,6 @@ import type { JWT } from "next-auth/jwt";
 
 import { redirect } from "next/navigation";
 import { UserRole } from "@/types/prisma-safe";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 
@@ -28,10 +27,9 @@ function applyDefaultClaims(token: JWT) {
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
-    // Clerk remains the primary signup/sign-in provider for now. Google is a
-    // second, fully-working invite-gated sign-in path running alongside it
-    // (see docs on the Clerk -> Google OAuth migration) - Clerk is removed
-    // in a follow-up pass once this is verified in production.
+    // Google is the sole sign-in provider (Clerk removed). Signup is open:
+    // any verified Google account without a matching invite gets its own
+    // new team - see syncGoogleUserToApp in @/lib/googleOnboarding.
     providers: [
         GoogleProvider({
             clientId: process.env["GOOGLE_CLIENT_ID"]!,
@@ -39,64 +37,51 @@ export const authOptions: NextAuthOptions = {
         }),
     ],
     callbacks: {
-        signIn: async ({ user, account, profile }) => {
-            if (account?.provider === "google") {
-                // Only trust addresses Google has actually verified - mirrors the
-                // same rule clerkAuth.ts applies to Clerk-verified emails.
-                const googleProfile = profile as { email_verified?: boolean; name?: string } | undefined;
-                if (!user.email || googleProfile?.email_verified !== true) {
-                    return false;
-                }
-
-                const email = user.email.toLowerCase();
-
-                const existingUser = await prisma.user.findUnique({
-                    where: { email },
-                    select: { id: true }
-                });
-
-                if (existingUser) {
-                    if (await isSsoEnforcedForEmail(email)) {
-                        return "/login?invite=required";
-                    }
-                    // Pre-setting user.id makes NextAuth's adapter skip createUser()
-                    // and go straight to linkAccount(), attaching this Google account
-                    // to the existing row instead of creating a duplicate user - this
-                    // is what lets existing Clerk-era users sign in with Google with
-                    // no migration step.
-                    (user as { id?: string }).id = existingUser.id;
-                    return true;
-                }
-
-                // Carries the invite token from the signup page's short-lived
-                // cookie - see (marketing)/signup/page.tsx.
-                const cookieStore = await cookies();
-                const inviteToken = cookieStore.get("cmf-invite-token")?.value;
-
-                const createdUser = await syncGoogleUserToApp({
-                    email,
-                    name: googleProfile?.name || user.name || null,
-                    inviteToken,
-                });
-
-                if (!createdUser) {
-                    return "/login?invite=required";
-                }
-
-                (user as { id?: string }).id = createdUser.id;
-                return true;
-            }
-
-            if (!user.email) {
+        signIn: async ({ user, profile }) => {
+            // Only trust addresses Google has actually verified.
+            const googleProfile = profile as { email_verified?: boolean; name?: string } | undefined;
+            if (!user.email || googleProfile?.email_verified !== true) {
                 return false;
             }
 
+            const email = user.email.toLowerCase();
+
             const existingUser = await prisma.user.findUnique({
-                where: { email: user.email },
+                where: { email },
                 select: { id: true }
             });
 
-            return Boolean(existingUser);
+            if (existingUser) {
+                if (await isSsoEnforcedForEmail(email)) {
+                    return "/login?error=sso-required";
+                }
+                // Pre-setting user.id makes NextAuth's adapter skip createUser()
+                // and go straight to linkAccount(), attaching this Google account
+                // to the existing row instead of creating a duplicate user - this
+                // is what lets pre-Google-era users sign in with no migration step.
+                (user as { id?: string }).id = existingUser.id;
+                return true;
+            }
+
+            // Carries the invite token from the signup page's short-lived
+            // cookie - see (marketing)/signup/page.tsx.
+            const cookieStore = await cookies();
+            const inviteToken = cookieStore.get("cmf-invite-token")?.value;
+
+            const createdUser = await syncGoogleUserToApp({
+                email,
+                name: googleProfile?.name || user.name || null,
+                inviteToken,
+            });
+
+            if (!createdUser) {
+                // Only reachable via SSO enforcement on a brand-new email - signup
+                // itself is open, syncGoogleUserToApp never denies for lack of an invite.
+                return "/login?error=sso-required";
+            }
+
+            (user as { id?: string }).id = createdUser.id;
+            return true;
         },
         session: async ({ session, token }) => {
             if (token && session.user) {
@@ -280,19 +265,6 @@ export async function setupUser(user: { id: string, email: string, name?: string
 }
 
 export async function getCurrentContext() {
-    const clerkUser = await findOrCreateClerkAppUser();
-    if (clerkUser) {
-        const cookieStore = await cookies();
-        const workspaceId = cookieStore.get("convo-workspace-id")?.value;
-        if (workspaceId) {
-            const membership = clerkUser.memberships.find((member) => member.teamId === workspaceId && member.status === "active");
-            if (membership) return { userId: clerkUser.id, teamId: workspaceId };
-        }
-
-        const activeMemberships = clerkUser.memberships.filter((member) => member.status === "active");
-        return { userId: clerkUser.id, teamId: activeMemberships[0]?.teamId || null };
-    }
-
     const session = await getServerSession(authOptions);
 
     if (!session?.user?.email) {
@@ -357,31 +329,6 @@ export type AuthenticatedUser = {
 };
 
 export async function requireAuth(): Promise<AuthenticatedUser> {
-    const clerkUser = await findOrCreateClerkAppUser();
-    if (clerkUser) {
-        const user = await prisma.user.findUnique({
-            where: { id: clerkUser.id },
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                role: true,
-                enterpriseRole: true,
-                memberships: {
-                    select: {
-                        id: true,
-                        teamId: true,
-                        role: true,
-                        status: true
-                    }
-                }
-            }
-        });
-
-        if (!user) redirect("/login");
-        return user;
-    }
-
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
 
