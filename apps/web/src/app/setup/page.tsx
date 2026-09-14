@@ -79,10 +79,10 @@ type Mailbox = {
 
 type DomainCheckResult = {
   domain: string;
-  selector: string;
+  selector?: string;
   status: "VERIFIED" | "MISSING";
   missing: string[];
-  records: Record<string, { status: "VERIFIED" | "MISSING"; host: string; values: string[] }>;
+  records: Record<string, { status: "VERIFIED" | "MISSING"; host: string; values: string[]; type?: string }>;
 };
 
 const STEPS = [
@@ -329,16 +329,26 @@ export default function SetupWizardPage() {
     setSaving(true);
     setActionMessage(null);
     try {
-      const res = await fetch(`${apiBase}/integrations/google/domain-checks`, {
+      // Each provider needs different DNS records verified against a
+      // different source of truth: Resend's records come straight from
+      // Resend's own Domains API (its own SPF/DKIM values, not Google's), so
+      // it gets its own endpoint rather than reusing the Google checker.
+      const isResend = formData.step3?.provider === "RESEND";
+      const res = await fetch(`${apiBase}/integrations/${isResend ? "resend" : "google"}/domain-checks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          domain: formData.step3?.domain,
-          selector: formData.step3?.selector || "google",
-          mailboxId: mailboxes[0]?.id || null,
-        }),
+        body: JSON.stringify(
+          isResend
+            ? { domain: formData.step3?.domain }
+            : {
+                domain: formData.step3?.domain,
+                selector: formData.step3?.selector || "google",
+                mailboxId: mailboxes[0]?.id || null,
+              }
+        ),
       });
       const data = await readJson(res);
+      if (!res.ok) throw new Error(data.error || "Unable to check DNS records.");
       setDomainCheck(data.result);
     } catch (error) {
       setActionMessage(error instanceof Error ? error.message : "Unable to check DNS records.");
@@ -623,7 +633,23 @@ function MailboxProviderStep(props: {
                     <input className={inputClass} value={props.formData.step3?.resendFromName || ""} onChange={(event) => setStep3({ resendFromName: event.target.value })} />
                   </Field>
                   <Field label="From sender email (verified domain)">
-                    <input type="email" className={inputClass} value={props.formData.step3?.resendEmail || ""} onChange={(event) => setStep3({ resendEmail: event.target.value })} />
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={props.formData.step3?.resendEmail || ""}
+                      onChange={(event) => {
+                        const email = event.target.value;
+                        const patch: Record<string, any> = { resendEmail: email };
+                        // The domain readiness panel below needs this same domain -
+                        // prefill it from the sender address instead of making the
+                        // user type the domain a second time.
+                        const emailDomain = email.split("@")[1];
+                        if (emailDomain && !props.formData.step3?.domain) {
+                          patch["domain"] = emailDomain;
+                        }
+                        setStep3(patch);
+                      }}
+                    />
                   </Field>
                 </div>
               </div>
@@ -637,17 +663,23 @@ function MailboxProviderStep(props: {
           <ShieldCheck className="mt-1 h-5 w-5 text-cyan-300" />
           <div>
             <h3 className="text-xl font-semibold text-white">Domain readiness</h3>
-            <p className="mt-1 text-sm text-slate-400">Check MX, SPF, DMARC, and DKIM records for your sending domain before scaled sending.</p>
+            <p className="mt-1 text-sm text-slate-400">
+              {provider === "RESEND"
+                ? "Check the DNS records Resend needs for this domain, and add any missing ones wherever this domain's DNS is hosted (Cloudflare, GoDaddy, etc.)."
+                : "Check MX, SPF, DMARC, and DKIM records for your sending domain before scaled sending."}
+            </p>
           </div>
         </div>
 
-        <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_8rem]">
+        <div className={`mt-5 grid gap-4 ${provider === "RESEND" ? "" : "sm:grid-cols-[1fr_8rem]"}`}>
           <Field label="Sending domain">
             <input className={inputClass} value={props.formData.step3?.domain || ""} placeholder="example.com" onChange={(event) => setStep3({ domain: event.target.value })} />
           </Field>
-          <Field label="DKIM selector">
-            <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => setStep3({ selector: event.target.value })} />
-          </Field>
+          {provider !== "RESEND" && (
+            <Field label="DKIM selector">
+              <input className={inputClass} value={props.formData.step3?.selector || "google"} onChange={(event) => setStep3({ selector: event.target.value })} />
+            </Field>
+          )}
         </div>
 
         <button type="button" onClick={props.onCheckDomain} disabled={props.saving || !props.formData.step3?.domain} className="mt-4 w-full rounded-lg border border-cyan-300/30 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15 disabled:cursor-not-allowed disabled:opacity-50">
@@ -658,7 +690,20 @@ function MailboxProviderStep(props: {
           <div className="mt-5 space-y-3">
             <StatusLine label="Overall" ready={props.domainCheck.status === "VERIFIED"} />
             {Object.entries(props.domainCheck.records).map(([key, record]) => (
-              <StatusLine key={key} label={`${key.toUpperCase()} ${record.host}`} ready={record.status === "VERIFIED"} />
+              <div key={key}>
+                <StatusLine label={`${key.toUpperCase()} ${record.host}`} ready={record.status === "VERIFIED"} />
+                {record.status !== "VERIFIED" && record.values.length > 0 ? (
+                  <div className="mt-1.5 rounded-lg border border-white/10 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">
+                    <p className="text-slate-500">Add this DNS record{record.values.length > 1 ? "s" : ""}:</p>
+                    {record.values.map((value, i) => (
+                      <p key={i} className="mt-1 break-all">
+                        <span className="text-cyan-300">{record.type || "TXT"}</span>{" "}
+                        <span className="text-slate-400">{record.host}</span> → {value}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             ))}
             {props.domainCheck.missing.length > 0 ? (
               <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-sm text-amber-100">Missing: {props.domainCheck.missing.join(", ")}</p>

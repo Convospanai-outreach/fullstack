@@ -1012,25 +1012,32 @@ model SequenceStepRun {
 }
 
 model DomainAuthenticationCheck {
-  id            String    @id @default(uuid())
-  teamId        String
-  mailboxId     String?
-  domain        String
-  status        String    @default("UNKNOWN")
-  spfStatus     String    @default("UNKNOWN")
-  dkimStatus    String    @default("UNKNOWN")
-  dmarcStatus   String    @default("UNKNOWN")
-  mxStatus      String    @default("UNKNOWN")
-  lastCheckedAt DateTime?
-  nextCheckAt   DateTime?
-  failureReason String?   @db.Text
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  teamId           String
+  mailboxId        String?
+  domain           String
+  // Which sending provider this check's records apply to (e.g. Resend's
+  // required DKIM/SPF records differ from Google Workspace's). Defaults to
+  // the pre-existing Google Workspace checker so old rows classify correctly.
+  provider         String    @default("GOOGLE_WORKSPACE")
+  // The provider's own domain id (e.g. Resend's domains.create() id), so a
+  // later re-check/verify call doesn't need to re-create the domain.
+  providerDomainId String?
+  status           String    @default("UNKNOWN")
+  spfStatus        String    @default("UNKNOWN")
+  dkimStatus       String    @default("UNKNOWN")
+  dmarcStatus      String    @default("UNKNOWN")
+  mxStatus         String    @default("UNKNOWN")
+  lastCheckedAt    DateTime?
+  nextCheckAt      DateTime?
+  failureReason    String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   team    Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
   mailbox ConnectedMailbox? @relation(fields: [mailboxId], references: [id], onDelete: SetNull)
 
-  @@unique([teamId, domain])
+  @@unique([teamId, domain, provider])
   @@index([teamId])
   @@index([mailboxId])
   @@index([status])
