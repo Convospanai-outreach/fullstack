@@ -139,11 +139,16 @@ export async function checkGoogleWorkspaceDomainAuth(input: {
     const now = new Date();
 
     await db.domainAuthenticationCheck.upsert({
-        where: { teamId_domain: { teamId: input.teamId, domain } },
+        // @@unique([teamId, domain, provider]) - the compound key was renamed from
+        // teamId_domain when the Resend domain-verification feature added `provider`
+        // to disambiguate multiple providers checking the same domain (see
+        // resendDomainService.ts). This checker only ever handles Google Workspace.
+        where: { teamId_domain_provider: { teamId: input.teamId, domain, provider: "GOOGLE_WORKSPACE" } },
         create: {
             teamId: input.teamId,
             mailboxId: input.mailboxId || null,
             domain,
+            provider: "GOOGLE_WORKSPACE",
             status,
             mxStatus: statusFrom(mxVerified),
             spfStatus: statusFrom(spfVerified),
