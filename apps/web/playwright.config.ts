@@ -38,10 +38,10 @@ export default defineConfig({
             ...process.env,
             PORT: '3000',
             DISABLE_RATE_LIMIT: 'true',
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: process.env['NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY'] || 'pk_test_Y2xlcmsuY3JhZnRteWZ1bm5lbC5saXZlJA',
-            CLERK_SECRET_KEY: process.env['CLERK_SECRET_KEY'] || 'sk_test_bW9jay1jbGVyay1zZWNyZXQta2V5LWZvci10ZXN0aW5nLXBsYXl3cmlnaHQ',
             NEXTAUTH_SECRET: process.env['NEXTAUTH_SECRET'] || 'mock-nextauth-secret-for-playwright-32chars',
             NEXTAUTH_URL: process.env['NEXTAUTH_URL'] || 'http://localhost:3000',
+            GOOGLE_CLIENT_ID: process.env['GOOGLE_CLIENT_ID'] || 'mock-google-client-id-for-playwright',
+            GOOGLE_CLIENT_SECRET: process.env['GOOGLE_CLIENT_SECRET'] || 'mock-google-client-secret-for-playwright',
         },
     },
     use: {

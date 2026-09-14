@@ -1,6 +1,6 @@
 # Environment Parity Checklist
 
-Use this file to keep Local, GitHub Actions, Railway/Vercel, Supabase, Clerk, Redis/Upstash, payment, email, WhatsApp, and AI provider configuration aligned.
+Use this file to keep Local, GitHub Actions, Railway/Vercel, Supabase, Redis/Upstash, payment, email, WhatsApp, and AI provider configuration aligned.
 
 ## Classification
 
@@ -15,12 +15,10 @@ Use this file to keep Local, GitHub Actions, Railway/Vercel, Supabase, Clerk, Re
 | Variable | Class | Notes |
 | --- | --- | --- |
 | `NODE_ENV=production` | A | Required for production runtime. |
-| `NEXTAUTH_SECRET` | B | Required if NextAuth path is active. |
-| `NEXTAUTH_URL` | B | Required if NextAuth path is active. |
-| `CLERK_SECRET_KEY` | B | Required if Clerk path is active. |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | B | Required if Clerk path is active. |
-| `GOOGLE_CLIENT_ID` | B | Google OAuth client ID for NextAuth's "Continue with Google" sign-in (invite-gated, runs alongside Clerk). |
-| `GOOGLE_CLIENT_SECRET` | B | Google OAuth client secret, same client as above. |
+| `NEXTAUTH_SECRET` | A | Required - NextAuth/Google is the sole auth path. |
+| `NEXTAUTH_URL` | A | Required - NextAuth/Google is the sole auth path. |
+| `GOOGLE_CLIENT_ID` | A | Google OAuth client ID - sole sign-in provider, open signup. |
+| `GOOGLE_CLIENT_SECRET` | A | Google OAuth client secret, same client as above. |
 
 ## Database
 

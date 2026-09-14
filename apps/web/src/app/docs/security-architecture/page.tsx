@@ -93,7 +93,7 @@ export default function SecurityArchitectureDocPage() {
                             Every database entity in CraftMyFunnel (<code className="text-blue-300">Lead</code>, <code className="text-blue-300">Campaign</code>, <code className="text-blue-300">SequenceStep</code>, <code className="text-blue-300">ConnectedMailbox</code>) is strictly scoped to a validated <code className="text-blue-300">teamId</code>.
                         </p>
                         <p>
-                            Database queries enforce server-side tenant scoping derived exclusively from cryptographic Clerk / NextAuth JWT sessions. Client-provided workspace cookies are cross-checked against database membership records prior to executing any read, write, or delete operation.
+                            Database queries enforce server-side tenant scoping derived exclusively from cryptographic NextAuth JWT sessions. Client-provided workspace cookies are cross-checked against database membership records prior to executing any read, write, or delete operation.
                         </p>
                     </div>
 

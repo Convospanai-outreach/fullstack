@@ -47,7 +47,7 @@ const MODE_DEFAULTS = {
         roles: USER_BEHAVIOR_ROLES,
     },
     LAUNCH_READINESS: {
-        goal: "Simulate workspace admin launch readiness across Clerk auth, Postgres sync, setup, env configuration, team invites, and governance checks",
+        goal: "Simulate workspace admin launch readiness across Google auth, Postgres sync, setup, env configuration, team invites, and governance checks",
         roles: ["Workspace Admin User", "Technical Auditor", "DevOps Specialist", "Audit Sentinel", "Product Head"],
     },
     LEAD_JOURNEY: {

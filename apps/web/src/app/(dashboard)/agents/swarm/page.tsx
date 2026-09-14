@@ -195,7 +195,7 @@ export default function AgentSwarmPage() {
         const goals: Record<AdvisorySwarmType, string> = {
             GENERAL_REVIEW: "Audit and improve campaign flow, onboarding clarity, LinkedIn extension integration, and launch readiness.",
             USER_BEHAVIOR: "Simulate real user behavior across signup, onboarding, lead capture, email outreach, LinkedIn follow-up, and funnel status updates. Report friction, stuck points, and suggested fixes without changing user data.",
-            LAUNCH_READINESS: "Simulate workspace admin launch readiness across Clerk auth, Postgres sync, setup, env configuration, team invites, and governance checks.",
+            LAUNCH_READINESS: "Simulate workspace admin launch readiness across Google auth, Postgres sync, setup, env configuration, team invites, and governance checks.",
             LEAD_JOURNEY: "Simulate one lead journey across email, LinkedIn, WhatsApp, call, manual status updates, follow-up suggestions, and funnel progression.",
             ADMIN_SETUP: "Simulate admin setup for invite approval, permissions, feature readiness, audit trail, and deployment confidence.",
         };

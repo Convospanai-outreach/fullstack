@@ -1,13 +1,14 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import SectionTitle from "../../../components/SectionTitle";
 import GlassCard from "../../../components/GlassCard";
 
 export default function ProfilePage() {
-    const { user, isLoaded } = useUser();
-    const name = user?.fullName || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "—";
-    const email = user?.primaryEmailAddress?.emailAddress || "—";
+    const { data: session, status } = useSession();
+    const isLoaded = status !== "loading";
+    const name = session?.user?.name || session?.user?.email?.split("@")[0] || "—";
+    const email = session?.user?.email || "—";
 
     return (
         <div className="section max-w-3xl">

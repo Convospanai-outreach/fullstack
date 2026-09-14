@@ -45,7 +45,7 @@ export function RoleLoginPage({ title, subtitle, emailLabel, callbackUrl, accent
                         <div>
                             <label className="mb-2 block text-sm font-medium text-slate-300">{emailLabel}</label>
                             <p className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300">
-                                Sign in with Clerk using your approved workspace email.
+                                Sign in with your Google account.
                             </p>
                         </div>
 

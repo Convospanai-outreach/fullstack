@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 
 import Link from "next/link";
 
-import { useAuth } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
 
 export function NotificationBell() {
-    const { isSignedIn, isLoaded } = useAuth();
+    const { status } = useSession();
+    const isLoaded = status !== "loading";
+    const isSignedIn = status === "authenticated";
     const [count, setCount] = useState(0);
 
     useEffect(() => {

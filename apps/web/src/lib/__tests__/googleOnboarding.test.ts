@@ -204,3 +204,48 @@ describe("syncGoogleUserToApp - fresh team creation for an approved InviteReques
         );
     });
 });
+
+describe("syncGoogleUserToApp - open signup (no invite, no inviteRequest)", () => {
+    const mockTx = {
+        user: { create: vi.fn(), findUnique: vi.fn() },
+        team: { create: vi.fn() },
+        inviteRequest: { update: vi.fn() },
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSsoEnforcedForEmail as Mock).mockResolvedValue(false);
+        (prisma.user.findUnique as Mock).mockResolvedValue(null);
+        (prisma.userInvitation.findFirst as Mock).mockResolvedValue(null);
+        (prisma.inviteRequest.findFirst as Mock).mockResolvedValue(null);
+        (prisma.$transaction as Mock).mockImplementation((cb: any) => cb(mockTx));
+        mockTx.user.create.mockResolvedValue({ id: "user-1" });
+        mockTx.team.create.mockResolvedValue({});
+        mockTx.user.findUnique.mockResolvedValue({ id: "user-1", memberships: [] });
+    });
+
+    it("auto-creates a personal team as owner for a brand-new email with no invite at all", async () => {
+        const result = await syncGoogleUserToApp({ email: "nobody-invited@example.com", name: "Ada Lovelace" });
+
+        expect(mockTx.team.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({
+                    name: "Ada Lovelace's Team",
+                    members: expect.objectContaining({
+                        create: expect.objectContaining({ role: "owner" }),
+                    }),
+                }),
+            })
+        );
+        expect(mockTx.inviteRequest.update).not.toHaveBeenCalled();
+        expect(result).toEqual({ id: "user-1", memberships: [] });
+    });
+
+    it("falls back to \"My Team\" when no name is available", async () => {
+        await syncGoogleUserToApp({ email: "noname@example.com" });
+
+        expect(mockTx.team.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ name: "My Team" }) })
+        );
+    });
+});

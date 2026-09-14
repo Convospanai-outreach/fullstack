@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
 
 export const dynamic = "force-dynamic";
 
 async function resolveTeamId() {
     const context = await getCurrentContext();
-    if (context.teamId) return context.teamId;
-    const user = await findOrCreateClerkAppUser();
-    return user?.memberships.find((member) => member.status === "active")?.teamId || null;
+    return context.teamId;
 }
 
 // Queues a manual follow-up for human review in the Approvals queue —

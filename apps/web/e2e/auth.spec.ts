@@ -11,15 +11,9 @@ test.describe('Authentication', () => {
         await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fdashboard/);
     });
 
-    // Since we are mocking auth in E2E usually, or need a real user.
-    // For this MVP, we will assume a "skip auth" mode or just check public pages if any.
-    // But wait, the app is protected. 
-    // We can simulate a logged-in state by setting cookies if we had a seed script, 
-    // or we can test the Login UI if it exists.
-
     test('should show login options', async ({ page }) => {
         test.setTimeout(60000);
         await page.goto('/login');
-        await expect(page.locator('#clerk-sign-in-root')).toBeVisible({ timeout: 45000 });
+        await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible({ timeout: 45000 });
     });
 });

@@ -1,14 +1,11 @@
 import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
-import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
 
 export const dynamic = "force-dynamic";
 
 async function resolveTeamId() {
     const context = await getCurrentContext();
-    if (context.teamId) return context.teamId;
-    const user = await findOrCreateClerkAppUser();
-    return user?.memberships.find((member) => member.status === "active")?.teamId || null;
+    return context.teamId;
 }
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {

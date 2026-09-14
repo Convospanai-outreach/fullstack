@@ -1,6 +1,6 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
@@ -26,9 +26,10 @@ function initials(name?: string | null, email?: string | null) {
 }
 
 export default function GeneralSettingsPage() {
-    const { user, isLoaded } = useUser();
-    const userName = user?.fullName || user?.primaryEmailAddress?.emailAddress?.split("@")[0] || "Workspace User";
-    const userEmail = user?.primaryEmailAddress?.emailAddress || "user@workspace.com";
+    const { data: session, status } = useSession();
+    const isLoaded = status !== "loading";
+    const userName = session?.user?.name || session?.user?.email?.split("@")[0] || "Workspace User";
+    const userEmail = session?.user?.email || "user@workspace.com";
     const userInitials = initials(userName, userEmail);
 
     const [mailingAddress, setMailingAddress] = useState("");

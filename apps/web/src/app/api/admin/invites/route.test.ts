@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockFindOrCreateClerkAppUser, mockPrisma, mockAudit, mockIsSuperAdminRole } = vi.hoisted(() => ({
-    mockFindOrCreateClerkAppUser: vi.fn(),
+const { mockGetServerSession, mockPrisma, mockAudit, mockIsSuperAdminRole } = vi.hoisted(() => ({
+    mockGetServerSession: vi.fn(),
     mockAudit: vi.fn(),
     mockIsSuperAdminRole: vi.fn().mockReturnValue(true),
     mockPrisma: {
+        user: { findUnique: vi.fn() },
         inviteRequest: { findUnique: vi.fn(), update: vi.fn(), findMany: vi.fn() },
         team: { create: vi.fn() },
         userInvitation: { create: vi.fn(), findMany: vi.fn() },
@@ -13,20 +14,17 @@ const { mockFindOrCreateClerkAppUser, mockPrisma, mockAudit, mockIsSuperAdminRol
     },
 }));
 
-vi.mock("next-auth", () => ({ getServerSession: vi.fn().mockResolvedValue(null) }));
-vi.mock("@clerk/nextjs/server", () => ({ clerkClient: vi.fn() }));
+vi.mock("next-auth", () => ({ getServerSession: mockGetServerSession }));
 vi.mock("@/lib/auth", () => ({
     authOptions: {},
     canInviteUsers: () => true,
     isSuperAdminRole: mockIsSuperAdminRole,
 }));
-vi.mock("@/lib/clerkAuth", () => ({ findOrCreateClerkAppUser: mockFindOrCreateClerkAppUser }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/modules/audit/auditService", () => ({ AuditService: { log: mockAudit } }));
 vi.mock("@/lib/invitations", () => ({
     createInviteToken: () => "raw-token",
     getInviteLink: (token: string) => `https://app.example.com/signup?token=${token}`,
-    getAppBaseUrl: () => "https://app.example.com",
     hashInviteToken: (token: string) => `hashed-${token}`,
     INVITE_TTL_MS: 7 * 24 * 60 * 60 * 1000,
     isAssignableInviteRole: () => true,
@@ -44,7 +42,8 @@ describe("PATCH /api/admin/invites - approve-request", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockIsSuperAdminRole.mockReturnValue(true);
-        mockFindOrCreateClerkAppUser.mockResolvedValue({
+        mockGetServerSession.mockResolvedValue({ user: { id: "admin-1" } });
+        mockPrisma.user.findUnique.mockResolvedValue({
             id: "admin-1",
             enterpriseRole: "SUPER_ADMIN",
             memberships: [{ teamId: "admins-existing-team", status: "active" }],
@@ -96,7 +95,8 @@ describe("PATCH /api/admin/invites - approve-request", () => {
 describe("/api/admin/invites - InviteRequest actions are platform-admin-only", () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockFindOrCreateClerkAppUser.mockResolvedValue({
+        mockGetServerSession.mockResolvedValue({ user: { id: "org-admin-1" } });
+        mockPrisma.user.findUnique.mockResolvedValue({
             id: "org-admin-1",
             enterpriseRole: "ORG_ADMIN",
             memberships: [{ teamId: "org-admins-team", status: "active" }],

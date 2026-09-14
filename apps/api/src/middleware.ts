@@ -83,10 +83,10 @@ export async function middleware(req: NextRequest) {
 
     if (!isPublic) {
         if (!token) {
-            // SSO enforcement (OPEN-113) doesn't apply here: this app has no Clerk
-            // integration (that's apps/web only), so there's no password/Clerk
-            // session for an enforced domain to block in the first place - see
-            // apps/web/src/lib/clerkAuth.ts's findOrCreateClerkAppUser instead.
+            // SSO enforcement (OPEN-113) doesn't apply here: this app has no Google
+            // sign-in integration (that's apps/web only), so there's no session for
+            // an enforced domain to block in the first place - see
+            // apps/web/src/lib/googleOnboarding.ts's syncGoogleUserToApp instead.
 
             // Redirect if page, JSON error if API
             if (path.startsWith("/api")) {
