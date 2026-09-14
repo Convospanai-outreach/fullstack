@@ -8,8 +8,8 @@ name: Phi-3 Verification
 # Migration-safety gate — scan-destructive-migrations, verify-safety-invariants.
 # Three sibling workflows cover distinct concerns and deliberately are NOT
 # merged into this one: ci.yml (general build/typecheck/docker-smoke),
-# production-gate.yml (deploy-readiness checks), vercel-parity-build.yml
-# (Vercel-specific build parity). All four duplicate the same
+# production-gate.yml (deploy-readiness checks), render-parity-build.yml
+# (Render-specific build parity). All four duplicate the same
 # detect-docs-only/docs-only-validation boilerplate — a real DRY gap,
 # flagged but not consolidated here (would need a reusable workflow).
 
