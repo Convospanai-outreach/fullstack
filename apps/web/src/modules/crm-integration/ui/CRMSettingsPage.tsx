@@ -21,6 +21,7 @@ interface Integration {
     provider: string;
     isActive: boolean;
     fieldMapping: any;
+    syncSettings?: { autoSync?: boolean; syncSentiment?: boolean; syncOnWon?: boolean } | null;
 }
 
 export default function CRMSettingsPage() {
@@ -39,6 +40,14 @@ export default function CRMSettingsPage() {
 
     const [apiKey, setApiKey] = useState("");
 
+    // Sync Rules state — persisted as CrmIntegration.syncSettings (see
+    // packages/db/prisma/schema.prisma: `{ "autoSync": true, "syncOnWon": true }`).
+    const [syncSettings, setSyncSettings] = useState<{ autoSync: boolean; syncSentiment: boolean; syncOnWon: boolean }>({
+        autoSync: true,
+        syncSentiment: false,
+        syncOnWon: true
+    });
+
     useEffect(() => {
         fetchIntegrations();
     }, []);
@@ -52,6 +61,9 @@ export default function CRMSettingsPage() {
             const active = data.find((i: Integration) => i.provider === activeProvider);
             if (active && active.fieldMapping) {
                 setMapping(active.fieldMapping);
+            }
+            if (active && active.syncSettings) {
+                setSyncSettings({ ...syncSettings, ...active.syncSettings });
             }
         } catch (err) {
             toast.error("Failed to load CRM settings");
@@ -70,7 +82,8 @@ export default function CRMSettingsPage() {
                     provider: activeProvider,
                     accessToken: apiKey || undefined, // Only update if provided
                     isActive: true,
-                    fieldMapping: mapping
+                    fieldMapping: mapping,
+                    syncSettings
                 })
             });
 
@@ -161,9 +174,24 @@ export default function CRMSettingsPage() {
                                 <RefreshCcw className="w-4 h-4" /> Sync Rules
                             </div>
                             <div className="space-y-4">
-                                <SyncToggle label="Auto-sync new leads" description="Instantly create contacts in CRM." defaultChecked />
-                                <SyncToggle label="Sync sentiment data" description="Write AI conversation analysis." />
-                                <SyncToggle label="Update on status change" description="Keep lead lifecycle in sync." defaultChecked />
+                                <SyncToggle
+                                    label="Auto-sync new leads"
+                                    description="Instantly create contacts in CRM."
+                                    checked={syncSettings.autoSync}
+                                    onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, autoSync: checked })}
+                                />
+                                <SyncToggle
+                                    label="Sync sentiment data"
+                                    description="Write AI conversation analysis."
+                                    checked={syncSettings.syncSentiment}
+                                    onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, syncSentiment: checked })}
+                                />
+                                <SyncToggle
+                                    label="Update on status change"
+                                    description="Keep lead lifecycle in sync."
+                                    checked={syncSettings.syncOnWon}
+                                    onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, syncOnWon: checked })}
+                                />
                             </div>
                         </div>
                     </div>
@@ -239,7 +267,7 @@ function ProviderCard({ name, icon, isActive, connected, comingSoon, onClick }: 
     );
 }
 
-function SyncToggle({ label, description, defaultChecked }: any) {
+function SyncToggle({ label, description, checked, onChange }: any) {
     return (
         <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
             <div>
@@ -247,7 +275,7 @@ function SyncToggle({ label, description, defaultChecked }: any) {
                 <div className="text-[10px] text-gray-400">{description}</div>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" defaultChecked={defaultChecked} />
+                <input type="checkbox" className="sr-only peer" checked={Boolean(checked)} onChange={(e) => onChange(e.target.checked)} />
                 <div className="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
         </div>
