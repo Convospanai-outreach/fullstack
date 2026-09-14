@@ -407,6 +407,10 @@ export class SequenceService {
             campaignId: run.campaignId,
             userId: run.enrollment?.campaign?.ownerId,
             mailboxId: run.mailboxId || undefined,
+            // Stable across RETRY_SCHEDULED re-attempts of this same run - guards
+            // against a real duplicate send if a prior attempt actually reached
+            // Resend but failed before we recorded success (see resendMailboxService.ts).
+            idempotencyKey: `sequence_step_run_${run.id}_send`,
         });
 
         if (!result.success) {

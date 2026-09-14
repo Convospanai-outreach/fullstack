@@ -12,7 +12,7 @@ function sign(secret: string, svixId: string, svixTimestamp: string, rawBody: st
 describe("verifySvixSignature", () => {
   const secret = `whsec_${Buffer.from("test-secret-material").toString("base64")}`;
   const svixId = "msg_test123";
-  const svixTimestamp = "1700000000";
+  const svixTimestamp = Math.floor(Date.now() / 1000).toString();
   const rawBody = JSON.stringify({ type: "email.opened", data: { email_id: "abc" } });
 
   it("accepts a correctly signed payload", () => {
@@ -40,5 +40,16 @@ describe("verifySvixSignature", () => {
 
   it("rejects a malformed signature header without throwing", () => {
     expect(verifySvixSignature({ secret, svixId, svixTimestamp, svixSignature: "garbage", rawBody })).toBe(false);
+  });
+
+  it("rejects a correctly signed payload whose timestamp is outside the replay tolerance", () => {
+    const staleTimestamp = (Math.floor(Date.now() / 1000) - 10 * 60).toString();
+    const svixSignature = sign(secret, svixId, staleTimestamp, rawBody);
+    expect(verifySvixSignature({ secret, svixId, svixTimestamp: staleTimestamp, svixSignature, rawBody })).toBe(false);
+  });
+
+  it("rejects a non-numeric timestamp without throwing", () => {
+    const svixSignature = sign(secret, svixId, "not-a-number", rawBody);
+    expect(verifySvixSignature({ secret, svixId, svixTimestamp: "not-a-number", svixSignature, rawBody })).toBe(false);
   });
 });

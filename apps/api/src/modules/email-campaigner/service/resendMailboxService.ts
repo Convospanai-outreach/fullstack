@@ -13,6 +13,20 @@ export type ResendSendOutcome =
     | { success: true; deliveryProvider: "RESEND"; messageId: string; mailboxId: string }
     | { success: false; error: string; fallbackAllowed: boolean };
 
+// Resend's own retry guidance (https://resend.com/docs/knowledge-base/what-if-my-email-fails-to-send):
+// 429 (rate_limit_exceeded) and 500 (internal_server_error) are transient - retry with
+// backoff. Everything else (validation_error, invalid_api_key, invalid_parameter, etc.)
+// is a permanent rejection that will fail again identically on retry. sequenceService's
+// isRetryableEmailError() pattern-matches this exact wording on the returned error string.
+const RETRYABLE_RESEND_ERROR_CODES = new Set(["rate_limit_exceeded", "internal_server_error"]);
+
+function resendErrorToMessage(errorName: string | undefined): string {
+    if (errorName && RETRYABLE_RESEND_ERROR_CODES.has(errorName)) {
+        return `RESEND_SEND_FAILED: temporary Resend error (${errorName}), try again`;
+    }
+    return `RESEND_SEND_FAILED${errorName ? `: ${errorName}` : ""}`;
+}
+
 export async function sendViaResendMailbox(input: {
     teamId: string;
     mailboxId: string;
@@ -22,6 +36,11 @@ export async function sendViaResendMailbox(input: {
     trackingId: string;
     unsubscribeUrl?: string;
     attachments?: EmailAttachment[];
+    // Stable across retries of the same logical send (e.g. a sequence step run's
+    // id) so a transient failure that retries the same send can't double-send a
+    // real email to the recipient - Resend dedupes on this for 24h. See
+    // https://resend.com/docs/api-reference/emails/send-email#idempotent-requests
+    idempotencyKey?: string;
 }): Promise<ResendSendOutcome> {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED" },
@@ -46,38 +65,43 @@ export async function sendViaResendMailbox(input: {
 
     try {
         const resend = new Resend(apiKey);
-        const { data, error } = await resend.emails.send({
-            from: `${fromName} <${mailbox.email}>`,
-            to: input.to,
-            subject: input.subject,
-            html: input.html,
-            ...(replyTo ? { replyTo } : {}),
-            // RFC 8058 one-click unsubscribe: recognized by Gmail/Outlook/Yahoo as a real
-            // "unsubscribe" affordance, which materially reduces spam-complaint rates.
-            ...(input.unsubscribeUrl
-                ? {
-                      headers: {
-                          "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
-                          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-                      },
-                  }
-                : {}),
-            ...(input.attachments?.length
-                ? {
-                      attachments: input.attachments.map((a) => ({
-                          filename: a.filename,
-                          content: a.content,
-                      })),
-                  }
-                : {}),
-        });
+        const { data, error } = await resend.emails.send(
+            {
+                from: `${fromName} <${mailbox.email}>`,
+                to: input.to,
+                subject: input.subject,
+                html: input.html,
+                ...(replyTo ? { replyTo } : {}),
+                // RFC 8058 one-click unsubscribe: recognized by Gmail/Outlook/Yahoo as a real
+                // "unsubscribe" affordance, which materially reduces spam-complaint rates.
+                ...(input.unsubscribeUrl
+                    ? {
+                          headers: {
+                              "List-Unsubscribe": `<${input.unsubscribeUrl}>`,
+                              "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                          },
+                      }
+                    : {}),
+                ...(input.attachments?.length
+                    ? {
+                          attachments: input.attachments.map((a) => ({
+                              filename: a.filename,
+                              content: a.content,
+                          })),
+                      }
+                    : {}),
+            },
+            input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined
+        );
         if (error || !data?.id) {
             await releaseMailboxSend(input.teamId, mailbox.id);
-            return { success: false, error: "RESEND_SEND_FAILED", fallbackAllowed: true };
+            return { success: false, error: resendErrorToMessage(error?.name), fallbackAllowed: true };
         }
         return { success: true, deliveryProvider: "RESEND", messageId: data.id, mailboxId: mailbox.id };
     } catch {
+        // A thrown exception here is a network/transport failure (timeout, DNS,
+        // TLS) rather than a Resend-returned rejection - always transient.
         await releaseMailboxSend(input.teamId, mailbox.id);
-        return { success: false, error: "RESEND_SEND_FAILED", fallbackAllowed: true };
+        return { success: false, error: "RESEND_SEND_FAILED: network error, try again", fallbackAllowed: true };
     }
 }

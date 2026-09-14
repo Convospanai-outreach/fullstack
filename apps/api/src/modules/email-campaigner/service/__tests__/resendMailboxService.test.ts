@@ -60,7 +60,7 @@ describe("sendViaResendMailbox", () => {
             from: "Team Outreach <outreach@team.test>",
             to: "lead@example.test",
             replyTo: "reply+track-1@reply.team.test",
-        }));
+        }), undefined);
     });
 
     it("omits reply-to when the mailbox has no inbound domain configured", async () => {
@@ -75,7 +75,7 @@ describe("sendViaResendMailbox", () => {
             trackingId: "track-1",
         });
 
-        expect(mockResendSend).toHaveBeenCalledWith(expect.not.objectContaining({ replyTo: expect.anything() }));
+        expect(mockResendSend).toHaveBeenCalledWith(expect.not.objectContaining({ replyTo: expect.anything() }), undefined);
     });
 
     it("releases the reserved send slot and reports a fallback-allowed failure when Resend rejects the send", async () => {
@@ -128,7 +128,72 @@ describe("sendViaResendMailbox", () => {
                 "List-Unsubscribe": "<https://app.test/api/proxy/email/unsubscribe/track-1>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
             },
-        }));
+        }), undefined);
+    });
+
+    it("passes idempotencyKey through to Resend when provided, and omits it otherwise", async () => {
+        await sendViaResendMailbox({
+            teamId: "team-1",
+            mailboxId: "resend-mailbox-1",
+            to: "lead@example.test",
+            subject: "Subject",
+            html: "<p>Body</p>",
+            trackingId: "track-1",
+            idempotencyKey: "sequence_step_run_run-1_send",
+        });
+
+        expect(mockResendSend).toHaveBeenCalledWith(
+            expect.any(Object),
+            { idempotencyKey: "sequence_step_run_run-1_send" }
+        );
+    });
+
+    it("marks a rate-limit rejection as retryable (sequenceService pattern-matches 'try again')", async () => {
+        mockResendSend.mockResolvedValue({ data: null, error: { name: "rate_limit_exceeded", statusCode: 429, message: "Too many requests" } });
+
+        const result = await sendViaResendMailbox({
+            teamId: "team-1",
+            mailboxId: "resend-mailbox-1",
+            to: "lead@example.test",
+            subject: "Subject",
+            html: "<p>Body</p>",
+            trackingId: "track-1",
+        });
+
+        expect(result.success).toBe(false);
+        expect((result as any).error).toMatch(/try again/i);
+    });
+
+    it("marks a validation rejection as permanent, not retryable", async () => {
+        mockResendSend.mockResolvedValue({ data: null, error: { name: "validation_error", statusCode: 422, message: "Invalid `to` field" } });
+
+        const result = await sendViaResendMailbox({
+            teamId: "team-1",
+            mailboxId: "resend-mailbox-1",
+            to: "lead@example.test",
+            subject: "Subject",
+            html: "<p>Body</p>",
+            trackingId: "track-1",
+        });
+
+        expect(result.success).toBe(false);
+        expect((result as any).error).not.toMatch(/try again|rate limit|temporar/i);
+    });
+
+    it("marks a thrown network/transport error as retryable", async () => {
+        mockResendSend.mockRejectedValue(new Error("ETIMEDOUT"));
+
+        const result = await sendViaResendMailbox({
+            teamId: "team-1",
+            mailboxId: "resend-mailbox-1",
+            to: "lead@example.test",
+            subject: "Subject",
+            html: "<p>Body</p>",
+            trackingId: "track-1",
+        });
+
+        expect(result.success).toBe(false);
+        expect((result as any).error).toMatch(/try again/i);
     });
 
     it("fails pre-dispatch without a send attempt when the mailbox's send-slot reservation is denied", async () => {

@@ -1,5 +1,10 @@
 import crypto from "crypto";
 
+// Svix's own webhook libraries reject anything outside a 5-minute tolerance to
+// prevent a captured, still-validly-signed payload from being replayed later.
+// https://docs.svix.com/receiving/verifying-payloads/how-manual#verify-timestamp
+const TOLERANCE_SECONDS = 5 * 60;
+
 // Resend signs webhooks using the Svix format: https://docs.svix.com/receiving/verifying-payloads/how-manual
 export function verifySvixSignature(params: {
   secret: string;
@@ -9,6 +14,12 @@ export function verifySvixSignature(params: {
   rawBody: string;
 }): boolean {
   const { secret, svixId, svixTimestamp, svixSignature, rawBody } = params;
+
+  const timestampSeconds = Number(svixTimestamp);
+  if (!Number.isFinite(timestampSeconds)) return false;
+  const nowSeconds = Date.now() / 1000;
+  if (Math.abs(nowSeconds - timestampSeconds) > TOLERANCE_SECONDS) return false;
+
   const secretBytes = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
   const signedContent = `${svixId}.${svixTimestamp}.${rawBody}`;
   const expectedSignature = crypto.createHmac("sha256", secretBytes).update(signedContent).digest("base64");
