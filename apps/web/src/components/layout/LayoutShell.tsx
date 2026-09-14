@@ -23,9 +23,15 @@ export const DASHBOARD_PREFIXES = [
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
-    // "/setup", "/onboarding" excluded for the same reason — neither is inside
-    // the (dashboard) route group.
+    // "/onboarding" excluded for the same reason (it's a bare redirect to /setup).
 ];
+
+// "/setup" is reached only by an already-authenticated user (proxy.ts gates it
+// like every other non-public route) and isn't in the (dashboard) route group,
+// so it fell into the generic Header/Footer fallback above and got the public
+// marketing CTA + footer tacked onto the bottom of the onboarding wizard. It
+// keeps the top nav (its own page has none) but drops the footer/CTA.
+const HIDE_FOOTER_PREFIXES = ["/setup"];
 
 // Only routes actually rendered inside src/app/(marketing)/layout.tsx belong here —
 // that layout supplies its own NavBar/Footer, so LayoutShell must not duplicate them.
@@ -47,9 +53,13 @@ export function LayoutShell({ children }: { children: React.ReactNode }) {
         (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
     );
 
+    const hideFooter = HIDE_FOOTER_PREFIXES.some(
+        (prefix) => pathname === prefix || pathname?.startsWith(`${prefix}/`)
+    );
+
     // Dashboard has its own sidebar + header; Marketing layout has its own NavBar + Footer
     const showHeader = !isDashboard && !isMarketing;
-    const showFooter = !isDashboard && !isMarketing;
+    const showFooter = !isDashboard && !isMarketing && !hideFooter;
 
     if (isDashboard) {
         // Dashboard layout owns its own <main id="main-content"> wrapper.
