@@ -7,6 +7,14 @@ const INTERNAL_API_ORIGIN =
     process.env["API_BASE_URL"] ||
     "http://localhost:3001";
 
+// "Web-owned" targets live in this same Next.js process, so self-fetching
+// through the public hostname is pure overhead - and on this deployment it's
+// actively broken, because that round-trip goes back out through Cloudflare,
+// which treats the server's own non-browser fetch as bot traffic and resets
+// the connection (surfacing here as a 502 PROXY_UPSTREAM_UNAVAILABLE).
+// Loopback to the port this same process is already listening on instead.
+const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
+
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
     "keep-alive",
@@ -147,21 +155,21 @@ function getWebOwnedApiUrl(req: NextRequest, pathParts: string[]): URL | null {
 
     if (root === "auth") {
         const authPath = pathParts.slice(1).join("/");
-        return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, req.nextUrl.origin);
+        return new URL(`/api/auth/${authPath}${req.nextUrl.search}`, SELF_ORIGIN);
     }
 
     if (root === "orchestrator") {
         // orchestrator/swarm/* is handled by Fastify API upstream; only local orchestrator/run is web-owned
         if (pathParts[1] !== "swarm") {
             const apiPath = pathParts.join("/");
-            return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+            return new URL(`/api/${apiPath}${req.nextUrl.search}`, SELF_ORIGIN);
         }
         return null;
     }
 
     if (WEB_OWNED_API_ROOTS.has(root) || isWebOwnedPath(pathParts)) {
         const apiPath = pathParts.join("/");
-        return new URL(`/api/${apiPath}${req.nextUrl.search}`, req.nextUrl.origin);
+        return new URL(`/api/${apiPath}${req.nextUrl.search}`, SELF_ORIGIN);
     }
 
     return null;
