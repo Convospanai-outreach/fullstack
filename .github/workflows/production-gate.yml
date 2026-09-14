@@ -4,7 +4,7 @@ name: Production Readiness Gate
 # workflows cover distinct concerns and deliberately are NOT merged into this
 # one (see tech-debt-audit 2026-08-20 #10): ci.yml (general build/typecheck/
 # docker-smoke), verify.yml (migration-safety invariant scanning),
-# vercel-parity-build.yml (Vercel-specific build parity). All four duplicate
+# render-parity-build.yml (Render-specific build parity). All four duplicate
 # the same detect-docs-only/docs-only-validation boilerplate — a real DRY
 # gap, flagged but not consolidated here (would need a reusable workflow).
 

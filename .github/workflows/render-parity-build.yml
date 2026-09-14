@@ -1,13 +1,14 @@
-name: Vercel Parity Build
+name: Render Parity Build
 
-# Vercel-specific build-parity check — vercel-parity-build, vercel-parity-gate.
-# Three sibling workflows cover distinct concerns and deliberately are NOT
-# merged into this one (see tech-debt-audit 2026-08-20 #10): ci.yml (general
-# build/typecheck/docker-smoke), verify.yml (migration-safety invariant
-# scanning), production-gate.yml (deploy-readiness checks). All four
-# duplicate the same detect-docs-only/docs-only-validation boilerplate — a
-# real DRY gap, flagged but not consolidated here (would need a reusable
-# workflow).
+# Render-specific build-parity check (apps/web deploys to Render, not
+# Vercel - see craftmyfunnel-web's buildCommand in Render's dashboard) —
+# render-parity-build, render-parity-gate. Three sibling workflows cover
+# distinct concerns and deliberately are NOT merged into this one (see
+# tech-debt-audit 2026-08-20 #10): ci.yml (general build/typecheck/
+# docker-smoke), verify.yml (migration-safety invariant scanning),
+# production-gate.yml (deploy-readiness checks). All four duplicate the
+# same detect-docs-only/docs-only-validation boilerplate — a real DRY
+# gap, flagged but not consolidated here (would need a reusable workflow).
 
 on:
   push:
@@ -16,7 +17,7 @@ on:
   pull_request:
 
 concurrency:
-  group: vercel-parity-build-${{ github.ref }}
+  group: render-parity-build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -82,12 +83,12 @@ jobs:
     if: needs.detect-docs-only.outputs.docs_only == 'true'
     runs-on: ubuntu-22.04
     steps:
-      - name: Confirm docs-only Vercel parity skip
+      - name: Confirm docs-only Render parity skip
         run: |
           echo "Docs-only change set detected."
-          echo "Skipping Vercel Parity Build."
+          echo "Skipping Render Parity Build."
 
-  vercel-parity-build:
+  render-parity-build:
     needs: detect-docs-only
     if: needs.detect-docs-only.outputs.docs_only != 'true'
     runs-on: ubuntu-22.04
@@ -117,9 +118,12 @@ jobs:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
           DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
 
-      - name: Run exact Vercel web build
-        working-directory: apps/web
-        run: npm run build
+      # Matches craftmyfunnel-web's actual Render buildCommand exactly (see
+      # the Render service config: "npm install && npm run build:web") -
+      # `npm install` is already covered by the repo-root `npm ci` above,
+      # so only the build half needs to run here.
+      - name: Run exact Render web build
+        run: npm run build:web
         env:
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
           DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/dummy"
@@ -127,9 +131,9 @@ jobs:
           NEXTAUTH_SECRET: "ci-parity-secret-not-real"
           NEXTAUTH_URL: "http://localhost:3000"
 
-  vercel-parity-gate:
-    name: Vercel Parity Gate
-    needs: [detect-docs-only, docs-only-validation, vercel-parity-build]
+  render-parity-gate:
+    name: Render Parity Gate
+    needs: [detect-docs-only, docs-only-validation, render-parity-build]
     runs-on: ubuntu-22.04
     if: always()
     steps:
@@ -141,9 +145,9 @@ jobs:
               exit 1
             fi
           else
-            if [ "${{ needs.vercel-parity-build.result }}" != "success" ]; then
-              echo "::error::Vercel Parity Build did not complete successfully."
+            if [ "${{ needs.render-parity-build.result }}" != "success" ]; then
+              echo "::error::Render Parity Build did not complete successfully."
               exit 1
             fi
           fi
-          echo "Vercel Parity Gate passed."
+          echo "Render Parity Gate passed."
