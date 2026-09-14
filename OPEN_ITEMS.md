@@ -4109,6 +4109,68 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
+- **OPEN-234 (not yet fixed):** Resend reply-capture fields
+  (`inboundDomain`, `webhookSecret`) were only collectible from
+  Settings → Mailboxes, not from the onboarding wizard
+  (`apps/web/src/app/setup/page.tsx`) — `apps/web/src/app/api/
+  integrations/resend/connect/route.ts` has accepted both fields
+  since the Resend domain-verification work (PR #506), and
+  `apps/web/src/app/(dashboard)/settings/mailboxes/page.tsx` already
+  had working UI for them, but the wizard's `RESEND` provider form
+  only collected `apiKey`/`fromName`/`email` and its own copy
+  explicitly said reply detection is "configured later in Settings →
+  Mailboxes" — accurate, but meant every team finishing onboarding via
+  Resend had zero reply-driven lead-stage transitions
+  (`advanceLeadAfterReply` in the webhook handler) until a second,
+  undiscoverable trip to Settings. **Fixed this session**: added a
+  collapsible "Reply capture (optional, advanced)" section to the
+  wizard's Resend step, mirroring the Settings page's copy/fields
+  exactly, wired `resendInboundDomain`/`resendWebhookSecret` into the
+  existing `resendPayload` sent to `/integrations/resend/connect`.
+  `tsc --noEmit` clean.
+- **OPEN-235 (Fixed):** `CrmIntegration.syncSettings`
+  (`Json? // { "autoSync": true, "syncOnWon": true }`,
+  `apps/api/prisma/schema.prisma:1273`) is accepted and persisted by
+  `apps/api/routes/settings/crm/route.ts`'s PUT handler, but has zero
+  read-sites anywhere else in the codebase and no UI actually sets a
+  real value: the mounted page
+  (`apps/web/src/modules/crm-integration/ui/CRMSettingsPage.tsx`,
+  routed at `/settings/crm`) renders "Sync Rules" toggles
+  (`SyncToggle`) that are uncontrolled (`defaultChecked` only, no
+  `onChange`/state) and `handleSave()` never includes `syncSettings`
+  in its PUT body at all — a second, unrouted component
+  (`CrmSettings.tsx`) explicitly sends `syncSettings: undefined`.
+  Impact: the CRM sync-behavior toggles a user sees (auto-sync new
+  leads, sync-on-won, etc.) are purely decorative — there is no path
+  for any team to actually configure or persist CRM sync behavior.
+  Found via an unwired-features audit triggered by OPEN-234.
+  **Fixed**: `syncSettings` is now controlled state
+  (`{ autoSync, syncSentiment, syncOnWon }`), loaded from the saved
+  integration on fetch and included in `handleSave()`'s PUT body. The
+  unrouted `CrmSettings.tsx` twin was left as-is (dead code, not
+  reachable from any route). `tsc --noEmit`/lint clean.
+- **OPEN-236 (Fixed):** `ConnectedMailbox.assignedUserId`
+  can be set via `apps/api/routes/mailboxes/route.ts` PATCH →
+  `updateMailboxControls()` (one of 7 `MAILBOX_PATCHABLE_FIELDS`,
+  with a team-membership check when set) and is read by
+  `selectMailboxForSend()` to prefer a rep-assigned mailbox for that
+  rep's sends — but `apps/web/src/app/(dashboard)/settings/
+  mailboxes/page.tsx`'s edit form only reads/writes `dailyLimit`,
+  `minDelaySeconds`, and `isWarmingUp`; there is no input, dropdown,
+  or team-member picker for `assignedUserId` anywhere in the file.
+  Impact: `assignedUserId` is only ever set automatically at
+  OAuth-connect time (the connecting user) and can never be
+  reassigned from any UI — if that rep leaves the team or a manager
+  wants to reassign a mailbox to a different rep for
+  send-attribution/rotation, the only workaround is disconnecting and
+  having the new owner reconnect it from scratch. Found via the same
+  audit as OPEN-235. **Fixed**: the mailbox edit modal now has an
+  "Assigned Rep" dropdown (populated from the existing
+  `/team/members` endpoint), wired into the existing PATCH call
+  (`null` for "Unassigned"). No backend changes needed —
+  `updateMailboxControls`/`listConnectedMailboxes` already fully
+  supported the field. `tsc --noEmit`/lint clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

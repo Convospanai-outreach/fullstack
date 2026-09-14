@@ -169,6 +169,8 @@ export default function SetupWizardPage() {
           resendApiKey: "",
           resendFromName: data.teamName || "",
           resendEmail: "",
+          resendInboundDomain: "",
+          resendWebhookSecret: "",
         },
         step5: {
           tone: data.aiConfig?.tone || "Professional",
@@ -250,6 +252,8 @@ export default function SetupWizardPage() {
             apiKey: formData.step3?.resendApiKey,
             fromName: formData.step3?.resendFromName,
             email: formData.step3?.resendEmail,
+            inboundDomain: formData.step3?.resendInboundDomain || undefined,
+            webhookSecret: formData.step3?.resendWebhookSecret || undefined,
           };
 
           const res = await fetch(`${apiBase}/integrations/resend/connect`, {
@@ -524,6 +528,7 @@ function MailboxProviderStep(props: {
   saving: boolean;
 }) {
   const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
+  const [showReplyCapture, setShowReplyCapture] = useState(false);
   const provider = props.formData.step3?.provider || "SMTP";
   const setProvider = (next: string) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, provider: next } });
   const setStep3 = (patch: Record<string, any>) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, ...patch } });
@@ -651,6 +656,48 @@ function MailboxProviderStep(props: {
                       }}
                     />
                   </Field>
+                </div>
+
+                <div className="mt-4 border-t border-white/10 pt-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowReplyCapture((v) => !v)}
+                    className="flex w-full items-center justify-between text-left text-xs font-semibold text-cyan-300 hover:text-cyan-200"
+                  >
+                    <span>Reply capture (optional, advanced)</span>
+                    <span>{showReplyCapture ? "▲" : "▼"}</span>
+                  </button>
+                  {showReplyCapture && (
+                    <div className="mt-3 space-y-3 rounded-lg border border-white/10 bg-slate-900/40 p-3">
+                      <p className="text-[11px] leading-relaxed text-slate-400">
+                        Resend doesn't have an inbox, so detecting a prospect's reply requires your own dedicated
+                        receiving domain. In your own Resend dashboard: (1) verify a subdomain you control for
+                        receiving (e.g. reply.yourdomain.com) and add the MX record Resend gives you - never reuse a
+                        domain you also send real mail from; (2) create a webhook for the email.received event
+                        pointed at {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/resend;
+                        (3) paste that webhook's signing secret below. You can skip this now and set it up later in
+                        Settings → Mailboxes - until both fields are filled in, replies won't be detected.
+                      </p>
+                      <Field label="Your verified inbound domain">
+                        <input
+                          type="text"
+                          placeholder="reply.yourdomain.com"
+                          className={inputClass}
+                          value={props.formData.step3?.resendInboundDomain || ""}
+                          onChange={(event) => setStep3({ resendInboundDomain: event.target.value })}
+                        />
+                      </Field>
+                      <Field label="Your webhook signing secret">
+                        <input
+                          type="password"
+                          placeholder="whsec_xxxxxxxxxxxx"
+                          className={inputClass}
+                          value={props.formData.step3?.resendWebhookSecret || ""}
+                          onChange={(event) => setStep3({ resendWebhookSecret: event.target.value })}
+                        />
+                      </Field>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

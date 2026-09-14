@@ -22,6 +22,7 @@ interface ConnectedMailbox {
     minDelaySeconds?: number;
     lastSentAt: string | null;
     isWarmingUp: boolean;
+    assignedUserId?: string | null;
     warmupDay?: number;
     warmupTargetDays?: number;
     bounceCount?: number;
@@ -48,7 +49,9 @@ export default function MailboxesSettingsPage() {
     const [editDisplayName, setEditDisplayName] = useState("");
     const [editWarmingUp, setEditWarmingUp] = useState(true);
     const [editStatus, setEditStatus] = useState("CONNECTED");
+    const [editAssignedUserId, setEditAssignedUserId] = useState("");
     const [savingControls, setSavingControls] = useState(false);
+    const [teamMembers, setTeamMembers] = useState<{ userId: string; email: string | null; name: string | null }[]>([]);
 
     // Custom SMTP Modal State
     const [showSmtpModal, setShowSmtpModal] = useState(false);
@@ -101,6 +104,7 @@ export default function MailboxesSettingsPage() {
             window.history.replaceState({}, "", "/settings/mailboxes");
         }
         loadMailboxes();
+        loadTeamMembers();
     }, []);
 
     const loadMailboxes = async () => {
@@ -113,6 +117,26 @@ export default function MailboxesSettingsPage() {
             setError("Failed to load connected mailboxes.");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const loadTeamMembers = async () => {
+        try {
+            const res = await fetch(getBrowserApiUrl("/team/members"));
+            const data = await res.json();
+            if (data.success) {
+                setTeamMembers(
+                    (data.data || [])
+                        .filter((member: any) => member.userId)
+                        .map((member: any) => ({
+                            userId: member.userId as string,
+                            email: member.email as string | null,
+                            name: member.user?.name || null,
+                        }))
+                );
+            }
+        } catch {
+            // Non-fatal — the "Assigned rep" picker just falls back to "Unassigned only".
         }
     };
 
@@ -278,6 +302,7 @@ export default function MailboxesSettingsPage() {
         setEditDisplayName(mb.displayName || "");
         setEditWarmingUp(mb.isWarmingUp);
         setEditStatus(mb.status);
+        setEditAssignedUserId(mb.assignedUserId || "");
     };
 
     const handleSaveControls = async (e: React.FormEvent) => {
@@ -295,6 +320,7 @@ export default function MailboxesSettingsPage() {
                     displayName: editDisplayName || null,
                     isWarmingUp: editWarmingUp,
                     status: editStatus,
+                    assignedUserId: editAssignedUserId || null,
                 }),
             });
             const data = await res.json();
@@ -625,6 +651,25 @@ export default function MailboxesSettingsPage() {
                                     <option value="CONNECTED">CONNECTED — Active Sending</option>
                                     <option value="PAUSED">PAUSED — Pause Outreach</option>
                                 </select>
+                            </div>
+
+                            <div className="space-y-2 pt-2 border-t border-border">
+                                <label className="block text-muted-foreground text-xs">Assigned Rep</label>
+                                <select
+                                    value={editAssignedUserId}
+                                    onChange={(e) => setEditAssignedUserId(e.target.value)}
+                                    className="w-full bg-muted border border-border rounded-lg p-2.5 text-foreground"
+                                >
+                                    <option value="">Unassigned — available to any campaign sender rotation</option>
+                                    {teamMembers.map((member) => (
+                                        <option key={member.userId} value={member.userId}>
+                                            {member.name || member.email || member.userId}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-[10px] text-muted-foreground">
+                                    When assigned, campaign sends prefer this mailbox for the assigned rep's own outreach.
+                                </p>
                             </div>
 
                             <div className="flex items-center gap-2 pt-2">
