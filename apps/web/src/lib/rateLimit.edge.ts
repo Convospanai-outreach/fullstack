@@ -41,6 +41,14 @@ export const RATE_LIMITS = {
     windowMs: 60 * 1000,
     maxRequests: 60,
   },
+  // NextAuth's own OAuth round-trip (csrf -> signin -> callback) is at least
+  // 3 requests per sign-in, and this app has no password provider for the
+  // strict AUTH bucket to protect against credential-guessing on these
+  // specific paths - so they get the same generous treatment as SESSION_CHECK.
+  OAUTH_FLOW: {
+    windowMs: 60 * 1000,
+    maxRequests: 60,
+  },
   AUTHENTICATED: {
     windowMs: 60 * 1000,
     maxRequests: 1000,
