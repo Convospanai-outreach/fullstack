@@ -160,6 +160,10 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
   try {
     const publicPaths = [
       "/webhooks",
+      // Alias of /webhooks/netjana-intel: Netjana's own implementation calls the
+      // /api-prefixed path, which the "/webhooks" prefix match above doesn't cover.
+      // The webhook's own authorizeApiKey() check is the real auth boundary here.
+      "/api/webhooks/netjana-intel",
       "/auth",
       "/register",
       "/health",
