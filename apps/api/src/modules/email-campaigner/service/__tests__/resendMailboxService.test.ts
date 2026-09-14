@@ -164,6 +164,25 @@ describe("sendViaResendMailbox", () => {
         expect((result as any).error).toMatch(/try again/i);
     });
 
+    it.each(["daily_quota_exceeded", "application_error"])(
+        "marks a %s rejection as retryable, matching apps/web's ResendProvider classification",
+        async (errorName) => {
+            mockResendSend.mockResolvedValue({ data: null, error: { name: errorName, statusCode: 500, message: "x" } });
+
+            const result = await sendViaResendMailbox({
+                teamId: "team-1",
+                mailboxId: "resend-mailbox-1",
+                to: "lead@example.test",
+                subject: "Subject",
+                html: "<p>Body</p>",
+                trackingId: "track-1",
+            });
+
+            expect(result.success).toBe(false);
+            expect((result as any).error).toMatch(/try again/i);
+        }
+    );
+
     it("marks a validation rejection as permanent, not retryable", async () => {
         mockResendSend.mockResolvedValue({ data: null, error: { name: "validation_error", statusCode: 422, message: "Invalid `to` field" } });
 
@@ -180,7 +199,7 @@ describe("sendViaResendMailbox", () => {
         expect((result as any).error).not.toMatch(/try again|rate limit|temporar/i);
     });
 
-    it("marks a thrown network/transport error as retryable", async () => {
+    it("marks a thrown network/transport error as retryable but NOT fallback-allowed (Resend may have already sent it)", async () => {
         mockResendSend.mockRejectedValue(new Error("ETIMEDOUT"));
 
         const result = await sendViaResendMailbox({
@@ -194,6 +213,9 @@ describe("sendViaResendMailbox", () => {
 
         expect(result.success).toBe(false);
         expect((result as any).error).toMatch(/try again/i);
+        // Must be false: an SMTP fallback in the same call has no idempotency
+        // protection and would risk a real duplicate send.
+        expect((result as any).fallbackAllowed).toBe(false);
     });
 
     it("fails pre-dispatch without a send attempt when the mailbox's send-slot reservation is denied", async () => {

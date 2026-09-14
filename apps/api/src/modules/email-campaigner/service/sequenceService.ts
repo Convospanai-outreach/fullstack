@@ -8,6 +8,11 @@ import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 
 const RUN_DUE_STATUSES = ["SCHEDULED", "RETRY_SCHEDULED"];
+// Email retries are spaced 1h apart (see failRun). Resend's send-level idempotency
+// key only dedupes for 24h, so retrying past that window on the same key risks a
+// genuine duplicate send if an earlier attempt actually reached Resend. Capped
+// well under 24 attempts to leave margin for scheduling/processing drift.
+const MAX_EMAIL_SEND_ATTEMPTS = 20;
 const RUN_SUCCESS_STATUSES = ["SENT", "COMPLETED", "AWAITING_MANUAL_REVIEW", "SKIPPED_CONDITION"];
 const STOP_LEAD_STATUSES = new Set(["replied", "bounced", "unsubscribed", "do_not_contact", "meeting_booked"]);
 const STOP_PIPELINE_STATES = new Set(["MEETING_BOOKED", "MEETING_CONFIRMED", "BOUNCED", "UNSUBSCRIBED"]);
@@ -414,8 +419,12 @@ export class SequenceService {
         });
 
         if (!result.success) {
-            const retryable = this.isRetryableEmailError(result.error);
-            await this.failRun(run.id, retryable ? "EMAIL_RETRYABLE" : "EMAIL_SEND_FAILED", result.error || "Email send failed.", retryable, now);
+            // Once attempts have exhausted the idempotency-safe window, stop retrying even
+            // if the error itself looks transient - retrying further risks a genuine
+            // duplicate send against the same (now stale) idempotency key.
+            const retryable = this.isRetryableEmailError(result.error) && (run.attemptCount ?? 0) < MAX_EMAIL_SEND_ATTEMPTS;
+            const errorCode = retryable ? "EMAIL_RETRYABLE" : this.isRetryableEmailError(result.error) ? "EMAIL_RETRY_LIMIT_EXCEEDED" : "EMAIL_SEND_FAILED";
+            await this.failRun(run.id, errorCode, result.error || "Email send failed.", retryable, now);
             return { runId: run.id, status: retryable ? "RETRY_SCHEDULED" : "FAILED" };
         }
 

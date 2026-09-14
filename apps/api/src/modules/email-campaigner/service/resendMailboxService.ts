@@ -18,7 +18,14 @@ export type ResendSendOutcome =
 // backoff. Everything else (validation_error, invalid_api_key, invalid_parameter, etc.)
 // is a permanent rejection that will fail again identically on retry. sequenceService's
 // isRetryableEmailError() pattern-matches this exact wording on the returned error string.
-const RETRYABLE_RESEND_ERROR_CODES = new Set(["rate_limit_exceeded", "internal_server_error"]);
+// Matches apps/web's ResendProvider.ts classification exactly (RATE_LIMITED:
+// rate_limit_exceeded/daily_quota_exceeded, TRANSIENT: application_error/internal_server_error).
+const RETRYABLE_RESEND_ERROR_CODES = new Set([
+    "rate_limit_exceeded",
+    "daily_quota_exceeded",
+    "application_error",
+    "internal_server_error",
+]);
 
 function resendErrorToMessage(errorName: string | undefined): string {
     if (errorName && RETRYABLE_RESEND_ERROR_CODES.has(errorName)) {
@@ -99,9 +106,15 @@ export async function sendViaResendMailbox(input: {
         }
         return { success: true, deliveryProvider: "RESEND", messageId: data.id, mailboxId: mailbox.id };
     } catch {
-        // A thrown exception here is a network/transport failure (timeout, DNS,
-        // TLS) rather than a Resend-returned rejection - always transient.
+        // A thrown exception here is a network/transport failure (timeout, DNS, TLS)
+        // during the actual HTTP call to Resend - unlike a Resend-returned `error`
+        // (whose API contract guarantees the send was rejected, never dispatched),
+        // we genuinely don't know whether Resend received and processed the request
+        // before the response was lost. fallbackAllowed MUST be false here: falling
+        // through to an immediate SMTP send would risk a real duplicate with zero
+        // idempotency protection (that only covers retries against Resend itself).
+        // The caller's own retry (same idempotencyKey) is the safe way to recover.
         await releaseMailboxSend(input.teamId, mailbox.id);
-        return { success: false, error: "RESEND_SEND_FAILED: network error, try again", fallbackAllowed: true };
+        return { success: false, error: "RESEND_SEND_FAILED: network error, try again", fallbackAllowed: false };
     }
 }
