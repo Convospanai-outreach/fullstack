@@ -34,6 +34,13 @@ export const authOptions: NextAuthOptions = {
         GoogleProvider({
             clientId: process.env["GOOGLE_CLIENT_ID"]!,
             clientSecret: process.env["GOOGLE_CLIENT_SECRET"]!,
+            // NextAuth's callback handler independently re-checks for a linked
+            // Account row and throws OAuthAccountNotLinked before ever consulting
+            // the signIn callback's manual `user.id` override below - this is what
+            // blocked every pre-Google-era (former Clerk) user from signing back
+            // in. Safe here: Google is the sole provider and the signIn callback
+            // already gates on email_verified before any linking happens.
+            allowDangerousEmailAccountLinking: true,
         }),
     ],
     callbacks: {
