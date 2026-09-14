@@ -156,7 +156,7 @@ export default function SetupWizardPage() {
           guidelinesUrl: data.branding?.guidelinesUrl || "",
         },
         step3: {
-          provider: "GOOGLE",
+          provider: "SMTP",
           host: data.aiConfig?.smtpConfig?.host || "smtp.gmail.com",
           port: data.aiConfig?.smtpConfig?.port || 587,
           secure: data.aiConfig?.smtpConfig?.secure || false,
@@ -492,10 +492,10 @@ export default function SetupWizardPage() {
 }
 
 const MAILBOX_PROVIDERS = [
-  { id: "GOOGLE", label: "Google Workspace" },
-  { id: "MICROSOFT", label: "Microsoft 365" },
-  { id: "SMTP", label: "SMTP" },
-  { id: "RESEND", label: "Resend" },
+  { id: "GOOGLE", label: "Google Workspace", comingSoon: true },
+  { id: "MICROSOFT", label: "Microsoft 365", comingSoon: true },
+  { id: "SMTP", label: "SMTP", comingSoon: false },
+  { id: "RESEND", label: "Resend", comingSoon: false },
 ] as const;
 
 function MailboxProviderStep(props: {
@@ -514,7 +514,7 @@ function MailboxProviderStep(props: {
   saving: boolean;
 }) {
   const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
-  const provider = props.formData.step3?.provider || "GOOGLE";
+  const provider = props.formData.step3?.provider || "SMTP";
   const setProvider = (next: string) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, provider: next } });
   const setStep3 = (patch: Record<string, any>) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, ...patch } });
 
@@ -567,40 +567,31 @@ function MailboxProviderStep(props: {
 
         <section className={panelClass}>
           <h3 className="text-xl font-semibold text-white">Choose a sending provider</h3>
-          <p className="mt-1 text-sm text-slate-400">Google and Microsoft connect via OAuth immediately. SMTP and Resend save when you click Continue below.</p>
+          <p className="mt-1 text-sm text-slate-400">SMTP and Resend save when you click Continue below. Google Workspace and Microsoft 365 are coming soon.</p>
 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {MAILBOX_PROVIDERS.map((p) => (
               <button
                 key={p.id}
                 type="button"
+                disabled={p.comingSoon}
                 onClick={() => setProvider(p.id)}
-                className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${provider === p.id ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100" : "border-white/10 text-slate-300 hover:bg-white/5"}`}
+                title={p.comingSoon ? "Coming soon" : undefined}
+                className={`rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
+                  p.comingSoon
+                    ? "cursor-not-allowed border-white/5 text-slate-600"
+                    : provider === p.id
+                      ? "border-cyan-400/60 bg-cyan-400/10 text-cyan-100"
+                      : "border-white/10 text-slate-300 hover:bg-white/5"
+                }`}
               >
                 {p.label}
+                {p.comingSoon ? <span className="ml-1.5 rounded-full bg-white/5 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">Soon</span> : null}
               </button>
             ))}
           </div>
 
           <div className="mt-5">
-            {provider === "GOOGLE" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">OAuth for Google Workspace sending, native reply detection, bounce tracking, and warmup controls.</p>
-                <button type="button" onClick={props.onConnectGoogle} disabled={props.saving} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
-                  <Mail className="h-4 w-4" /> Connect Google
-                </button>
-              </div>
-            )}
-
-            {provider === "MICROSOFT" && (
-              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
-                <p className="text-sm text-slate-400">OAuth for Microsoft 365 / Outlook sending via Microsoft Graph, with native reply detection.</p>
-                <button type="button" onClick={props.onConnectMicrosoft} disabled={props.saving} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-slate-200">
-                  <Mail className="h-4 w-4" /> Connect Microsoft 365
-                </button>
-              </div>
-            )}
-
             {provider === "SMTP" && (
               <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
                 <p className="text-sm text-slate-400">Any SMTP-capable mail server. Reply detection relies on IMAP polling rather than a native inbox webhook.</p>
