@@ -83,4 +83,41 @@ describe("SequenceService.executeRun - email step sends through the run's assign
             expect.objectContaining({ mailboxId: undefined }),
         );
     });
+
+    it("passes a stable per-run idempotency key derived from the run id", async () => {
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(baseRun());
+
+        await SequenceService.executeRun({ runId: "run-1", teamId: "team-1" });
+
+        expect(emailService.sendEmail).toHaveBeenCalledWith(
+            "lead@example.test",
+            "Hi",
+            "Following up",
+            expect.objectContaining({ idempotencyKey: "sequence_step_run_run-1_send" }),
+        );
+    });
+
+    it("keeps retrying a transient send failure while under the attempt cap", async () => {
+        (emailService.sendEmail as any).mockResolvedValue({ success: false, error: "RESEND_SEND_FAILED: temporary Resend error (rate_limit_exceeded), try again" });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(baseRun({ attemptCount: 5 }));
+
+        const result = await SequenceService.executeRun({ runId: "run-1", teamId: "team-1" });
+
+        expect(result.status).toBe("RETRY_SCHEDULED");
+        expect(mockDb.sequenceStepRun.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "RETRY_SCHEDULED" }) }),
+        );
+    });
+
+    it("stops retrying a transient send failure once attempts exhaust Resend's 24h idempotency window", async () => {
+        (emailService.sendEmail as any).mockResolvedValue({ success: false, error: "RESEND_SEND_FAILED: temporary Resend error (rate_limit_exceeded), try again" });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(baseRun({ attemptCount: 20 }));
+
+        const result = await SequenceService.executeRun({ runId: "run-1", teamId: "team-1" });
+
+        expect(result.status).toBe("FAILED");
+        expect(mockDb.sequenceStepRun.update).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ status: "FAILED", errorCode: "EMAIL_RETRY_LIMIT_EXCEEDED" }) }),
+        );
+    });
 });

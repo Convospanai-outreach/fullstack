@@ -178,6 +178,8 @@ class EmailService {
             fromEmail?: string;
             variantId?: string;
             mailboxId?: string;
+            // Stable across retries of the same logical send (see resendMailboxService.ts).
+            idempotencyKey?: string;
         }
     ): Promise<EmailSendResult> {
         const teamId = metadata?.teamId;
@@ -248,6 +250,7 @@ class EmailService {
                         trackingId,
                         unsubscribeUrl,
                         attachments,
+                        idempotencyKey: metadata?.idempotencyKey,
                     });
                 } else if (mailbox) {
                     gmailOutcome = await sendViaGmailMailbox({
