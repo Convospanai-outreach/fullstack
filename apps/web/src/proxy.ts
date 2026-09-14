@@ -156,6 +156,16 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
     const authApiPrefixes = ["/api/auth", "/api/proxy/auth"];
     // Read-only session checks, not sign-in attempts — see RATE_LIMITS.SESSION_CHECK.
     const sessionCheckApiPaths = ["/api/auth/session", "/api/auth/clerk-sync"];
+    // NextAuth's own OAuth round-trip (csrf -> signin -> callback, at least 3
+    // requests per sign-in) - see RATE_LIMITS.OAUTH_FLOW.
+    const oauthFlowApiPrefixes = [
+        "/api/auth/csrf",
+        "/api/auth/providers",
+        "/api/auth/signin",
+        "/api/auth/callback",
+        "/api/auth/signout",
+        "/api/auth/error",
+    ];
     const webhookApiPrefixes = ["/api/webhooks", "/api/proxy/webhooks"];
     // Extension routes enforce their own x-extension-key + Bearer check (validateExtensionAuth), not a Clerk cookie.
     const extensionApiPrefixes = ["/api/extension"];
@@ -234,27 +244,32 @@ async function appProxy(req: NextRequest, clerkAuth?: any) {
         if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
         }
-        // 2. Authentication endpoints (strictest)
+        // 2. NextAuth's own OAuth round-trip endpoints - not brute-forceable
+        // credential endpoints, so they don't belong in the strict AUTH bucket.
+        else if (oauthFlowApiPrefixes.some((prefix) => path.startsWith(prefix))) {
+            rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.OAUTH_FLOW, 'oauth-flow', userId);
+        }
+        // 3. Authentication endpoints (strictest)
         else if (authApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTH, 'auth', userId);
         }
-        // 3. Webhook endpoints
+        // 4. Webhook endpoints
         else if (webhookApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.WEBHOOK, 'webhook', userId);
         }
-        // 4. Error logging endpoint
+        // 5. Error logging endpoint
         else if (clientErrorLogPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ERROR_LOGGING, 'error-logging', userId);
         }
-        // 5. Admin endpoints (high limit, but tracked)
+        // 6. Admin endpoints (high limit, but tracked)
         else if (adminApiPrefixes.some((prefix) => path.startsWith(prefix))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.ADMIN, 'admin', userId);
         }
-        // 6. Authenticated endpoints (requires valid token)
+        // 7. Authenticated endpoints (requires valid token)
         else if (userId) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.AUTHENTICATED, 'authenticated', userId);
         }
-        // 7. Public endpoints (per IP)
+        // 8. Public endpoints (per IP)
         else {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.PUBLIC, 'public', userId);
         }
