@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useClerk } from "@clerk/nextjs";
+import { signIn } from "next-auth/react";
 import { LogoMark } from "@/components/brand/LogoMark";
 
 function waitFor<T>(predicate: () => T | undefined | null, timeoutMs = 15000): Promise<T> {
@@ -82,7 +83,18 @@ function LoginForm() {
         })();
     }, []);
 
-    return <div id="clerk-sign-in-root" ref={mountRef} />;
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={() => signIn("google", { callbackUrl: getRedirectUrl() })}
+                className="mb-5 flex w-full items-center justify-center gap-2 rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-slate-200"
+            >
+                Continue with Google
+            </button>
+            <div id="clerk-sign-in-root" ref={mountRef} />
+        </div>
+    );
 }
 
 function InviteRequiredNotice() {

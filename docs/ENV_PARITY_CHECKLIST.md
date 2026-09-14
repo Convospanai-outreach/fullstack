@@ -19,6 +19,8 @@ Use this file to keep Local, GitHub Actions, Railway/Vercel, Supabase, Clerk, Re
 | `NEXTAUTH_URL` | B | Required if NextAuth path is active. |
 | `CLERK_SECRET_KEY` | B | Required if Clerk path is active. |
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | B | Required if Clerk path is active. |
+| `GOOGLE_CLIENT_ID` | B | Google OAuth client ID for NextAuth's "Continue with Google" sign-in (invite-gated, runs alongside Clerk). |
+| `GOOGLE_CLIENT_SECRET` | B | Google OAuth client secret, same client as above. |
 
 ## Database
 
