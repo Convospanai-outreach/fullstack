@@ -4,11 +4,14 @@ import { cookies } from "next/headers";
 import { getServerSession } from "next-auth";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { NextAuthOptions } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 import type { JWT } from "next-auth/jwt";
 
 import { redirect } from "next/navigation";
 import { UserRole } from "@/types/prisma-safe";
 import { findOrCreateClerkAppUser } from "@/lib/clerkAuth";
+import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
+import { syncGoogleUserToApp } from "@/lib/googleOnboarding";
 
 const DEFAULT_PLAN = "free";
 const DEFAULT_PRODUCT_MODE = "ENTERPRISE_CORE";
@@ -25,12 +28,65 @@ function applyDefaultClaims(token: JWT) {
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma as any),
-    // Clerk is the primary signup/sign-in provider. NextAuth is retained for
-    // legacy JWT/session compatibility only, so it intentionally exposes no
-    // direct OAuth or password providers.
-    providers: [],
+    // Clerk remains the primary signup/sign-in provider for now. Google is a
+    // second, fully-working invite-gated sign-in path running alongside it
+    // (see docs on the Clerk -> Google OAuth migration) - Clerk is removed
+    // in a follow-up pass once this is verified in production.
+    providers: [
+        GoogleProvider({
+            clientId: process.env["GOOGLE_CLIENT_ID"]!,
+            clientSecret: process.env["GOOGLE_CLIENT_SECRET"]!,
+        }),
+    ],
     callbacks: {
-        signIn: async ({ user }) => {
+        signIn: async ({ user, account, profile }) => {
+            if (account?.provider === "google") {
+                // Only trust addresses Google has actually verified - mirrors the
+                // same rule clerkAuth.ts applies to Clerk-verified emails.
+                const googleProfile = profile as { email_verified?: boolean; name?: string } | undefined;
+                if (!user.email || googleProfile?.email_verified !== true) {
+                    return false;
+                }
+
+                const email = user.email.toLowerCase();
+
+                const existingUser = await prisma.user.findUnique({
+                    where: { email },
+                    select: { id: true }
+                });
+
+                if (existingUser) {
+                    if (await isSsoEnforcedForEmail(email)) {
+                        return "/login?invite=required";
+                    }
+                    // Pre-setting user.id makes NextAuth's adapter skip createUser()
+                    // and go straight to linkAccount(), attaching this Google account
+                    // to the existing row instead of creating a duplicate user - this
+                    // is what lets existing Clerk-era users sign in with Google with
+                    // no migration step.
+                    (user as { id?: string }).id = existingUser.id;
+                    return true;
+                }
+
+                // Carries the invite token from the signup page's short-lived
+                // cookie - see (marketing)/signup/page.tsx.
+                const cookieStore = await cookies();
+                const inviteToken = cookieStore.get("cmf-invite-token")?.value;
+
+                const createdUser = await syncGoogleUserToApp({
+                    email,
+                    name: googleProfile?.name || user.name || null,
+                    inviteToken,
+                });
+
+                if (!createdUser) {
+                    return "/login?invite=required";
+                }
+
+                (user as { id?: string }).id = createdUser.id;
+                return true;
+            }
+
             if (!user.email) {
                 return false;
             }

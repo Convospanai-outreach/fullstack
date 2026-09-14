@@ -24,11 +24,11 @@ const checks = [
     test: (text) => text.includes("status: 410") && text.includes("Password signup is disabled"),
   },
   {
-    name: "NextAuth has no direct providers by design",
+    name: "NextAuth exposes only the Google provider alongside Clerk",
     file: "apps/web/src/lib/auth.ts",
     test: (text) =>
-      text.includes("Clerk is the primary signup/sign-in provider") &&
-      /providers:\s*\[\]/.test(text),
+      text.includes("Clerk remains the primary signup/sign-in provider") &&
+      text.includes("GoogleProvider("),
   },
 ];
 
@@ -52,8 +52,8 @@ if (failures.length) {
   console.error("Web auth mode guard failed:");
   for (const failure of failures) console.error(`- ${failure}`);
   console.error("");
-  console.error("Expected mode: Clerk handles signup/sign-in; Postgres stores synced app users; NextAuth is legacy session fallback only.");
+  console.error("Expected mode: Clerk handles signup/sign-in; Google OAuth (invite-gated) runs alongside it via NextAuth; password signup is disabled.");
   process.exit(1);
 }
 
-console.log("Web auth mode guard passed: Clerk-first auth is explicit and password signup is disabled.");
+console.log("Web auth mode guard passed: Clerk + Google dual-mode auth is explicit and password signup is disabled.");
