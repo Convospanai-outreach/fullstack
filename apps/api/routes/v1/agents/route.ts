@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
     if (!authResult.ok) return authResult.response;
 
     const agents = await prisma.agent.findMany({
+        where: { teamId: authResult.context.teamId },
         orderBy: { name: 'asc' }
     });
 
@@ -26,6 +27,7 @@ export async function POST(req: NextRequest) {
 
         const agent = await prisma.agent.create({
             data: {
+                teamId: authResult.context.teamId,
                 name: body.name,
                 description: body.description,
                 status: "idle"

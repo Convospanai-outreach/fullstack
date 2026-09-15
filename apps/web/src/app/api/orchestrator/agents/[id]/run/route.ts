@@ -23,14 +23,20 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
         return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    // Atomic claim: only proceed if this agent wasn't already running. Without this guard, a
-    // double-click or client retry would unconditionally flip status and enqueue a second
-    // agent_run job for the same agent while the first is still in flight.
+    // Atomic claim: only proceed if this agent belongs to the caller's team and wasn't already
+    // running. Without the teamId check, a caller could claim/run another team's agent by
+    // guessing its id; without the status check, a double-click or client retry would
+    // unconditionally flip status and enqueue a second agent_run job while the first is still
+    // in flight.
     const claim = await prisma.agent.updateMany({
-        where: { id, status: { not: "running" } },
+        where: { id, teamId, status: { not: "running" } },
         data: { status: "running" },
     });
     if (claim.count === 0) {
+        const owned = await prisma.agent.findFirst({ where: { id, teamId }, select: { id: true } });
+        if (!owned) {
+            return NextResponse.json({ error: "Agent not found" }, { status: 404 });
+        }
         return NextResponse.json({ error: "Agent is already running." }, { status: 409 });
     }
     await prisma.activity.create({
