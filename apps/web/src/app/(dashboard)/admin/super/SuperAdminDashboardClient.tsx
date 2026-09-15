@@ -682,7 +682,7 @@ export default function SuperAdminDashboardClient() {
               <div className="space-y-6">
                 <div className="grid gap-4 sm:grid-cols-4">
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
-                    <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Neon)</p>
+                    <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Supabase)</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" /> Operational
                     </p>
