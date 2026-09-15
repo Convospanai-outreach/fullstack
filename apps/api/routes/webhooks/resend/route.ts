@@ -7,6 +7,12 @@ import {
   advanceLeadAfterReply,
 } from "@/lib/crm/leadStageTransitions";
 
+// Moved here from apps/web (which sleeps on Render's free tier, delaying webhook
+// delivery/retries) so this always-on apps/api service receives Resend's webhooks
+// directly. See apps/web/src/app/(dashboard)/settings/mailboxes/page.tsx for the
+// webhook URL shown to users, and apps/web/src/app/setup/page.tsx for the other
+// reference to it.
+
 export const runtime = "nodejs";
 
 interface ResendWebhookEvent {
@@ -68,7 +74,7 @@ async function fetchReceivedEmailBody(mailbox: { encryptedAccessToken: unknown }
 
 /**
  * Every team brings its own Resend account, its own inbound-receiving domain, and its own
- * webhook signing secret (stored per-mailbox, see /api/integrations/resend/connect). This
+ * webhook signing secret (stored per-mailbox, see /integrations/resend/connect). This
  * endpoint is a single shared broker for all tenants, so it must identify which mailbox/team
  * an incoming event belongs to BEFORE it can know which secret to verify the signature against.
  */

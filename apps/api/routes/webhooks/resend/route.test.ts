@@ -31,14 +31,14 @@ vi.mock("resend", () => ({
 import { POST } from "./route";
 
 function request(body: unknown) {
-    return new Request("http://localhost/api/webhooks/resend", {
+    return new Request("http://localhost/webhooks/resend", {
         method: "POST",
         body: JSON.stringify(body),
         headers: { "svix-id": "msg-1", "svix-timestamp": "1", "svix-signature": "v1,sig" },
     }) as any;
 }
 
-describe("POST /api/webhooks/resend - email.opened idempotency", () => {
+describe("POST /webhooks/resend - email.opened idempotency", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockPrisma.email.findFirst.mockResolvedValue({
@@ -104,7 +104,7 @@ describe("POST /api/webhooks/resend - email.opened idempotency", () => {
     });
 });
 
-describe("POST /api/webhooks/resend - email.received creates a real Message row", () => {
+describe("POST /webhooks/resend - email.received creates a real Message row", () => {
     const receivedEvent = {
         type: "email.received",
         data: {

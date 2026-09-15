@@ -722,7 +722,7 @@ function MailboxProviderStep(props: {
                         receiving domain. In your own Resend dashboard: (1) verify a subdomain you control for
                         receiving (e.g. reply.yourdomain.com) and add the MX record Resend gives you - never reuse a
                         domain you also send real mail from; (2) create a webhook for the email.received event
-                        pointed at {typeof window !== "undefined" ? window.location.origin : ""}/api/webhooks/resend;
+                        pointed at {process.env["NEXT_PUBLIC_RUNTIME_API_URL"] || "https://api.craftmyfunnel.live"}/webhooks/resend;
                         (3) paste that webhook's signing secret below. You can skip this now and set it up later in
                         Settings → Mailboxes - until both fields are filled in, replies won't be detected.
                       </p>
