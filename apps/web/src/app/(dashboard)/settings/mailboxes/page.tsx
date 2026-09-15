@@ -11,6 +11,24 @@ interface ConnectedMailboxMetadata {
     lastSyncErrorAt?: string | null;
 }
 
+interface ResendDomainSummary {
+    domain: string;
+    status: "VERIFIED" | "MISSING" | "UNKNOWN";
+    lastCheckedAt: string | null;
+    failureReason: string | null;
+}
+
+interface ResendDomainCheckResult {
+    domain: string;
+    status: "VERIFIED" | "MISSING";
+    resendStatus: string;
+    checkedAt: string;
+    openTracking: boolean;
+    clickTracking: boolean;
+    records: Record<"mx" | "spf" | "dmarc" | "dkim", { status: "VERIFIED" | "MISSING"; host: string; values: string[]; type?: string }>;
+    missing: string[];
+}
+
 interface ConnectedMailbox {
     id: string;
     email: string;
@@ -80,6 +98,14 @@ export default function MailboxesSettingsPage() {
     const [resendTestResult, setResendTestResult] = useState("");
     const [resendSaving, setResendSaving] = useState(false);
 
+    // Sending Domains (Resend) State
+    const [resendDomains, setResendDomains] = useState<ResendDomainSummary[]>([]);
+    const [domainsLoading, setDomainsLoading] = useState(false);
+    const [newDomainInput, setNewDomainInput] = useState("");
+    const [domainActionBusy, setDomainActionBusy] = useState<string | null>(null);
+    const [domainCheckResults, setDomainCheckResults] = useState<Record<string, ResendDomainCheckResult>>({});
+    const [domainActionError, setDomainActionError] = useState("");
+
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -105,6 +131,7 @@ export default function MailboxesSettingsPage() {
         }
         loadMailboxes();
         loadTeamMembers();
+        loadResendDomains();
     }, []);
 
     const loadMailboxes = async () => {
@@ -137,6 +164,86 @@ export default function MailboxesSettingsPage() {
             }
         } catch {
             // Non-fatal — the "Assigned rep" picker just falls back to "Unassigned only".
+        }
+    };
+
+    const loadResendDomains = async () => {
+        setDomainsLoading(true);
+        try {
+            const res = await fetch(getBrowserApiUrl("/integrations/resend/domain-checks"));
+            const data = await res.json();
+            setResendDomains(data.domains || []);
+        } catch {
+            // Non-fatal — the Sending Domains panel just shows an empty list.
+        } finally {
+            setDomainsLoading(false);
+        }
+    };
+
+    const checkOrAddResendDomain = async (domain: string) => {
+        if (!domain.trim()) return;
+        setDomainActionError("");
+        setDomainActionBusy(domain);
+        try {
+            const res = await fetch(getBrowserApiUrl("/integrations/resend/domain-checks"), {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ domain }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Unable to check this domain with Resend.");
+            setDomainCheckResults((prev) => ({ ...prev, [data.result.domain]: data.result }));
+            setNewDomainInput("");
+            await loadResendDomains();
+        } catch (err: any) {
+            setDomainActionError(err?.message || "Unable to check this domain with Resend.");
+        } finally {
+            setDomainActionBusy(null);
+        }
+    };
+
+    const toggleResendDomainTracking = async (domain: string, patch: { openTracking?: boolean; clickTracking?: boolean }) => {
+        setDomainActionError("");
+        setDomainActionBusy(domain);
+        try {
+            const res = await fetch(getBrowserApiUrl("/integrations/resend/domain-checks"), {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ domain, ...patch }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Unable to update this domain's tracking settings.");
+            setDomainCheckResults((prev) => ({
+                ...prev,
+                [domain]: { ...prev[domain], ...data.result },
+            }));
+        } catch (err: any) {
+            setDomainActionError(err?.message || "Unable to update this domain's tracking settings.");
+        } finally {
+            setDomainActionBusy(null);
+        }
+    };
+
+    const removeResendDomain = async (domain: string) => {
+        if (!confirm(`Remove ${domain} from Resend? Mail can no longer be sent from this domain until it's re-added.`)) return;
+        setDomainActionError("");
+        setDomainActionBusy(domain);
+        try {
+            const res = await fetch(getBrowserApiUrl(`/integrations/resend/domain-checks?domain=${encodeURIComponent(domain)}`), {
+                method: "DELETE",
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Unable to remove this domain from Resend.");
+            setDomainCheckResults((prev) => {
+                const next = { ...prev };
+                delete next[domain];
+                return next;
+            });
+            await loadResendDomains();
+        } catch (err: any) {
+            setDomainActionError(err?.message || "Unable to remove this domain from Resend.");
+        } finally {
+            setDomainActionBusy(null);
         }
     };
 
@@ -592,6 +699,115 @@ export default function MailboxesSettingsPage() {
                         })}
                     </div>
                 )}
+
+                {/* Sending Domains (Resend) */}
+                <div className="mt-10">
+                    <div className="mb-4">
+                        <h2 className="text-xl font-bold text-foreground">Sending Domains (Resend)</h2>
+                        <p className="mt-1 text-muted-foreground text-sm">
+                            Register and verify domains you send from via Resend, and control per-domain open/click tracking. Requires a connected Resend mailbox.
+                        </p>
+                    </div>
+
+                    {domainActionError && (
+                        <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-destructive flex items-center justify-between">
+                            <span>{domainActionError}</span>
+                            <button onClick={() => setDomainActionError("")} className="text-destructive hover:underline">Dismiss</button>
+                        </div>
+                    )}
+
+                    <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="mail.yourdomain.com"
+                                value={newDomainInput}
+                                onChange={(e) => setNewDomainInput(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") checkOrAddResendDomain(newDomainInput); }}
+                                className="flex-1 bg-muted border border-border rounded-lg p-2 text-foreground text-sm"
+                            />
+                            <button
+                                onClick={() => checkOrAddResendDomain(newDomainInput)}
+                                disabled={!newDomainInput.trim() || domainActionBusy === newDomainInput}
+                                className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 px-4 py-2 rounded-lg text-white font-semibold text-xs shrink-0"
+                            >
+                                {domainActionBusy === newDomainInput ? "Checking…" : "Add / Check Domain"}
+                            </button>
+                        </div>
+
+                        {domainsLoading ? (
+                            <p className="text-muted-foreground text-xs">Loading domains…</p>
+                        ) : resendDomains.length === 0 ? (
+                            <p className="text-muted-foreground text-xs">No sending domains registered yet.</p>
+                        ) : (
+                            <div className="space-y-3 pt-2 border-t border-border">
+                                {resendDomains.map((d) => {
+                                    const full = domainCheckResults[d.domain];
+                                    const busy = domainActionBusy === d.domain;
+                                    return (
+                                        <div key={d.domain} className="rounded-xl border border-border p-3.5 space-y-2.5">
+                                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <p className="text-foreground font-semibold text-sm truncate">{d.domain}</p>
+                                                    {d.status === "VERIFIED" ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-success bg-emerald-500/10 border border-emerald-500/20">● Verified</span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold text-warning bg-amber-500/10 border border-amber-500/20">⚠ {d.status === "MISSING" ? "Missing records" : "Unknown"}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <button
+                                                        onClick={() => checkOrAddResendDomain(d.domain)}
+                                                        disabled={busy}
+                                                        className="px-3 py-1.5 rounded-lg bg-muted hover:bg-accent text-foreground text-xs font-semibold disabled:opacity-50"
+                                                    >
+                                                        {busy ? "Checking…" : "Re-check"}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removeResendDomain(d.domain)}
+                                                        disabled={busy}
+                                                        className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-destructive text-xs font-semibold disabled:opacity-50"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            {d.failureReason && d.status !== "VERIFIED" && (
+                                                <p className="text-[11px] text-muted-foreground">Missing: {d.failureReason}</p>
+                                            )}
+
+                                            {full && (
+                                                <div className="flex items-center gap-4 pt-2 border-t border-border text-xs">
+                                                    <label className="flex items-center gap-1.5 text-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={full.openTracking}
+                                                            disabled={busy}
+                                                            onChange={(e) => toggleResendDomainTracking(d.domain, { openTracking: e.target.checked })}
+                                                            className="rounded bg-muted border-border"
+                                                        />
+                                                        Open tracking
+                                                    </label>
+                                                    <label className="flex items-center gap-1.5 text-foreground">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={full.clickTracking}
+                                                            disabled={busy}
+                                                            onChange={(e) => toggleResendDomainTracking(d.domain, { clickTracking: e.target.checked })}
+                                                            className="rounded bg-muted border-border"
+                                                        />
+                                                        Click tracking
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
 
             {/* Mailbox Edit Controls Modal */}

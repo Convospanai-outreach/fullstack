@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
 import { emailService } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig } from "../smtpConfigService";
+import { getSmtpConfig, sendViaSmtpMailbox } from "../smtpConfigService";
 import { isSuppressed, selectMailboxForSend, sendViaGmailMailbox } from "../googleMailboxService";
 import { sendViaResendMailbox } from "../resendMailboxService";
 
@@ -19,7 +19,7 @@ const { mockPrisma } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/email/smtpClient", () => ({ sendViaSMTP: vi.fn() }));
-vi.mock("../smtpConfigService", () => ({ getSmtpConfig: vi.fn() }));
+vi.mock("../smtpConfigService", () => ({ getSmtpConfig: vi.fn(), sendViaSmtpMailbox: vi.fn() }));
 vi.mock("../googleMailboxService", () => ({
     isSuppressed: vi.fn(),
     selectMailboxForSend: vi.fn(),
@@ -337,5 +337,72 @@ describe("emailService explicit mailboxId (drip-sequence sender assignment)", ()
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
         expect(sendViaResendMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("emailService SMTP-mailbox routing (ConnectedMailbox provider SMTP)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSuppressed as Mock).mockResolvedValue(false);
+        (prisma.lead.findUnique as Mock).mockResolvedValue(null);
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
+        (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+    });
+
+    it("sends via the mailbox's own credentials when the selected mailbox's provider is SMTP, and persists its mailboxId", async () => {
+        (selectMailboxForSend as Mock).mockResolvedValue({ id: "smtp-mailbox-1", provider: "SMTP" });
+        (sendViaSmtpMailbox as Mock).mockResolvedValue({
+            success: true,
+            deliveryProvider: "SMTP",
+            mailboxId: "smtp-mailbox-1",
+            messageId: "mailbox-message-1",
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: true, providerId: "mailbox-message-1", deliveryProvider: "SMTP" });
+
+        expect(sendViaGmailMailbox).not.toHaveBeenCalled();
+        expect(getSmtpConfig).not.toHaveBeenCalled();
+        expect(sendViaSMTP).not.toHaveBeenCalled();
+        expect(sentEmailData()).toEqual(expect.objectContaining({
+            deliveryProvider: "SMTP",
+            mailboxId: "smtp-mailbox-1",
+            providerId: "mailbox-message-1",
+        }));
+    });
+
+    it("falls back to the legacy per-team SMTP config when the mailbox send fails", async () => {
+        (selectMailboxForSend as Mock).mockResolvedValue({ id: "smtp-mailbox-1", provider: "SMTP" });
+        (sendViaSmtpMailbox as Mock).mockResolvedValue({
+            success: false,
+            error: "SMTP_MAILBOX_SEND_FAILED",
+            fallbackAllowed: true,
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata))
+            .resolves.toEqual({ success: true, providerId: "smtp-message-1", deliveryProvider: "SMTP" });
+
+        expect(sendViaSMTP).toHaveBeenCalledTimes(1);
+        expect(sentEmailData()).toEqual(expect.objectContaining({ deliveryProvider: "SMTP", mailboxId: null }));
+    });
+
+    it("sends through the exact assigned SMTP mailbox without consulting selectMailboxForSend", async () => {
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue({ id: "smtp-mailbox-1", provider: "SMTP" });
+        (sendViaSmtpMailbox as Mock).mockResolvedValue({
+            success: true,
+            deliveryProvider: "SMTP",
+            mailboxId: "smtp-mailbox-1",
+            messageId: "mailbox-message-1",
+        });
+
+        await expect(emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", {
+            ...metadata,
+            mailboxId: "smtp-mailbox-1",
+        })).resolves.toEqual({ success: true, providerId: "mailbox-message-1", deliveryProvider: "SMTP" });
+
+        expect(selectMailboxForSend).not.toHaveBeenCalled();
+        expect(sendViaSmtpMailbox).toHaveBeenCalledWith(expect.objectContaining({ mailboxId: "smtp-mailbox-1" }));
     });
 });

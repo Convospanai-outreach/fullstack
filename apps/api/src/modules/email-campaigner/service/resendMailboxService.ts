@@ -94,6 +94,7 @@ export async function sendViaResendMailbox(input: {
                           attachments: input.attachments.map((a) => ({
                               filename: a.filename,
                               content: a.content,
+                              contentType: a.mimeType,
                           })),
                       }
                     : {}),

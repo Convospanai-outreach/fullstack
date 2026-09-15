@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceLeadAfterEmailOpened } = vi.hoisted(() => ({
+const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceLeadAfterEmailOpened, mockAdvanceLeadAfterReply, mockResendReceivingGet } = vi.hoisted(() => ({
     mockPrisma: {
         email: { findFirst: vi.fn(), updateMany: vi.fn() },
         connectedMailbox: { findUnique: vi.fn() },
         emailEvent: { create: vi.fn() },
+        message: { create: vi.fn() },
     },
     mockVerifySvixSignature: vi.fn(),
     mockDecryptCredential: vi.fn(),
     mockAdvanceLeadAfterEmailOpened: vi.fn(),
+    mockAdvanceLeadAfterReply: vi.fn(),
+    mockResendReceivingGet: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -17,7 +20,12 @@ vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: mockDecryp
 vi.mock("@/lib/crm/leadStageTransitions", () => ({
     advanceLeadAfterEmailOpened: mockAdvanceLeadAfterEmailOpened,
     advanceLeadAfterEmailClicked: vi.fn(),
-    advanceLeadAfterReply: vi.fn(),
+    advanceLeadAfterReply: mockAdvanceLeadAfterReply,
+}));
+vi.mock("resend", () => ({
+    Resend: vi.fn(function Resend() {
+        return { emails: { receiving: { get: mockResendReceivingGet } } };
+    }),
 }));
 
 import { POST } from "./route";
@@ -93,5 +101,100 @@ describe("POST /api/webhooks/resend - email.opened idempotency", () => {
         await POST(request({ type: "email.opened", data: { email_id: "provider-1" } }));
 
         expect(mockPrisma.emailEvent.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("POST /api/webhooks/resend - email.received creates a real Message row", () => {
+    const receivedEvent = {
+        type: "email.received",
+        data: {
+            email_id: "resend-inbound-1",
+            to: ["reply+track-1@reply.example.com"],
+            from: "lead@example.com",
+            subject: "Re: Following up",
+        },
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.email.findFirst.mockResolvedValue({
+            id: "email-1",
+            leadId: "lead-1",
+            campaignId: "campaign-1",
+            mailboxId: "mailbox-1",
+            openedAt: null,
+            clickedAt: null,
+            repliedAt: null,
+        });
+        mockPrisma.connectedMailbox.findUnique.mockResolvedValue({
+            id: "mailbox-1",
+            teamId: "team-1",
+            encryptedAccessToken: "encrypted-api-key",
+            encryptedRefreshToken: "encrypted-webhook-secret",
+        });
+        mockDecryptCredential.mockImplementation(async (secret: string) =>
+            secret === "encrypted-webhook-secret" ? "webhook-secret" : secret === "encrypted-api-key" ? "resend-api-key" : undefined
+        );
+        mockVerifySvixSignature.mockReturnValue(true);
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.emailEvent.create.mockResolvedValue({ id: "event-1" });
+        mockPrisma.message.create.mockResolvedValue({});
+        mockAdvanceLeadAfterReply.mockResolvedValue(undefined);
+        mockResendReceivingGet.mockResolvedValue({
+            data: { text: "Sounds good, let's talk next week.", html: "<p>Sounds good, let's talk next week.</p>", from: "Lead <lead@example.com>" },
+            error: null,
+        });
+    });
+
+    it("creates a Message row with the real fetched reply body, linked to the EmailEvent", async () => {
+        const res = await POST(request(receivedEvent));
+
+        expect(res.status).toBe(200);
+        expect(mockResendReceivingGet).toHaveBeenCalledWith("resend-inbound-1");
+        expect(mockPrisma.message.create).toHaveBeenCalledWith({
+            data: {
+                leadId: "lead-1",
+                content: "Sounds good, let's talk next week.",
+                direction: "INBOUND",
+                platform: "EMAIL",
+                sender: "Lead <lead@example.com>",
+                status: "received",
+                isRead: false,
+                emailEventId: "event-1",
+            },
+        });
+        expect(mockAdvanceLeadAfterReply).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to stripped HTML when no plain-text body is returned", async () => {
+        mockResendReceivingGet.mockResolvedValue({
+            data: { text: null, html: "<p>Hi <b>there</b></p>", from: "lead@example.com" },
+            error: null,
+        });
+
+        await POST(request(receivedEvent));
+
+        expect(mockPrisma.message.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ content: "Hi there" }),
+        }));
+    });
+
+    it("falls back to the webhook's subject line when the body fetch fails", async () => {
+        mockResendReceivingGet.mockResolvedValue({ data: null, error: { message: "not found" } });
+
+        await POST(request(receivedEvent));
+
+        expect(mockPrisma.message.create).toHaveBeenCalledWith(expect.objectContaining({
+            data: expect.objectContaining({ content: "Re: Following up", sender: "lead@example.com" }),
+        }));
+    });
+
+    it("does not create a Message row on a redelivered event that loses the repliedAt claim", async () => {
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 0 });
+
+        await POST(request(receivedEvent));
+
+        expect(mockPrisma.message.create).not.toHaveBeenCalled();
+        expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
     });
 });

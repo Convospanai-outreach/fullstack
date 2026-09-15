@@ -50,6 +50,15 @@ export class ResendProvider implements MailProvider {
       text: input.text,
       ...(replyTo ? { replyTo } : {}),
       ...(Object.keys(extraHeaders).length ? { headers: extraHeaders } : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.mimeType,
+            })),
+          }
+        : {}),
     });
 
     if (error || !data) {

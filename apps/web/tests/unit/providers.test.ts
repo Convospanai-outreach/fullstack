@@ -168,5 +168,31 @@ describe("MailProvider Architecture & Provider Implementations", () => {
       const result = await provider.send(mailbox, { to: "prospect@example.com", from: "sender@example.com", subject: "Test", html: "<p>Test</p>", text: "Test" });
       expect(result.providerMessageId).toBe("resend-msg-123");
     });
+
+    it("forwards attachments to Resend with their content type", async () => {
+      resendSendMock.mockResolvedValue({ data: { id: "resend-msg-124" }, error: null });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { email: "sender@example.com", displayName: "Sender", encryptedAccessToken: await encryptCredential("re_good_key") };
+      await provider.send(mailbox, {
+        to: "prospect@example.com",
+        from: "sender@example.com",
+        subject: "Test",
+        html: "<p>Test</p>",
+        text: "Test",
+        attachments: [{ filename: "deck.pdf", mimeType: "application/pdf", content: "YmFzZTY0" }],
+      });
+      expect(resendSendMock).toHaveBeenCalledWith(expect.objectContaining({
+        attachments: [{ filename: "deck.pdf", content: "YmFzZTY0", contentType: "application/pdf" }],
+      }));
+    });
+
+    it("omits the attachments key entirely when none are provided", async () => {
+      resendSendMock.mockResolvedValue({ data: { id: "resend-msg-125" }, error: null });
+      const { encryptCredential } = await import("@/lib/security/credentialVault");
+      const mailbox = { email: "sender@example.com", displayName: "Sender", encryptedAccessToken: await encryptCredential("re_good_key") };
+      await provider.send(mailbox, { to: "prospect@example.com", from: "sender@example.com", subject: "Test", html: "<p>Test</p>", text: "Test" });
+      const sentPayload = resendSendMock.mock.calls[0][0];
+      expect(sentPayload).not.toHaveProperty("attachments");
+    });
   });
 });

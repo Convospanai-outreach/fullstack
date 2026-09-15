@@ -1,3 +1,9 @@
+export interface EmailAttachment {
+  filename: string;
+  mimeType: string;
+  content: string; // base64-encoded file content
+}
+
 export interface SendEmailInput {
   to: string;
   from: string;
@@ -5,6 +11,10 @@ export interface SendEmailInput {
   html: string;
   text: string;
   headers?: Record<string, string>;
+  // Only SmtpProvider and ResendProvider forward these today (see each provider's
+  // send() for details) - GoogleWorkspaceProvider and MicrosoftGraphProvider silently
+  // ignore this field for now, a known gap, not something this change attempts to fix.
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
