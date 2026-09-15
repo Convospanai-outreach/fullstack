@@ -150,6 +150,69 @@ export async function deleteSmtpConfig(teamId: string): Promise<void> {
     });
 }
 
+export type SmtpMailboxSendOutcome =
+    | { success: true; deliveryProvider: "SMTP"; messageId?: string; mailboxId: string }
+    | { success: false; error: string; fallbackAllowed: boolean };
+
+// Sends via a specific ConnectedMailbox's own credentials (metadata.host/port/secure +
+// encryptedAccessToken, set by apps/web's /api/integrations/smtp/connect route) rather
+// than the legacy single-per-team config above. Needed so Email.mailboxId gets populated
+// for SMTP sends - the IMAP reply-sync worker matches replies by mailboxId, same as Gmail.
+export async function sendViaSmtpMailbox(input: {
+    teamId: string;
+    mailboxId: string;
+    to: string;
+    subject: string;
+    html: string;
+    attachments?: { filename: string; mimeType: string; content: string }[];
+}): Promise<SmtpMailboxSendOutcome> {
+    const { prisma } = await import("@/lib/db");
+    const { decryptCredential } = await import("@/lib/security/credentialVault");
+
+    const mailbox = await prisma.connectedMailbox.findFirst({
+        where: { id: input.mailboxId, teamId: input.teamId, status: "CONNECTED", provider: "SMTP" },
+    });
+    if (!mailbox) {
+        return { success: false, error: "SMTP_MAILBOX_PRE_DISPATCH_FAILED", fallbackAllowed: true };
+    }
+
+    const metadata = (mailbox.metadata as any) || {};
+    const password = await decryptCredential(mailbox.encryptedAccessToken as any);
+    if (!metadata.host || !password) {
+        return { success: false, error: "SMTP_MAILBOX_PRE_DISPATCH_FAILED", fallbackAllowed: true };
+    }
+
+    const { sendViaSMTP } = await import("@/lib/email/smtpClient");
+    const result = await sendViaSMTP(
+        {
+            host: metadata.host,
+            port: metadata.port ?? 587,
+            secure: Boolean(metadata.secure),
+            user: mailbox.email,
+            password,
+            fromName: mailbox.displayName || mailbox.email,
+            fromEmail: mailbox.email,
+        },
+        {
+            to: input.to,
+            subject: input.subject,
+            html: input.html,
+            ...(input.attachments?.length ? { attachments: input.attachments } : {}),
+        }
+    );
+
+    if (!result.success) {
+        return { success: false, error: "SMTP_MAILBOX_SEND_FAILED", fallbackAllowed: true };
+    }
+
+    return {
+        success: true,
+        deliveryProvider: "SMTP",
+        ...(result.messageId ? { messageId: result.messageId } : {}),
+        mailboxId: mailbox.id,
+    };
+}
+
 export async function getSmtpConfigRedacted(teamId: string): Promise<StoredSmtpConfig | null> {
     if (!teamId) return null;
     if (isServer) {

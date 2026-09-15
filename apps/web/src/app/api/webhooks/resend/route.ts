@@ -14,6 +14,8 @@ interface ResendWebhookEvent {
   data: {
     email_id?: string;
     to?: string[];
+    from?: string;
+    subject?: string;
     click?: { link?: string };
   };
 }
@@ -27,6 +29,34 @@ function extractTrackingIdFromReceivedEvent(event: ResendWebhookEvent): string |
     if (match) return match[1] as string;
   }
   return null;
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Resend's "email.received" webhook payload only carries metadata (from/to/subject/message_id) -
+// the actual reply text/html has to be fetched separately via the receiving-emails API, using
+// this specific mailbox's own Resend API key (each team brings its own Resend account).
+async function fetchReceivedEmailBody(mailbox: { encryptedAccessToken: unknown }, emailId?: string | null): Promise<{ content: string; from: string } | null> {
+  if (!emailId) return null;
+  try {
+    const apiKey = await decryptCredential(mailbox.encryptedAccessToken as any);
+    if (!apiKey) return null;
+    const { Resend } = await import("resend");
+    const resend = new Resend(apiKey);
+    const { data, error } = await resend.emails.receiving.get(emailId);
+    if (error || !data) return null;
+    const content = data.text?.trim() || (data.html ? stripHtml(data.html) : "");
+    return { content, from: data.from };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -170,7 +200,37 @@ export async function POST(req: NextRequest) {
       const claimed = await prisma.email.updateMany({ where: { id: email.id, repliedAt: null }, data: { repliedAt: new Date() } });
       if (claimed.count > 0) {
         await advanceLeadAfterReply(prisma, advanceParams).catch(() => undefined);
-        await recordEmailEvent("REPLY_RECEIVED");
+        const emailEvent = await prisma.emailEvent.create({
+          data: {
+            teamId,
+            emailId: email.id,
+            mailboxId: mailbox.id,
+            leadId: email.leadId,
+            campaignId: email.campaignId,
+            type: "REPLY_RECEIVED",
+            provider: "RESEND",
+            providerMessageId: event.data?.email_id || null,
+            payload: event.data as any,
+          },
+        }).catch(() => undefined);
+
+        // Same parity as the Gmail/IMAP reply paths: a Message row is what actually makes
+        // the reply show up in the Inbox UI, not just the lead-stage/EmailEvent bookkeeping.
+        if (email.leadId) {
+          const body = await fetchReceivedEmailBody(mailbox, event.data?.email_id);
+          await prisma.message.create({
+            data: {
+              leadId: email.leadId,
+              content: body?.content || event.data?.subject || "Reply detected",
+              direction: "INBOUND",
+              platform: "EMAIL",
+              sender: body?.from || event.data?.from || "",
+              status: "received",
+              isRead: false,
+              ...(emailEvent?.id ? { emailEventId: emailEvent.id } : {}),
+            },
+          }).catch(() => undefined);
+        }
       }
       break;
     }

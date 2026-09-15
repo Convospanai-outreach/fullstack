@@ -6,7 +6,7 @@
  */
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig } from "./smtpConfigService";
+import { getSmtpConfig, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
 import {
     isSuppressed,
     selectMailboxForSend,
@@ -107,7 +107,7 @@ class EmailService {
                 status: "sent",
                 trackingId: input.trackingId,
                 deliveryProvider: input.deliveryProvider,
-                mailboxId: input.deliveryProvider === "GMAIL_API" || input.deliveryProvider === "RESEND" ? input.mailboxId : null,
+                mailboxId: input.mailboxId ?? null,
                 ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
@@ -227,6 +227,7 @@ class EmailService {
 
         let gmailOutcome: GmailSendOutcome | undefined;
         let resendOutcome: ResendSendOutcome | undefined;
+        let smtpMailboxOutcome: SmtpMailboxSendOutcome | undefined;
 
         if (teamId) {
             try {
@@ -251,6 +252,15 @@ class EmailService {
                         unsubscribeUrl,
                         attachments,
                         idempotencyKey: metadata?.idempotencyKey,
+                    });
+                } else if (mailbox?.provider === "SMTP") {
+                    smtpMailboxOutcome = await sendViaSmtpMailbox({
+                        teamId,
+                        mailboxId: mailbox.id,
+                        to,
+                        subject,
+                        html: trackedBody,
+                        attachments,
                     });
                 } else if (mailbox) {
                     gmailOutcome = await sendViaGmailMailbox({
@@ -314,6 +324,27 @@ class EmailService {
 
         if (gmailOutcome && !gmailOutcome.fallbackAllowed) {
             return { success: false, error: gmailOutcome.error };
+        }
+
+        if (smtpMailboxOutcome?.success) {
+            await this.persistDeliveredEmail({
+                metadata,
+                subject,
+                body: trackedBody,
+                trackingId,
+                deliveryProvider: "SMTP",
+                mailboxId: smtpMailboxOutcome.mailboxId,
+                providerId: smtpMailboxOutcome.messageId,
+            });
+            return {
+                success: true,
+                ...(smtpMailboxOutcome.messageId ? { providerId: smtpMailboxOutcome.messageId } : {}),
+                deliveryProvider: "SMTP",
+            };
+        }
+
+        if (smtpMailboxOutcome && !smtpMailboxOutcome.fallbackAllowed) {
+            return { success: false, error: smtpMailboxOutcome.error };
         }
 
         return this.sendViaSmtpAndPersist({

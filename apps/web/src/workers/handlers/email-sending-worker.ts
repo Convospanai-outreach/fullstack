@@ -151,6 +151,11 @@ export async function handleEmailSending(payload: JobPayload) {
     throw new Error(`No teamId available for campaign ${campaignId}`);
   }
 
+  const attachments = await prisma.campaignAttachment.findMany({
+    where: { campaignId },
+    select: { filename: true, mimeType: true, content: true },
+  });
+
   // 4. Send via provider registered with MailProviderFactory
   const { MailProviderFactory } = await import("@/modules/email-campaigner/providers");
   const providerKey = mailbox.provider || "GOOGLE_WORKSPACE";
@@ -182,6 +187,7 @@ export async function handleEmailSending(payload: JobPayload) {
         "X-Tracking-ID": email.trackingId || email.id,
         ...buildUnsubscribeHeaders(trackingId),
       },
+      ...(attachments.length ? { attachments } : {}),
     });
   } catch (err: any) {
     await prisma.email.update({

@@ -123,7 +123,7 @@ describe("sendViaResendMailbox", () => {
         });
 
         expect(mockResendSend).toHaveBeenCalledWith(expect.objectContaining({
-            attachments: [{ filename: "deck.pptx", content: "YmFzZTY0" }],
+            attachments: [{ filename: "deck.pptx", content: "YmFzZTY0", contentType: "application/vnd.openxmlformats-officedocument.presentationml.presentation" }],
             headers: {
                 "List-Unsubscribe": "<https://app.test/api/proxy/email/unsubscribe/track-1>",
                 "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
