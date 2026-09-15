@@ -1,6 +1,6 @@
 # Environment Parity Checklist
 
-Use this file to keep Local, GitHub Actions, Railway/Vercel, Supabase, Redis/Upstash, payment, email, WhatsApp, and AI provider configuration aligned.
+Use this file to keep Local, GitHub Actions, Render, Supabase, Redis/Upstash, payment, email, WhatsApp, and AI provider configuration aligned.
 
 ## Classification
 
@@ -124,7 +124,7 @@ GitHub Actions:
 - Provision Postgres and Redis only in workflows that need them.
 - Do not require optional provider credentials for build-only workflows.
 
-Railway or Vercel:
+Render:
 
 - Set build timeout to 30 minutes.
 - Provide base, auth, and DB variables before smoke deployment.
