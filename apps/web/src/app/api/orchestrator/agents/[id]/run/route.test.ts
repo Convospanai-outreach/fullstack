@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockGetCurrentContext, mockPrisma, mockEnqueue, mockEnforcePolicy, mockCheckLimits, mockAudit } = vi.hoisted(() => ({
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
-        agent: { updateMany: vi.fn() },
+        agent: { updateMany: vi.fn(), findFirst: vi.fn() },
         activity: { create: vi.fn() },
     },
     mockEnqueue: vi.fn(),
@@ -43,7 +43,7 @@ describe("POST /orchestrator/agents/[id]/run - double-run guard", () => {
 
         expect(res.status).toBe(200);
         expect(mockPrisma.agent.updateMany).toHaveBeenCalledWith({
-            where: { id: "agent-1", status: { not: "running" } },
+            where: { id: "agent-1", teamId: "team-1", status: { not: "running" } },
             data: { status: "running" },
         });
         expect(mockEnqueue).toHaveBeenCalledTimes(1);
@@ -51,10 +51,21 @@ describe("POST /orchestrator/agents/[id]/run - double-run guard", () => {
 
     it("rejects a second concurrent run instead of double-enqueueing (this used to update unconditionally)", async () => {
         mockPrisma.agent.updateMany.mockResolvedValue({ count: 0 });
+        mockPrisma.agent.findFirst.mockResolvedValue({ id: "agent-1" });
 
         const res = await POST(new Request("http://localhost") as any, paramsFor("agent-1"));
 
         expect(res.status).toBe(409);
+        expect(mockEnqueue).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 instead of running another team's agent (OPEN-187: Agent rows had no teamId, so updateMany's where had nothing scoping id to the caller's team)", async () => {
+        mockPrisma.agent.updateMany.mockResolvedValue({ count: 0 });
+        mockPrisma.agent.findFirst.mockResolvedValue(null);
+
+        const res = await POST(new Request("http://localhost") as any, paramsFor("agent-owned-by-another-team"));
+
+        expect(res.status).toBe(404);
         expect(mockEnqueue).not.toHaveBeenCalled();
     });
 

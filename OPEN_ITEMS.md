@@ -2364,50 +2364,57 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   routes. 1013 apps/api tests pass (8 new), `tsc --noEmit` clean (same
   pre-existing, unrelated `browser-engine.ts` failure noted above).
 
-- **OPEN-187 (ARCHITECTURE GAP — NOT FIXED, needs a user decision):** the
-  `Agent` Prisma model (`apps/api/prisma/schema.prisma:399-406`) has **no
-  `teamId` column at all** — `id, name, description, status, createdAt,
-  updatedAt`. It is not a per-tenant resource; it's a global catalog of
-  worker roles shared by every team. `orchestrator/swarm/run/route.ts`
-  (~L135-165) resolves the `Agent` row to use for a given role purely by
-  name — `prisma.agent.findFirst({ where: { name: role }, orderBy: {
-  updatedAt: "desc" } })` — creating one only if none exists for that role.
-  That means every team running a swarm with, say, a "Debugger" role
-  reuses the exact same physical `Agent` row as every other team; the only
-  actually team-scoped record of an execution is the separate `AgentTask`
-  row created alongside it (which does carry `teamId`). On top of this,
-  `apps/api/routes/orchestrator/agents/[id]/stop/route.ts` and
-  `.../[id]/run/route.ts` (and their `apps/web` twins) mutate
-  `Agent.status` with **no ownership check whatsoever** beyond confirming
-  the caller belongs to *some* team, and `GET /orchestrator/agents` lists
-  every team's shared agent rows unfiltered. An investigation agent
-  initially reported this as a cross-tenant IDOR (any team can stop/hijack
-  another team's running agent); independent verification confirmed the
-  stop/run routes' missing check but also surfaced the deeper issue: this
-  isn't an access-control bug layered on a tenant-scoped resource, it's
-  that `Agent.status` is shared mutable state with no tenant concept in
-  the schema — two teams both launching a "Debugger" swarm concurrently
-  already race on the same row's `status` field today, with no attacker
-  involved. This is architecturally the same shape as **OPEN-168**'s
-  `HardwareService`/`EdgeNode` `RE_IDENTIFY` gap: a resource that was
-  never designed to be partitioned per-team. Per that precedent, **no
-  ad hoc fix was made here** — specifically, adding an ownership check
-  against `AgentTask` to gate the `stop`/`run` routes was considered and
-  rejected, because `AgentTask` being team-scoped doesn't make `Agent`
-  team-scoped; such a check would look like a fix while leaving the
-  underlying shared-row collision intact, and would mislead a future
-  sweep into treating `Agent` as tenant-partitioned when it isn't. This
-  needs one of two real fixes, both bigger than a route-level patch: (a)
-  add a `teamId` to `Agent` and make role-lookup per-team instead of
-  global by name, so each team gets its own "Debugger" row; or (b) stop
-  using `Agent.status` as execution state entirely and move all live
-  status tracking onto the already-team-scoped `AgentTask`, leaving
-  `Agent` as a pure stateless role catalog. Either requires a schema
-  migration plus coordinated changes across `orchestrator/swarm/run/route.ts`,
-  `agent-worker.ts` (three `prisma.agent.update` call sites), both
-  `stop`/`run` route pairs (apps/api + apps/web), and both
-  agents-listing routes. Flagging for the user to choose a direction
-  before any code changes are made.
+- **OPEN-187 (Fixed):** the `Agent` Prisma model had **no `teamId` column
+  at all** — `id, name, description, status, createdAt, updatedAt`. It was
+  not a per-tenant resource; it was a global catalog of worker roles shared
+  by every team. `orchestrator/swarm/run/route.ts` resolved the `Agent` row
+  for a given role purely by name, so every team running a swarm with, say,
+  a "Debugger" role reused the exact same physical `Agent` row as every
+  other team. `apps/api/routes/orchestrator/agents/[id]/stop/route.ts` and
+  `.../[id]/run/route.ts` (and their `apps/web` twins) mutated
+  `Agent.status` with no ownership check beyond confirming the caller
+  belonged to *some* team, and `GET /orchestrator/agents` listed every
+  team's shared agent rows unfiltered. Given the choice between (a) adding
+  `teamId` to `Agent` and scoping role-lookup per-team, or (b) removing
+  `Agent.status` as execution state entirely in favor of `AgentTask`, the
+  user chose (a). Implemented: added a nullable `teamId String?` column
+  (nullable and unbackfilled — there is no correct team owner for a
+  pre-existing shared row, and Postgres treats `NULL` as distinct under a
+  unique index, so legacy rows coexist safely with new team-scoped ones)
+  plus `@@unique([teamId, name])` and `@@index([teamId])`, replicated
+  across `packages/db`, `apps/api`, and `apps/web` schemas with matching
+  migrations in both apps'
+  `prisma/migrations/20260915120000_agent_team_scope/`.
+  `orchestrator/swarm/run/route.ts` now does
+  `prisma.agent.upsert({ where: { teamId_name: { teamId, name: role } },
+  ... })` instead of `findFirst` + conditional `create`, which also closes
+  a same-team create race the old pattern had. Both `stop` routes now use
+  `updateMany({ where: { id, teamId } })` with a `count === 0` → 404
+  branch (an `update({ where: { id } })` throws instead, so this
+  particular defense-in-depth is new behavior, not a refactor). The `run`
+  routes' existing atomic `updateMany` claim gained `teamId` in its
+  `where`, with a follow-up `findFirst` on a zero-count claim to
+  distinguish 404 (not owned) from 409 (already running). Both
+  agents-listing routes (`apps/api` + `apps/web`) and the external
+  `v1/agents` route (scoped via `authorizeApiKey`'s
+  `authResult.context.teamId`) now filter/create by `teamId`.
+  `orchestrator/swarm/status/route.ts`'s `Agent` lookup by id also gained a
+  `teamId` filter for defense-in-depth, though it wasn't independently
+  exploitable (its ids come from the caller's own already-team-scoped
+  `AgentTask` rows). `agent-worker.ts`'s three `prisma.agent.update({
+  where: { id: agentId } })` call sites were deliberately left unchanged:
+  `agentId` there is already downstream of a route that enforces team
+  ownership before enqueueing, and the residual risk (an `agentId` reaching
+  the worker via the generic `/api/jobs` endpoint with no ownership check)
+  is the same pre-existing class of gap **OPEN-158** already tracks for
+  that endpoint, not something this fix's scope covers. Regression tests
+  added: a new `stop/route.test.ts` for both apps, updated `run/route.test.ts`
+  assertions for both apps (teamId now in the claim `where`; new 404 test
+  for a cross-team `id`), and a new upsert-scoping test in
+  `swarm/run/route.test.ts`. Full `apps/api` (1237 tests) and `apps/web`
+  (433 tests) suites pass; `tsc --noEmit` clean in both (apps/api's
+  pre-existing unrelated `browser-engine.ts` Playwright-typing error is the
+  only exception, confirmed present on `main` before this change too).
 
 - **OPEN-188 (Fixed):** platform email-relay abuse via the generic job
   queue (`apps/api/routes/jobs/route.ts` POST, both the `TaskEnvelopeSchema`

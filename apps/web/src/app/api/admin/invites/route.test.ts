@@ -38,6 +38,13 @@ function patchRequest(body: unknown) {
     }) as any;
 }
 
+function postRequest(body: unknown) {
+    return new Request("http://localhost/api/admin/invites", {
+        method: "POST",
+        body: JSON.stringify(body),
+    }) as any;
+}
+
 describe("PATCH /api/admin/invites - approve-request", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -152,5 +159,72 @@ describe("/api/admin/invites - InviteRequest actions are platform-admin-only", (
             where: { id: "req-1" },
             data: { status: "REJECTED" },
         });
+    });
+});
+
+describe("POST /api/admin/invites - bulk invite (setup wizard)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockIsSuperAdminRole.mockReturnValue(false);
+        mockGetServerSession.mockResolvedValue({ user: { id: "founder-1" } });
+        mockPrisma.user.findUnique.mockResolvedValue({
+            id: "founder-1",
+            enterpriseRole: "ORG_ADMIN",
+            memberships: [{ teamId: "team-1", status: "active" }],
+        });
+        mockPrisma.userInvitation.create.mockImplementation(({ data }: any) =>
+            Promise.resolve({ id: `invite-${data.email}`, ...data })
+        );
+        mockPrisma.teamMember.findFirst.mockResolvedValue(null);
+        mockPrisma.teamMember.create.mockResolvedValue({});
+        mockAudit.mockResolvedValue(undefined);
+    });
+
+    it("creates one invitation per unique, lowercased email", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["Jane@Example.com", "john@example.com", "jane@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        expect(body.results).toHaveLength(2);
+        expect(mockPrisma.userInvitation.create).toHaveBeenCalledTimes(2);
+        expect(body.results.every((r: any) => r.ok)).toBe(true);
+    });
+
+    it("rejects an empty or all-invalid email list", async () => {
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["not-an-email", "  "] }));
+
+        expect(response.status).toBe(400);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a batch larger than 50 to cap blast radius", async () => {
+        const { POST } = await import("./route");
+
+        const emails = Array.from({ length: 51 }, (_, i) => `user${i}@example.com`);
+        const response = await POST(postRequest({ emails }));
+
+        expect(response.status).toBe(400);
+        expect(mockPrisma.userInvitation.create).not.toHaveBeenCalled();
+    });
+
+    it("reports a per-email failure without failing the whole batch", async () => {
+        mockPrisma.userInvitation.create
+            .mockImplementationOnce(({ data }: any) => Promise.resolve({ id: "invite-ok", ...data }))
+            .mockImplementationOnce(() => Promise.reject(new Error("db exploded")));
+        const { POST } = await import("./route");
+
+        const response = await POST(postRequest({ emails: ["ok@example.com", "bad@example.com"] }));
+        const body = await response.json();
+
+        expect(response.status).toBe(201);
+        const ok = body.results.find((r: any) => r.email === "ok@example.com");
+        const bad = body.results.find((r: any) => r.email === "bad@example.com");
+        expect(ok.ok).toBe(true);
+        expect(bad.ok).toBe(false);
+        expect(bad.error).toBe("db exploded");
     });
 });

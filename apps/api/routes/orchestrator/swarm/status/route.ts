@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
 
     const agents = agentIds.length > 0
         ? await prisma.agent.findMany({
-            where: { id: { in: agentIds } },
+            where: { id: { in: agentIds }, teamId },
             select: { id: true, name: true, status: true, updatedAt: true }
         })
         : [];

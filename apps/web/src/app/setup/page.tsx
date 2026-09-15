@@ -24,6 +24,7 @@ import {
   RefreshCw,
   ShieldCheck,
   Target,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -100,6 +101,7 @@ const STEPS = [
   { id: 10, title: "Commercial Readiness", icon: CreditCard, description: "Confirm credits or billing before chargeable execution starts." },
   { id: 11, title: "Handoffs", icon: LayoutGrid, description: "Review optional infrastructure and handoff integrations." },
   { id: 12, title: "Notifications", icon: Bell, description: "Choose which email and in-app alerts your team receives." },
+  { id: 13, title: "Invite Your Team", icon: UserPlus, description: "Add teammates now so they can start working the moment their invite lands." },
 ];
 
 const inputClass = "w-full rounded-lg border border-white/10 bg-slate-950/70 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-400/70";
@@ -138,6 +140,7 @@ export default function SetupWizardPage() {
       if (stepId === 10) return status.teamCredits > 0;
       if (stepId === 11) return PRODUCT_FLAGS.emailFirstBeta || status.hasWhatsApp;
       if (stepId === 12) return true;
+      if (stepId === 13) return true;
       return false;
     };
   }, [status, connectedMailboxes]);
@@ -515,6 +518,7 @@ export default function SetupWizardPage() {
             {activeStep === 10 && <CommercialReadiness status={status} />}
             {activeStep === 11 && <Handoffs status={status} />}
             {activeStep === 12 && <NotificationsStep />}
+            {activeStep === 13 && <InviteTeamStep />}
 
             <footer className="flex flex-col gap-3 rounded-lg border border-white/10 bg-slate-900/60 p-4 sm:flex-row sm:items-center sm:justify-between">
               <button
@@ -1110,6 +1114,91 @@ function NotificationsStep() {
   );
 }
 
+function InviteTeamStep() {
+  const apiBase = getBrowserApiBase().replace(/\/$/, "");
+  const [emailsText, setEmailsText] = useState("");
+  const [sending, setSending] = useState(false);
+  const [results, setResults] = useState<Array<{ email: string; ok: boolean; error?: string }> | null>(null);
+
+  const parsed = Array.from(new Set(
+    emailsText
+      .split(/[\n,]+/)
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0)
+  ));
+
+  async function sendInvites() {
+    if (parsed.length === 0) return;
+    setSending(true);
+    setResults(null);
+    try {
+      const res = await fetch(`${apiBase}/admin/invites`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emails: parsed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "Failed to send invites");
+        return;
+      }
+      setResults(data.results || []);
+      const succeeded = (data.results || []).filter((r: any) => r.ok).length;
+      if (succeeded > 0) {
+        toast.success(`Sent ${succeeded} invite${succeeded === 1 ? "" : "s"}`);
+        setEmailsText("");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to send invites");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className={panelClass}>
+      <h3 className="text-xl font-semibold text-white">Invite your team</h3>
+      <p className="mt-1 text-sm text-slate-400">
+        Add teammates now so they can start working the moment their invite lands. Paste one email per line
+        or separate them with commas. This step is optional and can be skipped.
+      </p>
+      <Field label="Teammate emails">
+        <textarea
+          className={`${inputClass} mt-2 min-h-32`}
+          placeholder={"jane@yourcompany.com\njohn@yourcompany.com"}
+          value={emailsText}
+          onChange={(event) => setEmailsText(event.target.value)}
+        />
+      </Field>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">{parsed.length} email{parsed.length === 1 ? "" : "s"} ready to invite</p>
+        <button
+          type="button"
+          onClick={sendInvites}
+          disabled={sending || parsed.length === 0}
+          className="rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:opacity-60"
+        >
+          {sending ? "Sending..." : `Send invite${parsed.length === 1 ? "" : "s"}`}
+        </button>
+      </div>
+      {results && (
+        <div className="mt-4 space-y-2">
+          {results.map((result) => (
+            <div key={result.email} className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-slate-950/40 px-3 py-2 text-sm">
+              <span className="truncate text-slate-200">{result.email}</span>
+              {result.ok ? (
+                <span className="text-emerald-300">Invited</span>
+              ) : (
+                <span className="text-rose-400">{result.error || "Failed"}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function ActionPanel({ title, text, ready, action, onAction }: { title: string; text: string; ready: boolean; action: string; onAction: () => void }) {
   return (
     <section className={panelClass}>
@@ -1153,7 +1242,7 @@ function StatusPill({ ready }: { ready: boolean }) {
 function continueLabel(stepId: number, provider?: string) {
   if (stepId === 3) return provider === "RESEND" ? "Save Resend and continue" : provider === "SMTP" ? "Save SMTP and continue" : "Continue";
   if (stepId === 7) return "Continue to campaign plan";
-  if (stepId === 12) return "Open dashboard";
+  if (stepId === 13) return "Open dashboard";
   return "Save and continue";
 }
 

@@ -46,7 +46,7 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         signIn: async ({ user, profile }) => {
             // Only trust addresses Google has actually verified.
-            const googleProfile = profile as { email_verified?: boolean; name?: string } | undefined;
+            const googleProfile = profile as { email_verified?: boolean; name?: string; hd?: string } | undefined;
             if (!user.email || googleProfile?.email_verified !== true) {
                 return false;
             }
@@ -79,6 +79,11 @@ export const authOptions: NextAuthOptions = {
                 email,
                 name: googleProfile?.name || user.name || null,
                 inviteToken,
+                // Google's `hd` (hosted domain) claim - only present for a
+                // Workspace account, never a personal Gmail login - lets a
+                // brand-new Workspace user auto-join their company's team if
+                // that domain is already verified. See syncGoogleUserToApp.
+                hostedDomain: googleProfile?.hd,
             });
 
             if (!createdUser) {

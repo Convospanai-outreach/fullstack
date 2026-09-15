@@ -14,7 +14,7 @@ type AppUserWithMemberships = {
 // Invite/onboarding logic for Google sign-ins. Signup is open: a brand-new
 // email with no matching invite or inviteRequest gets its own new team
 // rather than being denied (see the fallback below).
-export async function syncGoogleUserToApp(input: { email: string; name?: string | null; inviteToken?: string | undefined }): Promise<AppUserWithMemberships | null> {
+export async function syncGoogleUserToApp(input: { email: string; name?: string | null; inviteToken?: string | undefined; hostedDomain?: string | null | undefined }): Promise<AppUserWithMemberships | null> {
     const email = input.email.toLowerCase();
     if (!email) return null;
 
@@ -111,6 +111,57 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
                 include: { memberships: true }
             });
         }) as Promise<AppUserWithMemberships | null>;
+    }
+
+    // Google Workspace auto-join: `hostedDomain` is Google's `hd` claim, which
+    // is only ever present for a Workspace account - a personal Gmail login
+    // never carries it - so this can't be spoofed by someone outside the
+    // company. The owning team is whichever team's domain check for this
+    // domain reached VERIFIED first (first-team-wins: that team is the one
+    // that actually controls the domain's DNS, per the DomainAuthenticationCheck
+    // flow in setup). An explicit invite (checked above) always takes priority
+    // over this - it names a specific team/role, so auto-join must never
+    // override it.
+    if (input.hostedDomain) {
+        const owningDomainCheck = await prisma.domainAuthenticationCheck.findFirst({
+            where: { domain: input.hostedDomain.toLowerCase(), status: "VERIFIED" },
+            orderBy: { createdAt: "asc" },
+            select: { teamId: true }
+        });
+
+        if (owningDomainCheck) {
+            return prisma.$transaction(async (tx: any) => {
+                const user = await tx.user.create({
+                    data: {
+                        email,
+                        name: input.name || email,
+                        emailVerified: now,
+                        settings: { create: { theme: "dark" } }
+                    },
+                    include: { memberships: true }
+                });
+
+                const existingMember = await tx.teamMember.findFirst({
+                    where: { teamId: owningDomainCheck.teamId, email }
+                });
+
+                if (existingMember) {
+                    await tx.teamMember.update({
+                        where: { id: existingMember.id },
+                        data: { userId: user.id, status: "active" }
+                    });
+                } else {
+                    await tx.teamMember.create({
+                        data: { teamId: owningDomainCheck.teamId, userId: user.id, email, role: "member", status: "active" }
+                    });
+                }
+
+                return tx.user.findUnique({
+                    where: { id: user.id },
+                    include: { memberships: true }
+                });
+            }) as Promise<AppUserWithMemberships | null>;
+        }
     }
 
     const approvedInvite = await prisma.inviteRequest.findFirst({
