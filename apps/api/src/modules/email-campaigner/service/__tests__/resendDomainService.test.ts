@@ -8,7 +8,7 @@ import { resolveTxt } from "dns/promises";
 const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDomainsVerify } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { findFirst: vi.fn() },
-        domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn() },
+        domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn(), delete: vi.fn() },
         customDomain: { findUnique: vi.fn() },
     },
     mockDomainsList: vi.fn(),
@@ -58,6 +58,8 @@ describe("ensureResendDomainVerified", () => {
         (decryptCredential as Mock).mockResolvedValue("re_test_api_key");
         (prisma.domainAuthenticationCheck.findUnique as Mock).mockResolvedValue(null);
         (prisma.domainAuthenticationCheck.upsert as Mock).mockResolvedValue({});
+        (prisma.domainAuthenticationCheck.create as Mock).mockResolvedValue({});
+        (prisma.domainAuthenticationCheck.delete as Mock).mockResolvedValue({});
         (prisma.customDomain.findUnique as Mock).mockResolvedValue(null);
         (BrandingService.addDomain as Mock).mockResolvedValue({});
         (resolveTxt as Mock).mockResolvedValue([["v=DMARC1; p=none"]]);
@@ -113,6 +115,41 @@ describe("ensureResendDomainVerified", () => {
 
         await ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" });
         expect(BrandingService.addDomain).not.toHaveBeenCalled();
+    });
+
+    it("claims a placeholder row before creating a brand-new domain in Resend, to guard against a concurrent duplicate create", async () => {
+        await ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" });
+
+        expect(prisma.domainAuthenticationCheck.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                data: expect.objectContaining({ teamId: "team-1", domain: "team.test", provider: "RESEND" }),
+            }),
+        );
+        expect((prisma.domainAuthenticationCheck.create as Mock).mock.invocationCallOrder[0]).toBeLessThan(
+            mockDomainsCreate.mock.invocationCallOrder[0]
+        );
+    });
+
+    it("surfaces a friendly retry error when a concurrent request already claimed this domain", async () => {
+        (prisma.domainAuthenticationCheck.create as Mock).mockRejectedValue(
+            Object.assign(new Error("Unique constraint failed"), { code: "P2002" })
+        );
+
+        await expect(ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
+            "already in progress"
+        );
+        expect(mockDomainsCreate).not.toHaveBeenCalled();
+    });
+
+    it("releases its claim row if Resend rejects the new domain, so a retry isn't permanently blocked", async () => {
+        mockDomainsCreate.mockResolvedValue({ data: null, error: { message: "Invalid domain" } });
+
+        await expect(ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
+            "Invalid domain"
+        );
+        expect(prisma.domainAuthenticationCheck.delete).toHaveBeenCalledWith({
+            where: { teamId_domain_provider: { teamId: "team-1", domain: "team.test", provider: "RESEND" } },
+        });
     });
 
     it("throws when the team has no connected Resend mailbox", async () => {
