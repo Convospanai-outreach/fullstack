@@ -215,7 +215,19 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
         headers.delete("connection");
         headers.delete("content-length");
 
-        if (!webOwnedTarget) {
+        if (webOwnedTarget) {
+            // This is a self-fetch back into this same Next.js server (e.g.
+            // /api/proxy/auth/* relaying to /api/auth/*), which re-enters proxy.ts's
+            // middleware and would otherwise be rate-limited a second time for what
+            // is really one logical client request. Sign a short-lived marker the
+            // middleware can recognize and skip rate-limiting for.
+            const secret = process.env["NEXTAUTH_SECRET"];
+            if (secret) {
+                const timestamp = String(Date.now());
+                const signature = createHmac("sha256", secret).update(`relay.${timestamp}`).digest("hex");
+                headers.set("x-craftmyfunnel-internal-relay", `${timestamp}.${signature}`);
+            }
+        } else {
             await addInternalAuthHeaders(req, headers);
         }
 
