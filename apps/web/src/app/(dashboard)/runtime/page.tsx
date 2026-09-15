@@ -30,17 +30,20 @@ export default function RuntimeObservabilityPage() {
     const checkRuntime = async () => {
         setLoading(true);
         try {
+            // This card is specifically about the Fastify apps/api engine (port 3001), so
+            // it needs to reach apps/api's own /health directly - the proxy always routes
+            // whole-root "health" requests to apps/web's own /api/health instead.
+            const apiBase = process.env["NEXT_PUBLIC_RUNTIME_API_URL"] || "https://api.craftmyfunnel.live";
             const start = performance.now();
-            const res = await fetch("/api/health");
+            const res = await fetch(`${apiBase}/health`);
             const duration = Math.round(performance.now() - start);
 
             if (res.ok) {
                 const data = await res.json().catch(() => ({}));
                 setHealth(prev => ({
                     ...prev,
-                    apiStatus: "HEALTHY",
+                    apiStatus: data.status === "healthy" || data.status === "alive" ? "HEALTHY" : "DEGRADED",
                     dbLatencyMs: duration || 12,
-                    redisStatus: data.redis ? "HEALTHY" : "OPTIONAL_DEGRADED"
                 }));
             }
         } catch {

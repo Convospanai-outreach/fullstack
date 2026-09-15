@@ -38,14 +38,17 @@ export default function CommandCenterPage() {
         mailingAddressConfigured: boolean;
         domains: Array<{ domain: string; mx: boolean; spf: boolean; dkim: boolean; dmarc: boolean }>;
     } | null>(null);
+    const [activeCampaigns, setActiveCampaigns] = useState<Array<{ id: string; name: string; status: string; audience: string | null; _count?: { leadList: number } }>>([]);
 
     const refreshData = async () => {
         setLoading(true);
         try {
-            const [leadsRes, mailboxesRes, deliverabilityRes] = await Promise.all([
+            const [leadsRes, mailboxesRes, deliverabilityRes, campaignsRes, pendingJobsRes] = await Promise.all([
                 fetch("/api/proxy/leads?limit=5").catch(() => null),
                 fetch("/api/proxy/mailboxes").catch(() => null),
                 fetch("/api/proxy/dashboard/deliverability").catch(() => null),
+                fetch("/api/proxy/campaigns?status=active").catch(() => null),
+                fetch("/api/proxy/jobs?status=pending&limit=100").catch(() => null),
             ]);
 
             if (leadsRes?.ok) {
@@ -65,6 +68,19 @@ export default function CommandCenterPage() {
             if (deliverabilityRes?.ok) {
                 const data = await deliverabilityRes.json();
                 if (data.ok) setDeliverability(data.stats);
+            }
+
+            if (campaignsRes?.ok) {
+                const data = await campaignsRes.json();
+                const campaigns = Array.isArray(data) ? data : [];
+                setActiveCampaigns(campaigns);
+                setMetrics(prev => ({ ...prev, activeCampaigns: campaigns.length }));
+            }
+
+            if (pendingJobsRes?.ok) {
+                const pendingJobs = await pendingJobsRes.json();
+                const depth = Array.isArray(pendingJobs) ? pendingJobs.length : 0;
+                setMetrics(prev => ({ ...prev, outboxQueueDepth: depth }));
             }
         } finally {
             setLoading(false);
@@ -142,7 +158,7 @@ export default function CommandCenterPage() {
                     </div>
                     <div className="text-2xl font-bold text-foreground">{metrics.mailboxesActive} Inboxes</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
-                        <span>Bounce Rate: {metrics.bounceRate}% (Safe &lt; 5%)</span>
+                        <span>Bounce Rate: {deliverability ? (deliverability.bounceRate * 100).toFixed(1) : metrics.bounceRate}% (Safe &lt; 5%)</span>
                     </div>
                 </div>
 
@@ -153,7 +169,7 @@ export default function CommandCenterPage() {
                     </div>
                     <div className="text-2xl font-bold text-foreground">{metrics.outboxQueueDepth} Pending</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-purple-400">
-                        <span>Relay Lag: 42ms • Zero loss</span>
+                        <span>Jobs waiting to be picked up by a worker</span>
                     </div>
                 </div>
             </div>
@@ -173,35 +189,26 @@ export default function CommandCenterPage() {
                     </div>
 
                     <div className="space-y-3">
-                        <div className="p-4 rounded-xl bg-muted border border-border/60 flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Facility Management — Enterprise Q3 Expansion</p>
-                                <p className="text-xs text-muted-foreground">Target: Commercial Lease Signals • Active Leads: 48</p>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                Active (Step 2)
-                            </span>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-muted border border-border/60 flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Managed IT Retainers — Security Advisory</p>
-                                <p className="text-xs text-muted-foreground">Target: Infrastructure Surge • Active Leads: 32</p>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                Active (Step 1)
-                            </span>
-                        </div>
-
-                        <div className="p-4 rounded-xl bg-muted border border-border/60 flex items-center justify-between">
-                            <div className="space-y-1">
-                                <p className="text-sm font-semibold text-foreground">Executive Search — Hiring Surge Ingestion</p>
-                                <p className="text-xs text-muted-foreground">Target: VP Engineering Openings • Active Leads: 19</p>
-                            </div>
-                            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-primary border border-blue-500/20">
-                                Awaiting Approvals
-                            </span>
-                        </div>
+                        {activeCampaigns.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                {loading ? "Loading active campaigns..." : "No active campaigns right now."}
+                            </p>
+                        ) : (
+                            activeCampaigns.slice(0, 5).map((campaign) => (
+                                <div key={campaign.id} className="p-4 rounded-xl bg-muted border border-border/60 flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-foreground">{campaign.name}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {campaign.audience ? `Target: ${campaign.audience} • ` : ""}
+                                            Active Leads: {campaign._count?.leadList ?? 0}
+                                        </p>
+                                    </div>
+                                    <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                        {campaign.status}
+                                    </span>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 
