@@ -16,6 +16,11 @@ export async function POST() {
 
     const { prisma } = await import("@/lib/db");
 
+    // Extension tokens are never explicitly revoked, so garbage-collect this
+    // user's own already-expired ones whenever they mint a new one - bounds
+    // Session table growth without touching any other still-valid device's token.
+    await prisma.session.deleteMany({ where: { userId, expires: { lt: new Date() } } });
+
     // This row is an extension credential, not a web login: NextAuth uses JWT strategy
     // and never reads the Session table today. If that strategy is ever switched to
     // "database", this token would also become a valid NextAuth web session.
