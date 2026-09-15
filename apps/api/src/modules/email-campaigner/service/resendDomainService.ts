@@ -33,6 +33,18 @@ function statusFrom(found: boolean): CheckStatus {
     return found ? "VERIFIED" : "MISSING";
 }
 
+async function getVerifiedDomainRecord(teamId: string, rawDomain: string) {
+    const domain = normalizeDomain(rawDomain);
+    const record = await db.domainAuthenticationCheck.findUnique({
+        where: { teamId_domain_provider: { teamId, domain, provider: "RESEND" } },
+        select: { providerDomainId: true },
+    });
+    if (!record?.providerDomainId) {
+        throw new Error(`No Resend domain check found for ${domain}. Add it via ensureResendDomainVerified first.`);
+    }
+    return { domain, providerDomainId: record.providerDomainId as string };
+}
+
 async function getResendClientForTeam(teamId: string) {
     const mailbox = await prisma.connectedMailbox.findFirst({
         where: { teamId, provider: "RESEND" },
@@ -239,4 +251,51 @@ export async function ensureResendDomainVerified(input: {
             },
         },
     };
+}
+
+// Removes a team's sending domain from Resend and clears the local check row.
+// Idempotent: if Resend has already forgotten this domain id (e.g. removed
+// directly in the Resend dashboard), that's treated as success rather than an
+// error, since the end state - "not registered with Resend" - is what we want.
+export async function removeResendDomain(input: { teamId: string; domain: string }): Promise<{ domain: string; removed: true }> {
+    const { domain, providerDomainId } = await getVerifiedDomainRecord(input.teamId, input.domain);
+    const resend = await getResendClientForTeam(input.teamId);
+
+    const { error } = await resend.domains.remove(providerDomainId);
+    if (error && !/not.?found/i.test(error.message || "")) {
+        throw new Error(error.message || "Resend rejected the request to remove this domain.");
+    }
+
+    await db.domainAuthenticationCheck
+        .delete({ where: { teamId_domain_provider: { teamId: input.teamId, domain, provider: "RESEND" } } })
+        .catch(() => null);
+
+    return { domain, removed: true };
+}
+
+// Toggles Resend's own open/click tracking pixels for a team's sending domain.
+// Not persisted locally - DomainAuthenticationCheck tracks DNS/verification
+// state, not per-domain tracking preferences - Resend is the source of truth here.
+export async function updateResendDomainTracking(input: {
+    teamId: string;
+    domain: string;
+    openTracking?: boolean;
+    clickTracking?: boolean;
+}): Promise<{ domain: string; openTracking?: boolean; clickTracking?: boolean }> {
+    if (input.openTracking === undefined && input.clickTracking === undefined) {
+        throw new Error("Provide at least one of openTracking or clickTracking to update.");
+    }
+    const { domain, providerDomainId } = await getVerifiedDomainRecord(input.teamId, input.domain);
+    const resend = await getResendClientForTeam(input.teamId);
+
+    const { error } = await resend.domains.update({
+        id: providerDomainId,
+        ...(input.openTracking !== undefined ? { openTracking: input.openTracking } : {}),
+        ...(input.clickTracking !== undefined ? { clickTracking: input.clickTracking } : {}),
+    });
+    if (error) {
+        throw new Error(error.message || "Resend rejected the request to update this domain's tracking settings.");
+    }
+
+    return { domain, openTracking: input.openTracking, clickTracking: input.clickTracking };
 }

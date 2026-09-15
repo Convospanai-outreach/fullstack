@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import { ensureResendDomainVerified } from "../resendDomainService";
+import { ensureResendDomainVerified, removeResendDomain, updateResendDomainTracking } from "../resendDomainService";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { BrandingService } from "@/modules/branding/brandingService";
 import { resolveTxt } from "dns/promises";
 
-const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDomainsVerify } = vi.hoisted(() => ({
+const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDomainsVerify, mockDomainsRemove, mockDomainsUpdate } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { findFirst: vi.fn() },
         domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn(), delete: vi.fn() },
@@ -15,6 +15,8 @@ const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDoma
     mockDomainsCreate: vi.fn(),
     mockDomainsGet: vi.fn(),
     mockDomainsVerify: vi.fn(),
+    mockDomainsRemove: vi.fn(),
+    mockDomainsUpdate: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -30,6 +32,8 @@ vi.mock("resend", () => ({
             create: mockDomainsCreate,
             get: mockDomainsGet,
             verify: mockDomainsVerify,
+            remove: mockDomainsRemove,
+            update: mockDomainsUpdate,
         };
     }),
 }));
@@ -157,6 +161,100 @@ describe("ensureResendDomainVerified", () => {
 
         await expect(ensureResendDomainVerified({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
             "Connect a Resend mailbox"
+        );
+    });
+});
+
+describe("removeResendDomain", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox);
+        (decryptCredential as Mock).mockResolvedValue("re_test_api_key");
+        (prisma.domainAuthenticationCheck.findUnique as Mock).mockResolvedValue({ providerDomainId: "domain-1" });
+        (prisma.domainAuthenticationCheck.delete as Mock).mockResolvedValue({});
+        mockDomainsRemove.mockResolvedValue({ data: { id: "domain-1", deleted: true }, error: null });
+    });
+
+    it("removes the domain from Resend and clears the local check row", async () => {
+        const result = await removeResendDomain({ teamId: "team-1", domain: "team.test" });
+
+        expect(mockDomainsRemove).toHaveBeenCalledWith("domain-1");
+        expect(prisma.domainAuthenticationCheck.delete).toHaveBeenCalledWith({
+            where: { teamId_domain_provider: { teamId: "team-1", domain: "team.test", provider: "RESEND" } },
+        });
+        expect(result).toEqual({ domain: "team.test", removed: true });
+    });
+
+    it("throws when no domain check exists for this team/domain", async () => {
+        (prisma.domainAuthenticationCheck.findUnique as Mock).mockResolvedValue(null);
+
+        await expect(removeResendDomain({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
+            "No Resend domain check found"
+        );
+        expect(mockDomainsRemove).not.toHaveBeenCalled();
+    });
+
+    it("treats an already-removed domain on Resend's side as success rather than an error", async () => {
+        mockDomainsRemove.mockResolvedValue({ data: null, error: { message: "Domain not found" } });
+
+        const result = await removeResendDomain({ teamId: "team-1", domain: "team.test" });
+
+        expect(result).toEqual({ domain: "team.test", removed: true });
+        expect(prisma.domainAuthenticationCheck.delete).toHaveBeenCalled();
+    });
+
+    it("surfaces a genuine Resend rejection and leaves the local check row intact", async () => {
+        mockDomainsRemove.mockResolvedValue({ data: null, error: { message: "Insufficient permissions on this API key" } });
+
+        await expect(removeResendDomain({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
+            "Insufficient permissions"
+        );
+        expect(prisma.domainAuthenticationCheck.delete).not.toHaveBeenCalled();
+    });
+});
+
+describe("updateResendDomainTracking", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (prisma.connectedMailbox.findFirst as Mock).mockResolvedValue(mailbox);
+        (decryptCredential as Mock).mockResolvedValue("re_test_api_key");
+        (prisma.domainAuthenticationCheck.findUnique as Mock).mockResolvedValue({ providerDomainId: "domain-1" });
+        mockDomainsUpdate.mockResolvedValue({ data: { id: "domain-1" }, error: null });
+    });
+
+    it("forwards openTracking/clickTracking to Resend's update call", async () => {
+        const result = await updateResendDomainTracking({ teamId: "team-1", domain: "team.test", openTracking: false, clickTracking: true });
+
+        expect(mockDomainsUpdate).toHaveBeenCalledWith({ id: "domain-1", openTracking: false, clickTracking: true });
+        expect(result).toEqual({ domain: "team.test", openTracking: false, clickTracking: true });
+    });
+
+    it("allows updating just one of the two flags", async () => {
+        await updateResendDomainTracking({ teamId: "team-1", domain: "team.test", clickTracking: true });
+
+        expect(mockDomainsUpdate).toHaveBeenCalledWith({ id: "domain-1", clickTracking: true });
+    });
+
+    it("rejects when neither flag is provided", async () => {
+        await expect(updateResendDomainTracking({ teamId: "team-1", domain: "team.test" })).rejects.toThrow(
+            "Provide at least one"
+        );
+        expect(mockDomainsUpdate).not.toHaveBeenCalled();
+    });
+
+    it("throws when no domain check exists for this team/domain", async () => {
+        (prisma.domainAuthenticationCheck.findUnique as Mock).mockResolvedValue(null);
+
+        await expect(updateResendDomainTracking({ teamId: "team-1", domain: "team.test", openTracking: true })).rejects.toThrow(
+            "No Resend domain check found"
+        );
+    });
+
+    it("surfaces a Resend rejection", async () => {
+        mockDomainsUpdate.mockResolvedValue({ data: null, error: { message: "Invalid tls value" } });
+
+        await expect(updateResendDomainTracking({ teamId: "team-1", domain: "team.test", openTracking: true })).rejects.toThrow(
+            "Invalid tls value"
         );
     });
 });
