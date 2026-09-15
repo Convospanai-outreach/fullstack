@@ -4109,7 +4109,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   new), `tsc --noEmit` clean (same pre-existing, unrelated
   `browser-engine.ts` failure noted above).
 
-- **OPEN-234 (not yet fixed):** Resend reply-capture fields
+- **OPEN-234 (Fixed):** Resend reply-capture fields
   (`inboundDomain`, `webhookSecret`) were only collectible from
   Settings → Mailboxes, not from the onboarding wizard
   (`apps/web/src/app/setup/page.tsx`) — `apps/web/src/app/api/
