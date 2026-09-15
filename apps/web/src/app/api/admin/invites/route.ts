@@ -87,6 +87,16 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
+
+    // Bulk path (e.g. the setup wizard's "invite your team" step, which sends
+    // several teammates at once): kept separate from the single-email path
+    // below rather than merged, so the existing single-invite response shape
+    // (a flat invitation object, not a results array) never changes for its
+    // existing caller.
+    if (Array.isArray(body.emails)) {
+        return handleBulkInvite(actor, body);
+    }
+
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const role = typeof body.role === "string" ? body.role : UserRole.SALES_USER;
     const requestedTeamId = typeof body.teamId === "string" ? body.teamId : "";
@@ -159,6 +169,99 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ ...invitation, inviteLink, emailed }, { status: 201 });
+}
+
+async function handleBulkInvite(actor: AdminActor, body: any) {
+    const role = typeof body.role === "string" ? body.role : UserRole.SALES_USER;
+    const requestedTeamId = typeof body.teamId === "string" ? body.teamId : "";
+
+    if (!isAssignableInviteRole(role)) {
+        return NextResponse.json({ error: "Invalid invitation role." }, { status: 400 });
+    }
+
+    if (!isSuperAdminRole(actor.enterpriseRole) && (role === UserRole.SUPER_ADMIN || role === UserRole.SYSTEM_ADMIN)) {
+        return NextResponse.json({ error: "Only super admins can invite super admins." }, { status: 403 });
+    }
+
+    const allowedTeamIds = getAllowedTeamIds(actor);
+    const teamId = requestedTeamId || actor.memberships.find((member) => member.status === "active")?.teamId;
+
+    if (!teamId) {
+        return NextResponse.json({ error: "A team is required to invite a user." }, { status: 400 });
+    }
+
+    if (allowedTeamIds && !allowedTeamIds.includes(teamId)) {
+        return NextResponse.json({ error: "Cannot invite users outside your team." }, { status: 403 });
+    }
+
+    const emails = Array.from(new Set(
+        (body.emails as unknown[])
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.trim().toLowerCase())
+            .filter((value) => value.includes("@"))
+    ));
+
+    if (emails.length === 0) {
+        return NextResponse.json({ error: "At least one valid email is required." }, { status: 400 });
+    }
+
+    // A pasted list is an unusually large blast of invite emails compared to the
+    // one-at-a-time admin flow above - cap it so a copy-paste mistake (or abuse)
+    // can't fan out into an unbounded batch of emails and DB writes.
+    if (emails.length > 50) {
+        return NextResponse.json({ error: "You can invite up to 50 teammates at a time." }, { status: 400 });
+    }
+
+    const prisma = await loadPrisma();
+    const teamRole = role === UserRole.ORG_ADMIN ? "admin" : role === UserRole.VIEWER ? "viewer" : "member";
+
+    const results = await Promise.all(emails.map(async (email) => {
+        try {
+            const token = createInviteToken();
+            const inviteLink = getInviteLink(token);
+            const invitation = await prisma.userInvitation.create({
+                data: {
+                    email,
+                    role,
+                    teamId,
+                    invitedById: actor.id,
+                    tokenHash: hashInviteToken(token),
+                    expiresAt: new Date(Date.now() + INVITE_TTL_MS)
+                }
+            });
+
+            const existingMember = await prisma.teamMember.findFirst({ where: { teamId, email } });
+            if (existingMember) {
+                await prisma.teamMember.update({
+                    where: { id: existingMember.id },
+                    data: { role: teamRole, status: "invited" }
+                });
+            } else {
+                await prisma.teamMember.create({
+                    data: { teamId, email, role: teamRole, status: "invited" }
+                });
+            }
+
+            let emailed = false;
+            try {
+                emailed = await maybeSendInviteEmail(email, inviteLink);
+            } catch (error) {
+                console.error("[Invitations] Failed to email invite:", error);
+            }
+
+            await AuditService.log(teamId, actor.id, "user_invited", "UserInvitation", invitation.id, {
+                email,
+                role,
+                emailed
+            });
+
+            return { email, ok: true as const, inviteLink, emailed };
+        } catch (error: any) {
+            return { email, ok: false as const, error: error?.message || "Failed to create invite" };
+        }
+    }));
+
+    return NextResponse.json({ results }, { status: 201 });
 }
 
 export async function PATCH(req: NextRequest) {

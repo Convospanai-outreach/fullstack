@@ -67,7 +67,10 @@ export default function UserManagementPage() {
             const res = await fetch("/api/admin/invites", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(newUser)
+                // POST /api/admin/invites reads `role`, not `enterpriseRole` - sending
+                // `newUser` as-is silently dropped the selected role and always invited
+                // as the default SALES_USER regardless of the dropdown.
+                body: JSON.stringify({ email: newUser.email, role: newUser.enterpriseRole })
             });
             if (res.ok) {
                 const data = await res.json();
