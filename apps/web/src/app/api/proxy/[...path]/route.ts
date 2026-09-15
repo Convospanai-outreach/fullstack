@@ -87,7 +87,10 @@ const WEB_OWNED_API_ROOTS = new Set([
 // of proxying them upstream, so these need path-level matching instead. `workflows` has
 // zero apps/web routes at all (the whole builder lives in apps/api), so it's
 // intentionally absent from both sets.
-const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import"]);
+// "org-chart" is also apps/api-only (routes/leads/org-chart/route.ts) - without this,
+// /leads/org-chart gets misclassified as /leads/[id] with id="org-chart" and served
+// (wrongly, 404) by apps/web's own /api/leads/[id] route instead of being proxied.
+const LEADS_RESERVED_SEGMENTS = new Set(["bulk", "export", "import", "org-chart"]);
 
 export function isWebOwnedPath(pathParts: string[]): boolean {
     const [root, second, third] = pathParts;
