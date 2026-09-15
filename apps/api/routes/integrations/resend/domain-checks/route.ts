@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
         });
         return NextResponse.json({ result });
     } catch (error: any) {
-        return NextResponse.json({ error: error?.message || "Unable to check this domain with Resend." }, { status: 500 });
+        // normalizeDomain() throws this for a syntactically invalid domain (e.g.
+        // "abc" passes the schema's min(3) check but isn't a real domain) - that's
+        // a client input error, not a server failure.
+        const status = error?.message?.startsWith("Enter a valid domain") ? 400 : 500;
+        return NextResponse.json({ error: error?.message || "Unable to check this domain with Resend." }, { status });
     }
 }
