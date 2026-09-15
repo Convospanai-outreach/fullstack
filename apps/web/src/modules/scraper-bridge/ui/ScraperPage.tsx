@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import ScrapeForm from "./components/ScrapeForm";
 import ScrapeResult from "./components/ScrapeResult";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
@@ -18,9 +19,13 @@ export default function ScraperPage() {
                 body: JSON.stringify(request),
             });
             const data = await res.json();
+            if (!res.ok || data.ok === false) {
+                throw new Error(data.error || "Failed to scrape target");
+            }
             setResult(data.result);
         } catch (error) {
             console.error(error);
+            toast.error(error instanceof Error ? error.message : "Failed to scrape target");
         } finally {
             setLoading(false);
         }
