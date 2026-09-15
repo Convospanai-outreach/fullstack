@@ -21,6 +21,13 @@ jobs:
           username: ${{ secrets.ORACLE_SSH_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
           script: |
+            set -e
             cd /opt/fullstack
+            # Prune BEFORE pulling: pull failing on a full disk (silently, without `set -e`
+            # here, since the deployed container just kept running the stale image while CI
+            # still reported success) is what let old images pile up until the VM ran out of
+            # space entirely. Safe to run unconditionally - the currently-running image is
+            # always "in use" and never pruned.
+            docker image prune -af
             docker compose pull
             docker compose up -d
