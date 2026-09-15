@@ -45,6 +45,8 @@ export class WorkerManager {
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
     private customDomainInterval: number = parseInt(process.env['CUSTOM_DOMAIN_POLL_INTERVAL_MS'] || '300000'); // 5 minutes
+    private lastShadowSignalReconcileTick: number = 0;
+    private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
 
     async start() {
         if (this.isRunning) return;
@@ -212,6 +214,15 @@ export class WorkerManager {
                 console.log(`[Worker] ${results.length} custom domain(s) changed status: ${results.map(r => `${r.domain}=${r.status}`).join(", ")}`);
             }
             this.lastCustomDomainTick = now;
+        }
+
+        if (now - this.lastShadowSignalReconcileTick >= this.shadowSignalReconcileInterval) {
+            const { reconcileOrphanedShadowSignals } = await import("./handlers/shadowSignalReconciliationWorker");
+            const result = await reconcileOrphanedShadowSignals();
+            if (result.matched > 0) {
+                console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
+            }
+            this.lastShadowSignalReconcileTick = now;
         }
     }
 

@@ -3,6 +3,7 @@ import { resolveTxt } from "dns/promises";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { BrandingService } from "@/modules/branding/brandingService";
+import { normalizeDomainStrict as normalizeDomain } from "@/lib/crm/domain";
 
 type CheckStatus = "VERIFIED" | "MISSING";
 const db = prisma as any;
@@ -46,14 +47,6 @@ export async function listResendDomains(teamId: string): Promise<ResendDomainSum
         lastCheckedAt: row.lastCheckedAt ? row.lastCheckedAt.toISOString() : null,
         failureReason: row.failureReason,
     }));
-}
-
-function normalizeDomain(value: string) {
-    const domain = value.trim().toLowerCase().replace(/\.$/, "");
-    if (!/^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,63}$/.test(domain)) {
-        throw new Error("Enter a valid domain, such as example.com.");
-    }
-    return domain;
 }
 
 function statusFrom(found: boolean): CheckStatus {

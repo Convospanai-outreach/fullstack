@@ -1,0 +1,55 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { mockGetCurrentContext, mockAuthorizeRole, mockPrisma } = vi.hoisted(() => ({
+    mockGetCurrentContext: vi.fn(),
+    mockAuthorizeRole: vi.fn(),
+    mockPrisma: {
+        campaign: { create: vi.fn(), findMany: vi.fn() },
+        lead: { updateMany: vi.fn() },
+    },
+}));
+
+vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
+vi.mock("@/lib/permissions", () => ({
+    authorizeRole: mockAuthorizeRole,
+    TeamRole: { MEMBER: "MEMBER", VIEWER: "VIEWER" },
+}));
+vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+
+import { POST } from "./route";
+
+function postRequest(body: unknown) {
+    return new Request("http://localhost/api/campaigns", {
+        method: "POST",
+        body: JSON.stringify(body),
+    }) as any;
+}
+
+describe("POST /api/campaigns", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.campaign.create.mockResolvedValue({ id: "campaign-1", name: "Recover WARM leads" });
+    });
+
+    it("persists sourcePipelineStage when creating a stage-targeted campaign", async () => {
+        await POST(postRequest({ name: "Recover WARM leads", sourcePipelineStage: "WARM", leads: ["lead-1", "lead-2"] }));
+
+        expect(mockPrisma.campaign.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ sourcePipelineStage: "WARM" }),
+        });
+        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith({
+            where: { id: { in: ["lead-1", "lead-2"] }, teamId: "team-a" },
+            data: { campaignId: "campaign-1" },
+        });
+    });
+
+    it("leaves sourcePipelineStage unset for a plain campaign", async () => {
+        await POST(postRequest({ name: "Plain campaign" }));
+
+        expect(mockPrisma.campaign.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ sourcePipelineStage: undefined }),
+        });
+    });
+});

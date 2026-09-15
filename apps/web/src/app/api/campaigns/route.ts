@@ -61,6 +61,7 @@ export async function POST(req: Request) {
         const description = validation.success ? validation.data.description : body.description || null;
         const targetCount = typeof body.targetCount === "number" ? body.targetCount : 0;
         const leads = body.leads;
+        const sourcePipelineStage = typeof body.sourcePipelineStage === "string" ? body.sourcePipelineStage : undefined;
 
         const campaign = await prisma.campaign.create({
             data: {
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
                 description,
                 targetCount,
                 status: "draft",
+                sourcePipelineStage,
             },
         });
 

@@ -43,9 +43,15 @@ vi.mock("@/modules/webhooks/service/webhookService", () => ({
     webhookService: { dispatch: vi.fn().mockResolvedValue(undefined) },
 }));
 
+vi.mock("@/lib/crm/leadDataSource", () => ({
+    recordLeadDataSources: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { deductCredits, refundCredits } from "@/lib/credits";
+import { hunterService } from "@/modules/hunter-email-finder";
+import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 import { handleLeadEnrichment } from "../enrichment-worker";
 
 describe("enrichment-worker", () => {
@@ -169,5 +175,135 @@ describe("enrichment-worker", () => {
             { campaignId: "campaign-1", teamId: "team-a" },
             expect.objectContaining({ idempotencyKey: "batch_submit_campaign-1" })
         );
+    });
+
+    describe("Hunter enrichment - domain anchoring and full response persistence", () => {
+        it("uses the lead's own canonical domain instead of guessing when one is already set", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: null,
+                    company: "Acme Corp",
+                    domain: "acme.example",
+                })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Acme Corp" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: "jane@acme.example" });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(hunterService.findAndStoreEmail).toHaveBeenCalledWith(
+                expect.objectContaining({ domain: "acme.example" })
+            );
+        });
+
+        it("falls back to guessing a domain (transiently, never persisted) only when the lead has no canonical domain", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: null,
+                    company: "Acme Corp",
+                    domain: null,
+                })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Acme Corp" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({ email: "jane@acmecorp.com" });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(hunterService.findAndStoreEmail).toHaveBeenCalledWith(
+                expect.objectContaining({ domain: "acmecorp.com" })
+            );
+            // The guess must never be written back to Lead.domain.
+            expect(prisma.lead.update).not.toHaveBeenCalledWith(
+                expect.objectContaining({ data: expect.objectContaining({ domain: expect.anything() }) })
+            );
+        });
+
+        it("persists Hunter's previously-discarded response fields under enrichedData.hunter and records provenance", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: null,
+                    company: null,
+                    domain: "acme.example",
+                })
+                .mockResolvedValueOnce({ enrichedData: { existing: "value" }, company: null });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({
+                email: "jane@acme.example",
+                score: 97,
+                firstName: "Jane",
+                lastName: "Doe",
+                position: "VP Sales",
+                company: "Acme Corp",
+                sources: [{ domain: "acme.example" }],
+            });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(prisma.lead.update).toHaveBeenCalledWith({
+                where: { id: "lead-1" },
+                data: {
+                    enrichedData: {
+                        existing: "value",
+                        hunter: expect.objectContaining({
+                            score: 97,
+                            firstName: "Jane",
+                            lastName: "Doe",
+                            position: "VP Sales",
+                            company: "Acme Corp",
+                            sources: [{ domain: "acme.example" }],
+                        }),
+                    },
+                },
+            });
+            // Company was empty on the lead, so Hunter's company promotes.
+            expect(prisma.lead.update).toHaveBeenCalledWith({
+                where: { id: "lead-1" },
+                data: expect.objectContaining({ company: "Acme Corp" }),
+            });
+            expect(recordLeadDataSources).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({ leadId: "lead-1", field: "email", source: "HUNTER" }),
+                    expect.objectContaining({ leadId: "lead-1", field: "company", source: "HUNTER", value: "Acme Corp" }),
+                ])
+            );
+        });
+
+        it("never overwrites an existing company with Hunter's returned company", async () => {
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: null,
+                    company: "Original Company",
+                    domain: "acme.example",
+                })
+                .mockResolvedValueOnce({ enrichedData: null, company: "Original Company" });
+            (prisma.lead.update as any).mockResolvedValue({});
+            (hunterService.findAndStoreEmail as any).mockResolvedValue({
+                email: "jane@acme.example",
+                company: "Different Company From Hunter",
+            });
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            const finalUpdateCall = (prisma.lead.update as any).mock.calls.find(
+                (call: any[]) => call[0].data.status === "enriched"
+            );
+            expect(finalUpdateCall[0].data.company).toBeUndefined();
+        });
     });
 });

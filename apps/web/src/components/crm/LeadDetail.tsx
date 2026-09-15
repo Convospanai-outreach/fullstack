@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
     WifiOff,
     Globe,
@@ -17,6 +18,8 @@ import {
     MessageCircle,
     PhoneCall,
     Sparkles,
+    Network,
+    Megaphone,
     X
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -30,6 +33,7 @@ interface Lead {
     id: string;
     fullName: string;
     company: string;
+    domain?: string | null;
     jobTitle: string;
     location: string;
     linkedIn: string;
@@ -82,6 +86,15 @@ type WorkflowSummary = {
     id: string;
     name: string;
     isActive: boolean;
+};
+
+type LeadDataSourceItem = {
+    id: string;
+    field: string;
+    source: string;
+    value: string;
+    confidence: string | null;
+    capturedAt: string;
 };
 
 type JourneySuggestion = {
@@ -141,6 +154,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
     const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
     const [workflowsLoading, setWorkflowsLoading] = useState(false);
     const [runningWorkflowId, setRunningWorkflowId] = useState<string | null>(null);
+    const [dataSources, setDataSources] = useState<LeadDataSourceItem[]>([]);
 
     const refreshTimeline = async () => {
         try {
@@ -149,6 +163,16 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
             setTimeline(Array.isArray(data?.timeline) ? data.timeline : []);
         } catch {
             setTimeline([]);
+        }
+    };
+
+    const refreshDataSources = async () => {
+        try {
+            const res = await fetch(`${API_BASE}/leads/${lead.id}/data-sources`, { cache: "no-store" });
+            const data = res.ok ? await res.json() : null;
+            setDataSources(Array.isArray(data?.dataSources) ? data.dataSources : []);
+        } catch {
+            setDataSources([]);
         }
     };
 
@@ -345,6 +369,7 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
 
     useEffect(() => {
         refreshTimeline().finally(() => undefined);
+        refreshDataSources().finally(() => undefined);
     }, [lead.id]);
 
     return (
@@ -399,6 +424,22 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                         <Activity className={`w-4 h-4 ${workflowsLoading ? "animate-pulse" : ""}`} />
                         Run Workflow
                     </Button>
+                    {lead.company && (
+                        <Button variant="outline" className="gap-1.5 hover:bg-white/5" asChild>
+                            <Link href={`/leads/org-chart?${lead.domain ? `domain=${encodeURIComponent(lead.domain)}` : `company=${encodeURIComponent(lead.company)}`}`}>
+                                <Network className="w-4 h-4" />
+                                View Org Chart
+                            </Link>
+                        </Button>
+                    )}
+                    {lead.pipelineState && ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"].includes(lead.pipelineState) && (
+                        <Button variant="outline" className="gap-1.5 hover:bg-white/5" asChild>
+                            <Link href={`/campaigns/new?stage=${lead.pipelineState}${lead.domain ? `&domain=${encodeURIComponent(lead.domain)}` : ""}`}>
+                                <Megaphone className="w-4 h-4" />
+                                Start Recovery Campaign
+                            </Link>
+                        </Button>
+                    )}
                     {lead.linkedIn && (
                         <Button variant="outline" onClick={() => window.open(lead.linkedIn, "_blank")}>
                             View LinkedIn
@@ -698,6 +739,39 @@ export function LeadDetail({ lead: initialLead }: LeadDetailProps) {
                                         ))}
                                     </div>
                                 </div>
+                            </div>
+                        </GlassCard>
+                    )}
+
+                    {/* Data Sources - per-field provenance (which source supplied which value, and when) */}
+                    {dataSources.length > 0 && (
+                        <GlassCard className="space-y-4">
+                            <h3 className="text-lg font-semibold gradient-text">Data Sources</h3>
+                            <div className="overflow-x-auto rounded-xl border border-white/5">
+                                <table className="w-full text-sm text-left">
+                                    <thead className="text-xs uppercase bg-white/5 text-white/50">
+                                        <tr>
+                                            <th className="px-4 py-3">Field</th>
+                                            <th className="px-4 py-3">Source</th>
+                                            <th className="px-4 py-3">Value</th>
+                                            <th className="px-4 py-3">Confidence</th>
+                                            <th className="px-4 py-3">Captured</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {dataSources.map((row) => (
+                                            <tr key={row.id} className="border-t border-white/5">
+                                                <td className="px-4 py-2 text-white/80">{row.field}</td>
+                                                <td className="px-4 py-2">
+                                                    <Badge variant="outline">{row.source}</Badge>
+                                                </td>
+                                                <td className="px-4 py-2 text-white/80 max-w-xs truncate" title={row.value}>{row.value}</td>
+                                                <td className="px-4 py-2 text-white/60">{row.confidence || "-"}</td>
+                                                <td className="px-4 py-2 text-white/50 text-xs">{new Date(row.capturedAt).toLocaleString()}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
                         </GlassCard>
                     )}

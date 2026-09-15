@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import Papa from "papaparse";
 import { ConsentService, ConsentMethod } from "@/modules/whatsapp/ConsentService";
+import { tryNormalizeDomain, extractDomainFromEmail } from "@/lib/crm/domain";
+import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 
 export interface ConsentAttestation {
     userId: string;
@@ -40,6 +42,7 @@ class CSVIngestionService {
             else if (nh.includes('name') || nh === 'fullname' || nh === 'contactname') mapping[h] = 'fullName';
             else if (nh.includes('linkedin') || nh.includes('profile')) mapping[h] = 'linkedIn';
             else if (nh.includes('company') || nh === 'org') mapping[h] = 'company';
+            else if (nh.includes('domain') || nh.includes('website') || nh === 'url') mapping[h] = 'domain';
             else if (nh.includes('title') || nh.includes('role')) mapping[h] = 'jobTitle';
             else if (nh.includes('location') || nh.includes('city')) mapping[h] = 'location';
         });
@@ -95,6 +98,7 @@ class CSVIngestionService {
             const emailKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'email');
             const fullNameKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'fullName');
             const companyKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'company');
+            const domainKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'domain');
             const jobTitleKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'jobTitle');
             const linkedInKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'linkedIn');
             const locationKey = Object.keys(activeMapping).find(k => activeMapping[k] === 'location');
@@ -130,16 +134,31 @@ class CSVIngestionService {
                         }
                     });
 
+                    // Domain resolution order: explicit domain/website column, then the
+                    // row's own email domain, else leave null - never guess from the
+                    // company-name text, which is the exact free-text-matching failure
+                    // mode this field exists to replace.
+                    const domain = domainKey
+                        ? (tryNormalizeDomain(row[domainKey]) ?? extractDomainFromEmail(email))
+                        : extractDomainFromEmail(email);
+
                     if (existing) {
                         if (campaignId) {
+                            const updatedCompany = companyKey ? row[companyKey]?.trim() || existing.company || undefined : undefined;
+                            const updatedDomain = domain ?? existing.domain ?? undefined;
                             await prisma.lead.update({
                                 where: { id: existing.id },
                                 data: {
                                     campaignId,
                                     fullName: fullNameKey ? row[fullNameKey]?.trim() || existing.fullName || undefined : undefined,
-                                    company: companyKey ? row[companyKey]?.trim() || existing.company || undefined : undefined,
+                                    company: updatedCompany,
+                                    domain: updatedDomain,
                                 },
                             });
+                            const provenance: Parameters<typeof recordLeadDataSources>[0] = [];
+                            if (updatedCompany) provenance.push({ leadId: existing.id, field: "company", source: "CSV_IMPORT", value: updatedCompany });
+                            if (domain) provenance.push({ leadId: existing.id, field: "domain", source: "CSV_IMPORT", value: domain });
+                            await recordLeadDataSources(provenance);
                             created++;
                         } else {
                             skipped++;
@@ -158,6 +177,7 @@ class CSVIngestionService {
                             email,
                             fullName,
                             company,
+                            domain: domain || undefined,
                             jobTitle,
                             linkedIn,
                             location,
@@ -166,6 +186,13 @@ class CSVIngestionService {
                             status: "NEW",
                         }
                     });
+
+                    const provenance: Parameters<typeof recordLeadDataSources>[0] = [
+                        { leadId: createdLead.id, field: "email", source: "CSV_IMPORT", value: email },
+                    ];
+                    if (company) provenance.push({ leadId: createdLead.id, field: "company", source: "CSV_IMPORT", value: company });
+                    if (domain) provenance.push({ leadId: createdLead.id, field: "domain", source: "CSV_IMPORT", value: domain });
+                    await recordLeadDataSources(provenance);
 
                     if (consent?.hasConsent) {
                         // DPDP Act 2023 / GDPR: log the importer's attestation of consent to the ledger.
