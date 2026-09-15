@@ -133,8 +133,8 @@ export default function CSVPage() {
                                 <div className="mt-4">
                                     <h4 className="text-sm font-medium text-red-400 mb-2">Errors:</h4>
                                     <ul className="list-disc list-inside text-sm text-gray-400 max-h-32 overflow-y-auto">
-                                        {result.errors.map((err: string, i: number) => (
-                                            <li key={i}>{err}</li>
+                                        {result.errors.map((err: { message: string } | string, i: number) => (
+                                            <li key={i}>{typeof err === "string" ? err : err.message}</li>
                                         ))}
                                     </ul>
                                 </div>
