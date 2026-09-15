@@ -36,6 +36,7 @@ type SetupStatus = {
   hasAccount: boolean;
   isEmailVerified: boolean;
   brandingComplete: boolean;
+  hasSmtpConfig: boolean;
   canSendEmail: boolean;
   hasCustomSender: boolean;
   hasLinkedInSession: boolean;
@@ -188,9 +189,11 @@ export default function SetupWizardPage() {
           demoUrl: data.aiConfig?.mediaKit?.demoUrl || "",
         },
       });
+      return data;
     } catch (error) {
       setStatus(null);
       setLoadError(error instanceof Error ? error.message : "Unable to load setup.");
+      return null;
     }
   }
 
@@ -198,11 +201,14 @@ export default function SetupWizardPage() {
     setMailboxLoading(true);
     try {
       const res = await fetch(`${apiBase}/integrations/google/mailboxes`, { cache: "no-store" });
-      if (res.status === 401 || res.status === 403) return;
+      if (res.status === 401 || res.status === 403) return [];
       const data = await readJson(res);
-      setMailboxes(Array.isArray(data.mailboxes) ? data.mailboxes : []);
+      const list = Array.isArray(data.mailboxes) ? data.mailboxes : [];
+      setMailboxes(list);
+      return list;
     } catch {
       setMailboxes([]);
+      return [];
     } finally {
       setMailboxLoading(false);
     }
@@ -217,7 +223,24 @@ export default function SetupWizardPage() {
     // The Google signIn callback creates the user/team row synchronously
     // before any session is issued (see syncGoogleUserToApp), so unlike the
     // old Clerk flow there's no async-webhook race to guard against here.
-    Promise.all([loadStatus(), loadMailboxes()]).finally(() => setLoading(false));
+    Promise.all([loadStatus(), loadMailboxes()])
+      .then(([statusData, mailboxList]: [SetupStatus | null, Mailbox[]]) => {
+        // loadStatus() always defaults step3.provider to "SMTP" since the
+        // backend doesn't track a single "selected provider" - detect the
+        // provider a returning team actually has connected so revisiting this
+        // step doesn't silently switch them back to SMTP and risk submitting
+        // blank SMTP credentials over their real mailbox.
+        const activeMailbox = (mailboxList || []).find((mailbox) => mailbox.status === "CONNECTED");
+        const detectedProvider = activeMailbox?.provider === "RESEND"
+          ? "RESEND"
+          : activeMailbox?.provider === "GOOGLE_WORKSPACE"
+            ? "GOOGLE"
+            : statusData?.hasSmtpConfig
+              ? "SMTP"
+              : "SMTP";
+        setFormData((prev: any) => ({ ...prev, step3: { ...prev.step3, provider: detectedProvider } }));
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   async function handleSaveStep(stepId: number) {
@@ -474,6 +497,7 @@ export default function SetupWizardPage() {
                 mailboxLoading={mailboxLoading}
                 actionMessage={actionMessage}
                 domainCheck={domainCheck}
+                onClearDomainCheck={() => setDomainCheck(null)}
                 onConnectGoogle={connectGoogleMailbox}
                 onConnectMicrosoft={connectMicrosoftMailbox}
                 onReload={loadMailboxes}
@@ -532,6 +556,7 @@ function MailboxProviderStep(props: {
   mailboxLoading: boolean;
   actionMessage: string | null;
   domainCheck: DomainCheckResult | null;
+  onClearDomainCheck: () => void;
   onConnectGoogle: () => void;
   onConnectMicrosoft: () => void;
   onReload: () => void;
@@ -543,7 +568,13 @@ function MailboxProviderStep(props: {
   const [showReplyCapture, setShowReplyCapture] = useState(false);
   const provider = props.formData.step3?.provider || "SMTP";
   const existingResendInboundDomain = connected.find((mailbox) => mailbox.provider === "RESEND")?.metadata?.inboundDomain || "";
-  const setProvider = (next: string) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, provider: next } });
+  const setProvider = (next: string) => {
+    // Records from the previously selected provider don't apply to the newly
+    // selected one (different DNS requirements per provider) - clear them so
+    // stale results aren't shown under the wrong provider.
+    props.onClearDomainCheck();
+    props.setFormData({ ...props.formData, step3: { ...props.formData.step3, provider: next } });
+  };
   const setStep3 = (patch: Record<string, any>) => props.setFormData({ ...props.formData, step3: { ...props.formData.step3, ...patch } });
 
   return (
