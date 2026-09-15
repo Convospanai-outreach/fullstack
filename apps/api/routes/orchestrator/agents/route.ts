@@ -8,6 +8,7 @@ export async function GET() {
         if (!ctx.teamId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const agents = await prisma.agent.findMany({
+            where: { teamId: ctx.teamId },
             orderBy: { updatedAt: "desc" }
         });
         return NextResponse.json(agents);

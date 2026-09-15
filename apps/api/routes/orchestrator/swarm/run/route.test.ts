@@ -4,7 +4,7 @@ const { mockGetCurrentContext, mockPrisma, mockEnqueue, mockEnforcePolicy, mockC
     mockGetCurrentContext: vi.fn(),
     mockPrisma: {
         campaign: { findFirst: vi.fn() },
-        agent: { findFirst: vi.fn(), create: vi.fn() },
+        agent: { upsert: vi.fn() },
         agentTask: { create: vi.fn() },
         activity: { create: vi.fn() },
     },
@@ -35,7 +35,7 @@ describe("POST /orchestrator/swarm/run - rate limiting", () => {
         vi.clearAllMocks();
         mockCheckLimits.mockResolvedValue(undefined);
         mockEnforcePolicy.mockResolvedValue(true);
-        mockPrisma.agent.findFirst.mockResolvedValue({ id: "agent-1" });
+        mockPrisma.agent.upsert.mockResolvedValue({ id: "agent-1" });
         mockPrisma.agentTask.create.mockResolvedValue({ id: "task-1" });
         mockPrisma.activity.create.mockResolvedValue({});
         mockEnqueue.mockResolvedValue({ id: "job-1" });
@@ -64,5 +64,19 @@ describe("POST /orchestrator/swarm/run - rate limiting", () => {
         const res = await POST(postRequest({ roles: ["Debugger"] }));
 
         expect(res.status).toBe(200);
+    });
+
+    it("scopes the Agent upsert to the caller's team (OPEN-187: Agent rows had no teamId, so every team shared one row per role)", async () => {
+        const teamId = `team-scope-${crypto.randomUUID()}`;
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId });
+
+        await POST(postRequest({ roles: ["Debugger"] }));
+
+        expect(mockPrisma.agent.upsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { teamId_name: { teamId, name: "Debugger" } },
+                create: expect.objectContaining({ teamId, name: "Debugger" }),
+            })
+        );
     });
 });

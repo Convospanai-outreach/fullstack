@@ -144,13 +144,11 @@ export async function POST(req: Request) {
     }
 
     const launched = await Promise.all(roles.map(async (role) => {
-        const existingAgent = await prisma.agent.findFirst({
-            where: { name: role },
-            orderBy: { updatedAt: "desc" }
-        });
-
-        const agent = existingAgent ?? await prisma.agent.create({
-            data: {
+        const agent = await prisma.agent.upsert({
+            where: { teamId_name: { teamId, name: role } },
+            update: {},
+            create: {
+                teamId,
                 name: role,
                 description: `${role} specialist for parallel swarm execution`,
                 status: "idle"

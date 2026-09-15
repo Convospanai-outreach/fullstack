@@ -11,6 +11,7 @@ export async function GET() {
         const { prisma } = await import("@/lib/db");
 
         const agents = await prisma.agent.findMany({
+            where: { teamId: ctx.teamId },
             orderBy: { updatedAt: "desc" }
         });
         return NextResponse.json(agents);
