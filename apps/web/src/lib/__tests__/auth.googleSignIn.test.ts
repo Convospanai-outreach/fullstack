@@ -67,9 +67,22 @@ describe("authOptions.callbacks.signIn - Google branch", () => {
             email: "new@example.com",
             name: "Ada Lovelace",
             inviteToken: "invite-token-123",
+            hostedDomain: undefined,
         });
         expect(result).toBe(true);
         expect(user.id).toBe("new-user-1");
+    });
+
+    it("passes Google's hd claim through as hostedDomain for a Workspace login", async () => {
+        mockPrisma.user.findUnique.mockResolvedValue(null);
+        mockSyncGoogleUserToApp.mockResolvedValue({ id: "new-user-2" });
+        const user: { email: string; id?: string } = { email: "newhire@smcindia.com" };
+
+        await signIn({ user, account, profile: { ...verifiedProfile, hd: "smcindia.com" } });
+
+        expect(mockSyncGoogleUserToApp).toHaveBeenCalledWith(
+            expect.objectContaining({ hostedDomain: "smcindia.com" })
+        );
     });
 
     it("denies a new user only when syncGoogleUserToApp returns null (SSO enforced on their domain)", async () => {

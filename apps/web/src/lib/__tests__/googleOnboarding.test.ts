@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
         user: { findUnique: vi.fn() },
         userInvitation: { findFirst: vi.fn() },
         inviteRequest: { findFirst: vi.fn(), update: vi.fn() },
+        domainAuthenticationCheck: { findFirst: vi.fn() },
         $transaction: vi.fn(),
     },
 }));
@@ -201,6 +202,91 @@ describe("syncGoogleUserToApp - fresh team creation for an approved InviteReques
                     }),
                 }),
             })
+        );
+    });
+});
+
+describe("syncGoogleUserToApp - Google Workspace hd auto-join", () => {
+    const mockTx = {
+        user: { create: vi.fn(), findUnique: vi.fn() },
+        teamMember: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    };
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSsoEnforcedForEmail as Mock).mockResolvedValue(false);
+        (prisma.user.findUnique as Mock).mockResolvedValue(null);
+        (prisma.userInvitation.findFirst as Mock).mockResolvedValue(null);
+        (prisma.$transaction as Mock).mockImplementation((cb: any) => cb(mockTx));
+        mockTx.teamMember.findFirst.mockResolvedValue(null);
+        mockTx.teamMember.create.mockResolvedValue({});
+        mockTx.user.create.mockResolvedValue({ id: "user-1" });
+        mockTx.user.findUnique.mockResolvedValue({ id: "user-1", memberships: [{ teamId: "team-verified", status: "active" }] });
+    });
+
+    it("joins the team that first verified the hosted domain, as a plain member", async () => {
+        (prisma.domainAuthenticationCheck.findFirst as Mock).mockResolvedValue({ teamId: "team-verified" });
+
+        const result = await syncGoogleUserToApp({
+            email: "newhire@smcindia.com",
+            hostedDomain: "smcindia.com",
+        });
+
+        expect(prisma.domainAuthenticationCheck.findFirst).toHaveBeenCalledWith({
+            where: { domain: "smcindia.com", status: "VERIFIED" },
+            orderBy: { createdAt: "asc" },
+            select: { teamId: true },
+        });
+        expect(mockTx.teamMember.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-verified", role: "member", status: "active" }) })
+        );
+        expect(result).toEqual({ id: "user-1", memberships: [{ teamId: "team-verified", status: "active" }] });
+    });
+
+    it("does not auto-join when no team has verified the hosted domain", async () => {
+        (prisma.domainAuthenticationCheck.findFirst as Mock).mockResolvedValue(null);
+        (prisma.inviteRequest.findFirst as Mock).mockResolvedValue(null);
+        const fallbackTx = { user: { create: vi.fn().mockResolvedValue({ id: "user-2" }), findUnique: vi.fn().mockResolvedValue({ id: "user-2", memberships: [] }) }, team: { create: vi.fn() }, inviteRequest: { update: vi.fn() } };
+        (prisma.$transaction as Mock).mockImplementation((cb: any) => cb(fallbackTx));
+
+        await syncGoogleUserToApp({ email: "unverified@unclaimed.com", hostedDomain: "unclaimed.com" });
+
+        expect(mockTx.teamMember.create).not.toHaveBeenCalled();
+        expect(fallbackTx.team.create).toHaveBeenCalled();
+    });
+
+    it("never auto-joins a personal Gmail login (no hostedDomain claim at all)", async () => {
+        (prisma.inviteRequest.findFirst as Mock).mockResolvedValue(null);
+        const fallbackTx = { user: { create: vi.fn().mockResolvedValue({ id: "user-3" }), findUnique: vi.fn().mockResolvedValue({ id: "user-3", memberships: [] }) }, team: { create: vi.fn() }, inviteRequest: { update: vi.fn() } };
+        (prisma.$transaction as Mock).mockImplementation((cb: any) => cb(fallbackTx));
+
+        await syncGoogleUserToApp({ email: "someone@gmail.com" });
+
+        expect(prisma.domainAuthenticationCheck.findFirst).not.toHaveBeenCalled();
+        expect(fallbackTx.team.create).toHaveBeenCalled();
+    });
+
+    it("lets an explicit pending invitation win over hd auto-join", async () => {
+        (findValidInvitation as Mock).mockResolvedValue({
+            invitation: { id: "inv-1", email: "invited@smcindia.com", teamId: "team-from-invite", role: "SALES_USER" },
+            error: null,
+        });
+        const invitationTx = {
+            userInvitation: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+            user: { create: vi.fn().mockResolvedValue({ id: "user-4" }), findUnique: vi.fn().mockResolvedValue({ id: "user-4", memberships: [] }) },
+            teamMember: { findFirst: vi.fn().mockResolvedValue(null), update: vi.fn(), create: vi.fn().mockResolvedValue({}) },
+        };
+        (prisma.$transaction as Mock).mockImplementation((cb: any) => cb(invitationTx));
+
+        await syncGoogleUserToApp({
+            email: "invited@smcindia.com",
+            inviteToken: "valid-token",
+            hostedDomain: "smcindia.com",
+        });
+
+        expect(prisma.domainAuthenticationCheck.findFirst).not.toHaveBeenCalled();
+        expect(invitationTx.teamMember.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-from-invite" }) })
         );
     });
 });
