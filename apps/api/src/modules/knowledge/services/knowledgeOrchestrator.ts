@@ -9,6 +9,13 @@ function excerptContent(value: string, maxLength = 420) {
     return value.replace(/\s+/g, " ").trim().slice(0, maxLength);
 }
 
+// Unlike the ingest-time matcher (netjanaIntelService.ts's findLeadForSignal, which only ever
+// attaches a signal at HIGH/MEDIUM confidence), this query-time similarity search previously had
+// no floor at all - a low-similarity match on a short/common company name could leak one
+// company's buyer-intent data into an unrelated company's email draft. This threshold is a
+// tunable, not a derived constant; revisit if drafts start missing genuinely relevant context.
+const MIN_COMPANY_MATCH_SIMILARITY = 0.6;
+
 export class KnowledgeOrchestrator {
     // Was self-fetching POST /knowledge/campaign-context - a real, live route that runs this
     // exact same lookup - but never forwarded the caller's session, so it always failed auth
@@ -45,6 +52,7 @@ export class KnowledgeOrchestrator {
             const results = await vectorStore.search(query, teamId, 3);
 
             return results
+                .filter((item) => item.similarity >= MIN_COMPANY_MATCH_SIMILARITY)
                 .map((item) => {
                     const metadata = toRecord(item.metadata);
                     const companyName = typeof metadata.companyName === "string" ? metadata.companyName : null;

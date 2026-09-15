@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createLeadSchema } from "@/lib/validation/schemas";
+import { tryNormalizeDomain } from "@/lib/crm/domain";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export async function GET(req: NextRequest) {
         const search = searchParams.get("search")?.trim() || "";
         const status = searchParams.get("status")?.trim() || "";
         const channelFilter = searchParams.get("channelFilter")?.trim() || "";
+        const pipelineState = searchParams.get("pipelineState")?.trim() || "";
+        const unassignedOnly = searchParams.get("unassignedOnly") === "true";
+        const domainParam = searchParams.get("domain")?.trim() || "";
         const limit = Math.min(Number.parseInt(searchParams.get("limit") || "100", 10) || 100, 500);
         const offset = Number.parseInt(searchParams.get("offset") || "0", 10) || 0;
 
@@ -32,6 +36,12 @@ export async function GET(req: NextRequest) {
         if (status) where.status = status;
         if (channelFilter === "linkedin_captured_not_contacted") {
             where.channelStatuses = { some: { channel: "LINKEDIN", status: { in: ["CAPTURED", "DRAFTED"] } } };
+        }
+        if (pipelineState) where.pipelineState = pipelineState;
+        if (unassignedOnly) where.campaignId = null;
+        if (domainParam) {
+            const domain = tryNormalizeDomain(domainParam);
+            if (domain) where.domain = domain;
         }
 
         const [leads, total] = await Promise.all([

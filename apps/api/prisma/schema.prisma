@@ -20,6 +20,7 @@ model Lead {
   phone      String? // <-- Added field for Audit Remediation
   linkedIn   String?
   company    String?
+  domain     String? // Normalized company domain - canonical join key for enrichment matching (see apps/api/src/lib/crm/domain.ts)
   jobTitle   String?
   location   String?
   status     String   @default("NEW")
@@ -67,6 +68,11 @@ model Lead {
   // DPDP Act 2023 Compliance
   consentObtained Boolean @default(false)
 
+  // Org chart (on-demand, manually drawn - see apps/web/src/modules/analytics/components/OrgChart.tsx)
+  reportsToId String?
+  reportsTo   Lead?   @relation("LeadReportsTo", fields: [reportsToId], references: [id])
+  reports     Lead[]  @relation("LeadReportsTo")
+
   emails              Email[]
   emailEvents         EmailEvent[]
   suppressionEntries  SuppressionEntry[]
@@ -105,18 +111,40 @@ model Lead {
   shadowSignals       ShadowSignal[]
   channelStatuses     LeadChannelStatus[]
   leadActivities      LeadActivity[]
+  leadDataSources     LeadDataSource[]
 
   @@index([teamId])
   @@index([email])
   @@index([company])
+  @@index([domain])
   @@index([status])
   @@index([intentScore])
   @@index([leadScore])
   @@index([pipelineState])
+  @@index([reportsToId])
   // Optimization for dashboard filters
   @@index([teamId, status])
   @@index([teamId, pipelineState])
   @@index([teamId, email]) // For faster duplicate checks
+  @@index([teamId, domain])
+}
+
+// Per-field provenance for Lead data - which source (Hunter, CSV import, Netjana,
+// manual edit) supplied which field's value, and when. Replaces the prior ad hoc,
+// unaudited convention of nesting provider data inside enrichedData/marketContext JSON.
+model LeadDataSource {
+  id         String   @id @default(uuid())
+  leadId     String
+  lead       Lead     @relation(fields: [leadId], references: [id])
+  field      String // "email" | "company" | "domain" | "jobTitle" | ...
+  source     String // "HUNTER" | "NETJANA" | "CSV_IMPORT" | "MANUAL"
+  value      String   @db.Text
+  confidence String? // "HIGH" | "MEDIUM" | "LOW" - reuses Netjana's existing tiering vocabulary
+  capturedAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([leadId, field])
+  @@index([source])
 }
 
 model LeadChannelStatus {
@@ -231,6 +259,10 @@ model Campaign {
   aiDraftBatches      AiDraftBatch[]
 
   attachments CampaignAttachment[]
+
+  // Set when created via "target leads at a stage" (recovery campaign for leads
+  // dropped at a specific funnel stage) - display-only, not a live/dynamic segment.
+  sourcePipelineStage String?
 
   @@index([status])
   @@index([teamId])

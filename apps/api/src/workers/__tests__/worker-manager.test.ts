@@ -66,6 +66,10 @@ vi.mock("@/modules/branding/customDomainPoller", () => ({
     pollPendingCustomDomains: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("../handlers/shadowSignalReconciliationWorker", () => ({
+    reconcileOrphanedShadowSignals: vi.fn().mockResolvedValue({ scanned: 0, matched: 0 }),
+}));
+
 describe("WorkerManager claim propagation", () => {
     beforeEach(() => {
         vi.clearAllMocks();

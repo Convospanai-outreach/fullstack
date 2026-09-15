@@ -33,9 +33,16 @@ function extractTrackingIdFromReceivedEvent(event: ResendWebhookEvent): string |
 
 function stripHtml(html: string): string {
   return html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    // Match closing tags with any whitespace before ">" (e.g. "</script >"), and an
+    // unterminated <script>/<style> block through to the end of the string, so no
+    // raw markup or script source can survive into the plain-text preview.
+    .replace(/<style[\s\S]*?(<\/style\s*>|$)/gi, "")
+    .replace(/<script[\s\S]*?(<\/script\s*>|$)/gi, "")
     .replace(/<[^>]+>/g, " ")
+    // Defense in depth: escape any angle brackets a malformed tag left behind, so
+    // the result can never be re-interpreted as markup by a downstream renderer.
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/\s+/g, " ")
     .trim();
 }

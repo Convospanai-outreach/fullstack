@@ -308,7 +308,12 @@ export default function CampaignDetailPage({
                                 </>
                             )}
                         </div>
-                        <div className="ml-4">
+                        <div className="ml-4 flex items-center gap-2">
+                            {campaign.sourcePipelineStage && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-amber-500/10 text-amber-400">
+                                    Recovery: {campaign.sourcePipelineStage}
+                                </span>
+                            )}
                             <StatusBadge status={campaign.status} />
                         </div>
                     </div>

@@ -4,6 +4,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     mockPrisma: {
         campaign: { findFirst: vi.fn(), update: vi.fn() },
         lead: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn(), count: vi.fn() },
+        leadDataSource: { create: vi.fn() },
     },
 }));
 
@@ -49,6 +50,47 @@ describe("csvIngestionService.processCSV - cross-tenant campaign scoping", () =>
         expect(mockPrisma.lead.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ campaignId: "campaign-1" }),
         });
+    });
+});
+
+describe("csvIngestionService.processCSV - domain capture", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    it("derives domain from an explicit domain/website column when present", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        const csv = "email,fullName,website\nlead@example.com,Test Lead,https://acme.example\n";
+        await csvIngestionService.processCSV(csv, "team-a");
+
+        expect(mockPrisma.lead.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ domain: "acme.example" }),
+        });
+    });
+
+    it("falls back to the row's email domain when no explicit domain column exists", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        await csvIngestionService.processCSV(CSV, "team-a");
+
+        expect(mockPrisma.lead.create).toHaveBeenCalledWith({
+            data: expect.objectContaining({ domain: "example.com" }),
+        });
+    });
+
+    it("never derives a domain by guessing from the company-name text", async () => {
+        mockPrisma.lead.findFirst.mockResolvedValue(null);
+        mockPrisma.lead.create.mockResolvedValue({ id: "lead-1" });
+
+        // "lead@localhost" has no dot in its host part, so extractDomainFromEmail
+        // yields null - with no explicit domain column either, company alone must
+        // never produce a domain guess (the exact failure mode this field replaces).
+        const csv = "email,fullName,company\nlead@localhost,Test Lead,Acme Corp\n";
+        await csvIngestionService.processCSV(csv, "team-a");
+
+        const call = mockPrisma.lead.create.mock.calls[0]?.[0];
+        expect(call.data.domain).toBeFalsy();
     });
 });
 

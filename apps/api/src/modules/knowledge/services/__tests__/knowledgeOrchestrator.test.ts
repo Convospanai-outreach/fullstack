@@ -63,7 +63,7 @@ describe("KnowledgeOrchestrator.getCampaignContext", () => {
                 id: "item-company",
                 content: "Company-only signal about Acme",
                 metadata: { companyName: "Acme Corp" },
-                similarity: 0.5,
+                similarity: 0.7,
             },
         ]);
 
@@ -73,6 +73,22 @@ describe("KnowledgeOrchestrator.getCampaignContext", () => {
         const lines = context.split("\n");
         expect(lines[0]).toContain("Campaign-matched buyer signal");
         expect(lines[1]).toContain("Company-only signal about Acme");
+    });
+
+    it("excludes low-similarity matches below the confidence floor, so a short/common company name can't leak an unrelated company's buyer-intent data into this lead's draft", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-1", company: "Prime", campaignId: "camp-1" });
+        (vectorStore.search as any).mockResolvedValue([
+            {
+                id: "item-weak",
+                content: "Weak, likely-unrelated match",
+                metadata: { companyName: "Prime Industries" },
+                similarity: 0.4,
+            },
+        ]);
+
+        const context = await orchestrator.getCampaignContext("campaign-1", "lead-1");
+
+        expect(context).toBe("");
     });
 
     it("swallows errors and returns empty string", async () => {
