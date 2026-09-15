@@ -90,16 +90,47 @@ export async function ensureResendDomainVerified(input: {
     let domainId = existing?.providerDomainId as string | undefined;
 
     if (!domainId) {
-        const { data: list } = await resend.domains.list();
-        const match = list?.data?.find((d) => d.name.toLowerCase() === domain);
-        if (match) {
-            domainId = match.id;
-        } else {
-            const { data: created, error: createError } = await resend.domains.create({ name: domain });
-            if (createError || !created) {
-                throw new Error(createError?.message || "Resend rejected this domain. Check it's spelled correctly.");
+        // Claim this (teamId, domain, RESEND) row atomically via the unique
+        // constraint before talking to Resend, so a second concurrent request
+        // for the same brand-new domain can't also call resend.domains.create()
+        // and register a duplicate domain in Resend.
+        try {
+            await db.domainAuthenticationCheck.create({
+                data: {
+                    teamId: input.teamId,
+                    domain,
+                    provider: "RESEND",
+                    status: "MISSING",
+                    lastCheckedAt: new Date(),
+                    nextCheckAt: new Date(),
+                },
+            });
+        } catch (claimError: any) {
+            if (claimError?.code === "P2002") {
+                throw new Error("A check for this domain is already in progress. Please try again in a few seconds.");
             }
-            domainId = created.id;
+            throw claimError;
+        }
+
+        try {
+            const { data: list } = await resend.domains.list();
+            const match = list?.data?.find((d) => d.name.toLowerCase() === domain);
+            if (match) {
+                domainId = match.id;
+            } else {
+                const { data: created, error: createError } = await resend.domains.create({ name: domain });
+                if (createError || !created) {
+                    throw new Error(createError?.message || "Resend rejected this domain. Check it's spelled correctly.");
+                }
+                domainId = created.id;
+            }
+        } catch (err) {
+            // Release the claim row on failure so a retry isn't permanently
+            // blocked by our own placeholder from this failed attempt.
+            await db.domainAuthenticationCheck
+                .delete({ where: { teamId_domain_provider: { teamId: input.teamId, domain, provider: "RESEND" } } })
+                .catch(() => null);
+            throw err;
         }
     }
 
