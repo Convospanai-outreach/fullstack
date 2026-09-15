@@ -17,6 +17,7 @@ import {
     createMarkdownResponse,
 } from './lib/markdownNegotiator';
 import { getApiCatalogJson, DISCOVERY_LINK_HEADER } from './lib/apiCatalog';
+import { isValidInternalRelay } from './lib/internalRelay';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
 import {
@@ -224,9 +225,16 @@ async function appProxy(req: NextRequest) {
     userId = typeof token?.['sub'] === "string" ? token['sub'] : undefined;
 
     // === RATE LIMITING (Before all other checks) ===
-    if (path.startsWith("/api")) {
+    // Skip rate-limiting entirely for a request the proxy route signed as its own
+    // internal self-fetch (e.g. /api/proxy/auth/* relaying to /api/auth/*) - that
+    // request already passed rate-limiting once when the client's original
+    // /api/proxy/* request hit this middleware; without this it would be
+    // double-counted against the same bucket for one logical client request.
+    const isInternalRelay = path.startsWith("/api")
+        && (await isValidInternalRelay(req, process.env['NEXTAUTH_SECRET'] || ''));
+    if (path.startsWith("/api") && !isInternalRelay) {
         let rateLimitResponse: NextResponse | null = null;
-        
+
         // 1. Passive session-check endpoints (polled far more often than real sign-ins)
         if (sessionCheckApiPaths.some((p) => path === p || path.startsWith(`${p}/`))) {
             rateLimitResponse = await applyRateLimit(req, RATE_LIMITS.SESSION_CHECK, 'session-check', userId);
