@@ -12,6 +12,8 @@ export type ResendDomainCheckResult = {
     status: CheckStatus;
     resendStatus: string;
     checkedAt: string;
+    openTracking: boolean;
+    clickTracking: boolean;
     records: {
         mx: { status: CheckStatus; host: string; values: string[]; type?: string };
         spf: { status: CheckStatus; host: string; values: string[]; type?: string };
@@ -20,6 +22,31 @@ export type ResendDomainCheckResult = {
     };
     missing: string[];
 };
+
+export type ResendDomainSummary = {
+    domain: string;
+    status: CheckStatus | "UNKNOWN";
+    lastCheckedAt: string | null;
+    failureReason: string | null;
+};
+
+// Cheap listing straight from our own DomainAuthenticationCheck rows - no live
+// Resend call, so the Settings page can render the list instantly. Tracking
+// flags aren't included here (not persisted locally); a "Check now" against a
+// specific domain (ensureResendDomainVerified) returns those.
+export async function listResendDomains(teamId: string): Promise<ResendDomainSummary[]> {
+    const rows = await db.domainAuthenticationCheck.findMany({
+        where: { teamId, provider: "RESEND" },
+        orderBy: { createdAt: "desc" },
+        select: { domain: true, status: true, lastCheckedAt: true, failureReason: true },
+    });
+    return rows.map((row: any) => ({
+        domain: row.domain,
+        status: row.status,
+        lastCheckedAt: row.lastCheckedAt ? row.lastCheckedAt.toISOString() : null,
+        failureReason: row.failureReason,
+    }));
+}
 
 function normalizeDomain(value: string) {
     const domain = value.trim().toLowerCase().replace(/\.$/, "");
@@ -223,6 +250,8 @@ export async function ensureResendDomainVerified(input: {
         status,
         resendStatus: fresh.status,
         checkedAt: now.toISOString(),
+        openTracking: Boolean((fresh as any).open_tracking),
+        clickTracking: Boolean((fresh as any).click_tracking),
         missing,
         records: {
             mx: {

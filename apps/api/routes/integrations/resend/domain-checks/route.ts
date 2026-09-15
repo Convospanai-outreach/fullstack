@@ -5,6 +5,7 @@ import {
     ensureResendDomainVerified,
     removeResendDomain,
     updateResendDomainTracking,
+    listResendDomains,
 } from "@/modules/email-campaigner/service/resendDomainService";
 import { z } from "zod";
 
@@ -17,6 +18,23 @@ const DomainTrackingUpdateSchema = z.object({
     openTracking: z.boolean().optional(),
     clickTracking: z.boolean().optional(),
 });
+
+export async function GET(req: NextRequest) {
+    try {
+        const ctx = await getCurrentContextFromRequest(req);
+        if (!ctx.userId || !ctx.teamId) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        if (!await checkTeamPermission(ctx.userId, ctx.teamId, TeamRole.VIEWER)) {
+            return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+        }
+
+        const domains = await listResendDomains(ctx.teamId);
+        return NextResponse.json({ domains });
+    } catch (error: any) {
+        return NextResponse.json({ error: error?.message || "Unable to list Resend domains." }, { status: 500 });
+    }
+}
 
 export async function POST(req: NextRequest) {
     try {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import { ensureResendDomainVerified, removeResendDomain, updateResendDomainTracking } from "../resendDomainService";
+import { ensureResendDomainVerified, removeResendDomain, updateResendDomainTracking, listResendDomains } from "../resendDomainService";
 import { prisma } from "@/lib/db";
 import { decryptCredential } from "@/lib/security/credentialVault";
 import { BrandingService } from "@/modules/branding/brandingService";
@@ -8,7 +8,7 @@ import { resolveTxt } from "dns/promises";
 const { mockPrisma, mockDomainsList, mockDomainsCreate, mockDomainsGet, mockDomainsVerify, mockDomainsRemove, mockDomainsUpdate } = vi.hoisted(() => ({
     mockPrisma: {
         connectedMailbox: { findFirst: vi.fn() },
-        domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn(), delete: vi.fn() },
+        domainAuthenticationCheck: { findUnique: vi.fn(), upsert: vi.fn(), create: vi.fn(), delete: vi.fn(), findMany: vi.fn() },
         customDomain: { findUnique: vi.fn() },
     },
     mockDomainsList: vi.fn(),
@@ -49,6 +49,8 @@ const verifiedDomain = {
     id: "domain-1",
     name: "team.test",
     status: "verified",
+    open_tracking: true,
+    click_tracking: false,
     records: [
         { record: "SPF", type: "TXT", name: "team.test", value: "v=spf1 include:amazonses.com ~all", status: "verified" },
         { record: "DKIM", type: "CNAME", name: "resend._domainkey.team.test", value: "abc.dkim.resend.com", status: "verified" },
@@ -81,6 +83,8 @@ describe("ensureResendDomainVerified", () => {
         expect(result.records.spf.status).toBe("VERIFIED");
         expect(result.records.dkim.status).toBe("VERIFIED");
         expect(result.missing).toEqual([]);
+        expect(result.openTracking).toBe(true);
+        expect(result.clickTracking).toBe(false);
     });
 
     it("reuses the stored provider domain id instead of re-creating the domain", async () => {
@@ -256,5 +260,31 @@ describe("updateResendDomainTracking", () => {
         await expect(updateResendDomainTracking({ teamId: "team-1", domain: "team.test", openTracking: true })).rejects.toThrow(
             "Invalid tls value"
         );
+    });
+});
+
+describe("listResendDomains", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("lists this team's Resend domain checks without calling Resend", async () => {
+        (prisma.domainAuthenticationCheck.findMany as Mock).mockResolvedValue([
+            { domain: "team.test", status: "VERIFIED", lastCheckedAt: new Date("2026-01-01T00:00:00Z"), failureReason: null },
+            { domain: "other.test", status: "MISSING", lastCheckedAt: null, failureReason: "Resend SPF" },
+        ]);
+
+        const result = await listResendDomains("team-1");
+
+        expect(prisma.domainAuthenticationCheck.findMany).toHaveBeenCalledWith({
+            where: { teamId: "team-1", provider: "RESEND" },
+            orderBy: { createdAt: "desc" },
+            select: { domain: true, status: true, lastCheckedAt: true, failureReason: true },
+        });
+        expect(mockDomainsList).not.toHaveBeenCalled();
+        expect(result).toEqual([
+            { domain: "team.test", status: "VERIFIED", lastCheckedAt: "2026-01-01T00:00:00.000Z", failureReason: null },
+            { domain: "other.test", status: "MISSING", lastCheckedAt: null, failureReason: "Resend SPF" },
+        ]);
     });
 });

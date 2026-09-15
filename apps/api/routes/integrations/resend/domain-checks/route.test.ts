@@ -1,26 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockEnsureResendDomainVerified, mockRemoveResendDomain, mockUpdateResendDomainTracking } = vi.hoisted(() => ({
+const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockEnsureResendDomainVerified, mockRemoveResendDomain, mockUpdateResendDomainTracking, mockListResendDomains } = vi.hoisted(() => ({
     mockGetCurrentContextFromRequest: vi.fn(),
     mockCheckTeamPermission: vi.fn(),
     mockEnsureResendDomainVerified: vi.fn(),
     mockRemoveResendDomain: vi.fn(),
     mockUpdateResendDomainTracking: vi.fn(),
+    mockListResendDomains: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: mockGetCurrentContextFromRequest }));
 vi.mock("@/lib/permissions", () => ({
     checkTeamPermission: mockCheckTeamPermission,
-    TeamRole: { ADMIN: "ADMIN" },
+    TeamRole: { ADMIN: "ADMIN", VIEWER: "VIEWER" },
 }));
 vi.mock("@/modules/email-campaigner/service/resendDomainService", () => ({
     ensureResendDomainVerified: mockEnsureResendDomainVerified,
     removeResendDomain: mockRemoveResendDomain,
     updateResendDomainTracking: mockUpdateResendDomainTracking,
+    listResendDomains: mockListResendDomains,
 }));
 
-import { POST, PATCH, DELETE } from "./route";
+import { GET, POST, PATCH, DELETE } from "./route";
+
+function getRequest() {
+    return new NextRequest("http://localhost/integrations/resend/domain-checks");
+}
 
 function postRequest(body: any) {
     return new NextRequest("http://localhost/integrations/resend/domain-checks", {
@@ -42,6 +48,34 @@ function deleteRequest(domain?: string) {
         : "http://localhost/integrations/resend/domain-checks";
     return new NextRequest(url, { method: "DELETE" });
 }
+
+describe("GET /integrations/resend/domain-checks", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(true);
+    });
+
+    it("401s when unauthenticated", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: null, teamId: null });
+
+        const res = await GET(getRequest());
+
+        expect(res.status).toBe(401);
+        expect(mockListResendDomains).not.toHaveBeenCalled();
+    });
+
+    it("lists domains scoped to the caller's own team", async () => {
+        mockListResendDomains.mockResolvedValue([{ domain: "team.test", status: "VERIFIED", lastCheckedAt: null, failureReason: null }]);
+
+        const res = await GET(getRequest());
+        const body = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(mockListResendDomains).toHaveBeenCalledWith("team-1");
+        expect(body.domains).toHaveLength(1);
+    });
+});
 
 describe("POST /integrations/resend/domain-checks", () => {
     beforeEach(() => {
