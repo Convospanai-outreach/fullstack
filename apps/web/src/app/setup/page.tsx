@@ -76,6 +76,7 @@ type Mailbox = {
   replyCount: number;
   bounceCount: number;
   lastSyncAt?: string | null;
+  metadata?: { inboundDomain?: string | null } | null;
 };
 
 type DomainCheckResult = {
@@ -271,12 +272,23 @@ export default function SetupWizardPage() {
             throw new Error(data.error || "Failed to connect SMTP server. Please check credentials.");
           }
         } else if (provider === "RESEND") {
+          const resendInboundDomain = formData.step3?.resendInboundDomain || "";
+          const resendWebhookSecret = formData.step3?.resendWebhookSecret || "";
+          // Reply capture only works when both pieces are set together - one without the
+          // other can't verify or route inbound replies. Fail loudly here rather than
+          // silently saving a half-configuration that looks connected but never works.
+          if (Boolean(resendInboundDomain) !== Boolean(resendWebhookSecret)) {
+            throw new Error(
+              "Reply capture needs both the inbound domain and the webhook signing secret - fill in both, or leave both blank to skip it for now."
+            );
+          }
+
           const resendPayload = {
             apiKey: formData.step3?.resendApiKey,
             fromName: formData.step3?.resendFromName,
             email: formData.step3?.resendEmail,
-            inboundDomain: formData.step3?.resendInboundDomain || undefined,
-            webhookSecret: formData.step3?.resendWebhookSecret || undefined,
+            inboundDomain: resendInboundDomain || undefined,
+            webhookSecret: resendWebhookSecret || undefined,
           };
 
           const res = await fetch(`${apiBase}/integrations/resend/connect`, {
@@ -555,6 +567,7 @@ function MailboxProviderStep(props: {
   const connected = props.mailboxes.filter((mailbox) => mailbox.status === "CONNECTED");
   const [showReplyCapture, setShowReplyCapture] = useState(false);
   const provider = props.formData.step3?.provider || "SMTP";
+  const existingResendInboundDomain = connected.find((mailbox) => mailbox.provider === "RESEND")?.metadata?.inboundDomain || "";
   const setProvider = (next: string) => {
     // Records from the previously selected provider don't apply to the newly
     // selected one (different DNS requirements per provider) - clear them so
@@ -717,11 +730,19 @@ function MailboxProviderStep(props: {
                           value={props.formData.step3?.resendInboundDomain || ""}
                           onChange={(event) => setStep3({ resendInboundDomain: event.target.value })}
                         />
+                        {/* Domain (unlike the secret below) isn't sensitive, so show what's already
+                            saved - the field itself stays blank-by-default (matching the API key
+                            field's convention) so leaving it blank on a resave never wipes it. */}
+                        {existingResendInboundDomain && !props.formData.step3?.resendInboundDomain && (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Currently configured: {existingResendInboundDomain}. Leave blank to keep it.
+                          </p>
+                        )}
                       </Field>
                       <Field label="Your webhook signing secret">
                         <input
                           type="password"
-                          placeholder="whsec_xxxxxxxxxxxx"
+                          placeholder={existingResendInboundDomain ? "•••••••••••• (leave blank to keep the saved one)" : "whsec_xxxxxxxxxxxx"}
                           className={inputClass}
                           value={props.formData.step3?.resendWebhookSecret || ""}
                           onChange={(event) => setStep3({ resendWebhookSecret: event.target.value })}

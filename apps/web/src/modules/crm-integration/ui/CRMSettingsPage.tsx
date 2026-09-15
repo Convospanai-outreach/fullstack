@@ -178,18 +178,21 @@ export default function CRMSettingsPage() {
                                     label="Auto-sync new leads"
                                     description="Instantly create contacts in CRM."
                                     checked={syncSettings.autoSync}
+                                    disabled={saving}
                                     onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, autoSync: checked })}
                                 />
                                 <SyncToggle
                                     label="Sync sentiment data"
                                     description="Write AI conversation analysis."
                                     checked={syncSettings.syncSentiment}
+                                    disabled={saving}
                                     onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, syncSentiment: checked })}
                                 />
                                 <SyncToggle
                                     label="Update on status change"
                                     description="Keep lead lifecycle in sync."
                                     checked={syncSettings.syncOnWon}
+                                    disabled={saving}
                                     onChange={(checked: boolean) => setSyncSettings({ ...syncSettings, syncOnWon: checked })}
                                 />
                             </div>
@@ -267,15 +270,18 @@ function ProviderCard({ name, icon, isActive, connected, comingSoon, onClick }: 
     );
 }
 
-function SyncToggle({ label, description, checked, onChange }: any) {
+function SyncToggle({ label, description, checked, onChange, disabled }: any) {
     return (
-        <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+        <div className={`flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 ${disabled ? "opacity-50" : ""}`}>
             <div>
                 <div className="text-white text-xs font-bold">{label}</div>
                 <div className="text-[10px] text-gray-400">{description}</div>
             </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={Boolean(checked)} onChange={(e) => onChange(e.target.checked)} />
+            <label className={`relative inline-flex items-center ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}>
+                {/* Disabled while a save is in flight - editing a toggle mid-save would get
+                    silently reverted when the post-save refetch applies the stale snapshot
+                    the in-flight request was actually sent with. */}
+                <input type="checkbox" className="sr-only peer" checked={Boolean(checked)} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
                 <div className="w-8 h-4 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
         </div>
