@@ -905,6 +905,18 @@ export class AIService {
     }
 
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
+        // Dynamic import (not a static one) deliberately: vectorStore.ts imports this same
+        // aiService module, so a static import of KnowledgeOrchestrator here would create an
+        // aiService -> knowledgeOrchestrator -> vectorStore -> aiService cycle. Deferring to
+        // call time resolves both modules after they've finished initializing.
+        let knowledgeContext = "";
+        try {
+            const { KnowledgeOrchestrator } = await import("@/modules/knowledge/services/knowledgeOrchestrator");
+            knowledgeContext = await new KnowledgeOrchestrator().getCampaignContext(lead?.campaignId || "", lead?.id || "");
+        } catch {
+            // Grounding is best-effort - a draft without it is still better than no draft.
+        }
+
         // TOON's compact tabular serialization instead of JSON.stringify -
         // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
         // cutting prompt tokens on every email-draft call.
@@ -916,6 +928,9 @@ ${TOON.serializeTabular(lead)}
 
 ICP:
 ${TOON.serializeTabular(icp)}
+
+Relevant knowledge base context:
+${knowledgeContext || "None"}
 
 Return JSON with keys: subject, body.
         `.trim();

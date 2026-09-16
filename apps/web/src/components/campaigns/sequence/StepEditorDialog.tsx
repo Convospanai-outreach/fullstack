@@ -22,7 +22,12 @@ type ConditionConfig = {
     pipelineStateIn?: string[];
     pipelineStateNotIn?: string[];
     hasEmail?: boolean;
+    intentScoreGte?: number;
+    churnRiskGte?: number;
+    clusterLabelIn?: string[];
 };
+
+const CLUSTER_LABELS = ["HIGH_VALUE", "AT_RISK", "DORMANT", "NEW"];
 
 function parseCondition(body: string | null): ConditionConfig {
     if (!body) return {};
@@ -252,6 +257,71 @@ export default function StepEditorDialog({
                                 selected={condition.pipelineStateNotIn || []}
                                 onChange={(v) => setCondition((c) => ({ ...c, pipelineStateNotIn: v }))}
                             />
+                            <div className="space-y-1.5">
+                                <label className="text-sm text-gray-400">Cohort is one of</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {CLUSTER_LABELS.map((cluster) => {
+                                        const selected = condition.clusterLabelIn || [];
+                                        const active = selected.includes(cluster);
+                                        return (
+                                            <button
+                                                key={cluster}
+                                                type="button"
+                                                onClick={() =>
+                                                    setCondition((c) => ({
+                                                        ...c,
+                                                        clusterLabelIn: active
+                                                            ? selected.filter((s) => s !== cluster)
+                                                            : [...selected, cluster],
+                                                    }))
+                                                }
+                                                className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${active
+                                                        ? "border-blue-500 bg-blue-500/20 text-blue-300"
+                                                        : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                                    }`}
+                                            >
+                                                {cluster.replace(/_/g, " ")}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-sm text-gray-400">Min. intent score (%)</label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={condition.intentScoreGte !== undefined ? Math.round(condition.intentScoreGte * 100) : ""}
+                                        placeholder="Any"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            setCondition((c) => {
+                                                const { intentScoreGte: _intentScoreGte, ...rest } = c;
+                                                return raw === "" ? rest : { ...rest, intentScoreGte: Math.max(0, Math.min(100, Number(raw))) / 100 };
+                                            });
+                                        }}
+                                    />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <label className="text-sm text-gray-400">Min. churn risk (%)</label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        value={condition.churnRiskGte !== undefined ? Math.round(condition.churnRiskGte * 100) : ""}
+                                        placeholder="Any"
+                                        onChange={(e) => {
+                                            const raw = e.target.value;
+                                            setCondition((c) => {
+                                                const { churnRiskGte: _churnRiskGte, ...rest } = c;
+                                                return raw === "" ? rest : { ...rest, churnRiskGte: Math.max(0, Math.min(100, Number(raw))) / 100 };
+                                            });
+                                        }}
+                                    />
+                                </div>
+                            </div>
                             <div className="space-y-1.5">
                                 <label className="text-sm text-gray-400">Requires an email address</label>
                                 <select

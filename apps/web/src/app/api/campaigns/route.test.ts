@@ -5,7 +5,7 @@ const { mockGetCurrentContext, mockAuthorizeRole, mockPrisma } = vi.hoisted(() =
     mockAuthorizeRole: vi.fn(),
     mockPrisma: {
         campaign: { create: vi.fn(), findMany: vi.fn() },
-        lead: { updateMany: vi.fn() },
+        lead: { updateMany: vi.fn(), findMany: vi.fn().mockResolvedValue([]), update: vi.fn() },
         iCP: { findFirst: vi.fn() },
     },
 }));
@@ -32,18 +32,31 @@ describe("POST /api/campaigns", () => {
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
         mockAuthorizeRole.mockResolvedValue(undefined);
         mockPrisma.campaign.create.mockResolvedValue({ id: "campaign-1", name: "Recover WARM leads" });
-        mockPrisma.iCP.findFirst.mockResolvedValue({ id: "icp-1", teamId: "team-a" });
+        mockPrisma.iCP.findFirst.mockResolvedValue({ id: "icp-1", teamId: "team-a", criteria: {} });
     });
 
-    it("persists sourcePipelineStage when creating a stage-targeted campaign", async () => {
+    it("persists sourcePipelineStage when creating a stage-targeted campaign, scoring attached leads against the ICP", async () => {
+        mockPrisma.lead.findMany.mockResolvedValue([
+            { id: "lead-1", jobTitle: "VP Sales", enrichedData: null },
+            { id: "lead-2", jobTitle: "AE", enrichedData: null },
+        ]);
+
         await POST(postRequest({ name: "Recover WARM leads", sourcePipelineStage: "WARM", leads: ["lead-1", "lead-2"], icpId: "icp-1" }));
 
         expect(mockPrisma.campaign.create).toHaveBeenCalledWith({
             data: expect.objectContaining({ sourcePipelineStage: "WARM", icpId: "icp-1" }),
         });
-        expect(mockPrisma.lead.updateMany).toHaveBeenCalledWith({
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith({
             where: { id: { in: ["lead-1", "lead-2"] }, teamId: "team-a" },
-            data: { campaignId: "campaign-1" },
+            select: { id: true, jobTitle: true, enrichedData: true },
+        });
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: "lead-1" },
+            data: { campaignId: "campaign-1", icpFitScore: expect.any(Number) },
+        });
+        expect(mockPrisma.lead.update).toHaveBeenCalledWith({
+            where: { id: "lead-2" },
+            data: { campaignId: "campaign-1", icpFitScore: expect.any(Number) },
         });
     });
 

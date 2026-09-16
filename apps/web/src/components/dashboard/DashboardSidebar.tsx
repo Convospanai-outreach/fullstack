@@ -49,6 +49,7 @@ import {
   BookOpen,
   Workflow,
   Store,
+  Library,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
@@ -81,6 +82,7 @@ const PROMOTED_FEATURE_ICONS: Partial<Record<HiddenFeatureKey, React.ComponentTy
   "playbooks": BookOpen,
   "workflows": Workflow,
   "marketplace": Store,
+  "knowledge": Library,
 };
 
 // Keys with no place on the funnel spine — they stay behind /tools only.
@@ -89,7 +91,6 @@ const TOOLS_ONLY_FEATURE_KEYS: HiddenFeatureKey[] = [
   "command-center",
   "edge",
   "jobs",
-  "knowledge",
   "runtime",
   "scraper-bridge",
   "sovereign",
@@ -150,6 +151,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
         { href: '/landing-agent/new', label: 'Landing Pages', icon: Layout },
         promotedItem('csv-ingestion', liveKeys),
         promotedItem('hunter-email-finder', liveKeys),
+        promotedItem('knowledge', liveKeys),
       ].filter((item): item is NavItem => item !== null),
     },
     {

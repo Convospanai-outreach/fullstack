@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceLeadAfterEmailOpened, mockAdvanceLeadAfterReply, mockResendReceivingGet } = vi.hoisted(() => ({
+const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceLeadAfterEmailOpened, mockAdvanceLeadAfterEmailClicked, mockAdvanceLeadAfterReply, mockResendReceivingGet, mockScoreAndPersist } = vi.hoisted(() => ({
     mockPrisma: {
         email: { findFirst: vi.fn(), updateMany: vi.fn() },
         connectedMailbox: { findUnique: vi.fn() },
@@ -10,8 +10,10 @@ const { mockPrisma, mockVerifySvixSignature, mockDecryptCredential, mockAdvanceL
     mockVerifySvixSignature: vi.fn(),
     mockDecryptCredential: vi.fn(),
     mockAdvanceLeadAfterEmailOpened: vi.fn(),
+    mockAdvanceLeadAfterEmailClicked: vi.fn(),
     mockAdvanceLeadAfterReply: vi.fn(),
     mockResendReceivingGet: vi.fn(),
+    mockScoreAndPersist: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -19,8 +21,11 @@ vi.mock("@/lib/webhooks/verifySvixSignature", () => ({ verifySvixSignature: mock
 vi.mock("@/lib/security/credentialVault", () => ({ decryptCredential: mockDecryptCredential }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({
     advanceLeadAfterEmailOpened: mockAdvanceLeadAfterEmailOpened,
-    advanceLeadAfterEmailClicked: vi.fn(),
+    advanceLeadAfterEmailClicked: mockAdvanceLeadAfterEmailClicked,
     advanceLeadAfterReply: mockAdvanceLeadAfterReply,
+}));
+vi.mock("@/modules/scoring/service/LeadScoringService", () => ({
+    leadScoringService: { scoreAndPersist: mockScoreAndPersist },
 }));
 vi.mock("resend", () => ({
     Resend: vi.fn(function Resend() {
@@ -59,6 +64,8 @@ describe("POST /webhooks/resend - email.opened idempotency", () => {
         mockVerifySvixSignature.mockReturnValue(true);
         mockPrisma.emailEvent.create.mockResolvedValue({});
         mockAdvanceLeadAfterEmailOpened.mockResolvedValue(undefined);
+        mockAdvanceLeadAfterEmailClicked.mockResolvedValue(undefined);
+        mockScoreAndPersist.mockResolvedValue(undefined);
     });
 
     it("claims the open and advances the lead on first delivery", async () => {
@@ -104,6 +111,56 @@ describe("POST /webhooks/resend - email.opened idempotency", () => {
     });
 });
 
+describe("POST /webhooks/resend - email.clicked re-scores the lead", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockPrisma.email.findFirst.mockResolvedValue({
+            id: "email-1",
+            leadId: "lead-1",
+            campaignId: "campaign-1",
+            mailboxId: "mailbox-1",
+            openedAt: null,
+            clickedAt: null,
+            repliedAt: null,
+        });
+        mockPrisma.connectedMailbox.findUnique.mockResolvedValue({
+            id: "mailbox-1",
+            teamId: "team-1",
+            encryptedRefreshToken: "encrypted",
+        });
+        mockDecryptCredential.mockResolvedValue("webhook-secret");
+        mockVerifySvixSignature.mockReturnValue(true);
+        mockPrisma.emailEvent.create.mockResolvedValue({});
+        mockAdvanceLeadAfterEmailClicked.mockResolvedValue(undefined);
+        mockScoreAndPersist.mockResolvedValue(undefined);
+    });
+
+    it("re-scores the lead when the click claim succeeds", async () => {
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
+
+        await POST(request({ type: "email.clicked", data: { email_id: "provider-1" } }));
+
+        expect(mockScoreAndPersist).toHaveBeenCalledWith("lead-1");
+    });
+
+    it("does not re-score on a redelivered click that loses the claim", async () => {
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 0 });
+
+        await POST(request({ type: "email.clicked", data: { email_id: "provider-1" } }));
+
+        expect(mockScoreAndPersist).not.toHaveBeenCalled();
+    });
+
+    it("does not fail the webhook when scoring throws", async () => {
+        mockPrisma.email.updateMany.mockResolvedValue({ count: 1 });
+        mockScoreAndPersist.mockRejectedValue(new Error("scoring exploded"));
+
+        const res = await POST(request({ type: "email.clicked", data: { email_id: "provider-1" } }));
+
+        expect(res.status).toBe(200);
+    });
+});
+
 describe("POST /webhooks/resend - email.received creates a real Message row", () => {
     const receivedEvent = {
         type: "email.received",
@@ -140,6 +197,7 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
         mockPrisma.emailEvent.create.mockResolvedValue({ id: "event-1" });
         mockPrisma.message.create.mockResolvedValue({});
         mockAdvanceLeadAfterReply.mockResolvedValue(undefined);
+        mockScoreAndPersist.mockResolvedValue(undefined);
         mockResendReceivingGet.mockResolvedValue({
             data: { text: "Sounds good, let's talk next week.", html: "<p>Sounds good, let's talk next week.</p>", from: "Lead <lead@example.com>" },
             error: null,
@@ -164,6 +222,7 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
             },
         });
         expect(mockAdvanceLeadAfterReply).toHaveBeenCalledTimes(1);
+        expect(mockScoreAndPersist).toHaveBeenCalledWith("lead-1");
     });
 
     it("falls back to stripped HTML when no plain-text body is returned", async () => {
@@ -196,5 +255,6 @@ describe("POST /webhooks/resend - email.received creates a real Message row", ()
 
         expect(mockPrisma.message.create).not.toHaveBeenCalled();
         expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+        expect(mockScoreAndPersist).not.toHaveBeenCalled();
     });
 });

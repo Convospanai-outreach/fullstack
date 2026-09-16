@@ -45,6 +45,9 @@ type ConditionConfig = {
     pipelineStateIn?: string[];
     pipelineStateNotIn?: string[];
     hasEmail?: boolean;
+    intentScoreGte?: number;
+    churnRiskGte?: number;
+    clusterLabelIn?: string[];
 };
 
 function db(): SequencePrisma {
@@ -128,6 +131,7 @@ function conditionPasses(step: any, lead: any) {
     const config = safeJsonObject(step?.body);
     const status = normalize(lead?.status);
     const pipelineState = normalize(lead?.pipelineState);
+    const clusterLabel = normalize(lead?.clusterLabel);
 
     if (config.hasEmail === true && !lead?.email) return false;
     if (config.hasEmail === false && lead?.email) return false;
@@ -135,6 +139,12 @@ function conditionPasses(step: any, lead: any) {
     if (config.leadStatusNotIn?.map(normalize).includes(status)) return false;
     if (config.pipelineStateIn?.length && !config.pipelineStateIn.map(normalize).includes(pipelineState)) return false;
     if (config.pipelineStateNotIn?.map(normalize).includes(pipelineState)) return false;
+
+    // Engagement/score predicates - lets a sequence branch on what a lead actually
+    // did (opened/clicked/replied, scored HOT) instead of only static status fields.
+    if (typeof config.intentScoreGte === "number" && (lead?.intentScore ?? 0) < config.intentScoreGte) return false;
+    if (typeof config.churnRiskGte === "number" && (lead?.churnRisk ?? 0) < config.churnRiskGte) return false;
+    if (config.clusterLabelIn?.length && !config.clusterLabelIn.map(normalize).includes(clusterLabel)) return false;
 
     return true;
 }

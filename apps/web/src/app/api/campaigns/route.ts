@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createCampaignSchema } from "@/lib/validation/schemas";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 
 export const dynamic = "force-dynamic";
 
@@ -87,12 +88,23 @@ export async function POST(req: Request) {
             },
         });
 
-        // Attach leads if provided
+        // Attach leads if provided, scoring each against the campaign's ICP as it's attached
         if (Array.isArray(leads) && leads.length > 0) {
-            await prisma.lead.updateMany({
+            const attachedLeads = await prisma.lead.findMany({
                 where: { id: { in: leads }, teamId },
-                data: { campaignId: campaign.id },
+                select: { id: true, jobTitle: true, enrichedData: true },
             });
+            await Promise.all(
+                attachedLeads.map((lead) =>
+                    prisma.lead.update({
+                        where: { id: lead.id },
+                        data: {
+                            campaignId: campaign.id,
+                            icpFitScore: scoreLeadAgainstIcp(icp.criteria, leadDataForIcpScoring(lead)),
+                        },
+                    })
+                )
+            );
         }
 
         return NextResponse.json(campaign, { status: 201 });
