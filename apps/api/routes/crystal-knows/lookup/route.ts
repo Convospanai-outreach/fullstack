@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContextFromRequest } from "@/lib/auth";
+import { checkTeamPermission, TeamRole } from "@/lib/permissions";
 import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
 
 // Submits (or resolves) a Crystal Knows profile lookup for the standalone
@@ -11,6 +12,12 @@ export async function POST(req: NextRequest) {
     const { userId, teamId } = await getCurrentContextFromRequest(req);
     if (!userId || !teamId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    // A lookup can spend a Crystal credit from the team's shared pool -
+    // gated at MEMBER (not VIEWER), matching other credit-spending actions
+    // like campaign creation.
+    if (!await checkTeamPermission(userId, teamId, TeamRole.MEMBER)) {
+        return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
     }
 
     let body: any;
@@ -34,10 +41,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Provide at least a name, email, LinkedIn URL, or phone number." }, { status: 400 });
     }
 
-    // Idempotency key derived from the query itself, so retrying the same
-    // search (e.g. after a "pending" response) resubmits the same job
-    // instead of creating a duplicate prediction.
-    const recordId = `lookup:${[query.full_name, query.email, query.linkedin_url, query.phone].filter(Boolean).join("|")}`;
+    // Idempotency key derived from the full query, so retrying the same
+    // search (e.g. after a "pending" response) resubmits the same job instead
+    // of creating a duplicate prediction - job_title/company_name are
+    // included too, since the same name searched with different context is a
+    // materially different query, not a retry of the same one.
+    const recordId = `lookup:${[query.full_name, query.email, query.linkedin_url, query.phone, query.job_title, query.company_name].filter(Boolean).join("|")}`;
 
     const result = await CrystalService.findOrCreateProfile(teamId, query, { recordId });
 

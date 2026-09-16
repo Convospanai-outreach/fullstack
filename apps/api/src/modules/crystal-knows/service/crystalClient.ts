@@ -62,14 +62,27 @@ export class CrystalClient {
     constructor(private apiKey: string) {}
 
     private async request<T>(path: string, init?: RequestInit): Promise<T> {
-        const res = await fetch(`${BASE_URL}${path}`, {
-            ...init,
-            headers: {
-                Authorization: `Bearer ${this.apiKey}`,
-                ...(init?.body ? { "Content-Type": "application/json" } : {}),
-                ...init?.headers,
-            },
-        });
+        // Every call site (getProfile/createPrediction/getPrediction/generatePrompt) relies
+        // on this never hanging - a stalled Crystal connection must not be able to block
+        // draft generation indefinitely or outlast findOrCreateProfile's own maxWaitMs budget.
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15_000);
+        let res: Response;
+        try {
+            res = await fetch(`${BASE_URL}${path}`, {
+                ...init,
+                headers: {
+                    Authorization: `Bearer ${this.apiKey}`,
+                    ...(init?.body ? { "Content-Type": "application/json" } : {}),
+                    ...init?.headers,
+                },
+                signal: controller.signal,
+            });
+        } catch (error: any) {
+            throw new CrystalApiError(0, error?.name === "AbortError" ? "Crystal API request timed out" : "Could not reach the Crystal API");
+        } finally {
+            clearTimeout(timeout);
+        }
 
         if (res.status === 404) {
             throw new CrystalApiError(404, "not_found");

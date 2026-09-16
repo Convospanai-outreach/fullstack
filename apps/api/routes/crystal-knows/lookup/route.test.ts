@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockGetCurrentContextFromRequest, mockFindOrCreateProfile } = vi.hoisted(() => ({
+const { mockGetCurrentContextFromRequest, mockCheckTeamPermission, mockFindOrCreateProfile } = vi.hoisted(() => ({
     mockGetCurrentContextFromRequest: vi.fn(),
+    mockCheckTeamPermission: vi.fn(),
     mockFindOrCreateProfile: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentContextFromRequest: mockGetCurrentContextFromRequest }));
+vi.mock("@/lib/permissions", () => ({
+    checkTeamPermission: mockCheckTeamPermission,
+    TeamRole: { OWNER: "OWNER", ADMIN: "ADMIN", MEMBER: "MEMBER", VIEWER: "VIEWER" },
+}));
 vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
     CrystalService: { findOrCreateProfile: mockFindOrCreateProfile },
 }));
@@ -23,6 +28,7 @@ describe("POST /crystal-knows/lookup", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockCheckTeamPermission.mockResolvedValue(true);
     });
 
     it("rejects an unauthenticated caller", async () => {
@@ -31,6 +37,15 @@ describe("POST /crystal-knows/lookup", () => {
         const res = await POST(postRequest({ fullName: "Jane Doe" }));
 
         expect(res.status).toBe(401);
+        expect(mockFindOrCreateProfile).not.toHaveBeenCalled();
+    });
+
+    it("rejects a caller below MEMBER role (e.g. a VIEWER) before spending a Crystal credit", async () => {
+        mockCheckTeamPermission.mockResolvedValue(false);
+
+        const res = await POST(postRequest({ fullName: "Jane Doe" }));
+
+        expect(res.status).toBe(403);
         expect(mockFindOrCreateProfile).not.toHaveBeenCalled();
     });
 
@@ -70,5 +85,17 @@ describe("POST /crystal-knows/lookup", () => {
             expect.objectContaining({ full_name: "Jane Doe", email: "jane@acme.com" }),
             expect.objectContaining({ recordId: expect.any(String) })
         );
+    });
+
+    it("includes jobTitle/companyName in the idempotency key, so a repeated name+different context doesn't reuse a stale job", async () => {
+        mockFindOrCreateProfile.mockResolvedValue({ state: "found", profile: { id: "profile-1" } });
+
+        await POST(postRequest({ fullName: "Jane Doe", jobTitle: "VP Sales", companyName: "Acme" }));
+        const firstRecordId = mockFindOrCreateProfile.mock.calls[0][2].recordId;
+
+        await POST(postRequest({ fullName: "Jane Doe", jobTitle: "CTO", companyName: "Other Co" }));
+        const secondRecordId = mockFindOrCreateProfile.mock.calls[1][2].recordId;
+
+        expect(firstRecordId).not.toBe(secondRecordId);
     });
 });

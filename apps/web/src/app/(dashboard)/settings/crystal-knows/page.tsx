@@ -10,13 +10,29 @@ const API_BASE = getBrowserApiBase();
 export default function CrystalKnowsSettingsPage() {
     const [settings, setSettings] = useState<CrystalSettings | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
-        fetch(`${API_BASE}/crystal-knows/settings`)
-            .then((res) => (res.ok ? res.json() : { hasKey: false, configuredAt: null }))
-            .then((json) => { if (!cancelled) setSettings(json); })
-            .finally(() => { if (!cancelled) setLoading(false); });
+        (async () => {
+            try {
+                const res = await fetch(`${API_BASE}/crystal-knows/settings`);
+                if (res.status === 403) {
+                    // A 403 (not ADMIN) is not "no key connected" - collapsing them
+                    // together shows a non-admin an unusable "connect" form instead
+                    // of an explanation of why they can't see the real state.
+                    if (!cancelled) setError("Only a team admin can view or change the Crystal Knows connection.");
+                    return;
+                }
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const json = await res.json();
+                if (!cancelled) setSettings(json);
+            } catch (e: any) {
+                if (!cancelled) setError(e.message || "Failed to load Crystal Knows settings.");
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
         return () => { cancelled = true; };
     }, []);
 
@@ -26,7 +42,12 @@ export default function CrystalKnowsSettingsPage() {
                 title="Crystal Knows"
                 subtitle="Connect a Crystal Knows API key to enrich leads with DISC personality data and tailor AI-drafted outreach to each recipient's communication style."
             />
-            {!loading && settings && <CrystalSetupCard settings={settings} onSaved={setSettings} />}
+            {error && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 text-destructive text-xs p-4">
+                    {error}
+                </div>
+            )}
+            {!loading && !error && settings && <CrystalSetupCard settings={settings} onSaved={setSettings} />}
         </div>
     );
 }
