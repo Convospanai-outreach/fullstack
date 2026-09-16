@@ -13,7 +13,7 @@ import Footer from "@/components/Footer";
 export const DASHBOARD_PREFIXES = [
     "/accounts", "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
     "/automations", "/billing", "/calendar", "/caller", "/campaigns",
-    "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
+    "/command-center", "/crm", "/crystal-knows", "/csv-ingestion", "/dashboard", "/edge",
     "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",
     "/jobs", "/knowledge", "/landing-agent", "/leads", "/linkedin-runner",
     "/marketplace", "/monitoring", "/notifications", "/pipeline",

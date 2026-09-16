@@ -147,6 +147,52 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             }
         }
 
+        // Crystal Knows personality enrichment - best-effort, silently skipped
+        // if the team hasn't configured a Crystal API key (CrystalService
+        // returns "not_configured" rather than throwing). A "pending" result
+        // (job didn't finish within the bounded poll) is dropped here; a
+        // later enrichment pass will simply find the now-completed profile
+        // via the free GET /v4/profile lookup instead of re-submitting.
+        if (teamId) {
+            try {
+                const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+                const crystalResult = await CrystalService.findOrCreateProfile(
+                    teamId,
+                    {
+                        full_name: lead.fullName || undefined,
+                        email: enrichmentData.email || lead.email || undefined,
+                        linkedin_url: lead.linkedIn || undefined,
+                        job_title: lead.jobTitle || undefined,
+                        company_name: hunterCompanyPromotion || lead.company || undefined,
+                    },
+                    { recordId: `lead:${leadId}`, maxWaitMs: 20_000 }
+                );
+
+                if (crystalResult.state === "found") {
+                    const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichedData: true } });
+                    const currentEnrichedData = (current?.enrichedData as Record<string, any>) || {};
+                    await prisma.lead.update({
+                        where: { id: leadId },
+                        data: {
+                            enrichedData: {
+                                ...currentEnrichedData,
+                                crystalKnows: {
+                                    profileId: crystalResult.profile.id,
+                                    personalities: crystalResult.profile.personalities ?? null,
+                                    receivedAt: new Date().toISOString(),
+                                },
+                            },
+                        },
+                    });
+                    await recordLeadDataSources([
+                        { leadId, field: "enrichedData.crystalKnows", source: "CRYSTAL_KNOWS", value: crystalResult.profile.id },
+                    ]);
+                }
+            } catch (error) {
+                logger.warn("Failed to enrich lead with Crystal Knows:", { leadId, error: error instanceof Error ? error.message : error });
+            }
+        }
+
         // Update lead status to enriched
         await prisma.lead.update({
             where: { id: leadId },

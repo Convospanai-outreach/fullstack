@@ -13,6 +13,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <NavLink href="/settings/keys">API Keys</NavLink>
                 <NavLink href="/settings/agent">AI Agent</NavLink>
                 <NavLink href="/settings/webhooks">Webhooks</NavLink>
+                <NavLink href="/settings/crystal-knows">Crystal Knows</NavLink>
                 <NavLink href="/settings/features">Features</NavLink>
                 <NavLink href="/docs/api">Documentation</NavLink>
                 <NavLink href="/settings/budgeting">Billing</NavLink>

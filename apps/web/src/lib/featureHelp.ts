@@ -205,6 +205,9 @@ const HIDDEN_FEATURE_HELP_TEXT: Record<HiddenFeatureKey, { whenToUse: string; ov
     "hunter-email-finder": {
         whenToUse: "Use this when you have a name/company but no verified email yet.",
     },
+    "crystal-knows": {
+        whenToUse: "Use this to look up a person's DISC personality type before drafting outreach, or to check whether enrichment already found one.",
+    },
     "jobs": {
         whenToUse: "Check here if something you triggered seems stuck or failed silently.",
     },

@@ -47,11 +47,16 @@ vi.mock("@/lib/crm/leadDataSource", () => ({
     recordLeadDataSources: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
+    CrystalService: { findOrCreateProfile: vi.fn().mockResolvedValue({ state: "not_configured" }) },
+}));
+
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
 import { deductCredits, refundCredits } from "@/lib/credits";
 import { hunterService } from "@/modules/hunter-email-finder";
 import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
+import { CrystalService } from "@/modules/crystal-knows/service/crystalService";
 import { handleLeadEnrichment } from "../enrichment-worker";
 
 describe("enrichment-worker", () => {
@@ -304,6 +309,82 @@ describe("enrichment-worker", () => {
                 (call: any[]) => call[0].data.status === "enriched"
             );
             expect(finalUpdateCall[0].data.company).toBeUndefined();
+        });
+    });
+
+    describe("Crystal Knows personality enrichment", () => {
+        it("skips silently (no lead write, no error) when the team has no Crystal API key configured", async () => {
+            (CrystalService.findOrCreateProfile as any).mockResolvedValue({ state: "not_configured" });
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-a",
+                fullName: "Jane Doe",
+                linkedIn: null,
+                email: "jane@example.com",
+                company: null,
+            });
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(prisma.lead.update).not.toHaveBeenCalledWith(
+                expect.objectContaining({ data: expect.objectContaining({ enrichedData: expect.anything() }) })
+            );
+        });
+
+        it("persists the found profile under enrichedData.crystalKnows and records provenance", async () => {
+            (CrystalService.findOrCreateProfile as any).mockResolvedValue({
+                state: "found",
+                profile: { id: "profile-1", personalities: { disc_type: "D" } },
+            });
+            (prisma.lead.findUnique as any)
+                .mockResolvedValueOnce({
+                    id: "lead-1",
+                    teamId: "team-a",
+                    fullName: "Jane Doe",
+                    linkedIn: null,
+                    email: "jane@example.com",
+                    company: null,
+                })
+                .mockResolvedValueOnce({ enrichedData: { existing: "value" } });
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(prisma.lead.update).toHaveBeenCalledWith({
+                where: { id: "lead-1" },
+                data: {
+                    enrichedData: {
+                        existing: "value",
+                        crystalKnows: expect.objectContaining({
+                            profileId: "profile-1",
+                            personalities: { disc_type: "D" },
+                        }),
+                    },
+                },
+            });
+            expect(recordLeadDataSources).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({ leadId: "lead-1", source: "CRYSTAL_KNOWS", value: "profile-1" }),
+                ])
+            );
+        });
+
+        it("does not fail enrichment when the Crystal lookup errors", async () => {
+            (CrystalService.findOrCreateProfile as any).mockRejectedValue(new Error("Crystal API down"));
+            (prisma.lead.findUnique as any).mockResolvedValue({
+                id: "lead-1",
+                teamId: "team-a",
+                fullName: "Jane Doe",
+                linkedIn: null,
+                email: "jane@example.com",
+                company: null,
+            });
+            (prisma.lead.update as any).mockResolvedValue({});
+
+            const result = await handleLeadEnrichment({ leadId: "lead-1", teamId: "team-a" } as any);
+
+            expect(result).toMatchObject({ leadId: "lead-1" });
         });
     });
 });

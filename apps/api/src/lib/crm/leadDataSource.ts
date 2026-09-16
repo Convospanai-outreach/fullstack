@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 export type LeadDataSourceInput = {
     leadId: string;
     field: string;
-    source: "HUNTER" | "NETJANA" | "CSV_IMPORT" | "MANUAL";
+    source: "HUNTER" | "NETJANA" | "CSV_IMPORT" | "MANUAL" | "CRYSTAL_KNOWS";
     value: string;
     confidence?: "HIGH" | "MEDIUM" | "LOW" | "NONE";
 };
