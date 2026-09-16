@@ -264,11 +264,17 @@ model Campaign {
   // dropped at a specific funnel stage) - display-only, not a live/dynamic segment.
   sourcePipelineStage String?
 
+  // Saved ICP targeted by this campaign - required at creation so AI drafting
+  // (email-worker, batch drafts) has real audience context instead of guessing.
+  icpId String?
+  icp   ICP?    @relation(fields: [icpId], references: [id])
+
   @@index([status])
   @@index([teamId])
   @@index([createdAt])
   // Optimization for multi-tenant campaign lists
   @@index([teamId, status])
+  @@index([icpId])
 }
 
 // Kept in its own table (not columns on Campaign) so the base64 blob is only
@@ -342,6 +348,7 @@ model LandingCampaign {
   teamId              String
   ownerId             String?
   linkedCampaignId    String?
+  icpId               String?
   name                String
   prompt              String                   @db.Text
   framework           String?
@@ -355,6 +362,7 @@ model LandingCampaign {
   team                Team                     @relation(fields: [teamId], references: [id])
   owner               User?                    @relation("LandingCampaignOwner", fields: [ownerId], references: [id])
   linkedCampaign      Campaign?                @relation("LandingCampaignLinkedCampaign", fields: [linkedCampaignId], references: [id])
+  icp                 ICP?                     @relation(fields: [icpId], references: [id])
   assets              LandingAsset[]
   wireframeOptions    LandingWireframeOption[]
   pages               LandingPage[]
@@ -365,6 +373,7 @@ model LandingCampaign {
   @@index([status])
   @@index([createdAt])
   @@index([linkedCampaignId])
+  @@index([icpId])
 }
 
 model LandingAsset {
@@ -508,7 +517,9 @@ model ICP {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  team Team @relation(fields: [teamId], references: [id])
+  team             Team              @relation(fields: [teamId], references: [id])
+  campaigns        Campaign[]
+  landingCampaigns LandingCampaign[]
 
   @@index([teamId])
   @@index([status])

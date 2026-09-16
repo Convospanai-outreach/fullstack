@@ -11,7 +11,7 @@ import Footer from "@/components/Footer";
 // /command-center were missing and rendered with the wrong marketing chrome
 // instead of the dashboard sidebar).
 export const DASHBOARD_PREFIXES = [
-    "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
+    "/accounts", "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
     "/automations", "/billing", "/calendar", "/caller", "/campaigns",
     "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
     "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",

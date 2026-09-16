@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { landingAgentApi, uploadPdfToKnowledge } from "@/modules/landing-agent/service/landingAgentApi";
+import { getBrowserApiBase } from "@/lib/api/browserBase";
+
+type ICP = { id: string; name: string };
 
 const FRAMEWORKS = [
     { value: "", label: "Auto-recommend" },
@@ -24,9 +28,24 @@ export default function CampaignIntakeForm() {
     const [assetFile, setAssetFile] = useState<File | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [icps, setIcps] = useState<ICP[]>([]);
+    const [icpId, setIcpId] = useState("");
+    const [loadingIcps, setLoadingIcps] = useState(true);
+
+    useEffect(() => {
+        fetch(`${getBrowserApiBase()}/icp-builder/list`)
+            .then((res) => res.json())
+            .then((data) => setIcps(data?.icps || []))
+            .catch(() => setIcps([]))
+            .finally(() => setLoadingIcps(false));
+    }, []);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (!icpId) {
+            setError("Select a saved ICP before creating a landing campaign");
+            return;
+        }
         setSubmitting(true);
         setError(null);
 
@@ -34,6 +53,7 @@ export default function CampaignIntakeForm() {
             const campaign = await landingAgentApi.createCampaign({
                 name,
                 prompt,
+                icpId,
                 ...(framework ? { framework } : {}),
             });
 
@@ -71,6 +91,29 @@ export default function CampaignIntakeForm() {
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                    <label htmlFor="landing-icp" className="text-sm text-slate-200">Target ICP</label>
+                    {!loadingIcps && icps.length === 0 ? (
+                        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+                            You need a saved ICP before creating a landing campaign.{" "}
+                            <Link href="/icp-builder" className="underline">Create one first</Link>.
+                        </p>
+                    ) : (
+                        <select
+                            id="landing-icp"
+                            value={icpId}
+                            onChange={(e) => setIcpId(e.target.value)}
+                            className="w-full rounded-lg border border-white/10 bg-slate-900/60 px-3 py-2 text-slate-100"
+                            required
+                        >
+                            <option value="">{loadingIcps ? "Loading ICPs..." : "Select a saved ICP"}</option>
+                            {icps.map((icp) => (
+                                <option key={icp.id} value={icp.id}>{icp.name}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+
                 <div className="space-y-2">
                     <label htmlFor="landing-name" className="text-sm text-slate-200">Campaign name</label>
                     <input
@@ -136,7 +179,7 @@ export default function CampaignIntakeForm() {
 
                 {error ? <p className="text-sm text-rose-300">{error}</p> : null}
 
-                <Button type="submit" disabled={submitting} className="bg-cyan-600 hover:bg-cyan-500 text-white">
+                <Button type="submit" disabled={submitting || icps.length === 0} className="bg-cyan-600 hover:bg-cyan-500 text-white">
                     {submitting ? "Creating..." : "Generate Brief"}
                 </Button>
             </form>

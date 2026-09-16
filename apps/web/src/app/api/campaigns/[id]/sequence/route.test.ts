@@ -77,4 +77,21 @@ describe("PUT /api/campaigns/[id]/sequence - requires at least MEMBER (OPEN-217)
         expect(res.status).toBe(200);
         expect(mockPrisma.$transaction).toHaveBeenCalled();
     });
+
+    it("accepts WHATSAPP and CALL step types (both are executable by the sequence runner)", async () => {
+        const res = await PUT(
+            putRequest({
+                steps: [
+                    { stepType: "WHATSAPP", stepOrder: 0, body: "Hi there" },
+                    { stepType: "CALL", stepOrder: 1, body: "Follow up call" },
+                ],
+                senderMailboxIds: [],
+                timezone: "UTC",
+            }),
+            paramsFor("campaign-1")
+        );
+
+        expect(res.status).toBe(200);
+        expect(mockPrisma.$transaction).toHaveBeenCalled();
+    });
 });

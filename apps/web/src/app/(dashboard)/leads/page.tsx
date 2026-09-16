@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { getCurrentContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { ChevronDown, Globe, Mail, Search, UserPlus, Users } from "lucide-react";
+import { ChevronDown, Search, UserPlus, Users } from "lucide-react";
 import { SectionHeader } from "@/components/ui/SectionHeader";
+import LeadsSelectionGrid from "@/components/leads/LeadsSelectionGrid";
+
+const PIPELINE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED", "COMPLETED", "CLOSED_WON", "CLOSED_LOST"];
 
 export const dynamic = "force-dynamic";
 
@@ -12,29 +15,6 @@ function firstParam(value: string | string[] | undefined) {
     return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
-function intentTier(intentScore?: number | null) {
-    const score = intentScore ?? 0;
-    if (score >= 0.7) return { label: "HOT", className: "text-destructive border-destructive/25 bg-destructive/5" };
-    if (score >= 0.4) return { label: "WARM", className: "text-warning border-warning/25 bg-warning/5" };
-    return { label: "COLD", className: "text-primary border-primary/25 bg-primary/5" };
-}
-
-function displayLeadStatus(status?: string | null) {
-    if (!status) return "NEW STATE";
-    const labels: Record<string, string> = {
-        NEW: "NEW LEAD",
-        enriched: "ENRICHED",
-        ENRICHED: "ENRICHED",
-        CONTACTED: "CONTACTED",
-        CONNECTED: "ENGAGED",
-        REPLIED: "POS REPLY",
-        CONVERTED: "CONVERTED",
-        LOST: "LOST",
-        STOPPED: "STOPPED",
-    };
-    return labels[status] ?? status.toUpperCase();
-}
-
 async function loadLeads(searchParams: PageSearchParams) {
     const { userId, teamId } = await getCurrentContext();
     if (!userId || !teamId) return { leads: [], total: 0, unauthorized: true };
@@ -42,6 +22,9 @@ async function loadLeads(searchParams: PageSearchParams) {
     const search = firstParam(searchParams["search"]).trim();
     const status = firstParam(searchParams["status"]).trim();
     const channelFilter = firstParam(searchParams["channelFilter"]).trim();
+    const company = firstParam(searchParams["company"]).trim();
+    const jobTitle = firstParam(searchParams["jobTitle"]).trim();
+    const pipelineState = firstParam(searchParams["pipelineState"]).trim();
     const where: any = { teamId };
 
     if (search) {
@@ -55,6 +38,9 @@ async function loadLeads(searchParams: PageSearchParams) {
     if (channelFilter === "linkedin_captured_not_contacted") {
         where.channelStatuses = { some: { channel: "LINKEDIN", status: { in: ["CAPTURED", "DRAFTED"] } } };
     }
+    if (company) where.company = { contains: company, mode: "insensitive" };
+    if (jobTitle) where.jobTitle = { contains: jobTitle, mode: "insensitive" };
+    if (pipelineState) where.pipelineState = pipelineState;
 
     const [leads, total] = await Promise.all([
         prisma.lead.findMany({
@@ -78,6 +64,9 @@ export default async function LeadsPage({
     const search = firstParam(params["search"]);
     const status = firstParam(params["status"]);
     const channelFilter = firstParam(params["channelFilter"]);
+    const company = firstParam(params["company"]);
+    const jobTitle = firstParam(params["jobTitle"]);
+    const pipelineState = firstParam(params["pipelineState"]);
     const { leads, total, unauthorized } = await loadLeads(params);
 
     return (
@@ -140,6 +129,39 @@ export default async function LeadsPage({
                     </button>
                 </div>
 
+                <div className="flex flex-col md:flex-row gap-3">
+                    <input
+                        type="text"
+                        name="company"
+                        placeholder="Filter by company..."
+                        defaultValue={company}
+                        className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        id="lead-company-input"
+                    />
+                    <input
+                        type="text"
+                        name="jobTitle"
+                        placeholder="Filter by job title..."
+                        defaultValue={jobTitle}
+                        className="flex-1 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        id="lead-jobtitle-input"
+                    />
+                    <div className="relative md:w-56">
+                        <select
+                            name="pipelineState"
+                            defaultValue={pipelineState}
+                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                            id="lead-pipeline-select"
+                        >
+                            <option value="">All funnel stages</option>
+                            {PIPELINE_STAGES.map((s) => (
+                                <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border/50">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Channel Mode</span>
                     <div className="relative">
@@ -171,50 +193,7 @@ export default async function LeadsPage({
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {leads.map((lead, index) => {
-                        const tier = intentTier(lead.intentScore);
-                        return (
-                        <Link
-                            key={lead.id}
-                            href={`/leads/${lead.id}`}
-                            id={`lead-card-${index}`}
-                            className="relative flex flex-col justify-between p-6 rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 transition-all duration-200 group min-h-48"
-                        >
-                            <div>
-                                <div className="flex justify-between items-start gap-2 mb-4">
-                                    <div className="w-9 h-9 bg-muted border border-border flex items-center justify-center text-muted-foreground font-mono text-xs select-none rounded-md">
-                                        {lead.fullName?.[0] || lead.email?.[0]?.toUpperCase() || "?"}
-                                    </div>
-                                    <div className="flex flex-col items-end gap-1">
-                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider bg-muted text-muted-foreground border-border">
-                                            {displayLeadStatus(lead.status)}
-                                        </span>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border uppercase tracking-wider ${tier.className}`}>
-                                            {tier.label} · {Math.round((lead.intentScore ?? 0) * 100)}%
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="space-y-1.5">
-                                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors truncate">
-                                        {lead.fullName || "Unnamed Lead"}
-                                    </h3>
-                                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans">
-                                        <Globe className="w-3.5 h-3.5 text-muted-foreground" />
-                                        <span className="truncate">{lead.company || "Independent"}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="mt-6 pt-4 border-t border-border">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
-                                    <Mail className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                    <span className="truncate">{lead.email}</span>
-                                </div>
-                            </div>
-                        </Link>
-                        );
-                    })}
-                </div>
+                <LeadsSelectionGrid leads={leads} />
             )}
         </div>
     );

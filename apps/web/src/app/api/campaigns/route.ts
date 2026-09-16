@@ -63,6 +63,17 @@ export async function POST(req: Request) {
         const leads = body.leads;
         const sourcePipelineStage = typeof body.sourcePipelineStage === "string" ? body.sourcePipelineStage : undefined;
 
+        // A saved ICP is a prerequisite for creating a campaign - it's the audience
+        // context AI drafting (email-worker, batch drafts) needs at send time.
+        const icpId = typeof body.icpId === "string" ? body.icpId : undefined;
+        if (!icpId) {
+            return NextResponse.json({ error: "icpId is required - save an ICP before creating a campaign" }, { status: 400 });
+        }
+        const icp = await prisma.iCP.findFirst({ where: { id: icpId, teamId } });
+        if (!icp) {
+            return NextResponse.json({ error: "ICP not found for this team" }, { status: 400 });
+        }
+
         const campaign = await prisma.campaign.create({
             data: {
                 teamId,
@@ -72,6 +83,7 @@ export async function POST(req: Request) {
                 targetCount,
                 status: "draft",
                 sourcePipelineStage,
+                icpId,
             },
         });
 

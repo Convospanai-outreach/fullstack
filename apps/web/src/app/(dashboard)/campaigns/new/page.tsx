@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 
 const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
 
+type ICP = { id: string; name: string };
+
 function buildLeadsQuery(stage: string, domain: string) {
     const params = new URLSearchParams({ pipelineState: stage, unassignedOnly: "true", limit: "500" });
     if (domain) params.set("domain", domain);
@@ -26,6 +28,18 @@ export default function NewCampaignPage() {
     const [stage, setStage] = useState<string>("WARM");
     const [domain, setDomain] = useState("");
     const [matchingCount, setMatchingCount] = useState<number | null>(null);
+
+    const [icps, setIcps] = useState<ICP[]>([]);
+    const [icpId, setIcpId] = useState("");
+    const [loadingIcps, setLoadingIcps] = useState(true);
+
+    useEffect(() => {
+        fetch("/api/proxy/icp-builder/list")
+            .then((res) => res.json())
+            .then((data) => setIcps(data?.icps || []))
+            .catch(() => setIcps([]))
+            .finally(() => setLoadingIcps(false));
+    }, []);
 
     useEffect(() => {
         const prefillStage = searchParams.get("stage");
@@ -65,12 +79,17 @@ export default function NewCampaignPage() {
             toast.error("Campaign name is required.");
             return;
         }
+        if (!icpId) {
+            toast.error("Select a saved ICP before creating a campaign.");
+            return;
+        }
 
         setSubmitting(true);
         try {
             const body: Record<string, unknown> = {
                 name: name.trim(),
                 description: description.trim() || undefined,
+                icpId,
             };
 
             if (targetStageEnabled) {
@@ -124,6 +143,30 @@ export default function NewCampaignPage() {
                     </div>
                 </div>
                 <form onSubmit={handleSubmit} className="space-y-6">
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Target ICP <span className="text-destructive">*</span>
+                            </label>
+                            {!loadingIcps && icps.length === 0 ? (
+                                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-600">
+                                    You need a saved ICP before creating a campaign.{" "}
+                                    <Link href="/icp-builder" className="underline font-semibold">Create one first</Link>.
+                                </p>
+                            ) : (
+                                <select
+                                    required
+                                    value={icpId}
+                                    onChange={(e) => setIcpId(e.target.value)}
+                                    className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                                >
+                                    <option value="">{loadingIcps ? "Loading ICPs..." : "Select a saved ICP"}</option>
+                                    {icps.map((icp) => (
+                                        <option key={icp.id} value={icp.id}>{icp.name}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                                 Campaign Name <span className="text-destructive">*</span>
@@ -205,7 +248,7 @@ export default function NewCampaignPage() {
                                     Cancel
                                 </Button>
                             </Link>
-                            <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 text-white font-semibold">
+                            <Button type="submit" disabled={submitting || icps.length === 0} className="bg-primary hover:bg-primary/90 text-white font-semibold">
                                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 Create Campaign
                             </Button>

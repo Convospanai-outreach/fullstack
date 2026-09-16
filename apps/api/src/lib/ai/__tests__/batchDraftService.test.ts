@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const { mockPrisma, mockBatchesCreate, mockBatchesRetrieve, mockBatchesResults, mockLoadTeamProviders } = vi.hoisted(() => ({
     mockPrisma: {
         lead: { findMany: vi.fn() },
+        campaign: { findUnique: vi.fn() },
         aiDraftBatch: { create: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
         aiDraftBatchItem: { createMany: vi.fn(), update: vi.fn() },
     },
@@ -36,6 +37,7 @@ describe("batchDraftService.submitBatch", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockLoadTeamProviders.mockResolvedValue({ anthropic: { apiKey: "test-key" } });
+        mockPrisma.campaign.findUnique.mockResolvedValue({ id: "campaign-1", icp: null });
     });
 
     it("throws when the campaign has no enriched leads with an email", async () => {
@@ -92,6 +94,23 @@ describe("batchDraftService.submitBatch", () => {
             })
         );
         expect(result).toEqual({ batchId: "db-batch-1", itemCount: 2 });
+    });
+
+    it("interpolates the campaign's linked ICP criteria into each prompt", async () => {
+        mockPrisma.lead.findMany.mockResolvedValue([{ id: "lead-1", email: "a@b.com", fullName: "A" }]);
+        mockPrisma.campaign.findUnique.mockResolvedValue({
+            id: "campaign-1",
+            icp: { criteria: { industries: ["SaaS"], personaHook: "loves automation" } },
+        });
+        mockBatchesCreate.mockResolvedValue({ id: "msgbatch_123" });
+        mockPrisma.aiDraftBatch.create.mockResolvedValue({ id: "db-batch-1" });
+
+        await submitBatch("campaign-1", "team-1");
+
+        const requests = mockBatchesCreate.mock.calls[0][0].requests;
+        const promptText = requests[0].params.messages[0].content;
+        expect(promptText).toContain("loves automation");
+        expect(promptText).not.toContain("ICP:\nnull");
     });
 });
 

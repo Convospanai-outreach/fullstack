@@ -15,7 +15,7 @@ const LINKEDIN_STEP_TYPES = new Set([
     "LI_VOICE",
 ]);
 
-const ALL_STEP_TYPES = new Set(["EMAIL", "CONDITION", "DELAY", "MANUAL_REVIEW", ...LINKEDIN_STEP_TYPES]);
+const ALL_STEP_TYPES = new Set(["EMAIL", "WHATSAPP", "CALL", "CONDITION", "DELAY", "MANUAL_REVIEW", ...LINKEDIN_STEP_TYPES]);
 
 const StepSchema = z.object({
     id: z.string().optional(),

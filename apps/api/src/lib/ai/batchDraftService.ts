@@ -6,7 +6,7 @@ import { clampGeneratedText, enforceAIPromptPolicy } from "@/lib/aiInputGuardrai
 
 const BATCH_MODEL = "claude-3-5-sonnet";
 
-function buildDraftPrompt(lead: unknown): string {
+function buildDraftPrompt(lead: unknown, icp: unknown): string {
     // Mirrors aiService.generateEmailDraft's prompt shape exactly, so a
     // BATCH-mode campaign produces the same style of draft a REALTIME
     // campaign would - this is a cheaper delivery path, not a different
@@ -18,7 +18,7 @@ Lead:
 ${JSON.stringify(lead)}
 
 ICP:
-null
+${JSON.stringify(icp)}
 
 Return JSON with keys: subject, body.
         `.trim();
@@ -26,13 +26,18 @@ Return JSON with keys: subject, body.
 }
 
 export async function submitBatch(campaignId: string, teamId: string): Promise<{ batchId: string; itemCount: number }> {
-    const leads = await prisma.lead.findMany({
-        where: { campaignId, teamId, isEnriched: true, email: { not: null } },
-    });
+    const [leads, campaign] = await Promise.all([
+        prisma.lead.findMany({
+            where: { campaignId, teamId, isEnriched: true, email: { not: null } },
+        }),
+        prisma.campaign.findUnique({ where: { id: campaignId }, include: { icp: true } }),
+    ]);
 
     if (leads.length === 0) {
         throw new Error(`No enriched leads with an email found for campaign ${campaignId}`);
     }
+
+    const icp = campaign?.icp?.criteria ?? null;
 
     const providers = await loadTeamProviders(teamId);
     if (!providers.anthropic?.apiKey) {
@@ -48,7 +53,7 @@ export async function submitBatch(campaignId: string, teamId: string): Promise<{
             params: {
                 model,
                 max_tokens: 800,
-                messages: [{ role: "user" as const, content: buildDraftPrompt(lead) }],
+                messages: [{ role: "user" as const, content: buildDraftPrompt(lead, icp) }],
             },
         })),
     });
