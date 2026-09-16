@@ -6,7 +6,7 @@ export default function EmailResult({ result }: Props) {
     const scoreColor = result.score >= 80 ? "#10b981" : result.score >= 50 ? "#f59e0b" : "#ef4444";
 
     return (
-        <div style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", marginTop: 24 }}>
+        <div style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", marginTop: 24, color: "#111827" }}>
             <h3 style={{ margin: 0, marginBottom: 16 }}>Result</h3>
 
             {result.email ? (
