@@ -8,7 +8,18 @@ CREATE INDEX "Campaign_icpId_idx" ON "Campaign"("icpId");
 ALTER TABLE "Campaign" ADD CONSTRAINT "Campaign_icpId_fkey"
   FOREIGN KEY ("icpId") REFERENCES "ICP"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
-ALTER TABLE "LandingCampaign" ADD COLUMN "icpId" TEXT;
-CREATE INDEX "LandingCampaign_icpId_idx" ON "LandingCampaign"("icpId");
-ALTER TABLE "LandingCampaign" ADD CONSTRAINT "LandingCampaign_icpId_fkey"
-  FOREIGN KEY ("icpId") REFERENCES "ICP"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- "LandingCampaign" was never created by a tracked migration (it exists in
+-- production via an earlier out-of-band `prisma db push`, not migration
+-- history), so a from-scratch `prisma migrate deploy` (CI, a fresh env) has
+-- no such table. Guarded so this migration succeeds either way instead of
+-- crashing CI on a pre-existing gap unrelated to this change.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'LandingCampaign') THEN
+    ALTER TABLE "LandingCampaign" ADD COLUMN "icpId" TEXT;
+    CREATE INDEX "LandingCampaign_icpId_idx" ON "LandingCampaign"("icpId");
+    ALTER TABLE "LandingCampaign" ADD CONSTRAINT "LandingCampaign_icpId_fkey"
+      FOREIGN KEY ("icpId") REFERENCES "ICP"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END
+$$;

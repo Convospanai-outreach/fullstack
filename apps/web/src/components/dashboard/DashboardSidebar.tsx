@@ -144,6 +144,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
       label: 'Build my list',
       items: [
         { href: '/leads', label: 'Leads', icon: Users },
+        { href: '/accounts', label: 'Accounts', icon: Building2 },
         { href: '/icp-builder', label: 'ICP Builder', icon: Target },
         { href: '/templates', label: 'Templates', icon: FileText },
         { href: '/landing-agent/new', label: 'Landing Pages', icon: Layout },
