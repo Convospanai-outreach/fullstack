@@ -83,6 +83,24 @@ describe("email-worker", () => {
         expect(result).toMatchObject({ leadId: "lead-1", sent: true });
     });
 
+    it("passes the campaign's linked ICP criteria into generateEmailDraft instead of null", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({
+            id: "campaign-1",
+            teamId: "team-a",
+            ownerId: "user-1",
+            icp: { criteria: { personaHook: "loves automation" } },
+        });
+
+        await handleEmailSend({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any);
+
+        expect(aiService.generateEmailDraft).toHaveBeenCalledWith(
+            expect.anything(),
+            { personaHook: "loves automation" },
+            "team-a"
+        );
+    });
+
     it("uses a precomputed draft (BATCH mode) instead of calling generateEmailDraft", async () => {
         (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
         (prisma.campaign.findUnique as any).mockResolvedValue({

@@ -28,6 +28,9 @@ export const createLandingCampaignSchema = z.object({
         .refine((value) => !PROMPT_GUARD_PATTERN.test(value), "Prompt contains blocked instructions."),
     framework: landingFrameworkEnum.optional(),
     linkedCampaignId: z.string().uuid().optional().nullable(),
+    // A saved ICP is a prerequisite for creating a landing campaign - it's the
+    // audience context the brief-generation prompt needs.
+    icpId: z.string().uuid(),
 });
 
 export const addLandingAssetSchema = z.object({

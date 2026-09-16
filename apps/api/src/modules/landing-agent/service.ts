@@ -164,6 +164,7 @@ async function getCampaignOrThrow(campaignId: string, teamId: string) {
             assets: { orderBy: { createdAt: "asc" } },
             wireframeOptions: { orderBy: { createdAt: "asc" } },
             pages: { orderBy: { createdAt: "desc" } },
+            icp: true,
         },
     });
 
@@ -202,13 +203,20 @@ export const landingAgentService = {
         prompt: string;
         framework?: string;
         linkedCampaignId?: string | null;
+        icpId: string;
     }) {
+        const icp = await prisma.iCP.findFirst({ where: { id: input.icpId, teamId: input.teamId } });
+        if (!icp) {
+            throw new Error("ICP not found for this team");
+        }
+
         const safePrompt = clampText(input.prompt.trim(), 4000);
         const campaign = await prisma.landingCampaign.create({
             data: {
                 teamId: input.teamId,
                 ownerId: input.userId,
                 linkedCampaignId: input.linkedCampaignId ?? null,
+                icpId: input.icpId,
                 name: input.name,
                 prompt: safePrompt,
                 framework: input.framework ?? null,
@@ -286,6 +294,7 @@ export const landingAgentService = {
             prompt: campaignPrompt,
             framework: input.framework || campaign.framework,
             assetText,
+            icp: campaign.icp?.criteria as Record<string, unknown> | undefined,
         });
 
         let brief: LandingBrief = fallbackBrief(campaign.prompt, input.framework || campaign.framework);
