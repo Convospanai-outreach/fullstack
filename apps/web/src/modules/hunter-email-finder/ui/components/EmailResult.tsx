@@ -7,13 +7,13 @@ export default function EmailResult({ result }: Props) {
 
     return (
         <div style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)", marginTop: 24, color: "#111827" }}>
-            <h3 style={{ margin: 0, marginBottom: 16, color: "#111827" }}>Result</h3>
+            <h3 style={{ margin: 0, marginBottom: 16 }}>Result</h3>
 
             {result.email ? (
                 <>
                     <div style={{ marginBottom: 16 }}>
                         <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 4 }}>Email Address</div>
-                        <div style={{ fontSize: 18, fontWeight: 600, color: "#111827" }}>{result.email}</div>
+                        <div style={{ fontSize: 18, fontWeight: 600 }}>{result.email}</div>
                     </div>
 
                     <div style={{ marginBottom: 16 }}>
@@ -24,7 +24,7 @@ export default function EmailResult({ result }: Props) {
                     {result.position && (
                         <div style={{ marginBottom: 16 }}>
                             <div style={{ fontSize: 14, color: "#6b7280", marginBottom: 4 }}>Position</div>
-                            <div style={{ color: "#111827" }}>{result.position}</div>
+                            <div>{result.position}</div>
                         </div>
                     )}
 

@@ -20,10 +20,11 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
     return (
         <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
+                <label htmlFor="hunter-first-name" style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     First Name
                 </label>
                 <input
+                    id="hunter-first-name"
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
@@ -34,10 +35,11 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
+                <label htmlFor="hunter-last-name" style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     Last Name
                 </label>
                 <input
+                    id="hunter-last-name"
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
@@ -48,10 +50,11 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
             </div>
 
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
+                <label htmlFor="hunter-domain" style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     Company Domain
                 </label>
                 <input
+                    id="hunter-domain"
                     type="text"
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
