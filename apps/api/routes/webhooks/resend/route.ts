@@ -37,6 +37,21 @@ function extractTrackingIdFromReceivedEvent(event: ResendWebhookEvent): string |
   return null;
 }
 
+// A click or reply is the strongest engagement signal a lead can produce - re-score
+// immediately so intentScore/leadScore/churnRisk/clusterLabel (and pipeline-state
+// auto-advancement) reflect it right away instead of waiting for the next batch
+// scoring run or a manual "Rescore" click on the lead detail page. Best-effort:
+// scoring failure must never fail the webhook itself.
+async function rescoreLead(leadId: string | null): Promise<void> {
+  if (!leadId) return;
+  try {
+    const { leadScoringService } = await import("@/modules/scoring/service/LeadScoringService");
+    await leadScoringService.scoreAndPersist(leadId);
+  } catch {
+    // best-effort
+  }
+}
+
 function stripHtml(html: string): string {
   return html
     // Match closing tags with any whitespace before ">" (e.g. "</script >"), and an
@@ -188,6 +203,7 @@ export async function POST(req: NextRequest) {
       if (claimed.count > 0) {
         await advanceLeadAfterEmailClicked(prisma, advanceParams).catch(() => undefined);
         await recordEmailEvent("CLICKED");
+        await rescoreLead(email.leadId);
       }
       break;
     }
@@ -244,6 +260,8 @@ export async function POST(req: NextRequest) {
             },
           }).catch(() => undefined);
         }
+
+        await rescoreLead(email.leadId);
       }
       break;
     }

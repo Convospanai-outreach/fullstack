@@ -73,6 +73,9 @@ model Lead {
   reportsTo   Lead?   @relation("LeadReportsTo", fields: [reportsToId], references: [id])
   reports     Lead[]  @relation("LeadReportsTo")
 
+  // ICP fit (0-100), scored against the campaign's ICP when a lead is attached to a campaign
+  icpFitScore Int?
+
   emails              Email[]
   emailEvents         EmailEvent[]
   suppressionEntries  SuppressionEntry[]
@@ -122,6 +125,7 @@ model Lead {
   @@index([leadScore])
   @@index([pipelineState])
   @@index([reportsToId])
+  @@index([icpFitScore])
   // Optimization for dashboard filters
   @@index([teamId, status])
   @@index([teamId, pipelineState])

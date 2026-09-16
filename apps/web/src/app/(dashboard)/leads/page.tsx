@@ -25,6 +25,8 @@ async function loadLeads(searchParams: PageSearchParams) {
     const company = firstParam(searchParams["company"]).trim();
     const jobTitle = firstParam(searchParams["jobTitle"]).trim();
     const pipelineState = firstParam(searchParams["pipelineState"]).trim();
+    const clusterLabel = firstParam(searchParams["clusterLabel"]).trim();
+    const minIcpFitScore = firstParam(searchParams["minIcpFitScore"]).trim();
     const where: any = { teamId };
 
     if (search) {
@@ -41,6 +43,10 @@ async function loadLeads(searchParams: PageSearchParams) {
     if (company) where.company = { contains: company, mode: "insensitive" };
     if (jobTitle) where.jobTitle = { contains: jobTitle, mode: "insensitive" };
     if (pipelineState) where.pipelineState = pipelineState;
+    if (clusterLabel) where.clusterLabel = clusterLabel;
+    if (minIcpFitScore && !Number.isNaN(Number(minIcpFitScore))) {
+        where.icpFitScore = { gte: Number(minIcpFitScore) };
+    }
 
     const [leads, total] = await Promise.all([
         prisma.lead.findMany({
@@ -67,6 +73,8 @@ export default async function LeadsPage({
     const company = firstParam(params["company"]);
     const jobTitle = firstParam(params["jobTitle"]);
     const pipelineState = firstParam(params["pipelineState"]);
+    const clusterLabel = firstParam(params["clusterLabel"]);
+    const minIcpFitScore = firstParam(params["minIcpFitScore"]);
     const { leads, total, unauthorized } = await loadLeads(params);
 
     return (
@@ -160,6 +168,31 @@ export default async function LeadsPage({
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
                     </div>
+                    <div className="relative md:w-48">
+                        <select
+                            name="clusterLabel"
+                            defaultValue={clusterLabel}
+                            className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium text-foreground outline-none appearance-none focus:ring-1 focus:ring-ring transition-colors cursor-pointer"
+                            id="lead-cluster-select"
+                        >
+                            <option value="">All cohorts</option>
+                            <option value="HIGH_VALUE">High value</option>
+                            <option value="AT_RISK">At risk</option>
+                            <option value="DORMANT">Dormant</option>
+                            <option value="NEW">New</option>
+                        </select>
+                        <ChevronDown className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground pointer-events-none" />
+                    </div>
+                    <input
+                        type="number"
+                        name="minIcpFitScore"
+                        min={0}
+                        max={100}
+                        placeholder="Min. ICP fit %"
+                        defaultValue={minIcpFitScore}
+                        className="md:w-36 bg-background border border-input rounded-md px-3 py-1.5 text-xs font-medium placeholder:text-muted-foreground text-foreground outline-none focus:ring-1 focus:ring-ring transition-colors"
+                        id="lead-icp-fit-input"
+                    />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-border/50">

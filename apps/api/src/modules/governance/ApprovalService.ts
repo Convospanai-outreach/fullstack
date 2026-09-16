@@ -9,6 +9,34 @@ export enum ApprovalStatus {
     REJECTED = "REJECTED"
 }
 
+// A human accept/reject on an AI-drafted piece of content (currently the only
+// approvals carrying `draftEmailId` in their payload - see intel-followup-worker.ts
+// and landing-agent/service.ts) is exactly the signal the learning/feedback loop
+// was built to consume but never received - see routes/learning/record-feedback,
+// which requires a Generation row this flow doesn't produce. Records it as a
+// SystemEvent instead of forcing that mismatched dependency. Best-effort: a
+// feedback-recording failure must never fail the approve/reject action itself.
+async function recordDraftFeedback(request: { entityType: string; entityId: string; payload: unknown }, teamId: string, feedbackType: "APPROVED" | "REJECTED") {
+    const draftEmailId = (request.payload as any)?.draftEmailId;
+    if (!draftEmailId) return;
+    try {
+        const { EventStore, SystemEventType } = await import("@/modules/learning/EventStore");
+        await EventStore.record({
+            type: SystemEventType.USER,
+            name: "DRAFT_FEEDBACK_RECEIVED",
+            teamId,
+            payload: {
+                draftEmailId,
+                feedbackType,
+                entityType: request.entityType,
+                entityId: request.entityId,
+            },
+        });
+    } catch {
+        // best-effort
+    }
+}
+
 export class ApprovalService {
 
     /**
@@ -182,6 +210,7 @@ export class ApprovalService {
             where: { id: requestId, teamId },
             data: updateData
         });
+        await recordDraftFeedback(request, teamId, "APPROVED");
         return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 
@@ -202,6 +231,7 @@ export class ApprovalService {
             where: { id: requestId, teamId },
             data
         });
+        await recordDraftFeedback(request, teamId, "REJECTED");
         return prisma.approvalRequest.findFirst({ where: { id: requestId, teamId } });
     }
 }

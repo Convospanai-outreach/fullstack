@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { SequenceService } from "@/lib/sequenceService";
+import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 
 type CampaignVariantWeight = {
     weight?: number | string | null;
@@ -46,10 +47,37 @@ export class CampaignService {
     static async addLeadsToCampaign(campaignId: string, leadIds: string[], teamId: string) {
         // Update leads to belong to this campaign - scoped to teamId so a caller can't
         // pull another team's leads into their own campaign by guessing/enumerating IDs.
-        await prisma.lead.updateMany({
-            where: { id: { in: leadIds }, teamId },
-            data: { campaignId }
+        const campaign = await prisma.campaign.findUnique({
+            where: { id: campaignId },
+            select: { icpId: true }
         });
+        const icp = campaign?.icpId
+            ? await prisma.iCP.findUnique({ where: { id: campaign.icpId }, select: { criteria: true } })
+            : null;
+
+        const leads = await prisma.lead.findMany({
+            where: { id: { in: leadIds }, teamId },
+            select: { id: true, jobTitle: true, enrichedData: true }
+        });
+
+        if (icp) {
+            await Promise.all(
+                leads.map((lead) =>
+                    prisma.lead.update({
+                        where: { id: lead.id },
+                        data: {
+                            campaignId,
+                            icpFitScore: scoreLeadAgainstIcp(icp.criteria, leadDataForIcpScoring(lead))
+                        }
+                    })
+                )
+            );
+        } else {
+            await prisma.lead.updateMany({
+                where: { id: { in: leadIds }, teamId },
+                data: { campaignId }
+            });
+        }
 
         // Update target count
         const count = await prisma.lead.count({ where: { campaignId } });

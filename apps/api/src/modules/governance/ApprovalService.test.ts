@@ -34,6 +34,15 @@ vi.mock("@/modules/overseer/breakerService", () => ({
     getBreakerState: mockGetBreakerState,
 }));
 
+const { mockEventStoreRecord } = vi.hoisted(() => ({
+    mockEventStoreRecord: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("@/modules/learning/EventStore", () => ({
+    EventStore: { record: mockEventStoreRecord },
+    SystemEventType: { USER: "USER" },
+}));
+
 import { ApprovalService } from "./ApprovalService";
 import { ApprovalTier, resolveApprovalTier } from "./approvalPolicy";
 
@@ -201,5 +210,56 @@ describe("ApprovalService.approve / reject - cross-tenant scoping", () => {
             where: { id: "req-1", teamId: "team-a" },
             data: expect.objectContaining({ status: "REJECTED", reviewNote: "not now" }),
         });
+    });
+});
+
+describe("ApprovalService.approve / reject - draft feedback recording", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("records DRAFT_FEEDBACK_RECEIVED on approve when the request carries a draftEmailId", async () => {
+        mockPrisma.approvalRequest.findFirst
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", actionType: "NETJANA_FOLLOWUP_REVIEW", entityType: "Lead", entityId: "lead-1", payload: { draftEmailId: "email-1" } })
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", status: "APPROVED" });
+        mockPrisma.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+
+        expect(mockEventStoreRecord).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: "DRAFT_FEEDBACK_RECEIVED",
+                teamId: "team-a",
+                payload: expect.objectContaining({ draftEmailId: "email-1", feedbackType: "APPROVED", entityType: "Lead", entityId: "lead-1" }),
+            })
+        );
+    });
+
+    it("records DRAFT_FEEDBACK_RECEIVED on reject when the request carries a draftEmailId", async () => {
+        mockPrisma.approvalRequest.findFirst
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", actionType: "NETJANA_FOLLOWUP_REVIEW", entityType: "Lead", entityId: "lead-1", payload: { draftEmailId: "email-1" } })
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", status: "REJECTED" });
+        mockPrisma.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+
+        await ApprovalService.reject("req-1", "user-a", "team-a", "not relevant");
+
+        expect(mockEventStoreRecord).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: "DRAFT_FEEDBACK_RECEIVED",
+                payload: expect.objectContaining({ draftEmailId: "email-1", feedbackType: "REJECTED" }),
+            })
+        );
+    });
+
+    it("does not record feedback when the request has no draftEmailId", async () => {
+        mockPrisma.approvalRequest.findFirst
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", actionType: "CAMPAIGN_START", entityType: "Campaign", entityId: "camp-1", payload: {} })
+            .mockResolvedValueOnce({ id: "req-1", teamId: "team-a", status: "APPROVED" });
+        mockPrisma.campaign.updateMany.mockResolvedValue({ count: 1 });
+        mockPrisma.approvalRequest.updateMany.mockResolvedValue({ count: 1 });
+
+        await ApprovalService.approve("req-1", "user-a", "team-a");
+
+        expect(mockEventStoreRecord).not.toHaveBeenCalled();
     });
 });
