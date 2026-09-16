@@ -20,7 +20,7 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
     return (
         <form onSubmit={handleSubmit} style={{ background: "#fff", padding: 24, borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.06)" }}>
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     First Name
                 </label>
                 <input
@@ -28,13 +28,13 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
                     required
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", color: "#111827" }}
                     placeholder="John"
                 />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     Last Name
                 </label>
                 <input
@@ -42,13 +42,13 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
                     required
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", color: "#111827" }}
                     placeholder="Doe"
                 />
             </div>
 
             <div style={{ marginBottom: 16 }}>
-                <label style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 600, color: "#111827" }}>
                     Company Domain
                 </label>
                 <input
@@ -56,7 +56,7 @@ export default function EmailSearchForm({ onSubmit, loading }: Props) {
                     value={domain}
                     onChange={(e) => setDomain(e.target.value)}
                     required
-                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6 }}
+                    style={{ width: "100%", padding: 8, border: "1px solid #d1d5db", borderRadius: 6, background: "#fff", color: "#111827" }}
                     placeholder="example.com"
                 />
             </div>
