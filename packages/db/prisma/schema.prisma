@@ -1267,6 +1267,12 @@ model Team {
   whatsappAccessTokenEnc      Json?
   whatsappWabaConfiguredAt    DateTime?
 
+  // Crystal Knows (DISC personality data) API key, set at setup time. See
+  // crystal-knows/crystalCredentials.ts. Unset = enrichment/personality
+  // features are skipped for this team.
+  crystalApiKeyEnc            Json?
+  crystalApiKeyConfiguredAt   DateTime?
+
   branding                   Json? // { logoUrl, primaryColor, portalTitle }
   aiConfig                   Json? // Global agent settings (voice, tone, constraints)
   domains                    CustomDomain[]

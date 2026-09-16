@@ -917,6 +917,24 @@ export class AIService {
             // Grounding is best-effort - a draft without it is still better than no draft.
         }
 
+        // Free (POST /v4/content/generate_prompt spends no Crystal credit) -
+        // only runs when enrichment-worker.ts has already found this lead's
+        // Crystal Knows profile id. Same dynamic-import-to-avoid-cycle
+        // reasoning as KnowledgeOrchestrator above.
+        let personalityGuidance = "";
+        const crystalProfileId = lead?.enrichedData?.crystalKnows?.profileId;
+        if (crystalProfileId && teamId) {
+            try {
+                const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+                personalityGuidance = (await CrystalService.generatePersonalityPrompt(teamId, {
+                    id: crystalProfileId,
+                    objective: "write a cold outreach email",
+                })) || "";
+            } catch {
+                // Best-effort - a draft without personality guidance is still better than no draft.
+            }
+        }
+
         // TOON's compact tabular serialization instead of JSON.stringify -
         // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
         // cutting prompt tokens on every email-draft call.
@@ -931,6 +949,9 @@ ${TOON.serializeTabular(icp)}
 
 Relevant knowledge base context:
 ${knowledgeContext || "None"}
+
+Personality guidance (DISC):
+${personalityGuidance || "None"}
 
 Return JSON with keys: subject, body.
         `.trim();

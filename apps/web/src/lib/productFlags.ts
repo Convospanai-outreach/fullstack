@@ -9,6 +9,7 @@ export type HiddenFeatureKey =
     | "agents"
     | "caller"
     | "command-center"
+    | "crystal-knows"
     | "csv-ingestion"
     | "edge"
     | "hunter-email-finder"
@@ -66,6 +67,13 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
         description: "Operations overview for orchestrated runs and supervision.",
         openPath: "/command-center",
         pathPrefixes: ["/command-center"],
+    },
+    "crystal-knows": {
+        key: "crystal-knows",
+        label: "Crystal Knows",
+        description: "DISC personality lookup for lead enrichment and personality-tuned AI drafting.",
+        openPath: "/crystal-knows",
+        pathPrefixes: ["/crystal-knows"],
     },
     "csv-ingestion": {
         key: "csv-ingestion",
@@ -206,6 +214,7 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
 const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = [
     "linkedin-runner", "knowledge", "caller", "whatsapp",
     "csv-ingestion", "hunter-email-finder", "workflows", "playbooks", "marketplace",
+    "crystal-knows",
 ];
 
 const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
@@ -261,6 +270,7 @@ export type HiddenFeatureCategory = "Outreach" | "Automation" | "Account" | "Adm
 export const HIDDEN_FEATURE_CATEGORY_BY_KEY: Record<HiddenFeatureKey, HiddenFeatureCategory> = {
     "playbooks": "Outreach",
     "hunter-email-finder": "Outreach",
+    "crystal-knows": "Outreach",
     "csv-ingestion": "Outreach",
     "linkedin-runner": "Outreach",
     "caller": "Outreach",

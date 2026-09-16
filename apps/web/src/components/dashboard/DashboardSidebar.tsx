@@ -50,6 +50,7 @@ import {
   Workflow,
   Store,
   Library,
+  Fingerprint,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
@@ -83,6 +84,7 @@ const PROMOTED_FEATURE_ICONS: Partial<Record<HiddenFeatureKey, React.ComponentTy
   "workflows": Workflow,
   "marketplace": Store,
   "knowledge": Library,
+  "crystal-knows": Fingerprint,
 };
 
 // Keys with no place on the funnel spine — they stay behind /tools only.
@@ -151,6 +153,7 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
         { href: '/landing-agent/new', label: 'Landing Pages', icon: Layout },
         promotedItem('csv-ingestion', liveKeys),
         promotedItem('hunter-email-finder', liveKeys),
+        promotedItem('crystal-knows', liveKeys),
         promotedItem('knowledge', liveKeys),
       ].filter((item): item is NavItem => item !== null),
     },
