@@ -40,3 +40,19 @@ export async function fetchSuperAdminOverview(
     const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
     return { status: res.status, body };
 }
+
+export async function fetchSuperAdminUserDetail(
+    actor: { id: string; email: string; enterpriseRole: string },
+    targetUserId: string,
+    range: string
+): Promise<{ status: number; body: unknown }> {
+    const url = new URL(`/admin/super/users/${encodeURIComponent(targetUserId)}`, INTERNAL_API_ORIGIN);
+    url.searchParams.set("range", range);
+
+    const res = await fetch(url, {
+        headers: signInternalAdminHeaders(actor),
+        cache: "no-store",
+    });
+    const body = await res.json().catch(() => ({ error: "Invalid upstream response" }));
+    return { status: res.status, body };
+}

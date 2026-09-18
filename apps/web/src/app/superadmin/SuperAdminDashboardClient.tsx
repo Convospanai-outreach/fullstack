@@ -9,6 +9,7 @@ import {
   CreditCard,
   Database,
   DollarSign,
+  History,
   KeyRound,
   Layers,
   Lock,
@@ -18,6 +19,7 @@ import {
   Shield,
   Users,
   Wallet,
+  X,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -169,6 +171,49 @@ type SuperOverview = {
   }>;
 };
 
+type UserDetail = {
+  id: string;
+  email: string;
+  name?: string | null;
+  role: string;
+  enterpriseRole: string;
+  credits: number;
+  createdAt: string;
+  teams: Array<{ id: string; name: string; role: string; status: string }>;
+  subscription: {
+    status: string;
+    currentPeriodEnd: string;
+    gateway: string;
+    planName: string;
+    monthlyPrice: number;
+    pastDue: boolean;
+  } | null;
+  invoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    description: string;
+    amount: number;
+    currency: string;
+    status: string;
+    createdAt: string;
+  }>;
+  creditLedger: Array<{ id: string; amount: number; reason: string; createdAt: string }>;
+  llmUsage: {
+    byProvider: Array<{ provider: string; requests: number; tokensIn: number; tokensOut: number; cost: number }>;
+    byModel: Array<{ model: string; requests: number; tokensIn: number; tokensOut: number; cost: number }>;
+  };
+  auditLog: Array<{ id: string; action: string; entity: string; entityId?: string | null; createdAt: string; team?: { name?: string | null } | null }>;
+};
+
+type SuperAdminAuditEntry = {
+  id: string;
+  action: string;
+  metadata: unknown;
+  ipAddress: string | null;
+  createdAt: string;
+  user?: { email?: string | null } | null;
+};
+
 const rangeLabels: Record<string, string> = {
   "7d": "Last 7d",
   "30d": "Last 30d",
@@ -193,7 +238,7 @@ function dateLabel(value?: string | null) {
   });
 }
 
-type TabType = "activity" | "usage" | "billing" | "api" | "health";
+type TabType = "activity" | "usage" | "billing" | "api" | "health" | "auditLog";
 
 export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
@@ -202,6 +247,12 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchFilter, setSearchFilter] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [userDetail, setUserDetail] = useState<UserDetail | null>(null);
+  const [userDetailLoading, setUserDetailLoading] = useState(false);
+  const [userDetailError, setUserDetailError] = useState<string | null>(null);
+  const [auditEntries, setAuditEntries] = useState<SuperAdminAuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   const load = async (nextRange = range) => {
     setLoading(true);
@@ -237,6 +288,37 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
     await fetch("/api/superadmin/logout", { method: "POST" }).catch(() => {});
     onLoggedOut();
   };
+
+  const openUserDetail = async (userId: string) => {
+    setSelectedUserId(userId);
+    setUserDetail(null);
+    setUserDetailError(null);
+    setUserDetailLoading(true);
+    try {
+      const response = await fetch(`/api/superadmin/users/${userId}?range=${range}`, { cache: "no-store" });
+      if (response.status === 401) {
+        onLoggedOut();
+        return;
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setUserDetail(await response.json());
+    } catch (detailError: any) {
+      setUserDetailError(detailError?.message || "Failed to load user detail");
+    } finally {
+      setUserDetailLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "auditLog") return;
+    setAuditLoading(true);
+    fetch("/api/superadmin/audit-log?limit=100", { cache: "no-store" })
+      .then((res) => (res.status === 401 ? onLoggedOut() : res.json()))
+      .then((json) => setAuditEntries(json?.entries || []))
+      .catch(() => setAuditEntries([]))
+      .finally(() => setAuditLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   const summary = useMemo(() => {
     if (!data) return [];
@@ -405,6 +487,12 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 badge={data.totals.failedJobsCount ? `${data.totals.failedJobsCount} err` : undefined}
                 badgeColor={data.totals.failedJobsCount ? "bg-rose-500/20 text-destructive" : undefined}
               />
+              <TabButton
+                active={activeTab === "auditLog"}
+                onClick={() => setActiveTab("auditLog")}
+                icon={History}
+                label="Superadmin Activity Log"
+              />
             </div>
 
             {/* TAB 1: User Activity & Telemetry */}
@@ -420,7 +508,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                       className="w-72 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-foreground placeholder-slate-500 focus:border-cyan-500 focus:outline-none"
                     />
                     <span className="text-xs text-muted-foreground">
-                      Showing {filteredUsers.length} of {data.users.length} users
+                      Showing {filteredUsers.length} of {data.users.length} users · click a row for full detail
                     </span>
                   </div>
                 </div>
@@ -442,7 +530,11 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                       </thead>
                       <tbody className="divide-y divide-border text-foreground">
                         {filteredUsers.slice(0, 50).map((user) => (
-                          <tr key={user.id} className="hover:bg-muted">
+                          <tr
+                            key={user.id}
+                            className="hover:bg-muted cursor-pointer"
+                            onClick={() => openUserDetail(user.id)}
+                          >
                             <td className="py-3 px-4">
                               <div className="font-semibold text-foreground">{user.name || "Unnamed User"}</div>
                               <div className="text-muted-foreground">{user.email}</div>
@@ -812,7 +904,214 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                 </div>
               </div>
             )}
+
+            {/* TAB 6: Superadmin Activity Log */}
+            {activeTab === "auditLog" && (
+              <GlassCard className="overflow-hidden p-0">
+                <div className="p-4 border-b border-border">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <History className="h-4 w-4 text-cyan-300" />
+                    Superadmin Login &amp; Access History
+                  </h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Every superadmin login, failed login, and dashboard view - logged for accountability since this
+                    surface can see every tenant's data.
+                  </p>
+                </div>
+                {auditLoading && <p className="p-4 text-xs text-muted-foreground">Loading...</p>}
+                {!auditLoading && auditEntries.length === 0 && (
+                  <p className="p-4 text-xs text-muted-foreground">No superadmin activity recorded yet.</p>
+                )}
+                {!auditLoading && auditEntries.length > 0 && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="border-b border-border bg-muted text-muted-foreground">
+                        <tr>
+                          <th className="py-2.5 px-4">When</th>
+                          <th className="py-2.5 px-4">Action</th>
+                          <th className="py-2.5 px-4">Superadmin</th>
+                          <th className="py-2.5 px-4">IP</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border text-foreground">
+                        {auditEntries.map((entry) => (
+                          <tr key={entry.id}>
+                            <td className="py-2 px-4 text-muted-foreground">{dateLabel(entry.createdAt)}</td>
+                            <td className="py-2 px-4">
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                                  entry.action === "LOGIN_FAILED"
+                                    ? "bg-rose-500/10 text-destructive"
+                                    : "bg-emerald-500/10 text-success"
+                                }`}
+                              >
+                                {entry.action}
+                              </span>
+                            </td>
+                            <td className="py-2 px-4">{entry.user?.email || "Unknown"}</td>
+                            <td className="py-2 px-4 font-mono text-muted-foreground">{entry.ipAddress || "-"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </GlassCard>
+            )}
           </>
+        )}
+      </div>
+
+      {selectedUserId && (
+        <UserDetailModal
+          loading={userDetailLoading}
+          error={userDetailError}
+          detail={userDetail}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function UserDetailModal({
+  loading,
+  error,
+  detail,
+  onClose,
+}: {
+  loading: boolean;
+  error: string | null;
+  detail: UserDetail | null;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-xl border border-border bg-card p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <h3 className="text-base font-bold text-foreground">{detail?.name || detail?.email || "User detail"}</h3>
+            {detail && <p className="text-xs text-muted-foreground">{detail.email}</p>}
+          </div>
+          <button onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {loading && <p className="text-xs text-muted-foreground">Loading...</p>}
+        {error && <p className="text-xs text-destructive">Failed to load: {error}</p>}
+
+        {detail && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
+              <div className="rounded-lg border border-border bg-muted p-2.5">
+                <p className="text-muted-foreground uppercase text-[10px]">Role</p>
+                <p className="font-semibold text-foreground">{detail.enterpriseRole}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted p-2.5">
+                <p className="text-muted-foreground uppercase text-[10px]">Credits</p>
+                <p className="font-semibold text-foreground">{detail.credits.toLocaleString()}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted p-2.5">
+                <p className="text-muted-foreground uppercase text-[10px]">Joined</p>
+                <p className="font-semibold text-foreground">{dateLabel(detail.createdAt)}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted p-2.5">
+                <p className="text-muted-foreground uppercase text-[10px]">Teams</p>
+                <p className="font-semibold text-foreground">{detail.teams.length}</p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="mb-2 text-xs font-bold uppercase text-muted-foreground">Billing</h4>
+              {detail.subscription ? (
+                <div className="rounded-lg border border-border bg-muted p-3 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-foreground">
+                      {detail.subscription.planName} ({detail.subscription.gateway})
+                    </span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+                        detail.subscription.pastDue ? "bg-rose-500/10 text-destructive" : "bg-emerald-500/10 text-success"
+                      }`}
+                    >
+                      {detail.subscription.pastDue ? "past due" : detail.subscription.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-muted-foreground">
+                    Renews {new Date(detail.subscription.currentPeriodEnd).toLocaleDateString()}
+                  </p>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    "Dues" isn't a modeled concept yet - invoices only ever record paid/refunded, never
+                    failed/overdue - so "past due" here is a best-effort read of the renewal date, not an owed amount.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No subscription on file.</p>
+              )}
+              {detail.invoices.length > 0 && (
+                <div className="mt-2 space-y-1.5">
+                  {detail.invoices.slice(0, 5).map((inv) => (
+                    <div key={inv.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{inv.invoiceNumber} · {inv.description}</span>
+                      <span className="font-mono text-foreground">
+                        {inv.currency.toUpperCase()} {(inv.amount / 100).toFixed(2)} · {inv.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="mb-2 text-xs font-bold uppercase text-muted-foreground">
+                LLM Usage ({detail.llmUsage.byProvider.reduce((s, p) => s + p.requests, 0)} requests)
+              </h4>
+              {detail.llmUsage.byProvider.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No LLM usage attributed to this user in this window.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {detail.llmUsage.byProvider.map((p) => (
+                    <div key={p.provider} className="flex items-center justify-between text-[11px]">
+                      <span className="capitalize text-foreground">{p.provider}</span>
+                      <span className="font-mono text-muted-foreground">
+                        {p.requests} req · {money(p.cost)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="mb-2 text-xs font-bold uppercase text-muted-foreground">Teams</h4>
+              <div className="space-y-1.5">
+                {detail.teams.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between text-[11px]">
+                    <span className="text-foreground">{t.name}</span>
+                    <span className="text-muted-foreground">{t.role} · {t.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {detail.auditLog.length > 0 && (
+              <div>
+                <h4 className="mb-2 text-xs font-bold uppercase text-muted-foreground">Recent Actions</h4>
+                <div className="space-y-1.5">
+                  {detail.auditLog.slice(0, 8).map((a) => (
+                    <div key={a.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>{a.action} · {a.entity}</span>
+                      <span>{dateLabel(a.createdAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
