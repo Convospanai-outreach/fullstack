@@ -141,6 +141,14 @@ type SuperOverview = {
     warmSignalsInWindow: number;
     lastReceivedAt: string | null;
   };
+  infra?: {
+    database: {
+      sizeBytes: number;
+      rowCounts: { leads: number; campaigns: number; emails: number; llmUsageLogs: number };
+    };
+    resend: { configured: boolean };
+    render: { configured: boolean };
+  };
   apiKeys: Array<{
     id: string;
     name: string;
@@ -226,6 +234,13 @@ function compactNumber(value: number) {
 
 function money(value: number) {
   return `$${(value || 0).toFixed(2)}`;
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${(bytes / Math.pow(1024, exponent)).toFixed(exponent === 0 ? 0 : 1)} ${units[exponent]}`;
 }
 
 function dateLabel(value?: string | null) {
@@ -844,6 +859,36 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                     <p className="text-xs uppercase text-muted-foreground">Job Failures</p>
                     <p className={`mt-1 text-lg font-bold ${data.totals.failedJobsCount ? "text-destructive" : "text-foreground"}`}>
                       {data.totals.failedJobsCount || 0} in {range}
+                    </p>
+                  </GlassCard>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <GlassCard className="p-4">
+                    <p className="text-xs uppercase text-muted-foreground">Database Size (Supabase)</p>
+                    <p className="mt-1 text-lg font-bold text-foreground">
+                      {data.infra ? formatBytes(data.infra.database.sizeBytes) : "-"}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {data.infra
+                        ? `${compactNumber(data.infra.database.rowCounts.leads)} leads · ${compactNumber(
+                            data.infra.database.rowCounts.campaigns
+                          )} campaigns · ${compactNumber(data.infra.database.rowCounts.emails)} emails · ${compactNumber(
+                            data.infra.database.rowCounts.llmUsageLogs
+                          )} LLM logs`
+                        : "Not available"}
+                    </p>
+                  </GlassCard>
+                  <GlassCard className={`p-4 ${data.infra?.resend.configured ? "border-emerald-500/20 bg-emerald-500/5" : "border-border"}`}>
+                    <p className="text-xs uppercase text-muted-foreground">Resend (Email)</p>
+                    <p className={`mt-1 text-lg font-bold ${data.infra?.resend.configured ? "text-emerald-400" : "text-muted-foreground"}`}>
+                      {data.infra?.resend.configured ? "Configured" : "Not configured"}
+                    </p>
+                  </GlassCard>
+                  <GlassCard className={`p-4 ${data.infra?.render.configured ? "border-emerald-500/20 bg-emerald-500/5" : "border-border"}`}>
+                    <p className="text-xs uppercase text-muted-foreground">Render API</p>
+                    <p className={`mt-1 text-lg font-bold ${data.infra?.render.configured ? "text-emerald-400" : "text-muted-foreground"}`}>
+                      {data.infra?.render.configured ? "Configured" : "Not configured"}
                     </p>
                   </GlassCard>
                 </div>

@@ -51,6 +51,9 @@ export async function GET(req: Request) {
             netjanaSignalCount,
             netjanaWarmSignalCount,
             netjanaLatestSignal,
+            dbSizeResult,
+            emailCount,
+            llmUsageLogCount,
         ] = await Promise.all([
             prisma.user.findMany({
                 orderBy: { createdAt: "desc" },
@@ -245,6 +248,9 @@ export async function GET(req: Request) {
                 orderBy: { createdAt: "desc" },
                 select: { createdAt: true },
             }),
+            prisma.$queryRaw<Array<{ bytes: bigint }>>`SELECT pg_database_size(current_database()) AS bytes`,
+            prisma.email.count(),
+            prisma.lLMUsageLog.count(),
         ]);
 
         const usageMap = new Map(usageByTeam.map((usage) => [usage.teamId, {
@@ -450,6 +456,22 @@ export async function GET(req: Request) {
                     createdAt: j.createdAt,
                     teamId: j.teamId,
                 })),
+            },
+            infra: {
+                database: {
+                    sizeBytes: Number(dbSizeResult[0]?.bytes ?? 0),
+                    rowCounts: {
+                        leads: totals.leads,
+                        campaigns: totals.campaigns,
+                        emails: emailCount,
+                        llmUsageLogs: llmUsageLogCount,
+                    },
+                },
+                // These only report whether the integration is configured, not live
+                // status - a real health probe would need each provider's own API
+                // shape and isn't wired up yet.
+                resend: { configured: Boolean(process.env["RESEND_API_KEY"]) },
+                render: { configured: Boolean(process.env["RENDER_API_KEY"]) },
             },
             netjanaIntel: {
                 // Fail-open by design (see netjanaIntelWebhook.ts) - if unset, every
