@@ -4441,6 +4441,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   dashboards) and was judged disproportionate to this item's actual
   reported risk (duplicate sends, not missed sends).
 
+- **OPEN-241 (Fixed):** roadmap.md item 1.8 — several apps/api modules read a
+  secret from `process.env` with a hard-coded, publicly-known fallback/sample
+  value if the real env var is unset or left at its `.env.example` default:
+  `credentialVault.ts`'s `getEncryptionKey()` accepts the sample
+  `ENCRYPTION_KEY` (`0123456789abcdef...`) without rejecting it,
+  `blindIndexService.ts`'s `getSecretKey()` falls back to the hard-coded
+  string `"cmf_default_blind_index_salt_secure"` when both `BLIND_INDEX_KEY`
+  and `ENCRYPTION_KEY` are absent, `trackingService.ts`'s
+  `getMetadataSecret()` falls back to `"tracking-metadata"`, and
+  `apps/docker-compose.split.yml:126` sets `CRON_SECRET: ${CRON_SECRET:-change-me}`
+  — a host that never sets `CRON_SECRET` gets the literal string
+  `"change-me"` as a *set* value, which passes
+  `routes/scheduler/tick/route.ts`'s own "is it set at all" check. None of
+  this was previously caught at boot. **Fixed:** added
+  `apps/api/src/lib/bootSecretAssertions.ts` exporting
+  `assertProductionSecretsAreSafe(env = process.env)`, called once from
+  `apps/api/server.ts` right after the `dotenv.config()` calls and before the
+  `Fastify({...})` construction. It is a no-op unless
+  `NODE_ENV === "production"` (mirrors the existing
+  `apps/api/src/lib/rateLimit.ts` `isTrustedProxyConfigured()` pattern so
+  local/CI/vitest runs are unaffected), and in production throws — refusing
+  to boot — if: `ENCRYPTION_KEY` is the sample value; `NEXTAUTH_SECRET` is
+  the sample value `your-secret-key-here`; `CRON_SECRET` is `change-me`; or
+  both `BLIND_INDEX_KEY` and `ENCRYPTION_KEY` are unset (a real
+  `ENCRYPTION_KEY` used as the blind-index fallback is accepted — it's a
+  real secret, not a public string). Regression tests in
+  `apps/api/src/lib/__tests__/bootSecretAssertions.test.ts` (7 cases: no-op
+  outside production, passes when all real, and one throw case per rejected
+  value/combination). `tsc --noEmit` and the full `apps/api` suite (239
+  files / 1401 tests) pass. **Skipped, human/ops action only:** confirming
+  and closing the already-tracked owed secret rotations (GitHub PAT OPEN-60;
+  VM/Google OPEN-21) — this requires rotating real production credentials,
+  which is outside what this session can do; still owed.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
