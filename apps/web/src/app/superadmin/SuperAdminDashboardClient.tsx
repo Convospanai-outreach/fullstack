@@ -12,6 +12,7 @@ import {
   KeyRound,
   Layers,
   Lock,
+  LogOut,
   RefreshCw,
   Server,
   Shield,
@@ -188,7 +189,7 @@ function dateLabel(value?: string | null) {
 
 type TabType = "activity" | "usage" | "billing" | "api" | "health";
 
-export default function SuperAdminDashboardClient() {
+export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut: () => void }) {
   const [range, setRange] = useState("30d");
   const [activeTab, setActiveTab] = useState<TabType>("activity");
   const [data, setData] = useState<SuperOverview | null>(null);
@@ -200,9 +201,13 @@ export default function SuperAdminDashboardClient() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/proxy/admin/super/overview?range=${nextRange}`, {
+      const response = await fetch(`/api/superadmin/overview?range=${nextRange}`, {
         cache: "no-store",
       });
+      if (response.status === 401) {
+        onLoggedOut();
+        return;
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -219,7 +224,13 @@ export default function SuperAdminDashboardClient() {
 
   useEffect(() => {
     void load(range);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range]);
+
+  const logout = async () => {
+    await fetch("/api/superadmin/logout", { method: "POST" }).catch(() => {});
+    onLoggedOut();
+  };
 
   const summary = useMemo(() => {
     if (!data) return [];
@@ -314,6 +325,10 @@ export default function SuperAdminDashboardClient() {
             <Button size="sm" variant="outline" onClick={() => load(range)} disabled={loading}>
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Refresh
+            </Button>
+            <Button size="sm" variant="outline" onClick={logout}>
+              <LogOut className="mr-2 h-4 w-4" />
+              Log out
             </Button>
           </div>
         </div>

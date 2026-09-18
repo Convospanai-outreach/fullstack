@@ -23,6 +23,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 <NavLink href="/settings/approvals">Approval Inbox</NavLink>
                 <NavLink href="/settings/audit">Audit Logs</NavLink>
                 <NavLink href="/settings/branding">Branding</NavLink>
+                <NavLink href="/settings/domain-health">Domain Health</NavLink>
                 <NavLink href="/settings/payments">Payments</NavLink>
             </aside>
 

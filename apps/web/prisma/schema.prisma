@@ -1080,6 +1080,10 @@ model DomainAuthenticationCheck {
   dmarcStatus      String    @default("UNKNOWN")
   mxStatus         String    @default("UNKNOWN")
   lastCheckedAt    DateTime?
+  // Set only when this domain matches a currently-CONNECTED mailbox at check time -
+  // unlike lastCheckedAt (bumped on every DNS recheck, including retired domains),
+  // this is how the dashboard shows "last used to send" after a mailbox is deleted.
+  lastActiveAt     DateTime?
   nextCheckAt      DateTime?
   failureReason    String?   @db.Text
   createdAt        DateTime  @default(now())
@@ -1616,6 +1620,12 @@ model User {
   approvedInviteRequests InviteRequest[] @relation("InviteRequestApprovedBy")
   invoices           Invoice[]
 
+  // Standalone, non-OAuth superadmin login (wp-admin style) - deliberately
+  // separate from the regular session/enterpriseRole gate so ops access to
+  // every team's data doesn't ride on the same auth path as tenant logins.
+  superAdminCredential SuperAdminCredential?
+  superAdminAuditLogs  SuperAdminAuditLog[]
+
   // Caller Role (Part 4)
   isCaller           Boolean                    @default(false)
   callerTeamId       String? // Which team this caller works for
@@ -1916,6 +1926,35 @@ model AuditLog {
   @@index([createdAt])
   // Optimization for recent activity feeds
   @@index([orgId, createdAt])
+}
+
+model SuperAdminCredential {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  passwordHash   String // scrypt$N$r$p$<saltHex>$<hashHex>
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Not AuditLog - that model requires a Team (orgId), but superadmin actions
+// span every team and aren't scoped to one.
+model SuperAdminAuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String // e.g. "LOGIN", "LOGIN_FAILED", "VIEW_OVERVIEW"
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([action])
 }
 
 model MarketplaceTemplate {
