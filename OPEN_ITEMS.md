@@ -4241,20 +4241,14 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   anonymous traffic into one shared bucket rather than one per visitor).
 
 - **OPEN-237 (Fixed):** roadmap.md item 1.1 — Razorpay
-  env-name mismatch and client-only payment confirmation. Server code
-  reads `RAZORPAY_KEY_ID` (`apps/api/src/lib/razorpay.ts:3`) and the
-  webhook requires `RAZORPAY_WEBHOOK_SECRET`
-  (`apps/api/routes/webhooks/razorpay/route.ts:72`), but neither name
-  existed in either `.env.example` (only `NEXT_PUBLIC_RAZORPAY_KEY_ID`
-  and `RAZORPAY_KEY_SECRET` were documented) — a prod env cloned from
-  the docs would silently 400 every webhook delivery. Credits were also
-  granted **only** by that webhook; the browser's checkout `handler`
-  just called `window.location.reload()` and the catch block used
-  `alert()`, so a payer whose webhook never arrived (misconfigured env,
-  Razorpay outage) was charged with no visible error and no credits.
-  **Fixed**: added `RAZORPAY_KEY_ID`/`RAZORPAY_WEBHOOK_SECRET` to both
-  `apps/api/.env.example` and `apps/web/.env.example`; added
-  `POST /billing/verify` (`apps/api/routes/billing/verify/route.ts`) —
+  client-only payment confirmation (env-name mismatch part of this item
+  was **not** touched — see note below). Credits were granted **only**
+  by the webhook (`apps/api/routes/webhooks/razorpay/route.ts`); the
+  browser's checkout `handler` just called `window.location.reload()`
+  and the catch block used `alert()`, so a payer whose webhook never
+  arrived (misconfigured env, Razorpay outage) was charged with no
+  visible error and no credits. **Fixed**:
+  added `POST /billing/verify` (`apps/api/routes/billing/verify/route.ts`) —
   verifies `razorpay_signature` against `RAZORPAY_KEY_SECRET`
   (`orderId|paymentId` HMAC, timing-safe compare), reads the order's
   notes from Razorpay directly (not trusted from the client) to check
@@ -4271,12 +4265,16 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   tests in `apps/api/routes/billing/verify/route.test.ts` (401 with no
   session, forged signature, cross-team order, successful grant,
   already-credited no-op); full apps/api suite 239/239 files, 1399/1399
-  tests passing; `tsc --noEmit` clean on both apps. **Skipped**: could
-  not confirm whether `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/
-  `RAZORPAY_WEBHOOK_SECRET` are actually set on the production Oracle
-  VMs — that requires shell access to `/opt/fullstack/.env`, which this
-  session does not have; owner must verify (env var **names** only, see
-  report). Also skipped a web-side component test for the
+  tests passing; `tsc --noEmit` clean on both apps. **Skipped**: the
+  `.env.example` documentation half of this roadmap item, per explicit
+  user instruction — the app is already live on Render/Supabase/Oracle
+  with its own real env already configured outside the repo, so editing
+  the example file doesn't change production. Also could not confirm
+  whether `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/`RAZORPAY_WEBHOOK_SECRET`
+  are actually set on the production Oracle VMs — that requires shell
+  access to `/opt/fullstack/.env`, which this session does not have;
+  owner must verify (env var **names** only, see report). Also skipped
+  a web-side component test for the
   `alert()`→inline-error change: `apps/web` has no
   `@testing-library/react`/component-test setup today, and adding one
   would be a new dependency this item doesn't require — the money-path
