@@ -133,6 +133,12 @@ type SuperOverview = {
       timestamp: string;
     }>;
   };
+  netjanaIntel?: {
+    signatureEnforced: boolean;
+    signalsInWindow: number;
+    warmSignalsInWindow: number;
+    lastReceivedAt: string | null;
+  };
   apiKeys: Array<{
     id: string;
     name: string;
@@ -695,7 +701,7 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
             {/* TAB 5: Outages, Service Health & Job Failures */}
             {activeTab === "health" && (
               <div className="space-y-6">
-                <div className="grid gap-4 sm:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                   <GlassCard className="p-4 border-emerald-500/20 bg-emerald-500/5">
                     <p className="text-xs uppercase text-muted-foreground">PostgreSQL (Supabase)</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
@@ -712,6 +718,34 @@ export default function SuperAdminDashboardClient({ onLoggedOut }: { onLoggedOut
                     <p className="text-xs uppercase text-muted-foreground">Background Worker</p>
                     <p className="mt-1 text-lg font-bold text-emerald-400 flex items-center gap-1.5">
                       <CheckCircle2 className="h-4 w-4" /> Active
+                    </p>
+                  </GlassCard>
+                  <GlassCard
+                    className={`p-4 ${
+                      !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0
+                        ? "border-amber-500/20 bg-amber-500/5"
+                        : "border-emerald-500/20 bg-emerald-500/5"
+                    }`}
+                  >
+                    <p className="text-xs uppercase text-muted-foreground">Netjana Intel Webhook</p>
+                    <p
+                      className={`mt-1 text-lg font-bold flex items-center gap-1.5 ${
+                        !data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0 ? "text-warning" : "text-emerald-400"
+                      }`}
+                    >
+                      {!data.netjanaIntel || data.netjanaIntel.signalsInWindow === 0 ? (
+                        <AlertTriangle className="h-4 w-4" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                      {data.netjanaIntel?.signalsInWindow ?? 0} signals in {range}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {data.netjanaIntel?.warmSignalsInWindow ?? 0} warm ·{" "}
+                      {data.netjanaIntel?.signatureEnforced ? "HMAC enforced" : "HMAC not configured (fail-open)"}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      Last received: {dateLabel(data.netjanaIntel?.lastReceivedAt)}
                     </p>
                   </GlassCard>
                   <GlassCard className={`p-4 ${data.totals.failedJobsCount ? "border-rose-500/30 bg-rose-500/10" : "border-border"}`}>

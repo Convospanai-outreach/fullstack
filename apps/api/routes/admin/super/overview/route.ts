@@ -48,6 +48,9 @@ export async function GET(req: Request) {
             jobStatusCounts,
             recentFailedJobs,
             recentOutages,
+            netjanaSignalCount,
+            netjanaWarmSignalCount,
+            netjanaLatestSignal,
         ] = await Promise.all([
             prisma.user.findMany({
                 orderBy: { createdAt: "desc" },
@@ -230,6 +233,17 @@ export async function GET(req: Request) {
                     teamId: true,
                     timestamp: true,
                 },
+            }),
+            prisma.shadowSignal.count({
+                where: { source: "netjana-intel", createdAt: { gte: startDate } },
+            }),
+            prisma.shadowSignal.count({
+                where: { source: "netjana-intel", createdAt: { gte: startDate }, isWarmLead: true },
+            }),
+            prisma.shadowSignal.findFirst({
+                where: { source: "netjana-intel" },
+                orderBy: { createdAt: "desc" },
+                select: { createdAt: true },
             }),
         ]);
 
@@ -436,6 +450,14 @@ export async function GET(req: Request) {
                     createdAt: j.createdAt,
                     teamId: j.teamId,
                 })),
+            },
+            netjanaIntel: {
+                // Fail-open by design (see netjanaIntelWebhook.ts) - if unset, every
+                // inbound signal is accepted without HMAC verification.
+                signatureEnforced: Boolean(process.env["NETJANA_HMAC_SECRET"] || process.env["HMAC_SECRET"]),
+                signalsInWindow: netjanaSignalCount,
+                warmSignalsInWindow: netjanaWarmSignalCount,
+                lastReceivedAt: netjanaLatestSignal?.createdAt ?? null,
             },
             outages: {
                 recentEvents: recentOutages.map((o) => ({
