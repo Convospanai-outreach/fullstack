@@ -1,18 +1,20 @@
 import { beforeEach, describe, expect, it, vi, Mock } from "vitest";
 import crypto from "crypto";
 
-const { mockPrisma, mockAdvanceLeadAfterReply } = vi.hoisted(() => ({
+const { mockPrisma, mockAdvanceLeadAfterReply, mockRevokeConsent } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findFirst: vi.fn() },
         lead: { findFirst: vi.fn() },
         whatsAppMessage: { create: vi.fn() },
     },
     mockAdvanceLeadAfterReply: vi.fn(),
+    mockRevokeConsent: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 vi.mock("@/lib/crm/leadStageTransitions", () => ({ advanceLeadAfterReply: mockAdvanceLeadAfterReply }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("@/modules/whatsapp/ConsentService", () => ({ ConsentService: { revokeConsent: mockRevokeConsent } }));
 
 const VERIFY_TOKEN = "test-verify-token";
 const APP_SECRET = "test-app-secret";
@@ -51,6 +53,7 @@ describe("/webhooks/whatsapp", () => {
         mockPrisma.lead.findFirst.mockResolvedValue({ id: "lead-1", teamId: "team-1" });
         mockPrisma.whatsAppMessage.create.mockResolvedValue({ id: "msg-1" });
         mockAdvanceLeadAfterReply.mockResolvedValue({ leadStageChanged: true });
+        mockRevokeConsent.mockResolvedValue({ id: "lead-1" });
     });
 
     describe("GET - verification handshake", () => {
@@ -113,7 +116,7 @@ describe("/webhooks/whatsapp", () => {
             expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
         });
 
-        it("accepts unsigned payloads when WHATSAPP_APP_SECRET isn't configured", async () => {
+        it("fails closed with 503 when WHATSAPP_APP_SECRET isn't configured, instead of accepting unsigned payloads", async () => {
             delete process.env["WHATSAPP_APP_SECRET"];
             const { POST } = await import("./route");
             const rawBody = JSON.stringify(messagePayload());
@@ -124,8 +127,8 @@ describe("/webhooks/whatsapp", () => {
                 body: rawBody,
             }) as any);
 
-            expect(res.status).toBe(200);
-            expect(mockPrisma.whatsAppMessage.create).toHaveBeenCalled();
+            expect(res.status).toBe(503);
+            expect(mockPrisma.whatsAppMessage.create).not.toHaveBeenCalled();
         });
 
         it("rejects invalid JSON with 400", async () => {
@@ -228,6 +231,35 @@ describe("/webhooks/whatsapp", () => {
             expect(mockPrisma.whatsAppMessage.create).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({ body: "[image message]" }),
             }));
+        });
+
+        it("revokes WhatsApp consent on a STOP keyword and does not advance the lead's journey", async () => {
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ text: "STOP" })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockRevokeConsent).toHaveBeenCalledWith("lead-1", undefined, "WhatsApp inbound opt-out keyword", "WHATSAPP");
+            expect(mockAdvanceLeadAfterReply).not.toHaveBeenCalled();
+        });
+
+        it("matches opt-out keywords case-insensitively with surrounding whitespace", async () => {
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ text: "  Unsubscribe  " })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockRevokeConsent).toHaveBeenCalled();
+        });
+
+        it("does not treat a STOP-like word inside a real message as an opt-out", async () => {
+            const { POST } = await import("./route");
+
+            const res = await POST(signedRequest(messagePayload({ text: "please stop calling me at night" })) as any);
+
+            expect(res.status).toBe(200);
+            expect(mockRevokeConsent).not.toHaveBeenCalled();
+            expect(mockAdvanceLeadAfterReply).toHaveBeenCalled();
         });
 
         it("returns 500 when processing throws unexpectedly, so Meta retries delivery", async () => {
