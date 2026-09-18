@@ -66,7 +66,27 @@ export class SchedulerService {
                     continue;
                 }
 
-                // 3. Dispatch Job
+                // 3. Claim this due run before enqueueing anything. Two ticks
+                // racing on the same schedule (overlapping slow ticks, or the
+                // worker running on more than one host) would otherwise both
+                // read the same nextRunAt and both enqueue - this atomic
+                // updateMany only succeeds for whichever tick gets there
+                // first, so the loser's count is 0 and it skips the schedule
+                // entirely instead of double-dispatching.
+                const interval = CronExpressionParser.parse(schedule.cron, { tz: schedule.timezone });
+                const nextRun = interval.next().toDate();
+                const claim = await prisma.schedule.updateMany({
+                    where: { id: schedule.id, nextRunAt: schedule.nextRunAt },
+                    data: {
+                        lastRunAt: now,
+                        nextRunAt: nextRun,
+                    },
+                });
+                if (claim.count === 0) {
+                    continue;
+                }
+
+                // 4. Dispatch Job
                 // Payload includes batch settings and grounding config
                 const payload = {
                     scheduleId: schedule.id,
@@ -85,18 +105,14 @@ export class SchedulerService {
                 else if (schedule.agentId) jobType = "agent_run";
                 else if (schedule.name.toLowerCase().includes("scoring")) jobType = "lead_scoring";
 
-                await JobQueue.enqueue(jobType, payload, { priority: 1, teamId: schedule.teamId });
-
-                // 4. Update Next Run
-                const interval = CronExpressionParser.parse(schedule.cron, { tz: schedule.timezone });
-                const nextRun = interval.next().toDate();
-
-                await prisma.schedule.update({
-                    where: { id: schedule.id },
-                    data: {
-                        lastRunAt: now,
-                        nextRunAt: nextRun,
-                    },
+                // Belt-and-braces on top of the CAS claim above: keyed on the
+                // schedule id and the nextRunAt value this tick is servicing,
+                // so even a duplicate enqueue call for the same due run is a
+                // no-op at the job-queue layer.
+                await JobQueue.enqueue(jobType, payload, {
+                    priority: 1,
+                    teamId: schedule.teamId,
+                    idempotencyKey: `sched_${schedule.id}_${schedule.nextRunAt?.toISOString()}`,
                 });
 
                 // 5. Audit Log (Initial)

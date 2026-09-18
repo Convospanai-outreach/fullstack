@@ -105,6 +105,7 @@ class EmailService {
             leadId?: string;
             campaignId?: string;
             variantId?: string;
+            idempotencyKey?: string;
         };
         subject: string;
         body: string;
@@ -127,6 +128,7 @@ class EmailService {
                 deliveryProvider: input.deliveryProvider,
                 mailboxId: input.mailboxId ?? null,
                 ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
+                ...(input.metadata.idempotencyKey ? { idempotencyKey: input.metadata.idempotencyKey } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
             } as any,
@@ -143,6 +145,7 @@ class EmailService {
             leadId?: string;
             campaignId?: string;
             variantId?: string;
+            idempotencyKey?: string;
         };
         attachments?: EmailAttachment[];
     }): Promise<EmailSendResult> {

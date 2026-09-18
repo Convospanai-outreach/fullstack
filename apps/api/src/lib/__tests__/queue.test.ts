@@ -398,6 +398,29 @@ describe("JobQueue claim handoff fencing", () => {
     });
 });
 
+describe("JobQueue.heartbeat", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("touches heartbeatAt only for the exact running claim, without bumping version", async () => {
+        (prisma.job.updateMany as Mock).mockResolvedValue({ count: 1 });
+
+        await JobQueue.heartbeat("job-1", 3);
+
+        expect(prisma.job.updateMany).toHaveBeenCalledWith({
+            where: { id: "job-1", status: JOB_STATUS.RUNNING, version: 3 },
+            data: { heartbeatAt: expect.any(Date) },
+        });
+    });
+
+    it("silently no-ops when the claim was already reclaimed (version mismatch)", async () => {
+        (prisma.job.updateMany as Mock).mockResolvedValue({ count: 0 });
+
+        await expect(JobQueue.heartbeat("job-1", 1)).resolves.toBeUndefined();
+    });
+});
+
 describe("JobQueue.resetStaleJobs", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -445,15 +468,31 @@ describe("JobQueue.resetStaleJobs", () => {
         }));
     });
 
-    it("only selects stale running and processing claims", async () => {
+    it("only selects stale running and processing claims, keyed on heartbeatAt falling back to startedAt", async () => {
         (prisma.job.findMany as Mock).mockResolvedValueOnce([]);
 
         await expect(JobQueue.resetStaleJobs(60_000)).resolves.toBe(0);
 
         const where = (prisma.job.findMany as Mock).mock.calls[0][0].where;
         expect(where.status).toEqual({ in: [JOB_STATUS.RUNNING, JOB_STATUS.PROCESSING] });
-        expect(where.startedAt).toEqual({ lte: expect.any(Date) });
         expect(where.status.in).not.toEqual(expect.arrayContaining(["queued", "completed", "failed", "cancelled"]));
+        expect(where.OR).toEqual([
+            { heartbeatAt: { lte: expect.any(Date) } },
+            { heartbeatAt: null, startedAt: { lte: expect.any(Date) } },
+        ]);
+    });
+
+    it("does not reclaim a job with a recent heartbeat even though it started long ago (B-02 regression)", async () => {
+        (prisma.job.findMany as Mock).mockResolvedValueOnce([]);
+
+        await JobQueue.resetStaleJobs(60_000);
+
+        // The query itself expresses "stale" as heartbeatAt<=threshold OR
+        // (no heartbeat ever AND startedAt<=threshold) - a job with a heartbeat
+        // newer than the threshold matches neither branch, so it's never
+        // fetched as a reset candidate regardless of its startedAt.
+        const where = (prisma.job.findMany as Mock).mock.calls[0][0].where;
+        expect(where.OR[1]).toEqual({ heartbeatAt: null, startedAt: { lte: expect.any(Date) } });
     });
 
     it("limits concurrent stale-claim update writes", async () => {

@@ -9,11 +9,23 @@ import { advanceLeadAfterEmailSent } from "@/lib/crm/leadStageTransitions";
  * Email sending worker
  * Sends personalized email to a lead
  */
-export async function handleEmailSend(payload: JobPayload) {
+export async function handleEmailSend(payload: JobPayload, jobId?: string) {
     const { leadId, campaignId, teamId } = payload;
 
     if (!leadId || !campaignId) {
         throw new Error("Missing leadId or campaignId in email job payload");
+    }
+
+    // Idempotency guard: if a prior attempt of this exact job already
+    // recorded a sent Email (e.g. the provider send succeeded but a
+    // post-send write below threw, causing a retry), skip re-sending
+    // rather than emailing the lead a second time.
+    if (jobId) {
+        const alreadySent = await prisma.email.findFirst({ where: { idempotencyKey: jobId } });
+        if (alreadySent) {
+            logger.warn(`[Worker] Skipping duplicate send: email already recorded for job ${jobId}`, { leadId, campaignId });
+            return { leadId, campaignId, sent: true, alreadySent: true };
+        }
     }
 
     // Fetch lead and campaign
@@ -67,10 +79,11 @@ export async function handleEmailSend(payload: JobPayload) {
 
     // Send email via Email Service
     try {
-    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string } = { leadId, campaignId };
+    const metadata: { leadId?: string; campaignId?: string; teamId?: string; userId?: string; idempotencyKey?: string } = { leadId, campaignId };
     const resolvedTeamId = campaign.teamId || teamId;
     if (resolvedTeamId) metadata.teamId = resolvedTeamId;
     if (campaign.ownerId) metadata.userId = campaign.ownerId;
+    if (jobId) metadata.idempotencyKey = jobId;
 
     const result = await emailService.sendEmail(
         lead.email,
@@ -79,29 +92,45 @@ export async function handleEmailSend(payload: JobPayload) {
         metadata
     );
 
-        // Advance lead status/pipelineState (CONTACTED / COLD->WARM), matching
-        // the uppercase status values the dashboard funnel query counts on.
-        await advanceLeadAfterEmailSent(prisma, { leadId, teamId: resolvedTeamId, campaignId });
+        // The send itself has already happened at this point - a failure in
+        // any of the following bookkeeping writes must not throw (which would
+        // fail the job and trigger a retry that re-sends the email). Each is
+        // independently best-effort.
+        try {
+            // Advance lead status/pipelineState (CONTACTED / COLD->WARM), matching
+            // the uppercase status values the dashboard funnel query counts on.
+            await advanceLeadAfterEmailSent(prisma, { leadId, teamId: resolvedTeamId, campaignId });
+        } catch (postSendError) {
+            logger.error(`[Worker] Failed to advance lead stage after send`, { leadId, campaignId, postSendError });
+        }
 
-        // Update campaign completed count
-        await prisma.campaign.update({
-            where: { id: campaignId },
-            data: { completedCount: { increment: 1 } },
-        });
+        try {
+            // Update campaign completed count
+            await prisma.campaign.update({
+                where: { id: campaignId },
+                data: { completedCount: { increment: 1 } },
+            });
+        } catch (postSendError) {
+            logger.error(`[Worker] Failed to increment campaign completedCount after send`, { leadId, campaignId, postSendError });
+        }
 
-        // Log activity
-        await prisma.activity.create({
-            data: {
-                type: "email_sent",
-                meta: {
-                    leadId,
-                    campaignId,
-                    email: lead.email,
-                    subject: emailContent.subject,
-                    providerId: result.providerId,
+        try {
+            // Log activity
+            await prisma.activity.create({
+                data: {
+                    type: "email_sent",
+                    meta: {
+                        leadId,
+                        campaignId,
+                        email: lead.email,
+                        subject: emailContent.subject,
+                        providerId: result.providerId,
+                    },
                 },
-            },
-        });
+            });
+        } catch (postSendError) {
+            logger.error(`[Worker] Failed to log activity after send`, { leadId, campaignId, postSendError });
+        }
 
         logger.info(`[Worker] Successfully sent email to ${lead.email}`, { leadId, campaignId });
 

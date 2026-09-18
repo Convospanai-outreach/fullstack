@@ -345,11 +345,34 @@ export class JobQueue {
     }
 
     /**
+     * Touched periodically by long-running handlers (e.g. CRM_SYNC's per-lead
+     * loop) so resetStaleJobs below doesn't reclaim a job that is still
+     * actively running just because it has been executing longer than the
+     * stale threshold. Matched on version so a claim that was already
+     * reclaimed/completed/failed silently no-ops instead of resurrecting it.
+     */
+    static async heartbeat(jobId: string, claimVersion: number) {
+        await prisma.job.updateMany({
+            where: { id: jobId, status: JOB_STATUS.RUNNING, version: claimVersion },
+            data: { heartbeatAt: new Date() },
+        });
+    }
+
+    /**
      * Requeues stale WorkerManager claims and invalidates their generation.
      * This protects against worker crashes.
      */
     static async resetStaleJobs(maxAgeMs: number = 1000 * 60 * 15) {
         const threshold = new Date(Date.now() - maxAgeMs);
+        // A job with a recent heartbeat is still actively running regardless
+        // of how long ago it started - only fall back to startedAt for jobs
+        // whose handler never calls heartbeat().
+        const isStale = {
+            OR: [
+                { heartbeatAt: { lte: threshold } },
+                { heartbeatAt: null, startedAt: { lte: threshold } },
+            ],
+        };
         let afterId: string | undefined;
         let resetCount = 0;
 
@@ -357,7 +380,7 @@ export class JobQueue {
             const staleJobs = await prisma.job.findMany({
                 where: {
                     status: { in: RECOVERABLE_STALE_JOB_STATUSES },
-                    startedAt: { lte: threshold },
+                    ...isStale,
                     ...(afterId ? { id: { gt: afterId } } : {}),
                 },
                 select: { id: true, status: true, version: true },
@@ -377,7 +400,7 @@ export class JobQueue {
                             id: job.id,
                             status: job.status,
                             version: job.version,
-                            startedAt: { lte: threshold },
+                            ...isStale,
                         },
                         data: {
                             status: JOB_STATUS.QUEUED,

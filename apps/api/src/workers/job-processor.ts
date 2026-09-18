@@ -20,7 +20,7 @@ function asString(value: unknown): string | undefined {
     return typeof value === "string" && value.trim().length > 0 ? value : undefined;
 }
 
-async function runHandler(jobType: string, payload: JobPayload) {
+async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim) {
     switch (jobType) {
         case "campaign_execution": {
             const campaignId = asString(payload.campaignId);
@@ -34,7 +34,7 @@ async function runHandler(jobType: string, payload: JobPayload) {
             return handleLeadEnrichment(payload);
 
         case "email_sending":
-            return handleEmailSend(payload);
+            return handleEmailSend(payload, claim.jobId);
 
         case "linkedin_scraping":
         case "LINKEDIN_ACTION": {
@@ -201,9 +201,15 @@ async function runHandler(jobType: string, payload: JobPayload) {
                 take: 500,
             });
             const summary: Record<string, number> = {};
-            for (const lead of leads) {
+            for (const [index, lead] of leads.entries()) {
                 const result = await crmService.syncLead(lead.id, teamId);
                 summary[result.status] = (summary[result.status] || 0) + 1;
+                // Up to 500 sequential syncLead calls can run past the stale-job
+                // watchdog's 15-minute threshold - heartbeat periodically so it
+                // isn't falsely reclaimed and double-run by another worker.
+                if (index > 0 && index % 25 === 0) {
+                    await JobQueue.heartbeat(claim.jobId, claim.version);
+                }
             }
             return { syncedCount: leads.length, summary };
         }
@@ -269,7 +275,7 @@ export const worker = {
         let result: unknown;
         try {
             await JobQueue.assertClaim(claim.jobId, claim.version);
-            result = await runHandler(job.type, payload);
+            result = await runHandler(job.type, payload, claim);
         } catch (error) {
             if (error instanceof GmailMailboxLeaseContendedError) {
                 const delayMs = 15_000 + Math.floor(Math.random() * 30_001);

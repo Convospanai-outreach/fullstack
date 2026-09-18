@@ -607,6 +607,7 @@ model Job {
   team           Team?     @relation(fields: [teamId], references: [id])
   idempotencyKey String?   @unique
   version        Int?      @default(1)
+  heartbeatAt    DateTime?
   taskType       String?
   executionMode  String?
   targetRuntime  String?
@@ -676,6 +677,7 @@ model Email {
   providerId       String?
   threadId         String?
   trackingId       String?           @unique
+  idempotencyKey   String?           @unique
   openedAt         DateTime?
   clickedAt        DateTime?
   repliedAt        DateTime?
