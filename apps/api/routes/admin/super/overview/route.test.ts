@@ -13,6 +13,7 @@ const { mockCheckAdmin, mockPrisma } = vi.hoisted(() => ({
         subscription: { findMany: vi.fn() },
         invoice: { findMany: vi.fn() },
         job: { groupBy: vi.fn(), findMany: vi.fn() },
+        shadowSignal: { count: vi.fn(), findFirst: vi.fn() },
     },
 }));
 
@@ -71,6 +72,8 @@ describe("super admin overview route", () => {
         mockPrisma.invoice.findMany.mockResolvedValue([]);
         mockPrisma.job.groupBy.mockResolvedValue([]);
         mockPrisma.job.findMany.mockResolvedValue([]);
+        mockPrisma.shadowSignal.count.mockResolvedValue(0);
+        mockPrisma.shadowSignal.findFirst.mockResolvedValue(null);
     });
 
     it("rejects non-super admins", async () => {
@@ -98,5 +101,24 @@ describe("super admin overview route", () => {
         });
         expect(body.users[0]).toMatchObject({ email: "admin@example.com", usageAttribution: "user", llmRequests: 1 });
         expect(body.apiKeys[0]).toMatchObject({ name: "Prod", teamName: "Team One" });
+    });
+
+    it("reports Netjana Intel webhook health without HMAC configured", async () => {
+        mockPrisma.shadowSignal.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
+        const receivedAt = new Date("2026-06-05T00:00:00.000Z");
+        mockPrisma.shadowSignal.findFirst.mockResolvedValue({ createdAt: receivedAt });
+        delete process.env["NETJANA_HMAC_SECRET"];
+        delete process.env["HMAC_SECRET"];
+
+        const { GET } = await import("./route");
+        const response = await GET(new Request("http://localhost/api/admin/super/overview?range=30d"));
+        const body = await response.json();
+
+        expect(body.netjanaIntel).toMatchObject({
+            signatureEnforced: false,
+            signalsInWindow: 4,
+            warmSignalsInWindow: 1,
+            lastReceivedAt: receivedAt.toISOString(),
+        });
     });
 });
