@@ -4178,6 +4178,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `updateMailboxControls`/`listConnectedMailboxes` already fully
   supported the field. `tsc --noEmit`/lint clean.
 
+<<<<<<< HEAD
 - **OPEN-243 (Fixed):** roadmap.md item 1.3 — global rate limiter. Rule 6's
   gate ("do NOT implement unless TRUST_PROXY is confirmed true") turned out
   to need a deeper answer than yes/no. Investigation found: (1)
@@ -4238,6 +4239,52 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   apply here — rather, `TRUST_PROXY` staying false just means `request.ip`
   resolves to the raw socket peer, i.e. Caddy's own address, collapsing all
   anonymous traffic into one shared bucket rather than one per visitor).
+
+- **OPEN-237 (Fixed):** roadmap.md item 1.1 — Razorpay
+  env-name mismatch and client-only payment confirmation. Server code
+  reads `RAZORPAY_KEY_ID` (`apps/api/src/lib/razorpay.ts:3`) and the
+  webhook requires `RAZORPAY_WEBHOOK_SECRET`
+  (`apps/api/routes/webhooks/razorpay/route.ts:72`), but neither name
+  existed in either `.env.example` (only `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+  and `RAZORPAY_KEY_SECRET` were documented) — a prod env cloned from
+  the docs would silently 400 every webhook delivery. Credits were also
+  granted **only** by that webhook; the browser's checkout `handler`
+  just called `window.location.reload()` and the catch block used
+  `alert()`, so a payer whose webhook never arrived (misconfigured env,
+  Razorpay outage) was charged with no visible error and no credits.
+  **Fixed**: added `RAZORPAY_KEY_ID`/`RAZORPAY_WEBHOOK_SECRET` to both
+  `apps/api/.env.example` and `apps/web/.env.example`; added
+  `POST /billing/verify` (`apps/api/routes/billing/verify/route.ts`) —
+  verifies `razorpay_signature` against `RAZORPAY_KEY_SECRET`
+  (`orderId|paymentId` HMAC, timing-safe compare), reads the order's
+  notes from Razorpay directly (not trusted from the client) to check
+  it belongs to the caller's team, and grants credits through the same
+  `addCredits`/`createInvoice`/`OutboxService` path the webhook uses,
+  keyed on the same `CreditTransaction.paymentId` unique constraint —
+  so whichever of the two paths (browser verify or webhook) lands first
+  wins and the other is a no-op via `P2002`. `resolveTax`/`createInvoice`
+  in the webhook route were exported (no other change) so the new route
+  reuses them instead of duplicating the tax/invoice logic.
+  `apps/web`'s billing page now calls `/billing/verify` from the
+  Razorpay `handler` callback and shows a dismissable inline error
+  instead of `alert()` on either a create-order or verify failure. 5 new
+  tests in `apps/api/routes/billing/verify/route.test.ts` (401 with no
+  session, forged signature, cross-team order, successful grant,
+  already-credited no-op); full apps/api suite 239/239 files, 1399/1399
+  tests passing; `tsc --noEmit` clean on both apps. **Skipped**: could
+  not confirm whether `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`/
+  `RAZORPAY_WEBHOOK_SECRET` are actually set on the production Oracle
+  VMs — that requires shell access to `/opt/fullstack/.env`, which this
+  session does not have; owner must verify (env var **names** only, see
+  report). Also skipped a web-side component test for the
+  `alert()`→inline-error change: `apps/web` has no
+  `@testing-library/react`/component-test setup today, and adding one
+  would be a new dependency this item doesn't require — the money-path
+  logic (signature check, idempotent grant) is fully covered by the new
+  API tests instead. Noted but not touched: `apps/web/src/modules/
+  billing/ui/BillingPage.tsx` has its own separate, unimported (0
+  importers) Razorpay checkout flow with the same `alert()`-only error
+  handling — dead code, out of scope for this fix.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
