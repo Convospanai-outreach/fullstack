@@ -4315,6 +4315,50 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `.env.example` was also not touched (real env lives on
   Render/Supabase/Oracle, not in the repo's example file).
 
+- **OPEN-239 (Fixed, partially — see correction below):** roadmap.md
+  item 1.4 — dead/orphan auth surface. **Confirmed and fixed**: (1)
+  `POST /register` (`apps/api/routes/register/route.ts`) was a fully
+  unauthenticated endpoint creating a `User`+`Team`, emailing a
+  verification link to any address, and enumerating existing accounts
+  via "User already exists" — dead relative to the product's actual
+  Google-OAuth-only signup, zero live callers found (grepped
+  `apps/web/src` for any reference). Deleted the route and its now-
+  orphaned `"/register"` entry in `server.ts`'s `publicPaths` array.
+  (2) `apps/api/routes/auth/[...nextauth]/route.ts` proxied to
+  `NEXTAUTH_URL` (defaults to `localhost:3000` in prod, matching the
+  live `/auth/providers`/`/auth/csrf` 500s the audit found) and was
+  redundant with `apps/web`'s own real `/api/auth/[...nextauth]` route
+  — confirmed zero callers (every NextAuth usage in `apps/web/src`
+  hits its own same-origin `/api/auth/*`, never `apps/api`'s). Deleted.
+  **Correction to the roadmap's own finding** (rule 2 - re-verified
+  before touching, and it doesn't hold): `apps/api/routes/auth/
+  verify-email/route.ts` and `apps/api/routes/auth/
+  resend-verification/route.ts` are **not** dead code — `apps/web/src/
+  app/(marketing)/verify-email/page.tsx` is a real, linked page
+  (explicitly listed in both `LayoutShell.tsx`'s and `providers.tsx`'s
+  public-path allowlists) that calls both of them through
+  `getBrowserApiBase() + "/auth/verify-email"` /
+  `"/auth/resend-verification"` (i.e. `/api/proxy/auth/...` →
+  `apps/api`). A shrinking population of pre-Google-only,
+  password-based accounts can still hit "resend verification" and land
+  on a real token-verification flow. **Left untouched, not deleted.**
+  Also **left untouched**: `POST /test-auth` — already gates itself
+  behind `ENABLE_TEST_AUTH === 'true'` (404 otherwise), matching what
+  §5 of roadmap.md itself already lists as "working as expected"; no
+  fix was needed here despite being named in the same roadmap item.
+  `apps/api/src/middleware.ts`'s `"/api/register"` reference was left
+  as-is at the time — that whole file was separately flagged by the
+  roadmap (S-01) as pre-existing dead code never wired into request
+  handling, out of scope for this item. **Update:** `middleware.ts` was
+  subsequently deleted outright as part of item 1.3 (OPEN-243, merged
+  first), once confirmed to have zero importers — so this reference no
+  longer exists in either form. No regression test added for the two
+  deletions themselves (nothing meaningful to unit-test about a route no
+  longer existing; verified via a full-suite run instead — see below).
+  Full apps/api suite 238/238 files, 1394/1394 tests passing (no test
+  files existed for either deleted route); `tsc --noEmit` clean on both
+  apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
