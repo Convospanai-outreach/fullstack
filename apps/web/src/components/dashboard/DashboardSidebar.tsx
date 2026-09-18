@@ -18,6 +18,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 import {
   LayoutDashboard,
@@ -51,6 +52,8 @@ import {
   Store,
   Library,
   Fingerprint,
+  Plus,
+  Minus,
 } from "lucide-react";
 import { LogoMark } from "@/components/brand/LogoMark";
 import { WorkspaceSwitcher } from "@/components/dashboard/WorkspaceSwitcher";
@@ -196,6 +199,8 @@ const buildNavGroups = (liveKeys: Set<HiddenFeatureKey>, approvalsBadge: number)
 
 const TOOLS_LINK_COUNT = TOOLS_ONLY_FEATURE_KEYS.length;
 
+const COLLAPSED_GROUPS_STORAGE_KEY = "cmf.sidebar.collapsedGroups";
+
 interface DashboardSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -204,6 +209,31 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+
+  // Restore per-group collapse state after mount only, so SSR/first paint always
+  // renders fully expanded (matches the server-rendered markup, avoiding a hydration
+  // mismatch) — the sidebar then springs to the remembered layout a frame later.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(COLLAPSED_GROUPS_STORAGE_KEY);
+      if (raw) setCollapsedGroups(JSON.parse(raw));
+    } catch {
+      // ignore malformed/inaccessible storage
+    }
+  }, []);
+
+  const toggleGroup = (label: string) => {
+    setCollapsedGroups((prev) => {
+      const next = { ...prev, [label]: !prev[label] };
+      try {
+        window.localStorage.setItem(COLLAPSED_GROUPS_STORAGE_KEY, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   const { data: approvals } = useSWR<{ requests: unknown[] }>("/api/approvals", fetcher, { refreshInterval: 30000 });
   const pendingActionCount = approvals?.requests?.length ?? 0;
@@ -267,15 +297,34 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
 
         {/* Nav groups */}
         <nav className="flex-1 overflow-y-auto px-2 pb-2">
-          {navGroups.map((group, gi) => (
+          {navGroups.map((group, gi) => {
+            const isCollapsed = !!(group.label && collapsedGroups[group.label]);
+
+            return (
             <div key={gi} className={gi > 0 ? 'mt-1' : ''}>
               {group.label && (
-                <div className="pt-4 pb-1 px-2">
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.label as string)}
+                  className="w-full flex items-center justify-between gap-2 pt-4 pb-1 px-2 group/toggle"
+                  aria-expanded={!isCollapsed}
+                >
                   <span className="text-[10px] uppercase font-medium tracking-wide text-muted-foreground">
                     {group.label}
                   </span>
-                </div>
+                  <span
+                    className={`
+                      flex items-center justify-center w-3.5 h-3.5 rounded-full flex-shrink-0
+                      text-muted-foreground group-hover/toggle:text-foreground
+                      shadow-[0_0_5px_1px_rgba(59,130,246,0.45)]
+                      transition-colors duration-150
+                    `}
+                  >
+                    {isCollapsed ? <Plus className="w-2.5 h-2.5" /> : <Minus className="w-2.5 h-2.5" />}
+                  </span>
+                </button>
               )}
+              {!isCollapsed && (
               <div className="space-y-0.5">
                 {group.items.map((item) => {
                   const Icon = item.icon;
@@ -307,8 +356,10 @@ export function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps) {
                   );
                 })}
               </div>
+              )}
             </div>
-          ))}
+            );
+          })}
 
           {/* Tools — discovery surface for the remaining feature areas with no funnel-stage home */}
           <div className="mt-1 pt-4 border-t border-border">

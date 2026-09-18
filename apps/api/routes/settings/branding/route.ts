@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { BrandingConfig, BrandingService } from "@/modules/branding/brandingService";
 import { checkTeamPermission, TeamRole } from "@/lib/permissions";
+import { prisma } from "@/lib/db";
+
+const MAX_FOOTER_LENGTH = 500;
 
 function isValidHttpUrl(urlString: unknown): boolean {
     if (!urlString || typeof urlString !== "string") return true;
@@ -65,13 +68,31 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid primaryColor format: must be valid hex or rgb color" }, { status: 400 });
     }
 
+    // emailFooterText is mandatory once touched: a request that explicitly sends it
+    // must not be able to blank it out (the send path falls back to a default, but
+    // the field itself should never be silently emptied by a save).
+    if (body.emailFooterText !== undefined && !String(body.emailFooterText).trim()) {
+        return NextResponse.json({ error: "Email footer text cannot be blank" }, { status: 400 });
+    }
+
     const sanitizedTitle = sanitizeText(body.portalTitle);
+    const sanitizedFooter = body.emailFooterText !== undefined
+        ? sanitizeText(body.emailFooterText, MAX_FOOTER_LENGTH)
+        : undefined;
+
+    // updateBranding overwrites the whole JSON column, so merge onto the current
+    // value first - otherwise a caller that only sends {logoUrl} would wipe out an
+    // already-set emailFooterText (or any other field) instead of leaving it alone.
+    const current = await prisma.team.findUnique({ where: { id: ctx.teamId }, select: { branding: true } });
+    const currentBranding = (current?.branding as BrandingConfig | null) || {};
 
     const branding: BrandingConfig = {
-        logoUrl: body.logoUrl,
-        primaryColor: body.primaryColor,
-        portalTitle: sanitizedTitle,
-        faviconUrl: body.faviconUrl
+        ...currentBranding,
+        logoUrl: body.logoUrl !== undefined ? body.logoUrl : currentBranding.logoUrl,
+        primaryColor: body.primaryColor !== undefined ? body.primaryColor : currentBranding.primaryColor,
+        portalTitle: sanitizedTitle !== undefined ? sanitizedTitle : currentBranding.portalTitle,
+        faviconUrl: body.faviconUrl !== undefined ? body.faviconUrl : currentBranding.faviconUrl,
+        emailFooterText: sanitizedFooter !== undefined ? sanitizedFooter : currentBranding.emailFooterText,
     };
 
     await BrandingService.updateBranding(ctx.teamId, branding);

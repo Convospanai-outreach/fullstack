@@ -90,6 +90,43 @@ describe("Branding Route Validation (SEC-03)", () => {
         expect(resRgba.status).toBe(400);
     });
 
+    it("rejects a blank emailFooterText with 400 and does not persist it", async () => {
+        const { POST } = await import("../route");
+        const req = new Request("http://localhost/api/settings/branding", {
+            method: "POST",
+            body: JSON.stringify({ emailFooterText: "   " }),
+        });
+
+        const res = await POST(req as any);
+        expect(res.status).toBe(400);
+        const data = await res.json();
+        expect(data.error).toMatch(/cannot be blank/);
+        expect(mockPrisma.team.update).not.toHaveBeenCalled();
+    });
+
+    it("saves a trimmed, sanitized emailFooterText and preserves the rest of the current branding", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({ branding: { logoUrl: "https://example.com/logo.png" } });
+        mockPrisma.team.update.mockResolvedValue({ id: "team-1" });
+
+        const { POST } = await import("../route");
+        const req = new Request("http://localhost/api/settings/branding", {
+            method: "POST",
+            body: JSON.stringify({ emailFooterText: "  Talk soon <script> - Priya  " }),
+        });
+
+        const res = await POST(req as any);
+        expect(res.status).toBe(200);
+        expect(mockPrisma.team.update).toHaveBeenCalledWith({
+            where: { id: "team-1" },
+            data: {
+                branding: {
+                    logoUrl: "https://example.com/logo.png",
+                    emailFooterText: "Talk soon script - Priya",
+                },
+            },
+        });
+    });
+
     it("accepts valid https URL, valid hex, and valid rgb/rgba colors", async () => {
         mockPrisma.team.findUnique.mockResolvedValue({ branding: {} });
         mockPrisma.team.update.mockResolvedValue({ id: "team-1" });

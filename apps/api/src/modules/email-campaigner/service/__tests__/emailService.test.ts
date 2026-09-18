@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, Mock, vi } from "vitest";
-import { emailService } from "../emailService";
+import { DEFAULT_EMAIL_FOOTER_TEXT, emailService, resolveEmailFooterText } from "../emailService";
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
 import { getSmtpConfig, sendViaSmtpMailbox } from "../smtpConfigService";
@@ -208,6 +208,69 @@ describe("emailService Gmail fallback policy", () => {
         expect(sendViaGmailMailbox).not.toHaveBeenCalled();
         expect(sendViaSMTP).not.toHaveBeenCalled();
         expect(prisma.email.create).not.toHaveBeenCalled();
+    });
+});
+
+describe("resolveEmailFooterText", () => {
+    it("falls back to the default when branding is missing", () => {
+        expect(resolveEmailFooterText(null)).toBe(DEFAULT_EMAIL_FOOTER_TEXT);
+        expect(resolveEmailFooterText(undefined)).toBe(DEFAULT_EMAIL_FOOTER_TEXT);
+    });
+
+    it("falls back to the default when the stored value is blank/whitespace", () => {
+        expect(resolveEmailFooterText({ emailFooterText: "   " })).toBe(DEFAULT_EMAIL_FOOTER_TEXT);
+    });
+
+    it("uses the team's own footer text, trimmed", () => {
+        expect(resolveEmailFooterText({ emailFooterText: "  Talk soon - Priya  " })).toBe("Talk soon - Priya");
+    });
+});
+
+describe("emailService mandatory email footer on send", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        (isSuppressed as Mock).mockResolvedValue(false);
+        (prisma.lead.findUnique as Mock).mockResolvedValue(null);
+        (prisma.campaign.findUnique as Mock).mockResolvedValue(null);
+        (selectMailboxForSend as Mock).mockResolvedValue(null);
+        (getSmtpConfig as Mock).mockResolvedValue(smtpConfig);
+        (sendViaSMTP as Mock).mockResolvedValue({ success: true, messageId: "smtp-message-1" });
+        (prisma.email.create as Mock).mockResolvedValue({ id: "email-1" });
+    });
+
+    function sentHtml() {
+        return (sendViaSMTP as Mock).mock.calls[0][1].html as string;
+    }
+
+    it("renders the default footer line when the team has no custom footer set", async () => {
+        (prisma.team.findUnique as Mock).mockResolvedValue({ mailingAddress: null, branding: null });
+
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        expect(sentHtml()).toContain(DEFAULT_EMAIL_FOOTER_TEXT);
+    });
+
+    it("renders the team's own footer text instead of the default", async () => {
+        (prisma.team.findUnique as Mock).mockResolvedValue({
+            mailingAddress: null,
+            branding: { emailFooterText: "Talk soon - Priya" },
+        });
+
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        expect(sentHtml()).toContain("Talk soon - Priya");
+        expect(sentHtml()).not.toContain(DEFAULT_EMAIL_FOOTER_TEXT);
+    });
+
+    it("still includes the mandatory unsubscribe instruction alongside the custom footer", async () => {
+        (prisma.team.findUnique as Mock).mockResolvedValue({
+            mailingAddress: null,
+            branding: { emailFooterText: "Talk soon - Priya" },
+        });
+
+        await emailService.sendEmail("recipient@example.test", "Subject", "<p>Body</p>", metadata);
+
+        expect(sentHtml()).toContain("UNSUBSCRIBE");
     });
 });
 
