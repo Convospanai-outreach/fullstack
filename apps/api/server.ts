@@ -11,12 +11,15 @@ import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
 import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
+import { assertProductionSecretsAreSafe } from '@/lib/bootSecretAssertions';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
+
+assertProductionSecretsAreSafe();
 
 // The loopback address, not boolean `true`: `true` trusts the *entire*
 // X-Forwarded-For chain and returns its left-most (client-claimed,
