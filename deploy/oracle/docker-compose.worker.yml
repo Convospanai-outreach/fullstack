@@ -1,0 +1,9 @@
+services:
+  worker:
+    image: ghcr.io/convospanai-outreach/fullstack/api:latest
+    container_name: api-worker
+    restart: unless-stopped
+    env_file: .env
+    command: ["node", "../../node_modules/tsx/dist/cli.mjs", "src/workers/start-workers.ts"]
+    volumes:
+      - ./config/prod-ca-2021.crt:/app/prod-ca-2021.crt:ro
