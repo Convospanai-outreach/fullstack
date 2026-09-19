@@ -4359,6 +4359,88 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   files existed for either deleted route); `tsc --noEmit` clean on both
   apps.
 
+- **OPEN-240 (Fixed):** roadmap.md item 1.5 — three separate
+  duplicate/lost-execution bugs in the job queue, all re-verified at the
+  cited lines before fixing:
+  (B-01) `apps/api/src/workers/handlers/email-worker.ts:70-95` sent the
+  email first, then made three DB writes (lead-stage advance, campaign
+  `completedCount` increment, `Activity` log) — any of those throwing
+  bubbled up, failed the job, and a retry re-ran the handler from the
+  top, calling `emailService.sendEmail` a **second** real time with no
+  dedup. **Fixed**: added `Email.idempotencyKey` (new nullable unique
+  column) set to the job's own id; `handleEmailSend` now takes a second
+  `jobId` param (threaded from `job-processor.ts`'s `worker.performJob`,
+  which already has `job.id`), checks for an existing `Email` row with
+  that key before sending (skips if found — a prior attempt already
+  sent), and passes `idempotencyKey: jobId` through
+  `emailService.sendEmail` → all four `persistDeliveredEmail` call sites
+  (Resend/Gmail/SMTP-mailbox/generic-SMTP), so the sent-email record
+  itself carries the key. The three post-send writes are now each
+  independently wrapped in try/catch — a failure there is logged and
+  never turns a completed send into a job failure/retry.
+  (B-02) `apps/api/src/lib/queue.ts:351-404`'s `resetStaleJobs` keyed
+  staleness purely on `startedAt`, so a legitimately long-running job
+  (job-processor.ts's `CRM_SYNC` case, up to 500 sequential
+  `crmService.syncLead` calls) that ran past the 15-minute default got
+  falsely reset to `queued` — bumping its version — while still
+  actively executing, letting another worker pick it up and
+  double-run it. **Fixed**: added `Job.heartbeatAt` (nullable), a new
+  `JobQueue.heartbeat(jobId, version)` (matched on id+status+version,
+  doesn't bump version — a liveness touch, not a claim change),
+  `resetStaleJobs` now treats a job as stale only if
+  `heartbeatAt<=threshold` OR (`heartbeatAt` was never set AND
+  `startedAt<=threshold`), and `job-processor.ts`'s `CRM_SYNC` loop
+  calls `JobQueue.heartbeat` every 25 leads (needed threading a `claim`
+  param through `runHandler`, used only by the `CRM_SYNC` and
+  `email_sending` cases).
+  (B-03) `apps/api/src/modules/scheduler/schedulerService.ts:46-98`'s
+  `processDueSchedules` read all due schedules, enqueued a job for
+  each, and only updated `nextRunAt` afterward — two overlapping ticks
+  (a slow tick plus the next timer fire, or the scheduler tick running
+  on more than one host) could both read the same due `nextRunAt` and
+  both enqueue. **Fixed**: CAS-fenced via
+  `prisma.schedule.updateMany({ where: { id, nextRunAt: <the exact
+  value just read> }, data: { nextRunAt: next, lastRunAt: now } })`
+  **before** enqueueing — only the tick whose `updateMany` count is 1
+  proceeds, the loser skips the schedule entirely this pass (a
+  precise exact-value CAS rather than the roadmap's suggested
+  `nextRunAt<=now` re-check, matching the same claim pattern already
+  used elsewhere in this codebase, e.g. the Razorpay webhook's `Order`
+  PENDING→CAPTURED transition) — plus `JobQueue.enqueue`'s existing
+  `idempotencyKey` dedup as a second, independent guard
+  (`sched_${id}_${nextRunAt.toISOString()}`), also incidentally fixing
+  a same-shaped double-credit-deduction risk since `deductCredits` now
+  only ever runs once the CAS claim is won. New migration
+  `20260918020000_add_job_heartbeat_and_email_idempotency` (both new
+  columns, mirrored identically across `packages/db`, `apps/api`,
+  `apps/web` schema copies and migration folders, confirmed
+  byte-identical before and after). New/updated tests: `email-worker
+  .test.ts` (+3: idempotent skip, idempotencyKey passed through,
+  non-fatal post-send failure), `queue.test.ts` (+3: heartbeat touches
+  only the exact claim without bumping version, no-ops on version
+  mismatch, `resetStaleJobs`'s query now asserts the heartbeat-aware
+  OR shape), `job-processor.test.ts` (+1: 60-lead CRM_SYNC run
+  heartbeats exactly twice at the right job id/version), new
+  `schedulerService.test.ts` (4 cases: CAS claim happens before
+  enqueue, CAS-lost tick skips cleanly, idempotencyKey shape, no
+  claim/enqueue when credits are insufficient) — `schedulerService.ts`
+  had no prior test coverage at all. Full apps/api suite 239/239
+  files, 1405/1405 tests passing; apps/web unit suite 39/39 files,
+  207/207 tests; `tsc --noEmit` clean on both apps. **Noted, not
+  touched**: `apps/api/src/workers/handlers/emailHandlers.ts` has its
+  own, different, zero-importer `handleEmailSend` (calls the unrelated
+  transactional `EmailService`, not the campaign `emailService`) — dead
+  code, out of scope, pre-existing before this fix. **Known accepted
+  limitation**: the idempotency guard only protects against a *second*
+  real send; it does not add delivery guarantees for the (unchanged,
+  pre-existing, much narrower) window where the process crashes between
+  a provider call succeeding and `persistDeliveredEmail`'s write — the
+  roadmap's own wording ("write the Email row before sending") would
+  need a two-phase pending/sent status on every `Email` row, which
+  touches everything downstream that reads `Email.status` (analytics,
+  dashboards) and was judged disproportionate to this item's actual
+  reported risk (duplicate sends, not missed sends).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

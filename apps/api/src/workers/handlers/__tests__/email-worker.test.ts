@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
         lead: { findUnique: vi.fn() },
         campaign: { findUnique: vi.fn(), update: vi.fn() },
         activity: { create: vi.fn() },
+        email: { findFirst: vi.fn() },
     },
 }));
 
@@ -37,6 +38,7 @@ describe("email-worker", () => {
         (emailService.sendEmail as any).mockResolvedValue({ providerId: "msg-1" });
         (prisma.campaign.update as any).mockResolvedValue({});
         (prisma.activity.create as any).mockResolvedValue({});
+        (prisma.email.findFirst as any).mockResolvedValue(null);
     });
 
     it("throws when leadId or campaignId is missing", async () => {
@@ -99,6 +101,49 @@ describe("email-worker", () => {
             { personaHook: "loves automation" },
             "team-a"
         );
+    });
+
+    it("skips re-sending when an Email row already exists for this job's idempotency key (B-01 regression)", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a" });
+        (prisma.email.findFirst as any).mockResolvedValue({ id: "email-1", idempotencyKey: "job-1" });
+
+        const result = await handleEmailSend(
+            { leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any,
+            "job-1"
+        );
+
+        expect(prisma.email.findFirst).toHaveBeenCalledWith({ where: { idempotencyKey: "job-1" } });
+        expect(emailService.sendEmail).not.toHaveBeenCalled();
+        expect(result).toMatchObject({ sent: true, alreadySent: true });
+    });
+
+    it("passes the job id through to sendEmail as idempotencyKey", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a" });
+
+        await handleEmailSend({ leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any, "job-1");
+
+        expect(emailService.sendEmail).toHaveBeenCalledWith(
+            "a@b.com",
+            expect.any(String),
+            expect.any(String),
+            expect.objectContaining({ idempotencyKey: "job-1" })
+        );
+    });
+
+    it("does not throw (and so does not trigger a retry that would re-send) when a post-send write fails (B-01 regression)", async () => {
+        (prisma.lead.findUnique as any).mockResolvedValue({ id: "lead-1", teamId: "team-a", email: "a@b.com" });
+        (prisma.campaign.findUnique as any).mockResolvedValue({ id: "campaign-1", teamId: "team-a" });
+        (prisma.campaign.update as any).mockRejectedValue(new Error("db unavailable"));
+
+        const result = await handleEmailSend(
+            { leadId: "lead-1", campaignId: "campaign-1", teamId: "team-a" } as any,
+            "job-1"
+        );
+
+        expect(emailService.sendEmail).toHaveBeenCalledTimes(1);
+        expect(result).toMatchObject({ sent: true });
     });
 
     it("uses a precomputed draft (BATCH mode) instead of calling generateEmailDraft", async () => {

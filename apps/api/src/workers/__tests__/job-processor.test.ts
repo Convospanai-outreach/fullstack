@@ -34,6 +34,7 @@ vi.mock("@/lib/queue", () => ({
         fail: vi.fn(),
         defer: vi.fn(),
         assertClaim: vi.fn(),
+        heartbeat: vi.fn(),
     },
 }));
 
@@ -386,6 +387,27 @@ describe("job-processor", () => {
         expect(crmService.syncLead).toHaveBeenCalledWith("lead_1", "t1");
         expect(crmService.syncLead).toHaveBeenCalledWith("lead_2", "t1");
         expect(result).toEqual({ syncedCount: 2, summary: { success: 1, failed: 1 } });
+    });
+
+    it("heartbeats periodically during a long CRM_SYNC run so the stale watchdog doesn't reclaim it (B-02 regression)", async () => {
+        const leads = Array.from({ length: 60 }, (_, i) => ({ id: `lead_${i}` }));
+        const mockJob = {
+            id: "job-crm-heartbeat",
+            status: "running",
+            version: 7,
+            type: "CRM_SYNC",
+            payload: { teamId: "t1", provider: "HUBSPOT" },
+        };
+        (prisma.job.findFirst as Mock).mockResolvedValueOnce(mockJob);
+        (prisma.crmIntegration.findUnique as Mock).mockResolvedValueOnce({ isActive: true });
+        (prisma.lead.findMany as Mock).mockResolvedValueOnce(leads);
+        (crmService.syncLead as Mock).mockResolvedValue({ status: "success", crmId: "hs_x" });
+
+        await worker.performJob({ jobId: "job-crm-heartbeat", version: 7 });
+
+        // 60 leads at "every 25th" (index 25, 50) -> 2 heartbeats.
+        expect(JobQueue.heartbeat).toHaveBeenCalledTimes(2);
+        expect(JobQueue.heartbeat).toHaveBeenCalledWith("job-crm-heartbeat", 7);
     });
 
     it("skips CRM_SYNC without calling syncLead when HubSpot isn't configured", async () => {
