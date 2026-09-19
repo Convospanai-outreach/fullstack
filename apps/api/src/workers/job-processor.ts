@@ -12,6 +12,7 @@ import { handleSequenceAction } from "./handlers/sequenceHandlers";
 import { handleEmailDraftBatchSubmit, handleEmailDraftBatchPoll } from "./handlers/emailDraftBatchHandlers";
 import { handleGmailHistorySync } from "./handlers/gmail-history-sync-worker";
 import { handleLandingLeadIntake } from "./handlers/landing-lead-intake-worker";
+import { handleInvoicePdfRender } from "./handlers/invoicePdfWorker";
 import { GmailMailboxLeaseContendedError } from "@/modules/email-campaigner/service/googleMailboxService";
 import { WorkflowService } from "@/lib/workflowService";
 import { AuditService } from "@/modules/audit/auditService";
@@ -73,6 +74,9 @@ async function runHandler(jobType: string, payload: JobPayload, claim: JobClaim)
 
         case "landing_lead_intake":
             return handleLandingLeadIntake(payload);
+
+        case "invoice_pdf_render":
+            return handleInvoicePdfRender(payload);
 
         case "CSV_IMPORT": {
             const filePath = asString(payload.filePath);

@@ -31,6 +31,7 @@ import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 import { getBrowserApiUrl } from "@/lib/api/browserBase";
+import { downloadInvoiceViaJob } from "@/lib/billing/invoiceDownload";
 
 export default function BillingPage() {
     const router = useRouter();
@@ -42,6 +43,7 @@ export default function BillingPage() {
     const [topUpLoading, setTopUpLoading] = useState(false);
     const [topUpError, setTopUpError] = useState<string | null>(null);
     const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
+    const [invoiceError, setInvoiceError] = useState<string | null>(null);
     const [billingModalOpen, setBillingModalOpen] = useState(false);
     const [pendingTierId, setPendingTierId] = useState<string | null>(null);
     const [billingCountry, setBillingCountry] = useState("IN");
@@ -61,10 +63,24 @@ export default function BillingPage() {
         setBillingModalOpen(true);
     };
 
-    const downloadInvoice = (id: string) => {
+    const downloadInvoice = async (id: string) => {
         setDownloadingInvoiceId(id);
-        window.open(getBrowserApiUrl(`/billing/invoices/${id}/download`), "_blank");
-        setDownloadingInvoiceId(null);
+        setInvoiceError(null);
+        try {
+            const { blob, filename } = await downloadInvoiceViaJob(id);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch (error: any) {
+            setInvoiceError(error.message || "Failed to download invoice");
+        } finally {
+            setDownloadingInvoiceId(null);
+        }
     };
 
     const handleTopUp = async (tierId: string, country: string, state: string) => {
@@ -255,6 +271,11 @@ export default function BillingPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-2 mt-2">
+                                {invoiceError && (
+                                    <div className="text-xs text-red-400 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                                        {invoiceError}
+                                    </div>
+                                )}
                                 {invoices.length === 0 && (
                                     <div className="text-xs text-muted-foreground">No invoices yet.</div>
                                 )}
