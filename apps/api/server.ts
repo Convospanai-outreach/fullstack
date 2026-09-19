@@ -177,7 +177,6 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       // The webhook's own authorizeApiKey() check is the real auth boundary here.
       "/api/webhooks/netjana-intel",
       "/auth",
-      "/register",
       "/health",
       "/metrics",
       // "/test-auth" removed for production security
