@@ -10,7 +10,6 @@ fullstack/
 |   |-- web/                 # Next.js web app
 |   |-- api/                 # Fastify API service
 |   |-- edge-fastapi/        # Optional private FastAPI edge runtime
-|   |-- docker-compose.split.yml
 |   |-- README.md
 |
 |-- packages/                # Shared packages and cross-app contracts

@@ -36,13 +36,14 @@ services:
       retries: 5
 
   # This file provides the local datastores only. `npm run beta:start` starts
-  # `db` and `redis` from here and runs web/api/worker as host processes; the
-  # full containerised stack lives in apps/docker-compose.split.yml.
+  # `db` and `redis` from here and runs web/api/worker as host processes.
   #
   # The former craftmyfunnel-web, edge-node-sim, browser-node, and worker
   # services were removed: they predate the apps/* split, referenced a
   # ./services/edge-node build context that no longer exists, and mounted the
-  # host Docker socket into the web container.
+  # host Docker socket into the web container. apps/docker-compose.split.yml
+  # (a full containerised local-dev stack, from the Docker Desktop era) was
+  # removed 2026-09-19 as no longer used.
 
   # Service 5: Redis Cache (Session & Queue)
   redis:
