@@ -3,6 +3,11 @@ import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { advanceLeadAfterReply } from "@/lib/crm/leadStageTransitions";
 import { logger } from "@/lib/logger";
+import { ConsentService } from "@/modules/whatsapp/ConsentService";
+
+// Standard WhatsApp/SMS opt-out keywords (exact match after trim/lowercase, not
+// substring - "please stop calling" should not revoke consent).
+const OPT_OUT_KEYWORDS = new Set(["stop", "unsubscribe", "opt out", "optout"]);
 
 // One Meta App (and one webhook subscription) serves every team's WhatsApp
 // Business number - Meta routes all subscribed numbers' events to this single
@@ -55,19 +60,20 @@ export async function POST(req: NextRequest) {
     const rawBody = await req.text();
 
     const appSecret = process.env["WHATSAPP_APP_SECRET"];
-    if (appSecret) {
-        const signatureHeader = req.headers.get("x-hub-signature-256");
-        if (!signatureHeader) {
-            return new NextResponse("Missing signature", { status: 400 });
-        }
-        const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
-        const expectedBuffer = Buffer.from(expected);
-        const providedBuffer = Buffer.from(signatureHeader);
-        if (expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
-            return new NextResponse("Invalid signature", { status: 400 });
-        }
-    } else {
-        logger.warn("[WhatsApp Webhook] WHATSAPP_APP_SECRET is not configured - accepting unsigned payloads.");
+    if (!appSecret) {
+        logger.error("[WhatsApp Webhook] WHATSAPP_APP_SECRET is not configured.");
+        return new NextResponse("Webhook not configured", { status: 503 });
+    }
+
+    const signatureHeader = req.headers.get("x-hub-signature-256");
+    if (!signatureHeader) {
+        return new NextResponse("Missing signature", { status: 400 });
+    }
+    const expected = `sha256=${crypto.createHmac("sha256", appSecret).update(rawBody).digest("hex")}`;
+    const expectedBuffer = Buffer.from(expected);
+    const providedBuffer = Buffer.from(signatureHeader);
+    if (expectedBuffer.length !== providedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, providedBuffer)) {
+        return new NextResponse("Invalid signature", { status: 400 });
     }
 
     let body: any;
@@ -102,6 +108,15 @@ export async function POST(req: NextRequest) {
                     await prisma.whatsAppMessage.create({
                         data: { leadId: lead.id, body: text, direction: "INBOUND", status: "received" },
                     });
+
+                    if (OPT_OUT_KEYWORDS.has(text.trim().toLowerCase())) {
+                        try {
+                            await ConsentService.revokeConsent(lead.id, undefined, "WhatsApp inbound opt-out keyword", "WHATSAPP");
+                        } catch (consentError) {
+                            logger.error("[WhatsApp Webhook] Failed to revoke consent after opt-out keyword", consentError);
+                        }
+                        continue;
+                    }
 
                     try {
                         await advanceLeadAfterReply(prisma, { leadId: lead.id, teamId: lead.teamId });

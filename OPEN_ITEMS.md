@@ -4283,6 +4283,38 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   importers) Razorpay checkout flow with the same `alert()`-only error
   handling — dead code, out of scope for this fix.
 
+- **OPEN-238 (Fixed):** roadmap.md item 1.2 — WhatsApp inbound webhook
+  accepted unsigned payloads in production. `apps/api/routes/webhooks/
+  whatsapp/route.ts`'s `POST` only verified `X-Hub-Signature-256` when
+  `WHATSAPP_APP_SECRET` was set — with it unset, it logged a warning and
+  processed the payload anyway (fail-open), unlike the `GET` handshake
+  handler which already failed closed with 503 when
+  `WHATSAPP_WEBHOOK_VERIFY_TOKEN` was unset. A forged `messages[]`
+  payload could resolve a lead by phone suffix and advance its
+  pipeline stage in any tenant with no signature at all. Also, inbound
+  STOP/opt-out replies were never parsed — `ConsentService.
+  revokeConsent` was never called from this webhook, so a lead who
+  replied "STOP" kept getting messaged. **Fixed**: `POST` now mirrors
+  `GET` and returns 503 when `WHATSAPP_APP_SECRET` is unset instead of
+  accepting the payload; added an exact-match (post-trim/lowercase)
+  check against `stop`/`unsubscribe`/`opt out`/`optout` right after the
+  inbound message is recorded, calling `ConsentService.revokeConsent`
+  and skipping the lead-stage-advancement call for that message (a
+  substring match was deliberately avoided — "please stop calling me"
+  must not revoke consent). Updated the one existing test that encoded
+  the old fail-open behavior (`"accepts unsigned payloads..."` →
+  `"fails closed with 503..."`) and added 3 new tests (STOP revokes
+  consent and skips advancement, keyword match is case/whitespace
+  tolerant, a real message containing "stop" as a word is not treated
+  as opt-out). `apps/api/routes/webhooks/whatsapp/route.test.ts`:
+  17/17 passing; full apps/api suite 238/238 files, 1397/1397 tests;
+  `tsc --noEmit` clean on both apps. No `apps/web` changes. **Skipped**:
+  setting `WHATSAPP_WEBHOOK_VERIFY_TOKEN`/`WHATSAPP_APP_SECRET` in
+  production and confirming Meta's webhook subscription — infra/owner
+  action, not a code change; per the user's standing note this session,
+  `.env.example` was also not touched (real env lives on
+  Render/Supabase/Oracle, not in the repo's example file).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
