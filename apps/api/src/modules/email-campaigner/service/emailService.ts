@@ -6,7 +6,7 @@
  */
 import { prisma } from "@/lib/db";
 import { sendViaSMTP } from "@/lib/email/smtpClient";
-import { getSmtpConfig } from "./smtpConfigService";
+import { getSmtpConfig, sendViaSmtpMailbox, type SmtpMailboxSendOutcome } from "./smtpConfigService";
 import {
     isSuppressed,
     selectMailboxForSend,
@@ -25,6 +25,19 @@ export type EmailSendResult = {
     error?: string;
 };
 
+// Every send needs a signed-off closing line - a team's own custom text if they've
+// set one (Settings > Branding), otherwise this. Never omitted, so the footer is
+// never just the bare compliance boilerplate below it with no human voice at all.
+export const DEFAULT_EMAIL_FOOTER_TEXT = "Thanks for your time.";
+
+export function resolveEmailFooterText(branding: unknown): string {
+    if (branding && typeof branding === "object") {
+        const value = (branding as Record<string, unknown>)["emailFooterText"];
+        if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return DEFAULT_EMAIL_FOOTER_TEXT;
+}
+
 function escapeHtml(value: string): string {
     return value
         .replace(/&/g, "&amp;")
@@ -35,7 +48,7 @@ function escapeHtml(value: string): string {
 }
 
 class EmailService {
-    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null) {
+    private addTrackingLinks(body: string, trackingId: string, publicBaseUrl?: string, mailingAddress?: string | null, footerText?: string) {
         // CAN-SPAM requires a physical postal address in every marketing email; omitted when the team hasn't set one.
         const addressLine = mailingAddress
             ? `<p style="font-size:12px;color:#64748b">${escapeHtml(mailingAddress)}</p>`
@@ -49,9 +62,14 @@ class EmailService {
         const unsubscribeInstruction = unsubscribeUrl
             ? `instead click <a href="${unsubscribeUrl}" style="color:#0f172a;text-decoration:underline">UNSUBSCRIBE</a> and we will ensure you never receive another email from us.`
             : `instead reply to this email with "UNSUBSCRIBE" and we will ensure you never receive another email from us.`;
+        // The team-editable line (Settings > Branding) — resolveEmailFooterText() guarantees a
+        // non-blank value even for teams who never touched the setting. HTML-escaped since it's
+        // free-form team-authored text, same treatment as mailingAddress above.
+        const customFooterLine = `<p style="font-size:13px;line-height:1.5;color:#0f172a;margin:0 0 10px 0">${escapeHtml(footerText || DEFAULT_EMAIL_FOOTER_TEXT)}</p>`;
         const antiSpamFooter = `
                 <table role="presentation" width="100%" style="margin-top:20px;border-top:2px solid #1e293b">
                     <tr><td style="padding-top:14px">
+                        ${customFooterLine}
                         <p style="font-size:13px;line-height:1.5;color:#0f172a;font-weight:700;margin:0 0 8px 0">
                             If you don't want to receive emails from us, please do NOT mark this as SPAM &mdash;
                             ${unsubscribeInstruction}
@@ -107,7 +125,7 @@ class EmailService {
                 status: "sent",
                 trackingId: input.trackingId,
                 deliveryProvider: input.deliveryProvider,
-                mailboxId: input.deliveryProvider === "GMAIL_API" || input.deliveryProvider === "RESEND" ? input.mailboxId : null,
+                mailboxId: input.mailboxId ?? null,
                 ...(input.metadata.variantId ? { variantId: input.metadata.variantId } : {}),
                 ...(input.providerId ? { providerId: input.providerId } : {}),
                 ...(input.deliveryProvider === "GMAIL_API" && input.threadId ? { threadId: input.threadId } : {}),
@@ -211,10 +229,12 @@ class EmailService {
 
         const trackingId = crypto.randomUUID();
         const publicBaseUrl = process.env["WEB_BASE_URL"] || process.env["NEXTAUTH_URL"] || process.env["NEXT_PUBLIC_APP_URL"];
-        const mailingAddress = teamId
-            ? (await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true } }))?.mailingAddress
-            : undefined;
-        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress);
+        const teamComms = teamId
+            ? await prisma.team.findUnique({ where: { id: teamId }, select: { mailingAddress: true, branding: true } })
+            : null;
+        const mailingAddress = teamComms?.mailingAddress;
+        const footerText = resolveEmailFooterText(teamComms?.branding);
+        const trackedBody = this.addTrackingLinks(body, trackingId, publicBaseUrl, mailingAddress, footerText);
         const unsubscribeUrl = publicBaseUrl
             ? `${publicBaseUrl.replace(/\/$/, "")}/api/proxy/email/unsubscribe/${trackingId}`
             : undefined;
@@ -227,6 +247,7 @@ class EmailService {
 
         let gmailOutcome: GmailSendOutcome | undefined;
         let resendOutcome: ResendSendOutcome | undefined;
+        let smtpMailboxOutcome: SmtpMailboxSendOutcome | undefined;
 
         if (teamId) {
             try {
@@ -251,6 +272,15 @@ class EmailService {
                         unsubscribeUrl,
                         attachments,
                         idempotencyKey: metadata?.idempotencyKey,
+                    });
+                } else if (mailbox?.provider === "SMTP") {
+                    smtpMailboxOutcome = await sendViaSmtpMailbox({
+                        teamId,
+                        mailboxId: mailbox.id,
+                        to,
+                        subject,
+                        html: trackedBody,
+                        attachments,
                     });
                 } else if (mailbox) {
                     gmailOutcome = await sendViaGmailMailbox({
@@ -314,6 +344,27 @@ class EmailService {
 
         if (gmailOutcome && !gmailOutcome.fallbackAllowed) {
             return { success: false, error: gmailOutcome.error };
+        }
+
+        if (smtpMailboxOutcome?.success) {
+            await this.persistDeliveredEmail({
+                metadata,
+                subject,
+                body: trackedBody,
+                trackingId,
+                deliveryProvider: "SMTP",
+                mailboxId: smtpMailboxOutcome.mailboxId,
+                providerId: smtpMailboxOutcome.messageId,
+            });
+            return {
+                success: true,
+                ...(smtpMailboxOutcome.messageId ? { providerId: smtpMailboxOutcome.messageId } : {}),
+                deliveryProvider: "SMTP",
+            };
+        }
+
+        if (smtpMailboxOutcome && !smtpMailboxOutcome.fallbackAllowed) {
+            return { success: false, error: smtpMailboxOutcome.error };
         }
 
         return this.sendViaSmtpAndPersist({

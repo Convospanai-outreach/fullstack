@@ -4178,6 +4178,67 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `updateMailboxControls`/`listConnectedMailboxes` already fully
   supported the field. `tsc --noEmit`/lint clean.
 
+- **OPEN-243 (Fixed):** roadmap.md item 1.3 — global rate limiter. Rule 6's
+  gate ("do NOT implement unless TRUST_PROXY is confirmed true") turned out
+  to need a deeper answer than yes/no. Investigation found: (1)
+  `apps/api/src/middleware.ts` — the Next.js `middleware.ts` convention file
+  that wired `RATE_LIMITS`' AUTH/WEBHOOK/PUBLIC/ADMIN/ERROR_LOGGING tiers —
+  never actually ran in production, because `apps/api` boots via bare
+  `tsx server.ts` (a standalone Fastify process, confirmed via
+  `package.json`'s `start`/`dev` scripts), not `next start`/`next dev`,
+  which is the only thing that executes that convention. Its
+  `path.startsWith("/api/auth")`-style checks also assumed an `/api` prefix
+  that no real `registeredPath` in this app has (confirmed via
+  `server.ts`'s `loadRoutes`/`collectRouteFiles`) — a literal port of it
+  would have compiled, looked correct, and matched zero real routes,
+  silently rate-limiting nothing while looking like it worked. (2)
+  `nextAdapter` in `server.ts` already unconditionally overwrites
+  `x-forwarded-for`/`x-real-ip`/`cf-connecting-ip` with a value derived from
+  Fastify's own `request.ip` for every request, so client-supplied spoofed
+  headers never reach any handler unmodified — the real remaining question
+  was whether Fastify's own IP resolution is trustworthy. (3) Both Oracle
+  VMs run Caddy (confirmed via `/etc/caddy/Caddyfile`, `ss -tlnp`) as the
+  sole ingress to `127.0.0.1:3001` — a real trusted proxy exists. **Fixed:**
+  `apps/api/src/lib/rateLimitTiers.ts` (new) exports
+  `resolveRateLimitTier(registeredPath, isPublic)`, classifying by the SAME
+  `registeredPath`/`isPublic` values `nextAdapter` already computes for
+  auth-gating (not an independently-maintained prefix list that could drift
+  out of sync, as `/api`-prefixed vs `/`-prefixed already once did for the
+  Netjana webhook alias). `server.ts` now calls it and enforces the
+  resulting tier via `checkRateLimit` — IP-keyed tiers (AUTH/WEBHOOK/
+  ERROR_LOGGING/PUBLIC) before the auth/token block (rejects a flood before
+  paying for `getToken()`/the handler); ADMIN/AUTHENTICATED (user-keyed)
+  right after `authUserId` resolves, since the identifier isn't known any
+  earlier. `trustProxy` changed from a boolean (`true` trusts the *entire*
+  X-Forwarded-For chain and returns its left-most/spoofable entry — the
+  classic misconfiguration) to `['127.0.0.1', '::1']`, naming Caddy's own
+  loopback address as the only trusted hop (fastify@5.12.3's TS types don't
+  accept a numeric hop count, so this is the precise equivalent). Deleted
+  `apps/api/src/middleware.ts` (confirmed zero importers) rather than leave
+  it looking like live protection. Documented the accepted shared-bucket
+  limitation of IP-keyed limiting on `RATE_LIMITS.WEBHOOK` (Razorpay/
+  WhatsApp send from shared infra IP pools, not one IP per merchant).
+  **Investigated but explicitly not changed:** hardening the Caddyfile with
+  an explicit `header_up X-Forwarded-For` — pulled the real config, ran
+  `caddy validate`, and Caddy's own linter reported it as unnecessary: with
+  no `trusted_proxies` configured, Caddy's default `reverse_proxy` already
+  discards any client-supplied `X-Forwarded-For` and sets it to the real
+  connecting IP, so the original bare Caddyfile was already safe on this
+  axis — added nothing but a staged, then removed, `.new` file plus a
+  redundant backup, both cleaned up; live config never touched. Regression
+  tests: `apps/api/src/lib/__tests__/rateLimitTiers.test.ts` (8 cases,
+  including one that locks in the real prefix-free paths so this specific
+  bug class can't silently regress). Full `apps/api` suite (239 files /
+  1402 tests) passes; `tsc --noEmit` clean. **Not yet done — a production
+  env/restart step, held for explicit confirmation:** set `TRUST_PROXY=true`
+  in `.env` on both Oracle VMs and restart the `api` container so the new
+  tiered limiter actually enforces with per-visitor IP granularity instead
+  of the current dev-mode bypass; until then this branch's code is inert in
+  production (present but `NODE_ENV !== 'production'`-style bypass doesn't
+  apply here — rather, `TRUST_PROXY` staying false just means `request.ip`
+  resolves to the raw socket peer, i.e. Caddy's own address, collapsing all
+  anonymous traffic into one shared bucket rather than one per visitor).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

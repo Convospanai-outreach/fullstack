@@ -36,10 +36,11 @@ describe("isWebOwnedPath", () => {
             expect(isWebOwnedPath(["leads", "lead-1", "timeline"])).toBe(true);
         });
 
-        it("proxies bulk/export/import to apps/api instead of treating them as a lead id", () => {
+        it("proxies bulk/export/import/org-chart to apps/api instead of treating them as a lead id", () => {
             expect(isWebOwnedPath(["leads", "bulk"])).toBe(false);
             expect(isWebOwnedPath(["leads", "export"])).toBe(false);
             expect(isWebOwnedPath(["leads", "import"])).toBe(false);
+            expect(isWebOwnedPath(["leads", "org-chart"])).toBe(false);
         });
 
         it("proxies per-lead action routes apps/web doesn't implement", () => {

@@ -45,6 +45,9 @@ type ConditionConfig = {
     pipelineStateIn?: string[];
     pipelineStateNotIn?: string[];
     hasEmail?: boolean;
+    intentScoreGte?: number;
+    churnRiskGte?: number;
+    clusterLabelIn?: string[];
 };
 
 function db(): SequencePrisma {
@@ -128,6 +131,7 @@ function conditionPasses(step: any, lead: any) {
     const config = safeJsonObject(step?.body);
     const status = normalize(lead?.status);
     const pipelineState = normalize(lead?.pipelineState);
+    const clusterLabel = normalize(lead?.clusterLabel);
 
     if (config.hasEmail === true && !lead?.email) return false;
     if (config.hasEmail === false && lead?.email) return false;
@@ -135,6 +139,12 @@ function conditionPasses(step: any, lead: any) {
     if (config.leadStatusNotIn?.map(normalize).includes(status)) return false;
     if (config.pipelineStateIn?.length && !config.pipelineStateIn.map(normalize).includes(pipelineState)) return false;
     if (config.pipelineStateNotIn?.map(normalize).includes(pipelineState)) return false;
+
+    // Engagement/score predicates - lets a sequence branch on what a lead actually
+    // did (opened/clicked/replied, scored HOT) instead of only static status fields.
+    if (typeof config.intentScoreGte === "number" && (lead?.intentScore ?? 0) < config.intentScoreGte) return false;
+    if (typeof config.churnRiskGte === "number" && (lead?.churnRisk ?? 0) < config.churnRiskGte) return false;
+    if (config.clusterLabelIn?.length && !config.clusterLabelIn.map(normalize).includes(clusterLabel)) return false;
 
     return true;
 }
@@ -153,6 +163,21 @@ function exitReason(lead: any) {
 
 function stepType(step: any) {
     return normalize(step?.stepType).replace(/-/g, "_");
+}
+
+const LINKEDIN_STEP_TYPES = new Set(["chat_message", "visit_profile", "li_withdraw", "li_visit", "li_invite", "li_chat", "li_voice"]);
+const LINKEDIN_ACTION_LABELS: Record<string, string> = {
+    chat_message: "Send chat message",
+    visit_profile: "Visit profile",
+    li_withdraw: "Withdraw invitation",
+    li_visit: "Visit profile",
+    li_invite: "Send invitation",
+    li_chat: "Send chat message",
+    li_voice: "Send voice message",
+};
+
+function findLinkedInActionLabel(rawStepType: string) {
+    return LINKEDIN_ACTION_LABELS[stepType({ stepType: rawStepType })] || "Take LinkedIn action";
 }
 
 export class SequenceService {
@@ -247,6 +272,14 @@ export class SequenceService {
 
         if (type === "whatsapp") {
             return this.executeWhatsAppRun(run, lead, now);
+        }
+
+        if (type === "call") {
+            return this.executeCallRun(run, lead, now);
+        }
+
+        if (LINKEDIN_STEP_TYPES.has(type)) {
+            return this.executeLinkedInRun(run, lead, now);
         }
 
         if (type !== "email") {
@@ -570,6 +603,73 @@ export class SequenceService {
 
         await this.scheduleNextStep(run, now);
         return { runId: run.id, status: "SENT" };
+    }
+
+    // LinkedIn step types (LI_INVITE/LI_CHAT/LI_VISIT/LI_WITHDRAW/LI_VOICE, and the
+    // legacy CHAT_MESSAGE/VISIT_PROFILE aliases): the underlying puppeteerRunner only
+    // implements a "scrape" action today - every other action returns "not implemented"
+    // (see apps/api/src/linkedin/puppeteerRunner.ts). Rather than let these steps fail
+    // outright (UNSUPPORTED_STEP_TYPE), hand them to a human rep as a task - same
+    // fallback shape as executeWhatsAppRun's no-WABA-configured path - so a saved
+    // LinkedIn step in the sequence builder is actually actionable, not silently dead.
+    private static async executeLinkedInRun(run: any, lead: any, now: Date) {
+        const client = db();
+
+        if (!lead?.linkedIn) {
+            await this.failRun(run.id, "MISSING_LINKEDIN_URL", "Lead has no LinkedIn profile URL.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "MISSING_LINKEDIN_URL" };
+        }
+
+        const ownerId = run.enrollment?.campaign?.ownerId;
+        if (ownerId) {
+            const { PipelineService } = await import("@/modules/analytics/service/PipelineService");
+            const actionLabel = findLinkedInActionLabel(run.step?.stepType);
+            await PipelineService.createTask({
+                teamId: run.teamId,
+                userId: ownerId,
+                leadId: run.leadId,
+                title: `LinkedIn: ${actionLabel} for ${lead.fullName || lead.email || lead.linkedIn}`,
+                description: run.step?.body
+                    ? `${actionLabel}. Suggested message:\n\n${run.step.body}`
+                    : `${actionLabel} on ${lead.linkedIn}`,
+                priority: "MEDIUM",
+            });
+        }
+
+        await client.sequenceStepRun.update({
+            where: { id: run.id },
+            data: { status: "AWAITING_MANUAL_REVIEW", completedAt: now },
+        });
+        await client.sequenceEnrollment.update({
+            where: { id: run.enrollmentId },
+            data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+        });
+        return { runId: run.id, status: "AWAITING_MANUAL_REVIEW" };
+    }
+
+    // CALL steps have no automated dialer (CallerService is a human-handoff queue,
+    // not an outbound calling engine) - every call step queues the lead for a human
+    // rep via the same coordination queue the HOT-score auto-promotion uses.
+    private static async executeCallRun(run: any, lead: any, now: Date) {
+        const client = db();
+
+        if (!lead?.phone) {
+            await this.failRun(run.id, "MISSING_PHONE", "Lead has no phone number.", false, now);
+            return { runId: run.id, status: "FAILED", errorCode: "MISSING_PHONE" };
+        }
+
+        const { CallerService } = await import("@/modules/caller/CallerService");
+        await CallerService.ensureQueueEntry(run.leadId);
+
+        await client.sequenceStepRun.update({
+            where: { id: run.id },
+            data: { status: "AWAITING_MANUAL_REVIEW", completedAt: now },
+        });
+        await client.sequenceEnrollment.update({
+            where: { id: run.enrollmentId },
+            data: { status: "MANUAL_REVIEW", lastRunAt: now, nextRunAt: null },
+        });
+        return { runId: run.id, status: "AWAITING_MANUAL_REVIEW" };
     }
 
     private static isRetryableEmailError(error?: string) {

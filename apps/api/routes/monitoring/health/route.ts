@@ -23,7 +23,24 @@ export async function GET(req: NextRequest) {
 
     const health = await monitoringService.checkHealth();
 
-    return NextResponse.json(health, {
+    // apps/web's HealthPage.tsx (modules/monitoring/ui/HealthPage.tsx) expects
+    // { ok, health: { database: {status, latency}, system: {status, uptime}, timestamp } } -
+    // checkHealth()'s own { status, checks } shape never matched that, so the page always
+    // read json.ok as undefined and showed "System status unavailable".
+    return NextResponse.json({
+        ok: true,
+        health: {
+            database: {
+                status: health.checks.database.ok ? "ok" : "down",
+                latency: health.checks.database.latencyMs,
+            },
+            system: {
+                status: health.status === "healthy" ? "ok" : "down",
+                uptime: process.uptime(),
+            },
+            timestamp: new Date().toISOString(),
+        },
+    }, {
         status: health.status === "healthy" ? 200 : 503
     });
 }

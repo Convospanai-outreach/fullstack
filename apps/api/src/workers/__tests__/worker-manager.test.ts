@@ -26,6 +26,10 @@ vi.mock("@/modules/email-campaigner/service/googleMailboxService", () => ({
     advanceMailboxWarmup: vi.fn().mockResolvedValue({ count: 0 }),
 }));
 
+vi.mock("@/modules/email-campaigner/service/imapMailboxService", () => ({
+    syncDueImapMailboxes: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/modules/email-campaigner/service/warmupSeedService", () => ({
     sendWarmupSeedTraffic: vi.fn().mockResolvedValue({ sent: 0 }),
 }));
@@ -60,6 +64,10 @@ vi.mock("../handlers/facebook-leads-worker", () => ({
 
 vi.mock("@/modules/branding/customDomainPoller", () => ({
     pollPendingCustomDomains: vi.fn().mockResolvedValue([]),
+}));
+
+vi.mock("../handlers/shadowSignalReconciliationWorker", () => ({
+    reconcileOrphanedShadowSignals: vi.fn().mockResolvedValue({ scanned: 0, matched: 0 }),
 }));
 
 describe("WorkerManager claim propagation", () => {

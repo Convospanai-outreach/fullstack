@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { toast } from 'sonner';
-import { Palette, Globe, Upload } from 'lucide-react';
+import { Palette, Globe, Upload, MailPlus } from 'lucide-react';
+
+const DEFAULT_EMAIL_FOOTER_TEXT = "Thanks for your time.";
 
 interface CustomDomainRecord {
     id: string;
@@ -40,6 +42,7 @@ export default function BrandingSettingsPage() {
     const [logoUrl, setLogoUrl] = useState("");
     const [primaryColor, setPrimaryColor] = useState("#3B82F6");
     const [portalTitle, setPortalTitle] = useState("");
+    const [emailFooterText, setEmailFooterText] = useState(DEFAULT_EMAIL_FOOTER_TEXT);
     const [loading, setLoading] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [previewSrc, setPreviewSrc] = useState<string | null>(null);
@@ -64,6 +67,7 @@ export default function BrandingSettingsPage() {
                 if (branding.logoUrl) setLogoUrl(branding.logoUrl);
                 if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
                 if (branding.portalTitle) setPortalTitle(branding.portalTitle);
+                if (branding.emailFooterText) setEmailFooterText(branding.emailFooterText);
             })
             .catch(() => {});
         loadDomains();
@@ -124,12 +128,16 @@ export default function BrandingSettingsPage() {
     };
 
     const handleSave = async () => {
+        if (!emailFooterText.trim()) {
+            toast.error("Email footer text is required — it can't be blank.");
+            return;
+        }
         setLoading(true);
         try {
             const res = await fetch("/api/settings/branding", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ logoUrl, primaryColor, portalTitle })
+                body: JSON.stringify({ logoUrl, primaryColor, portalTitle, emailFooterText: emailFooterText.trim() })
             });
             const data = await res.json().catch(() => ({}));
             if (res.ok && data?.gated) {
@@ -228,9 +236,29 @@ export default function BrandingSettingsPage() {
                         <p className="text-xs text-muted-foreground">Upload a PNG, JPEG, WebP, or SVG (max 2MB), or paste a public URL directly.</p>
                     </div>
 
+                    <div className="space-y-2">
+                        <label htmlFor="email-footer" className="text-sm font-medium text-foreground flex items-center gap-2">
+                            <MailPlus className="w-4 h-4 text-primary" aria-hidden="true" />
+                            Email Footer <span className="text-destructive">*</span>
+                        </label>
+                        <textarea
+                            id="email-footer"
+                            required
+                            rows={2}
+                            maxLength={500}
+                            className="w-full bg-muted/40 border border-border rounded-md px-3 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm transition-colors resize-none"
+                            placeholder="A short closing line shown on every outreach email, e.g. 'Thanks for your time.'"
+                            value={emailFooterText}
+                            onChange={e => setEmailFooterText(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Shown above the unsubscribe notice on every cold outreach email. Required — it can't be left blank.
+                        </p>
+                    </div>
+
                     <button
                         onClick={handleSave}
-                        disabled={loading}
+                        disabled={loading || !emailFooterText.trim()}
                         className="px-6 py-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md font-semibold text-sm w-full shadow-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:opacity-50"
                     >
                         {loading ? "Saving..." : "Save Changes"}

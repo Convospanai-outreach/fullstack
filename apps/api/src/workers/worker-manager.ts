@@ -26,6 +26,7 @@ export class WorkerManager {
     private lastSequenceTick: number = 0;
     private lastStaleResetTick: number = 0;
     private lastMailboxSyncTick: number = 0;
+    private lastImapSyncTick: number = 0;
     private lastWarmupTick: number = 0;
     private lastWarmupSeedTick: number = 0;
     private lastOutboxTick: number = 0;
@@ -33,6 +34,7 @@ export class WorkerManager {
     private sequenceInterval: number = parseInt(process.env['SEQUENCE_PROCESS_INTERVAL_MS'] || '60000');
     private staleResetInterval: number = 5 * 60 * 1000; // 5 minutes
     private mailboxSyncInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WORKER_INTERVAL_MS'] || '600000'); // 10 minutes
+    private imapSyncInterval: number = parseInt(process.env['IMAP_REPLY_SYNC_INTERVAL_MS'] || '600000'); // 10 minutes
     private warmupInterval: number = parseInt(process.env['GOOGLE_MAILBOX_WARMUP_INTERVAL_MS'] || '3600000'); // 1 hour
     private warmupSeedInterval: number = parseInt(process.env['WARMUP_SEED_INTERVAL_MS'] || '3600000'); // 1 hour
     private outboxInterval: number = parseInt(process.env['OUTBOX_RELAY_INTERVAL_MS'] || '2000'); // 2 seconds
@@ -43,6 +45,8 @@ export class WorkerManager {
     private facebookLeadsInterval: number = parseInt(process.env['FACEBOOK_LEADS_SYNC_INTERVAL_MS'] || '18000000'); // 5 hours
     private lastCustomDomainTick: number = 0;
     private customDomainInterval: number = parseInt(process.env['CUSTOM_DOMAIN_POLL_INTERVAL_MS'] || '300000'); // 5 minutes
+    private lastShadowSignalReconcileTick: number = 0;
+    private shadowSignalReconcileInterval: number = parseInt(process.env['SHADOW_SIGNAL_RECONCILE_INTERVAL_MS'] || '1800000'); // 30 minutes
 
     async start() {
         if (this.isRunning) return;
@@ -120,6 +124,16 @@ export class WorkerManager {
                 console.log(`[Worker] Synced ${results.length} Google mailboxes.`);
             }
             this.lastMailboxSyncTick = now;
+        }
+
+        if (now - this.lastImapSyncTick >= this.imapSyncInterval) {
+            console.log("[Worker] Syncing due IMAP mailboxes for reply detection...");
+            const { syncDueImapMailboxes } = await import("@/modules/email-campaigner/service/imapMailboxService");
+            const results = await syncDueImapMailboxes();
+            if (results.length > 0) {
+                console.log(`[Worker] Synced ${results.length} IMAP mailbox(es).`);
+            }
+            this.lastImapSyncTick = now;
         }
 
         if (now - this.lastWarmupTick >= this.warmupInterval) {
@@ -200,6 +214,15 @@ export class WorkerManager {
                 console.log(`[Worker] ${results.length} custom domain(s) changed status: ${results.map(r => `${r.domain}=${r.status}`).join(", ")}`);
             }
             this.lastCustomDomainTick = now;
+        }
+
+        if (now - this.lastShadowSignalReconcileTick >= this.shadowSignalReconcileInterval) {
+            const { reconcileOrphanedShadowSignals } = await import("./handlers/shadowSignalReconciliationWorker");
+            const result = await reconcileOrphanedShadowSignals();
+            if (result.matched > 0) {
+                console.log(`[Worker] Reconciled ${result.matched} previously-orphaned Netjana signal(s) out of ${result.scanned} scanned.`);
+            }
+            this.lastShadowSignalReconcileTick = now;
         }
     }
 

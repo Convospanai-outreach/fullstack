@@ -123,11 +123,19 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
     // over this - it names a specific team/role, so auto-join must never
     // override it.
     if (input.hostedDomain) {
+        const hostedDomain = input.hostedDomain.toLowerCase();
+        // TEMP DIAGNOSTIC (remove after the 2026-09-15 production spot-check):
+        // confirms Google's hd claim is actually reaching this code path before
+        // trusting the auto-join logic below against a real Workspace login.
+        console.log(`[GoogleOnboarding:hd-auto-join] hd claim received, domain=${hostedDomain}`);
+
         const owningDomainCheck = await prisma.domainAuthenticationCheck.findFirst({
-            where: { domain: input.hostedDomain.toLowerCase(), status: "VERIFIED" },
+            where: { domain: hostedDomain, status: "VERIFIED" },
             orderBy: { createdAt: "asc" },
             select: { teamId: true }
         });
+
+        console.log(`[GoogleOnboarding:hd-auto-join] domain=${hostedDomain} owningTeamId=${owningDomainCheck?.teamId ?? "none-verified"}`);
 
         if (owningDomainCheck) {
             return prisma.$transaction(async (tx: any) => {
@@ -155,6 +163,8 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
                         data: { teamId: owningDomainCheck.teamId, userId: user.id, email, role: "member", status: "active" }
                     });
                 }
+
+                console.log(`[GoogleOnboarding:hd-auto-join] joined userId=${user.id} onto teamId=${owningDomainCheck.teamId}`);
 
                 return tx.user.findUnique({
                     where: { id: user.id },

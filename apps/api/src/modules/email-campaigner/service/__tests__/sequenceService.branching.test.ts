@@ -151,4 +151,46 @@ describe("SequenceService.executeRun - condition branching via SequenceEdge", ()
             expect.objectContaining({ data: expect.objectContaining({ sequenceStepId: "step-active-after" }) })
         );
     });
+
+    it("routes to 'yes' when the lead's intentScore clears an intentScoreGte condition", async () => {
+        const run = conditionRun({
+            step: { id: "step-condition", stepType: "CONDITION", stepOrder: 2, body: JSON.stringify({ intentScoreGte: 0.7 }) },
+            enrollment: { ...conditionRun().enrollment, lead: { id: "lead-1", email: "lead@example.com", status: "NEW", pipelineState: "COLD", intentScore: 0.82 } },
+        });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+        mockDb.sequenceEdge.count.mockResolvedValue(2);
+        mockDb.sequenceEdge.findFirst.mockImplementation(({ where }: any) => {
+            if (where.sourceHandle === "yes") return Promise.resolve({ targetStepId: "step-yes" });
+            return Promise.resolve(null);
+        });
+        mockDb.sequenceStep.findUnique.mockResolvedValue({ id: "step-yes", status: "ACTIVE", stepOrder: 5, delayDays: 0, delayHours: 0 });
+
+        const result = await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(result.status).toBe("COMPLETED");
+        expect(mockDb.sequenceStepRun.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ sequenceStepId: "step-yes" }) })
+        );
+    });
+
+    it("routes to 'no' when the lead's clusterLabel isn't in a clusterLabelIn condition", async () => {
+        const run = conditionRun({
+            step: { id: "step-condition", stepType: "CONDITION", stepOrder: 2, body: JSON.stringify({ clusterLabelIn: ["HIGH_VALUE"] }) },
+            enrollment: { ...conditionRun().enrollment, lead: { id: "lead-1", email: "lead@example.com", status: "NEW", pipelineState: "COLD", clusterLabel: "DORMANT" } },
+        });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+        mockDb.sequenceEdge.count.mockResolvedValue(2);
+        mockDb.sequenceEdge.findFirst.mockImplementation(({ where }: any) => {
+            if (where.sourceHandle === "no") return Promise.resolve({ targetStepId: "step-no" });
+            return Promise.resolve(null);
+        });
+        mockDb.sequenceStep.findUnique.mockResolvedValue({ id: "step-no", status: "ACTIVE", stepOrder: 3, delayDays: 0, delayHours: 0 });
+
+        const result = await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(result.status).toBe("SKIPPED_CONDITION");
+        expect(mockDb.sequenceStepRun.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ sequenceStepId: "step-no" }) })
+        );
+    });
 });

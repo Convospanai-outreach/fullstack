@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { JobQueue } from "@/lib/queue";
+import { normalizeCompanyName } from "@/lib/crm/domain";
+import { recordLeadDataSource } from "@/lib/crm/leadDataSource";
 
 const NETJANA_SOURCES = ["netjana-intel"] as const;
 const NETJANA_SOURCE = "netjana-intel";
@@ -121,10 +123,6 @@ function sanitizeExternalText(value: string | undefined, maxLength: number) {
 
 function capsuleText(value: string | undefined, maxLength: number) {
     return sanitizeExternalText(value, maxLength);
-}
-
-function normalizeCompanyName(value: string) {
-    return value.toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function buildSignalUrl(companyName: string) {
@@ -475,6 +473,78 @@ async function ensureIntelKnowledgeBase(teamId: string) {
     return knowledgeBase;
 }
 
+export type NetjanaSignalWithExtras = NormalizedNetjanaSignal & { nonce?: string | null; externalTimestamp?: string | null };
+
+// Extracted from ingestNetjanaSignal's inline lead-update so the reconciliation worker
+// (shadowSignalReconciliationWorker.ts) can re-run the exact same enrichment write when a
+// previously-orphaned signal matches a lead on a later pass, instead of duplicating it.
+export async function applyNetjanaEnrichmentToLead(
+    lead: any,
+    signal: NetjanaSignalWithExtras,
+    marketContext: Record<string, unknown>,
+    followup: { queued: boolean; jobId?: string | null; reason?: string | null },
+) {
+    const currentMarketContext = toRecord(lead.marketContext);
+    const currentEnrichedData = toRecord(lead.enrichedData);
+    const currentNetjana = toRecord(currentEnrichedData.netjana);
+    const existingIntentScore = typeof lead.intentScore === "number" ? lead.intentScore : 0;
+    const isHotSignal = shouldQueueNetjanaFollowup(signal);
+
+    await prisma.lead.update({
+        where: { id: lead.id },
+        data: {
+            intentScore: Math.max(existingIntentScore, signal.intentScore / 100),
+            lastScoredAt: new Date(),
+            pipelineState: isHotSignal ? "HOT" : lead.pipelineState,
+            pipelineStateChangedAt: isHotSignal ? new Date() : lead.pipelineStateChangedAt,
+            hotAt: isHotSignal && !lead.hotAt ? new Date() : lead.hotAt,
+            marketContext: {
+                ...currentMarketContext,
+                netjana: marketContext,
+            },
+            enrichedData: {
+                ...currentEnrichedData,
+                netjana: {
+                    ...currentNetjana,
+                    companyName: signal.companyName,
+                    industry: signal.industry,
+                    buyingStage: signal.buyingStage,
+                    intentScore: signal.intentScore,
+                    signalStrength: signal.strengthPercent,
+                    whyNow: signal.whyNow,
+                    whatTheyNeed: signal.whatTheyNeed,
+                    recommendedAction: signal.recommendedAction,
+                    verityTier: signal.verityTier,
+                    isTriangulated: signal.isTriangulated,
+                    matchStatus: signal.matchStatus,
+                    matchConfidence: signal.matchConfidence,
+                    signatureVerified: signal.signatureVerified,
+                    verificationMode: signal.verificationMode,
+                    safeForAutomation: signal.safeForAutomation,
+                    trustedForKnowledge: signal.trustedForKnowledge,
+                    campaignId: signal.campaignId,
+                    receivedAt: signal.timestamp,
+                    externalTimestamp: signal.externalTimestamp,
+                    nonce: signal.nonce,
+                    automation: buildAutomationState(signal, {
+                        status: followup.queued ? "queued" : "review_required",
+                        followupJobId: followup.queued ? followup.jobId : null,
+                        reason: followup.queued ? buildFollowupReason(signal) : followup.reason,
+                    }),
+                },
+            },
+        },
+    });
+
+    await recordLeadDataSource({
+        leadId: lead.id,
+        field: "enrichedData.netjana",
+        source: "NETJANA",
+        value: signal.companyName,
+        confidence: signal.matchConfidence,
+    });
+}
+
 export async function findLeadForSignal(teamId: string, signal: NormalizedNetjanaSignal) {
     const targetCompany = normalizeCompanyName(signal.companyName);
 
@@ -700,57 +770,7 @@ export async function ingestNetjanaSignal(
     });
 
     if (lead) {
-        const currentMarketContext = toRecord(lead.marketContext);
-        const currentEnrichedData = toRecord(lead.enrichedData);
-        const currentNetjana = toRecord(currentEnrichedData.netjana);
-        const existingIntentScore = typeof lead.intentScore === "number" ? lead.intentScore : 0;
-        const isHotSignal = shouldQueueNetjanaFollowup(signal);
-
-        await prisma.lead.update({
-            where: { id: lead.id },
-            data: {
-                intentScore: Math.max(existingIntentScore, signal.intentScore / 100),
-                lastScoredAt: new Date(),
-                pipelineState: isHotSignal ? "HOT" : lead.pipelineState,
-                pipelineStateChangedAt: isHotSignal ? new Date() : lead.pipelineStateChangedAt,
-                hotAt: isHotSignal && !lead.hotAt ? new Date() : lead.hotAt,
-                marketContext: {
-                    ...currentMarketContext,
-                    netjana: marketContext,
-                },
-                enrichedData: {
-                    ...currentEnrichedData,
-                    netjana: {
-                        ...currentNetjana,
-                        companyName: signal.companyName,
-                        industry: signal.industry,
-                        buyingStage: signal.buyingStage,
-                        intentScore: signal.intentScore,
-                        signalStrength: signal.strengthPercent,
-                        whyNow: signal.whyNow,
-                        whatTheyNeed: signal.whatTheyNeed,
-                        recommendedAction: signal.recommendedAction,
-                        verityTier: signal.verityTier,
-                        isTriangulated: signal.isTriangulated,
-                        matchStatus: signal.matchStatus,
-                        matchConfidence: signal.matchConfidence,
-                        signatureVerified: signal.signatureVerified,
-                        verificationMode: signal.verificationMode,
-                        safeForAutomation: signal.safeForAutomation,
-                        trustedForKnowledge: signal.trustedForKnowledge,
-                        campaignId: signal.campaignId,
-                        receivedAt: signal.timestamp,
-                        externalTimestamp: signal.externalTimestamp,
-                        nonce: signal.nonce,
-                        automation: buildAutomationState(signal, {
-                            status: followup.queued ? "queued" : "review_required",
-                            followupJobId: followup.queued ? followup.jobId : null,
-                            reason: followup.queued ? buildFollowupReason(signal) : followup.reason,
-                        }),
-                    },
-                },
-            },
-        });
+        await applyNetjanaEnrichmentToLead(lead, signal, marketContext, followup);
     }
 
     // Knowledge base should only include signals trusted enough to be used as context.

@@ -139,6 +139,9 @@ export class EventStore {
             case "AGENT_TASK_COMPLETED":
                 narrative = `Agent task ${event.payload.taskId} completed ${event.payload.success ? 'successfully' : 'with failure'}.`;
                 break;
+            case "DRAFT_FEEDBACK_RECEIVED":
+                narrative = `Reviewer ${event.payload.feedbackType.toLowerCase()} an AI-drafted ${event.payload.entityType} for ${event.payload.entityId}.`;
+                break;
         }
 
         // Integrity Hash (Task 7)

@@ -85,7 +85,7 @@ export async function POST(req: Request | NextRequest) {
         }
 
         const body = await req.json().catch(() => ({}));
-        const { logoUrl, primaryColor, portalTitle, faviconUrl } = body || {};
+        const { logoUrl, primaryColor, portalTitle, faviconUrl, emailFooterText } = body || {};
 
         if (logoUrl && !isValidHttpUrl(logoUrl)) {
             return NextResponse.json({ ok: false, error: "Invalid logoUrl: must use http or https protocol" }, { status: 400 });
@@ -96,8 +96,15 @@ export async function POST(req: Request | NextRequest) {
         if (primaryColor && !isValidColor(primaryColor)) {
             return NextResponse.json({ ok: false, error: "Invalid primaryColor format: must be valid hex or rgb color" }, { status: 400 });
         }
+        // Mandatory once touched: a save that explicitly sends emailFooterText must not
+        // be able to blank it out (the send path falls back to a default regardless, but
+        // the stored field itself should never be emptied by a save).
+        if (emailFooterText !== undefined && !String(emailFooterText).trim()) {
+            return NextResponse.json({ ok: false, error: "Email footer text cannot be blank" }, { status: 400 });
+        }
 
         const sanitizedTitle = sanitizeText(portalTitle);
+        const sanitizedFooter = emailFooterText !== undefined ? sanitizeText(emailFooterText, 500) : undefined;
 
         const { prisma } = await import("@/lib/db");
         const team = await prisma.team.findUnique({
@@ -112,6 +119,7 @@ export async function POST(req: Request | NextRequest) {
             faviconUrl: faviconUrl !== undefined ? faviconUrl : currentBranding["faviconUrl"],
             primaryColor: primaryColor !== undefined ? primaryColor : currentBranding["primaryColor"],
             portalTitle: sanitizedTitle !== undefined ? sanitizedTitle : currentBranding["portalTitle"],
+            emailFooterText: sanitizedFooter !== undefined ? sanitizedFooter : currentBranding["emailFooterText"],
         };
 
         await prisma.team.update({

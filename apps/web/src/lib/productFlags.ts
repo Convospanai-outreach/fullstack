@@ -9,6 +9,7 @@ export type HiddenFeatureKey =
     | "agents"
     | "caller"
     | "command-center"
+    | "crystal-knows"
     | "csv-ingestion"
     | "edge"
     | "hunter-email-finder"
@@ -66,6 +67,13 @@ const HIDDEN_FEATURES_BASE: Record<HiddenFeatureKey, HiddenFeatureBase> = {
         description: "Operations overview for orchestrated runs and supervision.",
         openPath: "/command-center",
         pathPrefixes: ["/command-center"],
+    },
+    "crystal-knows": {
+        key: "crystal-knows",
+        label: "Crystal Knows",
+        description: "DISC personality lookup for lead enrichment and personality-tuned AI drafting.",
+        openPath: "/crystal-knows",
+        pathPrefixes: ["/crystal-knows"],
     },
     "csv-ingestion": {
         key: "csv-ingestion",
@@ -197,10 +205,17 @@ export function serializeEnabledHiddenFeatureKeys(keys: Iterable<HiddenFeatureKe
         .join(",");
 }
 
-// Surfaced by default for the US/EU (LinkedIn) and general (Knowledge/RAG-grounding) push —
-// see roadmap item 5. Every other hidden feature stays opt-in via NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES
-// or the per-user Settings toggle.
-const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = ["linkedin-runner", "knowledge", "caller", "whatsapp"];
+// Surfaced by default so the list-building half of the funnel (CSV import, Hunter
+// email finder) and the reach-out channels (LinkedIn, caller, WhatsApp, workflows,
+// playbooks, marketplace, knowledge/RAG-grounding) aren't invisible to a fresh team -
+// these all had working UI and backend already, just no default path to them. Every
+// other hidden feature stays opt-in via NEXT_PUBLIC_ENABLED_HIDDEN_FEATURES or the
+// per-user Settings toggle.
+const ALWAYS_ON_HIDDEN_FEATURE_KEYS: HiddenFeatureKey[] = [
+    "linkedin-runner", "knowledge", "caller", "whatsapp",
+    "csv-ingestion", "hunter-email-finder", "workflows", "playbooks", "marketplace",
+    "crystal-knows",
+];
 
 const DEFAULT_ENABLED_HIDDEN_FEATURES = new Set<HiddenFeatureKey>([
     ...ALWAYS_ON_HIDDEN_FEATURE_KEYS,
@@ -255,6 +270,7 @@ export type HiddenFeatureCategory = "Outreach" | "Automation" | "Account" | "Adm
 export const HIDDEN_FEATURE_CATEGORY_BY_KEY: Record<HiddenFeatureKey, HiddenFeatureCategory> = {
     "playbooks": "Outreach",
     "hunter-email-finder": "Outreach",
+    "crystal-knows": "Outreach",
     "csv-ingestion": "Outreach",
     "linkedin-runner": "Outreach",
     "caller": "Outreach",

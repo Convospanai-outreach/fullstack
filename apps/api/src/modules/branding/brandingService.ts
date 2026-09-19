@@ -6,6 +6,10 @@ export interface BrandingConfig {
     primaryColor?: string;
     portalTitle?: string;
     faviconUrl?: string;
+    // The team-editable line rendered above the mandatory anti-spam/unsubscribe
+    // footer on every outbound email — see emailService.ts's resolveEmailFooterText().
+    // Never persisted as blank; the route layer rejects that before it reaches here.
+    emailFooterText?: string;
 }
 
 export const DEFAULT_BRANDING: BrandingConfig = {

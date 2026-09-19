@@ -8,10 +8,23 @@ vi.mock("@/lib/db", () => ({
             findUnique: vi.fn(),
             update: vi.fn(),
         },
+        connectedMailbox: {
+            findFirst: vi.fn(),
+        },
     },
 }));
 
+vi.mock("@/lib/security/credentialVault", () => ({
+    decryptCredential: vi.fn(),
+}));
+
+vi.mock("@/lib/email/smtpClient", () => ({
+    sendViaSMTP: vi.fn(),
+}));
+
 import { prisma } from "@/lib/db";
+import { decryptCredential } from "@/lib/security/credentialVault";
+import { sendViaSMTP } from "@/lib/email/smtpClient";
 
 describe("smtpConfigService", () => {
     beforeEach(() => {
@@ -106,6 +119,110 @@ describe("smtpConfigService", () => {
 
             expect(config.password).toBe("super-secret");
             expect(config.host).toBe("smtp.example.com");
+        });
+    });
+
+    describe("sendViaSmtpMailbox", () => {
+        it("returns a pre-dispatch failure with fallback allowed when the mailbox is not found", async () => {
+            (prisma.connectedMailbox.findFirst as any).mockResolvedValue(null);
+            const { sendViaSmtpMailbox } = await import("../smtpConfigService");
+
+            const result = await sendViaSmtpMailbox({
+                teamId: "team-1",
+                mailboxId: "missing-mailbox",
+                to: "lead@example.com",
+                subject: "Hi",
+                html: "<p>Hi</p>",
+            });
+
+            expect(result).toEqual({ success: false, error: "SMTP_MAILBOX_PRE_DISPATCH_FAILED", fallbackAllowed: true });
+            expect(sendViaSMTP).not.toHaveBeenCalled();
+        });
+
+        it("returns a pre-dispatch failure when the credential fails to decrypt", async () => {
+            (prisma.connectedMailbox.findFirst as any).mockResolvedValue({
+                id: "mailbox-1",
+                email: "sender@example.com",
+                displayName: "Sender",
+                metadata: { host: "smtp.example.com", port: 587, secure: false },
+                encryptedAccessToken: { v: 1, cipher: "x", iv: "y", tag: "z" },
+            });
+            (decryptCredential as any).mockResolvedValue(undefined);
+            const { sendViaSmtpMailbox } = await import("../smtpConfigService");
+
+            const result = await sendViaSmtpMailbox({
+                teamId: "team-1",
+                mailboxId: "mailbox-1",
+                to: "lead@example.com",
+                subject: "Hi",
+                html: "<p>Hi</p>",
+            });
+
+            expect(result).toEqual({ success: false, error: "SMTP_MAILBOX_PRE_DISPATCH_FAILED", fallbackAllowed: true });
+            expect(sendViaSMTP).not.toHaveBeenCalled();
+        });
+
+        it("sends using the mailbox's own decrypted credentials and metadata host/port/secure", async () => {
+            (prisma.connectedMailbox.findFirst as any).mockResolvedValue({
+                id: "mailbox-1",
+                email: "sender@example.com",
+                displayName: "Sender Name",
+                metadata: { host: "smtp.example.com", port: 465, secure: true },
+                encryptedAccessToken: { v: 1, cipher: "x", iv: "y", tag: "z" },
+            });
+            (decryptCredential as any).mockResolvedValue("decrypted-password");
+            (sendViaSMTP as any).mockResolvedValue({ success: true, messageId: "<msg-1@example.com>" });
+            const { sendViaSmtpMailbox } = await import("../smtpConfigService");
+
+            const result = await sendViaSmtpMailbox({
+                teamId: "team-1",
+                mailboxId: "mailbox-1",
+                to: "lead@example.com",
+                subject: "Hi",
+                html: "<p>Hi</p>",
+            });
+
+            expect(sendViaSMTP).toHaveBeenCalledWith(
+                {
+                    host: "smtp.example.com",
+                    port: 465,
+                    secure: true,
+                    user: "sender@example.com",
+                    password: "decrypted-password",
+                    fromName: "Sender Name",
+                    fromEmail: "sender@example.com",
+                },
+                expect.objectContaining({ to: "lead@example.com", subject: "Hi", html: "<p>Hi</p>" })
+            );
+            expect(result).toEqual({
+                success: true,
+                deliveryProvider: "SMTP",
+                messageId: "<msg-1@example.com>",
+                mailboxId: "mailbox-1",
+            });
+        });
+
+        it("returns a fallback-allowed failure when the mailbox's own SMTP send fails", async () => {
+            (prisma.connectedMailbox.findFirst as any).mockResolvedValue({
+                id: "mailbox-1",
+                email: "sender@example.com",
+                displayName: "Sender",
+                metadata: { host: "smtp.example.com", port: 587, secure: false },
+                encryptedAccessToken: { v: 1, cipher: "x", iv: "y", tag: "z" },
+            });
+            (decryptCredential as any).mockResolvedValue("decrypted-password");
+            (sendViaSMTP as any).mockResolvedValue({ success: false, error: "auth failed" });
+            const { sendViaSmtpMailbox } = await import("../smtpConfigService");
+
+            const result = await sendViaSmtpMailbox({
+                teamId: "team-1",
+                mailboxId: "mailbox-1",
+                to: "lead@example.com",
+                subject: "Hi",
+                html: "<p>Hi</p>",
+            });
+
+            expect(result).toEqual({ success: false, error: "SMTP_MAILBOX_SEND_FAILED", fallbackAllowed: true });
         });
     });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentContext } from "@/lib/auth";
 import { createCampaignSchema } from "@/lib/validation/schemas";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { scoreLeadAgainstIcp, leadDataForIcpScoring } from "@/lib/icpScoring";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +62,18 @@ export async function POST(req: Request) {
         const description = validation.success ? validation.data.description : body.description || null;
         const targetCount = typeof body.targetCount === "number" ? body.targetCount : 0;
         const leads = body.leads;
+        const sourcePipelineStage = typeof body.sourcePipelineStage === "string" ? body.sourcePipelineStage : undefined;
+
+        // A saved ICP is a prerequisite for creating a campaign - it's the audience
+        // context AI drafting (email-worker, batch drafts) needs at send time.
+        const icpId = typeof body.icpId === "string" ? body.icpId : undefined;
+        if (!icpId) {
+            return NextResponse.json({ error: "icpId is required - save an ICP before creating a campaign" }, { status: 400 });
+        }
+        const icp = await prisma.iCP.findFirst({ where: { id: icpId, teamId } });
+        if (!icp) {
+            return NextResponse.json({ error: "ICP not found for this team" }, { status: 400 });
+        }
 
         const campaign = await prisma.campaign.create({
             data: {
@@ -70,15 +83,28 @@ export async function POST(req: Request) {
                 description,
                 targetCount,
                 status: "draft",
+                sourcePipelineStage,
+                icpId,
             },
         });
 
-        // Attach leads if provided
+        // Attach leads if provided, scoring each against the campaign's ICP as it's attached
         if (Array.isArray(leads) && leads.length > 0) {
-            await prisma.lead.updateMany({
+            const attachedLeads = await prisma.lead.findMany({
                 where: { id: { in: leads }, teamId },
-                data: { campaignId: campaign.id },
+                select: { id: true, jobTitle: true, enrichedData: true },
             });
+            await Promise.all(
+                attachedLeads.map((lead) =>
+                    prisma.lead.update({
+                        where: { id: lead.id },
+                        data: {
+                            campaignId: campaign.id,
+                            icpFitScore: scoreLeadAgainstIcp(icp.criteria, leadDataForIcpScoring(lead)),
+                        },
+                    })
+                )
+            );
         }
 
         return NextResponse.json(campaign, { status: 201 });

@@ -50,6 +50,15 @@ export class ResendProvider implements MailProvider {
       text: input.text,
       ...(replyTo ? { replyTo } : {}),
       ...(Object.keys(extraHeaders).length ? { headers: extraHeaders } : {}),
+      ...(input.attachments?.length
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.mimeType,
+            })),
+          }
+        : {}),
     });
 
     if (error || !data) {
@@ -74,7 +83,7 @@ export class ResendProvider implements MailProvider {
 
   supportsNativeReplyDetection(): boolean {
     // Not IMAP-pollable like SMTP. Reply capture (if configured) instead flows through
-    // /api/webhooks/resend's "email.received" handling via a per-mailbox inbound domain.
+    // apps/api's /webhooks/resend "email.received" handling via a per-mailbox inbound domain.
     return false;
   }
 

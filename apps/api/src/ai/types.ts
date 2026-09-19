@@ -7,7 +7,8 @@ export enum LLMProvider {
     ANTHROPIC = "anthropic",
     GEMINI = "gemini",
     GROQ = "groq",
-    OLLAMA = "ollama"
+    OLLAMA = "ollama",
+    DEEPSEEK = "deepseek"
 }
 
 export enum TaskComplexity {

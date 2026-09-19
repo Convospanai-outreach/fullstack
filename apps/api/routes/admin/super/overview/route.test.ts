@@ -6,13 +6,16 @@ const { mockCheckAdmin, mockPrisma } = vi.hoisted(() => ({
         user: { findMany: vi.fn() },
         team: { findMany: vi.fn() },
         apiKey: { findMany: vi.fn() },
-        lLMUsageLog: { groupBy: vi.fn() },
+        lLMUsageLog: { groupBy: vi.fn(), count: vi.fn() },
         creditTransaction: { groupBy: vi.fn() },
         auditLog: { count: vi.fn(), findMany: vi.fn() },
         systemEvent: { count: vi.fn(), findMany: vi.fn() },
         subscription: { findMany: vi.fn() },
         invoice: { findMany: vi.fn() },
         job: { groupBy: vi.fn(), findMany: vi.fn() },
+        shadowSignal: { count: vi.fn(), findFirst: vi.fn() },
+        email: { count: vi.fn() },
+        $queryRaw: vi.fn(),
     },
 }));
 
@@ -71,6 +74,11 @@ describe("super admin overview route", () => {
         mockPrisma.invoice.findMany.mockResolvedValue([]);
         mockPrisma.job.groupBy.mockResolvedValue([]);
         mockPrisma.job.findMany.mockResolvedValue([]);
+        mockPrisma.shadowSignal.count.mockResolvedValue(0);
+        mockPrisma.shadowSignal.findFirst.mockResolvedValue(null);
+        mockPrisma.email.count.mockResolvedValue(0);
+        mockPrisma.lLMUsageLog.count.mockResolvedValue(0);
+        mockPrisma.$queryRaw.mockResolvedValue([{ bytes: 123n }]);
     });
 
     it("rejects non-super admins", async () => {
@@ -98,5 +106,45 @@ describe("super admin overview route", () => {
         });
         expect(body.users[0]).toMatchObject({ email: "admin@example.com", usageAttribution: "user", llmRequests: 1 });
         expect(body.apiKeys[0]).toMatchObject({ name: "Prod", teamName: "Team One" });
+    });
+
+    it("reports Netjana Intel webhook health without HMAC configured", async () => {
+        mockPrisma.shadowSignal.count.mockResolvedValueOnce(4).mockResolvedValueOnce(1);
+        const receivedAt = new Date("2026-06-05T00:00:00.000Z");
+        mockPrisma.shadowSignal.findFirst.mockResolvedValue({ createdAt: receivedAt });
+        delete process.env["NETJANA_HMAC_SECRET"];
+        delete process.env["HMAC_SECRET"];
+
+        const { GET } = await import("./route");
+        const response = await GET(new Request("http://localhost/api/admin/super/overview?range=30d"));
+        const body = await response.json();
+
+        expect(body.netjanaIntel).toMatchObject({
+            signatureEnforced: false,
+            signalsInWindow: 4,
+            warmSignalsInWindow: 1,
+            lastReceivedAt: receivedAt.toISOString(),
+        });
+    });
+
+    it("reports database size, row counts, and unconfigured infra integrations", async () => {
+        mockPrisma.$queryRaw.mockResolvedValue([{ bytes: 424242n }]);
+        mockPrisma.email.count.mockResolvedValue(7);
+        mockPrisma.lLMUsageLog.count.mockResolvedValue(9);
+        delete process.env["RESEND_API_KEY"];
+        delete process.env["RENDER_API_KEY"];
+
+        const { GET } = await import("./route");
+        const response = await GET(new Request("http://localhost/api/admin/super/overview?range=30d"));
+        const body = await response.json();
+
+        expect(body.infra).toMatchObject({
+            database: {
+                sizeBytes: 424242,
+                rowCounts: { leads: 1, campaigns: 1, emails: 7, llmUsageLogs: 9 },
+            },
+            resend: { configured: false },
+            render: { configured: false },
+        });
     });
 });

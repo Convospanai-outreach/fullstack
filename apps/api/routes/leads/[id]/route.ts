@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentContext } from "@/lib/auth";
 import { APIError, handleAPIError } from "@/lib/apiResponse";
 import { authorizeRole, TeamRole } from "@/lib/permissions";
+import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 
 async function requireLeadContext(id: string, requiredRole: TeamRole) {
     const { teamId, userId } = await getCurrentContext();
@@ -41,7 +42,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
-        const { teamId } = await requireLeadContext(id, TeamRole.MEMBER);
+        const { lead: existingLead, teamId } = await requireLeadContext(id, TeamRole.MEMBER);
         const body = await req.json();
 
         // STRICT ALLOWLIST: Only user-editable fields are permitted.
@@ -50,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         // must be updated through their dedicated service methods, not via direct PATCH.
         const ALLOWED_PATCH_FIELDS = new Set([
             "fullName", "email", "phone", "linkedIn",
-            "company", "jobTitle", "location",
+            "company", "domain", "jobTitle", "location",
             "status", "tags", "crmId", "value",
             "consentObtained",
             "whatsappConsent", "whatsappConsentAt", "whatsappConsentBy", "whatsappNumber",
@@ -75,6 +76,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
         if (updateResult.count !== 1) {
             throw new APIError("Lead not found", 404, "NOT_FOUND");
+        }
+
+        const changedFields = Object.entries(safeData).filter(
+            ([key, val]) => (existingLead as any)[key] !== val
+        );
+        if (changedFields.length > 0) {
+            await recordLeadDataSources(
+                changedFields.map(([field, value]) => ({
+                    leadId: id,
+                    field,
+                    source: "MANUAL" as const,
+                    value: value === null || value === undefined ? "" : String(value),
+                }))
+            );
         }
 
         const lead = await prisma.lead.findFirst({

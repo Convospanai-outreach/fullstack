@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate } = vi.hoisted(() => ({
+const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate, mockGetCampaignContext, mockGeneratePersonalityPrompt } = vi.hoisted(() => ({
     mockPrisma: {
         team: { findUnique: vi.fn() },
         lLMUsageLog: { create: vi.fn().mockResolvedValue({}) },
@@ -10,6 +10,8 @@ const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mock
     mockOpenAICreate: vi.fn(),
     mockAnthropicCreate: vi.fn(),
     mockOpenAIEmbeddingsCreate: vi.fn(),
+    mockGetCampaignContext: vi.fn().mockResolvedValue(""),
+    mockGeneratePersonalityPrompt: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
@@ -18,6 +20,14 @@ vi.mock("@/lib/credits", () => ({
     refundCredits: mockRefundCredits,
 }));
 vi.mock("@/lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("@/modules/knowledge/services/knowledgeOrchestrator", () => ({
+    KnowledgeOrchestrator: vi.fn(function KnowledgeOrchestrator() {
+        return { getCampaignContext: mockGetCampaignContext };
+    }),
+}));
+vi.mock("@/modules/crystal-knows/service/crystalService", () => ({
+    CrystalService: { generatePersonalityPrompt: mockGeneratePersonalityPrompt },
+}));
 vi.mock("openai", () => ({
     default: class MockOpenAI {
         chat = { completions: { create: mockOpenAICreate } };
@@ -64,6 +74,65 @@ describe("AIService.generateEmailDraft - TOON serialization (AI cost optimizatio
         expect(sentPrompt).toContain("fullName:Jane Doe");
         expect(sentPrompt).not.toContain('"fullName":');
         expect(sentPrompt).not.toContain('"fullName": "Jane Doe"');
+    });
+
+    it("grounds the prompt with knowledge base context when the lead has an id", async () => {
+        mockGetCampaignContext.mockResolvedValueOnce("- Acme Corp (2026-09-01): expressed pricing interest.");
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: "Hello there" }) } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20 },
+        });
+
+        const lead = { id: "lead-1", campaignId: "campaign-1", fullName: "Jane Doe", company: "Acme Corp" };
+        await aiService.generateEmailDraft(lead, null, "team-1");
+
+        expect(mockGetCampaignContext).toHaveBeenCalledWith("campaign-1", "lead-1");
+        const sentPrompt = mockOpenAICreate.mock.calls[0][0].messages[0].content as string;
+        expect(sentPrompt).toContain("expressed pricing interest");
+    });
+
+    it("falls back to 'None' when there is no knowledge base context", async () => {
+        mockGetCampaignContext.mockResolvedValueOnce("");
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: "Hello there" }) } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20 },
+        });
+
+        await aiService.generateEmailDraft({ fullName: "Jane Doe" }, null, "team-1");
+
+        const sentPrompt = mockOpenAICreate.mock.calls[0][0].messages[0].content as string;
+        expect(sentPrompt).toContain("Relevant knowledge base context:\nNone");
+    });
+
+    it("grounds the prompt with Crystal Knows personality guidance when the lead has a profile id", async () => {
+        mockGeneratePersonalityPrompt.mockResolvedValueOnce("Be direct and results-focused; skip small talk.");
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: "Hello there" }) } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20 },
+        });
+
+        const lead = { fullName: "Jane Doe", enrichedData: { crystalKnows: { profileId: "profile-1" } } };
+        await aiService.generateEmailDraft(lead, null, "team-1");
+
+        expect(mockGeneratePersonalityPrompt).toHaveBeenCalledWith("team-1", {
+            id: "profile-1",
+            objective: "write a cold outreach email",
+        });
+        const sentPrompt = mockOpenAICreate.mock.calls[0][0].messages[0].content as string;
+        expect(sentPrompt).toContain("Be direct and results-focused");
+    });
+
+    it("falls back to 'None' for personality guidance when the lead has no Crystal profile", async () => {
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: "Hello there" }) } }],
+            usage: { prompt_tokens: 50, completion_tokens: 20 },
+        });
+
+        await aiService.generateEmailDraft({ fullName: "Jane Doe" }, null, "team-1");
+
+        expect(mockGeneratePersonalityPrompt).not.toHaveBeenCalled();
+        const sentPrompt = mockOpenAICreate.mock.calls[0][0].messages[0].content as string;
+        expect(sentPrompt).toContain("Personality guidance (DISC):\nNone");
     });
 });
 

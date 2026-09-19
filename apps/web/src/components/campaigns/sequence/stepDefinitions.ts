@@ -22,6 +22,7 @@ export const stepGroups: StepGroup[] = [
         items: [
             { id: "EMAIL", label: "Email", icon: Mail, requiresLinkedIn: false, hasSubject: true, hasMessageBody: true },
             { id: "WHATSAPP", label: "WhatsApp message", icon: MessageCircle, requiresLinkedIn: false, hasMessageBody: true },
+            { id: "CALL", label: "Phone call", icon: Phone, requiresLinkedIn: false, hasMessageBody: true },
             { id: "CHAT_MESSAGE", label: "Chat message", icon: MessageSquare, requiresLinkedIn: true, hasMessageBody: true },
             { id: "VISIT_PROFILE", label: "Visit profile", icon: Eye, requiresLinkedIn: true },
         ],

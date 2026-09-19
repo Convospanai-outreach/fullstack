@@ -11,7 +11,11 @@ const { mockGetCurrentContext, mockPrisma } = vi.hoisted(() => ({
 vi.mock("@/lib/auth", () => ({ getCurrentContext: mockGetCurrentContext }));
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
+
+function getRequest(query: string) {
+    return new Request(`http://localhost/api/leads${query}`) as any;
+}
 
 const FOREIGN_CAMPAIGN_ID = "11111111-1111-4111-8111-111111111111";
 const OWN_CAMPAIGN_ID = "22222222-2222-4222-8222-222222222222";
@@ -65,5 +69,45 @@ describe("POST /api/leads - campaignId team scoping", () => {
         expect(res.status).toBe(401);
         expect(mockPrisma.lead.create).not.toHaveBeenCalled();
         expect(mockPrisma.campaign.findFirst).not.toHaveBeenCalled();
+    });
+});
+
+describe("GET /api/leads - pipelineState/unassignedOnly/domain filters", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        mockPrisma.lead.findMany.mockResolvedValue([]);
+        mockPrisma.lead.count.mockResolvedValue(0);
+    });
+
+    it("filters by pipelineState when given, so a campaign can be scoped to leads dropped at a specific funnel stage", async () => {
+        await GET(getRequest("?pipelineState=WARM"));
+
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ teamId: "team-a", pipelineState: "WARM" }) })
+        );
+    });
+
+    it("excludes leads already attached to a campaign when unassignedOnly=true", async () => {
+        await GET(getRequest("?unassignedOnly=true"));
+
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ campaignId: null }) })
+        );
+    });
+
+    it("scopes to a single account by normalized domain", async () => {
+        await GET(getRequest("?domain=Acme.Example"));
+
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: expect.objectContaining({ domain: "acme.example" }) })
+        );
+    });
+
+    it("ignores a syntactically invalid domain instead of erroring", async () => {
+        await GET(getRequest("?domain=not a domain"));
+
+        const call = mockPrisma.lead.findMany.mock.calls[0]?.[0];
+        expect(call.where.domain).toBeUndefined();
     });
 });

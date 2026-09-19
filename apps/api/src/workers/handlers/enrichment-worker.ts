@@ -4,6 +4,7 @@ import { hunterService } from "@/modules/hunter-email-finder";
 import { JobQueue, JobPayload } from "@/lib/queue";
 import { deductCredits, refundCredits } from "@/lib/credits";
 import { logger, logWorker } from "@/lib/logger";
+import { recordLeadDataSources } from "@/lib/crm/leadDataSource";
 
 /**
  * Lead enrichment worker
@@ -73,12 +74,17 @@ export async function handleLeadEnrichment(payload: JobPayload) {
         }
 
         // Find email if we do not have one
+        let hunterCompanyPromotion: string | undefined;
         if (!lead.email && lead.fullName) {
             try {
-                // Real domain extraction: derive from LinkedIn company path or fallback to company name
-                let domain: string | null = null;
+                // Prefer the lead's own canonical domain when set (from CSV/manual data) -
+                // only fall back to guessing when no real domain is on file. The guess is
+                // transient (used for this Hunter call only) and is never persisted to
+                // Lead.domain, since Hunter's response carries no domain to validate it
+                // against.
+                let domain: string | null = lead.domain || null;
 
-                if (lead.linkedIn) {
+                if (!domain && lead.linkedIn) {
                     const urlObj = new URL(lead.linkedIn);
                     const pathParts = urlObj.pathname.split("/").filter(Boolean);
                     if (lead.linkedIn.includes("/company/")) {
@@ -105,9 +111,85 @@ export async function handleLeadEnrichment(payload: JobPayload) {
                     if (result.email) {
                         enrichmentData.email = result.email;
                     }
+
+                    // Hunter's response also carries score/name/position/company/sources -
+                    // previously discarded entirely. Record it under a provider-namespaced
+                    // key (matching Netjana's enrichedData.netjana convention) even when not
+                    // promoted to a top-level Lead field, and promote company only when the
+                    // lead doesn't already have one (never overwrite an existing value).
+                    if (result.email || result.company) {
+                        const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichedData: true, company: true } });
+                        const currentEnrichedData = (current?.enrichedData as Record<string, any>) || {};
+                        await prisma.lead.update({
+                            where: { id: leadId },
+                            data: {
+                                enrichedData: {
+                                    ...currentEnrichedData,
+                                    hunter: {
+                                        score: result.score,
+                                        firstName: result.firstName,
+                                        lastName: result.lastName,
+                                        position: result.position,
+                                        company: result.company,
+                                        sources: result.sources,
+                                        receivedAt: new Date().toISOString(),
+                                    },
+                                },
+                            },
+                        });
+                        if (result.company && !current?.company) {
+                            hunterCompanyPromotion = result.company;
+                        }
+                    }
                 }
             } catch (error) {
                 logger.warn("Failed to find email with Hunter.io:", { leadId, error: error instanceof Error ? error.message : error });
+            }
+        }
+
+        // Crystal Knows personality enrichment - best-effort, silently skipped
+        // if the team hasn't configured a Crystal API key (CrystalService
+        // returns "not_configured" rather than throwing). A "pending" result
+        // (job didn't finish within the bounded poll) is dropped here; a
+        // later enrichment pass will simply find the now-completed profile
+        // via the free GET /v4/profile lookup instead of re-submitting.
+        if (teamId) {
+            try {
+                const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+                const crystalResult = await CrystalService.findOrCreateProfile(
+                    teamId,
+                    {
+                        full_name: lead.fullName || undefined,
+                        email: enrichmentData.email || lead.email || undefined,
+                        linkedin_url: lead.linkedIn || undefined,
+                        job_title: lead.jobTitle || undefined,
+                        company_name: hunterCompanyPromotion || lead.company || undefined,
+                    },
+                    { recordId: `lead:${leadId}`, maxWaitMs: 20_000 }
+                );
+
+                if (crystalResult.state === "found") {
+                    const current = await prisma.lead.findUnique({ where: { id: leadId }, select: { enrichedData: true } });
+                    const currentEnrichedData = (current?.enrichedData as Record<string, any>) || {};
+                    await prisma.lead.update({
+                        where: { id: leadId },
+                        data: {
+                            enrichedData: {
+                                ...currentEnrichedData,
+                                crystalKnows: {
+                                    profileId: crystalResult.profile.id,
+                                    personalities: crystalResult.profile.personalities ?? null,
+                                    receivedAt: new Date().toISOString(),
+                                },
+                            },
+                        },
+                    });
+                    await recordLeadDataSources([
+                        { leadId, field: "enrichedData.crystalKnows", source: "CRYSTAL_KNOWS", value: crystalResult.profile.id },
+                    ]);
+                }
+            } catch (error) {
+                logger.warn("Failed to enrich lead with Crystal Knows:", { leadId, error: error instanceof Error ? error.message : error });
             }
         }
 
@@ -117,9 +199,15 @@ export async function handleLeadEnrichment(payload: JobPayload) {
             data: {
                 status: "enriched",
                 isEnriched: true,
-                ...(enrichmentData.email ? { email: enrichmentData.email } : {})
+                ...(enrichmentData.email ? { email: enrichmentData.email } : {}),
+                ...(hunterCompanyPromotion ? { company: hunterCompanyPromotion } : {}),
             },
         });
+
+        const provenance: Parameters<typeof recordLeadDataSources>[0] = [];
+        if (enrichmentData.email) provenance.push({ leadId, field: "email", source: "HUNTER", value: enrichmentData.email });
+        if (hunterCompanyPromotion) provenance.push({ leadId, field: "company", source: "HUNTER", value: hunterCompanyPromotion });
+        await recordLeadDataSources(provenance);
 
         // If part of a campaign, enqueue email job (REALTIME mode) or fold
         // into the campaign's batch email-draft generation (BATCH mode).

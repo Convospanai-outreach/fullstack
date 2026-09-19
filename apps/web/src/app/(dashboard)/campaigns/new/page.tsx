@@ -1,17 +1,77 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Loader2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
+const RECOVERABLE_STAGES = ["COLD", "WARM", "HOT", "COORDINATING", "MEETING_CONFIRMED"] as const;
+
+type ICP = { id: string; name: string };
+
+function buildLeadsQuery(stage: string, domain: string) {
+    const params = new URLSearchParams({ pipelineState: stage, unassignedOnly: "true", limit: "500" });
+    if (domain) params.set("domain", domain);
+    return `/api/leads?${params.toString()}`;
+}
+
 export default function NewCampaignPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    const [targetStageEnabled, setTargetStageEnabled] = useState(false);
+    const [stage, setStage] = useState<string>("WARM");
+    const [domain, setDomain] = useState("");
+    const [matchingCount, setMatchingCount] = useState<number | null>(null);
+
+    const [icps, setIcps] = useState<ICP[]>([]);
+    const [icpId, setIcpId] = useState("");
+    const [loadingIcps, setLoadingIcps] = useState(true);
+
+    useEffect(() => {
+        fetch("/api/proxy/icp-builder/list")
+            .then((res) => res.json())
+            .then((data) => setIcps(data?.icps || []))
+            .catch(() => setIcps([]))
+            .finally(() => setLoadingIcps(false));
+    }, []);
+
+    useEffect(() => {
+        const prefillStage = searchParams.get("stage");
+        const prefillDomain = searchParams.get("domain");
+        if (prefillStage && (RECOVERABLE_STAGES as readonly string[]).includes(prefillStage)) {
+            setTargetStageEnabled(true);
+            setStage(prefillStage);
+        }
+        if (prefillDomain) {
+            setDomain(prefillDomain);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useEffect(() => {
+        if (!targetStageEnabled) {
+            setMatchingCount(null);
+            return;
+        }
+        let cancelled = false;
+        fetch(buildLeadsQuery(stage, domain))
+            .then((res) => res.json())
+            .then((data) => {
+                if (!cancelled) setMatchingCount(typeof data.total === "number" ? data.total : (data.leads?.length ?? 0));
+            })
+            .catch(() => {
+                if (!cancelled) setMatchingCount(null);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [targetStageEnabled, stage, domain]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -19,16 +79,32 @@ export default function NewCampaignPage() {
             toast.error("Campaign name is required.");
             return;
         }
+        if (!icpId) {
+            toast.error("Select a saved ICP before creating a campaign.");
+            return;
+        }
 
         setSubmitting(true);
         try {
+            const body: Record<string, unknown> = {
+                name: name.trim(),
+                description: description.trim() || undefined,
+                icpId,
+            };
+
+            if (targetStageEnabled) {
+                const res = await fetch(buildLeadsQuery(stage, domain));
+                const data = await res.json();
+                const ids: string[] = (data.leads || []).map((lead: { id: string }) => lead.id);
+                body["leads"] = ids;
+                body["sourcePipelineStage"] = stage;
+                body["targetCount"] = ids.length;
+            }
+
             const res = await fetch("/api/campaigns", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: name.trim(),
-                    description: description.trim() || undefined,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();
@@ -69,6 +145,30 @@ export default function NewCampaignPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                Target ICP <span className="text-destructive">*</span>
+                            </label>
+                            {!loadingIcps && icps.length === 0 ? (
+                                <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-600">
+                                    You need a saved ICP before creating a campaign.{" "}
+                                    <Link href="/icp-builder" className="underline font-semibold">Create one first</Link>.
+                                </p>
+                            ) : (
+                                <select
+                                    required
+                                    value={icpId}
+                                    onChange={(e) => setIcpId(e.target.value)}
+                                    className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                                >
+                                    <option value="">{loadingIcps ? "Loading ICPs..." : "Select a saved ICP"}</option>
+                                    {icps.map((icp) => (
+                                        <option key={icp.id} value={icp.id}>{icp.name}</option>
+                                    ))}
+                                </select>
+                            )}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
                                 Campaign Name <span className="text-destructive">*</span>
                             </label>
                             <input
@@ -94,13 +194,61 @@ export default function NewCampaignPage() {
                             />
                         </div>
 
+                        <div className="rounded-lg border border-border p-4 space-y-3">
+                            <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                <input
+                                    type="checkbox"
+                                    checked={targetStageEnabled}
+                                    onChange={(e) => setTargetStageEnabled(e.target.checked)}
+                                    className="h-4 w-4"
+                                />
+                                Target leads stuck at a stage
+                            </label>
+
+                            {targetStageEnabled && (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                            Funnel stage
+                                        </label>
+                                        <select
+                                            value={stage}
+                                            onChange={(e) => setStage(e.target.value)}
+                                            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                                        >
+                                            {RECOVERABLE_STAGES.map((s) => (
+                                                <option key={s} value={s}>
+                                                    {s}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                                            Account domain <span className="text-muted-foreground">(optional)</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={domain}
+                                            onChange={(e) => setDomain(e.target.value)}
+                                            placeholder="e.g. acme.example"
+                                            className="w-full rounded-lg border border-input bg-background px-4 py-2.5 text-sm text-foreground outline-none transition focus:border-primary focus:ring-1 focus:ring-primary/30"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        {matchingCount === null ? "Checking matching leads..." : `${matchingCount} leads match`}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
                         <div className="flex items-center justify-end gap-3 pt-4 border-t border-border">
                             <Link href="/campaigns">
                                 <Button type="button" variant="ghost" className="text-muted-foreground hover:text-foreground">
                                     Cancel
                                 </Button>
                             </Link>
-                            <Button type="submit" disabled={submitting} className="bg-primary hover:bg-primary/90 text-white font-semibold">
+                            <Button type="submit" disabled={submitting || icps.length === 0} className="bg-primary hover:bg-primary/90 text-white font-semibold">
                                 {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                                 Create Campaign
                             </Button>

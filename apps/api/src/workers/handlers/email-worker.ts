@@ -19,7 +19,7 @@ export async function handleEmailSend(payload: JobPayload) {
     // Fetch lead and campaign
     const [lead, campaign] = await Promise.all([
         prisma.lead.findUnique({ where: { id: leadId } }),
-        prisma.campaign.findUnique({ where: { id: campaignId } }),
+        prisma.campaign.findUnique({ where: { id: campaignId }, include: { icp: true } }),
     ]);
 
     if (!lead) {
@@ -60,7 +60,7 @@ export async function handleEmailSend(payload: JobPayload) {
         logWorker(leadId, "GENERATING_AI_EMAIL", { campaignId, teamId });
         emailContent = await aiService.generateEmailDraft(
             lead,
-            null, // Could pass campaign.icpId if related
+            campaign.icp?.criteria ?? null,
             campaign.teamId || undefined
         );
     }

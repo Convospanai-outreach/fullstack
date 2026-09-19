@@ -5,6 +5,7 @@ export function buildBriefPrompt(input: {
     prompt: string;
     framework?: string | null;
     assetText: string;
+    icp?: Record<string, unknown>;
 }) {
     return `
 You are a B2B landing-page strategist.
@@ -17,6 +18,9 @@ ${input.campaignName}
 Marketer Prompt:
 ${input.prompt}
 
+Target ICP:
+${input.icp ? JSON.stringify(input.icp) : "None"}
+
 Preferred Framework:
 ${input.framework ?? "AUTO"}
 
@@ -24,6 +28,7 @@ Asset Context:
 ${input.assetText || "None"}
 
 Rules:
+- Ground challenge/solution/benefit and audience in the Target ICP when provided.
 - Keep challenge/solution/benefit concise and specific.
 - If framework is provided, keep it unchanged.
 - audience must be an array of short audience descriptors.

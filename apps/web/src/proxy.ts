@@ -182,6 +182,10 @@ async function appProxy(req: NextRequest) {
         // Public pricing shown on /pricing before signup.
         "/api/proxy/billing/plans", "/api/billing/plans",
         "/api/openapi.json",
+        // Superadmin has its own standalone, non-OAuth login - enforces its own
+        // cookie/credential check (see apps/web/src/lib/superadmin/session.ts),
+        // same pattern as extensionApiPrefixes above.
+        "/api/superadmin",
     ];
     const metricsApiPrefixes = ["/api/metrics", "/api/proxy/metrics"];
     const testDiagnosticPaths = ["/test-error-logging", "/test-crash"];
@@ -332,6 +336,9 @@ async function appProxy(req: NextRequest) {
         "/llms.txt",
         "/llms-full.txt",
         "/.well-known",
+        // Standalone superadmin login page - must be reachable without a
+        // NextAuth session (that's the whole point of it being separate).
+        "/superadmin",
     ];
 
     if (path === "/accept-invite" && !req.nextUrl.searchParams.get("token")) {

@@ -45,6 +45,7 @@ export class SmtpProvider implements MailProvider {
       html: input.html,
       ...(replyTo ? { replyTo } : {}),
       ...(Object.keys(extraHeaders).length ? { headers: extraHeaders } : {}),
+      ...(input.attachments?.length ? { attachments: input.attachments } : {}),
     };
 
     const result = await sendViaSMTP(config, sendOptions);

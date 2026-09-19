@@ -26,6 +26,7 @@ export const landingAgentApi = {
         prompt: string;
         framework?: string;
         linkedCampaignId?: string | null;
+        icpId: string;
     }) {
         return request<{ id: string }>("/landing-agent/campaigns", {
             method: "POST",

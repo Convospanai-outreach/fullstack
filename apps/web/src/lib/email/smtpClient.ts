@@ -16,6 +16,7 @@ export interface SendMailOptions {
     html: string;
     replyTo?: string;
     headers?: Record<string, string>;
+    attachments?: { filename: string; mimeType: string; content: string }[];
 }
 
 export interface SendMailResult {
@@ -55,6 +56,16 @@ export async function sendViaSMTP(
             html: options.html,
             replyTo: options.replyTo,
             headers: options.headers,
+            ...(options.attachments?.length
+                ? {
+                      attachments: options.attachments.map((a) => ({
+                          filename: a.filename,
+                          content: a.content,
+                          encoding: "base64" as const,
+                          contentType: a.mimeType,
+                      })),
+                  }
+                : {}),
         });
         return { success: true, messageId: info.messageId };
     } catch (err: any) {

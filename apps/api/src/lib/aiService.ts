@@ -23,7 +23,10 @@ export type ProviderKeySet = {
     gemini?: { apiKey: string; model?: string };
     openai?: { apiKey: string; model?: string };
     anthropic?: { apiKey: string; model?: string };
+    deepseek?: { apiKey: string; model?: string };
 };
+
+const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 
 const DEFAULT_MODELS = {
     gemini: {
@@ -40,6 +43,11 @@ const DEFAULT_MODELS = {
         trivial: "claude-3-5-haiku",
         routine: "claude-3-5-sonnet",
         strategic: "claude-3-5-sonnet"
+    },
+    deepseek: {
+        trivial: "deepseek-chat",
+        routine: "deepseek-chat",
+        strategic: "deepseek-reasoner"
     }
 };
 
@@ -56,6 +64,10 @@ const COST_PER_1K_TOKENS: Record<string, number> = {
     "claude-3-opus": 0.03,
     "gemini-1.5-pro": 0.007,
     "gemini-1.5-flash": 0.0007,
+    // Approximate blended input/output rate; DeepSeek's published per-token pricing
+    // differs by direction, so this errs slightly high rather than under-charging credits.
+    "deepseek-chat": 0.0003,
+    "deepseek-reasoner": 0.0007,
     "unknown": 0
 };
 
@@ -102,6 +114,9 @@ export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet
             : undefined,
         anthropic: process.env["ANTHROPIC_API_KEY"]
             ? { apiKey: process.env["ANTHROPIC_API_KEY"], model: process.env["ANTHROPIC_MODEL"] }
+            : undefined,
+        deepseek: process.env["DEEPSEEK_API_KEY"]
+            ? { apiKey: process.env["DEEPSEEK_API_KEY"], model: process.env["DEEPSEEK_MODEL"] }
             : undefined
     };
 
@@ -122,7 +137,10 @@ export async function loadTeamProviders(teamId?: string): Promise<ProviderKeySet
             : fromEnv.openai,
         anthropic: providers?.anthropic?.apiKey
             ? { apiKey: providers.anthropic.apiKey, model: providers.anthropic.model || fromEnv.anthropic?.model }
-            : fromEnv.anthropic
+            : fromEnv.anthropic,
+        deepseek: providers?.deepseek?.apiKey
+            ? { apiKey: providers.deepseek.apiKey, model: providers.deepseek.model || fromEnv.deepseek?.model }
+            : fromEnv.deepseek
     };
 }
 
@@ -142,7 +160,11 @@ function resolveProvider(
         const model = providers.anthropic.model || DEFAULT_MODELS.anthropic[resolveModelTier(complexity)];
         return { provider: LLMProvider.ANTHROPIC, apiKey: providers.anthropic.apiKey, model };
     }
-    throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
+    if (providers.deepseek?.apiKey) {
+        const model = providers.deepseek.model || DEFAULT_MODELS.deepseek[resolveModelTier(complexity)];
+        return { provider: LLMProvider.DEEPSEEK, apiKey: providers.deepseek.apiKey, model };
+    }
+    throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic/DeepSeek keys.");
 }
 
 export function extractJsonBlock(text: string): string {
@@ -322,8 +344,11 @@ function buildProviderChain(providers: ProviderKeySet, complexity: TaskComplexit
     if (providers.anthropic?.apiKey) {
         chain.push({ provider: LLMProvider.ANTHROPIC, apiKey: providers.anthropic.apiKey, model: providers.anthropic.model || DEFAULT_MODELS.anthropic[tier] });
     }
+    if (providers.deepseek?.apiKey) {
+        chain.push({ provider: LLMProvider.DEEPSEEK, apiKey: providers.deepseek.apiKey, model: providers.deepseek.model || DEFAULT_MODELS.deepseek[tier] });
+    }
     if (chain.length === 0) {
-        throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic keys.");
+        throw new Error("No LLM provider configured. Please set Gemini/OpenAI/Anthropic/DeepSeek keys.");
     }
     // Smart routing: try providers with a healthy circuit before ones currently in cooldown,
     // without dropping a provider entirely (a fully-failed chain still gets one real attempt).
@@ -383,8 +408,13 @@ async function callProvider(
         };
     }
 
-    if (candidate.provider === LLMProvider.OPENAI) {
-        const client = new OpenAI({ apiKey: candidate.apiKey });
+    if (candidate.provider === LLMProvider.OPENAI || candidate.provider === LLMProvider.DEEPSEEK) {
+        // DeepSeek exposes an OpenAI-compatible chat completions API - same client,
+        // just a different base URL. Mirrors modules/overseer/deepseekClient.ts.
+        const client = new OpenAI({
+            apiKey: candidate.apiKey,
+            ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {})
+        });
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
         // no explicit cache_control needed, just put the stable instructions
         // in their own leading message so the prefix is byte-identical
@@ -875,6 +905,36 @@ export class AIService {
     }
 
     async generateEmailDraft(lead: any, icp: any, teamId?: string): Promise<{ subject: string; body: string }> {
+        // Dynamic import (not a static one) deliberately: vectorStore.ts imports this same
+        // aiService module, so a static import of KnowledgeOrchestrator here would create an
+        // aiService -> knowledgeOrchestrator -> vectorStore -> aiService cycle. Deferring to
+        // call time resolves both modules after they've finished initializing.
+        let knowledgeContext = "";
+        try {
+            const { KnowledgeOrchestrator } = await import("@/modules/knowledge/services/knowledgeOrchestrator");
+            knowledgeContext = await new KnowledgeOrchestrator().getCampaignContext(lead?.campaignId || "", lead?.id || "");
+        } catch {
+            // Grounding is best-effort - a draft without it is still better than no draft.
+        }
+
+        // Free (POST /v4/content/generate_prompt spends no Crystal credit) -
+        // only runs when enrichment-worker.ts has already found this lead's
+        // Crystal Knows profile id. Same dynamic-import-to-avoid-cycle
+        // reasoning as KnowledgeOrchestrator above.
+        let personalityGuidance = "";
+        const crystalProfileId = lead?.enrichedData?.crystalKnows?.profileId;
+        if (crystalProfileId && teamId) {
+            try {
+                const { CrystalService } = await import("@/modules/crystal-knows/service/crystalService");
+                personalityGuidance = (await CrystalService.generatePersonalityPrompt(teamId, {
+                    id: crystalProfileId,
+                    objective: "write a cold outreach email",
+                })) || "";
+            } catch {
+                // Best-effort - a draft without personality guidance is still better than no draft.
+            }
+        }
+
         // TOON's compact tabular serialization instead of JSON.stringify -
         // drops repeated-key/quote overhead from a full Prisma lead/ICP row,
         // cutting prompt tokens on every email-draft call.
@@ -886,6 +946,12 @@ ${TOON.serializeTabular(lead)}
 
 ICP:
 ${TOON.serializeTabular(icp)}
+
+Relevant knowledge base context:
+${knowledgeContext || "None"}
+
+Personality guidance (DISC):
+${personalityGuidance || "None"}
 
 Return JSON with keys: subject, body.
         `.trim();

@@ -11,15 +11,20 @@ import Footer from "@/components/Footer";
 // /command-center were missing and rendered with the wrong marketing chrome
 // instead of the dashboard sidebar).
 export const DASHBOARD_PREFIXES = [
-    "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
+    "/accounts", "/admin", "/agents", "/analytics", "/approvals", "/audit-logs",
     "/automations", "/billing", "/calendar", "/caller", "/campaigns",
-    "/command-center", "/crm", "/csv-ingestion", "/dashboard", "/edge",
+    "/command-center", "/crm", "/crystal-knows", "/csv-ingestion", "/dashboard", "/edge",
     "/governance", "/hunter-email-finder", "/icp-builder", "/inbox", "/intel",
     "/jobs", "/knowledge", "/landing-agent", "/leads", "/linkedin-runner",
     "/marketplace", "/monitoring", "/notifications", "/pipeline",
     "/playbooks", "/profile", "/runtime", "/scraper-bridge", "/settings",
     "/sovereign", "/studio", "/team", "/templates", "/tools",
-    "/whatsapp", "/workflows"
+    "/whatsapp", "/workflows",
+    // "/superadmin" isn't an (dashboard) route (it deliberately lives outside that
+    // group, gated by its own standalone login instead of the tenant session) but
+    // still needs this same chrome-free bypass - it renders its own full-page
+    // login screen / command center, not marketing Header/Footer.
+    "/superadmin"
     // NOTE: "/security" intentionally excluded — src/app/security/page.tsx is a
     // top-level public page (not inside the (dashboard) route group), so it needs
     // LayoutShell's generic Header/Footer fallback, not the dashboard chrome.
