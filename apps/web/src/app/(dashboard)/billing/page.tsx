@@ -40,6 +40,7 @@ export default function BillingPage() {
     const { data: usage } = useSWR(getBrowserApiUrl("/billing/usage"), fetcher);
     const { data: invoiceData } = useSWR(getBrowserApiUrl("/billing/invoices"), fetcher);
     const [topUpLoading, setTopUpLoading] = useState(false);
+    const [topUpError, setTopUpError] = useState<string | null>(null);
     const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null);
     const [billingModalOpen, setBillingModalOpen] = useState(false);
     const [pendingTierId, setPendingTierId] = useState<string | null>(null);
@@ -68,6 +69,7 @@ export default function BillingPage() {
 
     const handleTopUp = async (tierId: string, country: string, state: string) => {
         setTopUpLoading(true);
+        setTopUpError(null);
         try {
             // Create Razorpay order
             const response = await fetch(getBrowserApiUrl('/billing/topup'), {
@@ -96,9 +98,31 @@ export default function BillingPage() {
                 name: 'CraftMyFunnel',
                 description: 'Credit Top-up',
                 order_id: data.id,
-                handler: function (_response: any) {
-                    // Payment successful
-                    window.location.reload(); // Refresh to show updated credits
+                handler: async function (response: any) {
+                    // Razorpay Checkout only confirms the browser saw a success
+                    // screen - credits are granted server-side after verifying
+                    // the payment signature (the webhook is a second, idempotent
+                    // path for the same grant if this call doesn't complete).
+                    try {
+                        const verifyResponse = await fetch(getBrowserApiUrl('/billing/verify'), {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_signature: response.razorpay_signature,
+                            }),
+                        });
+                        if (!verifyResponse.ok) {
+                            const verifyData = await verifyResponse.json().catch(() => ({}));
+                            throw new Error(verifyData.error || 'Payment verification failed');
+                        }
+                        window.location.reload(); // Refresh to show updated credits
+                    } catch (verifyError: any) {
+                        setTopUpError(
+                            verifyError.message || 'Payment was captured but could not be verified. Contact support with your payment ID.'
+                        );
+                    }
                 },
                 prefill: {
                     email: subscription?.email || ''
@@ -112,7 +136,7 @@ export default function BillingPage() {
             rzp.open();
         } catch (error: any) {
             console.error('Top-up failed:', error);
-            alert(error.message || 'Failed to process top-up');
+            setTopUpError(error.message || 'Failed to process top-up');
         } finally {
             setTopUpLoading(false);
         }
@@ -124,6 +148,12 @@ export default function BillingPage() {
                 <h1 className="text-3xl font-bold text-foreground tracking-tight">Billing & Credits</h1>
                 <p className="text-muted-foreground mt-1">Manage your enterprise plan, credit balance, and transaction history.</p>
             </div>
+
+            {topUpError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                    {topUpError}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Current Plan Overview */}

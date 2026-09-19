@@ -11,7 +11,7 @@ import { OutboxService } from "@/lib/outboxService";
 // webhook reads it rather than re-deriving it. Orders that never went
 // through those routes (the unrecognized-notes-shape fallback below) carry
 // no such snapshot, so tax is extracted from the amount actually charged.
-function resolveTax(payment: any, notes: any) {
+export function resolveTax(payment: any, notes: any) {
     if (notes.taxableValue !== undefined && notes.taxableValue !== null) {
         return {
             taxableValue: Number(notes.taxableValue),
@@ -26,7 +26,7 @@ function resolveTax(payment: any, notes: any) {
 // Always called inside the same transaction as the payment's credit-grant
 // reservation (see the branches below), so a failure here rolls that grant
 // back too instead of leaving the payment credited with no invoice.
-async function createInvoice(client: TransactionClient, params: {
+export async function createInvoice(client: TransactionClient, params: {
     teamId: string;
     userId: string;
     subscriptionId?: string;
