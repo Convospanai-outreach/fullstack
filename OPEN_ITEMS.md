@@ -4483,6 +4483,65 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   VM/Google OPEN-21) — this requires rotating real production credentials,
   which is outside what this session can do; still owed.
 
+- **OPEN-242 (Fixed):** roadmap.md item 1.6 — production topology
+  correction + Oracle compose hardening + Chromium moved off the api
+  container. `apps/docker-compose.split.yml` in the repo is **not** what
+  runs in production; pulled the real files from both Oracle VMs
+  (2026-09-19) and found each host runs a single-service
+  `/opt/fullstack/docker-compose.yml` with `env_file: .env` and no
+  `${VAR:-default}` substitution anywhere (see the OPEN-241 correction
+  above — this is also why that item's original root-cause citation was
+  wrong). Neither `TRUST_PROXY` nor `FASTIFY_TRUST_PROXY` appears in
+  either VM's `.env`, and neither compose file has an `environment:`
+  override, so **item 1.3's gate is answered: TRUST_PROXY is confirmed
+  FALSE in production** — the global rate limiter must not trust
+  `X-Forwarded-For` as-is; 1.3 stays blocked, not merely unconfirmed.
+  `NODE_ENV=production` is set on both VMs (confirms OPEN-241's
+  assertion is actually live) and all three checked secrets
+  (`ENCRYPTION_KEY`, `NEXTAUTH_SECRET`, `CRON_SECRET`) resolve to
+  non-sample values, despite duplicate lines for two of them in the api
+  VM's `.env` (last-wins; cosmetic cleanup still owed on the VM).
+  Also found: `apps/api/routes/billing/invoices/[id]/download/route.ts`
+  ran Puppeteer/Chromium synchronously inside the request handler, in
+  the same container that serves live API traffic on a ~954Mi-RAM VM
+  (`free -h`, both hosts, 2026-09-19) — exactly the resource-contention
+  risk this item's "move to worker only" line is about. **Fixed:**
+  (1) committed the real compose files verbatim to
+  `deploy/oracle/docker-compose.{api,worker}.yml`, then hardened them —
+  `${IMAGE_TAG:-latest}` image pin (with `.github/workflows/
+  deploy-oracle.yml` now exporting `IMAGE_TAG=sha-<7-char>` from
+  `github.event.workflow_run.head_sha`, verified against a real
+  published GHCR tag before wiring it — `head_sha`, not `github.sha`,
+  since the latter is the branch head at trigger time and can be newer
+  than what was actually built), `stop_grace_period: 60s`, json-file
+  log rotation (10m × 3 files), and a memory limit on each (api 512M;
+  worker 640M — higher because it now also runs Chromium; flagged in a
+  comment that both VMs measured only ~270-330Mi free at idle, so this
+  is a crash-safety net, not proof 640M is comfortably safe, and the
+  roadmap's own suggestion to consider an A1 shape still stands).
+  (2) Moved PDF rendering to a new `invoice_pdf_render` job type
+  (`apps/api/src/workers/handlers/invoicePdfWorker.ts`), dispatched
+  only from `job-processor.ts` (i.e. only ever runs on the worker
+  process). `POST /billing/invoices/[id]/render` enqueues it
+  (idempotent per invoice — a given invoice's PDF never changes, so
+  repeat downloads reuse the same job/result); the existing generic
+  `GET /jobs/[id]` is reused for polling rather than adding a new
+  status endpoint. `apps/web`'s invoice download button now calls a new
+  `lib/billing/invoiceDownload.ts` helper (POST → poll → decode
+  base64 → client-side Blob download) instead of `window.open()`ing
+  the old synchronous route, which was deleted. Regression tests: new
+  route (`render/route.test.ts`, 3 cases), worker handler
+  (`invoicePdfWorker.test.ts`, 3 cases), and the web polling helper
+  (`invoiceDownload.test.ts`, 4 cases: start-failure, success-after-
+  poll, dead-lettered, timeout). Full `apps/api` suite (239 files /
+  1398 tests) and `apps/web` unit suite (40 files / 211 tests) pass;
+  `tsc --noEmit` clean on both apps; both compose files validated with
+  `docker compose config` locally. **Not done, explicitly out of
+  scope:** none of this was applied to the live VMs — committing to
+  `deploy/oracle/` changes nothing on `/opt/fullstack/` until someone
+  copies the file over and redeploys; that step, and cleaning up the
+  duplicate `.env` lines, are still owed as manual ops actions.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
