@@ -9,6 +9,8 @@ import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
 import { API_KEY_REQUEST_SOURCE_HEADER, getApiKeyRoutePolicy } from '@/lib/apiAuth';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit';
+import { resolveRateLimitTier } from '@/lib/rateLimitTiers';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,7 +18,17 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.resolve(__dirname, '.env'), override: true });
 
-const trustProxy = process.env.TRUST_PROXY === 'true' || process.env.FASTIFY_TRUST_PROXY === 'true';
+// The loopback address, not boolean `true`: `true` trusts the *entire*
+// X-Forwarded-For chain and returns its left-most (client-claimed,
+// spoofable) entry. Naming the trusted hop's own address instead means
+// Fastify only honors X-Forwarded-For when the immediate TCP peer actually
+// is that hop - which on these VMs is always Caddy, the only thing that
+// ever connects to this process (bound to 127.0.0.1 only - see
+// deploy/oracle/). Fastify's TS types don't accept a numeric hop count
+// (fastify@5.12.3's TrustProxyFunction/string/string[]/boolean union), so
+// this is the precise equivalent: trust exactly this one named hop.
+const trustProxyEnabled = process.env.TRUST_PROXY === 'true' || process.env.FASTIFY_TRUST_PROXY === 'true';
+const trustProxy: boolean | string[] = trustProxyEnabled ? ['127.0.0.1', '::1'] : false;
 
 const fastify = Fastify({
   trustProxy,
@@ -221,6 +233,47 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
     let authUserId: string | undefined;
     let authTeamId: string | undefined;
 
+    // Computed here (rather than only later, alongside the header
+    // overwrite below) because the IP-keyed rate-limit tiers need it before
+    // the auth block runs. Safe to trust once trustProxy is a hop count
+    // (see the const above) - request.ip then reflects Caddy's own view of
+    // the connecting IP, not anything a client could set directly.
+    const serverSource: string = request.ip || request.socket?.remoteAddress || request.raw?.socket?.remoteAddress || 'unknown';
+
+    const rateLimitBypassed = process.env.NODE_ENV === 'test' || process.env.DISABLE_RATE_LIMIT === 'true';
+    const tierResolution = resolveRateLimitTier(registeredPath, isPublic);
+
+    async function enforceRateLimit(identifier: string) {
+      if (rateLimitBypassed) return true;
+      const config = RATE_LIMITS[tierResolution.tier];
+      const result = await checkRateLimit(identifier, config, tierResolution.endpoint);
+      if (result.allowed) return true;
+      const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000);
+      reply
+        .status(429)
+        .header('Retry-After', String(retryAfter))
+        .header('X-RateLimit-Limit', String(config.maxRequests))
+        .header('X-RateLimit-Remaining', '0')
+        .header('X-RateLimit-Reset', String(result.resetTime))
+        .send({
+          error: 'Rate limit exceeded',
+          message: `Too many requests. Please try again in ${retryAfter} seconds.`,
+          retryAfter,
+          endpoint: tierResolution.endpoint,
+        });
+      return false;
+    }
+
+    // IP-keyed tiers (AUTH/WEBHOOK/ERROR_LOGGING/PUBLIC) are checked before
+    // the auth block, same ordering as the old middleware.ts's "before all
+    // other checks" - rejects a flood before paying for getToken()/the
+    // handler. ADMIN/AUTHENTICATED (userId-keyed) can't be checked yet -
+    // there is no userId until the token below is verified - so they're
+    // deferred to right after authUserId resolves.
+    if (tierResolution.keyByIp) {
+      if (!(await enforceRateLimit(`ip:${serverSource}`))) return;
+    }
+
     if (!isPublic) {
       const secret = process.env.NEXTAUTH_SECRET;
       if (!secret && process.env.NODE_ENV === 'production') {
@@ -247,6 +300,11 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
           return;
         }
       }
+
+      // ADMIN/AUTHENTICATED tiers, deferred from above - userId is only
+      // known now that the token has been verified.
+      const identifier = authUserId ? `user:${authUserId}` : `ip:${serverSource}`;
+      if (!(await enforceRateLimit(identifier))) return;
     }
 
     const proto = request.headers['x-forwarded-proto'] || request.protocol || 'http';
@@ -259,7 +317,7 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
       if (Array.isArray(v)) headers.set(k, v.join(','));
       else headers.set(k, String(v));
     });
-    const serverSource = request.ip || request.socket?.remoteAddress || request.raw?.socket?.remoteAddress || 'unknown';
+    // serverSource computed earlier (needed there for IP-keyed rate-limit tiers).
     // Trust boundary: the internal source header is always overwritten. When TRUST_PROXY/FASTIFY_TRUST_PROXY is enabled,
     // Fastify derives request.ip from trusted proxy headers; otherwise it uses the direct peer address.
     headers.set(API_KEY_REQUEST_SOURCE_HEADER, serverSource);
