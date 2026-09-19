@@ -89,7 +89,13 @@ export const RATE_LIMITS = {
     maxRequests: 5000,        // 5000 requests per minute
   },
 
-  // Webhook endpoints (per source)
+  // Webhook endpoints (per source IP). Accepted limitation: providers like
+  // Razorpay/WhatsApp send from shared infra IP pools, not one IP per
+  // merchant, so a burst of legitimate traffic to a *different* merchant's
+  // webhook from the same provider IP counts against this same bucket. Not
+  // fixable without a per-provider signature/allowlist keyed identifier
+  // instead of IP; out of scope for now since the actual risk this tier
+  // guards against (unauthenticated flooding) is unrelated to that.
   WEBHOOK: {
     windowMs: 60 * 1000,      // 1 minute
     maxRequests: 50,          // 50 requests per minute
