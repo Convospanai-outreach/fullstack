@@ -4449,11 +4449,19 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `blindIndexService.ts`'s `getSecretKey()` falls back to the hard-coded
   string `"cmf_default_blind_index_salt_secure"` when both `BLIND_INDEX_KEY`
   and `ENCRYPTION_KEY` are absent, `trackingService.ts`'s
-  `getMetadataSecret()` falls back to `"tracking-metadata"`, and
-  `apps/docker-compose.split.yml:126` sets `CRON_SECRET: ${CRON_SECRET:-change-me}`
-  — a host that never sets `CRON_SECRET` gets the literal string
-  `"change-me"` as a *set* value, which passes
-  `routes/scheduler/tick/route.ts`'s own "is it set at all" check. None of
+  `getMetadataSecret()` falls back to `"tracking-metadata"`, and if
+  `CRON_SECRET` is ever literally set to `"change-me"` (a known public
+  placeholder, e.g. left over from a copy-pasted `.env` template),
+  `routes/scheduler/tick/route.ts`'s own check only verifies the var is
+  *set at all* and would accept it. (Originally attributed to
+  `apps/docker-compose.split.yml:126`'s `${CRON_SECRET:-change-me}`
+  default — corrected after confirming via the real `/opt/fullstack/.env`
+  on both Oracle VMs, pulled 2026-09-19, that production actually runs a
+  minimal single-service `docker-compose.yml` with `env_file: .env` and no
+  `${VAR:-default}` substitution at all, so that specific injection path
+  never applied in practice; the literal-value check below is still valid
+  defense-in-depth against the value getting set that way by any other
+  route, e.g. a copy-pasted `.env`.) None of
   this was previously caught at boot. **Fixed:** added
   `apps/api/src/lib/bootSecretAssertions.ts` exporting
   `assertProductionSecretsAreSafe(env = process.env)`, called once from
