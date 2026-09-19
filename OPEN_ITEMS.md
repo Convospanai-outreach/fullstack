@@ -4314,7 +4314,6 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   action, not a code change; per the user's standing note this session,
   `.env.example` was also not touched (real env lives on
   Render/Supabase/Oracle, not in the repo's example file).
->>>>>>> ad8b62cd (roadmap 1.2: fail closed on WhatsApp inbound webhook + parse STOP/opt-out)
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
