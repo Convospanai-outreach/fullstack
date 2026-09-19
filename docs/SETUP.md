@@ -153,7 +153,7 @@ Use this when the sender mailbox is a Gmail or Google Workspace account.
 3. Create an app password from **Security > 2-Step Verification > App passwords**.
 4. Choose **Mail** or create a custom app name such as `CraftMyFunnel SMTP`.
 5. Copy the generated 16-character app password and remove any spaces before storing it.
-6. Add these values to the Vercel and Railway environments that send email:
+6. Add these values to the Render/Oracle VM environments that send email:
 
 ```bash
 SMTP_HOST=smtp.gmail.com
@@ -257,9 +257,7 @@ In Vercel Dashboard → Settings → Environment Variables, add:
 ### 4. Set Up Database
 
 Use a managed PostgreSQL service:
-- **Vercel Postgres** (recommended)
-- **Supabase**
-- **Railway**
+- **Supabase** (current production database)
 - **Neon**
 
 Update `DATABASE_URL` in Vercel environment variables.

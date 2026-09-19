@@ -27,8 +27,7 @@ Launch the smallest stable version of CraftMyFunnel as an email-first outreach w
 
 ## Deployment Target
 
-- `apps/web` on Railway
-- `apps/api` on Railway
-- `postgres` private on Railway
-- `redis` private on Railway
+- `apps/web` on Render
+- `apps/api` and its worker on Oracle Cloud VMs
+- `postgres` on Supabase
 - no `edge-fastapi` deployment for the first beta unless a design partner requires it

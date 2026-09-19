@@ -43,9 +43,7 @@ The Edge Node runs as a containerized FastAPI application.
    ```
    `docker-compose.edge.yml` (repo root) is a local dev-simulation harness that
    also includes the Cloudflare tunnel service used in [Networking &
-   Resilience](#7-networking--resilience). For containerised local dev without
-   the tunnel, `apps/docker-compose.split.yml` runs the same `edge-fastapi`
-   image alongside the rest of the split stack.
+   Resilience](#7-networking--resilience).
 
 ## 4. Hardware Attestation
 

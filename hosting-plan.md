@@ -1,5 +1,11 @@
 # Hosting Plan
 
+> **Superseded (2026-09-19):** production did not end up on Railway. The
+> actual topology is `apps/web` on Render, `apps/api` + its worker on two
+> Oracle Cloud VMs (via Docker Compose, images from GHCR), and Postgres on
+> Supabase. Everything below is the original pre-launch plan, kept as a
+> historical record of what was considered — not current guidance.
+
 ## Recommended Production Topology
 
 Use a **Railway-first deployment** for the initial production launch.
