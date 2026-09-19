@@ -29,5 +29,10 @@ jobs:
             # space entirely. Safe to run unconditionally - the currently-running image is
             # always "in use" and never pruned.
             docker image prune -af
+            # head_sha (the commit the images were actually built from), not github.sha
+            # (which on a workflow_run trigger is the default branch's current head,
+            # possibly newer than what was built) - matches the sha-<short> tag docker/
+            # metadata-action publishes in .github/workflows/docker-ghcr.yml.
+            export IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
             docker compose pull
             docker compose up -d

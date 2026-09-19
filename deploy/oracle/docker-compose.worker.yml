@@ -1,9 +1,32 @@
 services:
   worker:
-    image: ghcr.io/convospanai-outreach/fullstack/api:latest
+    # ${IMAGE_TAG} is set by .github/workflows/deploy-oracle.yml from the
+    # commit that was actually built (head_sha of the GHCR-registration
+    # workflow run) - defaults to :latest so this file still works if run
+    # manually without that var set.
+    image: ghcr.io/convospanai-outreach/fullstack/api:${IMAGE_TAG:-latest}
     container_name: api-worker
     restart: unless-stopped
+    stop_grace_period: 60s
     env_file: .env
     command: ["node", "../../node_modules/tsx/dist/cli.mjs", "src/workers/start-workers.ts"]
     volumes:
       - ./config/prod-ca-2021.crt:/app/prod-ca-2021.crt:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          # Higher than the api container's: this process now also runs
+          # Chromium (invoice-PDF rendering, moved here by this same item;
+          # LinkedIn scraping via puppeteerRunner.ts/browserManager.ts
+          # already ran here). Both VMs measured ~954Mi total RAM with only
+          # ~270-330Mi free at idle (`free -h`, 2026-09-19) - this limit is
+          # a crash-safety net against runaway growth, not evidence 640M is
+          # comfortably safe on a ~1GB host. See OPEN_ITEMS.md for the
+          # explicit recommendation to monitor actual usage after Chromium
+          # traffic starts, and consider the A1 shape the roadmap suggests.
+          memory: 640M
