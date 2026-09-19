@@ -4178,7 +4178,6 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `updateMailboxControls`/`listConnectedMailboxes` already fully
   supported the field. `tsc --noEmit`/lint clean.
 
-<<<<<<< HEAD
 - **OPEN-243 (Fixed):** roadmap.md item 1.3 — global rate limiter. Rule 6's
   gate ("do NOT implement unless TRUST_PROXY is confirmed true") turned out
   to need a deeper answer than yes/no. Investigation found: (1)
