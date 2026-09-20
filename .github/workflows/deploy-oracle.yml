@@ -124,11 +124,15 @@ jobs:
 
       - name: Blocking destructive-migration scan (deploy-time)
         if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration != 'true'
-        run: node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts --files="${{ steps.diff.outputs.files }}"
+        env:
+          NEW_MIGRATION_FILES: ${{ steps.diff.outputs.files }}
+        run: node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts --files="$NEW_MIGRATION_FILES"
 
       - name: Destructive-migration scan skipped (manual override)
         if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration == 'true'
-        run: echo "::warning::force_destructive_migration=true - skipped the blocking scan for ${{ steps.diff.outputs.files }}. This should only be used after a human has reviewed the migration diff."
+        env:
+          NEW_MIGRATION_FILES: ${{ steps.diff.outputs.files }}
+        run: echo "::warning::force_destructive_migration=true - skipped the blocking scan for $NEW_MIGRATION_FILES. This should only be used after a human has reviewed the migration diff."
 
   migrate:
     needs: [resolve-sha, scan-new-migrations]

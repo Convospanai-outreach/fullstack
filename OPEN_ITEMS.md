@@ -4617,7 +4617,20 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   will need an allowlist entry with a reason, which is the intended
   friction, not a bug. `production-gate.yml`/`render-parity-build.yml`
   (apps/web's own deploy path, on Render) were left untouched — this
-  item's roadmap text scopes to `deploy-oracle.yml` only.
+  item's roadmap text scopes to `deploy-oracle.yml` only. **Follow-up
+  fix (same item, before merge):** CodeQL's own PR check (not a job this
+  fix added — it runs on every PR regardless) flagged 2 high-severity
+  "Cache Poisoning via code injection" findings on the two lines above
+  that interpolated `${{ steps.diff.outputs.files }}` (attacker-
+  influenceable via a crafted migration filename) directly into a `run:`
+  shell body — the classic GitHub Actions script-injection pattern,
+  exploitable on `workflow_dispatch` against the default branch. Fixed by
+  routing it through an `env:` var (`NEW_MIGRATION_FILES`) and referencing
+  `$NEW_MIGRATION_FILES` in the script instead, on both flagged lines. No
+  other `${{ }}` usage in this workflow's `run:` steps needed the same
+  fix — every other one interpolates a GitHub-computed SHA/event-name
+  value (fixed format, not attacker-shaped free text), which is why
+  CodeQL only flagged these two.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
