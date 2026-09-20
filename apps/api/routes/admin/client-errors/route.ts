@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/admin";
 
 export async function GET(req: NextRequest) {
-    // Verify admin access
-    const admin = await getAdminUser();
+    // Cross-tenant client error payloads (ClientError has no teamId, so it
+    // cannot be team-scoped) - SYSTEM_ADMIN only (S-05).
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
     if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

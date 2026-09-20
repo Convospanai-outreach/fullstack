@@ -18,6 +18,14 @@ const ADMIN_LEVEL: Record<string, number> = {
     SUPER_ADMIN: 2,
 };
 
+// Pure role-comparison, extracted so the security-critical gate is unit-testable
+// on its own. The route tests mock @/lib/admin wholesale, so they never
+// exercise this comparison - a regression here (e.g. ORG_ADMIN clearing a
+// SYSTEM_ADMIN gate) would pass every route test but reopen S-05.
+export function meetsAdminLevel(enterpriseRole: string, requiredRole: string): boolean {
+    return (ADMIN_LEVEL[enterpriseRole] || 0) >= (ADMIN_LEVEL[requiredRole] || 0);
+}
+
 async function getUserFromRequest(): Promise<AdminUserContext | null> {
     const request = RequestContext.get()?.request;
     if (!request) return null;
@@ -69,12 +77,15 @@ function verifyInternalAdminHeaders(headers: Headers) {
     return { sub: userId, email, enterpriseRole: role };
 }
 
-export async function getAdminUser(requiredRole: UserRole = UserRole.ORG_ADMIN): Promise<AdminUserContext | null> {
+// Defaults to SYSTEM_ADMIN, not ORG_ADMIN (roadmap.md item 2.7 / S-05):
+// ORG_ADMIN is a customer-assignable role (invitable by other ORG_ADMINs, see
+// apps/web/src/lib/invitations.ts), so it must not clear the bare admin gate
+// and reach platform-wide `/admin/*` data. Callers that genuinely intend
+// ORG_ADMIN access pass it explicitly; the default is now a safe floor.
+export async function getAdminUser(requiredRole: UserRole = UserRole.SYSTEM_ADMIN): Promise<AdminUserContext | null> {
     const userFromRequest = await getUserFromRequest();
     if (userFromRequest) {
-        const level = ADMIN_LEVEL[userFromRequest.enterpriseRole] || 0;
-        const requiredLevel = ADMIN_LEVEL[requiredRole] || 0;
-        return level >= requiredLevel ? userFromRequest : null;
+        return meetsAdminLevel(userFromRequest.enterpriseRole, requiredRole) ? userFromRequest : null;
     }
 
     const session = await getServerSession(authOptions);
@@ -89,11 +100,9 @@ export async function getAdminUser(requiredRole: UserRole = UserRole.ORG_ADMIN):
 
     if (!user) return null;
 
-    const level = ADMIN_LEVEL[user.enterpriseRole] || 0;
-    const requiredLevel = ADMIN_LEVEL[requiredRole] || 0;
-    return level >= requiredLevel ? user : null;
+    return meetsAdminLevel(user.enterpriseRole, requiredRole) ? user : null;
 }
 
-export async function checkAdmin(requiredRole: UserRole = UserRole.ORG_ADMIN) {
+export async function checkAdmin(requiredRole: UserRole = UserRole.SYSTEM_ADMIN) {
     return Boolean(await getAdminUser(requiredRole));
 }

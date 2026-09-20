@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCurrentContext } from "@/lib/auth";
+import { getCurrentContextFromRequest } from "@/lib/auth";
 import { datasetService } from "@/modules/training/DatasetService";
 
 export async function GET(req: NextRequest) {
-    const { userId } = await getCurrentContext();
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-    const { searchParams } = new URL(req.url);
-    const teamId = searchParams.get("teamId") || "";
+    if (!teamId) return NextResponse.json({ error: "No active team" }, { status: 403 });
 
     const datasets = await datasetService.listDatasets(teamId);
 

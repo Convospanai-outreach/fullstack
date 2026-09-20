@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Redis from "ioredis";
+import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
 import { getEdgeRuntimeAvailability } from "@/lib/edgeRuntime";
@@ -111,7 +112,9 @@ export async function GET(req: Request) {
     let isAdmin = false;
     let authBypass = false;
     try {
-        isAdmin = await checkAdmin();
+        // Platform infrastructure health (internal endpoints/topology, no team
+        // dimension) - SYSTEM_ADMIN only (S-05).
+        isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
     } catch {
         authBypass =
             process.env["ALLOW_UNAUTH_ADMIN_METRICS"] === "true" ||

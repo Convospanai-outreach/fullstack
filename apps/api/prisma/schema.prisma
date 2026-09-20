@@ -2622,6 +2622,11 @@ enum ModelStatus {
 
 model TrainingDataset {
   id          String           @id @default(uuid())
+  // Nullable: pre-existing datasets predate tenant scoping and have no correct
+  // team owner, and Postgres treats NULL as distinct so legacy rows coexist
+  // with new team-scoped ones without a migration-time collision. Matches the
+  // Agent.teamId precedent (20260915120000_agent_team_scope).
+  teamId      String?
   version     String           @unique
   taskType    TrainingTaskType
   recordCount Int              @default(0)
@@ -2637,11 +2642,16 @@ model TrainingDataset {
 
   @@index([status])
   @@index([taskType])
+  @@index([teamId])
 }
 
 model TrainingRecord {
   id                  String           @id @default(uuid())
   datasetId           String
+  // Denormalized from the parent dataset's teamId so record-level queries can
+  // scope by tenant without a join. Nullable for the same reason as
+  // TrainingDataset.teamId above.
+  teamId              String?
   taskType            TrainingTaskType
   inputText           String           @db.Text
   brandRules          Json
@@ -2659,6 +2669,7 @@ model TrainingRecord {
   @@index([datasetId])
   @@index([approved])
   @@index([reviewScore])
+  @@index([teamId])
 }
 
 model DatasetReview {

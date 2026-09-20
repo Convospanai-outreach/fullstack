@@ -1,34 +1,77 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockPrisma = {
-    trainingDataset: { create: vi.fn(), update: vi.fn() },
-    trainingRecord: { create: vi.fn() },
-    datasetReview: { create: vi.fn() },
-};
+const { mockPrisma } = vi.hoisted(() => ({
+    mockPrisma: {
+        trainingDataset: {
+            create: vi.fn(),
+            findMany: vi.fn(),
+            findFirst: vi.fn(),
+        },
+        trainingRecord: {
+            create: vi.fn(),
+        },
+    },
+}));
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
-import { DatasetService } from "../DatasetService";
+import { DatasetService, type TrainingRecordData } from "@/modules/training/DatasetService";
 
-describe("DatasetService.reviewDataset", () => {
+const sampleRecord: TrainingRecordData = {
+    task_type: "TONE_NORMALIZATION",
+    input_text: "in",
+    brand_rules: {},
+    policy_rules: {},
+    expected_output: "out",
+    rejection_conditions: [],
+};
+
+describe("DatasetService tenant scoping (S-04)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
 
-    it("transitions the dataset to REVIEWED so TrainingManager.startTraining's status gate can pass", async () => {
-        mockPrisma.datasetReview.create.mockResolvedValue({ id: "review-1" });
-        mockPrisma.trainingDataset.update.mockResolvedValue({ id: "ds-1", status: "REVIEWED" });
+    it("persists the caller's teamId when creating a dataset", async () => {
+        mockPrisma.trainingDataset.create.mockResolvedValue({ id: "ds-1" });
 
-        await DatasetService.reviewDataset("ds-1", "reviewer-1", 20, {
-            policy: 0.9,
-            tone: 0.9,
-            clarity: 0.9,
-            realism: 0.9,
-        });
+        await DatasetService.createDataset("team-1", "v1", "TONE_NORMALIZATION");
 
-        expect(mockPrisma.trainingDataset.update).toHaveBeenCalledWith({
-            where: { id: "ds-1" },
-            data: { status: "REVIEWED" },
-        });
+        expect(mockPrisma.trainingDataset.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ teamId: "team-1", version: "v1" }) }),
+        );
+    });
+
+    it("filters the dataset list by teamId", async () => {
+        mockPrisma.trainingDataset.findMany.mockResolvedValue([]);
+
+        await DatasetService.listDatasets("team-1");
+
+        expect(mockPrisma.trainingDataset.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: "team-1" } }),
+        );
+    });
+
+    it("refuses to append a record to a dataset owned by another team", async () => {
+        mockPrisma.trainingDataset.findFirst.mockResolvedValue(null); // not found for this team
+
+        const result = await DatasetService.addRecord("ds-other", sampleRecord, "team-1");
+
+        expect(result.success).toBe(false);
+        expect(mockPrisma.trainingDataset.findFirst).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { id: "ds-other", teamId: "team-1" } }),
+        );
+        expect(mockPrisma.trainingRecord.create).not.toHaveBeenCalled();
+    });
+
+    it("appends a record (stamped with teamId) when the dataset belongs to the caller's team", async () => {
+        mockPrisma.trainingDataset.findFirst.mockResolvedValue({ id: "ds-1" });
+        mockPrisma.trainingRecord.create.mockResolvedValue({ id: "rec-1" });
+
+        const result = await DatasetService.addRecord("ds-1", sampleRecord, "team-1");
+
+        expect(result.success).toBe(true);
+        expect(mockPrisma.trainingRecord.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ datasetId: "ds-1", teamId: "team-1" }) }),
+        );
     });
 });

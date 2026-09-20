@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { checkAdmin } from "@/lib/admin";
 import { logger } from "@/lib/logger";
 
 export async function GET(_req: Request) {
-    const isAdmin = await checkAdmin();
+    // Platform-wide counts (all tenants) - SYSTEM_ADMIN only; ORG_ADMIN is
+    // customer-assignable and must not see cross-tenant totals (S-05).
+    const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
     if (!isAdmin) {
         return new NextResponse("Unauthorized", { status: 403 });
     }

@@ -4632,6 +4632,71 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   value (fixed format, not attacker-shaped free text), which is why
   CodeQL only flagged these two.
 
+- **OPEN-245 (Fixed):** roadmap.md item 2.7 — tenant scoping (S-04, S-05).
+  First Phase-2 item. Two halves:
+  **S-04 (training tenant isolation).** `TrainingDataset`/`TrainingRecord`
+  had no `teamId`, so any signed-in user could list every team's datasets
+  and append records to any `datasetId`. Added nullable `teamId` +
+  `@@index([teamId])` to both models (mirrored across `packages/db`,
+  `apps/web`, `apps/api` schemas + a new `20260920120000_training_team_scope`
+  migration in all three dirs; the 1.7 drift gate and deploy-time
+  destructive scan both verified clean). Nullable/not-backfilled, matching
+  the `Agent.teamId` precedent (legacy rows have no correct owner). The
+  actual fix is that **caller-supplied `teamId` is no longer trusted**:
+  `training/dataset` (create), `training/dataset/list`, and
+  `training/record` now derive `teamId` from `getCurrentContextFromRequest`
+  (403 if the caller has no active team), never from the request body/query.
+  `DatasetService.createDataset` now persists `teamId`; `listDatasets`
+  filters by it; `addRecord` verifies the target dataset belongs to the
+  caller's team before inserting (returns not-found otherwise) and stamps
+  the record's `teamId`. `SyntheticDataService.generateBatch` resolves the
+  dataset's own team and threads it through so generated records inherit it.
+  Also team-scoped `training/status` (was a plain IDOR — any user could read
+  any pipeline's status by id) via the owning dataset's team.
+  **S-05 (admin default + platform routes).** Flipped the default
+  `requiredRole` on `getAdminUser`/`checkAdmin` from `ORG_ADMIN` to
+  `SYSTEM_ADMIN` — ORG_ADMIN is customer-assignable (invitable by other
+  ORG_ADMINs, `apps/web/src/lib/invitations.ts`), so it must not clear the
+  bare admin gate and read platform-wide data. Made all 11 bare callers
+  pass an explicit role so the intent is visible at each site (all →
+  `SYSTEM_ADMIN`: stats, service-health, runtime-overview, llm-stats,
+  client-errors + export, actions/[action], training start/generate/review,
+  ml-training/generate). **Deviation from the roadmap's literal text,
+  confirmed with the user before implementing** (rule 1 — surfaced the
+  tradeoff): the roadmap said "scope `admin/stats`, `admin/client-errors`,
+  `admin/runtime-overview`, `admin/llm-stats` by team for ORG_ADMIN," but
+  re-verifying the underlying tables showed **none of the four can be
+  cleanly team-scoped** — `ClientError` has no `teamId` (only a nullable
+  `userId`), `AiTrace` (behind llm-stats) has no `teamId`,
+  `runtime-overview` is platform infra health (DB/Redis/edge checks, no team
+  dimension), and `stats` is mostly platform-wide counts. Per the user's
+  choice (SYSTEM_ADMIN-only for all four — the narrower, safer reading that
+  fully closes the leak with no new telemetry-table migrations), these are
+  SYSTEM_ADMIN-only rather than team-scoped; team-scoped versions can be a
+  later item if ORG_ADMIN dashboards are wanted back. Gated the three
+  consuming `apps/web` pages (`admin/client-errors`, `admin/health`,
+  `analytics/ai`) to SYSTEM_ADMIN via the existing `requireRole` server
+  pattern (split each client page into a `*Client.tsx` + a server `page.tsx`
+  gate) so ORG_ADMINs get a clean redirect instead of a broken shell.
+  Regression tests: extracted the role comparison into a pure
+  `meetsAdminLevel(enterpriseRole, requiredRole)` helper and unit-tested it
+  directly (`src/lib/__tests__/admin.test.ts`, 5 cases) — the per-route
+  tests mock `@/lib/admin` wholesale and would never catch a broken gate;
+  new `DatasetService` team-scoping tests (4 cases) and a `training/record`
+  route test (3 cases); updated the existing `training/dataset` route test
+  to assert team-from-context (and that a spoofed `body.teamId` is ignored).
+  Full apps/api suite 245/245 files, 1444/1444 tests; apps/web 456 passing /
+  7 pre-existing skips; `tsc --noEmit` clean on both apps. **Not
+  browser-tested:** the three `apps/web` page gates are server-side
+  `requireRole` redirects and typecheck clean, but I could not exercise them
+  in a browser (needs a running dev server + a SYSTEM_ADMIN vs ORG_ADMIN
+  session); the redirect logic is the same pattern already used by
+  `admin/page.tsx`. **Left as-is (out of scope, noted):** `runtime-overview`
+  still has an `ALLOW_UNAUTH_ADMIN_METRICS`/non-prod auth bypass — a separate
+  concern from S-05's role question; and adding real `teamId` columns to
+  `ClientError`/`AiTrace` to restore team-scoped ORG_ADMIN dashboards is a
+  larger change deferred per the decision above.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

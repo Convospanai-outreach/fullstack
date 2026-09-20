@@ -17,6 +17,7 @@ export class DatasetService {
             const { prisma } = await import("@/lib/db");
             const dataset = await prisma.trainingDataset.create({
                 data: {
+                    teamId,
                     version: name,
                     taskType: taskType as any,
                     recordCount: 0,
@@ -44,6 +45,7 @@ export class DatasetService {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
             const datasets = await prisma.trainingDataset.findMany({
+                where: { teamId },
                 orderBy: { updatedAt: "desc" }
             });
             return datasets;
@@ -56,12 +58,23 @@ export class DatasetService {
         }
     }
 
-    static async addRecord(datasetId: string, record: TrainingRecordData) {
+    static async addRecord(datasetId: string, record: TrainingRecordData, teamId: string | null) {
         if (isServer) {
             const { prisma } = await import("@/lib/db");
+            // Verify the dataset belongs to the caller's team before appending -
+            // without this, any caller could append records to any datasetId
+            // (roadmap.md item 2.7 / S-04).
+            const dataset = await prisma.trainingDataset.findFirst({
+                where: { id: datasetId, teamId },
+                select: { id: true }
+            });
+            if (!dataset) {
+                return { success: false, error: "Dataset not found" };
+            }
             const created = await prisma.trainingRecord.create({
                 data: {
                     datasetId,
+                    teamId,
                     taskType: record.task_type as any,
                     inputText: record.input_text,
                     brandRules: record.brand_rules as any,

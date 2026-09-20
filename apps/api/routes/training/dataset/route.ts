@@ -3,12 +3,12 @@ import { getCurrentContextFromRequest } from "@/lib/auth";
 import { datasetService } from "@/modules/training/DatasetService";
 
 export async function POST(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!teamId) return NextResponse.json({ error: "No active team" }, { status: 403 });
 
     const body = await req.json();
     const name = body.name || body.version;
-    const teamId = body.teamId;
     const taskType = body.taskType || "TONE_NORMALIZATION";
     if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
