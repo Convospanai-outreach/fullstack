@@ -10,6 +10,20 @@ export class SyntheticDataService {
      */
     async generateBatch(datasetId: string, taskType: TrainingTaskType, count: number = 5) {
 
+        // Resolve the dataset's owning team so generated records inherit it,
+        // keeping TrainingRecord.teamId consistent with its parent dataset
+        // (roadmap.md item 2.7 / S-04).
+        const { prisma } = await import("@/lib/db");
+        const dataset = await prisma.trainingDataset.findUnique({
+            where: { id: datasetId },
+            select: { teamId: true }
+        });
+        if (!dataset) {
+            console.warn("Synthetic generation skipped: dataset not found", datasetId);
+            return 0;
+        }
+        const teamId = dataset.teamId;
+
         // Stage 3.1: Base Prompt Structure
         const systemPrompt = `You are generating synthetic training data for an enterprise compliance-focused AI.
 
@@ -78,7 +92,7 @@ The expected output must:
                     continue;
                 }
 
-                await datasetService.addRecord(datasetId, validRecord);
+                await datasetService.addRecord(datasetId, validRecord, teamId);
                 addedCount++;
             }
 

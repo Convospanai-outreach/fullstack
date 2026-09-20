@@ -20,7 +20,8 @@ export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{ action: string }> }
 ) {
-    const admin = await getAdminUser();
+    // Platform admin actions - SYSTEM_ADMIN only (S-05).
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
 
     // Strict RBAC: Only Admin or Operator
     if (!admin) {

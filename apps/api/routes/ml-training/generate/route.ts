@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { getAdminUser } from "@/lib/admin";
 import { syntheticDataGenerator } from "@/modules/ml-training/generators/SyntheticGenerator";
 import { z } from "zod";
@@ -26,8 +27,8 @@ const generateSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    // Require admin or system_admin role
-    const admin = await getAdminUser();
+    // Synthetic data generation is a platform operation - SYSTEM_ADMIN only (S-05).
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
     if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

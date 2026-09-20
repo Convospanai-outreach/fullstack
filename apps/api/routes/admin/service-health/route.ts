@@ -1,10 +1,12 @@
 
 import { NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { serviceWatcher } from "@/modules/audit/ServiceWatcher";
 import { checkAdmin } from "@/lib/admin";
 
 export async function GET() {
-    const isAdmin = await checkAdmin();
+    // Platform service health - SYSTEM_ADMIN only (S-05).
+    const isAdmin = await checkAdmin(UserRole.SYSTEM_ADMIN);
     if (!isAdmin) {
         return new NextResponse("Unauthorized", { status: 403 });
     }

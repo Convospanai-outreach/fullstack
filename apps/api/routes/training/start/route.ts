@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { getAdminUser } from "@/lib/admin";
 import { trainingManager } from "@/modules/ml-training/training/TrainingManager";
 
 export async function POST(req: NextRequest) {
-    const admin = await getAdminUser();
+    // Model training is a platform operation - SYSTEM_ADMIN only (S-05).
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
     if (!admin) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

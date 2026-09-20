@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getAdminUser } from "@/lib/admin";
 
 export async function POST(req: NextRequest) {
-    const admin = await getAdminUser();
+    // Cross-tenant client error export - SYSTEM_ADMIN only, same as the sibling
+    // client-errors read route (S-05).
+    const admin = await getAdminUser(UserRole.SYSTEM_ADMIN);
     if (!admin) {
         return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }

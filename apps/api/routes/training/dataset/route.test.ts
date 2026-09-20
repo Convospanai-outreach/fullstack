@@ -23,7 +23,7 @@ describe("POST /training/dataset", () => {
     });
 
     it("401s an unauthenticated caller", async () => {
-        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: null });
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: null, teamId: null });
 
         const res = await POST(postRequest({ name: "v1" }));
 
@@ -31,13 +31,23 @@ describe("POST /training/dataset", () => {
         expect(mockDatasetService.createDataset).not.toHaveBeenCalled();
     });
 
-    it("delegates dataset creation to DatasetService instead of duplicating the write", async () => {
-        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1" });
+    it("403s a caller with no active team", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: null });
+
+        const res = await POST(postRequest({ name: "v1" }));
+
+        expect(res.status).toBe(403);
+        expect(mockDatasetService.createDataset).not.toHaveBeenCalled();
+    });
+
+    it("creates the dataset for the caller's own team, ignoring any body.teamId", async () => {
+        mockGetCurrentContextFromRequest.mockResolvedValue({ userId: "user-1", teamId: "team-ctx" });
         mockDatasetService.createDataset.mockResolvedValue({ id: "ds-1", version: "v1" });
 
-        const res = await POST(postRequest({ name: "v1", teamId: "team-1", taskType: "REFUSAL_GENERATION" }));
+        // body.teamId is a spoof attempt - the route must use the context team.
+        const res = await POST(postRequest({ name: "v1", teamId: "team-attacker", taskType: "REFUSAL_GENERATION" }));
 
         expect(res.status).toBe(200);
-        expect(mockDatasetService.createDataset).toHaveBeenCalledWith("team-1", "v1", "REFUSAL_GENERATION");
+        expect(mockDatasetService.createDataset).toHaveBeenCalledWith("team-ctx", "v1", "REFUSAL_GENERATION");
     });
 });
