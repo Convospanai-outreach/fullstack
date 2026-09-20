@@ -4542,6 +4542,83 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   copies the file over and redeploys; that step, and cleaning up the
   duplicate `.env` lines, are still owed as manual ops actions.
 
+- **OPEN-244 (Fixed):** roadmap.md item 1.7 — deploy gate hardening.
+  Re-verified before touching (rule 2): `docker-ghcr.yml` (image build/push)
+  and `ci.yml` (typecheck/test/build) both trigger on the same `push: main`
+  event as two unrelated workflow runs with no ordering guarantee —
+  `deploy-oracle.yml` triggered only off the former's completion, so it
+  could deploy an image built from a commit whose tests never passed. Also
+  confirmed `web-prisma-migrate.yml` (the only path that applies schema
+  migrations) is `workflow_dispatch`-only, fully decoupled from image
+  deploy, exactly as I-03 describes. **Fixed:** `deploy-oracle.yml` now
+  runs `check-ci-gate` (polls `ci.yml`'s run for the exact commit being
+  deployed via `actions/github-script`, up to 15 minutes, and refuses to
+  proceed unless it concluded `success`) before anything else. A new
+  `migrate` job then runs `prisma migrate deploy` for `apps/api` (using the
+  existing `DATABASE_URL`/`DIRECT_URL` secrets, already used by
+  `web-prisma-migrate.yml`) before `deploy` pulls/restarts either VM.
+  **Safety gate added beyond the roadmap's literal text** (flagged to the
+  user before implementing, given production DB risk): re-ran
+  `verify.yml`'s destructive-migration scanner against the current repo
+  state first and found it would be useless as a blocking gate as-is — it
+  scans *every* tracked migration ever committed, not just new ones, and
+  currently reports 63 pre-existing, already-applied, unfixable findings
+  (confirmed by running `node --experimental-strip-types scripts/readiness/
+  scan-destructive-migrations.ts` directly). Wiring it in blocking mode
+  unmodified would have permanently red-lined every future deploy. Instead,
+  exported the scanner's internals (`scanFile`, `loadAllowlist`,
+  `listTrackedMigrationFiles`, `main`) from `scan-destructive-migrations.ts`
+  and added a `--files=<comma-separated>` mode that scans only an explicit
+  file list; `deploy-oracle.yml`'s new `scan-new-migrations` job computes
+  that list itself via `git diff --diff-filter=A HEAD~1 HEAD` (new migration
+  files added by the exact commit being deployed — reliable here because
+  every push to `main` in this repo is a single squash-merge commit, so
+  `HEAD~1..HEAD` is exactly that PR's diff) and runs the scanner against
+  only those files in **blocking** mode — separate from, and stricter than,
+  the pre-existing PR-time advisory scan, which is unchanged. A
+  `workflow_dispatch` input (`force_destructive_migration`) allows a
+  reviewed override without touching the gate itself. `deploy`'s SSH step
+  now captures each host's currently-running image tag via `docker
+  inspect` before pulling, polls the new image's health after `compose up`
+  (the `api` container's own Docker healthcheck — `wget .../health` — for
+  `api-main`; a plain running-state check for `api-worker`, which has no
+  HTTP endpoint to poll), and on failure automatically re-deploys the
+  captured previous tag before failing the job (note: this rolls back the
+  *code*, not the DB schema — Prisma migrations are forward-only, so a
+  migration applied moments earlier by the same run is not undone; flagged
+  as a known limitation, not fixed here, since undoing it would need every
+  migration to also ship a down-migration, a much larger change out of
+  this item's scope). Finally, extended `scripts/db/compare-prisma-schemas
+  .mjs` (already run as `ci.yml`'s "Prisma Schema Drift Gate" step, so no
+  workflow change needed there) to also compare the three `prisma/
+  migrations/` directories' folder listings and each shared migration's
+  file content hash — previously it only compared `schema.prisma` content,
+  so exactly I-03's cited drift shape (a migration folder present in one
+  copy and not the others) went undetected as long as `schema.prisma`
+  itself still matched. **Running the new check immediately found a real,
+  currently-live instance of that exact drift**: `packages/db` was missing
+  `20260915120000_agent_team_scope` (present, byte-identical, in both
+  `apps/api` and `apps/web`) — copied it over as part of this fix; the
+  drift gate now passes clean. Regression tests: `scripts/readiness/
+  scan-destructive-migrations.test.mjs` (5 cases covering `parseFilesFilter`
+  and the allowlist/blocking behavior of `scanFile`) and `scripts/db/
+  compare-prisma-schemas.test.mjs` (5 cases covering matching trees, a
+  missing-folder drift, a content-mismatch drift, and CRLF/LF-normalized
+  hashing) — both run via `node --test`, matching this repo's existing
+  `scripts/readiness/no-seed-readiness-audit.test.mjs` convention (not
+  wired into CI, same as that sibling test). `tsc --noEmit` clean on both
+  apps; full `apps/api` suite 243/243 files, 1432/1432 tests passing
+  (unaffected — no application code changed, only `.github/workflows/` and
+  `scripts/`). **Not done, explicitly out of scope:** rollback only covers
+  the app image, not the DB schema (see above); the destructive-migration
+  allowlist file (`scripts/readiness/destructive-migration-allowlist.json`)
+  does not exist yet, so the deploy-time blocking scan currently has zero
+  headroom for a legitimate future destructive migration — the first one
+  will need an allowlist entry with a reason, which is the intended
+  friction, not a bug. `production-gate.yml`/`render-parity-build.yml`
+  (apps/web's own deploy path, on Render) were left untouched — this
+  item's roadmap text scopes to `deploy-oracle.yml` only.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
