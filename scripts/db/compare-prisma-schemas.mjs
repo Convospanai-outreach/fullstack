@@ -2,8 +2,17 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = process.cwd();
+const __filename = fileURLToPath(import.meta.url);
+
+// A function, not a cached constant: reading process.cwd() fresh on every
+// call (rather than once at module import) is what lets tests chdir into a
+// scratch tree and have that observed - behaviorally identical in normal
+// use, since a real invocation's cwd never changes mid-process.
+function repoRoot() {
+  return process.cwd();
+}
 
 const schemaPaths = [
   "packages/db/prisma/schema.prisma",
@@ -11,8 +20,35 @@ const schemaPaths = [
   "apps/api/prisma/schema.prisma",
 ];
 
+// The three schemas above are meant to be kept as identical copies (see
+// packages/db/README.md), and so are their migration directories - a
+// migration added under one and not mirrored to the others (the exact drift
+// OPEN-239/I-03 found: apps/api had 20260915120000_agent_team_scope while
+// apps/web and packages/db didn't) would otherwise go unnoticed, since this
+// script previously only compared schema.prisma content.
+const migrationDirPaths = [
+  "packages/db/prisma/migrations",
+  "apps/web/prisma/migrations",
+  "apps/api/prisma/migrations",
+];
+
+export function listMigrationNames(relativeDirPath) {
+  const absoluteDirPath = path.resolve(repoRoot(), relativeDirPath);
+  return fs
+    .readdirSync(absoluteDirPath, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export function hashMigrationSql(relativeDirPath, migrationName) {
+  const absolutePath = path.resolve(repoRoot(), relativeDirPath, migrationName, "migration.sql");
+  const rawContent = fs.readFileSync(absolutePath, "utf8");
+  return createHash("sha256").update(normalizeLineEndings(rawContent)).digest("hex");
+}
+
 function readSchema(relativePath) {
-  const absolutePath = path.resolve(repoRoot, relativePath);
+  const absolutePath = path.resolve(repoRoot(), relativePath);
   const rawContent = fs.readFileSync(absolutePath, "utf8");
   const content = normalizeLineEndings(rawContent);
   const semanticContent = normalizeSafeWhitespace(content);
@@ -91,7 +127,71 @@ function reportPair(left, right) {
   return same;
 }
 
-function main() {
+export function compareMigrationDirs() {
+  const [sharedDir, webDir, apiDir] = migrationDirPaths;
+  const sharedNames = listMigrationNames(sharedDir);
+  const webNames = listMigrationNames(webDir);
+  const apiNames = listMigrationNames(apiDir);
+
+  const sharedVsWeb = compareLists(sharedNames, webNames);
+  const sharedVsApi = compareLists(sharedNames, apiNames);
+  const webVsApi = compareLists(webNames, apiNames);
+  const namesMatch =
+    sharedVsWeb.onlyLeft.length === 0 &&
+    sharedVsWeb.onlyRight.length === 0 &&
+    sharedVsApi.onlyLeft.length === 0 &&
+    sharedVsApi.onlyRight.length === 0 &&
+    webVsApi.onlyLeft.length === 0 &&
+    webVsApi.onlyRight.length === 0;
+
+  const commonNames = sharedNames.filter(
+    (name) => webNames.includes(name) && apiNames.includes(name),
+  );
+  const contentMismatches = [];
+  for (const name of commonNames) {
+    const sharedHash = hashMigrationSql(sharedDir, name);
+    const webHash = hashMigrationSql(webDir, name);
+    const apiHash = hashMigrationSql(apiDir, name);
+    if (sharedHash !== webHash || sharedHash !== apiHash) {
+      contentMismatches.push({ name, sharedHash, webHash, apiHash });
+    }
+  }
+
+  return {
+    namesMatch,
+    sharedVsWeb,
+    sharedVsApi,
+    webVsApi,
+    contentMismatches,
+    match: namesMatch && contentMismatches.length === 0,
+  };
+}
+
+function reportMigrationDirs(result) {
+  console.log("\nPrisma migration directory comparison");
+  console.log(`- packages/db vs apps/web (folder names): ${result.sharedVsWeb.onlyLeft.length === 0 && result.sharedVsWeb.onlyRight.length === 0 ? "MATCH" : "DIFFER"}`);
+  if (result.sharedVsWeb.onlyLeft.length) console.log(`  only in packages/db: ${result.sharedVsWeb.onlyLeft.join(", ")}`);
+  if (result.sharedVsWeb.onlyRight.length) console.log(`  only in apps/web: ${result.sharedVsWeb.onlyRight.join(", ")}`);
+
+  console.log(`- packages/db vs apps/api (folder names): ${result.sharedVsApi.onlyLeft.length === 0 && result.sharedVsApi.onlyRight.length === 0 ? "MATCH" : "DIFFER"}`);
+  if (result.sharedVsApi.onlyLeft.length) console.log(`  only in packages/db: ${result.sharedVsApi.onlyLeft.join(", ")}`);
+  if (result.sharedVsApi.onlyRight.length) console.log(`  only in apps/api: ${result.sharedVsApi.onlyRight.join(", ")}`);
+
+  console.log(`- apps/web vs apps/api (folder names): ${result.webVsApi.onlyLeft.length === 0 && result.webVsApi.onlyRight.length === 0 ? "MATCH" : "DIFFER"}`);
+  if (result.webVsApi.onlyLeft.length) console.log(`  only in apps/web: ${result.webVsApi.onlyLeft.join(", ")}`);
+  if (result.webVsApi.onlyRight.length) console.log(`  only in apps/api: ${result.webVsApi.onlyRight.join(", ")}`);
+
+  if (result.contentMismatches.length === 0) {
+    console.log("- migration.sql content (shared migrations): MATCH");
+  } else {
+    console.log("- migration.sql content (shared migrations): DIFFER");
+    for (const mismatch of result.contentMismatches) {
+      console.log(`  ${mismatch.name}: packages/db=${mismatch.sharedHash} apps/web=${mismatch.webHash} apps/api=${mismatch.apiHash}`);
+    }
+  }
+}
+
+export function main() {
   const schemas = schemaPaths.map(readSchema);
   const [shared, web, api] = schemas;
 
@@ -109,9 +209,19 @@ function main() {
   console.log(`- shared vs api: ${sharedMatchesApi ? "MATCH" : "DIFFER"}`);
   console.log(`- web vs api: ${webMatchesApi ? "MATCH" : "DIFFER"}`);
 
-  if (!sharedMatchesWeb || !sharedMatchesApi || !webMatchesApi) {
+  const migrationDirResult = compareMigrationDirs();
+  reportMigrationDirs(migrationDirResult);
+  console.log(`- migration directories: ${migrationDirResult.match ? "MATCH" : "DIFFER"}`);
+
+  if (!sharedMatchesWeb || !sharedMatchesApi || !webMatchesApi || !migrationDirResult.match) {
     process.exitCode = 1;
   }
 }
 
-main();
+export function isCliEntrypoint(argvPath = process.argv[1]) {
+  return Boolean(argvPath) && path.resolve(argvPath) === __filename;
+}
+
+if (isCliEntrypoint()) {
+  main();
+}

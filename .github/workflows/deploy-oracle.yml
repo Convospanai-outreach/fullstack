@@ -1,38 +1,261 @@
 name: Deploy to Oracle VMs
 
+# Gated on CI passing for the exact commit being deployed (roadmap.md item
+# 1.7 / I-02): docker-ghcr.yml builds and pushes images independently of
+# ci.yml (same push event, two unrelated workflow runs, no ordering
+# guarantee), so without the check-ci-gate job below this workflow could
+# deploy an image built from a commit whose tests/typecheck never passed.
+#
+# Also runs prisma migrate deploy before compose up (I-03), gated by its own
+# blocking destructive-migration re-scan (scan-new-migrations) - separate
+# from, and stricter than, verify.yml's PR-time scan of the same name, which
+# is deliberately advisory-only and scans the entire migration history (see
+# scan-destructive-migrations.ts's parseFilesFilter comment). This job scans
+# only the migration files newly added by the commit being deployed, which
+# is what migrate deploy is actually about to apply.
+
 on:
   workflow_run:
     workflows: ["Register Docker Images to GHCR"]
     types: [completed]
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      force_destructive_migration:
+        description: "Skip the blocking destructive-migration scan (only after manual review of the migration diff)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-oracle
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
 
 jobs:
+  resolve-sha:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+    steps:
+      - name: Resolve the commit being deployed
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            sha="${{ github.sha }}"
+          else
+            sha="${{ github.event.workflow_run.head_sha }}"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "image_tag=sha-$(echo "$sha" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+  check-ci-gate:
+    needs: resolve-sha
+    runs-on: ubuntu-latest
+    outputs:
+      passed: ${{ steps.wait.outputs.passed }}
+    steps:
+      - name: Wait for ci.yml to complete for this commit
+        id: wait
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = '${{ needs.resolve-sha.outputs.sha }}';
+            const maxAttempts = 45;
+            const delayMs = 20000;
+
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+              const { data } = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: 'ci.yml',
+                head_sha: sha,
+              });
+              const run = data.workflow_runs[0];
+
+              if (run && run.status === 'completed') {
+                if (run.conclusion === 'success') {
+                  core.setOutput('passed', 'true');
+                  return;
+                }
+                core.setFailed(`ci.yml for ${sha} concluded '${run.conclusion}', not 'success'. Refusing to deploy: ${run.html_url}`);
+                core.setOutput('passed', 'false');
+                return;
+              }
+
+              if (attempt < maxAttempts - 1) {
+                await new Promise((r) => setTimeout(r, delayMs));
+              }
+            }
+
+            core.setFailed(`Timed out after ${(maxAttempts * delayMs) / 60000} minutes waiting for ci.yml to complete for ${sha}.`);
+            core.setOutput('passed', 'false');
+
+  scan-new-migrations:
+    needs: [resolve-sha, check-ci-gate]
+    if: needs.check-ci-gate.outputs.passed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-sha.outputs.sha }}
+          fetch-depth: 2
+
+      - name: List newly added migration files in this commit
+        id: diff
+        run: |
+          new_files="$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- '*/prisma/migrations/*/migration.sql' | tr '\n' ',' | sed 's/,$//')"
+          echo "files=$new_files" >> "$GITHUB_OUTPUT"
+          if [ -n "$new_files" ]; then
+            echo "New migration files in this deploy: $new_files"
+          else
+            echo "No new migration files in this deploy."
+          fi
+
+      - name: Setup Node.js
+        if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.x'
+
+      - name: Blocking destructive-migration scan (deploy-time)
+        if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration != 'true'
+        env:
+          NEW_MIGRATION_FILES: ${{ steps.diff.outputs.files }}
+        run: node --experimental-strip-types scripts/readiness/scan-destructive-migrations.ts --files="$NEW_MIGRATION_FILES"
+
+      - name: Destructive-migration scan skipped (manual override)
+        if: steps.diff.outputs.files != '' && github.event.inputs.force_destructive_migration == 'true'
+        env:
+          NEW_MIGRATION_FILES: ${{ steps.diff.outputs.files }}
+        run: echo "::warning::force_destructive_migration=true - skipped the blocking scan for $NEW_MIGRATION_FILES. This should only be used after a human has reviewed the migration diff."
+
+  migrate:
+    needs: [resolve-sha, scan-new-migrations]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-sha.outputs.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --workspace apps/api --include-workspace-root --no-audit --no-fund --legacy-peer-deps
+
+      - name: Generate Prisma Client
+        working-directory: apps/api
+        run: npx prisma generate --config prisma/prisma.config.ts --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run Prisma migrate deploy against production
+        working-directory: apps/api
+        run: npx prisma migrate deploy --config prisma/prisma.config.ts --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
   deploy:
-    if: github.event.workflow_run.conclusion == 'success'
+    needs: [resolve-sha, migrate]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        host_secret: [ORACLE_API_MAIN_HOST, ORACLE_API_WORKER_HOST]
+        include:
+          - host_secret: ORACLE_API_MAIN_HOST
+            container: api-main
+            health_check: http
+          - host_secret: ORACLE_API_WORKER_HOST
+            container: api-worker
+            health_check: running
     steps:
-      - name: Pull and restart on ${{ matrix.host_secret }}
+      - name: Deploy, health-check, and roll back on failure (${{ matrix.host_secret }})
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ needs.resolve-sha.outputs.image_tag }}
+          CONTAINER: ${{ matrix.container }}
+          HEALTH_CHECK: ${{ matrix.health_check }}
         with:
           host: ${{ secrets[matrix.host_secret] }}
           username: ${{ secrets.ORACLE_SSH_USER }}
           key: ${{ secrets.ORACLE_SSH_KEY }}
+          envs: IMAGE_TAG,CONTAINER,HEALTH_CHECK
           script: |
             set -e
             cd /opt/fullstack
+
             # Prune BEFORE pulling: pull failing on a full disk (silently, without `set -e`
             # here, since the deployed container just kept running the stale image while CI
             # still reported success) is what let old images pile up until the VM ran out of
             # space entirely. Safe to run unconditionally - the currently-running image is
             # always "in use" and never pruned.
             docker image prune -af
-            # head_sha (the commit the images were actually built from), not github.sha
-            # (which on a workflow_run trigger is the default branch's current head,
-            # possibly newer than what was built) - matches the sha-<short> tag docker/
-            # metadata-action publishes in .github/workflows/docker-ghcr.yml.
-            export IMAGE_TAG="sha-$(echo ${{ github.event.workflow_run.head_sha }} | cut -c1-7)"
-            docker compose pull
-            docker compose up -d
+
+            previous_image="$(docker inspect --format='{{.Config.Image}}' "$CONTAINER" 2>/dev/null || true)"
+            previous_tag="${previous_image##*:}"
+
+            deploy_with_tag() {
+              local tag="$1"
+              export IMAGE_TAG="$tag"
+              # No -f flag: each host's /opt/fullstack has its own plain
+              # docker-compose.yml (single-service - api-main runs the api
+              # role's file, api-worker runs the worker role's file; see
+              # deploy/oracle/docker-compose.{api,worker}.yml in the repo for
+              # the reference copies of each). Docker Compose resolves that
+              # default filename from cwd on its own.
+              docker compose pull
+              docker compose up -d
+            }
+
+            wait_healthy() {
+              local attempt
+              for attempt in $(seq 1 12); do
+                if [ "$HEALTH_CHECK" = "http" ]; then
+                  status="$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$CONTAINER" 2>/dev/null || echo "missing")"
+                  if [ "$status" = "healthy" ]; then
+                    return 0
+                  fi
+                else
+                  status="$(docker inspect --format='{{.State.Status}}' "$CONTAINER" 2>/dev/null || echo "missing")"
+                  if [ "$status" = "running" ]; then
+                    return 0
+                  fi
+                fi
+                sleep 5
+              done
+              return 1
+            }
+
+            deploy_with_tag "$IMAGE_TAG"
+
+            if wait_healthy; then
+              echo "Deploy of $IMAGE_TAG to $CONTAINER healthy."
+              exit 0
+            fi
+
+            echo "::error::$CONTAINER did not become healthy on $IMAGE_TAG within 60s."
+            docker logs --tail 100 "$CONTAINER" || true
+
+            if [ -n "$previous_tag" ] && [ "$previous_tag" != "$IMAGE_TAG" ]; then
+              echo "Rolling back $CONTAINER to previous tag: $previous_tag"
+              deploy_with_tag "$previous_tag"
+              if wait_healthy; then
+                echo "::error::Rolled back $CONTAINER to $previous_tag after $IMAGE_TAG failed its health check."
+              else
+                echo "::error::Rollback to $previous_tag also failed its health check on $CONTAINER."
+              fi
+            else
+              echo "::error::No previous image tag recorded for $CONTAINER - nothing to roll back to."
+            fi
+
+            exit 1

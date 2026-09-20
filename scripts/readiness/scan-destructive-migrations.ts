@@ -2,6 +2,9 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
 
 type Severity = "critical" | "high" | "medium";
 
@@ -92,7 +95,27 @@ function parseAllowlistPath(argv: string[]): string {
   return path.resolve(repoRoot, "scripts/readiness/destructive-migration-allowlist.json");
 }
 
-function loadAllowlist(filePath: string): AllowlistEntry[] {
+// Restricts the scan to an explicit, comma-separated file list instead of
+// every tracked migration ever committed. Used by the deploy-time blocking
+// gate (deploy-oracle.yml), which only cares about migrations `prisma
+// migrate deploy` is actually about to apply on this run - the full-history
+// scan below is fine for the PR-time advisory check (which just informs
+// review), but would permanently fail a blocking gate: this repo's already-
+// applied migration history contains dozens of pre-existing DROP/DELETE
+// statements no PR under review can do anything about.
+export function parseFilesFilter(argv: string[]): string[] | undefined {
+  const flag = argv.find((arg) => arg.startsWith("--files="));
+  if (!flag) {
+    return undefined;
+  }
+  const value = flag.slice("--files=".length).trim();
+  if (value === "") {
+    return [];
+  }
+  return value.split(",").map((entry) => normalizePath(entry.trim())).filter(Boolean);
+}
+
+export function loadAllowlist(filePath: string): AllowlistEntry[] {
   if (!fs.existsSync(filePath)) {
     return [];
   }
@@ -134,7 +157,7 @@ function normalizePath(input: string): string {
   return input.replace(/\\/g, "/");
 }
 
-function listTrackedMigrationFiles(): string[] {
+export function listTrackedMigrationFiles(): string[] {
   const output = execFileSync("git", ["ls-files", ...migrationGlobs], {
     cwd: repoRoot,
     encoding: "utf8",
@@ -157,7 +180,7 @@ function findAllowlistEntry(
   return allowlist.find((entry) => entry.path === filePath && entry.patternId === patternId);
 }
 
-function scanFile(filePath: string, allowlist: AllowlistEntry[]): Finding[] {
+export function scanFile(filePath: string, allowlist: AllowlistEntry[]): Finding[] {
   const absolutePath = path.resolve(repoRoot, filePath);
   const lines = fs.readFileSync(absolutePath, "utf8").split(/\r?\n/u);
   const findings: Finding[] = [];
@@ -239,15 +262,21 @@ function printReport(files: string[], findings: Finding[], allowlistPath: string
   );
 }
 
-function main() {
-  const allowlistPath = parseAllowlistPath(process.argv.slice(2));
+export function main(argv: string[] = process.argv.slice(2)) {
+  const allowlistPath = parseAllowlistPath(argv);
   const allowlist = loadAllowlist(allowlistPath);
   const allowlistUsed = fs.existsSync(allowlistPath);
-  const files = listTrackedMigrationFiles();
+  const filesFilter = parseFilesFilter(argv);
+  const files = filesFilter ?? listTrackedMigrationFiles();
 
-  if (files.length === 0) {
+  if (filesFilter === undefined && files.length === 0) {
     console.error("No tracked Prisma migration SQL files found.");
     process.exit(1);
+  }
+
+  if (files.length === 0) {
+    console.log("No migration files to scan (--files was empty).");
+    return;
   }
 
   const findings = files.flatMap((filePath) => scanFile(filePath, allowlist));
@@ -259,4 +288,10 @@ function main() {
   }
 }
 
-main();
+export function isCliEntrypoint(argvPath = process.argv[1]): boolean {
+  return Boolean(argvPath) && path.resolve(argvPath) === __filename;
+}
+
+if (isCliEntrypoint()) {
+  main();
+}
