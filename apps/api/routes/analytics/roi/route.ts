@@ -14,40 +14,78 @@ export async function GET(req: Request) {
         : 6;
 
     try {
-        // Fetch all campaigns for the team
-        const campaigns = await prisma.campaign.findMany({
-            where: { teamId },
-            include: {
-                variants: true,
-                _count: {
-                    select: {
-                        leadList: true,
-                        emails: true
+        // 3. Pipeline History window (last N months, default 6). Built first so the
+        // history queries below can be bounded to exactly this window instead of
+        // loading every lead/usage-log ever (I-04). The reduce compares Date values
+        // directly, so months[0].start is an exact lower bound (no padding needed).
+        const now = new Date();
+        const months: { key: string; start: Date; end: Date }[] = [];
+        for (let i = monthsBack - 1; i >= 0; i -= 1) {
+            const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+            const key = start.toISOString().slice(0, 7);
+            months.push({ key, start, end });
+        }
+        const historyCutoff = months[0]!.start;
+
+        // All-time funnel/financial figures come from count/aggregate (computed in
+        // the DB) instead of loading every row and reducing in memory. The two
+        // *_History queries are bounded to the requested window. campaigns.findMany
+        // is left unbounded on purpose - per-team campaign counts are small and it's
+        // not what I-04 flagged; its per-variant openCount/replyCount sums need the
+        // rows anyway.
+        const [
+            campaigns,
+            totalLeads,
+            opportunities,
+            wins,
+            revenueAgg,
+            spendAgg,
+            historyLeads,
+            historyUsage,
+        ] = await Promise.all([
+            prisma.campaign.findMany({
+                where: { teamId },
+                include: {
+                    variants: true,
+                    _count: {
+                        select: {
+                            leadList: true,
+                            emails: true
+                        }
                     }
                 }
-            }
-        });
-
-        // Fetch overall lead stats
-        const leads = await prisma.lead.findMany({
-            where: { teamId },
-            select: { status: true, value: true, wonAt: true, updatedAt: true }
-        });
+            }),
+            prisma.lead.count({ where: { teamId } }),
+            prisma.lead.count({ where: { teamId, status: { in: ['INTERESTED', 'MEETING_BOOKED', 'NEGOTIATION'] } } }),
+            prisma.lead.count({ where: { teamId, status: 'CLOSED_WON' } }),
+            prisma.lead.aggregate({ where: { teamId, status: 'CLOSED_WON' }, _sum: { value: true } }),
+            prisma.lLMUsageLog.aggregate({ where: { teamId }, _sum: { cost: true } }),
+            prisma.lead.findMany({
+                where: {
+                    teamId,
+                    status: 'CLOSED_WON',
+                    OR: [
+                        { wonAt: { gte: historyCutoff } },
+                        { wonAt: null, updatedAt: { gte: historyCutoff } },
+                    ],
+                },
+                select: { value: true, wonAt: true, updatedAt: true },
+            }),
+            prisma.lLMUsageLog.findMany({
+                where: { teamId, createdAt: { gte: historyCutoff } },
+                select: { cost: true, createdAt: true },
+            }),
+        ]);
 
         // 1. Calculate Funnel Metrics
-        const totalLeads = leads.length;
         const totalSent = campaigns.reduce((acc, c) => acc + c._count.emails, 0); // Assuming 1 email per lead per campaign roughly
-        const opportunities = leads.filter(l => ['INTERESTED', 'MEETING_BOOKED', 'NEGOTIATION'].includes(l.status)).length;
-        const wins = leads.filter(l => l.status === 'CLOSED_WON').length;
 
         // Marketing Spend based on recorded LLM usage costs
-        const usageLogs = await prisma.lLMUsageLog.findMany({
-            where: { teamId }
-        });
-        const marketingSpend = usageLogs.reduce((acc, u) => acc + (u.cost || 0), 0);
+        const marketingSpend = spendAgg._sum.cost || 0;
 
         // Revenue Calculation (Closed Won)
-        const revenue = leads.reduce((acc, l) => acc + (l.status === 'CLOSED_WON' ? (l.value || 0) : 0), 0);
+        const revenue = revenueAgg._sum.value || 0;
 
         // ROI
         const profit = revenue - marketingSpend;
@@ -69,26 +107,18 @@ export async function GET(req: Request) {
             };
         });
 
-        // 3. Pipeline History (last N months, default 6)
-        const now = new Date();
-        const months: { key: string; start: Date; end: Date }[] = [];
-        for (let i = monthsBack - 1; i >= 0; i -= 1) {
-            const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59, 999);
-            const key = start.toISOString().slice(0, 7);
-            months.push({ key, start, end });
-        }
-
+        // 3. Pipeline History (months window built above). historyLeads is already
+        // filtered to CLOSED_WON in the window, so the reduce only buckets by date.
         const pipelineHistory = months.map((m) => {
-            const revenueForMonth = leads.reduce((acc, l) => {
+            const revenueForMonth = historyLeads.reduce((acc, l) => {
                 const wonAt = l.wonAt || l.updatedAt;
-                if (l.status === "CLOSED_WON" && wonAt && wonAt >= m.start && wonAt <= m.end) {
+                if (wonAt && wonAt >= m.start && wonAt <= m.end) {
                     return acc + (l.value || 0);
                 }
                 return acc;
             }, 0);
 
-            const spendForMonth = usageLogs.reduce((acc, u) => {
+            const spendForMonth = historyUsage.reduce((acc, u) => {
                 if (u.createdAt >= m.start && u.createdAt <= m.end) {
                     return acc + (u.cost || 0);
                 }

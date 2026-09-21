@@ -4914,6 +4914,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   both apps. Still deferred from 2.11: cursor pagination on list endpoints
   (contract change) and the `analytics/roi`+`journey` aggregate rewrites.
 
+- **OPEN-251 (Fixed):** roadmap.md item 2.11 follow-up — **`analytics/roi`
+  aggregate rewrite** (closes the roi half of the [[OPEN-250]]/[[OPEN-249]]
+  deferral). The route loaded *every* team lead **and** every LLM usage log with
+  two unbounded `findMany`s, then reduced in memory. Rewrote it to compute the
+  all-time figures in the DB and bound the monthly-history queries to the
+  requested window:
+  - `totalLeads`/`opportunities`/`wins` → `prisma.lead.count`;
+    `revenue` → `lead.aggregate _sum.value` (CLOSED_WON); `marketingSpend` →
+    `lLMUsageLog.aggregate _sum.cost`. `_sum` skips nulls, matching the old
+    `l.value || 0` / `u.cost || 0` reduces exactly.
+  - `pipelineHistory` now reads two **window-bounded** queries (CLOSED_WON leads
+    and usage logs with date `>= months[0].start`) instead of all-time loads.
+    The cutoff is derived from the caller's own `?months=` window (1..24), so a
+    deep window doesn't silently zero older buckets. The reduce compares `Date`
+    values directly (not UTC day-keys), so `months[0].start` is an exact bound —
+    no padding needed (unlike the dashboard fix).
+  - All independent queries run in one `Promise.all` (no extra serial
+    round-trips). `campaigns.findMany` (with `variants`) is **left unbounded on
+    purpose** — per-team campaign counts are small, it's not what I-04 flagged,
+    and its per-variant open/reply sums need the rows anyway.
+  **`analytics/journey` left deferred (documented):** its stage *counts* are
+  aggregatable, but its average-duration figures are per-row time-difference
+  computations (`createdAt`/`pipelineStateChangedAt`/`hotAt` vs `Date.now()` with
+  branching on current `pipelineState`) over **all** leads — not expressible as a
+  DB aggregate. The full row load is required for durations regardless, so a
+  `groupBy` for the counts would add a query **without** removing the load. Bounding
+  by date would change the (all-time) averages. Correct fix needs precomputed
+  duration columns or a redesign — out of scope; untouched.
+  Regression test: new `routes/analytics/roi/route.test.ts` — a fixed dataset with
+  hand-computed expected output (funnel/financials/campaigns field-by-field, plus
+  current-vs-other month history buckets), a `?months=24` test pinning the history
+  cutoff to the requested window, and an unauthenticated-caller guard. Full
+  apps/api suite 1462/1462; `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
