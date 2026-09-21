@@ -5148,6 +5148,58 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `getDatasetStats`, `getSampleForReview` are only called by this one route and are
   now scoped through it.
 
+- **OPEN-257 (Fixed — code parts; env/ops parts documented):** roadmap.md item 2.13 —
+  canonical host / crawlability (F-24, F-25; F-26 verified stale).
+  **F-24 (crawlable public routes):** `sitemap.ts` listed `/governance`, which is an
+  auth-gated `(dashboard)` page — removed it so crawlers aren't pointed at a login
+  redirect. `proxy.ts`'s `publicPaths` was missing `/locations` even though
+  `sitemap.ts` advertises `/locations` and `/locations/{city}` for all 10 cities —
+  added `/locations` (the existing `cleanPath === p || startsWith(p + "/")` predicate
+  covers the city sub-pages), so the marketing location pages are reachable without a
+  NextAuth session instead of 302→`/login`.
+  **F-25 (discovery docs emitting localhost behind Render):** the middleware built the
+  canonical base for four discovery responses from `req.nextUrl.origin`
+  (markdown-negotiated pages, `/.well-known/api-catalog`, `agent-card.json`,
+  `agent-skills/index.json`). Behind Render the incoming origin can be an
+  internal/localhost URL, which then leaked into the canonical/self links those docs
+  emit. Switched all four to `getBaseSiteUrl()` (already the default the doc
+  generators fall back to; reads `NEXT_PUBLIC_SITE_URL` → `NEXTAUTH_URL` →
+  `https://craftmyfunnel.live`, never localhost). Chose the canonical helper over
+  trusting `x-forwarded-host`, which is attacker-controllable and wrong for canonical
+  docs. Left the OAuth callback and internal-relay-fetch `nextUrl.origin` uses alone —
+  those must reflect the real request origin.
+  **F-25, second emitter (found while verifying the first):** the same three
+  discovery docs also have App-Router route handlers
+  (`app/.well-known/{api-catalog,agent-card.json,agent-skills/index.json}/route.ts`)
+  that built `origin` from `req.nextUrl.origin`. The middleware matcher
+  (`/((?!_next/static|…).*)`) intercepts these paths, so the handlers are shadowed for
+  real traffic today — but they're `export const dynamic = 'force-static'`, so the
+  request origin is *meaningless at build time* and a future removal of the middleware
+  branch would serve a build-time localhost. Switched all three to `getBaseSiteUrl()`
+  too, closing the class rather than leaving a latent second emitter.
+  **F-26 (CSP `www.google.com` for GA) — verified stale, no change:** core GA4
+  `page_view` collect goes to `*.google-analytics.com/g/collect`, which is *already*
+  in the CSP `connect-src`. `layout.tsx` configures gtag with only
+  `{ send_page_view: true }` — no Google Signals / Ads / conversion, the only features
+  that would ping `www.google.com`. Adding it would widen the CSP for a GA-property
+  feature nothing in the code enables. Left out; revisit only if Signals/Ads is turned
+  on at the GA property level.
+  **Env/ops parts (documented, not code):** the canonical-host cutover also needs
+  `NEXT_PUBLIC_SITE_URL`/`NEXTAUTH_URL` set to the apex on Render and the Google OAuth
+  authorized-redirect URIs aligned — deployment settings, not code changes.
+  Regression tests: `geo-search-readiness.test.ts` gains a `/governance`-absent
+  sitemap assertion (F-24); `/locations`-present in the sitemap is already covered by
+  `locations-engine.test.ts`; `landing-agent-routing-regression.test.ts` gains a
+  `"/locations"`-in-`proxy.ts` guard (F-24) matching the file's existing
+  string-presence convention for the publicPaths whitelist (no executable middleware
+  harness exists, so this is a source-string guard, not a behavioral test). The three
+  route-handler origin swaps *are* exercised — `api-catalog.test.ts`,
+  `a2a-agent-card.test.ts`, `agent-skills.test.ts` invoke those handlers and still
+  pass (their mock origin `https://craftmyfunnel.live` equals `getBaseSiteUrl()`'s
+  default). The middleware discovery-origin swaps are mechanical and covered by the
+  web typecheck. Web `tsc --noEmit` clean; full `vitest run tests/unit` gate suite
+  green (212/212).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
