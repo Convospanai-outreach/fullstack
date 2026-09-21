@@ -4697,6 +4697,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `ClientError`/`AiTrace` to restore team-scoped ORG_ADMIN dashboards is a
   larger change deferred per the decision above.
 
+- **OPEN-246 (Fixed):** roadmap.md item 2.5 — WhatsApp manual send used the
+  global env-var WABA account instead of the team's own (F-10). **Confirmed
+  and fixed**: `routes/whatsapp/send/route.ts`'s POST called
+  `WhatsAppService.sendMessage(...)` with no credentials arg, so it fell back
+  to the global `WHATSAPP_PHONE_NUMBER_ID`/`WHATSAPP_ACCESS_TOKEN` — i.e. a
+  team's manual send went out from the platform's number, not their connected
+  WABA. Fixed by resolving `getTeamWabaConfig(teamId)` (the same resolver the
+  correct sequence path uses, `sequenceService.ts:550`) and passing it to
+  `sendMessage` (whose optional `credentials` param already existed). When the
+  team has no WABA connected, the route now returns 409 with
+  `code: "WABA_NOT_CONNECTED"` and a "connect it in Settings" message — the
+  API contract behind the "not connected banner" the roadmap asked for —
+  instead of silently sending as the platform. (No `apps/web` page currently
+  calls `/whatsapp/send`, so there is no manual-send UI to render that banner
+  yet; the API returns the distinct code so a future UI can.)
+  **Correction to the roadmap's own finding** (rule 2 — re-verified, doesn't
+  fully hold): the roadmap also named `TemplateGuard.ts:117-121` as
+  "global-only," but `TemplateGuard.getApprovedTemplates` has **zero callers**
+  (grepped `apps/api`) — it is uncalled dead code, and it needs a WhatsApp
+  Business Account **ID** (`WHATSAPP_WABA_ID`), which is distinct from
+  `whatsappPhoneNumberId` and is **not** stored on the `Team` model, so it
+  cannot be team-scoped without a new schema field. Left untouched and
+  documented rather than half-scoped (team token + global wabaId would be
+  incoherent) or adding a schema column for dead code — out of scope. The
+  send path's actual TemplateGuard usage (`validateMessage`,
+  `recordMessageSent`) uses no WABA credentials, so it was already team-safe.
+  Also fixed F-11: deleted the dead `WHATSAPP_MOCK_MODE` line from both
+  `apps/api/.env.example` and `apps/web/.env.example` (0 code references; no
+  mock path exists — `WhatsAppService` has no mock mode) and removed the stale
+  "(Mock Supported)" comment in the send route. Regression tests: updated
+  `routes/whatsapp/send/route.test.ts` — added a 409 `WABA_NOT_CONNECTED`
+  case (asserts `sendMessage` is not called) and a case asserting
+  `sendMessage` receives the team's own creds (F-10), plus a mock for the
+  newly-imported `wabaCredentials`. Full apps/api suite 245/245 files,
+  1445/1445 tests; `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
