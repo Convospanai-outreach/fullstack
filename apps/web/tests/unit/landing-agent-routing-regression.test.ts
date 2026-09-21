@@ -19,4 +19,9 @@ describe("landing-agent routing regressions", () => {
         expect(proxyContent).toContain("/api/proxy/landing-agent/public");
         expect(proxyContent).toContain('path.startsWith("/p/")');
     });
+
+    it("whitelists /locations in proxy so the SEO location pages are crawlable (F-24)", () => {
+        const proxyContent = readWorkspaceFile("src", "proxy.ts");
+        expect(proxyContent).toContain('"/locations"');
+    });
 });

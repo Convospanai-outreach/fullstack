@@ -16,7 +16,7 @@ import {
     getMarkdownForPath,
     createMarkdownResponse,
 } from './lib/markdownNegotiator';
-import { getApiCatalogJson, DISCOVERY_LINK_HEADER } from './lib/apiCatalog';
+import { getApiCatalogJson, DISCOVERY_LINK_HEADER, getBaseSiteUrl } from './lib/apiCatalog';
 import { isValidInternalRelay } from './lib/internalRelay';
 import { getWebBotAuthDirectoryJson } from './lib/webBotAuth';
 import { getA2AAgentCardJson } from './lib/a2aAgentCard';
@@ -67,13 +67,16 @@ async function appProxy(req: NextRequest) {
     }
 
     if (isMarkdownRequested(req)) {
-        const baseUrl = req.nextUrl.origin;
+        // Canonical host, not req.nextUrl.origin: behind Render the incoming
+        // origin can be an internal/localhost URL, which would leak into the
+        // canonical links these discovery docs emit (F-25).
+        const baseUrl = getBaseSiteUrl();
         const markdown = getMarkdownForPath(path, baseUrl);
         return createMarkdownResponse(markdown);
     }
 
     if (path === "/.well-known/api-catalog") {
-        const origin = req.nextUrl.origin;
+        const origin = getBaseSiteUrl();
         if (req.method === "HEAD") {
             return new NextResponse(null, {
                 status: 200,
@@ -108,7 +111,7 @@ async function appProxy(req: NextRequest) {
     }
 
     if (path === "/.well-known/agent-card.json") {
-        const origin = req.nextUrl.origin;
+        const origin = getBaseSiteUrl();
         return new NextResponse(getA2AAgentCardJson(origin), {
             status: 200,
             headers: {
@@ -120,7 +123,7 @@ async function appProxy(req: NextRequest) {
     }
 
     if (path === "/.well-known/agent-skills/index.json") {
-        const origin = req.nextUrl.origin;
+        const origin = getBaseSiteUrl();
         return new NextResponse(getAgentSkillsDiscoveryIndexJson(origin), {
             status: 200,
             headers: {
@@ -316,6 +319,7 @@ async function appProxy(req: NextRequest) {
         "/manifest.webmanifest",
         "/about",
         "/blog",
+        "/locations",
         "/use-cases",
         "/vs",
         "/docs",

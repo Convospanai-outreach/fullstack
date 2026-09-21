@@ -85,6 +85,11 @@ describe("Generative Engine Optimization (GEO) & AI Search Readiness", () => {
             expect(urlStrings.some((u) => u.endsWith("/data-deletion"))).toBe(true);
             expect(urlStrings.some((u) => u.endsWith("/help"))).toBe(true);
         });
+
+        it("does not list /governance, which is an auth-gated dashboard page (F-24)", () => {
+            const urlStrings = sitemap().map((u) => u.url);
+            expect(urlStrings.some((u) => u.endsWith("/governance"))).toBe(false);
+        });
     });
 
     describe("/llms.txt Route Handler", () => {

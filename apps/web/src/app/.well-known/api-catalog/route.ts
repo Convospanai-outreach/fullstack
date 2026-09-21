@@ -5,8 +5,11 @@ import { getApiCatalogDocument, getBaseSiteUrl } from '@/lib/apiCatalog';
 export const dynamic = 'force-static';
 export const revalidate = 86400; // 24 hours
 
-export async function GET(req: NextRequest) {
-    const origin = req.nextUrl.origin || getBaseSiteUrl();
+export async function GET(_req: NextRequest) {
+    // Canonical host, not req.nextUrl.origin: this route is force-static, so at
+    // build time the request origin is meaningless; getBaseSiteUrl() reads the
+    // env-configured apex and never emits localhost (F-25).
+    const origin = getBaseSiteUrl();
     const catalog = getApiCatalogDocument(origin);
 
     return new NextResponse(JSON.stringify(catalog, null, 2), {
