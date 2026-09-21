@@ -5,6 +5,7 @@ import { TemplateGuard } from "@/modules/whatsapp/TemplateGuard";
 import { prisma } from "@/lib/db";
 import { withFeatureGuard } from "@/lib/flags/guard";
 import { WhatsAppService } from "@/services/WhatsAppService";
+import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
@@ -41,6 +42,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Lead has no phone number associated" }, { status: 400 });
         }
 
+        // Resolve the team's own WABA credentials. A manual send must use the
+        // team's saved WhatsApp account, never fall back to the global env-var
+        // account (roadmap.md item 2.5 / F-10) - falling back would send from
+        // the platform's number on the team's behalf. If the team hasn't
+        // connected WhatsApp, tell the caller to connect it (the UI shows this
+        // as a "not connected" banner) rather than silently sending as someone
+        // else. Mirrors the sequence path's getTeamWabaConfig check.
+        const wabaConfig = await getTeamWabaConfig(teamId);
+        if (!wabaConfig) {
+            return NextResponse.json(
+                { error: "WhatsApp is not connected for your team. Connect it in Settings to send messages.", code: "WABA_NOT_CONNECTED" },
+                { status: 409 }
+            );
+        }
+
         // Feature Guard: Strict Execution Check
         await withFeatureGuard("whatsapp_outbound", { teamId: lead.teamId }, async () => {
             // Step 1: Validate Consent (DPDP Act 2023)
@@ -56,8 +72,8 @@ export async function POST(req: NextRequest) {
                 throw new Error(`Template Violation: ${templateCheck.reason}`);
             }
 
-            // Step 3: Send via Service (Mock Supported)
-            const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false, phone);
+            // Step 3: Send via the team's own WABA credentials.
+            const sent = await WhatsAppService.sendMessage(leadId, message, isTemplate || false, phone, wabaConfig);
             
             if (!sent) {
                 throw new Error("Failed to send message via WhatsApp Service");

@@ -36,12 +36,18 @@ vi.mock("@/services/WhatsAppService", () => ({
     },
 }));
 
+vi.mock("@/modules/whatsapp/wabaCredentials", () => ({
+    getTeamWabaConfig: vi.fn(),
+}));
+
 vi.mock("@/lib/logger", () => ({
     logger: { info: vi.fn(), error: vi.fn() },
 }));
 
 import { getCurrentContextFromRequest } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { WhatsAppService } from "@/services/WhatsAppService";
+import { getTeamWabaConfig } from "@/modules/whatsapp/wabaCredentials";
 
 function postRequest(body: unknown) {
     return new NextRequest("http://localhost:3001/api/whatsapp/send", {
@@ -58,6 +64,7 @@ describe("POST /api/whatsapp/send", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         (getCurrentContextFromRequest as any).mockResolvedValue({ userId: "user-1", teamId: "team-a" });
+        (getTeamWabaConfig as any).mockResolvedValue({ phoneNumberId: "pn-a", accessToken: "tok-a" });
     });
 
     it("refuses to send to a lead that doesn't belong to the caller's team", async () => {
@@ -72,12 +79,32 @@ describe("POST /api/whatsapp/send", () => {
         expect(response.status).toBe(404);
     });
 
-    it("sends to a lead that does belong to the caller's team", async () => {
+    it("returns 409 WABA_NOT_CONNECTED when the team has no WhatsApp configured, without sending", async () => {
+        (prisma.lead.findFirst as any).mockResolvedValue({ teamId: "team-a", phone: "+15551234567" });
+        (getTeamWabaConfig as any).mockResolvedValue(null);
+
+        const response = await POST(postRequest({ leadId: "lead-1", message: "hi" }));
+        const json = await response.json();
+
+        expect(response.status).toBe(409);
+        expect(json.code).toBe("WABA_NOT_CONNECTED");
+        expect(WhatsAppService.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it("sends using the team's own WABA credentials, not the global account (F-10)", async () => {
         (prisma.lead.findFirst as any).mockResolvedValue({ teamId: "team-a", phone: "+15551234567" });
 
         const response = await POST(postRequest({ leadId: "lead-1", message: "hi" }));
 
         expect(response.status).toBe(200);
+        expect(getTeamWabaConfig).toHaveBeenCalledWith("team-a");
+        expect(WhatsAppService.sendMessage).toHaveBeenCalledWith(
+            "lead-1",
+            "hi",
+            false,
+            "+15551234567",
+            { phoneNumberId: "pn-a", accessToken: "tok-a" },
+        );
     });
 });
 
