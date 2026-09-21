@@ -15,7 +15,22 @@ vi.mock("@/lib/permissions", async (importOriginal) => {
     return { ...actual, authorizeRole: mockAuthorizeRole };
 });
 
-describe("GET /api/leads/export - requires auth and is scoped to the caller's team", () => {
+function lead(id: string, over: Record<string, unknown> = {}) {
+    return {
+        id,
+        fullName: "Jane",
+        company: "Acme",
+        jobTitle: "VP",
+        location: "NYC",
+        email: "j@a.com",
+        linkedIn: "in/jane",
+        status: "NEW",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...over,
+    };
+}
+
+describe("GET /api/leads/export", () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -30,20 +45,6 @@ describe("GET /api/leads/export - requires auth and is scoped to the caller's te
         expect(mockPrisma.lead.findMany).not.toHaveBeenCalled();
     });
 
-    it("scopes the export query to the caller's own team", async () => {
-        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
-        mockAuthorizeRole.mockResolvedValue(undefined);
-        mockPrisma.lead.findMany.mockResolvedValue([]);
-        const { GET } = await import("./route");
-
-        await GET();
-
-        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith({
-            where: { teamId: "team-1" },
-            orderBy: { createdAt: "desc" },
-        });
-    });
-
     it("propagates the 403 from a caller lacking MEMBER role instead of exporting", async () => {
         mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
         const { APIError } = await import("@/lib/apiResponse");
@@ -54,5 +55,65 @@ describe("GET /api/leads/export - requires auth and is scoped to the caller's te
 
         expect(response.status).toBe(403);
         expect(mockPrisma.lead.findMany).not.toHaveBeenCalled();
+    });
+
+    it("streams a bounded, team-scoped CSV (marker header + take, not an unbounded findMany)", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.lead.findMany.mockResolvedValue([lead("l1"), lead("l2", { email: "b@a.com" })]);
+        const { GET } = await import("./route");
+
+        const response = await GET();
+        const text = await response.text(); // drain the stream
+
+        expect(response.headers.get("x-stream-body")).toBe("1");
+        expect(response.headers.get("content-type")).toContain("text/csv");
+
+        // The query is bounded (take) and scoped to the team, not a bare findMany.
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({
+                where: { teamId: "team-1" },
+                take: 1000,
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            })
+        );
+        // First page carries no cursor.
+        expect(mockPrisma.lead.findMany.mock.calls[0][0].cursor).toBeUndefined();
+
+        const lines = text.split("\n");
+        expect(lines[0]).toBe("ID,Full Name,Company,Job Title,Location,Email,LinkedIn,Status,Created At");
+        expect(lines).toHaveLength(3);
+        expect(lines[1]).toContain('"l1"');
+        expect(lines[1]).toContain('"j@a.com"');
+        expect(lines[2]).toContain('"b@a.com"');
+    });
+
+    it("surfaces a mid-stream DB failure instead of finishing with a silent, truncated 200 body", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        mockPrisma.lead.findMany.mockRejectedValue(new Error("db exploded mid-export"));
+        const { GET } = await import("./route");
+
+        const response = await GET();
+        // Headers/200 are already sent, so the failure shows up as the stream
+        // erroring while the client reads it - not as a clean, complete file.
+        await expect(response.text()).rejects.toThrow("db exploded mid-export");
+    });
+
+    it("continues to the next page with a cursor when a full batch comes back", async () => {
+        mockGetCurrentContext.mockResolvedValue({ userId: "user-1", teamId: "team-1" });
+        mockAuthorizeRole.mockResolvedValue(undefined);
+        const fullBatch = Array.from({ length: 1000 }, (_, i) => lead(`l${i}`));
+        mockPrisma.lead.findMany.mockResolvedValueOnce(fullBatch).mockResolvedValueOnce([]);
+        const { GET } = await import("./route");
+
+        const response = await GET();
+        await response.text(); // drain
+
+        expect(mockPrisma.lead.findMany).toHaveBeenCalledTimes(2);
+        expect(mockPrisma.lead.findMany.mock.calls[1][0]).toMatchObject({
+            cursor: { id: "l999" },
+            skip: 1,
+        });
     });
 });

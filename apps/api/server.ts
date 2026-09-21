@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { Readable } from 'node:stream';
 import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { RequestContext } from '@/lib/requestContext';
 import { getToken } from 'next-auth/jwt';
@@ -357,6 +358,16 @@ const nextAdapter = (handler: any, registeredPath: string) => async (request: an
 
     if (status === 204 || status === 304 || request.method === 'HEAD') {
       reply.status(status).send();
+      return;
+    }
+
+    // Opt-in streaming path: a handler that returns a ReadableStream body with an
+    // `x-stream-body` marker (e.g. large CSV exports) is piped straight through
+    // instead of buffered via response.text()/arrayBuffer() below - so the whole
+    // payload never sits in memory at once. The marker is internal, not forwarded.
+    if (response.headers?.get?.('x-stream-body') && response.body) {
+      reply.removeHeader('x-stream-body');
+      reply.status(status).send(Readable.fromWeb(response.body as any));
       return;
     }
 

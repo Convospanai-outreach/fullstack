@@ -33,6 +33,9 @@ const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "content-encoding",
     "content-length",
     "alt-svc",
+    // Internal marker the apps/api Fastify adapter uses to pick its streaming
+    // path; it should never reach the browser.
+    "x-stream-body",
 ]);
 
 function sanitizeUpstreamResponseHeaders(upstreamHeaders: Headers) {
