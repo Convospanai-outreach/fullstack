@@ -4880,6 +4880,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   still surface). Updated that test's `team.findMany` mock to return `_count`.
   Full apps/api suite 1456/1456; `tsc --noEmit` clean on both apps.
 
+- **OPEN-250 (Fixed):** roadmap.md item 2.11 follow-up — **streamed exports**
+  (closes the export deferral noted in [[OPEN-249]]). `routes/leads/export` and
+  `routes/analytics/export` each loaded every team lead with one unbounded
+  `findMany` and built the whole CSV string in memory. **Key discovery:** the
+  apps/api Fastify adapter (`server.ts`) buffers `text/csv` responses via
+  `await response.text()`, so returning a `ReadableStream` body alone would still
+  be fully drained into memory — streaming needed a shared-adapter change too
+  (confirmed with the user before touching the adapter). Changes:
+  (1) `server.ts` — added an **opt-in** streaming branch: a response carrying an
+  `x-stream-body` marker header with a `ReadableStream` body is piped straight to
+  the client via `Readable.fromWeb(...)` instead of buffered. The marker is
+  internal (removed before forwarding) and the branch sits before the existing
+  `text/csv` buffering path, so every other CSV route is unaffected.
+  (2) new `src/lib/csvStream.ts` — `streamingCsvResponse({filename, header, chunks})`
+  helper returning a `text/csv` `Response` whose body is a `ReadableStream` fed by
+  an async generator (one DB batch per `pull`), so the full payload never sits in
+  memory at once.
+  (3) both export routes now cursor-paginate in 1000-row batches
+  (`orderBy: [{createdAt desc},{id desc}]`, `cursor: {id}`, `skip: 1`) and yield
+  each batch as CSV. Row order is unchanged (newest first, id as the stable
+  tiebreaker); success-path output content is unchanged. **Error path:** because
+  the body streams after a 200 and sent headers, a mid-export DB failure can't be
+  turned into a 500 — the client gets a truncated CSV. The helper logs
+  `[csvStream] <label> failed mid-stream; export is truncated` (with team/route in
+  the label) before aborting, so a partial export leaves a server-side trace
+  instead of being silently invisible.
+  Regression tests: rewrote both routes' tests (they now drain the lazy stream)
+  to assert the `x-stream-body` marker, the bounded `take`/cursor arg shape (not
+  an unbounded `findMany`), CSV content, and — for leads/export — cursor
+  continuation onto a second page when a full batch returns; auth/permission
+  rejection cases retained. Full apps/api suite 1457/1457; `tsc --noEmit` clean on
+  both apps. Still deferred from 2.11: cursor pagination on list endpoints
+  (contract change) and the `analytics/roi`+`journey` aggregate rewrites.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
