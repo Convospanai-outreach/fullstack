@@ -11,14 +11,13 @@ import { Modal } from "@/components/ui/Modal";
 import { toast } from "sonner";
 import { BILLING_COUNTRIES, INDIAN_STATES } from "@/lib/billingAddress";
 import { getBrowserApiBase } from "@/lib/api/browserBase";
+import { PRICING_TIERS, type PricingTier } from "@/lib/pricing";
 
-type Plan = {
-    name: "Starter" | "Growth" | "Enterprise";
-    displayName: string;
-    description: string;
-    monthlyPrice: number;
+// Presentation-only fields (copy/visuals). The name/displayName/description/price/
+// credits come from PRICING_TIERS so this page, the JSON-LD, and the plan taxonomy
+// share one source (F-02).
+type PlanPresentation = {
     annualPrice: number;
-    credits: number;
     features: string[];
     icon: typeof Zap;
     badge: string;
@@ -26,14 +25,11 @@ type Plan = {
     outcome: string;
 };
 
-const plans: Plan[] = [
-    {
-        name: "Starter",
-        displayName: "Pilot",
-        description: "30-day growth pilot package for one ICP, one geography, and one offer",
-        monthlyPrice: 49,
+type Plan = PricingTier & { monthlyPrice: number } & PlanPresentation;
+
+const PRESENTATION: Record<PricingTier["name"], PlanPresentation> = {
+    Starter: {
         annualPrice: 39,
-        credits: 500,
         features: [
             "Email campaign drafting",
             "Lead list and qualification workflow",
@@ -45,13 +41,8 @@ const plans: Plan[] = [
         badge: "Pilot Available",
         outcome: "Review a qualified lead and meeting-tracking motion before scaling",
     },
-    {
-        name: "Growth",
-        displayName: "Growth Autopilot",
-        description: "Monthly managed campaign operations for repeatable pipeline tracking",
-        monthlyPrice: 99,
+    Growth: {
         annualPrice: 79,
-        credits: 2500,
         features: [
             "Multiple managed campaigns",
             "Vertical playbooks and variants",
@@ -64,13 +55,8 @@ const plans: Plan[] = [
         highlight: true,
         outcome: "Support buyer-signal follow-up and meeting tracking",
     },
-    {
-        name: "Enterprise",
-        displayName: "Enterprise / Partner",
-        description: "Custom vertical playbooks, governance, and private-data execution options",
-        monthlyPrice: 499,
+    Enterprise: {
         annualPrice: 399,
-        credits: 15000,
         features: [
             "Team governance and approval workflows",
             "Custom vertical playbook design",
@@ -83,21 +69,19 @@ const plans: Plan[] = [
         badge: "Custom Quotas",
         outcome: "Operate governed growth workflows across teams or regions",
     },
-];
+};
+
+const plans: Plan[] = PRICING_TIERS.map((tier) => ({
+    ...tier,
+    monthlyPrice: tier.inrMonthly,
+    ...PRESENTATION[tier.name],
+}));
 
 const proofPoints = [
     "Managed growth execution",
     "Human-approved campaign operations",
     "Lead and meeting workflow tracking",
 ];
-
-// Matches PLAN_ALIASES in apps/api/routes/billing/checkout/route.ts, which maps
-// these same lowercase names to the real Plan.name rows (PRO/GROWTH/ENTERPRISE).
-const DB_PLAN_NAME: Record<Plan["name"], string> = {
-    Starter: "PRO",
-    Growth: "GROWTH",
-    Enterprise: "ENTERPRISE",
-};
 
 type LivePrice = { currency: string; amount: number | null; available: boolean };
 
@@ -231,77 +215,12 @@ export default function PricingPage() {
         }
     };
 
-    const pricingSchema = {
-        "@context": "https://schema.org",
-        "@graph": [
-            {
-                "@type": "BreadcrumbList",
-                "itemListElement": [
-                    {
-                        "@type": "ListItem",
-                        "position": 1,
-                        "name": "Home",
-                        "item": "https://craftmyfunnel.live"
-                    },
-                    {
-                        "@type": "ListItem",
-                        "position": 2,
-                        "name": "Pricing",
-                        "item": "https://craftmyfunnel.live/pricing"
-                    }
-                ]
-            },
-            {
-                "@type": "Product",
-                "name": "CraftMyFunnel Outbound Automation Platform",
-                "description": "Governed AI outreach and qualified meeting workflow automation platform for B2B service teams.",
-                "brand": {
-                    "@type": "Brand",
-                    "name": "CraftMyFunnel"
-                },
-                "offers": {
-                    "@type": "AggregateOffer",
-                    "priceCurrency": "USD",
-                    "lowPrice": "49",
-                    "highPrice": "499",
-                    "offerCount": "3",
-                    "offers": [
-                        {
-                            "@type": "Offer",
-                            "name": "Pilot",
-                            "price": "49",
-                            "priceCurrency": "USD",
-                            "description": "30-day growth pilot package for one ICP, one geography, and one offer",
-                            "url": "https://craftmyfunnel.live/pricing"
-                        },
-                        {
-                            "@type": "Offer",
-                            "name": "Growth Autopilot",
-                            "price": "99",
-                            "priceCurrency": "USD",
-                            "description": "Monthly managed campaign operations for repeatable pipeline tracking",
-                            "url": "https://craftmyfunnel.live/pricing"
-                        },
-                        {
-                            "@type": "Offer",
-                            "name": "Enterprise",
-                            "price": "499",
-                            "priceCurrency": "USD",
-                            "description": "Custom vertical playbooks, governance, and private-data execution options",
-                            "url": "https://craftmyfunnel.live/pricing"
-                        }
-                    ]
-                }
-            }
-        ]
-    };
+    // JSON-LD structured data is rendered once, server-side, in layout.tsx (built
+    // from the canonical PRICING_TIERS). It used to be duplicated here with a
+    // conflicting hardcoded USD list - removed to leave a single source (F-02).
 
     return (
         <div className="min-h-screen overflow-x-hidden bg-slate-950 text-white selection:bg-cyan-500/30">
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingSchema) }}
-            />
             <div className="pointer-events-none absolute left-[-8%] top-[-10%] h-[42%] w-[42%] rounded-full bg-cyan-500/12 blur-[120px]" />
             <div className="pointer-events-none absolute bottom-[-12%] right-[-8%] h-[42%] w-[42%] rounded-full bg-amber-400/10 blur-[120px]" />
 
@@ -338,14 +257,18 @@ export default function PricingPage() {
                 <div className="grid grid-cols-1 items-stretch gap-8 md:grid-cols-3">
                     {plans.map((plan) => {
                         const Icon = plan.icon;
-                        const live = livePrices?.[DB_PLAN_NAME[plan.name]];
+                        const live = livePrices?.[plan.dbName];
                         // Live price only applies to the monthly figure - annual billing isn't
                         // wired up server-side yet (see the toggle's comment above), so the
                         // annual column stays on the static marketing estimate either way.
+                        // Only trust the live price when the currency is actually available
+                        // (INR today; USD only once Plan.stripePrices is seeded). Otherwise
+                        // fall back to the canonical INR figure - never a fabricated "$49".
+                        const liveAmount = !isAnnual && live?.available === true && live.amount != null ? live.amount : null;
                         const price = isAnnual
                             ? plan.annualPrice
-                            : live?.amount != null ? Math.round(live.amount / 100) : plan.monthlyPrice;
-                        const currencySymbol = !isAnnual && live ? (CURRENCY_SYMBOL[live.currency] || live.currency + " ") : "$";
+                            : liveAmount != null ? Math.round(liveAmount / 100) : plan.monthlyPrice;
+                        const currencySymbol = liveAmount != null ? (CURRENCY_SYMBOL[live!.currency] || live!.currency + " ") : "₹";
                         const isEnterprise = plan.name === "Enterprise";
                         let ctaText = isEnterprise ? "Talk to Sales" : "Start Pilot";
                         

@@ -4948,6 +4948,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   cutoff to the requested window, and an unauthenticated-caller guard. Full
   apps/api suite 1462/1462; `tsc --noEmit` clean on both apps.
 
+- **OPEN-252 (Fixed):** roadmap.md item 2.1 — one price list (F-02). The
+  `/pricing` page had **three conflicting price lists / two taxonomies**: the
+  marketing page (₹49/99/499, names Pilot/Growth Autopilot/Enterprise), a
+  hardcoded **USD** JSON-LD in `page.tsx`, **another** hardcoded USD JSON-LD in
+  `layout.tsx`, and `/billing/plans` returning INR for PRO/GROWTH/ENTERPRISE.
+  **User decision:** ship INR as the single source now, wire USD for later (there
+  are **no USD prices in the data** — `Plan.stripePrices` is never seeded, so
+  `/billing/plans` already returns `available:false` for non-INR, and the page was
+  papering over that with a fabricated `$49`).
+  Changes: new `apps/web/src/lib/pricing.ts` with a canonical `PRICING_TIERS`
+  (name/dbName/displayName/description/inrMonthly/credits — `dbName` matches the
+  Plan rows and checkout `PLAN_ALIASES`) plus a pure `buildPricingSchema(tiers,
+  currency)`. `layout.tsx` now renders **one** JSON-LD built from that config in
+  INR (with the breadcrumb merged in) and its metadata/OG copy drop the hardcoded
+  `$49/$99/$499`. `page.tsx` deletes its duplicate USD JSON-LD, derives the plan
+  cards' name/price/description/credits from `PRICING_TIERS` (presentation-only
+  fields stay inline), and fixes the price fallback: a non-INR visitor whose
+  currency is `available:false` now sees the canonical **₹** figure, never a
+  fabricated `$`. The live per-visitor price still comes from the `/billing/plans`
+  fetch, so real USD will display once `stripePrices` is populated.
+  Why a code config, not a DB/ISR fetch in the layout: apps/web's marketing pages
+  deliberately don't hit prisma at render (only authenticated dashboard pages do);
+  a DB call in the pricing layout would break static rendering and risk build-time
+  DB access. The config mirrors the seeded Plan rows and is the single source for
+  the page + JSON-LD; the DB remains the source for the actually-charged price.
+  **Deferred (documented, not silently dropped):** (a) real USD prices — need
+  `Plan.stripePrices` + Stripe price IDs seeded (business/Stripe setup); (b) the
+  annual-billing toggle is a 4th price list (39/79/399) that exists nowhere in the
+  DB and isn't charged (the code comment already flags this) — left as-is;
+  (c) **F-03 / OPEN-39** (Razorpay price-ID gap; Stripe only when `stripePrices`
+  exists) is a checkout-gateway wiring issue, not pricing display — unblocked by
+  the same USD/Stripe data decision, still open.
+  Regression test: `apps/web/src/lib/pricing.test.ts` (offers match tiers 1:1,
+  INR currency, low/high/offerCount derived, breadcrumb present, custom-currency
+  propagation). apps/web 460 passed/7 skipped; `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
