@@ -636,6 +636,28 @@ export class SequenceService {
             });
         }
 
+        // Also surface the lead to the browser extension (if the team has it
+        // installed) so a rep can act on the profile in-context. Best-effort and
+        // additive - the human task above is the fallback for teams without the
+        // extension, so a failure here must not fail the run. Deterministic
+        // idempotencyKey keeps a re-run of this step from duplicating the task.
+        try {
+            const { enqueueExtensionTask } = await import("@/linkedin/extension-bridge");
+            await enqueueExtensionTask({
+                teamId: run.teamId,
+                type: "OPEN_PROFILE",
+                payload: {
+                    profileUrl: lead.linkedIn,
+                    leadId: run.leadId,
+                    campaignId: run.enrollment?.campaign?.id ?? run.campaignId ?? null,
+                    note: run.step?.body ?? null,
+                },
+                idempotencyKey: `ext_openprofile_${run.id}`,
+            });
+        } catch (err) {
+            console.warn("[sequenceService] Failed to enqueue LinkedIn extension task:", err);
+        }
+
         await client.sequenceStepRun.update({
             where: { id: run.id },
             data: { status: "AWAITING_MANUAL_REVIEW", completedAt: now },

@@ -5062,7 +5062,7 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   expiring (16/16 in file). API strict typecheck (`tsc -p tsconfig.strict.json`)
   and apps/web `tsc --noEmit` both clean.
 
-- **OPEN-255 (In progress — slice 1 of 2):** roadmap.md item 2.4 — LinkedIn
+- **OPEN-255 (In progress — slices 1–2 of 3 shipped; slice 3 deferred):** roadmap.md item 2.4 — LinkedIn
   extension (F-08). **Re-verifying against live code corrected the framing:** the
   live extension (repo `manifest.json` v1.0.0, `background.js`) is *intentionally*
   Chrome-Web-Store-approval-safe and **capture-only** — permissions are just
@@ -5087,16 +5087,32 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   (c) fix the one overreaching marketing line (`CinematicHome.tsx` promised "recent
   posts, role changes, company moves" that capture doesn't deliver → now "name,
   headline, company, and location", matching what's actually captured).
-  **Next slices (planned):** slice 2 — the server "sync API" that *creates* extension
-  Jobs (wire the sequence LinkedIn step / a trigger to enqueue OPEN_PROFILE/INSERT_DRAFT
-  Jobs so the v2 poller has work), fully testable; slice 3 — promote
-  `background.v2-planned.js` → shipped `background.js` + a v2 manifest (alarms/tabs/
-  notifications/API-host) + content-script EXECUTE_TASK executor — **cannot be
-  E2E-tested by me and requires the user to load-test and re-publish to the Chrome
-  Web Store (new permission review).** ToS note: v2 is assistive (human reviews/sends),
-  not autonomous outbound automation.
-  Regression tests: 18 new extension-route tests (32/32 across `routes/extension`).
-  API strict typecheck + apps/web `tsc --noEmit` both clean.
+  **Slice 2 (shipped) — the server "sync API" that creates extension tasks.**
+  Surfaced a real architectural blocker the roadmap missed: the extension task
+  queue was never wired to function. `JobQueue.enqueue` parks jobs in `"queued"`,
+  and the server processor's `dequeue()` claims **any** `["queued","pending"]` job
+  regardless of type, then `default:`-throws `No worker handler registered` for
+  extension types (OPEN_PROFILE etc.) — so a task created the normal way would be
+  raced and failed by the server before the extension could poll it. Fix (user
+  chose the dedicated-status-lane approach): a new `EXTENSION_TASK_STATUS =
+  "awaiting_extension"` lane the core `dequeue()` ignores (it only dequeues
+  queued/pending — no migration; `Job.status` is a free-form string), a tested
+  `enqueueExtensionTask()` helper (direct `job.create` into that lane, idempotent
+  via a deterministic key), and `sequenceService.executeLinkedInRun` now also
+  enqueues an `OPEN_PROFILE` task (best-effort, additive — the human PipelineService
+  task remains the fallback for teams without the extension). `tasks/pending` now
+  claims the lane (→ `processing`); `tasks/result` closes it; both share the
+  `EXTENSION_TASK_TYPES` constant. Tests: `extension-bridge.enqueue.test.ts`
+  (status lane / idempotency / rethrow), `sequenceService.linkedinAndCall.test.ts`
+  (+enqueue on LinkedIn step, best-effort on throw), updated `tasks/pending` test.
+  API strict typecheck clean; 249 passed across the email-campaigner + linkedin
+  suites.
+  **Slice 3 (deferred):** promote `background.v2-planned.js` → shipped
+  `background.js` + a v2 manifest (alarms/tabs/notifications/API-host) +
+  content-script EXECUTE_TASK executor — **cannot be E2E-tested by me and requires
+  the user to load-test and re-publish to the Chrome Web Store (new permission
+  review).** ToS note: v2 is assistive (human reviews/sends), not autonomous
+  outbound automation.
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

@@ -29,10 +29,14 @@ vi.mock("@/modules/analytics/service/PipelineService", () => ({
 vi.mock("@/modules/caller/CallerService", () => ({
     CallerService: { ensureQueueEntry: vi.fn() },
 }));
+vi.mock("@/linkedin/extension-bridge", () => ({
+    enqueueExtensionTask: vi.fn().mockResolvedValue({ id: "ext-job-1", created: true }),
+}));
 
 import { SequenceService } from "../sequenceService";
 import { PipelineService } from "@/modules/analytics/service/PipelineService";
 import { CallerService } from "@/modules/caller/CallerService";
+import { enqueueExtensionTask } from "@/linkedin/extension-bridge";
 
 function baseRun(overrides: any = {}) {
     return {
@@ -84,6 +88,32 @@ describe("SequenceService.executeRun - LinkedIn step types", () => {
             expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
         }
     );
+
+    it("also enqueues an OPEN_PROFILE extension task (idempotent, best-effort) alongside the manual task", async () => {
+        const run = baseRun({ step: { stepType: "LI_INVITE", body: "Hi!" } });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+
+        await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(enqueueExtensionTask).toHaveBeenCalledWith(
+            expect.objectContaining({
+                teamId: "team-1",
+                type: "OPEN_PROFILE",
+                idempotencyKey: "ext_openprofile_run-1",
+                payload: expect.objectContaining({ profileUrl: "https://linkedin.com/in/lead-1", leadId: "lead-1" }),
+            })
+        );
+    });
+
+    it("does not fail the run when enqueuing the extension task throws (best-effort)", async () => {
+        (enqueueExtensionTask as any).mockRejectedValueOnce(new Error("db down"));
+        const run = baseRun({ step: { stepType: "LI_INVITE", body: "Hi!" } });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+
+        const result = await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
+    });
 });
 
 describe("SequenceService.executeRun - CALL step", () => {

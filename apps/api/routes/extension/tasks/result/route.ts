@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../../_lib/auth";
 import { resolveExtensionTeamScope } from "../../_lib/teamScope";
+import { EXTENSION_TASK_TYPES, EXTENSION_TASK_STATUS } from "@/linkedin/extension-bridge";
 
-const SUPPORTED_TASK_TYPES = [
-    "OPEN_PROFILE",
-    "ADD_LEAD",
-    "INSERT_DRAFT",
-    "LOG_MANUAL_LINKEDIN_ACTION"
-];
+const SUPPORTED_TASK_TYPES: string[] = [...EXTENSION_TASK_TYPES];
 
 const SUPPORTED_STATUSES = ["SUCCESS", "ERROR", "BLOCKED"];
 
@@ -78,7 +74,7 @@ export async function POST(req: NextRequest) {
             where: {
                 id: taskId,
                 teamId: teamScope.teamId,
-                status: { in: ["processing", "pending", "queued"] }
+                status: { in: ["processing", EXTENSION_TASK_STATUS, "pending", "queued"] }
             },
             data: {
                 status: terminalStatus,

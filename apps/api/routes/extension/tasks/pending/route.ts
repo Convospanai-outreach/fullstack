@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { validateExtensionAuth } from "../../_lib/auth";
 import { resolveExtensionTeamScope } from "../../_lib/teamScope";
+import { EXTENSION_TASK_TYPES, EXTENSION_TASK_STATUS } from "@/linkedin/extension-bridge";
 
-const SUPPORTED_TASK_TYPES = [
-    "OPEN_PROFILE",
-    "ADD_LEAD",
-    "INSERT_DRAFT",
-    "LOG_MANUAL_LINKEDIN_ACTION"
-];
+const SUPPORTED_TASK_TYPES: string[] = [...EXTENSION_TASK_TYPES];
 
 function taskType(job: { type: string; taskType: string | null }) {
     return job.taskType || job.type;
@@ -29,7 +25,7 @@ export async function GET(req: NextRequest) {
         const candidates = await prisma.job.findMany({
             where: {
                 teamId: teamScope.teamId,
-                status: { in: ["pending", "queued"] },
+                status: EXTENSION_TASK_STATUS,
                 OR: [
                     { type: { in: SUPPORTED_TASK_TYPES } },
                     { taskType: { in: SUPPORTED_TASK_TYPES } }
@@ -56,7 +52,7 @@ export async function GET(req: NextRequest) {
                 where: {
                     id: candidate.id,
                     teamId: teamScope.teamId,
-                    status: { in: ["pending", "queued"] }
+                    status: EXTENSION_TASK_STATUS
                 },
                 data: {
                     status: "processing",

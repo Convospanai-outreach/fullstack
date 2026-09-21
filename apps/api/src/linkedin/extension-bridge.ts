@@ -1,6 +1,67 @@
 import { prisma } from "@/lib/db";
 import { logger } from "@/lib/logger";
 
+// Task types the browser extension executes (opens a profile tab, inserts a
+// draft for the user to review, captures a lead, logs a manual action). These
+// are consumed by the extension via GET /extension/tasks/pending, NOT by the
+// server job processor - it has no handler for them and would fail them.
+export const EXTENSION_TASK_TYPES = [
+    "OPEN_PROFILE",
+    "ADD_LEAD",
+    "INSERT_DRAFT",
+    "LOG_MANUAL_LINKEDIN_ACTION"
+] as const;
+
+export type ExtensionTaskType = (typeof EXTENSION_TASK_TYPES)[number];
+
+// Dedicated Job.status lane for extension-executed tasks. The server job
+// processor only dequeues "queued"/"pending" (DEQUEUEABLE_JOB_STATUSES in
+// queue.ts), so parking these here stops it from claiming a task it can't run
+// and failing it out from under the extension. Lifecycle: created here ->
+// claimed by GET /extension/tasks/pending ("processing") -> closed by
+// POST /extension/tasks/result ("completed"/"failed").
+export const EXTENSION_TASK_STATUS = "awaiting_extension";
+
+/**
+ * Creates a task the browser extension will pick up on its next poll. Uses a
+ * direct create (not JobQueue.enqueue, which parks jobs in the server-dequeueable
+ * "queued" status) so the task stays in the extension-only status lane. A
+ * deterministic idempotencyKey lets a retried producer (e.g. a re-run sequence
+ * step) reuse the existing task instead of duplicating it.
+ */
+export async function enqueueExtensionTask(params: {
+    teamId: string;
+    type: ExtensionTaskType;
+    payload: Record<string, unknown>;
+    idempotencyKey?: string;
+    priority?: number;
+}): Promise<{ id: string; created: boolean }> {
+    try {
+        const job = await prisma.job.create({
+            data: {
+                type: params.type,
+                taskType: params.type,
+                status: EXTENSION_TASK_STATUS,
+                teamId: params.teamId,
+                tenantId: params.teamId,
+                payload: params.payload as any,
+                priority: params.priority ?? 0,
+                idempotencyKey: params.idempotencyKey ?? null
+            }
+        });
+        return { id: job.id, created: true };
+    } catch (error: any) {
+        if (error?.code === "P2002" && params.idempotencyKey) {
+            const existing = await prisma.job.findUnique({
+                where: { idempotencyKey: params.idempotencyKey },
+                select: { id: true }
+            });
+            if (existing) return { id: existing.id, created: false };
+        }
+        throw error;
+    }
+}
+
 export type ExtensionAction =
     | "ADD_LEAD"
     | "OPEN_PROFILE"
