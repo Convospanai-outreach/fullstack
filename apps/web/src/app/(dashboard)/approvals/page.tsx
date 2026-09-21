@@ -5,6 +5,7 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { toast } from "sonner";
 import { Check, AlertCircle, Clock, Lightbulb, X } from "lucide-react";
+import { getExpiryState, formatTimeLeft } from "@/lib/approvalExpiry";
 
 interface ApprovalRequest {
     id: string;
@@ -28,6 +29,7 @@ interface ApprovalRequest {
         image: string;
     };
     createdAt: string;
+    autoDenyAt?: string | null;
 }
 
 interface OverseerNudge {
@@ -65,7 +67,37 @@ function TierBadge({ tier }: { tier: string }) {
     }
     return (
         <span className="px-2 py-0.5 rounded-full bg-warning/10 text-warning text-xs border border-warning/20 font-medium uppercase tracking-wide">
-            Queued · 24h
+            Queued
+        </span>
+    );
+}
+
+// Shows the real auto-deny deadline for a QUEUED request instead of a hardcoded
+// "24h": nothing for requests with no expiry (AUTO/HARD_BLOCK, or legacy rows
+// with a null autoDenyAt), a muted countdown otherwise, and a red "Expiring
+// soon" once inside the warning window - the same point the reviewer gets a
+// warning notification. Classification logic lives in @/lib/approvalExpiry.
+function ExpiryBadge({ autoDenyAt }: { autoDenyAt?: string | null }) {
+    const state = getExpiryState(autoDenyAt);
+    if (state === "none" || !autoDenyAt) return null;
+
+    if (state === "expired") {
+        return (
+            <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs border border-destructive/20 font-medium uppercase tracking-wide flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Expired
+            </span>
+        );
+    }
+    if (state === "soon") {
+        return (
+            <span className="px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-xs border border-destructive/20 font-medium uppercase tracking-wide flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Expiring soon · {formatTimeLeft(autoDenyAt)}
+            </span>
+        );
+    }
+    return (
+        <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-xs border border-border font-medium uppercase tracking-wide flex items-center gap-1">
+            <Clock className="w-3 h-3" /> Auto-denies in {formatTimeLeft(autoDenyAt)}
         </span>
     );
 }
@@ -197,6 +229,7 @@ export default function ApprovalsPage() {
                                             <Clock className="w-3 h-3" /> Pending
                                         </span>
                                         <TierBadge tier={req.tier} />
+                                        <ExpiryBadge autoDenyAt={req.autoDenyAt ?? null} />
                                     </div>
                                     <p className="text-muted-foreground text-sm mb-2">
                                         Requested by <span className="text-foreground">{req.requester?.name || "System"}</span> on {new Date(req.createdAt).toLocaleDateString()}

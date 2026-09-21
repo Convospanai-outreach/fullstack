@@ -167,6 +167,13 @@ export class WorkerManager {
 
         if (now - this.lastApprovalSweepTick >= this.approvalSweepInterval) {
             const { ApprovalService } = await import("@/modules/governance/ApprovalService");
+            // Warn approvers about soon-to-expire requests BEFORE denying the
+            // already-expired ones, so a reviewer gets a heads-up rather than
+            // finding a campaign silently auto-denied (F-07).
+            const warnedCount = await ApprovalService.warnExpiringApprovals();
+            if (warnedCount > 0) {
+                console.log(`[Worker] Warned ${warnedCount} approver(s) about soon-to-expire approval request(s).`);
+            }
             const deniedCount = await ApprovalService.autoDenyExpiredApprovals();
             if (deniedCount > 0) {
                 console.log(`[Worker] Auto-denied ${deniedCount} expired QUEUED-tier approval request(s).`);
