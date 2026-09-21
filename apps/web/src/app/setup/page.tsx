@@ -546,8 +546,8 @@ export default function SetupWizardPage() {
 }
 
 const MAILBOX_PROVIDERS = [
-  { id: "GOOGLE", label: "Google Workspace", comingSoon: true },
-  { id: "MICROSOFT", label: "Microsoft 365", comingSoon: true },
+  { id: "GOOGLE", label: "Google Workspace", comingSoon: false },
+  { id: "MICROSOFT", label: "Microsoft 365", comingSoon: false },
   { id: "SMTP", label: "SMTP", comingSoon: false },
   { id: "RESEND", label: "Resend", comingSoon: false },
 ] as const;
@@ -630,7 +630,7 @@ function MailboxProviderStep(props: {
 
         <section className={panelClass}>
           <h3 className="text-xl font-semibold text-white">Choose a sending provider</h3>
-          <p className="mt-1 text-sm text-slate-400">SMTP and Resend save when you click Continue below. Google Workspace and Microsoft 365 are coming soon.</p>
+          <p className="mt-1 text-sm text-slate-400">Google Workspace and Microsoft 365 connect via OAuth (recommended — no app password). SMTP and Resend save when you click Continue below.</p>
 
           <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {MAILBOX_PROVIDERS.map((p) => (
@@ -755,6 +755,34 @@ function MailboxProviderStep(props: {
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+
+            {provider === "GOOGLE" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">Connect a Google Workspace / Gmail mailbox via OAuth. No app password needed, and replies are detected natively.</p>
+                <button
+                  type="button"
+                  onClick={props.onConnectGoogle}
+                  disabled={props.saving}
+                  className="mt-4 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {props.saving ? "Redirecting…" : "Connect Google Workspace"}
+                </button>
+              </div>
+            )}
+
+            {provider === "MICROSOFT" && (
+              <div className="rounded-lg border border-white/10 bg-slate-950/40 p-4">
+                <p className="text-sm text-slate-400">Connect a Microsoft 365 / Outlook mailbox via OAuth. No app password needed.</p>
+                <button
+                  type="button"
+                  onClick={props.onConnectMicrosoft}
+                  disabled={props.saving}
+                  className="mt-4 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {props.saving ? "Redirecting…" : "Connect Microsoft 365"}
+                </button>
               </div>
             )}
           </div>
@@ -1029,7 +1057,19 @@ function MeetingAssets({ formData, setFormData, status }: any) {
 }
 
 function CommercialReadiness({ status }: { status: SetupStatus }) {
-  return <SimpleChecklist items={[["Credits available", status.teamCredits > 0], [`Credit balance: ${status.teamCredits}`, status.teamCredits > 0], ["Chargeable execution gated by balance", true]]} />;
+  return (
+    <div className="space-y-4">
+      <SimpleChecklist items={[["Credits available", status.teamCredits > 0], [`Credit balance: ${status.teamCredits}`, status.teamCredits > 0], ["Chargeable execution gated by balance", true]]} />
+      {status.teamCredits <= 0 && (
+        <a
+          href="/credits"
+          className="inline-flex items-center gap-2 rounded-lg border border-cyan-400/60 bg-cyan-400/10 px-4 py-2.5 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/20"
+        >
+          Add credits to start sending
+        </a>
+      )}
+    </div>
+  );
 }
 
 function Handoffs({ status }: { status: SetupStatus }) {
