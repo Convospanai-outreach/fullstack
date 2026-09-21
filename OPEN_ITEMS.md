@@ -5244,6 +5244,36 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   Activate/Enroll unification, B-13 `/sovereign` wire-or-delete, and the first-run
   wizard blockers (U-01/02/03/05).
 
+- **OPEN-259 (Fixed):** roadmap.md item 2.12 (slice 2) — `/sovereign` faked success
+  (B-13). `app/(dashboard)/sovereign/page.tsx`'s "Export Audit Log" and "Purge
+  Ephemeral AI" buttons called `toast.success`/`toast.info` with **zero API calls** —
+  telling the user an "encrypted JSON compliance archive downloaded" and "ephemeral AI
+  completion buffers cleared" when nothing happened. **Re-verified before fixing** that
+  no backend supports them: grep of `apps/api/routes` found no audit-export or
+  telemetry-purge endpoint (`admin/agent-audit` is an unrelated admin route). So the
+  honest fix per 2.12's "wire **or** delete" is delete: removed both buttons and their
+  now-orphaned `Button`/`toast`/`Download`/`Trash2` imports. The informational
+  security-posture cards remain. **Left untouched (pre-existing dead code, surgical
+  rule 3, flagged for a future hygiene/U-19 pass):** `isRotating`/`setIsRotating`
+  (`useState`) and the unused `Database`/`CheckCircle2`/`RefreshCw` icon imports.
+  Separately noted, not fixed here: the page still shows **hardcoded** posture claims
+  ("Cookie Tamper Check: Passing", "Provider Training Policy: Opted-Out", compliance
+  "● Verified", etc.) with no data source — a U-07-class trust concern outside B-13's
+  scope. Regression test: `sovereign-no-fake-actions.test.ts` (source-string guard).
+  Web `tsc --noEmit` clean; full `vitest run tests/unit` green (214/214 on this branch;
+  the 217 above includes slice 1, merged separately as [[OPEN-258]]).
+  **B-12 (Activate/Enroll unification) deferred to a user decision, not done:**
+  re-verifying against live code shows Activate and Enroll are **two genuinely
+  different outbound mechanisms**, not a UI duplicate — `handleStatusChange('active')`
+  → `PATCH` status + fire-and-forget `POST /campaigns/{id}/run` (which itself sets
+  `status=active` and enqueues via `handleCampaignExecution`, the campaign-execution
+  worker), whereas Enroll → `POST /campaigns/{id}/sequence/enroll` (enrolls assigned
+  leads into the saved multi-step sequence). The acute defect B-12 cites is real (the
+  `/run` call swallows failure in `console.warn`, so an activate can silently no-op
+  while the UI shows "active"), but "unify into one action" touches real email sending
+  and depends on the intended relationship between campaign-execution and
+  sequence-enrollment — a product decision surfaced to the user rather than guessed.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

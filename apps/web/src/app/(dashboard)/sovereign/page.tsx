@@ -9,27 +9,11 @@ import {
     FileCheck,
     Database,
     CheckCircle2,
-    RefreshCw,
-    Download,
-    Trash2
+    RefreshCw
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 export default function SovereignControlsPage() {
     const [isRotating, setIsRotating] = useState(false);
-
-    const handleExportAuditLogs = () => {
-        toast.success("Audit Log Export Generated", {
-            description: "Encrypted JSON compliance archive downloaded."
-        });
-    };
-
-    const handlePurgeTelemetry = () => {
-        toast.info("Telemetry Retention Policy Enforced", {
-            description: "Ephemeral AI completion buffers cleared."
-        });
-    };
 
     return (
         <div className="space-y-6">
@@ -46,26 +30,6 @@ export default function SovereignControlsPage() {
                     <p className="text-sm text-muted-foreground">
                         HMAC-SHA256 blind indexing, cryptographic tenant scoping, and zero-data-retention AI governance.
                     </p>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExportAuditLogs}
-                        className="bg-muted border-border text-foreground text-xs"
-                    >
-                        <Download className="w-3.5 h-3.5 mr-1.5" />
-                        Export Audit Log
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePurgeTelemetry}
-                        className="bg-muted border-border text-destructive hover:text-destructive/80 text-xs"
-                    >
-                        <Trash2 className="w-3.5 h-3.5 mr-1.5" />
-                        Purge Ephemeral AI
-                    </Button>
                 </div>
             </div>
 
