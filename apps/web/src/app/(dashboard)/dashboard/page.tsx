@@ -17,7 +17,7 @@
  * - Loading: independent Suspense-like states per section via useState
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SetupBanner } from "@/components/dashboard/SetupBanner";
 import { KPIRow } from "@/components/dashboard/KPIRow";
 import { WorkflowSection } from "@/components/dashboard/WorkflowSection";
@@ -69,29 +69,31 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [selectedLead, setSelectedLead] = useState<DrilldownLead | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      try {
-        const res = await fetch('/api/dashboard/summary', { cache: 'no-store' });
-        if (!res.ok) throw new Error('dashboard summary unavailable');
-        const json: DashboardData = await res.json();
-        if (!cancelled) setData(json);
-      } catch {
-        // On error, leave data null — components handle empty states
-        if (!cancelled) setData(null);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch('/api/dashboard/summary', { cache: 'no-store' });
+      if (!res.ok) throw new Error('dashboard summary unavailable');
+      const json: DashboardData = await res.json();
+      setData(json);
+    } catch {
+      // Surface the failure instead of leaving the page looking like a fresh,
+      // empty account (an outage and a zero-metric account must not look alike).
+      setData(null);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   const showBanner =
     !bannerDismissed &&
@@ -101,6 +103,21 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
+      {/* Load failure — make an outage legible instead of rendering an empty shell */}
+      {error && !loading && (
+        <div className="mb-4 flex items-center justify-between gap-4 border-[0.5px] border-destructive/30 bg-destructive/5 px-4 py-3">
+          <span className="text-sm text-destructive">
+            Couldn&apos;t load your dashboard. This is a temporary problem, not an empty account.
+          </span>
+          <button
+            onClick={() => void load()}
+            className="text-xs font-medium uppercase tracking-widest text-destructive border-[0.5px] border-destructive/40 px-3 py-1 hover:bg-destructive/10 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Setup banner — inline, only when setup is incomplete */}
       {showBanner && data && (
         <SetupBanner
@@ -110,7 +127,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI row — always visible, north-star metrics */}
-      <KPIRow data={data?.kpis ?? null} loading={loading} />
+      <KPIRow data={data?.kpis ?? null} loading={loading} error={error} />
 
       {/* Tier 2 — pipeline trend + recent leads (row click opens drill-down) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5 mb-4">

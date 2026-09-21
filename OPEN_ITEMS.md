@@ -5198,7 +5198,51 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   pass (their mock origin `https://craftmyfunnel.live` equals `getBaseSiteUrl()`'s
   default). The middleware discovery-origin swaps are mechanical and covered by the
   web typecheck. Web `tsc --noEmit` clean; full `vitest run tests/unit` gate suite
-  green (212/212).
+  green (213/213).
+
+- **OPEN-258 (Fixed):** roadmap.md item 2.12 (slice 1 of 3) — duplicate ⌘K palette
+  + dashboard error surfacing (B-10, B-11).
+  **B-10 (duplicate ⌘K palette):** two command palettes both listened for
+  Cmd/Ctrl+K and both opened — `CommandPalette` (mounted app-wide via
+  `ClientOverlays.tsx` in the root layout) and `Omnibox` (mounted in the
+  `(dashboard)` layout). On any dashboard page ⌘K stacked both overlays;
+  `DashboardHeader`'s search button (which dispatches a synthetic ⌘K) hit both too.
+  `DashboardHeader`'s own comment already declared the intent ("single search
+  trigger ⌘K → Omnibox, replaces dual search surfaces") — `CommandPalette` was just
+  never unmounted. `Omnibox` is the far more capable one (global search, quick
+  actions, static page/tool jump, focus mgmt, sonner). **Fix:** removed
+  `CommandPalette` from `ClientOverlays` and deleted `components/ui/CommandPalette.tsx`
+  (whole-repo grep confirmed zero other importers and no dispatcher of its
+  `convo:open-command-palette` event — an orphan this change created, and deletion is
+  exactly the finding's intent + U-19). Marketing/login pages now have no palette
+  (correct — they never needed one); the dashboard keeps `Omnibox` as the single one.
+  **B-11 (outage looked like an empty account):** `dashboard/page.tsx`'s summary
+  fetch used `catch {}` that set `data = null`; with `loading` then false, `KPIRow`'s
+  `if (loading || !data)` rendered the **shimmer skeleton forever** — an outage was
+  indistinguishable from loading, and the trend/leads cards showed empty-account
+  states. Also `KPIRow`'s `DeltaBadge` rendered a zero delta as `— N/A`, conflating
+  "no change" with "no data". **Fix:** the page now tracks an `error` state (set in
+  the catch, cleared on success), shows a dismissible **Retry** banner ("temporary
+  problem, not an empty account"), and threads `error` into `KPIRow`, which renders a
+  distinct red "Unavailable" tile state (≠ skeleton, ≠ zeros). `DeltaBadge`'s zero
+  case now renders a muted `0{unit}` with **no** POS/NEG/FLAT direction — verified
+  against `api/dashboard/summary/route.ts`, which currently **hardcodes**
+  `meetingsDelta`/`openRateDelta` to `0` (no period-over-period baseline is computed),
+  so asserting any trend would be false; a bare `0` is the truthful render. Computing
+  real deltas is a separate backend data item, not this frontend fix.
+  **Scope boundary (deliberate):** the sibling cards (`PipelineTrendCard`,
+  `RecentLeadsCard`, `WorkflowSection`, `BottomGrid`) still render empty-state-on-error
+  via `data?.x ?? []` — left as-is; the page-level banner makes the outage legible, and
+  the broader swallowed-failure cluster is owned by B-14 (a future slice), not 2.12.
+  Regression tests: `dashboard-cmdk-errors.test.ts` (source-string guards, matching
+  the `landing-agent-routing-regression.test.ts` convention — this workspace has no
+  React render harness: vitest env is `node`, no `@testing-library/react`): asserts
+  `ClientOverlays` no longer references `CommandPalette` + the file is gone; `KPIRow`
+  no longer contains `N/A` and has an `Unavailable` error state; the page contains
+  `setError(true)` and passes `error={error}`. Web `tsc --noEmit` clean; full
+  `vitest run tests/unit` green (217/217). **2.12 remaining (slices 2–3):** B-12
+  Activate/Enroll unification, B-13 `/sovereign` wire-or-delete, and the first-run
+  wizard blockers (U-01/02/03/05).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
