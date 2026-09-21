@@ -15,7 +15,7 @@ const FunnelScene = dynamic(() => import("./3d/FunnelScene"), { ssr: false });
 const WORKFLOW_STEPS = [
   { title: "Import or capture leads", body: "Pull contacts from LinkedIn, landing pages, or CSV. Every lead enters a shared funnel with full visibility — not someone's private inbox." },
   { title: "Draft approved email", body: "AI drafts the first message based on the buyer signal. A manager reviews it. It goes out only when cleared. No rogue sends." },
-  { title: "Sync LinkedIn context", body: "Before a follow-up goes out, your team sees the full LinkedIn snapshot — recent posts, role changes, company moves." },
+  { title: "Sync LinkedIn context", body: "Before a follow-up goes out, your team sees the captured LinkedIn profile context — name, headline, company, and location — alongside the draft." },
   { title: "Track channel status", body: "Email sent? LinkedIn messaged? Call logged? One activity timeline, one view. No &lsquo;did anyone follow up?&rsquo; conversations." },
   { title: "Review stuck leads", body: "Leads that have not moved surface automatically. Your team sees exactly what was sent and what the recommended next action is." },
   { title: "Advance funnel stage", body: "Every stage move is a deliberate, logged decision. When a lead is meeting-ready, the whole team sees it at the same time." },

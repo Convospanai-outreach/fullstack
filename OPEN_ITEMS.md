@@ -5062,6 +5062,42 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   expiring (16/16 in file). API strict typecheck (`tsc -p tsconfig.strict.json`)
   and apps/web `tsc --noEmit` both clean.
 
+- **OPEN-255 (In progress — slice 1 of 2):** roadmap.md item 2.4 — LinkedIn
+  extension (F-08). **Re-verifying against live code corrected the framing:** the
+  live extension (repo `manifest.json` v1.0.0, `background.js`) is *intentionally*
+  Chrome-Web-Store-approval-safe and **capture-only** — permissions are just
+  `activeTab`+`storage` (no `alarms`, no API-host), so it physically cannot poll a
+  task queue; the README documents v2 (task polling, `tabs`/`alarms`/`notifications`/
+  API-host, draft insertion) as deliberately deferred pending a manifest permission
+  review. `LinkedInService` (the thing calling the non-existent `/linkedin/connect|
+  status` "sync" routes cited by F-08) has **zero callers** — dead code. Sequence
+  LinkedIn steps already degrade honestly to manual tasks (`sequenceService.
+  executeLinkedInRun` → `AWAITING_MANUAL_REVIEW`). The server task queue runs on the
+  generic `Job` model: `extension/tasks/pending` claims pending Jobs of the supported
+  types (OPEN_PROFILE/ADD_LEAD/INSERT_DRAFT/LOG_MANUAL_LINKEDIN_ACTION), `tasks/result`
+  + `extension-bridge` close them — but **nothing server-side ever *creates* those
+  Jobs**, so the queue is always empty. The v2 worker (`background.v2-planned.js`) is
+  assistive, not autonomous (opens tabs / inserts draft text for a human; no
+  auto-connect/auto-send). **User decision:** ship the full v2 (client + manifest),
+  delivered in slices since I cannot E2E-test a Chrome extension or publish to the
+  store.
+  **Slice 1 (this PR) — the verifiable half:** (a) tests for the untested-but-live
+  extension routes `tasks/pending`, `tasks/result`, `action`, `auth/validate`, `leads`
+  (claim/dedup/team-scope/validation/auth paths); (b) delete dead `LinkedInService`;
+  (c) fix the one overreaching marketing line (`CinematicHome.tsx` promised "recent
+  posts, role changes, company moves" that capture doesn't deliver → now "name,
+  headline, company, and location", matching what's actually captured).
+  **Next slices (planned):** slice 2 — the server "sync API" that *creates* extension
+  Jobs (wire the sequence LinkedIn step / a trigger to enqueue OPEN_PROFILE/INSERT_DRAFT
+  Jobs so the v2 poller has work), fully testable; slice 3 — promote
+  `background.v2-planned.js` → shipped `background.js` + a v2 manifest (alarms/tabs/
+  notifications/API-host) + content-script EXECUTE_TASK executor — **cannot be
+  E2E-tested by me and requires the user to load-test and re-publish to the Chrome
+  Web Store (new permission review).** ToS note: v2 is assistive (human reviews/sends),
+  not autonomous outbound automation.
+  Regression tests: 18 new extension-route tests (32/32 across `routes/extension`).
+  API strict typecheck + apps/web `tsc --noEmit` both clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
