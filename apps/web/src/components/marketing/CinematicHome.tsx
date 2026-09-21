@@ -372,7 +372,7 @@ export default function CinematicHome() {
       <section className="py-24 px-6 bg-[#07111f]" id="pilot">
         <div className="mx-auto max-w-5xl rounded-[36px] border border-white/10 bg-gradient-to-br from-[#151a38] to-[#2b0b3d] p-10 text-center shadow-2xl sm:p-14">
           <h2 className="text-4xl font-black sm:text-5xl">Join the pilot. Run your first governed campaign in 4 weeks.</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-slate-400">We are onboarding a small group of B2B service teams who want structured, approved outreach. Invite-only. No setup fees. No long-term commitment.</p>
+          <p className="mx-auto mt-4 max-w-2xl text-slate-400">We are onboarding B2B service teams who want structured, approved outreach. No setup fees. No long-term commitment.</p>
           <div className="mt-10 grid gap-4 sm:grid-cols-4">
             {PILOT_WEEKS.map(([week, title]) => (
               <div key={week} className="rounded-2xl bg-white/10 p-5">
