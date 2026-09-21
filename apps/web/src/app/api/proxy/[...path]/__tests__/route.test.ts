@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isWebOwnedPath, POST } from "../route";
-import { NextRequest } from "next/server";
 
 vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
 
@@ -81,7 +80,9 @@ describe("forwardRequest timeout (roadmap B-05)", () => {
         global.fetch = fetchMock as any;
 
         // "workflows" is never web-owned, so this forwards to the upstream API.
-        const req = new NextRequest("http://localhost:3000/api/proxy/workflows/wf-1", { method: "POST" });
+        // The proxy reads req.nextUrl, so attach it (NextRequest is type-only here).
+        const url = "http://localhost:3000/api/proxy/workflows/wf-1";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
         await POST(req, { params: Promise.resolve({ path: ["workflows", "wf-1"] }) });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
