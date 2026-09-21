@@ -48,6 +48,7 @@ export default function CampaignDetailPage({
     const [is3DMode, setIs3DMode] = useState(false);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
+    const [starting, setStarting] = useState(false);
 
     useEffect(() => {
         loadCampaign();
@@ -169,19 +170,62 @@ export default function CampaignDetailPage({
         }
     };
 
+    // Pure status transition (pause / resume / complete). Resuming does NOT
+    // re-trigger sending - only handleStart() starts outreach - so a paused-then-
+    // resumed campaign can't re-draft or re-enrol leads it already contacted.
     const handleStatusChange = async (newStatus: string) => {
         try {
             await updateCampaign(campaignId, { status: newStatus });
-            if (newStatus === "active") {
-                await fetch(`/api/campaigns/${campaignId}/run`, { method: "POST" }).catch((e) => {
-                    console.warn("Campaign run endpoint warning:", e);
-                });
-            }
             loadCampaign();
             loadAnalytics();
             loadActivities(); // Refresh activity log
         } catch (err) {
             toast.error("Failed to update status");
+        }
+    };
+
+    // Single guarded "start outreach" action (roadmap 2.12 / B-12). Routes through
+    // POST /start, which enrols the saved sequence if there is one, otherwise
+    // generates one AI draft per lead for approval. Unlike the old Activate, it
+    // marks the campaign active only when the start actually succeeds and surfaces
+    // any failure as a toast instead of a swallowed console.warn.
+    const handleStart = async () => {
+        const confirmed = window.confirm(
+            "Start outreach for this campaign? If it has a saved sequence, its assigned leads are enrolled and sending begins on schedule; otherwise an AI draft is generated per lead for your approval. This starts real outbound - there is no undo."
+        );
+        if (!confirmed) return;
+
+        setStarting(true);
+        try {
+            const res = await fetch(`/api/campaigns/${campaignId}/start`, { method: "POST" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                toast.error(data.error || "Failed to start campaign");
+                return;
+            }
+            if (data.mode === "sequence") {
+                if (data.enrolled > 0) {
+                    toast.success(
+                        `Campaign started - enrolled ${data.enrolled} lead${data.enrolled === 1 ? "" : "s"}` +
+                            (data.alreadyEnrolled > 0 ? ` (${data.alreadyEnrolled} already enrolled)` : "")
+                    );
+                } else if (data.candidates === 0) {
+                    toast.info(data.message || "Campaign activated, but no leads are assigned yet");
+                } else {
+                    toast.info("Campaign started - all assigned leads were already enrolled");
+                }
+            } else {
+                toast.success(
+                    `Campaign started - generated ${data.enqueued ?? 0} draft${data.enqueued === 1 ? "" : "s"} for approval`
+                );
+            }
+        } catch (err) {
+            toast.error(err instanceof Error ? err.message : "Failed to start campaign");
+        } finally {
+            setStarting(false);
+            loadCampaign();
+            loadAnalytics();
+            loadActivities();
         }
     };
 
@@ -363,13 +407,14 @@ export default function CampaignDetailPage({
                                                 enabled={true}
                                             >
                                                 <button
-                                                    onClick={() => handleStatusChange("active")}
-                                                    className={`px-4 py-2 rounded-lg text-white transition ${checkCampaignPolicy(campaign)
+                                                    onClick={handleStart}
+                                                    disabled={starting || !!checkCampaignPolicy(campaign)}
+                                                    className={`px-4 py-2 rounded-lg text-white transition ${checkCampaignPolicy(campaign) || starting
                                                         ? "bg-zinc-600 cursor-not-allowed opacity-50"
                                                         : "bg-emerald-600 hover:bg-emerald-700"
                                                         }`}
                                                 >
-                                                    Activate
+                                                    {starting ? "Starting…" : "Activate"}
                                                 </button>
                                             </PolicyGuard>
                                         )}
