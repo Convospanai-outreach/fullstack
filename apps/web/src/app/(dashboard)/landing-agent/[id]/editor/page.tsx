@@ -77,7 +77,19 @@ export default function LandingAgentEditorPage() {
                         return;
                     }
                     const slug = result?.page?.slug || campaign.pages[0]?.slug;
-                    setStatus("Published successfully.");
+                    const cloudflareStatus = result?.cloudflare?.status;
+                    if (cloudflareStatus === "error") {
+                        // The page is saved as published, but the live copy on
+                        // Cloudflare's edge failed to update - don't redirect, so the
+                        // warning stays visible and the user can retry.
+                        setStatus("Published, but syncing the live page to Cloudflare failed. The public page may be out of date - check the server logs and publish again.");
+                        return;
+                    }
+                    if (cloudflareStatus === "skipped") {
+                        setStatus("Published. Cloudflare edge delivery isn't configured, so the page is only served from a preview link, not a custom domain.");
+                    } else {
+                        setStatus("Published successfully.");
+                    }
                     if (slug) {
                         await fetch("/api/landing-agent/revalidate", {
                             method: "POST",
