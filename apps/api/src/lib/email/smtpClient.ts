@@ -33,6 +33,11 @@ export function createSmtpTransport(config: SmtpConfig): nodemailer.Transporter 
             user: config.user,
             pass: config.password,
         },
+        // Without these, a stuck SMTP server hangs the send indefinitely (roadmap
+        // B-07): bound TCP connect, the SMTP greeting, and socket inactivity.
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 20_000,
     });
 }
 

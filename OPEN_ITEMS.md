@@ -4777,6 +4777,65 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `skipped`/`error`/`pushed` each appear in the returned object; asserts the raw
   `error` details never reach the caller). `tsc --noEmit` clean on both apps.
 
+- **OPEN-248 (Fixed):** roadmap.md item 2.8 — timeouts everywhere (B-05, B-06, B-07).
+  **B-05 (web proxy):** `apps/web/src/app/api/proxy/[...path]/route.ts:253` did
+  `await fetch(target, requestInit)` with no timeout, so every dashboard XHR
+  could hang forever on a stuck upstream leg. Fixed with an `AbortController` +
+  15s timer that is **cleared once the upstream responds** (time-to-headers
+  bound, not total transfer) so a long-but-live response body still streams; a
+  fired abort now returns `504` with `code: "PROXY_UPSTREAM_TIMEOUT"`. Used the
+  controller+clear pattern rather than the roadmap's bare
+  `AbortSignal.timeout(15_000)` because that would cut a live stream mid-body;
+  verified nothing in apps/api actually streams a response through the proxy
+  (grepped `text/event-stream`/`ReadableStream`/`TransformStream` — none), so
+  this is belt-and-suspenders, and documented as such.
+  **B-06 (LLM clients + Fastify):** `aiService.ts` constructed `new OpenAI(...)`
+  (3 sites), `new Anthropic(...)`, and Gemini `getGenerativeModel(...)` (2 sites)
+  with SDK defaults (~10-min timeout, silent background retries). Added
+  `timeout`/`maxRetries` to the OpenAI/Anthropic clients and
+  `{ timeout }` `requestOptions` to Gemini, **reusing the file's existing
+  `LLM_TIMEOUT_MS` (30s) and `MAX_RETRIES_PER_PROVIDER` (1) constants** (no new
+  duplicate). Note: the main chat path was already wrapped in
+  `withTimeout(callProvider(...), LLM_TIMEOUT_MS)` (line ~498), which bounds the
+  *caller* — but the SDK kept running/retrying in the background, and the
+  embeddings + image-generation paths were **not** `withTimeout`-wrapped at all,
+  so the SDK-level bound is the real fix there. Added Fastify `requestTimeout:
+  60_000` in `server.ts`. Verified against the installed Fastify 5 docs that
+  `requestTimeout` bounds **receiving the request** (socket level), NOT handler
+  execution — so it does not strangle the synchronous LLM routes (those are
+  bounded by the LLM client timeouts). Did **not** set `handlerTimeout`, which
+  *would* kill long LLM handlers.
+  **B-07 (external HTTP):** added `timeout: 10_000` to all **6** `axios.get`
+  calls in `apps/api/.../hunter-email-finder/service/hunterClient.ts` (the
+  roadmap cited only `:74,108`, but leaving 4 un-timed in the same file is
+  incoherent); `signal: AbortSignal.timeout(10_000)` on Mautic's 3 fetches,
+  Cloudflare custom-hostname's 2 fetches, and the Facebook worker's
+  `graphFetchUrl`; and `connectionTimeout`/`greetingTimeout`/`socketTimeout` on
+  the nodemailer transport in `lib/email/smtpClient.ts`. (`socketTimeout` is an
+  *inactivity* timeout, not a total-duration cap, so a slow-but-progressing large
+  base64 attachment upload still completes.) The Facebook worker's paging loop is
+  bounded by `MAX_PAGES` (200) × 10s worst case; that already could exceed the
+  10-min job lock before this change (the old un-timed fetch was unbounded), so
+  this bounds each hop rather than regressing the loop — a separate concern for
+  2.9's latency work, not introduced here.
+  **Scope decisions / corrections:**
+  (a) **apps/web's** parallel `hunter-email-finder` copy — left untouched
+  (different app, not cited; would turn an S into an M).
+  (b) `TemplateGuard.ts:127` (cited by B-07) — still the dead `getApprovedTemplates`
+  with zero callers per OPEN-246; timing an uncallable fetch is a no-op, left
+  untouched.
+  (c) `modules/overseer/deepseekClient.ts` (not cited) — already bounded by a 30s
+  `Promise.race` (`DEEPSEEK_TIMEOUT_MS`), left as-is.
+  (d) `lib/ai/batchDraftService.ts` (not cited) — Anthropic batch REST calls, not
+  one of B-06's 6 synchronous request-handler routes, left as-is.
+  **Regression tests:** `smtpClient.test.ts` (asserts the 3 nodemailer timeouts),
+  `hunterClient.test.ts` (asserts the 10s axios timeout), proxy `route.test.ts`
+  (asserts `fetch` receives an `AbortSignal`), `aiService.test.ts` (asserts the
+  OpenAI + Anthropic clients are constructed with `timeout: 30_000, maxRetries:
+  1`); updated `facebook-leads-worker.test.ts`'s two exact-arg fetch assertions
+  to allow the new `signal`. Full suites green: apps/api 1453/1453, apps/web
+  457 passed/7 skipped; `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

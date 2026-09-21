@@ -397,7 +397,7 @@ async function callProvider(
         const model = genAI.getGenerativeModel({
             model: candidate.model,
             ...(systemPrompt ? { systemInstruction: systemPrompt } : {})
-        });
+        }, { timeout: LLM_TIMEOUT_MS });
         const result = await model.generateContent(prompt);
         const response = result.response;
         const usage = (response as any).usageMetadata || {};
@@ -413,6 +413,8 @@ async function callProvider(
         // just a different base URL. Mirrors modules/overseer/deepseekClient.ts.
         const client = new OpenAI({
             apiKey: candidate.apiKey,
+            timeout: LLM_TIMEOUT_MS,
+            maxRetries: MAX_RETRIES_PER_PROVIDER,
             ...(candidate.provider === LLMProvider.DEEPSEEK ? { baseURL: DEEPSEEK_BASE_URL } : {})
         });
         // OpenAI caches automatically on repeated prefixes (>=1024 tokens) -
@@ -434,7 +436,7 @@ async function callProvider(
         };
     }
 
-    const client = new Anthropic({ apiKey: candidate.apiKey });
+    const client = new Anthropic({ apiKey: candidate.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
     const message = await client.messages.create({
         model: candidate.model,
         max_tokens: 800,
@@ -677,7 +679,7 @@ export class AIService {
 
         try {
         if (providers.openai?.apiKey) {
-            const client = new OpenAI({ apiKey: providers.openai.apiKey });
+            const client = new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
             // providers.openai.model is the team's chat-completion model override
             // (e.g. "gpt-4o") - never a valid embeddings model, so it must not be
             // reused here the way it is for chat calls elsewhere in this file.
@@ -720,7 +722,7 @@ export class AIService {
             const embeddingModelName = process.env["GEMINI_EMBEDDING_MODEL"] || "text-embedding-004";
             const model = genAI.getGenerativeModel({
                 model: embeddingModelName
-            });
+            }, { timeout: LLM_TIMEOUT_MS });
             const result = await (model as any).embedContent(safeText);
             const tokensIn = estimatedTokensIn;
             const tokensOut = 0;
@@ -833,7 +835,7 @@ export class AIService {
         let settledCredits = false;
 
         try {
-            const client = new OpenAI({ apiKey: providers.openai.apiKey });
+            const client = new OpenAI({ apiKey: providers.openai.apiKey, timeout: LLM_TIMEOUT_MS, maxRetries: MAX_RETRIES_PER_PROVIDER });
             const response = await client.images.generate({
                 model,
                 prompt: safePrompt,
