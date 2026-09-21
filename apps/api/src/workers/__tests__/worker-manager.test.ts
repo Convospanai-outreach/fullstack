@@ -43,7 +43,10 @@ vi.mock("@/lib/outboxService", () => ({
 }));
 
 vi.mock("@/modules/governance/ApprovalService", () => ({
-    ApprovalService: { autoDenyExpiredApprovals: vi.fn().mockResolvedValue(0) },
+    ApprovalService: {
+        autoDenyExpiredApprovals: vi.fn().mockResolvedValue(0),
+        warnExpiringApprovals: vi.fn().mockResolvedValue(0),
+    },
 }));
 
 vi.mock("../handlers/overseerHandler", () => ({
