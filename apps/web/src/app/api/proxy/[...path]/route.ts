@@ -15,6 +15,12 @@ const INTERNAL_API_ORIGIN =
 // Loopback to the port this same process is already listening on instead.
 const SELF_ORIGIN = `http://127.0.0.1:${process.env["PORT"] || "3000"}`;
 
+// Every dashboard XHR forwards through here to the upstream API. With no timeout,
+// a slow/stuck upstream leg hangs the browser request indefinitely (roadmap
+// B-05). Bound the time-to-response-headers to 15s; the timer is cleared once the
+// upstream responds, so a legitimately long response body still streams through.
+const PROXY_TIMEOUT_MS = 15_000;
+
 const STRIPPED_UPSTREAM_RESPONSE_HEADERS = new Set([
     "connection",
     "keep-alive",
@@ -240,17 +246,28 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
                 ? null
                 : await req.arrayBuffer();
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), PROXY_TIMEOUT_MS);
+
         const requestInit: RequestInit = {
             method,
             headers,
             redirect: "manual",
+            signal: controller.signal,
         };
 
         if (body !== null) {
             requestInit.body = body;
         }
 
-        const upstream = await fetch(target, requestInit);
+        let upstream: Response;
+        try {
+            upstream = await fetch(target, requestInit);
+        } finally {
+            // Headers are in (or the fetch failed) - stop the abort timer so it
+            // never cuts off a long-but-live response body mid-stream.
+            clearTimeout(timeout);
+        }
         const responseHeaders = sanitizeUpstreamResponseHeaders(upstream.headers);
 
         return new NextResponse(upstream.body, {
@@ -258,6 +275,13 @@ async function forwardRequest(req: NextRequest, pathParts: string[] | undefined)
             headers: responseHeaders,
         });
     } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+            return NextResponse.json({
+                error: `Upstream API did not respond within ${PROXY_TIMEOUT_MS / 1000}s.`,
+                code: "PROXY_UPSTREAM_TIMEOUT",
+                upstream: INTERNAL_API_ORIGIN.replace(/\/\/.*@/, "//[redacted]@"),
+            }, { status: 504 });
+        }
         const message = error instanceof Error ? error.message : "Proxy failure";
         return NextResponse.json({
             error: message === "fetch failed" ? "Upstream API is unavailable or API_INTERNAL_ORIGIN is misconfigured." : message,

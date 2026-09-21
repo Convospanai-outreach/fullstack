@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate, mockGetCampaignContext, mockGeneratePersonalityPrompt } = vi.hoisted(() => ({
+const { mockPrisma, mockDeductCredits, mockRefundCredits, mockOpenAICreate, mockAnthropicCreate, mockOpenAIEmbeddingsCreate, mockGetCampaignContext, mockGeneratePersonalityPrompt, llmCtorOptions } = vi.hoisted(() => ({
+    llmCtorOptions: { openai: undefined as any, anthropic: undefined as any },
     mockPrisma: {
         team: { findUnique: vi.fn() },
         lLMUsageLog: { create: vi.fn().mockResolvedValue({}) },
@@ -32,11 +33,13 @@ vi.mock("openai", () => ({
     default: class MockOpenAI {
         chat = { completions: { create: mockOpenAICreate } };
         embeddings = { create: mockOpenAIEmbeddingsCreate };
+        constructor(options: any) { llmCtorOptions.openai = options; }
     },
 }));
 vi.mock("@anthropic-ai/sdk", () => ({
     default: class MockAnthropic {
         messages = { create: mockAnthropicCreate };
+        constructor(options: any) { llmCtorOptions.anthropic = options; }
     },
 }));
 
@@ -197,5 +200,44 @@ describe("AIService.getRagEmbedding (RAG vector search)", () => {
             expect.objectContaining({ model: "text-embedding-3-small" })
         );
         expect(embedding).toEqual([0.1, 0.2, 0.3]);
+    });
+});
+
+// Regression for roadmap B-06: LLM SDK clients default to a ~10-minute timeout
+// with automatic retries, so a stuck provider call hangs the request handler.
+// Assert each client is constructed with an explicit timeout and retry cap.
+describe("AIService - LLM client timeouts (B-06)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        llmCtorOptions.openai = undefined;
+        llmCtorOptions.anthropic = undefined;
+    });
+
+    it("constructs the OpenAI client with a 30s timeout and 1 retry", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { openai: { apiKey: "test-key", model: "gpt-4o-mini" } } },
+        });
+        mockOpenAICreate.mockResolvedValue({
+            choices: [{ message: { content: JSON.stringify({ subject: "Hi", body: "Hello" }) } }],
+            usage: { prompt_tokens: 10, completion_tokens: 5 },
+        });
+
+        await aiService.generateEmailDraft({ fullName: "Jane" }, null, "team-1");
+
+        expect(llmCtorOptions.openai).toMatchObject({ timeout: 30_000, maxRetries: 1 });
+    });
+
+    it("constructs the Anthropic client with a 30s timeout and 1 retry", async () => {
+        mockPrisma.team.findUnique.mockResolvedValue({
+            aiConfig: { providers: { anthropic: { apiKey: "test-key", model: "claude-3-5-sonnet" } } },
+        });
+        mockAnthropicCreate.mockResolvedValue({
+            content: [{ type: "text", text: JSON.stringify({ subject: "Hi", body: "Hello" }) }],
+            usage: { input_tokens: 10, output_tokens: 5 },
+        });
+
+        await aiService.generateEmailDraft({ fullName: "Jane" }, null, "team-1");
+
+        expect(llmCtorOptions.anthropic).toMatchObject({ timeout: 30_000, maxRetries: 1 });
     });
 });

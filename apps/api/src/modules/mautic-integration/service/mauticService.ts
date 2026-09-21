@@ -32,6 +32,10 @@ function authHeader(username: string, password: string) {
     return "Basic " + Buffer.from(`${username}:${password}`).toString("base64");
 }
 
+// fetch has no default timeout, so a slow Mautic instance would hang the push
+// (roadmap B-07). Bound each call to 10s via AbortSignal.
+const MAUTIC_TIMEOUT_MS = 10_000;
+
 function teamSlug(teamId: string) {
     // Same value written as the segmentation tag/custom field on the Mautic side -
     // internal isolation still uses teamId, this is only the external-facing label.
@@ -77,7 +81,7 @@ class MauticService {
             // this team's tag too, so two teams' leads never resolve to one contact.
             const searchRes = await fetch(
                 `${config.baseUrl}/api/contacts?search=${encodeURIComponent(`email:"${lead.email}" and tag:"${teamSlug(teamId)}"`)}&limit=1`,
-                { headers }
+                { headers, signal: AbortSignal.timeout(MAUTIC_TIMEOUT_MS) }
             );
             if (!searchRes.ok) {
                 throw new Error(`Mautic contact search failed: ${searchRes.status} ${await searchRes.text()}`);
@@ -97,6 +101,7 @@ class MauticService {
                     method: "PATCH",
                     headers,
                     body: JSON.stringify(body),
+                    signal: AbortSignal.timeout(MAUTIC_TIMEOUT_MS),
                 });
                 if (!editRes.ok) {
                     throw new Error(`Mautic contact update failed: ${editRes.status} ${await editRes.text()}`);
@@ -108,6 +113,7 @@ class MauticService {
                     method: "POST",
                     headers,
                     body: JSON.stringify(body),
+                    signal: AbortSignal.timeout(MAUTIC_TIMEOUT_MS),
                 });
                 if (!createRes.ok) {
                     throw new Error(`Mautic contact create failed: ${createRes.status} ${await createRes.text()}`);

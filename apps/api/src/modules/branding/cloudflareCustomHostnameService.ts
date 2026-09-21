@@ -15,6 +15,10 @@ export interface CreateCustomHostnameResult {
 
 export type CustomHostnameStatus = "pending" | "active" | "invalid";
 
+// fetch has no default timeout; bound each Cloudflare API call to 10s so a stalled
+// request can't hang hostname creation or the status poller (roadmap B-07).
+const CLOUDFLARE_TIMEOUT_MS = 10_000;
+
 function getConfig() {
     const zoneId = process.env["CLOUDFLARE_ZONE_ID"];
     const apiToken = process.env["CLOUDFLARE_API_TOKEN"];
@@ -33,6 +37,7 @@ export async function createCustomHostname(domain: string): Promise<CreateCustom
         method: "POST",
         headers: { Authorization: `Bearer ${config.apiToken}`, "Content-Type": "application/json" },
         body: JSON.stringify({ hostname: domain, ssl: { method: "txt", type: "dv" } }),
+        signal: AbortSignal.timeout(CLOUDFLARE_TIMEOUT_MS),
     });
     const json: any = await res.json().catch(() => null);
     if (!res.ok || !json?.result?.id) {
@@ -57,7 +62,7 @@ export async function getCustomHostnameStatus(cloudflareHostnameId: string): Pro
 
     const res = await fetch(
         `https://api.cloudflare.com/client/v4/zones/${config.zoneId}/custom_hostnames/${cloudflareHostnameId}`,
-        { headers: { Authorization: `Bearer ${config.apiToken}` } }
+        { headers: { Authorization: `Bearer ${config.apiToken}` }, signal: AbortSignal.timeout(CLOUDFLARE_TIMEOUT_MS) }
     );
     const json: any = await res.json().catch(() => null);
     if (!res.ok || !json?.result) {

@@ -103,7 +103,7 @@ describe("syncDueFacebookLeadSources", () => {
         const results = await syncDueFacebookLeadSources();
 
         expect(fetchMock).toHaveBeenCalledTimes(3);
-        expect(fetchMock).toHaveBeenNthCalledWith(3, nextPageUrl);
+        expect(fetchMock).toHaveBeenNthCalledWith(3, nextPageUrl, expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(mockPrisma.lead.create).toHaveBeenCalledTimes(2);
         expect(results[0]).toMatchObject({ synced: 2 });
     });
@@ -129,7 +129,7 @@ describe("syncDueFacebookLeadSources", () => {
 
         const results = await syncDueFacebookLeadSources();
 
-        expect(fetchMock).toHaveBeenNthCalledWith(2, nextFormsPageUrl);
+        expect(fetchMock).toHaveBeenNthCalledWith(2, nextFormsPageUrl, expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(results.map((r: any) => r.formId)).toEqual(["form-1", "form-2"]);
     });
 

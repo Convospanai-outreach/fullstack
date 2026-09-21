@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { isWebOwnedPath } from "../route";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isWebOwnedPath, POST } from "../route";
+
+vi.mock("next-auth/jwt", () => ({ getToken: vi.fn().mockResolvedValue(null) }));
 
 describe("isWebOwnedPath", () => {
     describe("settings", () => {
@@ -62,5 +64,29 @@ describe("isWebOwnedPath", () => {
 
     it("returns false for unrelated roots (handled by WEB_OWNED_API_ROOTS or the default proxy)", () => {
         expect(isWebOwnedPath(["campaigns", "c-1"])).toBe(false);
+    });
+});
+
+describe("forwardRequest timeout (roadmap B-05)", () => {
+    const originalFetch = global.fetch;
+
+    beforeEach(() => vi.clearAllMocks());
+    afterEach(() => { global.fetch = originalFetch; });
+
+    it("aborts the upstream fetch via an AbortSignal", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response(null, { status: 200 })
+        );
+        global.fetch = fetchMock as any;
+
+        // "workflows" is never web-owned, so this forwards to the upstream API.
+        // The proxy reads req.nextUrl, so attach it (NextRequest is type-only here).
+        const url = "http://localhost:3000/api/proxy/workflows/wf-1";
+        const req = Object.assign(new Request(url, { method: "POST" }), { nextUrl: new URL(url) }) as any;
+        await POST(req, { params: Promise.resolve({ path: ["workflows", "wf-1"] }) });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        const init = fetchMock.mock.calls[0][1] as RequestInit;
+        expect(init.signal).toBeInstanceOf(AbortSignal);
     });
 });

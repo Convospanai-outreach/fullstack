@@ -11,6 +11,7 @@ import { decryptCredential } from "@/lib/security/credentialVault";
 const GRAPH_API_VERSION = "v21.0"; // keep in sync with apps/web's facebookLeadsService.ts
 const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 const LOCK_DURATION_MS = 10 * 60 * 1000; // 10 minutes - one form's leads page is fast; generous headroom for API slowness
+const GRAPH_TIMEOUT_MS = 10_000; // fetch has no default timeout; bound each Graph API call (roadmap B-07)
 const MAX_PAGES = 200; // safety cap against a runaway/malformed paging loop (5,000 items at the default page size of 25)
 
 interface LeadgenForm {
@@ -38,7 +39,7 @@ function fieldValue(fields: LeadField[], ...names: string[]): string | undefined
 }
 
 async function graphFetchUrl(url: string) {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS) });
     const json: any = await res.json();
     if (!res.ok) {
         throw new Error(json?.error?.message || `Facebook Graph API request failed (${res.status})`);

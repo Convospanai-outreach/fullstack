@@ -3,6 +3,10 @@ import axios from "axios";
 const HUNTER_API_BASE = "https://api.hunter.io/v2";
 const API_KEY = process.env['HUNTER_IO_API_KEY'];
 
+// axios has no default timeout, so a stalled Hunter request hangs the caller
+// indefinitely (roadmap B-07). Bound every request to 10s.
+const HUNTER_TIMEOUT_MS = 10_000;
+
 export type EmailFinderResult = {
     email: string | null;
     score: number;
@@ -72,6 +76,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/email-finder`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     domain,
                     first_name: firstName,
@@ -106,6 +111,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/email-verifier`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     email,
                     api_key: this.apiKey,
@@ -143,6 +149,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/domain-search`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     domain,
                     limit,
@@ -178,6 +185,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/companies/find`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     domain,
                     api_key: this.apiKey,
@@ -198,6 +206,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/people/find`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     email,
                     api_key: this.apiKey,
@@ -218,6 +227,7 @@ class HunterClient {
         this.checkKey();
         try {
             const response = await axios.get(`${HUNTER_API_BASE}/combined/find`, {
+                timeout: HUNTER_TIMEOUT_MS,
                 params: {
                     email,
                     api_key: this.apiKey,

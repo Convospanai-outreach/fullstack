@@ -35,6 +35,12 @@ const trustProxy: boolean | string[] = trustProxyEnabled ? ['127.0.0.1', '::1'] 
 
 const fastify = Fastify({
   trustProxy,
+  // Bound how long the server will wait to receive a full request from the
+  // client (socket-level, per Fastify docs) so a slow/stuck client can't hold a
+  // connection open indefinitely (roadmap B-06). This does NOT cap handler
+  // execution - long synchronous LLM calls are bounded by the LLM client
+  // timeouts in aiService.ts instead.
+  requestTimeout: 60_000,
   logger: {
     level: 'info',
     transport: {
