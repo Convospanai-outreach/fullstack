@@ -17,7 +17,10 @@ interface KPIData {
 const transitionCurve = { type: "tween", ease: [0.16, 1, 0.3, 1], duration: 0.8 } as const;
 
 function DeltaBadge({ value, unit = '' }: { value: number; unit?: string }) {
-  if (value === 0) return <span className="text-muted-foreground font-mono text-[9px] uppercase tracking-widest">— N/A</span>;
+  // A zero delta is the real value, not missing data — render it as 0, muted and
+  // without a POS/NEG direction (the summary API does not yet compute a
+  // period-over-period baseline, so no trend can be asserted).
+  if (value === 0) return <span className="text-muted-foreground font-mono text-[10px] tracking-widest">0{unit}</span>;
   const isPos = value > 0;
   return (
     <div className={cn(
@@ -41,9 +44,25 @@ function SkeletonBlock() {
 interface KPIRowProps {
   data: KPIData | null;
   loading?: boolean;
+  error?: boolean;
 }
 
-export function KPIRow({ data, loading }: KPIRowProps) {
+export function KPIRow({ data, loading, error }: KPIRowProps) {
+  // An outage must not look like a fresh (all-zero) account: show an explicit
+  // "unavailable" state that is distinct from both the loading shimmer and real
+  // zero metrics.
+  if (!loading && error) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border border-[0.5px] border-border mb-8 p-[1px]">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="relative h-32 border-[0.5px] border-destructive/30 bg-destructive/5 flex items-center justify-center">
+            <span className="text-destructive font-mono text-[9px] uppercase tracking-widest">Unavailable</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (loading || !data) {
     return (
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-border border-[0.5px] border-border mb-8 p-[1px]">
