@@ -4984,6 +4984,43 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   INR currency, low/high/offerCount derived, breadcrumb present, custom-currency
   propagation). apps/web 460 passed/7 skipped; `tsc --noEmit` clean on both apps.
 
+- **OPEN-253 (Fixed):** roadmap.md item 2.2 — open signup + FREE cap (F-04).
+  F-04 claimed "Signup is open … Home page says 'Invite-only' … FREE plan = 50 LLM
+  credits/month per new team → cost farming." **Re-verifying against live code
+  corrected the premise:** signup is genuinely open (`syncGoogleUserToApp` never
+  denies for lack of an invite — [[OPEN-187]]/`googleOnboarding.ts`), but a new
+  self-signup team gets a **one-time 100-credit grant** from `Team.credits
+  @default(100)` in schema.prisma — **not** 50/month. The seeded FREE plan's
+  `creditsPerMonth: 50` only reaches `team.credits` through billing webhooks
+  (paid subscriptions, `billingService.ts:96`); there is **no monthly re-grant**
+  for FREE (confirmed: no scheduled `credits:` writer outside `lib/credits.ts`,
+  billing, top-up, and manual admin scripts). LLM/enrichment spend is already
+  gated on `team.credits` via `aiService` credit reservations + `deductCredits`.
+  So the farming risk is bounded per Google account (100 credits), not a recurring
+  faucet. **User decision (with corrected facts):** truthful copy + an explicit
+  named cap; defer account/team-creation throttling to the P0 #3 `/register`
+  rate-limit gap where the rate-limit infra belongs (not this PR).
+  Changes: (a) dropped the misleading "Invite-only." sentence from the two
+  marketing hero blocks (`marketing-home-page.tsx`, `components/marketing/
+  CinematicHome.tsx`) — the pilot/`InviteRequestForm` "request an invite" pipeline
+  and the accurate admin-console "Invite-only Admin Console" label are left intact;
+  (b) new exported `FREE_TEAM_INITIAL_CREDITS = 50` in `googleOnboarding.ts`, set
+  explicitly on the open-signup `team.create` so the free-tier grant is an
+  intentional, auditable cap aligned with the FREE plan's `creditsPerMonth`
+  instead of silently inheriting the ungoverned schema `@default(100)`. This
+  **reduces the new-team grant 100 → 50** (matching the declared FREE plan).
+  Scope notes: only the live open-signup path (`googleOnboarding.ts:207`) is
+  capped — `setupUser` (`auth.ts`) is dead code (no callers) and `admin/invites`
+  team creation is admin-provisioned (not self-signup farming), both left as-is;
+  the schema `@default(100)` is unchanged (no 3-schema migration needed — the cap
+  is explicit at the one creation site that matters).
+  **Deferred (documented):** account/team-creation throttling — `@fastify/rate-limit`
+  is a dependency but never registered and `/register` is unthrottled (roadmap P0
+  #3); that is the real anti-farming control and belongs with that item.
+  Regression test: `googleOnboarding.test.ts` — open-signup team is created with
+  `credits: FREE_TEAM_INITIAL_CREDITS`. apps/web 14/14 in that file; `tsc --noEmit`
+  clean (apps/web; no apps/api files touched).
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

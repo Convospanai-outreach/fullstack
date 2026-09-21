@@ -1,5 +1,5 @@
 import { vi, Mock } from "vitest";
-import { syncGoogleUserToApp } from "../googleOnboarding";
+import { syncGoogleUserToApp, FREE_TEAM_INITIAL_CREDITS } from "../googleOnboarding";
 import { prisma } from "@/lib/db";
 import { findValidInvitation } from "@/lib/invitations";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
@@ -332,6 +332,14 @@ describe("syncGoogleUserToApp - open signup (no invite, no inviteRequest)", () =
 
         expect(mockTx.team.create).toHaveBeenCalledWith(
             expect.objectContaining({ data: expect.objectContaining({ name: "My Team" }) })
+        );
+    });
+
+    it("caps the new free team's starting credits at FREE_TEAM_INITIAL_CREDITS instead of the ungoverned schema default", async () => {
+        await syncGoogleUserToApp({ email: "nobody-invited@example.com", name: "Ada Lovelace" });
+
+        expect(mockTx.team.create).toHaveBeenCalledWith(
+            expect.objectContaining({ data: expect.objectContaining({ credits: FREE_TEAM_INITIAL_CREDITS }) })
         );
     });
 });

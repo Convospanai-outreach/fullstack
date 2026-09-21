@@ -3,6 +3,14 @@ import { UserRole } from "@/types/prisma-safe";
 import { findValidInvitation, isAssignableInviteRole } from "@/lib/invitations";
 import { isSsoEnforcedForEmail } from "@/lib/sso/oidc";
 
+// Credits a brand-new self-signup team starts with. Signup is open (any verified
+// Google account gets its own team), so this is the one-time free-tier grant and
+// the cap on what an un-paid team can spend before topping up - LLM/enrichment
+// spend is debited from Team.credits (see @/lib/credits). Set explicitly here to
+// match the FREE plan's creditsPerMonth (apps/api/prisma/seed.ts) instead of
+// silently inheriting the ungoverned Team.credits @default(100) in schema.prisma.
+export const FREE_TEAM_INITIAL_CREDITS = 50;
+
 type AppUserWithMemberships = {
     id: string;
     email: string | null;
@@ -207,6 +215,7 @@ export async function syncGoogleUserToApp(input: { email: string; name?: string 
         await tx.team.create({
             data: {
                 name: teamName,
+                credits: FREE_TEAM_INITIAL_CREDITS,
                 members: {
                     create: {
                         userId: user.id,
