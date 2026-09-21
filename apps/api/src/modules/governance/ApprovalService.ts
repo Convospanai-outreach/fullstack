@@ -9,6 +9,11 @@ export enum ApprovalStatus {
     REJECTED = "REJECTED"
 }
 
+// How long before autoDenyAt a QUEUED approval is treated as "expiring soon".
+// The pre-deny warning digest below uses it; the Approvals UI mirrors the same
+// window for its "Expiring soon" badge (apps/web approvals/page.tsx).
+const EXPIRY_WARN_WINDOW_MS = 6 * 60 * 60 * 1000;
+
 // A human accept/reject on an AI-drafted piece of content (currently the only
 // approvals carrying `draftEmailId` in their payload - see intel-followup-worker.ts
 // and landing-agent/service.ts) is exactly the signal the learning/feedback loop
@@ -114,6 +119,75 @@ export class ApprovalService {
         }
 
         return expired.length;
+    }
+
+    /**
+     * Warns approvers (team OWNER/ADMIN, who hold RESOLVE_APPROVALS) when QUEUED
+     * requests are within EXPIRY_WARN_WINDOW_MS of auto-denying, so a campaign
+     * doesn't silently stall because a reviewer missed a day (F-07). At most one
+     * digest per approver per window, deduped via the notification's `meta.kind`
+     * so the recurring sweep doesn't re-warn on every tick. Best-effort: a
+     * notification failure must never break the sweep.
+     * @returns the number of warning notifications sent.
+     */
+    static async warnExpiringApprovals(now: Date = new Date()): Promise<number> {
+        const windowEnd = new Date(now.getTime() + EXPIRY_WARN_WINDOW_MS);
+        const expiring = await prisma.approvalRequest.findMany({
+            where: {
+                status: ApprovalStatus.PENDING,
+                tier: ApprovalTier.QUEUED,
+                autoDenyAt: { gt: now, lte: windowEnd }
+            },
+            select: { teamId: true }
+        });
+
+        if (expiring.length === 0) return 0;
+
+        const countByTeam = new Map<string, number>();
+        for (const { teamId } of expiring) {
+            countByTeam.set(teamId, (countByTeam.get(teamId) ?? 0) + 1);
+        }
+
+        const dedupeSince = new Date(now.getTime() - EXPIRY_WARN_WINDOW_MS);
+        const windowHours = EXPIRY_WARN_WINDOW_MS / (60 * 60 * 1000);
+        let warned = 0;
+
+        for (const [teamId, count] of countByTeam) {
+            const approvers = await prisma.teamMember.findMany({
+                where: { teamId, status: "active", role: { in: ["owner", "admin"] } },
+                select: { userId: true }
+            });
+
+            for (const { userId } of approvers) {
+                if (!userId) continue;
+
+                // Skip if this approver already got an expiry warning this window.
+                const alreadyWarned = await prisma.notification.findFirst({
+                    where: {
+                        userId,
+                        createdAt: { gt: dedupeSince },
+                        meta: { path: ["kind"], equals: "approval_expiry_warning" }
+                    },
+                    select: { id: true }
+                });
+                if (alreadyWarned) continue;
+
+                try {
+                    const { notificationService } = await import("@/modules/notifications/service/notificationService");
+                    await notificationService.sendAlert(
+                        userId,
+                        "warning",
+                        `${count} approval request${count === 1 ? "" : "s"} will auto-deny within ${windowHours}h. Review them before they expire.`,
+                        { kind: "approval_expiry_warning", teamId, count }
+                    );
+                    warned++;
+                } catch (err) {
+                    console.error(`[ApprovalService] Failed to warn approver ${userId} of expiring approvals:`, err);
+                }
+            }
+        }
+
+        return warned;
     }
 
     /**

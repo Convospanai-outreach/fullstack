@@ -5021,6 +5021,47 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   `credits: FREE_TEAM_INITIAL_CREDITS`. apps/web 14/14 in that file; `tsc --noEmit`
   clean (apps/web; no apps/api files touched).
 
+- **OPEN-254 (Fixed):** roadmap.md item 2.3 — approvals expiry visibility +
+  pre-deny warning (F-07). F-07 asked for an `AUTO` allow-list (e.g. "lead
+  enrichment, draft generation"), a per-team timeout, a pre-deny digest, and an
+  "expiring soon" UI. **Re-verifying against live code dropped the allow-list as
+  unsafe-as-specified:** "lead enrichment" isn't gated by approvals at all (runs
+  through `enrichment-worker` on `deductCredits`); the draft action types
+  (`SEND_EMAIL_DRAFT`, `NETJANA_FOLLOWUP_REVIEW`) gate *acting on / sending*
+  AI-written email, so auto-approving them would auto-send with no human read
+  (collides with the duplicate-email P0 #4) and poison the approve/reject learning
+  loop with synthetic `system-auto` feedback. `approvalPolicy.ts:7-10`'s own
+  comment already says every current actionType "warrants a human look" and the
+  `AUTO_ACTION_TYPES` set was deliberately left empty. **User decision (with
+  corrected facts):** ship the two safe parts + fix a bug; defer the per-team
+  configurable timeout to its own PR (needs a 3-schema migration).
+  Also found + fixed a real bug: `SEND_EMAIL_DRAFT` approvals are created by a
+  direct `prisma.approvalRequest.upsert` in `intel-followup-worker.ts` with no
+  `autoDenyAt`, so with `tier @default("QUEUED")` they were QUEUED-tier rows the
+  sweeper's `autoDenyAt: { lte: now }` filter never matched → **immortal PENDING
+  rows** that never expire and would show no deadline in the UI. The upsert now
+  sets `tier: QUEUED` + `autoDenyAt` (mirroring ApprovalService's breaker-extended
+  timeout).
+  Changes: (a) `ApprovalService.warnExpiringApprovals()` — warns team OWNER/ADMIN
+  approvers (who hold `RESOLVE_APPROVALS`) when a QUEUED request is within 6h of
+  auto-deny, one digest per approver per window, deduped via the notification's
+  `meta.kind` so the 15-min sweep doesn't re-warn each tick; best-effort (never
+  throws into the sweep). Wired into `worker-manager.ts` before the auto-deny
+  sweep. (b) Approvals UI (`approvals/page.tsx`): new `ExpiryBadge` shows the real
+  auto-deny countdown from `autoDenyAt` and a red "Expiring soon" inside the same
+  6h window; the misleading hardcoded "Queued · 24h" tier badge is now just
+  "Queued" (the real deadline — 24h, or 72h under an open breaker — lives on the
+  expiry badge). (c) immortal-row fix above.
+  **Deferred (documented):** per-team configurable queued timeout
+  (`OrganizationPolicy.approvalTimeoutHours` + 3-schema migration + thread through
+  `computeAutoDenyAt`) — its own PR; the `AUTO` allow-list — not built (no safe
+  members among current action types); legacy immortal rows created before this
+  fix are not retro-backfilled (low volume; new rows are correct).
+  Regression tests: `ApprovalService.test.ts` — `warnExpiringApprovals` targets
+  only owner/admin, dedups on an existing warning, and no-ops when nothing is
+  expiring (16/16 in file). API strict typecheck (`tsc -p tsconfig.strict.json`)
+  and apps/web `tsc --noEmit` both clean.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

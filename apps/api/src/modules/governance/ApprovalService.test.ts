@@ -14,11 +14,25 @@ const { mockPrisma } = vi.hoisted(() => ({
             update: vi.fn(),
             updateMany: vi.fn(),
         },
+        teamMember: {
+            findMany: vi.fn(),
+        },
+        notification: {
+            findFirst: vi.fn(),
+        },
     },
 }));
 
 vi.mock("@/lib/db", () => ({
     prisma: mockPrisma,
+}));
+
+const { mockSendAlert } = vi.hoisted(() => ({
+    mockSendAlert: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock("@/modules/notifications/service/notificationService", () => ({
+    notificationService: { sendAlert: mockSendAlert },
 }));
 
 vi.mock("./approvalPolicy", async () => {
@@ -152,6 +166,63 @@ describe("ApprovalService.autoDenyExpiredApprovals", () => {
 
         expect(count).toBe(0);
         expect(mockPrisma.approvalRequest.update).not.toHaveBeenCalled();
+    });
+});
+
+describe("ApprovalService.warnExpiringApprovals", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("queries only PENDING + QUEUED requests inside the warning window and warns each team's owner/admin approvers", async () => {
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([
+            { teamId: "team-1" },
+            { teamId: "team-1" },
+        ]);
+        mockPrisma.teamMember.findMany.mockResolvedValue([{ userId: "owner-1" }, { userId: "admin-1" }]);
+        mockPrisma.notification.findFirst.mockResolvedValue(null);
+
+        const warned = await ApprovalService.warnExpiringApprovals();
+
+        expect(warned).toBe(2);
+        const where = mockPrisma.approvalRequest.findMany.mock.calls[0][0].where;
+        expect(where.status).toBe("PENDING");
+        expect(where.tier).toBe(ApprovalTier.QUEUED);
+        expect(where.autoDenyAt.gt).toBeInstanceOf(Date);
+        expect(where.autoDenyAt.lte).toBeInstanceOf(Date);
+        // Only owner/admin approvers are targeted.
+        expect(mockPrisma.teamMember.findMany).toHaveBeenCalledWith(
+            expect.objectContaining({ where: { teamId: "team-1", status: "active", role: { in: ["owner", "admin"] } } })
+        );
+        // Digest count is per-team (2 expiring for team-1).
+        expect(mockSendAlert).toHaveBeenCalledTimes(2);
+        expect(mockSendAlert).toHaveBeenCalledWith(
+            "owner-1",
+            "warning",
+            expect.stringContaining("2 approval requests"),
+            expect.objectContaining({ kind: "approval_expiry_warning", teamId: "team-1", count: 2 })
+        );
+    });
+
+    it("does not re-warn an approver who already got an expiry warning this window (dedup)", async () => {
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([{ teamId: "team-1" }]);
+        mockPrisma.teamMember.findMany.mockResolvedValue([{ userId: "owner-1" }]);
+        mockPrisma.notification.findFirst.mockResolvedValue({ id: "existing-warning" });
+
+        const warned = await ApprovalService.warnExpiringApprovals();
+
+        expect(warned).toBe(0);
+        expect(mockSendAlert).not.toHaveBeenCalled();
+    });
+
+    it("returns 0 and notifies nobody when nothing is expiring", async () => {
+        mockPrisma.approvalRequest.findMany.mockResolvedValue([]);
+
+        const warned = await ApprovalService.warnExpiringApprovals();
+
+        expect(warned).toBe(0);
+        expect(mockPrisma.teamMember.findMany).not.toHaveBeenCalled();
+        expect(mockSendAlert).not.toHaveBeenCalled();
     });
 });
 

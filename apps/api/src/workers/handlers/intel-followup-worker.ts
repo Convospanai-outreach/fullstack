@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db";
 import { JobPayload } from "@/lib/queue";
 import { ApprovalService } from "@/modules/governance/ApprovalService";
+import { ApprovalTier, computeAutoDenyAt } from "@/modules/governance/approvalPolicy";
+import { getBreakerState } from "@/modules/overseer/breakerService";
 import { composeNodeA } from "@/modules/email-campaigner/service/emailComposer";
 import {
     NormalizedNetjanaSignal,
@@ -264,6 +266,14 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
                 requesterId = teamUser?.id;
             }
             if (requesterId) {
+                // This draft approval is created directly (not via ApprovalService),
+                // so set the QUEUED tier + autoDenyAt here too - otherwise the row
+                // defaults to tier "QUEUED" with a null autoDenyAt, which the
+                // auto-deny sweeper's `autoDenyAt: { lte: now }` filter never matches,
+                // leaving the draft stuck PENDING forever (F-07). Mirror
+                // ApprovalService's breaker-extended timeout for consistency.
+                const breakerState = await getBreakerState(teamId);
+                const autoDenyAt = computeAutoDenyAt(ApprovalTier.QUEUED, new Date(), breakerState !== "CLOSED");
                 await prisma.approvalRequest.upsert({
                     where: { id: `approval_draft_${savedDraft.id}` },
                     update: {
@@ -284,6 +294,8 @@ export async function handleIntelFollowupRefresh(payload: IntelFollowupJobPayloa
                         entityType: "Email",
                         entityId: savedDraft.id,
                         status: "PENDING",
+                        tier: ApprovalTier.QUEUED,
+                        autoDenyAt,
                         reason: `Intel signal follow-up draft for ${lead.email || lead.fullName || "lead"}`,
                         payload: {
                             emailId: savedDraft.id,
