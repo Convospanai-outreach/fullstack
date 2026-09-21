@@ -56,10 +56,10 @@ describe("extension tasks/pending route", () => {
 
         expect(res.status).toBe(200);
         expect(body.ok).toBe(true);
-        // Only pending/queued jobs of a supported type are queried, scoped to the team.
+        // Only jobs in the extension status lane of a supported type are queried, scoped to the team.
         const where = mockJobFindMany.mock.calls[0][0].where;
         expect(where.teamId).toBe("team-a");
-        expect(where.status.in).toEqual(["pending", "queued"]);
+        expect(where.status).toBe("awaiting_extension");
         // Each candidate is atomically claimed (status -> processing) before being returned.
         expect(mockJobUpdateMany).toHaveBeenCalledTimes(2);
         expect(body.tasks).toEqual([
