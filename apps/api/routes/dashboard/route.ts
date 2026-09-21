@@ -44,9 +44,22 @@ export async function GET() {
             { id: "s3", title: "Meetings", value: meetingsCount.toString(), change: 0, icon: "📅" },
         ];
 
-        // Revenue series (last 30 days) based on closed-won leads
+        // Revenue series (last 30 days) based on closed-won leads. Bound the load
+        // to the window the series actually reads instead of every closed-won lead
+        // ever (I-04). A lead contributes via `wonAt || updatedAt`, so match on
+        // either; the cutoff is 32 days (wider than the 30-day window) so the
+        // pre-existing local-vs-UTC day-key skew can't clip an edge row.
+        const revenueCutoff = new Date();
+        revenueCutoff.setDate(revenueCutoff.getDate() - 32);
         const leads = await prisma.lead.findMany({
-            where: { teamId, status: "CLOSED_WON" },
+            where: {
+                teamId,
+                status: "CLOSED_WON",
+                OR: [
+                    { wonAt: { gte: revenueCutoff } },
+                    { wonAt: null, updatedAt: { gte: revenueCutoff } },
+                ],
+            },
             select: { value: true, wonAt: true, updatedAt: true }
         });
 

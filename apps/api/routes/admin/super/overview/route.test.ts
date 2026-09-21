@@ -51,9 +51,7 @@ describe("super admin overview route", () => {
                 name: "Team One",
                 credits: 100,
                 createdAt: new Date("2026-06-01T00:00:00.000Z"),
-                members: [{ id: "member-1" }],
-                leads: [{ id: "lead-1" }],
-                campaigns: [{ id: "campaign-1" }],
+                _count: { members: 1, leads: 1, campaigns: 1 },
                 apiKeys: [{ id: "key-1", name: "Prod", scopes: ["leads:read"], isActive: true, lastUsedAt: new Date("2026-06-03T00:00:00.000Z"), createdAt: new Date() }],
             },
         ]);
@@ -106,6 +104,24 @@ describe("super admin overview route", () => {
         });
         expect(body.users[0]).toMatchObject({ email: "admin@example.com", usageAttribution: "user", llmRequests: 1 });
         expect(body.apiKeys[0]).toMatchObject({ name: "Prod", teamName: "Team One" });
+    });
+
+    it("counts team members/leads/campaigns via _count, not by loading id arrays (I-04)", async () => {
+        const { GET } = await import("./route");
+        const response = await GET(new Request("http://localhost/api/admin/super/overview?range=30d"));
+        const body = await response.json();
+
+        // Arg shape: the query aggregates counts in the DB and never selects the
+        // members/leads/campaigns id arrays.
+        const teamSelect = mockPrisma.team.findMany.mock.calls[0][0].select;
+        expect(teamSelect._count).toEqual({ select: { members: true, leads: true, campaigns: true } });
+        expect(teamSelect.members).toBeUndefined();
+        expect(teamSelect.leads).toBeUndefined();
+        expect(teamSelect.campaigns).toBeUndefined();
+
+        // Behavior preserved: the counts still surface on the team row and totals.
+        expect(body.teams[0]).toMatchObject({ memberCount: 1, leadCount: 1, campaignCount: 1 });
+        expect(body.totals).toMatchObject({ leads: 1, campaigns: 1 });
     });
 
     it("reports Netjana Intel webhook health without HMAC configured", async () => {
