@@ -5274,6 +5274,53 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   and depends on the intended relationship between campaign-execution and
   sequence-enrollment — a product decision surfaced to the user rather than guessed.
 
+- **OPEN-260 (Fixed):** roadmap.md item 2.12 (slice 3) — unified campaign start
+  (B-12). Follows the user's decision (after [[OPEN-259]]'s investigation) to
+  implement the status-aware single-action approach.
+  **What existed:** the campaign detail page's "Activate" (draft→active) did
+  `PATCH status=active` then **fire-and-forget** `POST /campaigns/{id}/run`
+  (`.catch(console.warn)`), so on failure the UI showed "active" while nothing was
+  enqueued. The Sequence tab's "Enroll" was a *separate* real send
+  (`POST /campaigns/{id}/sequence/enroll`). `/run` and `/sequence/enroll` are two
+  different outbound mechanisms: `/run`→`handleCampaignExecution` generates one AI
+  draft per lead + a `PENDING SEND_EMAIL_DRAFT` approval; enroll creates
+  `SequenceEnrollment` rows into the saved multi-step `CampaignSequence`.
+  **Fix:** new `POST /api/campaigns/[id]/start` — status-aware single start: if a
+  saved sequence with runnable steps exists → enrol its leads (+ mark campaign
+  active on success); else → the direct-draft path. The sequence-enrollment logic
+  was extracted to `src/lib/campaigns/enrollment.ts` (`enrollCampaignLeads`), shared
+  by both `/start` and the existing `/sequence/enroll` route (which now delegates —
+  its behaviour and test are unchanged). The campaign page's Activate calls `/start`
+  with a confirm dialog, error toast, `Starting…` pending state, and true-status
+  reload (no optimistic flip). **Resume/pause/complete are now pure status PATCHes**
+  — resuming no longer re-triggers `/run`, so a paused-then-resumed campaign can't
+  re-draft/re-enrol already-contacted leads (the draft worker's idempotency guard
+  only skips drafts *still* in draft status, not ones already sent — advisor catch).
+  **Empty-campaign guard (advisor catch):** `handleCampaignExecution` falls back to
+  drafting for up to 10 *arbitrary* team leads when a campaign has none assigned — a
+  latent footgun that only mattered once `/start` awaits and reports this path
+  (Activate's old fire-and-forget hid it). `/start` now refuses the NO_SEQUENCE +
+  zero-leads case with a 400 instead. Guard added in `/start` only; the worker
+  (also `/run`'s contract) is untouched.
+  Tests: colocated `start/route.test.ts` (7 cases — sequence vs draft routing,
+  empty-campaign guard, 401/403/404) is real behavioural coverage; `enroll`'s test
+  still green after delegating; a `tests/unit` source guard
+  (`campaign-start-unification.test.ts`) covers the page + endpoint wiring for the
+  CI gate (the colocated route tests are **not** run by the `tests/unit` CI gate —
+  known gap I-14). Web `tsc --noEmit` clean; full `vitest run tests/unit` green
+  (222/222); colocated start+enroll 11/11.
+  **Known divergences left (documented, not bugs in this change):** (1) `/start`
+  does not gate on campaign status — the UI only shows Activate for `draft`, but a
+  direct `POST` could start a `completed`/`paused` campaign (still MEMBER-gated; the
+  old `/run` had the same gap). (2) Enrolling from the Sequence tab
+  (`/sequence/enroll`) sets `sequence.status` but not `campaign.status`, whereas
+  `/start`'s sequence path sets both — so the same enrollment yields different
+  campaign state depending on which button was used; left to keep the existing
+  enroll route/test untouched. **Owner action:** this is the first change this
+  session that alters what actually gets sent — no unit test can confirm enrolled
+  leads truly receive the sequence, so a §8 live pass (Activate → watch
+  `/approvals` and the sent folder) is owed before fully trusting it.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
