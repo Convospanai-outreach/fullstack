@@ -87,9 +87,9 @@ export async function GET(req: Request) {
                     name: true,
                     credits: true,
                     createdAt: true,
-                    members: { select: { id: true } },
-                    leads: { select: { id: true } },
-                    campaigns: { select: { id: true } },
+                    // Only the counts are used below, so aggregate them in the DB
+                    // instead of loading every member/lead/campaign id per team (I-04).
+                    _count: { select: { members: true, leads: true, campaigns: true } },
                     apiKeys: {
                         select: {
                             id: true,
@@ -285,9 +285,9 @@ export async function GET(req: Request) {
                 name: team.name,
                 createdAt: team.createdAt,
                 credits: team.credits,
-                memberCount: team.members.length,
-                leadCount: team.leads.length,
-                campaignCount: team.campaigns.length,
+                memberCount: team._count.members,
+                leadCount: team._count.leads,
+                campaignCount: team._count.campaigns,
                 apiKeyCount: team.apiKeys.length,
                 activeApiKeyCount: team.apiKeys.filter((key) => key.isActive).length,
                 lastApiKeyUsedAt: latestDate(team.apiKeys.map((key) => key.lastUsedAt)),

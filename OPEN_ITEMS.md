@@ -4836,6 +4836,50 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   to allow the new `signal`. Full suites green: apps/api 1453/1453, apps/web
   457 passed/7 skipped; `tsc --noEmit` clean on both apps.
 
+- **OPEN-249 (Partially fixed):** roadmap.md item 2.11 — bound the hot queries
+  (I-04, I-05). **This PR delivers the two behavior-preserving, no-contract-change
+  bounds and explicitly defers the rest** (see below); the item is *partially*
+  closed, not finished.
+  **Done:**
+  (1) `routes/dashboard/route.ts:48` (the roadmap's named "worst" offender) —
+  loaded every `CLOSED_WON` lead ever, then reduced in memory into a 30-day
+  revenue series. Now bounded with a `wonAt||updatedAt >= 32-day cutoff` filter
+  (`OR: [{wonAt gte}, {wonAt null, updatedAt gte}]`). The cutoff is 32 days —
+  deliberately wider than the 30-day window — because the series builds day-keys
+  from local midnight but compares them as UTC (a pre-existing skew, left alone),
+  so a tight 30-day cutoff could clip an edge row. Byte-identical output.
+  (2) `routes/admin/super/overview/route.ts` — the `team.findMany` selected full
+  `members`/`leads`/`campaigns` **id arrays** only to take `.length` of each
+  (loading potentially millions of ids across all teams). Replaced with
+  `_count: { select: { members, leads, campaigns } }` and read `team._count.*`.
+  Behavior-identical counts.
+  **Deferred (each a named follow-up, not silently dropped):**
+  - **Exports** (`leads/export`, `analytics/export`) — build the whole CSV in
+    memory from an unbounded `findMany`. The roadmap's fix is *streamed* exports;
+    a naive `take` would **silently truncate a user's export (data loss)**, so
+    left untouched — needs a proper streaming PR.
+  - **Cursor pagination on list endpoints** (e.g. `overview`/`admin/usage`
+    `user.findMany`/`team.findMany`, leads list) — changes the response shape the
+    web app consumes; belongs in a PR paired with the frontend, not a drive-by.
+  - **`analytics/roi`, `analytics/journey`** — mix all-time aggregates
+    (`totalLeads`, `revenue`, `marketingSpend`) with a windowed monthly history
+    that uses a `wonAt||updatedAt` COALESCE. A date filter would change the
+    all-time numbers and Prisma `groupBy` can't express the COALESCE cleanly, so
+    a correct fix is a focused aggregate rewrite, deferred.
+  - **`admin/usage`** — its credit/usage math already uses `groupBy`; its only
+    unbounded load is the full `user.findMany` (the pagination item above).
+  - **I-05 await-in-loop** (`campaign-worker.ts:40-56` et al.) — the roadmap
+    suggests `createMany`, but the loop body calls `JobQueue.enqueue(...)` per
+    lead with a per-lead `idempotencyKey` and uses each returned `job.id`; it is
+    **not** a pure `prisma.create`, so `createMany` would drop the idempotency and
+    id semantics. Deferred rather than contorted.
+  Regression tests: new `routes/dashboard/route.test.ts` (asserts the date bound's
+  arg shape + cutoff ≥30 days, and that a won lead's value still lands in its day
+  bucket); extended `routes/admin/super/overview/route.test.ts` (asserts the
+  `_count` select is used and the id arrays are *not* selected, plus the counts
+  still surface). Updated that test's `team.findMany` mock to return `_count`.
+  Full apps/api suite 1456/1456; `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
