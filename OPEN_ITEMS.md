@@ -5321,6 +5321,44 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   leads truly receive the sequence, so a §8 live pass (Activate → watch
   `/approvals` and the sent folder) is owed before fully trusting it.
 
+- **OPEN-261 (Fixed — U-01, U-03; U-02 & U-05 deferred to a decision):** roadmap.md
+  item 2.12 (slice 4) — first-run wizard blockers.
+  **U-01 (mailbox step falsely "coming soon"):** `setup/page.tsx`'s
+  `MAILBOX_PROVIDERS` marked Google Workspace and Microsoft 365 `comingSoon: true`
+  (disabled), pushing Gmail users to SMTP app-passwords — even though the wizard
+  already wired `connectGoogleMailbox`/`connectMicrosoftMailbox` (real OAuth
+  initiators hitting `/integrations/google/oauth/start` and
+  `/api/integrations/microsoft/oauth/start` — the same endpoints Settings →
+  Mailboxes uses), the step-3 submit already special-cased GOOGLE/MICROSOFT
+  ("connect via their own OAuth buttons... nothing to POST"), and the footer label
+  already handled the non-SMTP/RESEND case. The flag was stale. **Fix:** flipped
+  `comingSoon` to false for both, updated the provider copy, and added the missing
+  `provider === "GOOGLE"`/`"MICROSOFT"` connect-button panels that invoke the
+  already-wired handlers. Low risk (exposes an already-built, already-offered flow);
+  the OAuth round-trip itself needs the owner's live pass (can't test login here).
+  **U-03 (dead-end credits step):** wizard step 10 (`CommercialReadiness`) showed
+  "Credits available: false" with no way to buy. **Fix:** added an "Add credits to
+  start sending" link to `/credits` (a real top-level route) shown when
+  `teamCredits <= 0`.
+  Regression test: `wizard-blockers.test.ts` (source-string guards — no React render
+  harness). Web `tsc --noEmit` clean; full `vitest run tests/unit` green (224/224).
+  **U-02 and U-05 deliberately NOT done — each reverses a deliberate, commented
+  decision, so surfaced for a product call rather than guessed (roadmap-deviation
+  rule):**
+  - **U-02 (make ICP optional for the first campaign):** `/campaigns/new` requires a
+    saved ICP, but so does the **backend** — `apps/web/src/app/api/campaigns/route.ts`
+    hard-returns 400 without `icpId` ("A saved ICP is a prerequisite - it's the
+    audience") and uses the ICP to compute `icpFitScore` on every attached lead.
+    Making it optional is a frontend+backend change that also decides what lead
+    scoring means with no ICP — a product decision, not a bug fix.
+  - **U-05 (hide the 10 always-on modules under `emailFirstBeta`):**
+    `productFlags.ts`'s `ALWAYS_ON_HIDDEN_FEATURE_KEYS` force-surfaces 10 modules
+    unconditionally, with a detailed comment explaining this was deliberate ("these
+    all had working UI and backend already, just no default path... aren't invisible
+    to a fresh team"). The roadmap wants them hidden for the email-first beta —
+    directly reversing that documented choice, and changing every user's sidebar.
+    Needs the owner's call on which intent wins.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
