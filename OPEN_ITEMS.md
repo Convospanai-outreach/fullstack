@@ -5114,6 +5114,40 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   review).** ToS note: v2 is assistive (human reviews/sends), not autonomous
   outbound automation.
 
+- **OPEN-256 (Fixed):** `ml-training/review` cross-tenant IDOR (S-04 class, adjacent to item 2.7).
+  **Context:** roadmap.md item 2.7 (tenant scoping, S-04/S-05) was already fully
+  implemented — see [[OPEN-245]]: `TrainingDataset`/`TrainingRecord` have `teamId`,
+  the user-facing `training/*` routes (`dataset` create/`list`/`record`/`status`)
+  scope by the caller's team with anti-spoof tests, all four `admin/*` routes
+  (stats/client-errors/runtime-overview/llm-stats) and the platform training ops
+  (`training/start`, `dataset/generate`, `dataset/review`, `ml-training/generate`)
+  gate on `SYSTEM_ADMIN`, and `checkAdmin()`/`getAdminUser()` default to
+  `SYSTEM_ADMIN`. The roadmap table row for 2.7 is stale.
+  **New finding (not in the S-04 citation, found while re-verifying 2.7):** the
+  `ml-training/review` route (`routes/ml-training/review/route.ts`, mounted — a
+  compiled `dist/` artifact confirms it's reachable) authenticated on `userId`
+  only, with **no team scope and no admin gate** on either handler:
+  - `POST` → `reviewService.reviewRecord(recordId, …)` / `submitDatasetReview({datasetId, …})`
+    did `trainingRecord.update({ where: { id } })` / `trainingDataset.update({ where:
+    { id } })` with no `teamId` — **any signed-in user could score/approve any
+    team's training records or dataset by id**, poisoning their training data.
+  - `GET` → `getSampleForReview`/`getReviewQueue`/`getDatasetStats` by `datasetId`
+    with no `teamId` — **cross-tenant read** of another team's training records/stats.
+  **Fix:** all five `ReviewService` methods now take `teamId` and scope by it
+  (`updateMany`/`findFirst` with `where: { id, teamId }` — fails closed for
+  wrong-team and legacy null-team rows; `updateMany` avoids a findFirst-then-update
+  TOCTOU; the raw sampling query gains `AND "teamId" = $teamId`). The route extracts
+  `teamId` from `getCurrentContextFromRequest`, 403s with no active team, and maps
+  a not-owned result to 404 without leaking existence.
+  Regression tests: `ReviewService.scoping.test.ts` (where-clause carries `teamId`
+  literally — guards against a `teamId ?? undefined` slip — + null→null for
+  wrong/legacy team; scoped dataset review/stats/queue/sample) and
+  `ml-training/review/route.test.ts` (401/403/404 + teamId threaded through).
+  16 new tests; API strict typecheck clean; 28/28 across ml-training + training.
+  **Documented follow-up:** none outstanding for this route — `getReviewQueue`,
+  `getDatasetStats`, `getSampleForReview` are only called by this one route and are
+  now scoped through it.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---

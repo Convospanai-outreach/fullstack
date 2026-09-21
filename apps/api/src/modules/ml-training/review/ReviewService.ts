@@ -13,10 +13,11 @@ export class ReviewService {
     /**
      * Fetch records pending review
      */
-    async getReviewQueue(datasetId: string, limit: number = 50) {
+    async getReviewQueue(datasetId: string, teamId: string, limit: number = 50) {
         const records = await prisma.trainingRecord.findMany({
             where: {
                 datasetId,
+                teamId,
                 reviewedBy: null
             },
             take: limit,
@@ -27,14 +28,20 @@ export class ReviewService {
     }
 
     /**
-     * Submit review score for a single record
+     * Submit review score for a single record. Scoped to teamId so a user cannot
+     * score/approve another team's training record (which would poison its
+     * training data). Returns null when the record does not belong to the team -
+     * including legacy null-team rows, which the compound `where` fails closed on.
+     * updateMany (not update) both scopes the non-unique compound condition and
+     * avoids a findFirst-then-update TOCTOU window.
      */
     async reviewRecord(
         recordId: string,
         reviewerId: string,
         score: ReviewScore,
-        approved: boolean
-    ) {
+        approved: boolean,
+        teamId: string
+    ): Promise<{ avgScore: number; approved: boolean } | null> {
 
         // Validate score range
         const avgScore = this.calculateAverageScore(score);
@@ -43,8 +50,8 @@ export class ReviewService {
             approved = false; // Auto-reject if score below threshold
         }
 
-        await prisma.trainingRecord.update({
-            where: { id: recordId },
+        const updated = await prisma.trainingRecord.updateMany({
+            where: { id: recordId, teamId },
             data: {
                 reviewScore: avgScore,
                 reviewedBy: reviewerId,
@@ -52,6 +59,8 @@ export class ReviewService {
                 approved
             }
         });
+
+        if (updated.count === 0) return null;
 
         return { avgScore, approved };
     }
@@ -78,7 +87,16 @@ export class ReviewService {
     /**
      * Submit dataset-level review (after sampling)
      */
-    async submitDatasetReview(review: DatasetReviewSubmission) {
+    async submitDatasetReview(review: DatasetReviewSubmission, teamId: string): Promise<{ avgScore: number; approved: boolean } | null> {
+
+        // Only the owning team may review its own dataset (fails closed for
+        // legacy null-team datasets). Returns null so the route can 404 without
+        // leaking existence.
+        const owned = await prisma.trainingDataset.findFirst({
+            where: { id: review.datasetId, teamId },
+            select: { id: true }
+        });
+        if (!owned) return null;
 
         const avgScore = this.calculateAverageScore(review.scores);
 
@@ -98,10 +116,10 @@ export class ReviewService {
             }
         });
 
-        // Update dataset status
+        // Update dataset status (scoped by teamId here too, not just the precheck).
         if (review.approved) {
-            await prisma.trainingDataset.update({
-                where: { id: review.datasetId },
+            await prisma.trainingDataset.updateMany({
+                where: { id: review.datasetId, teamId },
                 data: { status: 'REVIEWED' }
             });
         }
@@ -112,9 +130,9 @@ export class ReviewService {
     /**
      * Get dataset review statistics
      */
-    async getDatasetStats(datasetId: string) {
-        const dataset = await prisma.trainingDataset.findUnique({
-            where: { id: datasetId },
+    async getDatasetStats(datasetId: string, teamId: string) {
+        const dataset = await prisma.trainingDataset.findFirst({
+            where: { id: datasetId, teamId },
             include: {
                 records: {
                     select: {
@@ -128,7 +146,7 @@ export class ReviewService {
         });
 
         if (!dataset) {
-            throw new Error("Dataset not found");
+            return null; // not found, or not owned by this team
         }
 
         const totalRecords = dataset.records.length;
@@ -153,12 +171,12 @@ export class ReviewService {
     /**
      * Get random sample of records for quick review
      */
-    async getSampleForReview(datasetId: string, sampleSize: number = 50) {
+    async getSampleForReview(datasetId: string, teamId: string, sampleSize: number = 50) {
 
 
         const records = await prisma.$queryRaw<any[]>`
       SELECT * FROM "TrainingRecord"
-      WHERE "datasetId" = ${datasetId}
+      WHERE "datasetId" = ${datasetId} AND "teamId" = ${teamId}
       ORDER BY RANDOM()
       LIMIT ${sampleSize}
     `;

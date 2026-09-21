@@ -36,10 +36,13 @@ const reviewDatasetSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
 
     if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!teamId) {
+        return NextResponse.json({ error: "No active team" }, { status: 403 });
     }
 
     try {
@@ -53,8 +56,14 @@ export async function POST(req: NextRequest) {
                 recordId,
                 userId,
                 score,
-                approved
+                approved,
+                teamId
             );
+
+            // null => the record isn't in the caller's team (S-04 class IDOR).
+            if (!result) {
+                return NextResponse.json({ error: "Record not found" }, { status: 404 });
+            }
 
             return NextResponse.json({
                 success: true,
@@ -67,7 +76,11 @@ export async function POST(req: NextRequest) {
             const result = await reviewService.submitDatasetReview({
                 ...data,
                 reviewerId: userId
-            });
+            }, teamId);
+
+            if (!result) {
+                return NextResponse.json({ error: "Dataset not found" }, { status: 404 });
+            }
 
             return NextResponse.json({
                 success: true,
@@ -84,10 +97,13 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    const { userId } = await getCurrentContextFromRequest(req);
+    const { userId, teamId } = await getCurrentContextFromRequest(req);
 
     if (!userId) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (!teamId) {
+        return NextResponse.json({ error: "No active team" }, { status: 403 });
     }
 
     try {
@@ -101,12 +117,18 @@ export async function GET(req: NextRequest) {
 
         if (sample) {
             const sampleSize = parseInt(searchParams.get("size") || "50");
-            const records = await reviewService.getSampleForReview(datasetId, sampleSize);
+            // Scoped by teamId: another team's dataset returns no records rather
+            // than leaking its training data (S-04 class IDOR).
+            const records = await reviewService.getSampleForReview(datasetId, teamId, sampleSize);
 
             return NextResponse.json({ records });
         } else {
-            const queue = await reviewService.getReviewQueue(datasetId);
-            const stats = await reviewService.getDatasetStats(datasetId);
+            const stats = await reviewService.getDatasetStats(datasetId, teamId);
+            // null => not the caller's dataset; 404 without leaking existence.
+            if (!stats) {
+                return NextResponse.json({ error: "Dataset not found" }, { status: 404 });
+            }
+            const queue = await reviewService.getReviewQueue(datasetId, teamId);
 
             return NextResponse.json({ queue, stats });
         }
