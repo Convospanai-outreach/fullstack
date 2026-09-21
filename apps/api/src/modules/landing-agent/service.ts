@@ -608,10 +608,16 @@ export const landingAgentService = {
             console.error(`[landingAgentService] Cloudflare push failed for page ${updates.updatedPage.id}: ${cloudflareResult.details}`);
         }
 
+        // Surface the edge-push outcome so the caller/UI doesn't report an
+        // unqualified success when the page never reached Cloudflare (skipped =
+        // env not configured, error = KV write failed). Only the status enum is
+        // returned to the client - `details` can carry Cloudflare's raw response
+        // body, which stays server-side in the console.error above (OPEN-21).
         return {
             status: "PUBLISHED" as const,
             page: updates.updatedPage,
             campaign: updates.updatedCampaign,
+            cloudflare: { status: cloudflareResult.status },
         };
     },
 

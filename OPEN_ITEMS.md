@@ -4733,6 +4733,50 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   newly-imported `wabaCredentials`. Full apps/api suite 245/245 files,
   1445/1445 tests; `tsc --noEmit` clean on both apps.
 
+- **OPEN-247 (Fixed):** roadmap.md item 2.6 — landing-page "Publish" reported
+  success even when the page never reached Cloudflare's edge (F-16).
+  **Confirmed and fixed (one of two claims)**: `landingAgentService.publishCampaign`
+  (`apps/api/src/modules/landing-agent/service.ts:605-616`) called
+  `cloudflarePagesService.publishPageToCloudflare(...)` after the DB transaction
+  committed, logged the `error` case to `console.error`, but always returned
+  `{ status: "PUBLISHED" }` — so a `skipped` (Cloudflare env vars unset) or
+  `error` (KV write failed) edge push was invisible to the caller and the editor
+  UI always showed "Published successfully." Fixed by adding
+  `cloudflare: { status: cloudflareResult.status }` to the return value and
+  branching on it in the editor
+  (`apps/web/src/app/(dashboard)/landing-agent/[id]/editor/page.tsx`): `error`
+  shows a "sync to Cloudflare failed, page may be stale, retry" warning and
+  skips the `/p/<slug>` redirect so the warning stays visible; `skipped` shows a
+  "edge delivery not configured, preview-link only" notice and still redirects;
+  `pushed` is unchanged. **OPEN-21 (never leak secrets):** only the `status`
+  enum is returned to the client — the `error` `details` string carries
+  Cloudflare's raw `res.text()` response body
+  (`cloudflarePagesService.ts:165`), which stays server-side in the existing
+  `console.error` and is never surfaced to the browser.
+  **Note — "hard error" softened to a warning:** the roadmap said "surface
+  `skipped` as a hard error." A throw at that call site can't fail the publish
+  (the page is already committed as `published` and audited before the edge push
+  runs, with no rollback) and would 500 a client whose page *is* published; and
+  `skipped` is the documented, correct behavior in local/dev where Cloudflare
+  isn't configured and pages are served from the `/p/<slug>` preview, so a hard
+  failure would break local publishing entirely. Surfacing the state honestly
+  (and not auto-redirecting past a genuine `error`) satisfies the finding's
+  intent without either problem.
+  **Correction to the roadmap's own finding** (rule 2 — re-verified, does NOT
+  hold): the roadmap also claimed `customDomainPoller.ts:10-20` "throws" and
+  should "degrade instead of throw." The real file
+  (`apps/api/src/modules/branding/customDomainPoller.ts`) throws from
+  `writeHostOwnership` **deliberately**, inside the `try/catch` of
+  `pollPendingCustomDomains`, which catches and logs it and leaves the domain
+  `pending` for retry. The code comment (lines 13-21) explains why: degrading to
+  a no-op would mark a domain `active` with **no** `host:→teamId` mapping ever
+  written to KV — a tenant-isolation hole in the landing-pages Worker's
+  isolation check. Left untouched; "degrade instead of throw" would introduce a
+  security bug. Regression test:
+  `apps/api/src/modules/landing-agent/service.publish.test.ts` (3 cases —
+  `skipped`/`error`/`pushed` each appear in the returned object; asserts the raw
+  `error` details never reach the caller). `tsc --noEmit` clean on both apps.
+
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 
 ---
