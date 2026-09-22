@@ -114,6 +114,40 @@ describe("SequenceService.executeRun - LinkedIn step types", () => {
 
         expect(result.status).toBe("AWAITING_MANUAL_REVIEW");
     });
+
+    it.each(["LI_CHAT", "CHAT_MESSAGE"])(
+        "enqueues an INSERT_DRAFT task for %s steps that carry a drafted body",
+        async (stepType) => {
+            const run = baseRun({ step: { stepType, body: "Hey there, quick note." } });
+            mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+
+            await SequenceService.executeRun({ runId: "run-1" });
+
+            expect(enqueueExtensionTask).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    teamId: "team-1",
+                    type: "INSERT_DRAFT",
+                    idempotencyKey: "ext_insertdraft_run-1",
+                    payload: expect.objectContaining({
+                        profileUrl: "https://linkedin.com/in/lead-1",
+                        leadId: "lead-1",
+                        body: "Hey there, quick note.",
+                    }),
+                })
+            );
+        }
+    );
+
+    it("falls back to OPEN_PROFILE for a chat step with no drafted body", async () => {
+        const run = baseRun({ step: { stepType: "LI_CHAT", body: "" } });
+        mockDb.sequenceStepRun.findUnique.mockResolvedValue(run);
+
+        await SequenceService.executeRun({ runId: "run-1" });
+
+        expect(enqueueExtensionTask).toHaveBeenCalledWith(
+            expect.objectContaining({ type: "OPEN_PROFILE", idempotencyKey: "ext_openprofile_run-1" })
+        );
+    });
 });
 
 describe("SequenceService.executeRun - CALL step", () => {

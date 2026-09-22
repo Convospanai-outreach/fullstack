@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "CraftMyFunnel Assistant (v2 preview)",
+  "description": "Assistive LinkedIn outreach: capture profiles, poll CraftMyFunnel tasks, and insert drafts for you to review and send.",
+  "version": "2.0.0",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "alarms",
+    "notifications",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.linkedin.com/*",
+    "https://craftmyfunnel.live/*"
+  ],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*"
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.linkedin.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}
