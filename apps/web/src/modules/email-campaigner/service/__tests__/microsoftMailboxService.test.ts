@@ -40,6 +40,22 @@ describe("microsoftMailboxService", () => {
             expect(payload.teamId).toBe("team-alpha");
             expect(payload.userId).toBe("user-1");
         });
+
+        // Mirrors the Google/Facebook guard: the redirect_uri must match the Azure
+        // registration exactly, so prod refuses to fall back to a guessed host.
+        it("refuses to build an OAuth URL in production without MICROSOFT_REDIRECT_URI", () => {
+            vi.stubEnv("NODE_ENV", "production");
+            vi.stubEnv("MICROSOFT_REDIRECT_URI", "");
+            try {
+                expect(() => buildMicrosoftMailboxAuthUrl({ teamId: "t", userId: "u" })).toThrow(
+                    /MICROSOFT_REDIRECT_URI is not set/
+                );
+                vi.stubEnv("MICROSOFT_REDIRECT_URI", "https://craftmyfunnel.live/api/integrations/microsoft/oauth/callback");
+                expect(() => buildMicrosoftMailboxAuthUrl({ teamId: "t", userId: "u" })).not.toThrow();
+            } finally {
+                vi.unstubAllEnvs();
+            }
+        });
     });
 
     describe("connectMicrosoftMailbox", () => {

@@ -5444,20 +5444,39 @@ verify the `Deploy to Oracle VMs` run succeeds after merge.
   instance type/region vs an India-heavy user base (I-12); and route health-check failures to a team
   channel (Slack/Discord/PagerDuty) — needs a webhook secret, so it can't be wired here.
 
-- **OPEN-264 (Open — found while fixing OPEN-263; owner verification needed, NOT fixed here):**
+- **OPEN-264 (Fixed in code — one real defect + www→apex alignment; prod verification owner-owed):**
   stale `www.craftmyfunnel.live` references after the 2.13 canonical-host change made the apex
-  `craftmyfunnel.live` canonical (www 301-redirects to it). `grep -rn "www\.craftmyfunnel"` found,
-  besides the health check (fixed in OPEN-263):
-  - **OAuth callback URLs hardcoded to www** — `googleMailboxService.ts:48`,
-    `microsoftMailboxService.ts:24`, `facebookLeadsService.ts:38`, and the
-    `microsoft/oauth/callback/route.ts:13` fallback base (`NEXT_PUBLIC_APP_URL || www...`). If the
-    provider redirects to `www.` and it 301s to the apex, the OAuth `code`/`state` can be dropped
-    and/or the token-exchange `redirect_uri` won't match what's registered — a potential broken
-    round-trip. **This is exactly the U-01 mailbox-OAuth flow whose live pass is owner-owed from
-    PR #566 (OPEN-261).** NOT changed here: flipping a `redirect_uri` blindly could break a flow
-    that currently works if `www.` is what's registered in the provider console — the owner must
-    confirm the registered URIs first, then align code + console together.
-  - `docs/api/page.tsx` example URLs use www (cosmetic; low priority).
+  `craftmyfunnel.live` canonical (www 301-redirects to it).
+  **Debugging conclusion (what I could verify in code):** it is **not** an internal
+  authorize-vs-token-exchange host mismatch — all three services (`googleMailboxService`,
+  `microsoftMailboxService`, `facebookLeadsService`) build the OAuth authorize URL and the token
+  exchange from the **same** `getConfig().redirectUri`, so those two always agree. The redirect_uri
+  is env-driven first (`GOOGLE_GMAIL_REDIRECT_URI` / `MICROSOFT_REDIRECT_URI` /
+  `FACEBOOK_LEADS_REDIRECT_URI`); the hardcoded string is only a fallback.
+  **Real defect found & fixed:** Google and Facebook **throw in production** if their redirect-URI
+  env var is unset ("refusing to build an OAuth URL with an unverified fallback"), but **Microsoft
+  had no such guard** — it would silently build the OAuth URL from the `www` fallback in prod. Added
+  the identical prod guard to `getMicrosoftConfig()`. Also aligned all four hardcoded `www` fallbacks
+  to the canonical apex (`googleMailboxService`, `microsoftMailboxService`, `facebookLeadsService`,
+  and the `microsoft/oauth/callback/route.ts` post-callback base). Regression test:
+  `microsoftMailboxService.test.ts` (prod guard throws without the env var, passes with it). web
+  `tsc --noEmit` clean.
+  **⚠️ MERGE GATE — potential deploy-time breakage (verify before merging):** unlike Google/Facebook
+  (whose guards predate this session, so a missing env var would already be failing), Microsoft has
+  run *without* a guard, so if `MICROSOFT_REDIRECT_URI` is currently **unset** in prod, Microsoft
+  OAuth is working today via the `www` fallback. Both this PR's changes (the new hard-throw guard AND
+  the `www`→apex fallback) would then break Microsoft mailbox connect on the next auto-deploy
+  (`craftmyfunnel-web` auto-deploys `main`). If the env var is **set** to the correct registered URI,
+  both changes are inert and safe. I could not read the Render env (the Render MCP exposes only a
+  *write* env tool, no read), so **do not merge until `MICROSOFT_REDIRECT_URI` is confirmed set** in
+  `craftmyfunnel-web` to the apex callback URL that is registered in Azure.
+  **Owner-owed prod verification (I cannot see prod env or the provider consoles):** for each of
+  Google/Microsoft/Facebook, confirm (1) the `*_REDIRECT_URI` env var is **set** on the server to
+  the **apex** callback URL, and (2) the **exact same apex URL is registered** as an authorized
+  redirect URI in the provider console (Google Cloud, Azure App, Meta App). If a console currently
+  only has the `www` variant registered, add the apex one. This is the same U-01 mailbox-OAuth flow
+  whose live pass is owner-owed from PR #566 (OPEN-261) — do this verification during that pass.
+  - `docs/api/page.tsx` example URLs still use www (cosmetic doc examples; left as-is).
 
 **Last Reconciled:** 2026-08-23 (**Session-wide production bug-hunting campaign 2026-08-21/23**: triggered by discovering the `/admin/audit` auth bug, which led to systematically re-checking every apps/api and apps/web route for the same bug classes — see OPEN-56 through OPEN-60 below. All fixed and merged/deployed except the manual PAT rotation owed to the user.)
 

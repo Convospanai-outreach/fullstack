@@ -21,10 +21,16 @@ function getMicrosoftConfig() {
     const clientSecret = process.env["MICROSOFT_CLIENT_SECRET"];
     const redirectUri =
         process.env["MICROSOFT_REDIRECT_URI"] ||
-        "https://www.craftmyfunnel.live/api/integrations/microsoft/oauth/callback";
+        "https://craftmyfunnel.live/api/integrations/microsoft/oauth/callback";
 
     if (!clientId || !clientSecret) {
         throw new Error("MICROSOFT_CLIENT_ID and MICROSOFT_CLIENT_SECRET must be configured.");
+    }
+
+    // Match the Google/Facebook guard: the redirect_uri must exactly equal what's
+    // registered in the Azure app, so refuse to guess a fallback host in prod.
+    if (!process.env["MICROSOFT_REDIRECT_URI"] && process.env["NODE_ENV"] === "production") {
+        throw new Error("MICROSOFT_REDIRECT_URI is not set — refusing to build an OAuth URL with an unverified fallback.");
     }
 
     return { clientId, clientSecret, redirectUri };
